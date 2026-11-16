@@ -1,5 +1,8 @@
 {{>api_info}}
 
+using System.Security.Cryptography;
+using System.Text;
+
 namespace {{packageName}}.Auth.OAuth;
 
 /// <summary>
@@ -19,7 +22,8 @@ namespace {{packageName}}.Auth.OAuth;
 /// </summary>
 public class OAuth2AuthorizationCodeAuthenticator
     : BaseAuthenticator,
-        IHttpAwareAuthenticator
+        IHttpAwareAuthenticator,
+        IInvalidatableAuthenticator
 {
     private readonly string _host;
     private readonly string _clientId;
@@ -33,6 +37,9 @@ public class OAuth2AuthorizationCodeAuthenticator
     /* Written by ExchangeCodeAsync (typically from a callback thread) and read
      * by request threads, so volatile gives the reader a happens-before. */
     private volatile bool _tokenExchanged;
+    /* The PKCE code verifier of the last authorization URL built, kept until
+     * the code is exchanged (RFC 7636). */
+    private volatile string? _pkceVerifier;
 
     /// <summary>
     /// Create a new authorization code authenticator.
@@ -72,9 +79,11 @@ public class OAuth2AuthorizationCodeAuthenticator
         string[] scopes,
         Uri? refreshUrl,
         OAuth2TokenManager tokenManager,
-        bool tokenExchanged
+        bool tokenExchanged,
+        string? pkceVerifier = null
     )
     {
+        _pkceVerifier = pkceVerifier;
         _tokenManager = tokenManager;
         _tokenExchanged = tokenExchanged;
         _host = host;
@@ -89,6 +98,9 @@ public class OAuth2AuthorizationCodeAuthenticator
 
     /// <summary>The session this authenticator holds (internal, for rediscovery).</summary>
     internal OAuth2TokenManager TokenManager => _tokenManager;
+
+    /// <summary>The pending PKCE code verifier (internal, for rediscovery).</summary>
+    internal string? PkceVerifier => _pkceVerifier;
 
     /// <summary>Whether a code exchange succeeded (internal, for rediscovery).</summary>
     internal bool TokenExchanged => _tokenExchanged;
@@ -122,6 +134,16 @@ public class OAuth2AuthorizationCodeAuthenticator
             parameters["state"] = state;
         }
 
+        /* RFC 7636 / RFC 9700 section 2.1.1: bind the code to this client with
+         * a PKCE S256 challenge. The 43-character verifier (32 random bytes,
+         * base64url) is kept for ExchangeCodeAsync. */
+        string verifier = Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+        _pkceVerifier = verifier;
+        parameters["code_challenge"] = Base64UrlEncode(
+            SHA256.HashData(Encoding.ASCII.GetBytes(verifier))
+        );
+        parameters["code_challenge_method"] = "S256";
+
         string query = string.Join(
             "&",
             parameters.Select(p =>
@@ -136,6 +158,15 @@ public class OAuth2AuthorizationCodeAuthenticator
         string authUrl = _authorizationUrl.OriginalString;
         string separator = authUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
         return new Uri(authUrl + separator + query);
+    }
+
+    private static string Base64UrlEncode(byte[] bytes)
+    {
+        return Convert
+            .ToBase64String(bytes)
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
     }
 
     /// <summary>
@@ -164,11 +195,28 @@ public class OAuth2AuthorizationCodeAuthenticator
             ["client_secret"] = _clientSecret,
             ["redirect_uri"] = _redirectUri.OriginalString,
         };
+        string? verifier = _pkceVerifier;
+        if (verifier is not null)
+        {
+            parameters["code_verifier"] = verifier;
+        }
         /* Always POST the authorization_code grant: the exchange bypasses
          * the token cache and the refresh path, replaces the session on
          * success and keeps the previous session when the code is rejected. */
         _ = await _tokenManager.ExchangeAsync(_tokenUrl, parameters).ConfigureAwait(false);
         _tokenExchanged = true;
+        _pkceVerifier = null;
+    }
+
+    /// <summary>
+    /// Drops the cached access token so that the next request fetches a fresh
+    /// one (a refresh grant first when a refresh token is held, which is kept).
+    /// The SDK calls this itself when the API answers 401; callers may use it
+    /// to force a refresh.
+    /// </summary>
+    public void InvalidateAccessToken()
+    {
+        _tokenManager.InvalidateAccessToken();
     }
 
     /// <inheritdoc/>
