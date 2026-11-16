@@ -398,6 +398,25 @@ class PetApiTest {
     @DisplayName("Mock tests")
     inner class MockTests {
         @Test
+        @DisplayName("getPetAvatarThumbnail rejects malformed base64 with a SerializationException")
+        fun testGetPetAvatarThumbnailRejectsMalformedBase64() {
+            val engine =
+                MockEngine {
+                    respond(
+                        content = "\"!!not*base64??\"",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val malformedApi = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            assertThrows(SerializationException::class.java) {
+                runBlocking { malformedApi.getPetAvatarThumbnail(1L) }
+            }
+        }
+
+        @Test
         @DisplayName("setPetAvatar streams raw bytes with declared content type")
         fun testSetPetAvatarMock() {
             // setPetAvatar (PUT /pet/{petId}/avatar) takes a type:string

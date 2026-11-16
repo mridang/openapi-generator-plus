@@ -319,7 +319,12 @@ impl BaseApi {
                     /* Base64 string of the binary payload. */
                     Ok(serde_json::Value::String(s)) => base64::engine::general_purpose::STANDARD
                         .decode(s.as_bytes())
-                        .unwrap_or_default(),
+                        .map_err(|e| {
+                            crate::errors::serialization_error::SerializationError::new(
+                                format!("Invalid base64 value for a format: byte response: {e}"),
+                                Some(Box::new(e)),
+                            )
+                        })?,
                     /* JSON array of byte values -- already the target shape. */
                     Ok(serde_json::Value::Array(items))
                         if items.iter().all(|v| v.as_u64().is_some_and(|n| n <= 255)) =>

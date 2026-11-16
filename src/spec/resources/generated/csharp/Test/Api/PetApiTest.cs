@@ -709,6 +709,19 @@ public class PetApiTest
         }
     }
 
+    [Fact]
+    public async Task GetPetAvatarThumbnailRejectsMalformedBase64()
+    {
+        var api = new PetApi(
+            new FakeApiClient(200, "application/json", "\"!!not*base64??\""),
+            new Configuration("http://localhost")
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            api.GetPetAvatarThumbnailAsync(1L)
+        );
+    }
+
     private sealed class FakeApiClient : IApiClient
     {
         private readonly int _statusCode;

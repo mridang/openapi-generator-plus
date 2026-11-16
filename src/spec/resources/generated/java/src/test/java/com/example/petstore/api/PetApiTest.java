@@ -215,6 +215,19 @@ class PetApiTest {
   }
 
   @Test
+  void testGetPetAvatarThumbnailRejectsMalformedBase64() {
+    ApiClient malformed =
+        (method, url, headers, body) ->
+            new ApiHttpResponse(
+                200, "\"!!not*base64??\"", Map.of("Content-Type", "application/json"));
+    PetApi malformedApi =
+        new PetApi(malformed, Configuration.builder().baseUrl("http://localhost").build());
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> malformedApi.getPetAvatarThumbnail(1L))
+        .isInstanceOf(com.example.petstore.errors.SerializationException.class);
+  }
+
+  @Test
   void testGetPetAvatarThumbnail() throws Exception {
     // The thumbnail is a top-level `format: byte` value carried as
     // application/json, so it arrives as the JSON string literal

@@ -397,6 +397,23 @@ function createMockServer(
   });
 }
 
+describe("PetApi top-level byte responses", () => {
+  test("getPetAvatarThumbnail rejects malformed base64 with a SerializationError", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      '"!!not*base64??"',
+    );
+    try {
+      await expect(mockApi.getPetAvatarThumbnail(1)).rejects.toBeInstanceOf(
+        SerializationError,
+      );
+    } finally {
+      close();
+    }
+  });
+});
+
 describe("PetApi error handling", () => {
   test("404 response throws error", async () => {
     const { api: mockApi, close } = await createMockServer(

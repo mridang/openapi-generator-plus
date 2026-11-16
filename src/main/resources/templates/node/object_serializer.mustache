@@ -940,6 +940,11 @@ export class ObjectSerializer {
     return value as T;
   }
 
+  /** Decode a `format: byte` string, rejecting malformed base64 with a SerializationError. */
+  static decodeBase64(value: string): Buffer {
+    return decodeBase64(value);
+  }
+
   /**
    * The bytes of a binary response that came back as JSON, which happens when an
    * operation declares both a binary and an application/json response and the

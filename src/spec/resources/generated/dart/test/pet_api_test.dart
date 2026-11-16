@@ -811,6 +811,34 @@ void main() {
      * deserialize failure (SerializationException) rather than silently handing
      * back the raw string. getPetById deserializes into Pet, so a garbage body
      * must surface loudly. */
+    test(
+      'getPetAvatarThumbnail rejects malformed base64 with a SerializationException',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('"!!not*base64??"')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(
+            api.getPetAvatarThumbnail(1),
+            throwsA(isA<SerializationException>()),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('malformed 2xx JSON body propagates a deserialize error', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {

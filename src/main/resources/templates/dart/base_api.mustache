@@ -257,7 +257,7 @@ class BaseApi {
          * the bytes of the quoted literal — both wrong. */
         final inner = parseJson(response.body);
         if (inner is String) {
-          data = base64Decode(inner) as T?;
+          data = decodeBase64(inner) as T?;
         } else {
           /* Not a string literal (shouldn't happen for format:byte); fall
            * back to the binary decode path below by treating it as raw. */

@@ -317,9 +317,16 @@ abstract class BaseApi {
                             response.body.toByteArray(Charsets.UTF_8) as T
                         } else {
                             val inner = objectSerializer.deserialize<String>(response.body) ?: ""
-                            java.util.Base64
-                                .getDecoder()
-                                .decode(inner) as T
+                            try {
+                                java.util.Base64
+                                    .getDecoder()
+                                    .decode(inner) as T
+                            } catch (e: IllegalArgumentException) {
+                                throw com.example.petstore.errors.SerializationException(
+                                    "Invalid base64 value for a format: byte response",
+                                    e,
+                                )
+                            }
                         }
                     } else if (isTextResponseContentType(responseContentType)) {
                         response.body.toByteArray(Charsets.UTF_8) as T

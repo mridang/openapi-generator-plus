@@ -320,11 +320,7 @@ public abstract class BaseApi {
            * base64-decode the inner string to recover the raw bytes —
            * returning neither the quoted literal's UTF-8 bytes nor the
            * still-encoded base64 string. */
-          String inner =
-              objectSerializer.deserialize(
-                  response.body(),
-                  new com.fasterxml.jackson.core.type.TypeReference<String>() {}.getType());
-          rawBytes = java.util.Base64.getDecoder().decode(inner);
+          rawBytes = objectSerializer.deserialize(response.body(), byte[].class);
         } else {
           rawBytes = response.body().getBytes(StandardCharsets.UTF_8);
         }
