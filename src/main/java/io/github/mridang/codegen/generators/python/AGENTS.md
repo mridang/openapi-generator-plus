@@ -403,3 +403,20 @@ etc/ci-local.sh check --quick
 ```
 
 The first command runs the Python specs end to end (client tests, ruff format, ruff check, mypy, reserved words).
+
+## Gate lessons (what broke the gate and how to avoid it)
+
+- Generated code is verified only by the Docker specs; Java unit tests and a green golden diff prove nothing about it. Run `etc/ci-local.sh check Python` (client, build, ruff format, ruff check, mypy, static analysis) before every push, never only `PythonClientSpec`. CI takes about 25 minutes, so push in batches.
+- The HTTP stack is urllib3. Fake responses in tests must be `urllib3.HTTPHeaderDict` (import it from `urllib3._collections`), never a plain dict, or lookups become case-sensitive. Example: two redirect tests ended in `DID NOT RAISE ApiException`. Catch it with `etc/ci-local.sh check Python`.
+- mypy runs strict. Do not call untyped helpers (`urllib3.util.make_headers` fails `no-untyped-call`; build the Basic header with base64 by hand). Narrow unions before use: `str | list[str] | None` needs `isinstance` before `.startswith`. Every test helper needs a return annotation. Catch it with `mypy --strict` on the generated tree (PythonTypeCheckSpec).
+- Drop a `# type: ignore[...]` once it is unneeded (`warn_unused_ignores`), and type optional-import fallbacks as `Optional[ModuleType]` instead of `otel = None`.
+- Ruff: remove unused locals and imports after every template edit (F841 in the `model.mustache` oneOf validator, F401 for `quote_plus` or `Self`, an unused dependency such as `typing-extensions` fails Lint Dependencies). Enable the full rule set once (`ruff check --select ALL --statistics` on the golden) and fix in one pass.
+- Never loosen the gate: no project-wide `ignore = [...]`, no `# ruff: noqa`, no `mypy: ignore-errors`. Use a per-line `# noqa` or a scoped `[[tool.mypy.overrides]]` for missing stubs.
+- Pydantic v2: do not set `strict=True` globally (it rejects list to Set and str to Enum coercions). `model.mustache` wraps `model_serializer(mode='wrap')`, so a discriminator or oneOf change needs `model_rebuild` handling and a re-run of the model round-trip tests. Keep oneOf variants in declared order and let the `bytes` branch reject list/tuple/dict so `List[bytes]` still decodes.
+- Never turn a literal into an unescaped one: a global quote unescape broke `Field(description="...")`. Apply doc-text changes only to comment sites.
+- Imports must go into the template that is actually rendered (`api/api.mustache` is registered; the top-level `api.mustache` is only a `{{>api}}` partial), and the import list is rewritten by `super.postProcessOperationsWithModels`, so add imports after the super call. `Optional[...]` in options modules needs `from __future__ import annotations`; `py_compile` misses the NameError, so run `python -c "import <pkg>"` on the golden.
+- The facade and API classes are async-capable: tests that call them must `await` or use the sync wrapper consistently, and never block inside a running loop. Catch it with the client specs.
+- Chasm: the test must use the host-mapped URL for the client under test and the internal alias (`chasm_internal_http_url`, host `chasm`) only for the proxy container; a certificate names `chasm` and `localhost`, so a new host needs a SAN. Chasm lower-cases header keys and returns empty bodies in static mode, so do not assert absent headers (urllib3 sends a default User-Agent) or case-sensitive keys.
+- Never use a 1 ms total timeout in tests; use 1000 ms, or it expires during connect under load and raises a network error.
+- Output JSON is compact (no spaces), matching the other SDKs; the Makefile `format` target must keep the `ruff check --select F401,F811 --fix` step before `ruff format`.
+- Run the whole existing Python suite after any change, not just the new test: a non-ASCII multipart field name broke `TestMultipartFieldNameUtf8`. Check `docker ps -q | wc -l` before a run; above 20 leaked chasm or squid containers cause exit 137 and `409 not running`.

@@ -361,3 +361,18 @@ Inside the generated module: `make lint`, `make vet`, `make staticcheck`, `make 
 - F839: `CheckRedirect` restores the method and body on 301/302 for every method except POST (net/http demotes all of them); 303 and 307/308 already conform. Test `TestDefaultApiClient_RedirectMethodRewriting`.
 - F824: `Close()` cancels the base context, closes idle connections of the owned transport only, and later calls return `ErrClientClosed`; test `TestDefaultApiClient_ClosedClientRejectsRequestsAndLeavesSuppliedDoerOpen`.
 - F832: already conforming (the error names `Class.operationId`).
+
+## Gate lessons (what broke the gate and how to avoid it)
+
+- Generated code is verified only by the Docker specs, so a template edit is unproven until `etc/ci-local.sh check Go` is green (GoFormattingSpec, GoLintingSpec, GoClientSpec). Run it before every push; the quick mode skips the integration specs and lets lint failures through.
+- Never write `{{` in a Go composite literal or a Mustache comment: `map[string]struct{{}}` and `{{! ... {{#x}} ... }}` close at the first `}}` and leak the tail. Add a space (`struct{ }`) or use `{{{ }}}`. Catch: `grep -rn '{{!.*{{' src/main/resources/templates/go`, then regenerate Go.
+- Generated Go uses `/* */` comments, never `//` (GoFormattingSpec). Catch: `grep -rn '^\s*//' src/main/resources/templates/go`.
+- staticcheck QF1002 wants a tagged switch (`switch x { case ... }`) instead of `switch { case x == ... }` on one variable; ST1005 wants lowercase error strings with no capital or trailing period, so do not share a capitalized message with other languages. Catch: GoLintingSpec (golangci-lint with staticcheck). Do not enable `F050` (generated files) without a baseline.
+- Unit and integration test templates share one package: never reuse a `TestX` name across them (`func TestX redeclared`). Catch: `grep -rhn '^func Test' src/main/resources/templates/go/test | sort -k2 | uniq -d -f1`, or `go vet ./...` on the golden.
+- A `[16]byte` (`uuid.UUID`) is a scalar, not a list: check it before the array/slice branch in `value_serializer.mustache` or it serializes as 16 numbers. Catch: a uuid parameter in GoClientSpec.
+- Stub clients and canned responses in test templates must return a body the generated decoder accepts (a valid `Pet` object, not `""` or `{}` once required fields are enforced), or the test fails in `UnmarshalJSON`, not in the code under test. Catch: `go test ./...` in GoClientSpec.
+- Encode once, at the URL builder: never strip or add percent-encoding in `SerializeValue`/`SerializeStyled` (double encoding). Catch: the path-encoding tests in GoClientSpec.
+- Do not rename the response DTO to `ApiResponse` (it collides with the spec model through the dot-import). Binary and multipart types are `*os.File`, never `[]byte`. Catch: `go build`.
+- Every `{{#is...}}` branch of a hand-rolled `UnmarshalJSON` needs the same required-field check (the `isUnevaluatedPropertiesFalse` branch once skipped it); enum defaults map the var name to the wire value through `enumVars`, never lowercase it. Catch: a fixture with an additionalProperties-only model and a non-lowercase enum value.
+- Spec-enforced comment text: grep `src/spec` for `contains("` before rewording or deleting a "cruft" comment (the `preSeed` wording is asserted case-sensitively). gofmt rejects a raw U+FEFF, so write the escape in the test template.
+- `devbox run` hijacks `go` and golangci-lint is not installed locally, so Go is checked in Docker through the specs. Redirect guards compare against the previous hop, not `via[0]`.
