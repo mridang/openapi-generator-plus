@@ -548,6 +548,74 @@ test('token response that is not JSON or not an object gets the canonical messag
     'scalar' => ['"tok"', 'Token response is not a JSON object'],
 ]);
 
+test('token response without a usable access_token gets the canonical message', function (string $body): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, $body, ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn (): string => $manager->getAccessToken(
+        'https://auth.example.com/token',
+        ['grant_type' => 'client_credentials']
+    ))->toThrow(function (\Exception $e): void {
+        expect($e::class)->toBe(OAuth2TokenException::class);
+        expect($e->getMessage())->toBe('Token response missing or empty access_token field');
+        expect($e->getPrevious())->toBeNull();
+    });
+})->with([
+    'empty object' => ['{}'],
+    'empty string' => ['{"access_token":""}'],
+    'null' => ['{"access_token":null}'],
+    'number' => ['{"access_token":123}'],
+]);
+
+test('an unsupported token_type is refused without echoing it', function (mixed $tokenType): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(
+        200,
+        (string) json_encode(['access_token' => 'at', 'expires_in' => 3600, 'token_type' => $tokenType]),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn (): string => $manager->getAccessToken(
+        'https://auth.example.com/token',
+        ['grant_type' => 'client_credentials']
+    ))->toThrow(function (\Exception $e): void {
+        expect($e::class)->toBe(OAuth2TokenException::class);
+        expect($e->getMessage())->toBe('Unsupported token_type in token response');
+    });
+})->with([
+    'dpop' => ['DPoP'],
+    'mac' => ['mac'],
+    'empty string' => [''],
+    'number' => [5],
+]);
+
+test('a bearer or absent token_type is accepted', function (array $extra): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(
+        200,
+        (string) json_encode(['access_token' => 'at', 'expires_in' => 3600] + $extra),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect($manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toBe('at');
+})->with([
+    'absent' => [[]],
+    'null' => [['token_type' => null]],
+    'lower case' => [['token_type' => 'bearer']],
+    'mixed case' => [['token_type' => 'Bearer']],
+    'upper case' => [['token_type' => 'BEARER']],
+]);
+
 test('non string refresh token is ignored', function (mixed $refreshToken): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(

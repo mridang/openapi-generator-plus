@@ -1432,6 +1432,45 @@ test('byte list and map fields round-trip raw bytes through base64', function ()
     expect($back->labels?->toArray())->toBe(['a' => "\x04"]);
 });
 
+test('byte array fields of two vaults built apart compare by content', function (): void {
+    $build = static fn (string $seal, string $shard, string $label): BinaryVault => new BinaryVault(
+        seal: $seal,
+        shards: new \Ds\Vector([$shard]),
+        labels: new \Ds\Map(['a' => $label]),
+    );
+
+    $left = $build("\x01\x02", "\x03\x04", "\x05\x06");
+    $right = $build(chr(1) . chr(2), chr(3) . chr(4), chr(5) . chr(6));
+
+    expect($left)->not->toBe($right);
+    expect($left->seal)->toBe($right->seal);
+    expect($left->shards?->toArray())->toBe($right->shards?->toArray());
+    expect($left->labels?->toArray())->toBe($right->labels?->toArray());
+    expect(ObjectSerializer::serialize($left))->toBe(ObjectSerializer::serialize($right));
+});
+
+test('vaults differing in one byte array are told apart on every shape', function (): void {
+    $base = ObjectSerializer::serialize(
+        new BinaryVault(seal: "\x01", shards: new \Ds\Vector(["\x02"]), labels: new \Ds\Map(['a' => "\x03"]))
+    );
+
+    $otherSeal = new BinaryVault(seal: "\x09", shards: new \Ds\Vector(["\x02"]), labels: new \Ds\Map(['a' => "\x03"]));
+    $otherShard = new BinaryVault(seal: "\x01", shards: new \Ds\Vector(["\x09"]), labels: new \Ds\Map(['a' => "\x03"]));
+    $otherLabel = new BinaryVault(seal: "\x01", shards: new \Ds\Vector(["\x02"]), labels: new \Ds\Map(['a' => "\x09"]));
+    $otherKey = new BinaryVault(seal: "\x01", shards: new \Ds\Vector(["\x02"]), labels: new \Ds\Map(['b' => "\x03"]));
+
+    foreach ([$otherSeal, $otherShard, $otherLabel, $otherKey] as $vault) {
+        expect(ObjectSerializer::serialize($vault))->not->toBe($base);
+    }
+});
+
+test('a list of byte arrays is not a map of them on the wire', function (): void {
+    $asList = new BinaryVault(shards: new \Ds\Vector(["\x01"]));
+    $asMap = new BinaryVault(labels: new \Ds\Map(['k' => "\x01"]));
+
+    expect(ObjectSerializer::serialize($asList))->not->toBe(ObjectSerializer::serialize($asMap));
+});
+
 test('byte property with a description serializes raw bytes as base64', function (): void {
     $request = new SetPetAvatarRequest("\x01\x02", 'image/png');
 
