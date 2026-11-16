@@ -290,3 +290,27 @@ Rule: the Error Handling section names the root grouping (`<Prefix>Error`, `exce
 ### Skipped in batch 7 (needs shared Java, a cross-language decision or a toolchain run)
 
 F056 (S3: not enforced), F057, F1062, F865, F866 (shared generator), F1058, F1060, F1055's petstore fixture row (spec change), F1100, F1153, F1168, F1174, F1176 (gates and shared tests), F855 and F857 (401 retry and per-scheme credentials change the surface of all twelve), F838, F840, F1048, F1080 (size bounds and error rendering are cross-language), F1150, F1151 (no proxy fixture for Elixir; Elixir takes upload bytes, not a handle), F1152 (needs a compile gate), F1161 (only `/test/response-headers`, `/test/empty` and the Set-Cookie row are covered).
+
+## Decisions taken in batch 9
+
+Each entry uses the audit finding's own proposal as the default. The owner may revisit any of them.
+
+### A 401 replays the request once (F855)
+
+Rule: a 401 on a call authenticated by the OAuth2 client-credentials, password, authorization-code or OpenID Connect authenticator drops the cached access token (`invalidate_access_token/1`, public on all four; the refresh token is kept) and the request is sent once more, rebuilt, so it carries fresh headers. A second 401 comes back as the usual `UnauthorizedError`. API-key, basic and bearer authenticators have no `invalidate_access_token/1` and never replay. The replay lives in `Api.BaseApi` (`attempt/5`), because only there are the authentication headers built. Elixir has no stream or file-handle bodies (the transport takes bytes, and multipart parts are bytes built in memory), so a body is replayable unless it is a function or a struct (`replayable?/1`); multipart is replayed, which is a deliberate difference from the SDKs that hold a handle. Where: `base_api.mustache`, `auth/oauth/*_authenticator.mustache`. Test: `test/base_api_test.mustache`, the four authenticator tests.
+
+### PKCE S256 on the authorization-code flow (F858)
+
+Rule: `build_authorization_url/2` draws a 43-character verifier (32 random bytes, base64url, no padding; `:crypto`, already in `extra_applications`), keeps it in the token manager (`begin_pkce/1`, `code_verifier/1`) and appends `code_challenge` and `code_challenge_method=S256` after `state`; `exchange_code/2` sends `code_verifier` when one exists. The verifier lives in the token manager, not the struct, so every copy of the authenticator and the OIDC delegate that survives a rediscovery see it. No nonce. Each URL replaces the verifier, so the last URL built is the one the exchange proves. Where: `auth/oauth/oauth2_token_manager.mustache`, `oauth2_auth_code_authenticator.mustache`. Test: `test/oauth2_auth_code_authenticator_test.mustache`, `test/openid_connect_authenticator_test.mustache`.
+
+### Automatic retries with backoff (F823)
+
+Rule: `TransportOptions.new(max_retries: n)` (default 2, 0 disables, a negative or non-integer value raises `ArgumentError`). A call is retried after a `NetworkError` (a failure before any response; a `NetworkTimeoutError` is not) and after the statuses 408, 409, 429 and 500 to 599 except 501. The wait is 0.5 s doubling to 8 s less up to 25% jitter; a `Retry-After` (seconds or an IMF-fixdate) replaces it, capped at 60 s. The call has one deadline, fixed when the first request has been built and handed to `DefaultApiClient.send_request/6` as `deadline:`; a wait that would end past it means no retry. Every retry rebuilds the request, so authentication headers are re-applied. A client without `transport_options` (a custom `ApiClient`) is never retried; the existing per-API tests that expect a single failing request use `max_retries: 0`. Cancellation is the process exit that ends the `Process.sleep`. Where: `base_api.mustache` (`send_with_retries/4`, `retry_after_ms/2`, `backoff_delay/2`), `transport_options.mustache`, `default_api_client.mustache`. Test: `test/base_api_test.mustache`, `test/transport_options_test.mustache`, `test/default_api_client_unit_test.mustache`.
+
+### Rendered ApiError text is capped and masked (F1080)
+
+Rule: `ApiError.message/1` renders the response body cut at 1 KiB with `... (N more bytes)`, control characters as `\n`, `\r`, `\t` or `\xNN`, and the response headers with `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `www-authenticate`, `proxy-authenticate` and any name containing key, token or secret masked as `***`. `response_body` and `response_headers` keep the full values. Where: `errors/api_error.mustache`. Test: `test/api_error_test.mustache`.
+
+### Skipped in batch 9
+
+F825 is Rust only.

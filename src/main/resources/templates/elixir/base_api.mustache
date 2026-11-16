@@ -241,12 +241,15 @@ defmodule {{moduleName}}.Api.BaseApi do
   @retry_after_cap_ms 60_000
 
   # What the retry loop carries from one attempt to the next: how many retries
-  # are allowed and used, the monotonic deadline of the whole call (nil when
-  # the transport has no timeout) and whether the one 401 replay was spent.
+  # are allowed and used, the transport timeout, the monotonic deadline of the
+  # whole call (:unset until the first request is built, so the time spent
+  # fetching a token is not charged to the call; nil when there is no timeout)
+  # and whether the one 401 replay was spent.
   @typep attempt_state :: %{
            max_retries: non_neg_integer(),
            retries: non_neg_integer(),
-           deadline: integer() | nil,
+           timeout: integer() | nil,
+           deadline: integer() | nil | :unset,
            replayed: boolean()
          }
 
@@ -284,7 +287,8 @@ defmodule {{moduleName}}.Api.BaseApi do
     attempt(state, method, effective_auth, build_request, %{
       max_retries: if(transport, do: transport.max_retries || 0, else: 0),
       retries: 0,
-      deadline: deadline(transport),
+      timeout: timeout(transport),
+      deadline: :unset,
       replayed: false
     })
   end
@@ -293,6 +297,7 @@ defmodule {{moduleName}}.Api.BaseApi do
           {:ok, term()} | {:error, Exception.t()}
   defp attempt(state, method, effective_auth, build_request, ctx) do
     {url, headers, serialized_body} = build_request.()
+    ctx = if ctx.deadline == :unset, do: %{ctx | deadline: deadline(ctx.timeout)}, else: ctx
     result = send_once(state.api_client, method, url, headers, serialized_body, ctx.deadline)
 
     cond do
@@ -336,10 +341,11 @@ defmodule {{moduleName}}.Api.BaseApi do
   defp transport_options(%{__struct__: _, transport_options: %{{moduleName}}.TransportOptions{} = options}), do: options
   defp transport_options(_api_client), do: nil
 
-  defp deadline(%{{moduleName}}.TransportOptions{timeout: timeout}) when is_integer(timeout),
-    do: System.monotonic_time(:millisecond) + timeout
+  defp timeout(%{{moduleName}}.TransportOptions{timeout: timeout}) when is_integer(timeout), do: timeout
+  defp timeout(_transport), do: nil
 
-  defp deadline(_transport), do: nil
+  defp deadline(timeout) when is_integer(timeout), do: System.monotonic_time(:millisecond) + timeout
+  defp deadline(nil), do: nil
 
   # A stream body is consumed by the first send; every other body is bytes.
   defp replayable?(body) when is_function(body), do: false
@@ -388,7 +394,7 @@ defmodule {{moduleName}}.Api.BaseApi do
 
   defp within_budget(delay, nil), do: {:ok, delay}
 
-  defp within_budget(delay, deadline) do
+  defp within_budget(delay, deadline) when is_integer(deadline) do
     if System.monotonic_time(:millisecond) + delay < deadline, do: {:ok, delay}, else: :none
   end
 
