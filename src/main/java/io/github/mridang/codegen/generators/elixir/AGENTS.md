@@ -333,7 +333,7 @@ Rule: the call before `exchange_code/2` raises `Must call exchange_code() before
 
 ### Options modules document the examples of optional parameters (F893)
 
-Rule: the named examples of an optional parameter are written into the `@moduledoc` of its `Api.Options.*` module as `### \`name\` example` blocks, the way the operation function documents a required parameter. Where: `BetterElixirCodegen.toExampleDocs`, `api/options.mustache`. Test: `BetterElixirCodegenTest`.
+Rule: the named examples of an optional parameter are written into the `@moduledoc` of its `Api.Options.*` module as `### <name> example` blocks, the way the operation function documents a required parameter. Where: `BetterElixirCodegen.toExampleDocs`, `api/options.mustache`. Test: `BetterElixirCodegenTest`.
 
 ### Documentation layout (F889, F890)
 
