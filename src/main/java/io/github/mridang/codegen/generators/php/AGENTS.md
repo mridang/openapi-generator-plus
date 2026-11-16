@@ -336,7 +336,7 @@ Where: `auth/oauth/oauth2_token_manager.mustache`, `auth/oauth/openid_connect_au
 Rule: with no `TransportOptions::proxy` the Symfony client gets `no_proxy = '*'`, so `http_proxy`, `https_proxy`, `all_proxy` and `no_proxy` in the environment are never used (implemented in the template in batch 7; it was only described before).
 Where: `default_api_client.mustache`. Test: `DefaultApiClientTest` (dead proxy in `$_SERVER`).
 
-### A text body for a typed return is a `SerializationException` (F041, F4)
+### A text body for a typed return is a `SerializationException`
 Rule: a non-JSON text 2xx body (text/plain, XML) for any return type other than `string` or no return type throws `SerializationException` naming the Content-Type; `string` and untyped operations still get the body unchanged. Binary (non-text) bodies keep the base64 path.
 Where: `base_api.mustache`. Test: `BaseApiTest`.
 
@@ -348,7 +348,7 @@ Where: `object_serializer.mustache`. Test: `ObjectSerializerTest`.
 Rule: the three `Invalid proxy URL` messages render the URL with any userinfo replaced by `***@`.
 Where: `transport_options.mustache`. Test: `TransportOptionsTest`.
 
-### Symfony constraint floor (F51)
+### Symfony constraint floor
 Rule: Symfony components are required as `^6.4|^7.4` (6.0 to 6.3 are end of life). Symfony 8 is not admitted until the templates and the php spec are verified against it; the PSR-18 transport already lets an application avoid the Symfony client.
 Where: `composer.mustache`.
 
