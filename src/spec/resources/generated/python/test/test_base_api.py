@@ -30,6 +30,7 @@ from petstore_client.errors.unauthorized_exception import UnauthorizedException
 from petstore_client.errors.forbidden_exception import ForbiddenException
 from petstore_client.errors.not_found_exception import NotFoundException
 from petstore_client.errors.conflict_exception import ConflictException
+from petstore_client.errors.too_many_requests_exception import TooManyRequestsException
 from petstore_client.errors.unprocessable_entity_exception import (
     UnprocessableEntityException,
 )
@@ -80,6 +81,7 @@ class StubApi(BaseApi):
         content_type: str,
         return_type: Optional[str],
         auth: Union[Authenticator, _NoAuth, None] = None,
+        operation_name: str = "",
     ) -> Any:
         return await self._invoke_api(
             method,
@@ -91,6 +93,7 @@ class StubApi(BaseApi):
             content_type,
             return_type,
             auth,
+            operation_name=operation_name,
         )
 
     async def call_result(
@@ -160,6 +163,7 @@ class TestExceptionDispatch:
             (404, NotFoundException),
             (409, ConflictException),
             (422, UnprocessableEntityException),
+            (429, TooManyRequestsException),
             (418, ClientException),
             (500, InternalServerErrorException),
             (502, ServerException),
@@ -1047,6 +1051,26 @@ class TestContentTypeDeserialization:
                 "application/json",
                 "Pet",
             )
+
+    async def test_unexpected_content_type_names_the_operation(self) -> None:
+        client = PlainTextApiClient()
+        config = Configuration(base_url="http://localhost")
+        stub = StubApi(api_client=client, config=config)
+        with pytest.raises(SerializationException) as excinfo:
+            await stub.call(
+                "GET",
+                "/test/echo",
+                {},
+                {},
+                None,
+                ["text/plain"],
+                "application/json",
+                "Pet",
+                operation_name="get_pet_by_id",
+            )
+        assert excinfo.value.message == (
+            "Unexpected response Content-Type 'text/plain' for StubApi.get_pet_by_id: expected a JSON body"
+        )
 
     async def test_deserializes_vendor_json_mime_types(self) -> None:
         client = VendorJsonApiClient()

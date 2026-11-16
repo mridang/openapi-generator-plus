@@ -264,6 +264,60 @@ test('psr18 N1 302 https to http downgrade with body proceeds as get', function 
     expect($stub->requests[1]->getMethod())->toBe('GET');
 });
 
+test('psr18 redirect method and body follow RFC 9110', function (
+    int $status,
+    string $method,
+    string $expectedMethod,
+    string $expectedBody
+): void {
+    $stub = new StubPsr18Client(
+        psr18Response($status, '', ['Location' => 'https://api.example.com/next']),
+        psr18Response(200, 'ok')
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = newPsr18Client($stub, $transport);
+
+    $client->sendRequest($method, 'https://api.example.com/start', [], 'payload');
+
+    expect($stub->requests[1]->getMethod())->toBe($expectedMethod);
+    expect((string) $stub->requests[1]->getBody())->toBe($expectedBody);
+})->with([
+    '301 post becomes get' => [301, 'POST', 'GET', ''],
+    '302 post becomes get' => [302, 'POST', 'GET', ''],
+    '301 put keeps method and body' => [301, 'PUT', 'PUT', 'payload'],
+    '302 patch keeps method and body' => [302, 'PATCH', 'PATCH', 'payload'],
+    '302 delete keeps method and body' => [302, 'DELETE', 'DELETE', 'payload'],
+    '303 post becomes get' => [303, 'POST', 'GET', ''],
+    '303 put becomes get' => [303, 'PUT', 'GET', ''],
+    '303 delete becomes get' => [303, 'DELETE', 'GET', ''],
+    '307 post keeps method and body' => [307, 'POST', 'POST', 'payload'],
+    '308 put keeps method and body' => [308, 'PUT', 'PUT', 'payload'],
+]);
+
+test('psr18 303 keeps head as head', function (): void {
+    $stub = new StubPsr18Client(
+        psr18Response(303, '', ['Location' => 'https://api.example.com/next']),
+        psr18Response(200, 'ok')
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = newPsr18Client($stub, $transport);
+
+    $client->sendRequest('HEAD', 'https://api.example.com/start', [], null);
+
+    expect($stub->requests[1]->getMethod())->toBe('HEAD');
+});
+
+test('psr18 301 put https to http downgrade refuses body replay', function (): void {
+    $stub = new StubPsr18Client(
+        psr18Response(301, '', ['Location' => 'http://insecure.example.com/sink'])
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = newPsr18Client($stub, $transport);
+
+    expect(fn (): mixed => $client->sendRequest('PUT', 'https://api.example.com/secret', [], 'k=v'))
+        ->toThrow(ApiException::class);
+});
+
 test('psr18 exceeding max redirects throws', function (): void {
     $loop = [];
     for ($i = 0; $i < 10; $i++) {
@@ -426,6 +480,22 @@ test('psr18 multipart png file gets image png content type', function (): void {
     } finally {
         @unlink($pngPath);
     }
+});
+
+test('psr18 multipart psr7 stream part is sent as a file part with its bytes', function (): void {
+    $stub = new StubPsr18Client(psr18Response(200, '{}'));
+    $client = newPsr18Client($stub);
+
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        ['file' => new Psr17Factory()->createStream('stream-bytes')]
+    );
+
+    $sent = (string) $stub->requests[0]->getBody();
+    expect($sent)->toContain('stream-bytes');
+    expect($sent)->toContain('filename="file"');
 });
 
 test('psr18 multipart raw bytes part reuses field name as filename with octet stream', function (): void {

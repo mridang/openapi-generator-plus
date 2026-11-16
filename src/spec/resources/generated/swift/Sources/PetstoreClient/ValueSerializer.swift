@@ -72,9 +72,25 @@ internal enum ValueSerializer {
   /// commas, semicolons and spaces of a JSON text never reach the `Cookie`
   /// header, where RFC 6265 forbids them.
   static func encodeCookieValue(_ value: String) -> String {
-    var allowed = CharacterSet.alphanumerics
-    allowed.insert(charactersIn: "-._~")
-    return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+    /* Byte-wise so only ASCII A-Z a-z 0-9 - . _ ~ stay literal; the
+     * Unicode letters CharacterSet.alphanumerics admits are encoded as
+     * UTF-8 like every other character. */
+    let hex = Array("0123456789ABCDEF")
+    var out = ""
+    for byte in value.utf8 {
+      let literal =
+        (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x5A)
+        || (byte >= 0x61 && byte <= 0x7A) || byte == 0x2D || byte == 0x2E
+        || byte == 0x5F || byte == 0x7E
+      if literal {
+        out.unicodeScalars.append(Unicode.Scalar(byte))
+      } else {
+        out.append("%")
+        out.append(hex[Int(byte >> 4)])
+        out.append(hex[Int(byte & 0x0F)])
+      }
+    }
+    return out
   }
 
   /// Wraps a query value so the query-string builder preserves RFC 3986

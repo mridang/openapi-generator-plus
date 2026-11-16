@@ -261,7 +261,11 @@ class DefaultApiClient extends AbstractApiClient
                      * a model or map is an application/json part. */
                     if (ObjectSerializer::isPrimitiveValue($v)) {
                         $parts[] = $this->plainFormPart(ObjectSerializer::stringify($v));
-                    } elseif (is_object($v) && !($v instanceof \SplFileObject)) {
+                    } elseif (
+                        is_object($v)
+                        && !($v instanceof \SplFileObject)
+                        && !($v instanceof \Psr\Http\Message\StreamInterface)
+                    ) {
                         $parts[] = $this->jsonFormPart(ObjectSerializer::serialize($v));
                     } elseif ($v instanceof \SplFileObject) {
                         $path = $v->getRealPath();
@@ -289,7 +293,10 @@ class DefaultApiClient extends AbstractApiClient
                             }
                         }
                         $parts[] = $dataPart;
-                    } elseif (is_resource($v)) {
+                    } elseif (
+                        is_resource($v)
+                        || $v instanceof \Psr\Http\Message\StreamInterface
+                    ) {
                         /* A raw-bytes part has no explicit filename, so the
                          * field NAME is reused as the filename and the
                          * Content-Type is guessed from that filename's
@@ -299,7 +306,7 @@ class DefaultApiClient extends AbstractApiClient
                         self::validateMultipartFilename($filename);
                         $mime = $this->guessMimeType(null, $filename);
                         /* The caller owns the stream: it is read but never closed. */
-                        $parts[] = $this->binaryFormPart((string) stream_get_contents($v), $filename, $mime);
+                        $parts[] = $this->binaryFormPart(is_resource($v) ? (string) stream_get_contents($v) : (string) $v, $filename, $mime);
                     } else {
                         $parts[] = $this->plainFormPart('');
                     }

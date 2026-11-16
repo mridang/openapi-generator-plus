@@ -121,6 +121,7 @@ class ApiException(OpenAPIException):
             404: NotFoundException,
             409: ConflictException,
             422: UnprocessableEntityException,
+            429: TooManyRequestsException,
             500: InternalServerErrorException,
         }
         specific = by_status.get(status_code)
@@ -201,6 +202,7 @@ from petstore_client.errors.conflict_exception import ConflictException
 from petstore_client.errors.unprocessable_entity_exception import (
     UnprocessableEntityException,
 )
+from petstore_client.errors.too_many_requests_exception import TooManyRequestsException
 from petstore_client.errors.internal_server_error_exception import (
     InternalServerErrorException,
 )
@@ -221,6 +223,7 @@ __all__ = [
     "NotFoundException",
     "ConflictException",
     "UnprocessableEntityException",
+    "TooManyRequestsException",
     "InternalServerErrorException",
     "NetworkException",
     "NetworkTimeoutException",

@@ -238,6 +238,7 @@ defmodule PetstoreClient.ApiErrorTest do
             PetstoreClient.Errors.NotFoundError,
             PetstoreClient.Errors.ConflictError,
             PetstoreClient.Errors.UnprocessableEntityError,
+            PetstoreClient.Errors.TooManyRequestsError,
             PetstoreClient.Errors.InternalServerError,
             PetstoreClient.Errors.ClientError,
             PetstoreClient.Errors.ServerError
@@ -282,6 +283,16 @@ defmodule PetstoreClient.ApiErrorTest do
       refute PetstoreClient.Errors.ApiError.api_error?(%ArgumentError{message: "unrelated"})
     end
 
+    test "a 429 is a TooManyRequestsError and a ClientError" do
+      err = PetstoreClient.Errors.ApiError.from_response(429, %{"retry-after" => "3"}, nil)
+
+      assert %PetstoreClient.Errors.TooManyRequestsError{status_code: 429} = err
+      assert err.message == "API returned status code 429"
+      assert PetstoreClient.Errors.TooManyRequestsError.exception("slow down").status_code == 429
+      assert PetstoreClient.Errors.ClientError.client_error?(err)
+      assert PetstoreClient.Errors.ApiError.api_error?(err)
+    end
+
     # The public status factory every generated operation and the OpenID
     # Connect discovery request use: the most specific error for each status,
     # with the status, headers and body kept and a JSON body parsed.
@@ -295,6 +306,7 @@ defmodule PetstoreClient.ApiErrorTest do
             {404, PetstoreClient.Errors.NotFoundError},
             {409, PetstoreClient.Errors.ConflictError},
             {422, PetstoreClient.Errors.UnprocessableEntityError},
+            {429, PetstoreClient.Errors.TooManyRequestsError},
             {418, PetstoreClient.Errors.ClientError},
             {500, PetstoreClient.Errors.InternalServerError},
             {503, PetstoreClient.Errors.ServerError},

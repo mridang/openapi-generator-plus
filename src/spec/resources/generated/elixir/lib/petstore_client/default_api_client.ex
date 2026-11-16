@@ -923,20 +923,11 @@ defmodule PetstoreClient.DefaultApiClient do
                   status_code: response.status
               end
 
-              # Pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
-              #   307 + 308: preserve original method and body.
-              #   303:       force GET, drop the body (and Content-Type/Length).
-              #   301 + 302: historical browser behaviour — switch to GET for
-              #              non-GET/HEAD requests, drop the body.
-              method_str = method |> to_string() |> String.upcase()
-
-              {next_method, next_body} =
-                cond do
-                  response.status in [307, 308] -> {method, body}
-                  response.status == 303 -> {:get, nil}
-                  method_str in ["GET", "HEAD"] -> {method, body}
-                  true -> {:get, nil}
-                end
+              # Pick follow-up method+body per RFC 9110 section 15.4: 307 and
+              # 308 never change them, 303 turns everything but HEAD into GET,
+              # and 301 and 302 turn only POST into GET.
+              next_method = redirect_method(response.status, method)
+              next_body = if next_method == method, do: body, else: nil
 
               stripped_headers =
                 if cross_origin do
@@ -1048,6 +1039,21 @@ defmodule PetstoreClient.DefaultApiClient do
     os = if o.scheme, do: String.downcase(o.scheme), else: nil
     ns = if n.scheme, do: String.downcase(n.scheme), else: nil
     os == "https" and ns == "http"
+  end
+
+  @doc false
+  # The method a redirect with `status` is followed with (RFC 9110 section
+  # 15.4): 307 and 308 keep it; 303 turns every method except HEAD into GET;
+  # 301 and 302 turn only POST into GET. A method that changes drops the body.
+  @spec redirect_method(integer(), atom()) :: atom()
+  def redirect_method(status, method) do
+    name = method |> to_string() |> String.upcase()
+
+    cond do
+      status == 303 and name != "HEAD" -> :get
+      status in [301, 302] and name == "POST" -> :get
+      true -> method
+    end
   end
 
   @doc false

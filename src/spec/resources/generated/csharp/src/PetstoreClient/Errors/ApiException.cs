@@ -75,7 +75,7 @@ public class ApiException : OpenAPIException
 
     /// <summary>
     /// Maps an HTTP response that was not a success to the exception for its
-    /// status: 400, 401, 403, 404, 409 and 422 map to their named
+    /// status: 400, 401, 403, 404, 409, 422 and 429 map to their named
     /// <see cref="ClientException"/> subclasses and any other 4xx to
     /// <see cref="ClientException"/>; 500 maps to
     /// <see cref="InternalServerErrorException"/> and any other 5xx to
@@ -129,6 +129,7 @@ public class ApiException : OpenAPIException
             404 => new NotFoundException(message, headers, responseBody, errorBody),
             409 => new ConflictException(message, headers, responseBody, errorBody),
             422 => new UnprocessableEntityException(message, headers, responseBody, errorBody),
+            429 => new TooManyRequestsException(message, headers, responseBody, errorBody),
             >= 400 and < 500 => new ClientException(
                 statusCode,
                 message,

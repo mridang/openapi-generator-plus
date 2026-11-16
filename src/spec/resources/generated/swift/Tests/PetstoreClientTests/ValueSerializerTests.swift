@@ -705,4 +705,10 @@ import Testing
         == "%7B%22a%22%3A%20%22b%3Bc%2Cd%22%7D")
     #expect(ValueSerializer.encodeCookieValue("a-b._~9") == "a-b._~9")
   }
+
+  @Test func testEncodeCookieValueMatchesTheSharedBytes() {
+    #expect(
+      ValueSerializer.encodeCookieValue("{\"k\":\"a b~*\u{00E9}\"}")
+        == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D")
+  }
 }

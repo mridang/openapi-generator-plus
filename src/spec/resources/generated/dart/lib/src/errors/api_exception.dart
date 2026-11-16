@@ -14,6 +14,7 @@ import 'internal_server_error_exception.dart';
 import 'not_found_exception.dart';
 import 'open_api_exception.dart';
 import 'server_exception.dart';
+import 'too_many_requests_exception.dart';
 import 'unauthorized_exception.dart';
 import 'unprocessable_entity_exception.dart';
 
@@ -129,6 +130,13 @@ class ApiException extends OpenAPIException {
         );
       case 422:
         return UnprocessableEntityException(
+          message: message,
+          responseBody: responseBody,
+          responseHeaders: responseHeaders,
+          errorBody: errorBody,
+        );
+      case 429:
+        return TooManyRequestsException(
           message: message,
           responseBody: responseBody,
           responseHeaders: responseHeaders,

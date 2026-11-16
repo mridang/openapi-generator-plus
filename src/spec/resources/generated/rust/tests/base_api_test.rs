@@ -1747,6 +1747,12 @@ fn test_api_error_kind_conflict_variant() {
 }
 
 #[test]
+fn test_api_error_kind_too_many_requests_variant() {
+    let kind: petstore::ApiErrorKind = make_api_error(429).into();
+    assert!(matches!(kind, petstore::ApiErrorKind::TooManyRequests(_)));
+}
+
+#[test]
 fn test_api_error_kind_unprocessable_entity_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(422).into();
     assert!(matches!(

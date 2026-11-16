@@ -43,6 +43,7 @@ defmodule PetstoreClient.Errors.OpenAPIError do
        │      response_headers, response_body, error_body, cause)
        │   ├─ 4xx: BadRequest(400) Unauthorized(401) Forbidden(403)
        │   │       NotFound(404) Conflict(409) UnprocessableEntity(422)
+       │   │       TooManyRequests(429)
        │   │       (and the PetstoreClient.Errors.ClientError grouping)
        │   ├─ 5xx: InternalServerError(500)
        │   │       (and the PetstoreClient.Errors.ServerError grouping)
@@ -66,6 +67,7 @@ defmodule PetstoreClient.Errors.OpenAPIError do
     PetstoreClient.Errors.NotFoundError,
     PetstoreClient.Errors.ConflictError,
     PetstoreClient.Errors.UnprocessableEntityError,
+    PetstoreClient.Errors.TooManyRequestsError,
     PetstoreClient.Errors.InternalServerError,
     PetstoreClient.Errors.NetworkError,
     PetstoreClient.Errors.NetworkTimeoutError,
@@ -84,6 +86,7 @@ defmodule PetstoreClient.Errors.OpenAPIError do
           | PetstoreClient.Errors.NotFoundError.t()
           | PetstoreClient.Errors.ConflictError.t()
           | PetstoreClient.Errors.UnprocessableEntityError.t()
+          | PetstoreClient.Errors.TooManyRequestsError.t()
           | PetstoreClient.Errors.InternalServerError.t()
           | PetstoreClient.Errors.NetworkError.t()
           | PetstoreClient.Errors.NetworkTimeoutError.t()

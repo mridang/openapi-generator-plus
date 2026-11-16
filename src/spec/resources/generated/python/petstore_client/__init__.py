@@ -28,6 +28,7 @@ __all__ = [
     "NotFoundException",
     "ConflictException",
     "UnprocessableEntityException",
+    "TooManyRequestsException",
     "InternalServerErrorException",
     "NetworkException",
     "NetworkTimeoutException",
@@ -100,6 +101,7 @@ from petstore_client.errors import ConflictException as ConflictException
 from petstore_client.errors import (
     UnprocessableEntityException as UnprocessableEntityException,
 )
+from petstore_client.errors import TooManyRequestsException as TooManyRequestsException
 from petstore_client.errors import (
     InternalServerErrorException as InternalServerErrorException,
 )

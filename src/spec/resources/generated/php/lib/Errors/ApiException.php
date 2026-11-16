@@ -78,7 +78,7 @@ class ApiException extends OpenAPIException
 
     /**
      * Map an HTTP response that was not a success to the exception for its
-     * status: 400, 401, 403, 404, 409 and 422 map to their named
+     * status: 400, 401, 403, 404, 409, 422 and 429 map to their named
      * {@see ClientException} subclasses and any other 4xx to
      * {@see ClientException}; 500 maps to {@see InternalServerErrorException}
      * and any other 5xx to {@see ServerException}; any other status maps to
@@ -119,6 +119,12 @@ class ApiException extends OpenAPIException
             $statusCode === 404 => new NotFoundException($message, $responseHeaders, $responseBody, $errorBody),
             $statusCode === 409 => new ConflictException($message, $responseHeaders, $responseBody, $errorBody),
             $statusCode === 422 => new UnprocessableEntityException(
+                $message,
+                $responseHeaders,
+                $responseBody,
+                $errorBody
+            ),
+            $statusCode === 429 => new TooManyRequestsException(
                 $message,
                 $responseHeaders,
                 $responseBody,

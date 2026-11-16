@@ -198,6 +198,7 @@ All API errors derive from `ApiException`. The error hierarchy is:
     - `ForbiddenException` (403)
     - `NotFoundException` (404)
     - `ConflictException` (409)
+    - `TooManyRequestsException` (429)
     - `UnprocessableEntityException` (422)
   - `ServerException` (5xx)
     - `InternalServerErrorException` (500)

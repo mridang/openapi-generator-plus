@@ -1282,6 +1282,19 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
       }
     }
 
+    /* RFC 9110 15.4: set the follow-up method explicitly instead of
+     * trusting the platform. A kept method gets its body back, because
+     * the platform drops it on any rewrite it applies. */
+    let fromMethod = task.currentRequest?.httpMethod ?? task.originalRequest?.httpMethod ?? "GET"
+    let toMethod = DefaultApiClient.redirectMethod(status: response.statusCode, method: fromMethod)
+    redirectRequest.httpMethod = toMethod
+    if toMethod.uppercased() != fromMethod.uppercased() {
+      redirectRequest.httpBody = nil
+      redirectRequest.httpBodyStream = nil
+    } else if redirectRequest.httpBody == nil && redirectRequest.httpBodyStream == nil {
+      redirectRequest.httpBody = task.originalRequest?.httpBody
+    }
+
     /* Refuse to replay a request body across an
      * HTTPS -> HTTP transport downgrade. Replaying the body in
      * cleartext after the original was sent over TLS leaks
@@ -1383,6 +1396,21 @@ extension DefaultApiClient {
     "X-API-Key",
     "X-Internal-Key",
   ]
+
+  /// The method of the follow-up request for a redirect (RFC 9110 15.4):
+  /// 301 and 302 turn only POST into GET, 303 turns everything except HEAD
+  /// into GET, and 307, 308 and every other status keep the method.
+  static func redirectMethod(status: Int, method: String) -> String {
+    let upper = method.uppercased()
+    switch status {
+    case 301, 302:
+      return upper == "POST" ? "GET" : method
+    case 303:
+      return upper == "HEAD" ? method : "GET"
+    default:
+      return method
+    }
+  }
 
   /// Compare two URLs by scheme + host + effective port.
   static func sameOrigin(_ a: URL, _ b: URL) -> Bool {

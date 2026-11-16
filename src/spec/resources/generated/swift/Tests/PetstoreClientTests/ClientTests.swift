@@ -10,6 +10,29 @@ import Testing
 
 @testable import PetstoreClient
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
+/* Records whether the session was invalidated, so a test can prove the
+ * facade never closes a caller-supplied session. */
+private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked Sendable {
+  private let lock = NSLock()
+  private var flag = false
+
+  var invalidated: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return flag
+  }
+
+  func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?) {
+    lock.lock()
+    flag = true
+    lock.unlock()
+  }
+}
+
 @Suite final class ClientTests {
 
   private let authenticator: BearerAuthenticator = {
@@ -29,6 +52,26 @@ import Testing
 
   @Test func testConstructWithAuthenticatorAndNilTransportOptions() throws {
     _ = try Client(authenticator: authenticator, transportOptions: nil)
+  }
+
+  @Test func testClosedClientRejectsFurtherRequests() async throws {
+    let client = try Client(authenticator: authenticator)
+    client.close()
+    client.close()
+    await #expect(throws: ConfigurationError.self) {
+      _ = try await client.pet.getPetById(petId: 1)
+    }
+  }
+
+  @Test func testCloseLeavesASuppliedSessionOpen() async throws {
+    let probe = InvalidationProbe()
+    let session = URLSession(configuration: .ephemeral, delegate: probe, delegateQueue: nil)
+    let transport = try TransportOptionsBuilder().session(session).build()
+    let client = try Client(authenticator: authenticator, transportOptions: transport)
+    client.close()
+    try await Task.sleep(nanoseconds: 200_000_000)
+    #expect(!probe.invalidated)
+    session.invalidateAndCancel()
   }
 
   @Test func testConstructWithAuthenticatorAndTransportOptions() throws {

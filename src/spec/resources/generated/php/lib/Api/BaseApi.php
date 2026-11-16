@@ -494,6 +494,9 @@ class BaseApi
                 $contents = stream_get_contents($body);
                 return $contents !== false ? $contents : '';
             }
+            if ($body instanceof \Psr\Http\Message\StreamInterface) {
+                return (string) $body;
+            }
             return $body;
         }
 
@@ -547,6 +550,7 @@ class BaseApi
             if (
                 $value instanceof \SplFileObject
                 || is_resource($value)
+                || $value instanceof \Psr\Http\Message\StreamInterface
                 || is_string($value)
             ) {
                 return $value;

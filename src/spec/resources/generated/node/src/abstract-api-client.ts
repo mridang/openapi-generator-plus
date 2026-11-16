@@ -416,27 +416,31 @@ export abstract class AbstractApiClient implements ApiClient {
             nextUrl,
           );
 
-          /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+          /* Gap T3: pick follow-up method+body per RFC 9110 section 15.4.
            *   307 + 308: preserve original method and body.
-           *   303:       force GET, drop the body (and Content-Type/Length).
-           *   301 + 302: historical browser behaviour — switch to GET for
-           *              non-GET/HEAD requests, drop the body. */
+           *   303:       every method except HEAD becomes GET, body dropped.
+           *   301 + 302: only POST becomes GET (body dropped); every other
+           *              method keeps its method and body. */
           const statusCode = response.status;
           let nextMethod: string;
           let nextBody: unknown;
           const methodUpper = currentMethod.toUpperCase();
-          if (statusCode === 307 || statusCode === 308) {
-            nextMethod = currentMethod;
-            nextBody = currentBody;
-          } else if (statusCode === 303) {
+          if (statusCode === 303) {
+            if (methodUpper === "HEAD") {
+              nextMethod = currentMethod;
+            } else {
+              nextMethod = "GET";
+            }
+            nextBody = undefined;
+          } else if (
+            (statusCode === 301 || statusCode === 302) &&
+            methodUpper === "POST"
+          ) {
             nextMethod = "GET";
             nextBody = undefined;
-          } else if (methodUpper === "GET" || methodUpper === "HEAD") {
-            nextMethod = currentMethod;
-            nextBody = currentBody;
           } else {
-            nextMethod = "GET";
-            nextBody = undefined;
+            nextMethod = currentMethod;
+            nextBody = currentBody;
           }
 
           /* Gap 3.3: refuse to replay a request body across a transport
@@ -451,10 +455,13 @@ export abstract class AbstractApiClient implements ApiClient {
            * downgrade on those statuses carries nothing sensitive and must
            * PROCEED rather than throw; gating only on `nextBody` (without
            * the status check) wrongly refused a GET-with-body whose body
-           * the 301/302 coercion preserves. N1: guard 307/308 only. */
+           * the 301/302 coercion preserves. N1: guard 307/308, plus any 301/302 that keeps a body
+           * on a method other than GET/HEAD (PUT, PATCH, DELETE keep it). */
           const currentProto = new URL(currentUrl).protocol;
           if (
-            (statusCode === 307 || statusCode === 308) &&
+            (statusCode === 307 ||
+              statusCode === 308 ||
+              !["GET", "HEAD"].includes(nextMethod.toUpperCase())) &&
             nextBody !== undefined &&
             nextBody !== null &&
             currentProto === "https:" &&

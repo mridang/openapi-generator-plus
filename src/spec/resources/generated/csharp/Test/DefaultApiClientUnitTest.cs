@@ -13,6 +13,9 @@ using PetstoreClient.Errors;
 using PetstoreClient.Models;
 using Xunit;
 
+/* These tests exercise the SDK without a test-runner cancellation token on purpose. */
+#pragma warning disable xUnit1051
+
 namespace Test;
 
 public class DefaultApiClientUnitTest

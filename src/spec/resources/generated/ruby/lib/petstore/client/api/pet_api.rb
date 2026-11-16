@@ -214,7 +214,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          options&.auth
+          options&.auth,
+          operation_id: 'PetApi.add_pet'
         )
       end
 
@@ -275,7 +276,8 @@ module Petstore::Client
           ['application/json'],
           'multipart/form-data',
           'Array<Photo>',
-          nil
+          nil,
+          operation_id: 'PetApi.add_pet_photos'
         )
       end
 
@@ -334,7 +336,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'PetTreatment',
-          options&.auth
+          options&.auth,
+          operation_id: 'PetApi.add_pet_treatment'
         )
       end
 
@@ -380,7 +383,8 @@ module Petstore::Client
           [],
           'application/json',
           nil,
-          options&.auth
+          options&.auth,
+          operation_id: 'PetApi.delete_pet'
         )
       end
 
@@ -434,7 +438,8 @@ module Petstore::Client
           ['application/octet-stream'],
           'application/json',
           'File',
-          nil
+          nil,
+          operation_id: 'PetApi.download_pet_document'
         )
       end
 
@@ -480,7 +485,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Array<Pet>',
-          nil
+          nil,
+          operation_id: 'PetApi.find_pets_born_on'
         )
       end
 
@@ -546,7 +552,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Array<Pet>',
-          nil
+          nil,
+          operation_id: 'PetApi.find_pets_by_status'
         )
       end
 
@@ -596,7 +603,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          nil,
+          operation_id: 'PetApi.get_external_pet_info'
         )
       end
 
@@ -646,7 +654,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          nil,
+          operation_id: 'PetApi.get_multi_server_pet_info'
         )
       end
 
@@ -693,7 +702,8 @@ module Petstore::Client
           ['image/jpeg', 'image/png'],
           'application/json',
           'File',
-          nil
+          nil,
+          operation_id: 'PetApi.get_pet_avatar'
         )
       end
 
@@ -740,7 +750,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'ByteArray',
-          nil
+          nil,
+          operation_id: 'PetApi.get_pet_avatar_thumbnail'
         )
       end
 
@@ -799,7 +810,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          nil,
+          operation_id: 'PetApi.get_pet_by_id'
         )
       end
 
@@ -879,7 +891,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          nil,
+          operation_id: 'PetApi.get_pet_by_name'
         )
       end
 
@@ -926,7 +939,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'PetPassport',
-          nil
+          nil,
+          operation_id: 'PetApi.get_pet_passport'
         )
       end
 
@@ -980,7 +994,8 @@ module Petstore::Client
           ['image/jpeg', 'image/png', 'application/json'],
           'application/json',
           'File',
-          nil
+          nil,
+          operation_id: 'PetApi.get_pet_photo'
         )
       end
 
@@ -1065,7 +1080,8 @@ module Petstore::Client
           ['text/plain'],
           'application/json',
           'String',
-          nil
+          nil,
+          operation_id: 'PetApi.get_pet_summary'
         )
       end
 
@@ -1176,7 +1192,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          nil,
+          operation_id: 'PetApi.get_pet_tag'
         )
       end
 
@@ -1226,7 +1243,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          nil,
+          operation_id: 'PetApi.get_staging_pet_info'
         )
       end
 
@@ -1293,7 +1311,8 @@ module Petstore::Client
           resolved_content_type,
           nil,
           nil,
-          raw_body: true
+          raw_body: true,
+          operation_id: 'PetApi.set_pet_avatar'
         )
       end
 
@@ -1338,7 +1357,8 @@ module Petstore::Client
           [],
           'application/json',
           nil,
-          nil
+          nil,
+          operation_id: 'PetApi.set_pet_avatar_thumbnail'
         )
       end
 
@@ -1402,7 +1422,8 @@ module Petstore::Client
           ['application/json'],
           'application/x-www-form-urlencoded',
           'ApiResponse',
-          nil
+          nil,
+          operation_id: 'PetApi.set_pet_preferences'
         )
       end
 
@@ -1460,7 +1481,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Pet',
-          nil
+          nil,
+          operation_id: 'PetApi.update_pet'
         )
       end
 
@@ -1515,7 +1537,8 @@ module Petstore::Client
           ['application/json'],
           'multipart/form-data',
           'ApiResponse',
-          nil
+          nil,
+          operation_id: 'PetApi.upload_pet_certificate'
         )
       end
 
@@ -1597,7 +1620,8 @@ module Petstore::Client
           ['application/json'],
           resolved_content_type,
           'ApiResponse',
-          nil
+          nil,
+          operation_id: 'PetApi.upload_pet_document'
         )
       end
     end

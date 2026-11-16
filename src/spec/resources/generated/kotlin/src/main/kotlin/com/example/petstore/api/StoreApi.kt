@@ -78,6 +78,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.createAccount",
         )
     }
 
@@ -114,6 +115,7 @@ class StoreApi : BaseApi {
             arrayOf(),
             "application/json",
             null,
+            "StoreApi.deleteOrder",
         )
     }
 
@@ -183,6 +185,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getBySwatch",
         )
     }
 
@@ -217,6 +220,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getDefaults",
         )
     }
 
@@ -251,6 +255,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getDepartment",
         )
     }
 
@@ -285,6 +290,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getGroupedCategories",
         )
     }
 
@@ -319,6 +325,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getInventory",
         )
     }
 
@@ -353,6 +360,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getMatrix",
         )
     }
 
@@ -396,6 +404,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "StoreApi.getOrderById",
         )
     }
 
@@ -439,6 +448,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getOrderByTrackingId",
         )
     }
 
@@ -481,6 +491,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getStockItem",
         )
     }
 
@@ -515,6 +526,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getSwatch",
         )
     }
 
@@ -549,6 +561,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getSwatchGroups",
         )
     }
 
@@ -583,6 +596,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getTimestampGroups",
         )
     }
 
@@ -617,6 +631,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.getTree",
         )
     }
 
@@ -652,6 +667,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "StoreApi.placeOrder",
         )
     }
 
@@ -707,6 +723,7 @@ class StoreApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             NoAuth,
+            "StoreApi.searchStore",
         )
     }
 }

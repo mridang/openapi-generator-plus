@@ -209,6 +209,14 @@ void main() {
         equals(422),
       );
       expect(
+        const TooManyRequestsException(message: 'x').statusCode,
+        equals(429),
+      );
+      expect(
+        const TooManyRequestsException(message: 'x'),
+        isA<ClientException>(),
+      );
+      expect(
         const InternalServerErrorException(message: 'x').statusCode,
         equals(500),
       );
@@ -234,6 +242,7 @@ void main() {
         NotFoundException(cause: cause),
         ConflictException(cause: cause),
         UnprocessableEntityException(cause: cause),
+        TooManyRequestsException(cause: cause),
         InternalServerErrorException(cause: cause),
         ClientException(statusCode: 418, message: 'x', cause: cause),
         ServerException(statusCode: 503, message: 'x', cause: cause),
@@ -279,6 +288,7 @@ void main() {
         404: NotFoundException,
         409: ConflictException,
         422: UnprocessableEntityException,
+        429: TooManyRequestsException,
         418: ClientException,
         500: InternalServerErrorException,
         503: ServerException,

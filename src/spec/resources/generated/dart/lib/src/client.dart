@@ -45,10 +45,13 @@ class Client {
   /// API operations for the StoreApi group.
   final StoreApi store;
 
+  final DefaultApiClient _apiClient;
+
   Client._({
     required Authenticator authenticator,
     required DefaultApiClient apiClient,
-  }) : pet = _createPetApi(authenticator, apiClient),
+  }) : _apiClient = apiClient,
+       pet = _createPetApi(authenticator, apiClient),
        store = _createStoreApi(authenticator, apiClient);
 
   /// Creates a new client with the given authenticator and transport options.
@@ -94,6 +97,15 @@ class Client {
       config: config,
       authenticator: authenticator,
     );
+  }
+
+  /// Releases the HTTP transport this client built for itself.
+  ///
+  /// A transport supplied by the caller through
+  /// [TransportOptions.httpClient] is never closed: the caller owns it. After
+  /// this call any further request raises a [StateError]. Idempotent.
+  void close() {
+    _apiClient.close();
   }
 
   /// Creates a client authenticated with a static Bearer token.

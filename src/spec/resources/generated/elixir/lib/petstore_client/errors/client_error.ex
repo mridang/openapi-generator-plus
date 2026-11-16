@@ -49,7 +49,8 @@ defmodule PetstoreClient.Errors.ClientError do
     PetstoreClient.Errors.ForbiddenError,
     PetstoreClient.Errors.NotFoundError,
     PetstoreClient.Errors.ConflictError,
-    PetstoreClient.Errors.UnprocessableEntityError
+    PetstoreClient.Errors.UnprocessableEntityError,
+    PetstoreClient.Errors.TooManyRequestsError
   ]
 
   @doc """

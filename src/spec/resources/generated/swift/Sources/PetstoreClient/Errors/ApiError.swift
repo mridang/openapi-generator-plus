@@ -83,7 +83,7 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
 
   /// Map an HTTP response that was not a success to the error for its status.
   ///
-  /// 400, 401, 403, 404, 409 and 422 map to their named ``ClientError``
+  /// 400, 401, 403, 404, 409, 422 and 429 map to their named ``ClientError``
   /// subclasses and any other 4xx to ``ClientError``; 500 maps to
   /// ``InternalServerError`` and any other 5xx to ``ServerError``; any other
   /// status maps to ``ApiError`` itself. A JSON body is decoded and exposed
@@ -147,6 +147,11 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
         )
       case 422:
         return UnprocessableEntityError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed
+        )
+      case 429:
+        return TooManyRequestsError(
           message: msg, responseBody: body,
           responseHeaders: headers, errorBody: parsed
         )

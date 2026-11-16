@@ -103,6 +103,7 @@ class StoreApi(BaseApi):
             "application/json",
             "Account",
             NO_AUTH,
+            operation_name="create_account",
         )
 
     async def delete_order(
@@ -158,6 +159,7 @@ class StoreApi(BaseApi):
             "application/json",
             None,
             None,
+            operation_name="delete_order",
         )
 
     async def get_by_swatch(
@@ -255,6 +257,7 @@ class StoreApi(BaseApi):
             "application/json",
             "Category",
             NO_AUTH,
+            operation_name="get_by_swatch",
         )
 
     async def get_defaults(
@@ -303,6 +306,7 @@ class StoreApi(BaseApi):
             "application/json",
             "Defaults",
             NO_AUTH,
+            operation_name="get_defaults",
         )
 
     async def get_department(
@@ -351,6 +355,7 @@ class StoreApi(BaseApi):
             "application/json",
             "Department",
             NO_AUTH,
+            operation_name="get_department",
         )
 
     async def get_grouped_categories(
@@ -399,6 +404,7 @@ class StoreApi(BaseApi):
             "application/json",
             "List[Dict[str, Category]]",
             NO_AUTH,
+            operation_name="get_grouped_categories",
         )
 
     async def get_inventory(
@@ -447,6 +453,7 @@ class StoreApi(BaseApi):
             "application/json",
             "Dict[str, StrictInt]",
             NO_AUTH,
+            operation_name="get_inventory",
         )
 
     async def get_matrix(
@@ -495,6 +502,7 @@ class StoreApi(BaseApi):
             "application/json",
             "List[List[StrictInt]]",
             NO_AUTH,
+            operation_name="get_matrix",
         )
 
     async def get_order_by_id(
@@ -562,6 +570,7 @@ class StoreApi(BaseApi):
             "application/json",
             "Order",
             None,
+            operation_name="get_order_by_id",
         )
 
     async def get_order_by_tracking_id(
@@ -635,6 +644,7 @@ class StoreApi(BaseApi):
             "application/json",
             "Order",
             NO_AUTH,
+            operation_name="get_order_by_tracking_id",
         )
 
     async def get_stock_item(
@@ -696,6 +706,7 @@ class StoreApi(BaseApi):
             "application/json",
             "StockItem",
             NO_AUTH,
+            operation_name="get_stock_item",
         )
 
     async def get_swatch(
@@ -744,6 +755,7 @@ class StoreApi(BaseApi):
             "application/json",
             "Swatch",
             NO_AUTH,
+            operation_name="get_swatch",
         )
 
     async def get_swatch_groups(
@@ -792,6 +804,7 @@ class StoreApi(BaseApi):
             "application/json",
             "List[Dict[str, Swatch]]",
             NO_AUTH,
+            operation_name="get_swatch_groups",
         )
 
     async def get_timestamp_groups(
@@ -840,6 +853,7 @@ class StoreApi(BaseApi):
             "application/json",
             "List[Dict[str, AwareDatetime]]",
             NO_AUTH,
+            operation_name="get_timestamp_groups",
         )
 
     async def get_tree(
@@ -888,6 +902,7 @@ class StoreApi(BaseApi):
             "application/json",
             "TreeNode",
             NO_AUTH,
+            operation_name="get_tree",
         )
 
     async def place_order(
@@ -942,6 +957,7 @@ class StoreApi(BaseApi):
             "application/json",
             "Order",
             None,
+            operation_name="place_order",
         )
 
     async def search_store(
@@ -1026,4 +1042,5 @@ class StoreApi(BaseApi):
             "application/json",
             "List[Order]",
             NO_AUTH,
+            operation_name="search_store",
         )

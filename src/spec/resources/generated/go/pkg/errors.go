@@ -33,6 +33,8 @@ type (
 	ConflictError = errors_pkg.ConflictError
 	// UnprocessableEntityError is an HTTP 422 failure.
 	UnprocessableEntityError = errors_pkg.UnprocessableEntityError
+	// TooManyRequestsError is an HTTP 429 failure.
+	TooManyRequestsError = errors_pkg.TooManyRequestsError
 	// ServerError is an HTTP 5xx failure.
 	ServerError = errors_pkg.ServerError
 	// InternalServerError is an HTTP 500 failure.

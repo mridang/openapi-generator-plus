@@ -37,6 +37,7 @@ var (
 	_ apierrors.OpenAPIError = (*apierrors.NotFoundError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.ConflictError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.UnprocessableEntityError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.TooManyRequestsError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.InternalServerError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.NetworkError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.NetworkTimeoutError)(nil)
@@ -356,6 +357,7 @@ func TestFromResponse_MapsEveryStatusToItsType(t *testing.T) {
 		{404, "*errors.NotFoundError"},
 		{409, "*errors.ConflictError"},
 		{422, "*errors.UnprocessableEntityError"},
+		{429, "*errors.TooManyRequestsError"},
 		{418, "*errors.ClientError"},
 		{500, "*errors.InternalServerError"},
 		{503, "*errors.ServerError"},
@@ -406,6 +408,7 @@ func TestPackageRoot_ReexportsTheErrorTree(t *testing.T) {
 		_ petstore.OpenAPIError = (*petstore.NotFoundError)(nil)
 		_ petstore.OpenAPIError = (*petstore.ConflictError)(nil)
 		_ petstore.OpenAPIError = (*petstore.UnprocessableEntityError)(nil)
+		_ petstore.OpenAPIError = (*petstore.TooManyRequestsError)(nil)
 		_ petstore.OpenAPIError = (*petstore.ServerError)(nil)
 		_ petstore.OpenAPIError = (*petstore.InternalServerError)(nil)
 		_ petstore.OpenAPIError = (*petstore.NetworkError)(nil)

@@ -34,6 +34,7 @@ defmodule PetstoreClient do
       PetstoreClient.Errors.NotFoundError
       PetstoreClient.Errors.ConflictError
       PetstoreClient.Errors.UnprocessableEntityError
+      PetstoreClient.Errors.TooManyRequestsError
       PetstoreClient.Errors.ServerError    # 5xx grouping
       PetstoreClient.Errors.InternalServerError
       PetstoreClient.Errors.NetworkError   # no response at all

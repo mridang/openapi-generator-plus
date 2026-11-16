@@ -8,7 +8,6 @@
 import type { Authenticator } from "./auth/authenticator.js";
 import { isHttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
 import { BearerAuthenticator } from "./auth/bearer-authenticator.js";
-import type { ApiClient } from "./api-client.js";
 import { Configuration } from "./configuration.js";
 import { DefaultApiClient } from "#transport";
 import { TransportOptions } from "./transport-options.js";
@@ -32,7 +31,7 @@ export interface ClientOptions {
  *
  * Takes an {@link Authenticator} and optionally {@link TransportOptions},
  * then exposes each API group as a typed property. If the authenticator
- * implements `HttpAwareAuthenticator`, the shared {@link ApiClient}
+ * implements `HttpAwareAuthenticator`, the shared `ApiClient`
  * is injected so that authentication HTTP calls (token exchange, discovery)
  * use the same transport configuration as regular API calls.
  *
@@ -58,6 +57,8 @@ export interface ClientOptions {
  * ```
  */
 export class Client {
+  private readonly ownedClient: DefaultApiClient;
+
   /** API operations for the PetApi group. */
   public readonly pet: PetApi;
   /** API operations for the StoreApi group. */
@@ -74,7 +75,7 @@ export class Client {
    * Creates a new client with the given authenticator and transport options.
    *
    * If the authenticator implements `HttpAwareAuthenticator`, the
-   * shared {@link ApiClient} is injected so that token exchange and
+   * shared `ApiClient` is injected so that token exchange and
    * discovery requests use the same proxy, TLS, and timeout settings.
    *
    * @param authenticator provides host URL and auth headers
@@ -102,7 +103,8 @@ export class Client {
     clientOptions?: ClientOptions,
   ) {
     const transport = transportOptions ?? TransportOptions.builder().build();
-    const apiClient: ApiClient = new DefaultApiClient(transport);
+    const apiClient: DefaultApiClient = new DefaultApiClient(transport);
+    this.ownedClient = apiClient;
 
     if (isHttpAwareAuthenticator(authenticator)) {
       authenticator.setApiClient(apiClient);
@@ -114,6 +116,21 @@ export class Client {
       .build();
     this.pet = new PetApi(apiClient, config, authenticator);
     this.store = new StoreApi(apiClient, config, authenticator);
+  }
+
+  /**
+   * Releases the HTTP stack the SDK built itself (the connection pool of the
+   * default transport). Requests made after this call are rejected with the
+   * closed-client error. A caller-supplied `fetch` is never touched. Calling
+   * it again is harmless.
+   */
+  async close(): Promise<void> {
+    await this.ownedClient.close();
+  }
+
+  /** Supports `await using client = ...`; same as {@link close}. */
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.close();
   }
 
   /**
@@ -144,7 +161,7 @@ export class Client {
    * This is the generic entry point for bespoke authentication strategies such as
    * OAuth2 client credentials, JWT private-key (service account), or a personal access
    * token (PAT). Supply any {@link Authenticator} implementation; if it also implements
-   * `HttpAwareAuthenticator`, the shared {@link ApiClient} is injected so its HTTP calls
+   * `HttpAwareAuthenticator`, the shared `ApiClient` is injected so its HTTP calls
    * reuse the same transport configuration.
    *
    * @param authenticator provides host URL and auth headers

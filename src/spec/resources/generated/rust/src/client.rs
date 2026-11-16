@@ -45,6 +45,10 @@ pub struct Client {
     pub pet: PetApi,
     /// API operations for the StoreApi group.
     pub store: StoreApi,
+    /* The transport the facade was built around. Closing the facade closes
+     * the SDK-built HTTP stack; a caller-supplied reqwest::Client is never
+     * shut down (the wrapper only stops sending through it). */
+    api_client: Arc<dyn ApiClient>,
 }
 
 impl Client {
@@ -79,6 +83,7 @@ impl Client {
         let authenticator: Arc<dyn Authenticator> = Arc::from(authenticator);
 
         Self {
+            api_client: api_client.clone(),
             pet: PetApi::new(
                 api_client.clone(),
                 config.clone(),
@@ -116,6 +121,20 @@ impl Client {
             transport_options,
         )?);
         Ok(Self::from_api_client(authenticator, api_client))
+    }
+
+    /// Releases the HTTP stack this client owns. Any request made afterwards
+    /// fails with `ConfigurationError::InvalidState("ApiClient is closed")`.
+    /// A caller-supplied `reqwest::Client` (see [`Self::with_http_client`]) is
+    /// never closed: its owner keeps using it. Dropping the client also
+    /// releases the pool once the last handle goes away.
+    pub fn close(&self) {
+        self.api_client.close();
+    }
+
+    /// Returns true once [`Self::close`] has been called.
+    pub fn is_closed(&self) -> bool {
+        self.api_client.is_closed()
     }
 
     /// Creates a client authenticated with a static Bearer token.

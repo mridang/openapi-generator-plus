@@ -1558,6 +1558,7 @@ paths:
   /test/status/409: { get: { operationId: testStatus409, x-internal: true, tags: [test], security: [], responses: { '409': { description: Conflict,              content: { application/json: { schema: { type: object } } } } } } }
   /test/status/418: { get: { operationId: testStatus418, x-internal: true, tags: [test], security: [], responses: { '418': { description: I am a teapot,         content: { application/json: { schema: { type: object } } } } } } }
   /test/status/422: { get: { operationId: testStatus422, x-internal: true, tags: [test], security: [], responses: { '422': { description: Unprocessable Entity,  content: { application/json: { schema: { type: object } } } } } } }
+  /test/status/429: { get: { operationId: testStatus429, x-internal: true, tags: [test], security: [], responses: { '429': { description: Too Many Requests,      content: { application/json: { schema: { type: object } } } } } } }
   /test/status/500: { get: { operationId: testStatus500, x-internal: true, tags: [test], security: [], responses: { '500': { description: Internal Server Error, content: { application/json: { schema: { type: object } } } } } } }
   /test/status/502: { get: { operationId: testStatus502, x-internal: true, tags: [test], security: [], responses: { '502': { description: Bad Gateway,           content: { application/json: { schema: { type: object } } } } } } }
   # SDK error-dispatch tests use baseUrl + getPetById, which appends /pet/{petId}.

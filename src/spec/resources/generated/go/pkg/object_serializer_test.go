@@ -27,6 +27,25 @@ import (
 // to compile.
 var _ apierrors.OpenAPIError = (*SerializationError)(nil)
 
+func TestEncodeContentCookieValue_UsesTheUnreservedSetOnly(t *testing.T) {
+	t.Parallel()
+	raw, err := serialize(map[string]any{"k": "a b~*\u00e9"})
+	if err != nil {
+		t.Fatalf("serialize failed: %v", err)
+	}
+	got := encodeContentCookieValue(raw)
+	want := "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D"
+	if got != want {
+		t.Errorf("expected %s, got %s", want, got)
+	}
+	if !isValidCookieValue(got) {
+		t.Errorf("expected the encoded value to pass the RFC 6265 check: %s", got)
+	}
+	if enc := encodeContentCookieValue([]byte("!'(),;")); enc != "%21%27%28%29%2C%3B" {
+		t.Errorf("expected every non-unreserved ASCII byte encoded, got %s", enc)
+	}
+}
+
 func TestSerialize_MapToJSON(t *testing.T) {
 	t.Parallel()
 	input := map[string]any{

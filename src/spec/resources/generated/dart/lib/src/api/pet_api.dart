@@ -254,6 +254,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Pet>(
       method: 'POST',
+      operation: 'PetApi.addPet',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -346,6 +347,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<List<Photo>>(
       method: 'POST',
+      operation: 'PetApi.addPetPhotos',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -429,6 +431,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<PetTreatment>(
       method: 'POST',
+      operation: 'PetApi.addPetTreatment',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -517,6 +520,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<void>(
       method: 'DELETE',
+      operation: 'PetApi.deletePet',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -607,6 +611,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Uint8List>(
       method: 'GET',
+      operation: 'PetApi.downloadPetDocument',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -676,6 +681,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<List<Pet>>(
       method: 'GET',
+      operation: 'PetApi.findPetsBornOn',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -798,6 +804,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<List<Pet>>(
       method: 'GET',
+      operation: 'PetApi.findPetsByStatus',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -877,6 +884,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Pet>(
       method: 'GET',
+      operation: 'PetApi.getExternalPetInfo',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -956,6 +964,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Pet>(
       method: 'GET',
+      operation: 'PetApi.getMultiServerPetInfo',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1023,6 +1032,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Uint8List>(
       method: 'GET',
+      operation: 'PetApi.getPetAvatar',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1092,6 +1102,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Uint8List>(
       method: 'GET',
+      operation: 'PetApi.getPetAvatarThumbnail',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1180,6 +1191,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Pet>(
       method: 'GET',
+      operation: 'PetApi.getPetById',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1287,6 +1299,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Pet>(
       method: 'GET',
+      operation: 'PetApi.getPetByName',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1355,6 +1368,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<PetPassport>(
       method: 'GET',
+      operation: 'PetApi.getPetPassport',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1447,6 +1461,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Uint8List>(
       method: 'GET',
+      operation: 'PetApi.getPetPhoto',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1594,6 +1609,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<String>(
       method: 'GET',
+      operation: 'PetApi.getPetSummary',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1812,6 +1828,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Pet>(
       method: 'GET',
+      operation: 'PetApi.getPetTag',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1891,6 +1908,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Pet>(
       method: 'GET',
+      operation: 'PetApi.getStagingPetInfo',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -1961,6 +1979,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<void>(
       method: 'PUT',
+      operation: 'PetApi.setPetAvatar',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2021,6 +2040,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<void>(
       method: 'PUT',
+      operation: 'PetApi.setPetAvatarThumbnail',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2127,6 +2147,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<ApiResponse>(
       method: 'POST',
+      operation: 'PetApi.setPetPreferences',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2196,6 +2217,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<Pet>(
       method: 'PUT',
+      operation: 'PetApi.updatePet',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2286,6 +2308,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<ApiResponse>(
       method: 'POST',
+      operation: 'PetApi.uploadPetCertificate',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -2428,6 +2451,7 @@ class PetApi extends BaseApi {
 
     return invokeApiForResult<ApiResponse>(
       method: 'POST',
+      operation: 'PetApi.uploadPetDocument',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,

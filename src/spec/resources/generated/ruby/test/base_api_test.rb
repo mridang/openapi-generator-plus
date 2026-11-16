@@ -12,9 +12,9 @@ class TestableApi < Petstore::Client::Api::BaseApi
   end
 
   def call_for_result(method, path, query_params, header_params, body,
-                      accepts, content_type, return_type, auth = nil)
+                      accepts, content_type, return_type, auth = nil, operation_id: nil)
     invoke_api_for_result(method, path, query_params, header_params, body,
-                          accepts, content_type, return_type, auth)
+                          accepts, content_type, return_type, auth, operation_id: operation_id)
   end
 end
 
@@ -83,6 +83,7 @@ describe Petstore::Client::Api::BaseApi do
     404 => Petstore::Client::Errors::NotFoundError,
     409 => Petstore::Client::Errors::ConflictError,
     422 => Petstore::Client::Errors::UnprocessableEntityError,
+    429 => Petstore::Client::Errors::TooManyRequestsError,
     418 => Petstore::Client::Errors::ClientError,
     500 => Petstore::Client::Errors::InternalServerError,
     502 => Petstore::Client::Errors::ServerError
@@ -589,6 +590,20 @@ describe Petstore::Client::Api::BaseApi do
           .must_raise(Petstore::Client::Errors::SerializationError)
     _(err.message).must_include "Unexpected response Content-Type 'text/plain'"
     _(err.message).must_include 'expected a JSON body'
+  end
+
+  it 'names the operation, not an HTTP verb, in the unexpected Content-Type error' do
+    client = FixedResponseApiClient.new(
+      Petstore::Client::ApiHttpResponse.new(status_code: 200, body: 'hello', headers: { 'Content-Type' => 'text/plain' })
+    )
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    err = _ do
+      test_api.call_for_result('GET', '/test', {}, {}, nil, ['text/plain'], 'application/json', 'Object',
+                               operation_id: 'PetApi.get_pet_by_id')
+    end.must_raise(Petstore::Client::Errors::SerializationError)
+    _(err.message).must_include 'for PetApi.get_pet_by_id: expected a JSON body'
+    _(err.message).wont_include 'get:'
   end
 
   it 'deserializes vendor JSON MIME types like application/problem+json' do

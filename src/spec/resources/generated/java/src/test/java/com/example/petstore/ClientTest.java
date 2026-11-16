@@ -33,6 +33,29 @@ class ClientTest {
   }
 
   @Test
+  void closedClientRejectsFurtherRequests() {
+    Client client = new Client(authenticator);
+    client.close();
+    client.close();
+
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+  }
+
+  @Test
+  void closingTheClientLeavesASuppliedHttpClientOpen() {
+    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+    Client client =
+        new Client(authenticator, TransportOptions.builder().httpClient(supplied).build());
+    client.close();
+
+    assertFalse(supplied.isTerminated());
+    supplied.close();
+  }
+
+  @Test
   void constructWithAuthenticatorAndTransportOptions() throws ApiException {
     TransportOptions transport = TransportOptions.builder().build();
 

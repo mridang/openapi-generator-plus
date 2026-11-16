@@ -23,6 +23,15 @@ use PetstoreClient\Models\StockItem;
 use PetstoreClient\Models\Swatch;
 use PetstoreClient\Models\TreeNode;
 
+// -- content cookie bytes --
+
+test('content cookie value is the serializer JSON percent encoded keeping only the unreserved set', function (): void {
+    $cookie = rawurlencode(ObjectSerializer::serialize(['k' => "a b~*\u{00E9}"]));
+
+    expect($cookie)->toBe('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D');
+    expect(preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookie))->toBe(1);
+});
+
 // -- toPathValue --
 
 test('to path value returns empty string for null', function (): void {

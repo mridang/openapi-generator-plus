@@ -807,7 +807,7 @@ func TestPetApi_AddPetPhotos(t *testing.T) {
 	metadata.IsPrimary = &isPrimary
 
 	result, err := api.AddPetPhotos(context.Background(), int64(1), &options.AddPetPhotosOptions{
-		Files:    []*os.File{f},
+		Files:    []io.Reader{f},
 		Metadata: *metadata,
 	})
 	if err != nil {
@@ -983,7 +983,7 @@ func TestPetApi_MultipartObjectPartHasJSONContentType(t *testing.T) {
 	metadata.Caption = &caption
 
 	_, _ = api.AddPetPhotos(context.Background(), int64(1), &options.AddPetPhotosOptions{
-		Files:    []*os.File{f},
+		Files:    []io.Reader{f},
 		Metadata: *metadata,
 	})
 
@@ -1044,7 +1044,7 @@ func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
 	metadata.Caption = &caption
 
 	_, _ = api.AddPetPhotos(context.Background(), int64(1), &options.AddPetPhotosOptions{
-		Files:    []*os.File{f},
+		Files:    []io.Reader{f},
 		Metadata: *metadata,
 	})
 
@@ -1146,7 +1146,7 @@ func TestPetApi_MultipartFilePartContentTypeFromExtension(t *testing.T) {
 
 	metadata := models.NewPhotoMetadata()
 	_, _ = api.AddPetPhotos(context.Background(), int64(1), &options.AddPetPhotosOptions{
-		Files:    []*os.File{f},
+		Files:    []io.Reader{f},
 		Metadata: *metadata,
 	})
 
@@ -1155,6 +1155,59 @@ func TestPetApi_MultipartFilePartContentTypeFromExtension(t *testing.T) {
 	}
 	if filePartContentType != "image/png" {
 		t.Errorf("expected file part Content-Type image/png, got %q", filePartContentType)
+	}
+}
+
+func TestPetApi_BinaryBodyAcceptsAnIoReader(t *testing.T) {
+	t.Parallel()
+	var gotBody []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotBody, _ = io.ReadAll(r.Body)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	if err := api.SetPetAvatar(context.Background(), int64(1), strings.NewReader("raw-reader-bytes")); err != nil {
+		t.Fatalf("SetPetAvatar with a strings.Reader failed: %v", err)
+	}
+	if string(gotBody) != "raw-reader-bytes" {
+		t.Errorf("expected the reader bytes on the wire, got %q", gotBody)
+	}
+}
+
+func TestPetApi_UploadFieldAcceptsAnIoReader(t *testing.T) {
+	t.Parallel()
+	var gotFile string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err == nil {
+			mr := multipart.NewReader(r.Body, params["boundary"])
+			for {
+				part, perr := mr.NextPart()
+				if perr != nil {
+					break
+				}
+				if part.FormName() == "files" {
+					b, _ := io.ReadAll(part)
+					gotFile = string(b)
+				}
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	metadata := models.NewPhotoMetadata()
+	_, _ = api.AddPetPhotos(context.Background(), int64(1), &options.AddPetPhotosOptions{
+		Files:    []io.Reader{bytes.NewReader([]byte("in-memory-photo"))},
+		Metadata: *metadata,
+	})
+	if gotFile != "in-memory-photo" {
+		t.Errorf("expected the in-memory reader as a file part, got %q", gotFile)
 	}
 }
 

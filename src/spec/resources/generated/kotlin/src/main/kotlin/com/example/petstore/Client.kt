@@ -35,7 +35,9 @@ import com.example.petstore.auth.HttpAwareAuthenticator
  * val client = Client(authenticator, transport)
  * ```
  */
-class Client {
+class Client : AutoCloseable {
+    private val apiClient: ApiClient
+
     /** API operations for the PetApi group. */
     val pet: PetApi
 
@@ -64,6 +66,7 @@ class Client {
      */
     constructor(authenticator: Authenticator, transportOptions: TransportOptions) {
         val apiClient: ApiClient = DefaultApiClient(transportOptions)
+        this.apiClient = apiClient
 
         if (authenticator is HttpAwareAuthenticator) {
             authenticator.setApiClient(apiClient)
@@ -77,6 +80,17 @@ class Client {
 
         this.pet = PetApi(apiClient, config, authenticator)
         this.store = StoreApi(apiClient, config, authenticator)
+    }
+
+    /**
+     * Releases the HTTP stack this client built (connection pool and engine threads).
+     *
+     * A Ktor client supplied through [TransportOptions.httpClient] is never closed.
+     * After calling this method every request fails with [IllegalStateException].
+     * Use with Kotlin's `use { }`.
+     */
+    override fun close() {
+        apiClient.close()
     }
 
     companion object {

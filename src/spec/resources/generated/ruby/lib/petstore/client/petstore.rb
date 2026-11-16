@@ -45,6 +45,7 @@ module Petstore::Client
     def initialize(authenticator, transport_options = nil)
       transport_options ||= TransportOptions.builder.build
       api_client = DefaultApiClient.new(transport_options)
+      @api_client = api_client
       authenticator.api_client = api_client if authenticator.is_a?(Auth::HttpAwareAuthenticator)
 
       config = Configuration.builder
@@ -52,6 +53,18 @@ module Petstore::Client
         .build
       @pet = Api::PetApi.new(api_client, config, authenticator)
       @store = Api::StoreApi.new(api_client, config, authenticator)
+    end
+
+    # Releases the HTTP stack this client built (connection pool and sockets).
+    #
+    # Calling it again is harmless. A request made through any of the API
+    # groups after it raises a RuntimeError. A Faraday connection supplied
+    # through {TransportOptions::Builder#connection} belongs to the caller and
+    # is never closed.
+    #
+    # @return [void]
+    def close
+      @api_client.close
     end
 
     # Creates a client authenticated with a static Bearer token.

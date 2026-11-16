@@ -301,27 +301,27 @@ abstract class AbstractApiClient implements ApiClient {
               nextUri.scheme.toLowerCase() == 'http';
           final crossOrigin = !_sameOrigin(uri, nextUri);
 
-          /* Pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+          /* Pick follow-up method+body per RFC 9110 section 15.4.
            *   307 + 308: preserve original method and body.
-           *   303:       force GET, drop the body (and Content-Type/Length).
-           *   301 + 302: historical browser behaviour — switch to GET for
-           *              non-GET/HEAD requests, drop the body. */
+           *   303:       every method except HEAD becomes GET (HEAD stays HEAD); the
+           *              body is dropped for every method.
+           *   301 + 302: only POST becomes GET (body dropped); every other
+           *              method keeps its method and body. */
           final statusCode = streamedResponse.statusCode;
           final methodUpper = currentMethod.toUpperCase();
           String nextMethod;
           Object? nextBody;
-          if (statusCode == 307 || statusCode == 308) {
-            nextMethod = currentMethod;
-            nextBody = currentBody;
-          } else if (statusCode == 303) {
+          if (statusCode == 303) {
+            /* The body is never replayed on a 303, HEAD included. */
+            nextMethod = methodUpper == 'HEAD' ? currentMethod : 'GET';
+            nextBody = null;
+          } else if ((statusCode == 301 || statusCode == 302) &&
+              methodUpper == 'POST') {
             nextMethod = 'GET';
             nextBody = null;
-          } else if (methodUpper == 'GET' || methodUpper == 'HEAD') {
-            nextMethod = currentMethod;
-            nextBody = currentBody;
           } else {
-            nextMethod = 'GET';
-            nextBody = null;
+            nextMethod = currentMethod;
+            nextBody = currentBody;
           }
 
           /* Refuse to replay a request body across an HTTPS→HTTP downgrade. A

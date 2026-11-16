@@ -271,6 +271,7 @@ abstract class BaseApi {
      * @param accepts    acceptable response content types
      * @param contentType request content type
      * @param auth       optional authenticator for operation-specific auth
+     * @param operation  the operation name (Class.operationId) used in error text
      * @return ApiResult containing deserialized data, status code, raw body, and headers
      * @throws ApiException if the API call fails
      */
@@ -283,6 +284,7 @@ abstract class BaseApi {
         accepts: Array<String>,
         contentType: String,
         auth: Authenticator?,
+        operation: String,
     ): ApiResult<T> {
         val response = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
         val responseContentType =
@@ -348,7 +350,7 @@ abstract class BaseApi {
                         throw com.example.petstore.errors.SerializationException(
                             "Unexpected response Content-Type '" +
                                 responseContentType.substringBefore(';').trim() +
-                                "' for " + T::class.simpleName + ".invokeApiForResult: expected a JSON body",
+                                "' for " + operation + ": expected a JSON body",
                         )
                     }
                 } else {

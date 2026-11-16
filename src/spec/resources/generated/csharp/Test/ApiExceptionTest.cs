@@ -273,6 +273,7 @@ public class ApiExceptionTest
     [InlineData(404, typeof(NotFoundException))]
     [InlineData(409, typeof(ConflictException))]
     [InlineData(422, typeof(UnprocessableEntityException))]
+    [InlineData(429, typeof(TooManyRequestsException))]
     [InlineData(418, typeof(ClientException))]
     [InlineData(500, typeof(InternalServerErrorException))]
     [InlineData(503, typeof(ServerException))]
@@ -321,6 +322,7 @@ public class ApiExceptionTest
     [InlineData(typeof(NotFoundException))]
     [InlineData(typeof(ConflictException))]
     [InlineData(typeof(UnprocessableEntityException))]
+    [InlineData(typeof(TooManyRequestsException))]
     [InlineData(typeof(InternalServerErrorException))]
     [InlineData(typeof(NetworkException))]
     [InlineData(typeof(NetworkTimeoutException))]
@@ -348,6 +350,7 @@ public class ApiExceptionTest
             (new NotFoundException("boom", inner), 404),
             (new ConflictException("boom", inner), 409),
             (new UnprocessableEntityException("boom", inner), 422),
+            (new TooManyRequestsException("boom", inner), 429),
             (new InternalServerErrorException("boom", inner), 500),
         };
 

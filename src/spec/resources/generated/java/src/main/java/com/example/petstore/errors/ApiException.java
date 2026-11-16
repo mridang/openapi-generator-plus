@@ -200,6 +200,7 @@ public class ApiException extends OpenAPIException {
         case 409 -> new ConflictException(message, responseHeaders, responseBody, errorBody);
         case 422 ->
             new UnprocessableEntityException(message, responseHeaders, responseBody, errorBody);
+        case 429 -> new TooManyRequestsException(message, responseHeaders, responseBody, errorBody);
         default ->
             new ClientException(statusCode, message, responseHeaders, responseBody, errorBody);
       };

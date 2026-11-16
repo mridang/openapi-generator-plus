@@ -163,4 +163,28 @@ describe Petstore::Client::Petstore do
 
     _(problems).must_be_empty
   end
+
+  it 'close makes the client reject further requests' do
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+    client = Petstore::Client::Petstore.new(authenticator)
+    api_client = client.instance_variable_get(:@api_client)
+
+    client.close
+    client.close
+
+    error = _ { api_client.send_request(:get, 'http://localhost/ping', {}, nil) }.must_raise RuntimeError
+    _(error.message).must_include('closed')
+  end
+
+  it 'close leaves a supplied connection open' do
+    conn = Faraday.new
+    closed = [] # : Array[bool]
+    conn.define_singleton_method(:close) { closed << true }
+    transport = Petstore::Client::TransportOptions.builder.connection(conn).build
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+
+    Petstore::Client::Petstore.new(authenticator, transport).close
+
+    _(closed).must_be_empty
+  end
 end

@@ -138,6 +138,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "createAccount",
         "POST",
         path,
         queryParams,
@@ -181,6 +182,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "deleteOrder",
         "DELETE",
         path,
         queryParams,
@@ -275,6 +277,7 @@ public class StoreApi extends BaseApi {
                   false));
     }
     return invokeApiForResult(
+        "getBySwatch",
         "GET",
         path,
         queryParams,
@@ -307,6 +310,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getDefaults",
         "GET",
         path,
         queryParams,
@@ -339,6 +343,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getDepartment",
         "GET",
         path,
         queryParams,
@@ -371,6 +376,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getGroupedCategories",
         "GET",
         path,
         queryParams,
@@ -403,6 +409,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getInventory",
         "GET",
         path,
         queryParams,
@@ -435,6 +442,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getMatrix",
         "GET",
         path,
         queryParams,
@@ -479,6 +487,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getOrderById",
         "GET",
         path,
         queryParams,
@@ -523,6 +532,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getOrderByTrackingId",
         "GET",
         path,
         queryParams,
@@ -591,6 +601,7 @@ public class StoreApi extends BaseApi {
     }
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getStockItem",
         "GET",
         path,
         queryParams,
@@ -623,6 +634,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getSwatch",
         "GET",
         path,
         queryParams,
@@ -655,6 +667,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getSwatchGroups",
         "GET",
         path,
         queryParams,
@@ -687,6 +700,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getTimestampGroups",
         "GET",
         path,
         queryParams,
@@ -719,6 +733,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getTree",
         "GET",
         path,
         queryParams,
@@ -753,6 +768,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "placeOrder",
         "POST",
         path,
         queryParams,
@@ -835,6 +851,7 @@ public class StoreApi extends BaseApi {
       headerParams.put("X-Filter", objectSerializer.serialize(options.xFilter()));
     }
     return invokeApiForResult(
+        "searchStore",
         "GET",
         path,
         queryParams,

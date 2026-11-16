@@ -64,7 +64,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Account',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.create_account'
         )
       end
 
@@ -96,7 +97,8 @@ module Petstore::Client
           [],
           'application/json',
           nil,
-          nil
+          nil,
+          operation_id: 'StoreApi.delete_order'
         )
       end
 
@@ -151,7 +153,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Category',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_by_swatch'
         )
       end
 
@@ -190,7 +193,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Defaults',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_defaults'
         )
       end
 
@@ -229,7 +233,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Department',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_department'
         )
       end
 
@@ -268,7 +273,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Array<Hash<String, Category>>',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_grouped_categories'
         )
       end
 
@@ -307,7 +313,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Hash<String, Integer>',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_inventory'
         )
       end
 
@@ -346,7 +353,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Array<Array<Integer>>',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_matrix'
         )
       end
 
@@ -392,7 +400,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Order',
-          nil
+          nil,
+          operation_id: 'StoreApi.get_order_by_id'
         )
       end
 
@@ -443,7 +452,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Order',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_order_by_tracking_id'
         )
       end
 
@@ -490,7 +500,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'StockItem',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_stock_item'
         )
       end
 
@@ -529,7 +540,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Swatch',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_swatch'
         )
       end
 
@@ -568,7 +580,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Array<Hash<String, Swatch>>',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_swatch_groups'
         )
       end
 
@@ -607,7 +620,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Array<Hash<String, Time>>',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_timestamp_groups'
         )
       end
 
@@ -646,7 +660,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'TreeNode',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_tree'
         )
       end
 
@@ -692,7 +707,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Order',
-          nil
+          nil,
+          operation_id: 'StoreApi.place_order'
         )
       end
 
@@ -748,7 +764,8 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Array<Order>',
-          ::Petstore::Client::Api::BaseApi::NO_AUTH
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.search_store'
         )
       end
     end

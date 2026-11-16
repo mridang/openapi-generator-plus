@@ -793,6 +793,25 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
 #[cfg(test)]
 mod tests {
     use super::{self as object_serializer, QueryValue, SerializationError};
+
+    /* F833: a content cookie is the SDK's JSON, percent-encoded keeping only
+     * A-Z a-z 0-9 - . _ ~ literal, so the bytes match the other eleven SDKs
+     * and the value passes the RFC 6265 cookie-octet check. */
+    #[test]
+    fn test_content_cookie_value_bytes_are_the_unreserved_set() {
+        let value = serde_json::json!({"k": "a b~*\u{e9}"});
+        let json = object_serializer::serialize(&value).expect("serializes");
+        let cookie = urlencoding::encode(&json).into_owned();
+        assert_eq!(cookie, "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D");
+        assert!(cookie.chars().all(|c| {
+            let o = c as u32;
+            o == 0x21
+                || (0x23..=0x2B).contains(&o)
+                || (0x2D..=0x3A).contains(&o)
+                || (0x3C..=0x5B).contains(&o)
+                || (0x5D..=0x7E).contains(&o)
+        }));
+    }
     /* Model-typed cases below are fixture-spec specific and are emitted only
      * for the generator's own golden suite, never for a real client SDK. */
     use crate::models::Category;

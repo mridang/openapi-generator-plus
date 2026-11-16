@@ -35,6 +35,7 @@ import com.example.petstore.errors.InternalServerErrorException;
 import com.example.petstore.errors.NotFoundException;
 import com.example.petstore.errors.OpenAPIException;
 import com.example.petstore.errors.ServerException;
+import com.example.petstore.errors.TooManyRequestsException;
 import com.example.petstore.errors.UnauthorizedException;
 import com.example.petstore.errors.UnprocessableEntityException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -66,6 +67,14 @@ class BaseApiTest {
      * security:[] operation. */
     static final Authenticator NO_AUTH_SENTINEL = NO_AUTH;
 
+    static String encodeCookie(String json) {
+      return encodeContentCookie(json);
+    }
+
+    static boolean cookieValueValid(String value) {
+      return isValidCookieValue(value);
+    }
+
     TestableApi(String baseUrl) {
       super(new DefaultApiClient(), new Configuration(baseUrl, Map.of()));
     }
@@ -94,7 +103,16 @@ class BaseApiTest {
         @Nullable Authenticator auth)
         throws ApiException {
       return invokeApi(
-          method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth);
+          "echoOperation",
+          method,
+          path,
+          queryParams,
+          headerParams,
+          body,
+          accepts,
+          contentType,
+          returnType,
+          auth);
     }
 
     <T> com.example.petstore.ApiResult<T> callForResult(
@@ -109,7 +127,16 @@ class BaseApiTest {
         @Nullable Authenticator auth)
         throws ApiException {
       return invokeApiForResult(
-          method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth);
+          "echoOperation",
+          method,
+          path,
+          queryParams,
+          headerParams,
+          body,
+          accepts,
+          contentType,
+          returnType,
+          auth);
     }
   }
 
@@ -178,6 +205,7 @@ class BaseApiTest {
           Arguments.of(404, NotFoundException.class),
           Arguments.of(409, ConflictException.class),
           Arguments.of(422, UnprocessableEntityException.class),
+          Arguments.of(429, TooManyRequestsException.class),
           Arguments.of(418, ClientException.class),
           Arguments.of(500, InternalServerErrorException.class),
           Arguments.of(502, ServerException.class));
@@ -1140,6 +1168,14 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("encodes a content cookie with only the unreserved set literal")
+    void encodesContentCookieBytes() {
+      String encoded = TestableApi.encodeCookie("{\"k\":\"a b~*é\"}");
+      assertEquals("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D", encoded);
+      assertTrue(TestableApi.cookieValueValid(encoded));
+    }
+
+    @Test
     @DisplayName("rejects a text/plain response when the return type is not String")
     void rejectsTextPlainForNonStringReturnType() {
       var client =
@@ -1166,6 +1202,8 @@ class BaseApiTest {
                       JSON_NODE_TYPE,
                       null));
       assertTrue(String.valueOf(ex.getMessage()).contains("text/plain"));
+      assertTrue(String.valueOf(ex.getMessage()).contains("TestableApi.echoOperation"));
+      assertFalse(String.valueOf(ex.getMessage()).contains("get"));
     }
 
     @Test

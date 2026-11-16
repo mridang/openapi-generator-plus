@@ -3,12 +3,12 @@
 package options
 
 import (
-	"os"
+	"io"
 	. "petstore/pkg/models"
 )
 
 // AddPetPhotosOptions carries the parameters for the AddPetPhotos operation.
 type AddPetPhotosOptions struct {
-	Files    []*os.File
+	Files    []io.Reader
 	Metadata PhotoMetadata
 }

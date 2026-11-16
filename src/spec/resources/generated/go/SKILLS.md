@@ -178,6 +178,7 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NotFoundError` (404)
     - `ConflictError` (409)
     - `UnprocessableEntityError` (422)
+    - `TooManyRequestsError` (429)
   - `ServerError` (5xx)
     - `InternalServerError` (500)
   - `NetworkError` (no HTTP response, status 0)
@@ -243,7 +244,7 @@ m := models.Account{}
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `*os.File`. Binary response bodies are returned as `[]byte`.
+File upload parameters and binary request bodies are typed as `io.Reader`; an `*os.File` satisfies it, and so does `bytes.NewReader` or `strings.NewReader`. Binary response bodies are returned as `[]byte`.
 
 ## Comment Style
 

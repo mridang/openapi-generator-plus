@@ -134,6 +134,7 @@ class BaseApi:
         return_type: Optional[str],
         auth: Union[Authenticator, "_NoAuth", None] = None,
         raw_body: bool = False,
+        operation_name: str = "",
     ) -> "ApiResult[Any]":
         """Invoke an API operation and return the full result including status
         code, headers, and raw body alongside the deserialized data.
@@ -151,6 +152,9 @@ class BaseApi:
                 ``NO_AUTH`` suppresses auth (``security: []`` operation),
                 ``None`` falls back to the client-level authenticator, and a
                 real :class:`Authenticator` is a per-call override.
+            raw_body: Send the body as raw bytes.
+            operation_name: The operation id, named in the error text for an
+                unexpected response Content-Type.
 
         Returns:
             ApiResult containing deserialized data, status code, raw body,
@@ -381,7 +385,7 @@ class BaseApi:
                 else:
                     raise SerializationException(
                         f"Unexpected response Content-Type '{resp_content_type}' "
-                        f"for return type {return_type}: expected a JSON body"
+                        f"for {self._operation_label(operation_name)}: expected a JSON body"
                     )
             else:
                 data = self._object_serializer.deserialize(response.body, return_type)
@@ -440,6 +444,7 @@ class BaseApi:
         content_type: Optional[str],
         return_type: Optional[str],
         auth: Union[Authenticator, "_NoAuth", None] = None,
+        operation_name: str = "",
     ) -> Any:
         """Invoke an API operation.
 
@@ -473,8 +478,14 @@ class BaseApi:
             content_type,
             return_type,
             auth,
+            operation_name=operation_name,
         )
         return result.data
+
+    def _operation_label(self, operation_name: str) -> str:
+        """Names the operation as Class.operationId for error text."""
+        class_name = type(self).__name__
+        return f"{class_name}.{operation_name}" if operation_name else class_name
 
     @staticmethod
     def _is_text_media_type(media_type: str) -> bool:

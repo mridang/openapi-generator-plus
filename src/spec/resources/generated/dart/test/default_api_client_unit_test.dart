@@ -82,6 +82,73 @@ void main() {
       expect(custom.closed, isFalse);
     });
 
+    test('redirects rewrite the method only as RFC 9110 15.4 allows', () async {
+      const rows = <(int, String, String)>[
+        (301, 'POST', 'GET'),
+        (301, 'PUT', 'PUT'),
+        (301, 'PATCH', 'PATCH'),
+        (301, 'DELETE', 'DELETE'),
+        (302, 'POST', 'GET'),
+        (302, 'PUT', 'PUT'),
+        (302, 'DELETE', 'DELETE'),
+        (303, 'POST', 'GET'),
+        (303, 'PUT', 'GET'),
+        (303, 'DELETE', 'GET'),
+        (303, 'HEAD', 'HEAD'),
+        (307, 'POST', 'POST'),
+        (307, 'PUT', 'PUT'),
+        (308, 'PATCH', 'PATCH'),
+        (308, 'DELETE', 'DELETE'),
+      ];
+      var landedMethod = '';
+      var landedBody = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        if (request.uri.path == '/start') {
+          await request.drain<void>();
+          request.response
+            ..statusCode = int.parse(request.uri.queryParameters['status']!)
+            ..headers.set('Location', '/landed')
+            ..close();
+          return;
+        }
+        landedMethod = request.method;
+        landedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .followRedirects(true)
+              .build(),
+        );
+        for (final row in rows) {
+          landedMethod = '';
+          landedBody = '';
+
+          await client.sendRequest(
+            row.$2,
+            'http://localhost:${server.port}/start?status=${row.$1}',
+            {'Content-Type': 'text/plain'},
+            Uint8List.fromList(utf8.encode('payload')),
+          );
+
+          expect(landedMethod, equals(row.$3), reason: '${row.$1} ${row.$2}');
+          final keepsBody = row.$3 != 'GET' && row.$3 != 'HEAD';
+          expect(
+            landedBody,
+            equals(keepsBody ? 'payload' : ''),
+            reason: '${row.$1} ${row.$2} body',
+          );
+        }
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
     test(
       'a lower-case caller user-agent and x-request-id suppress injection',
       () async {

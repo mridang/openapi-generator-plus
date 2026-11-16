@@ -22,6 +22,7 @@ import { ForbiddenError } from "../src/errors/forbidden-error.js";
 import { NotFoundError } from "../src/errors/not-found-error.js";
 import { ConflictError } from "../src/errors/conflict-error.js";
 import { UnprocessableEntityError } from "../src/errors/unprocessable-entity-error.js";
+import { TooManyRequestsError } from "../src/errors/too-many-requests-error.js";
 import { InternalServerError } from "../src/errors/internal-server-error.js";
 import type { ApiClient, RequestOptions } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
@@ -171,6 +172,7 @@ describe("BaseApi exception dispatch", () => {
     [404, NotFoundError],
     [409, ConflictError],
     [422, UnprocessableEntityError],
+    [429, TooManyRequestsError],
     [418, ClientError],
     [500, InternalServerError],
     [502, ServerError],

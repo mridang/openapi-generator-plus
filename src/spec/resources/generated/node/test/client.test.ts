@@ -76,6 +76,48 @@ describe("Client", () => {
     expect(new Client(authenticator, transport)).toBeDefined();
   });
 
+  test("close() makes the owned transport reject further requests", async () => {
+    const client = new Client(authenticator);
+
+    await client.close();
+    await client.close();
+
+    const api = client as unknown as { ownedClient: ApiClient };
+    await expect(
+      api.ownedClient.sendRequest("GET", "http://example.invalid/", {}, null),
+    ).rejects.toThrow("ApiClient has been closed and can no longer be used");
+  });
+
+  test("Symbol.asyncDispose closes the client", async () => {
+    const client = new Client(authenticator);
+
+    await client[Symbol.asyncDispose]();
+
+    const api = client as unknown as { ownedClient: ApiClient };
+    await expect(
+      api.ownedClient.sendRequest("GET", "http://example.invalid/", {}, null),
+    ).rejects.toThrow("closed");
+  });
+
+  test("close() never calls or closes a caller-supplied fetch", async () => {
+    let called = 0;
+    const customFetch = (async () => {
+      called++;
+      return new Response("{}");
+    }) as typeof fetch;
+    const client = new Client(
+      authenticator,
+      TransportOptions.builder().fetch(customFetch).build(),
+    );
+
+    await client.close();
+
+    expect(called).toBe(0);
+    expect(await customFetch("http://example.invalid/")).toBeInstanceOf(
+      Response,
+    );
+  });
+
   test("BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
     expect(
       () => new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes"),

@@ -10,6 +10,11 @@ package com.example.petstore
 import com.example.petstore.auth.ApiKeyAuthenticator
 import com.example.petstore.auth.ApiKeyLocation
 import com.example.petstore.auth.BearerAuthenticator
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -152,6 +157,31 @@ class ClientTest {
                 Client(authenticator, transport)
             }
         assertTrue(ex.message!!.contains("CA certificate"))
+    }
+
+    @Test
+    @DisplayName("F824: a closed client rejects further requests")
+    fun closedClientRejectsRequests() {
+        val client = Client(authenticator)
+        client.close()
+
+        val ex =
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking { client.pet.getPetById(1L) }
+            }
+        assertTrue(ex.message!!.contains("closed"))
+    }
+
+    @Test
+    @DisplayName("F824: closing the client never closes a caller-supplied transport")
+    fun closingTheClientKeepsASuppliedTransportOpen() {
+        val custom = HttpClient(MockEngine { respond("{}") })
+        val client = Client(authenticator, TransportOptions.builder().httpClient(custom).build())
+
+        client.close()
+
+        assertTrue(custom.coroutineContext[Job]!!.isActive)
+        custom.close()
     }
 
     @Test

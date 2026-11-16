@@ -206,6 +206,7 @@ import Testing
     #expect(NotFoundError(message: "x").statusCode == 404)
     #expect(ConflictError(message: "x").statusCode == 409)
     #expect(UnprocessableEntityError(message: "x").statusCode == 422)
+    #expect(TooManyRequestsError(message: "x").statusCode == 429)
     #expect(InternalServerError(message: "x").statusCode == 500)
     #expect(NotFoundError().statusCode == 404)
     let err = NotFoundError(message: "gone", responseBody: "{}", responseHeaders: ["a": "b"])

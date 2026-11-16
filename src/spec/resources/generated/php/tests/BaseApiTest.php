@@ -21,6 +21,7 @@ use PetstoreClient\Errors\ForbiddenException;
 use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ConflictException;
 use PetstoreClient\Errors\UnprocessableEntityException;
+use PetstoreClient\Errors\TooManyRequestsException;
 use PetstoreClient\Errors\InternalServerErrorException;
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiHttpResponse;
@@ -63,6 +64,7 @@ test('throws correct exception', function (int $status, string $expectedClass): 
     [404, NotFoundException::class],
     [409, ConflictException::class],
     [422, UnprocessableEntityException::class],
+    [429, TooManyRequestsException::class],
     [418, ClientException::class],
     [500, InternalServerErrorException::class],
     [502, ServerException::class],
@@ -240,6 +242,28 @@ test('sets cookie header', function (): void {
     );
     expect(true)->toBeTrue();
 });
+
+test('a binary body is sent as raw bytes whether given as string, stream resource or PSR-7 stream', function (
+    string $kind
+): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $resource = fopen('php://memory', 'r+');
+    expect($resource)->not->toBeFalse();
+    assert(is_resource($resource));
+    fwrite($resource, 'raw-bytes');
+    rewind($resource);
+    $body = match ($kind) {
+        'string' => 'raw-bytes',
+        'resource' => $resource,
+        default => new \Nyholm\Psr7\Factory\Psr17Factory()->createStream('raw-bytes'),
+    };
+
+    $api->call('POST', '/test/echo', [], [], $body, ['application/json'], 'application/octet-stream', null);
+
+    expect($client->capturedBody)->toBe('raw-bytes');
+    fclose($resource);
+})->with(['string', 'resource', 'psr7']);
 
 test('falls back to client-level authenticator when no per-call auth is supplied', function (): void {
     $client = new CapturingApiClient();

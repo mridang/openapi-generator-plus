@@ -113,6 +113,56 @@ test('injected api client is wired into every api group', function (): void {
     expect($property->getValue($client->store))->toBe($stub);
 });
 
+test('close on a client with a supplied transport leaves that transport usable', function (): void {
+    $stub = new class implements ApiClient {
+        public int $sent = 0;
+
+        public int $closes = 0;
+
+        public function close(): void
+        {
+            $this->closes++;
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            $this->sent++;
+
+            return new ApiHttpResponse(200, '', []);
+        }
+    };
+
+    $client = new Client($this->authenticator, null, $stub);
+    $client->close();
+    $client->close();
+
+    $stub->sendRequest('GET', 'http://example.com/ping', [], null);
+    expect($stub->closes)->toBe(0);
+    expect($stub->sent)->toBe(1);
+});
+
+test('close on a client that built its own transport rejects later requests and is idempotent', function (): void {
+    $client = new Client($this->authenticator);
+    $client->close();
+    $client->close();
+
+    $property = new \ReflectionClass(\PetstoreClient\Api\PetApi::class)->getProperty('apiClient');
+    $transport = $property->getValue($client->pet);
+    assert($transport instanceof ApiClient);
+    expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
+        ->toThrow(\LogicException::class, 'closed');
+    $property = new \ReflectionClass(\PetstoreClient\Api\StoreApi::class)->getProperty('apiClient');
+    $transport = $property->getValue($client->store);
+    assert($transport instanceof ApiClient);
+    expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
+        ->toThrow(\LogicException::class, 'closed');
+});
+
 test('a supplied psr18 client receives the request from every api group', function (): void {
     $factory = new Psr17Factory();
     $responses = [];

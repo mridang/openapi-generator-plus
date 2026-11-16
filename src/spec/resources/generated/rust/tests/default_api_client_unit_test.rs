@@ -191,6 +191,50 @@ async fn test_redirect_demoting_a_bodyless_post_to_get_drops_the_entity_headers(
     }
 }
 
+/* F839: on 301 and 302 only POST becomes GET; PUT, PATCH and DELETE keep their
+ * method, and 303 turns everything except HEAD into GET. */
+#[tokio::test]
+async fn test_redirect_method_rewriting_follows_rfc_9110() {
+    let cases: [(u16, &str, &str); 9] = [
+        (301, "PUT", "PUT"),
+        (302, "PATCH", "PATCH"),
+        (302, "DELETE", "DELETE"),
+        (301, "POST", "GET"),
+        (302, "POST", "GET"),
+        (303, "PUT", "GET"),
+        (303, "HEAD", "HEAD"),
+        (307, "DELETE", "DELETE"),
+        (308, "PUT", "PUT"),
+    ];
+    for (status, method, expected) in cases {
+        let (base_url, head) = start_redirect_server(status);
+        let transport = TransportOptionsBuilder::new()
+            .follow_redirects(true)
+            .build()
+            .expect("valid transport options");
+        let client = DefaultApiClient::new(Some(transport));
+
+        client
+            .send_request(
+                method,
+                &format!("{}/start", base_url),
+                &HashMap::new(),
+                None,
+            )
+            .await
+            .expect("unexpected error");
+
+        let head = head.recv().expect("no follow-up request captured");
+        assert!(
+            head.starts_with(&format!("{} /next ", expected)),
+            "status {} method {}: {}",
+            status,
+            method,
+            head
+        );
+    }
+}
+
 #[tokio::test]
 async fn test_redirect_preserving_a_bodyless_post_keeps_the_zero_content_length() {
     let (base_url, head) = start_redirect_server(307);

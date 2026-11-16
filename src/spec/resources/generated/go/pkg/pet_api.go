@@ -12,7 +12,7 @@ package petstore
 import (
 	"context"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	. "petstore/pkg/models"
@@ -2413,7 +2413,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 // SetPetAvatar Set the pet's profile photo
 // Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
-func (a *PetApi) SetPetAvatar(ctx context.Context, petId int64, body *os.File, requestContentType ...string) error {
+func (a *PetApi) SetPetAvatar(ctx context.Context, petId int64, body io.Reader, requestContentType ...string) error {
 	result, err := a.SetPetAvatarWithHTTPInfo(ctx, petId, body, requestContentType...)
 	if err != nil {
 		return err
@@ -2423,7 +2423,7 @@ func (a *PetApi) SetPetAvatar(ctx context.Context, petId int64, body *os.File, r
 }
 
 // SetPetAvatarWithHTTPInfo performs the SetPetAvatar operation and returns the full API result.
-func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body *os.File, requestContentType ...string) (*ApiResult[any], error) {
+func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body io.Reader, requestContentType ...string) (*ApiResult[any], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.SetPetAvatar", err)
 	}

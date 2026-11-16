@@ -547,6 +547,19 @@ describe Petstore::Client::ValueSerializer do
     end
   end
 
+  describe 'content cookie encoding' do
+    it 'keeps only the unreserved set literal and encodes the rest as UTF-8' do
+      encoded = Petstore::Client::ValueSerializer.encode_content_cookie('{"k":"a b~*é"}')
+
+      _(encoded).must_equal('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D')
+      _(encoded).must_match(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
+    end
+
+    it 'encodes the sub-delimiters and the asterisk' do
+      _(Petstore::Client::ValueSerializer.encode_content_cookie("!'()*")).must_equal('%21%27%28%29%2A')
+    end
+  end
+
   # allowReserved query encoding: a query parameter with allowReserved: true
   # leaves RFC 3986 reserved characters literal on the wire, while everything
   # else (spaces, control, non-ASCII) is still percent-encoded.

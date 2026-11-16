@@ -10,6 +10,23 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
 
+class _CloseTrackingClient extends http.BaseClient {
+  _CloseTrackingClient(this._inner);
+
+  final http.Client _inner;
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request);
+
+  @override
+  void close() {
+    closed = true;
+    _inner.close();
+  }
+}
+
 void main() {
   group('Client', () {
     test('construct with authenticator only', () {
@@ -71,6 +88,39 @@ void main() {
         expect(client, isNotNull);
       },
     );
+
+    test('close never closes a caller-supplied http client', () {
+      final supplied = _CloseTrackingClient(
+        MockClient((_) async => http.Response('', 200)),
+      );
+      final client = Client(
+        authenticator: BearerAuthenticator(
+          host: 'http://localhost:1',
+          token: 'test-token',
+        ),
+        transportOptions: TransportOptionsBuilder()
+            .httpClient(supplied)
+            .build(),
+      );
+
+      client.close();
+      client.close();
+
+      expect(supplied.closed, isFalse);
+    });
+
+    test('close on a client that built its own transport is idempotent', () {
+      final client = Client(
+        authenticator: BearerAuthenticator(
+          host: 'http://localhost:1',
+          token: 'test-token',
+        ),
+      );
+
+      client.close();
+
+      expect(client.close, returnsNormally);
+    });
 
     test(
       'BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',

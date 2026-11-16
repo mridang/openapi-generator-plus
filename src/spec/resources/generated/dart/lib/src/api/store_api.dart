@@ -60,6 +60,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<Account>(
       method: 'POST',
+      operation: 'StoreApi.createAccount',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -112,6 +113,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<void>(
       method: 'DELETE',
+      operation: 'StoreApi.deleteOrder',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -201,6 +203,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<Category>(
       method: 'GET',
+      operation: 'StoreApi.getBySwatch',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -246,6 +249,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<Defaults>(
       method: 'GET',
+      operation: 'StoreApi.getDefaults',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -291,6 +295,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<Department>(
       method: 'GET',
+      operation: 'StoreApi.getDepartment',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -339,6 +344,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<List<Map<String, Category>>>(
       method: 'GET',
+      operation: 'StoreApi.getGroupedCategories',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -392,6 +398,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<Map<String, int>>(
       method: 'GET',
+      operation: 'StoreApi.getInventory',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -438,6 +445,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<List<List<int>>>(
       method: 'GET',
+      operation: 'StoreApi.getMatrix',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -510,6 +518,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<Order>(
       method: 'GET',
+      operation: 'StoreApi.getOrderById',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -579,6 +588,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<Order>(
       method: 'GET',
+      operation: 'StoreApi.getOrderByTrackingId',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -642,6 +652,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<StockItem>(
       method: 'GET',
+      operation: 'StoreApi.getStockItem',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -687,6 +698,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<Swatch>(
       method: 'GET',
+      operation: 'StoreApi.getSwatch',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -734,6 +746,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<List<Map<String, Swatch>>>(
       method: 'GET',
+      operation: 'StoreApi.getSwatchGroups',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -786,6 +799,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<List<Map<String, DateTime>>>(
       method: 'GET',
+      operation: 'StoreApi.getTimestampGroups',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -836,6 +850,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<TreeNode>(
       method: 'GET',
+      operation: 'StoreApi.getTree',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -881,6 +896,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<Order>(
       method: 'POST',
+      operation: 'StoreApi.placeOrder',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,
@@ -956,6 +972,7 @@ class StoreApi extends BaseApi {
 
     return invokeApiForResult<List<Order>>(
       method: 'GET',
+      operation: 'StoreApi.searchStore',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,

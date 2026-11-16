@@ -48,6 +48,12 @@ use PetstoreClient\Api\StoreApi;
  */
 class Client
 {
+    /** @var ApiClient The transport every API group sends through. */
+    private readonly ApiClient $sdkTransport;
+
+    /** @var bool Whether the SDK built the transport itself and so releases it on close(). */
+    private readonly bool $sdkOwnsTransport;
+
     /** @var PetApi API operations for the PetApi group. */
     public readonly PetApi $pet;
 
@@ -76,17 +82,40 @@ class Client
         ?ApiClient $apiClient = null
     ) {
         $transportOptions ??= TransportOptions::builder()->build();
+        $this->sdkOwnsTransport = !$apiClient instanceof \PetstoreClient\ApiClient;
         $apiClient ??= new DefaultApiClient($transportOptions);
+        $this->sdkTransport = $apiClient;
 
         if ($authenticator instanceof HttpAwareAuthenticator) {
-            $authenticator->setApiClient($apiClient);
+            $authenticator->setApiClient($this->sdkTransport);
         }
 
         $config = Configuration::builder()
             ->baseUrl($authenticator->getHost())
             ->build();
-        $this->pet = new PetApi($apiClient, $config, $authenticator);
-        $this->store = new StoreApi($apiClient, $config, $authenticator);
+        $this->pet = new PetApi($this->sdkTransport, $config, $authenticator);
+        $this->store = new StoreApi($this->sdkTransport, $config, $authenticator);
+    }
+
+    /**
+     * Closes the client: the HTTP transport the SDK built itself is released
+     * and rejects later requests with a \LogicException. A transport supplied
+     * by the caller is never closed here; the caller owns it and it keeps
+     * working. Safe to call more than once.
+     */
+    public function close(): void
+    {
+        if ($this->sdkOwnsTransport) {
+            $this->sdkTransport->close();
+        }
+    }
+
+    /**
+     * Releases what the client owns when it is garbage collected.
+     */
+    public function __destruct()
+    {
+        $this->close();
     }
 
     /**

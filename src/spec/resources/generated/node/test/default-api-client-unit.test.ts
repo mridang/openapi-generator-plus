@@ -1277,6 +1277,80 @@ describe("HTTPS -> HTTP body replay guard", () => {
   });
 });
 
+describe("redirect method rewriting (RFC 9110 section 15.4)", () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  test.each([
+    [301, "POST", "GET", false],
+    [302, "POST", "GET", false],
+    [301, "PUT", "PUT", true],
+    [302, "PATCH", "PATCH", true],
+    [302, "DELETE", "DELETE", true],
+    [303, "POST", "GET", false],
+    [303, "PUT", "GET", false],
+    [303, "DELETE", "GET", false],
+    [303, "HEAD", "HEAD", false],
+    [307, "PUT", "PUT", true],
+    [308, "DELETE", "DELETE", true],
+  ])(
+    "%i on %s follows with %s (body kept: %s)",
+    async (status, method, expectedMethod, bodyKept) => {
+      const calls: Array<{ method: unknown; body: unknown }> = [];
+      global.fetch = (async (
+        _input: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> => {
+        calls.push({ method: init?.method, body: init?.body });
+        if (calls.length === 1) {
+          return new Response(null, {
+            status,
+            headers: { Location: "https://secure.example/next" },
+          });
+        }
+        return new Response("{}", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }) as typeof fetch;
+
+      const client = new DefaultApiClient(
+        TransportOptions.builder().followRedirects(true).build(),
+      );
+      const response = await client.sendRequest(
+        method,
+        "https://secure.example/start",
+        { "Content-Type": "application/json" },
+        '{"x":1}',
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(calls[1].method).toBe(expectedMethod);
+      if (bodyKept) {
+        expect(calls[1].body).toBeDefined();
+      } else {
+        expect(calls[1].body ?? null).toBeNull();
+      }
+    },
+  );
+
+  it("refuses to replay a PUT body across an https to http 302 downgrade", async () => {
+    global.fetch = (async (): Promise<Response> =>
+      new Response(null, {
+        status: 302,
+        headers: { Location: "http://other.example/x" },
+      })) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await expect(
+      client.sendRequest("PUT", "https://secure.example/start", {}, '{"x":1}'),
+    ).rejects.toThrow(/downgrade/);
+  });
+});
+
 /*
  * T-D3: a Location pointing at a non-HTTP(S) scheme must be refused with a
  * loud, typed ApiError, never silently surfaced as the 3xx response.

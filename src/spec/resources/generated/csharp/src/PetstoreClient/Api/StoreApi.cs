@@ -133,7 +133,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Account),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.CreateAccount"
             )
             .ConfigureAwait(false);
     }
@@ -192,7 +193,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 null,
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.DeleteOrder"
             )
             .ConfigureAwait(false);
     }
@@ -313,7 +315,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Category),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetBySwatch"
             )
             .ConfigureAwait(false);
     }
@@ -377,7 +380,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Defaults),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetDefaults"
             )
             .ConfigureAwait(false);
     }
@@ -441,7 +445,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Department),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetDepartment"
             )
             .ConfigureAwait(false);
     }
@@ -508,7 +513,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(List<Dictionary<string, Category>>),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetGroupedCategories"
             )
             .ConfigureAwait(false);
     }
@@ -576,7 +582,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Dictionary<string, int>),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetInventory"
             )
             .ConfigureAwait(false);
     }
@@ -640,7 +647,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(List<List<int>>),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetMatrix"
             )
             .ConfigureAwait(false);
     }
@@ -725,7 +733,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Order),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetOrderById"
             )
             .ConfigureAwait(false);
     }
@@ -813,7 +822,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Order),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetOrderByTrackingId"
             )
             .ConfigureAwait(false);
     }
@@ -898,7 +908,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(StockItem),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetStockItem"
             )
             .ConfigureAwait(false);
     }
@@ -962,7 +973,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Swatch),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetSwatch"
             )
             .ConfigureAwait(false);
     }
@@ -1030,7 +1042,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(List<Dictionary<string, Swatch>>),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetSwatchGroups"
             )
             .ConfigureAwait(false);
     }
@@ -1099,7 +1112,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(List<Dictionary<string, DateTimeOffset>>),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetTimestampGroups"
             )
             .ConfigureAwait(false);
     }
@@ -1163,7 +1177,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(TreeNode),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetTree"
             )
             .ConfigureAwait(false);
     }
@@ -1233,7 +1248,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Order),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.PlaceOrder"
             )
             .ConfigureAwait(false);
     }
@@ -1347,7 +1363,8 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(List<Order>),
                 NoAuth.Instance,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.SearchStore"
             )
             .ConfigureAwait(false);
     }

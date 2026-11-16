@@ -11,7 +11,8 @@ use std::collections::HashMap;
 
 use petstore::errors::{
     BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NetworkError,
-    NetworkTimeoutError, NotFoundError, ServerError, UnauthorizedError, UnprocessableEntityError,
+    NetworkTimeoutError, NotFoundError, ServerError, TooManyRequestsError, UnauthorizedError,
+    UnprocessableEntityError,
 };
 use petstore::models::Category;
 use petstore::ApiError;
@@ -449,6 +450,17 @@ fn test_unprocessable_entity_error_is_open_api_error_and_chains() {
 }
 
 #[test]
+fn test_too_many_requests_error_is_open_api_error_and_chains() {
+    let err =
+        TooManyRequestsError::try_from(client_chain(429, "slow down")).expect("the status matches");
+    let branded = assert_is_open_api_error(&err);
+    let client = std::error::Error::source(branded)
+        .and_then(|s| s.downcast_ref::<ClientError>())
+        .expect("TooManyRequestsError chains to ClientError");
+    assert_eq!(client.api_error().status_code(), 429);
+}
+
+#[test]
 fn test_internal_server_error_is_open_api_error_and_chains() {
     let err = InternalServerError::try_from(server_chain(500, "boom")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
@@ -493,6 +505,11 @@ fn test_named_errors_accept_only_their_own_status() {
         "ConflictError",
         418,
         ConflictError::try_from(client_chain(418, "x")),
+    );
+    refuses(
+        "TooManyRequestsError",
+        409,
+        TooManyRequestsError::try_from(client_chain(409, "x")),
     );
     refuses(
         "UnprocessableEntityError",
@@ -612,13 +629,14 @@ type IsExpectedType = fn(&(dyn std::error::Error + 'static)) -> bool;
 fn test_from_response_maps_every_status_to_its_type() {
     let mut headers = HashMap::new();
     headers.insert("x-request-id".to_string(), "abc".to_string());
-    let cases: [(u16, IsExpectedType); 11] = [
+    let cases: [(u16, IsExpectedType); 12] = [
         (400, |e| e.is::<BadRequestError>()),
         (401, |e| e.is::<UnauthorizedError>()),
         (403, |e| e.is::<ForbiddenError>()),
         (404, |e| e.is::<NotFoundError>()),
         (409, |e| e.is::<ConflictError>()),
         (422, |e| e.is::<UnprocessableEntityError>()),
+        (429, |e| e.is::<TooManyRequestsError>()),
         (418, |e| e.is::<ClientError>()),
         (500, |e| e.is::<InternalServerError>()),
         (503, |e| e.is::<ServerError>()),
@@ -669,6 +687,7 @@ fn test_package_root_exports_the_whole_error_tree() {
     assert_type_is_open_api_error::<petstore::NotFoundError>();
     assert_type_is_open_api_error::<petstore::ConflictError>();
     assert_type_is_open_api_error::<petstore::UnprocessableEntityError>();
+    assert_type_is_open_api_error::<petstore::TooManyRequestsError>();
     assert_type_is_open_api_error::<petstore::ServerError>();
     assert_type_is_open_api_error::<petstore::InternalServerError>();
     assert_type_is_open_api_error::<petstore::NetworkError>();

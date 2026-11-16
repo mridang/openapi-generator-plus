@@ -564,6 +564,41 @@ class TestN1RedirectBodyReplayMatrix:
         assert pool.calls[1][0] == "GET"
         assert pool.calls[1][2] is None
 
+    def test_301_and_302_keep_the_method_and_body_of_put_patch_and_delete(self) -> None:
+        for status in (301, 302):
+            for method in ("PUT", "PATCH", "DELETE"):
+                transport = TransportOptions.builder().follow_redirects(True).build()
+                pool = self._pool(status)
+                client = DefaultApiClient(transport, pool_manager=pool)
+                client.send_request(method, "http://example.com/start", {}, '{"a":1}')
+                assert pool.calls[1][0] == method
+                assert pool.calls[1][2] in ('{"a":1}', b'{"a":1}')
+
+    def test_301_and_302_turn_post_into_get(self) -> None:
+        for status in (301, 302):
+            transport = TransportOptions.builder().follow_redirects(True).build()
+            pool = self._pool(status)
+            client = DefaultApiClient(transport, pool_manager=pool)
+            client.send_request("POST", "http://example.com/start", {}, '{"a":1}')
+            assert pool.calls[1][0] == "GET"
+            assert pool.calls[1][2] is None
+
+    def test_303_turns_every_method_except_head_into_get(self) -> None:
+        for method in ("POST", "PUT", "PATCH", "DELETE"):
+            transport = TransportOptions.builder().follow_redirects(True).build()
+            pool = self._pool(303)
+            client = DefaultApiClient(transport, pool_manager=pool)
+            client.send_request(method, "http://example.com/start", {}, '{"a":1}')
+            assert pool.calls[1][0] == "GET"
+            assert pool.calls[1][2] is None
+
+    def test_303_keeps_head_as_head(self) -> None:
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._pool(303)
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request("HEAD", "http://example.com/start", {}, None)
+        assert pool.calls[1][0] == "HEAD"
+
     def test_307_https_to_http_with_body_raises(self) -> None:
         from petstore_client.errors import ApiException
 

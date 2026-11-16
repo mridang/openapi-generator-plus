@@ -21,6 +21,7 @@ defmodule PetstoreClient.Errors.ApiError do
   alias PetstoreClient.Errors.InternalServerError
   alias PetstoreClient.Errors.NotFoundError
   alias PetstoreClient.Errors.ServerError
+  alias PetstoreClient.Errors.TooManyRequestsError
   alias PetstoreClient.Errors.UnauthorizedError
   alias PetstoreClient.Errors.UnprocessableEntityError
 
@@ -33,6 +34,7 @@ defmodule PetstoreClient.Errors.ApiError do
     404 => NotFoundError,
     409 => ConflictError,
     422 => UnprocessableEntityError,
+    429 => TooManyRequestsError,
     500 => InternalServerError
   }
 
@@ -108,7 +110,7 @@ defmodule PetstoreClient.Errors.ApiError do
   @doc """
   Map an HTTP response that was not a success to the error for its status.
 
-  400, 401, 403, 404, 409 and 422 map to their named
+  400, 401, 403, 404, 409, 422 and 429 map to their named
   `PetstoreClient.Errors.ClientError` specialisations and any other 4xx to
   `PetstoreClient.Errors.ClientError`; 500 maps to
   `PetstoreClient.Errors.InternalServerError` and any other 5xx to
@@ -196,6 +198,7 @@ defmodule PetstoreClient.Errors.ApiError do
     PetstoreClient.Errors.NotFoundError,
     PetstoreClient.Errors.ConflictError,
     PetstoreClient.Errors.UnprocessableEntityError,
+    PetstoreClient.Errors.TooManyRequestsError,
     PetstoreClient.Errors.ServerError,
     PetstoreClient.Errors.InternalServerError,
     PetstoreClient.Errors.NetworkError,

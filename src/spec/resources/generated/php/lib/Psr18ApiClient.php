@@ -173,7 +173,11 @@ class Psr18ApiClient extends AbstractApiClient
                 if (ObjectSerializer::isPrimitiveValue($v)) {
                     $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
                     $out .= ObjectSerializer::stringify($v) . $crlf;
-                } elseif (is_object($v) && !($v instanceof \SplFileObject)) {
+                } elseif (
+                    is_object($v)
+                    && !($v instanceof \SplFileObject)
+                    && !($v instanceof \Psr\Http\Message\StreamInterface)
+                ) {
                     $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf;
                     $out .= 'Content-Type: application/json' . $crlf . $crlf;
                     $out .= ObjectSerializer::serialize($v) . $crlf;
@@ -187,9 +191,12 @@ class Psr18ApiClient extends AbstractApiClient
                         . self::buildFilenameDirective($filename) . $crlf;
                     $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
                     $out .= ($content !== false ? $content : '') . $crlf;
-                } elseif (is_resource($v)) {
+                } elseif (
+                    is_resource($v)
+                    || $v instanceof \Psr\Http\Message\StreamInterface
+                ) {
                     /* The caller owns the stream: it is read but never closed. */
-                    $content = stream_get_contents($v);
+                    $content = is_resource($v) ? stream_get_contents($v) : (string) $v;
                     /* A raw-bytes part has no explicit filename, so the field
                      * NAME is reused as the filename and the Content-Type is
                      * guessed from that filename's extension (falling back to

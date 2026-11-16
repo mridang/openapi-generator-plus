@@ -138,4 +138,10 @@ pub trait ApiClient: Send + Sync {
     fn close(&self) {
         /* No-op by default. Implementations override to release resources. */
     }
+
+    /// Returns true once [`ApiClient::close`] has been called. The default is
+    /// `false`; implementations that track a close flag override it.
+    fn is_closed(&self) -> bool {
+        false
+    }
 }

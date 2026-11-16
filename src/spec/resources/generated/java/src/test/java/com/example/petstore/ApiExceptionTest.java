@@ -232,6 +232,17 @@ class ApiExceptionTest {
             .getStatusCode());
     assertEquals(
         cause,
+        new com.example.petstore.errors.TooManyRequestsException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        429,
+        new com.example.petstore.errors.TooManyRequestsException("m", null, null, null, cause)
+            .getStatusCode());
+    assertInstanceOf(
+        com.example.petstore.errors.ClientException.class,
+        new com.example.petstore.errors.TooManyRequestsException("m", null, null, null, cause));
+    assertEquals(
+        cause,
         new com.example.petstore.errors.InternalServerErrorException("m", null, null, null, cause)
             .getCause());
     assertEquals(
@@ -272,6 +283,7 @@ class ApiExceptionTest {
             Map.entry(404, com.example.petstore.errors.NotFoundException.class),
             Map.entry(409, com.example.petstore.errors.ConflictException.class),
             Map.entry(422, com.example.petstore.errors.UnprocessableEntityException.class),
+            Map.entry(429, com.example.petstore.errors.TooManyRequestsException.class),
             Map.entry(418, com.example.petstore.errors.ClientException.class),
             Map.entry(500, com.example.petstore.errors.InternalServerErrorException.class),
             Map.entry(503, com.example.petstore.errors.ServerException.class),
@@ -375,6 +387,7 @@ class ApiExceptionTest {
             com.example.petstore.errors.NotFoundException.class,
             com.example.petstore.errors.ConflictException.class,
             com.example.petstore.errors.UnprocessableEntityException.class,
+            com.example.petstore.errors.TooManyRequestsException.class,
             com.example.petstore.errors.InternalServerErrorException.class,
             com.example.petstore.errors.NetworkException.class,
             com.example.petstore.errors.NetworkTimeoutException.class,

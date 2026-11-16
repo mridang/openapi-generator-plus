@@ -71,6 +71,10 @@ public abstract class BaseApi
     /// Invoke an API operation and return the full result including status code,
     /// headers, and raw body alongside the deserialized data.
     /// </summary>
+    /// <param name="operationName">
+    /// The calling operation as <c>Class.operationId</c>, named in a
+    /// Content-Type serialization error; null falls back to a generic label.
+    /// </param>
     /// <param name="rawBody">
     /// True when the operation's request body is <c>format: binary</c>: the
     /// caller's bytes are sent unchanged under whichever declared
@@ -88,6 +92,7 @@ public abstract class BaseApi
         Type? returnType,
         IAuthenticator? auth = null,
         bool rawBody = false,
+        string? operationName = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -371,7 +376,7 @@ public abstract class BaseApi
                 else
                 {
                     throw new SerializationException(
-                        $"Unexpected response Content-Type '{responseContentType.Split(';')[0].Trim()}' for {typeof(T).Name}: expected a JSON body"
+                        $"Unexpected response Content-Type '{responseContentType.Split(';')[0].Trim()}' for {operationName ?? "the request"}: expected a JSON body"
                     );
                 }
             }

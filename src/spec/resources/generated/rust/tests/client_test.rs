@@ -96,3 +96,25 @@ fn test_client_api_groups_are_accessible() {
     let _ = &client.pet;
     let _ = &client.store;
 }
+
+/* F824: closing the facade closes the transport it built, and a request made
+ * afterwards is rejected with the closed-client error. */
+#[test]
+fn test_client_close_marks_the_client_closed() {
+    let client = Client::with_token("/api/v3", "test-token", None).expect("valid token");
+    assert!(!client.is_closed());
+    client.close();
+    assert!(client.is_closed());
+}
+
+/* F824 / S9: closing the facade never shuts down a caller-supplied transport. */
+#[test]
+fn test_client_close_leaves_a_supplied_http_client_usable() {
+    let supplied = reqwest::Client::new();
+    let authenticator = BearerAuthenticator::new("/api/v3", "test-token").unwrap();
+    let client = Client::with_http_client(Box::new(authenticator), supplied.clone(), None)
+        .expect("no conflict");
+    client.close();
+    assert!(client.is_closed());
+    assert!(supplied.get("http://127.0.0.1:1/").build().is_ok());
+}

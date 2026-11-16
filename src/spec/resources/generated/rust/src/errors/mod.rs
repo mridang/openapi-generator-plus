@@ -23,6 +23,7 @@ pub mod oauth2_token_error;
 pub mod open_api_error;
 pub mod serialization_error;
 pub mod server_error;
+pub mod too_many_requests_error;
 pub mod unauthorized_error;
 pub mod unprocessable_entity_error;
 
@@ -42,5 +43,6 @@ pub use oauth2_token_error::OAuth2TokenError;
 pub use open_api_error::OpenAPIError;
 pub use serialization_error::SerializationError;
 pub use server_error::ServerError;
+pub use too_many_requests_error::TooManyRequestsError;
 pub use unauthorized_error::UnauthorizedError;
 pub use unprocessable_entity_error::UnprocessableEntityError;

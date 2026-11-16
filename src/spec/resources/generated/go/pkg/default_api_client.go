@@ -514,8 +514,33 @@ func newPolicyClient(opts *TransportOptions, transport http.RoundTripper) *http.
 			// the first request was already http, which a via[0] anchor misses.
 			// Only a real body is at risk: net/http hands a bodyless GET (nil
 			// Body) and an empty POST (http.NoBody) to the redirect as no body.
+			/* RFC 9110 sec 15.4: on 301 and 302 only POST becomes GET; PUT, PATCH,
+			 * DELETE and any other method keep their method and body. net/http
+			 * demotes every method but GET and HEAD, so put the original method
+			 * and a fresh body back. 303 (every method but HEAD becomes GET, which
+			 * net/http already does) and 307 / 308 (never change) need no help. */
+			replayed := false
+			if prevStatus == 301 || prevStatus == 302 {
+				prev := via[len(via)-1]
+				if prev.Method != http.MethodGet && prev.Method != http.MethodHead &&
+					prev.Method != http.MethodPost && req.Method != prev.Method {
+					req.Method = prev.Method
+					if prev.GetBody != nil {
+						body, gerr := prev.GetBody()
+						if gerr != nil {
+							return fmt.Errorf("cannot replay the request body on a %d redirect: %w", prevStatus, gerr)
+						}
+						req.Body = body
+						req.GetBody = prev.GetBody
+						req.ContentLength = prev.ContentLength
+						replayed = body != http.NoBody
+					} else if prev.Body != nil && prev.Body != http.NoBody {
+						return fmt.Errorf("cannot replay the request body on a %d redirect", prevStatus)
+					}
+				}
+			}
 			hasBody := req.Body != nil && req.Body != http.NoBody
-			if (prevStatus == 307 || prevStatus == 308) && hasBody &&
+			if (prevStatus == 307 || prevStatus == 308 || replayed) && hasBody &&
 				strings.EqualFold(via[len(via)-1].URL.Scheme, "https") &&
 				strings.EqualFold(req.URL.Scheme, "http") {
 				return fmt.Errorf(

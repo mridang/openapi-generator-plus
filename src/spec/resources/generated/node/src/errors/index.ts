@@ -16,6 +16,7 @@ export { ForbiddenError } from "./forbidden-error.js";
 export { NotFoundError } from "./not-found-error.js";
 export { ConflictError } from "./conflict-error.js";
 export { UnprocessableEntityError } from "./unprocessable-entity-error.js";
+export { TooManyRequestsError } from "./too-many-requests-error.js";
 export { InternalServerError } from "./internal-server-error.js";
 export { NetworkError } from "./network-error.js";
 export { NetworkTimeoutError } from "./network-timeout-error.js";

@@ -23,6 +23,7 @@ import {
   SerializationError,
   ServerError,
   UnauthorizedError,
+  TooManyRequestsError,
   UnprocessableEntityError,
 } from "../src/errors/index.js";
 import { Category } from "../src/models/index.js";
@@ -141,6 +142,12 @@ describe("ApiError", () => {
         422,
       ],
       [
+        "TooManyRequestsError",
+        (c: Error) =>
+          new TooManyRequestsError("m", null, null, null, { cause: c }),
+        429,
+      ],
+      [
         "InternalServerError",
         (c: Error) =>
           new InternalServerError("m", null, null, null, { cause: c }),
@@ -229,6 +236,7 @@ describe("ApiError", () => {
       "NotFoundError",
       "ConflictError",
       "UnprocessableEntityError",
+      "TooManyRequestsError",
       "InternalServerError",
       "NetworkError",
       "NetworkTimeoutError",
@@ -301,6 +309,7 @@ describe("ApiError", () => {
       [404, NotFoundError],
       [409, ConflictError],
       [422, UnprocessableEntityError],
+      [429, TooManyRequestsError],
       [418, ClientError],
       [500, InternalServerError],
       [503, ServerError],

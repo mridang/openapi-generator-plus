@@ -265,6 +265,7 @@ class PetApi(BaseApi):
             "application/json",
             "Pet",
             (options.auth if options is not None else None),
+            operation_name="add_pet",
         )
 
     async def add_pet_photos(
@@ -353,6 +354,7 @@ class PetApi(BaseApi):
             "multipart/form-data",
             "List[Photo]",
             None,
+            operation_name="add_pet_photos",
         )
 
     async def add_pet_treatment(
@@ -437,6 +439,7 @@ class PetApi(BaseApi):
             "application/json",
             "PetTreatment",
             (options.auth if options is not None else None),
+            operation_name="add_pet_treatment",
         )
 
     async def delete_pet(
@@ -523,6 +526,7 @@ class PetApi(BaseApi):
             "application/json",
             None,
             (options.auth if options is not None else None),
+            operation_name="delete_pet",
         )
 
     async def download_pet_document(
@@ -616,6 +620,7 @@ class PetApi(BaseApi):
             "application/json",
             "bytes",
             None,
+            operation_name="download_pet_document",
         )
 
     async def find_pets_born_on(
@@ -683,6 +688,7 @@ class PetApi(BaseApi):
             "application/json",
             "List[Pet]",
             None,
+            operation_name="find_pets_born_on",
         )
 
     async def find_pets_by_status(
@@ -789,6 +795,7 @@ class PetApi(BaseApi):
             "application/json",
             "List[Pet]",
             None,
+            operation_name="find_pets_by_status",
         )
 
     async def get_external_pet_info(
@@ -863,6 +870,7 @@ class PetApi(BaseApi):
             "application/json",
             "Pet",
             None,
+            operation_name="get_external_pet_info",
         )
 
     async def get_multi_server_pet_info(
@@ -937,6 +945,7 @@ class PetApi(BaseApi):
             "application/json",
             "Pet",
             None,
+            operation_name="get_multi_server_pet_info",
         )
 
     async def get_pet_avatar(
@@ -1006,6 +1015,7 @@ class PetApi(BaseApi):
             "application/json",
             "bytes",
             None,
+            operation_name="get_pet_avatar",
         )
 
     async def get_pet_avatar_thumbnail(
@@ -1075,6 +1085,7 @@ class PetApi(BaseApi):
             "application/json",
             "bytes",
             None,
+            operation_name="get_pet_avatar_thumbnail",
         )
 
     async def get_pet_by_id(
@@ -1163,6 +1174,7 @@ class PetApi(BaseApi):
             "application/json",
             "Pet",
             None,
+            operation_name="get_pet_by_id",
         )
 
     async def get_pet_by_name(
@@ -1274,6 +1286,7 @@ class PetApi(BaseApi):
             "application/json",
             "Pet",
             None,
+            operation_name="get_pet_by_name",
         )
 
     async def get_pet_passport(
@@ -1343,6 +1356,7 @@ class PetApi(BaseApi):
             "application/json",
             "PetPassport",
             None,
+            operation_name="get_pet_passport",
         )
 
     async def get_pet_photo(
@@ -1430,6 +1444,7 @@ class PetApi(BaseApi):
             "application/json",
             "bytes",
             None,
+            operation_name="get_pet_photo",
         )
 
     async def get_pet_summary(
@@ -1560,6 +1575,7 @@ class PetApi(BaseApi):
             "application/json",
             "StrictStr",
             None,
+            operation_name="get_pet_summary",
         )
 
     async def get_pet_tag(
@@ -1765,6 +1781,7 @@ class PetApi(BaseApi):
             "application/json",
             "Pet",
             None,
+            operation_name="get_pet_tag",
         )
 
     async def get_staging_pet_info(
@@ -1839,6 +1856,7 @@ class PetApi(BaseApi):
             "application/json",
             "Pet",
             None,
+            operation_name="get_staging_pet_info",
         )
 
     async def set_pet_avatar(
@@ -1928,6 +1946,7 @@ class PetApi(BaseApi):
             None,
             None,
             raw_body=True,
+            operation_name="set_pet_avatar",
         )
 
     async def set_pet_avatar_thumbnail(
@@ -1995,6 +2014,7 @@ class PetApi(BaseApi):
             "application/json",
             None,
             None,
+            operation_name="set_pet_avatar_thumbnail",
         )
 
     async def set_pet_preferences(
@@ -2084,6 +2104,7 @@ class PetApi(BaseApi):
             "application/x-www-form-urlencoded",
             "ApiResponse",
             None,
+            operation_name="set_pet_preferences",
         )
 
     async def update_pet(
@@ -2161,6 +2182,7 @@ class PetApi(BaseApi):
             "application/json",
             "Pet",
             None,
+            operation_name="update_pet",
         )
 
     async def upload_pet_certificate(
@@ -2242,6 +2264,7 @@ class PetApi(BaseApi):
             "multipart/form-data",
             "ApiResponse",
             None,
+            operation_name="upload_pet_certificate",
         )
 
     async def upload_pet_document(
@@ -2356,4 +2379,5 @@ class PetApi(BaseApi):
             content_type,
             "ApiResponse",
             None,
+            operation_name="upload_pet_document",
         )

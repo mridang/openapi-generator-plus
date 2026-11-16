@@ -195,21 +195,24 @@ module Petstore::Client
 
             cross_origin = !same_origin?(original_url, next_url)
 
-            # Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+            # Gap T3: pick follow-up method+body per RFC 9110 section 15.4.
             #   307 + 308: preserve original method and body.
-            #   303:       force GET, drop the body (and Content-Type/Length).
-            #   301 + 302: historical browser behaviour — switch to GET for
-            #              non-GET/HEAD requests, drop the body.
+            #   303:       every method except HEAD becomes GET, body dropped.
+            #   301 + 302: only POST becomes GET, body dropped; any other
+            #              method keeps its method and body.
             status_code = response.status.to_i
             method_str = current_method.to_s.upcase
-            preserve_method = [307, 308].include?(status_code) ||
-                              %w[GET HEAD].include?(method_str)
-            if preserve_method && status_code != 303
-              next_method = current_method
-              next_body = current_body
-            else
+            rewrite_to_get = case status_code
+                             when 303 then !%w[GET HEAD].include?(method_str)
+                             when 301, 302 then method_str == 'POST'
+                             else false
+                             end
+            if rewrite_to_get
               next_method = :get
               next_body = nil
+            else
+              next_method = current_method
+              next_body = current_body
             end
 
             # Bucket 3.3: an HTTPS -> HTTP redirect is a TLS downgrade. If
@@ -217,11 +220,11 @@ module Petstore::Client
             # path, or the GET/HEAD same-method path), replaying it over
             # cleartext would leak sensitive form data the application
             # sent under TLS. Refuse the downgrade only when there is
-            # actually a body to replay — 301/302/303 demotions to GET
-            # drop the body and are allowed. The empty body substituted for a
+            # actually a body to replay — a demotion to GET
+            # drops the body and is allowed. The empty body substituted for a
             # bodyless POST/PUT/PATCH (the Content-Length: 0 workaround above)
             # is not a body either, so it is followed like the other SDKs do.
-            replays_body = [307, 308].include?(status_code) && !next_body.nil? && !next_body.to_s.empty?
+            replays_body = !rewrite_to_get && !next_body.nil? && !next_body.to_s.empty?
             if replays_body && https_to_http_downgrade?(url, next_url)
               raise unusable_response(response, 'Refusing to replay body across HTTPS -> HTTP ' \
                                                 "redirect (TLS downgrade): #{next_url}")

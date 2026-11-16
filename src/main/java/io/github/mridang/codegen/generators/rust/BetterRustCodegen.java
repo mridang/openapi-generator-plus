@@ -1223,13 +1223,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             ? spec.keyIn().toLowerCase(Locale.ROOT)
                             : "header");
             constructorParams = List.of(p("host", "&str"), p("api_key", "&str"));
-            superArgs = List.of("host", toRustStringLiteral(spec.keyParamName()), "api_key", loc);
+            superArgs = List.of("host", toRustStringLiteral(java.util.Objects.toString(spec.keyParamName(), "")), "api_key", loc);
         } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             constructorParams =
                     List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"));
             superArgs =
                     List.of("host", "client_id", "client_secret",
-                            toRustStringLiteral(spec.tokenUrl()), formatRustScopes(spec.scopes()));
+                            toRustStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")), formatRustScopes(spec.scopes()));
         } else if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             // refresh_url is &str — empty string means "fall back to token_url"
             final String refreshArg =
@@ -1240,7 +1240,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             // Signature: (host, client_id, client_secret, token_url, username, password, scopes, refresh_url)
             superArgs =
                     List.of("host", "client_id", "client_secret",
-                            toRustStringLiteral(spec.tokenUrl()),
+                            toRustStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")),
                             "username", "password", formatRustScopes(spec.scopes()), refreshArg);
         } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             // refresh_url is &str — empty string means "fall back to token_url"
@@ -1252,19 +1252,19 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             // Signature: (host, client_id, client_secret, authorization_url, token_url, redirect_uri, scopes, refresh_url)
             superArgs =
                     List.of("host", "client_id", "client_secret",
-                            toRustStringLiteral(spec.authorizationUrl()), toRustStringLiteral(spec.tokenUrl()),
+                            toRustStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")), toRustStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")),
                             "redirect_uri", formatRustScopes(spec.scopes()), refreshArg);
         } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             constructorParams = List.of(p("host", "&str"), p("client_id", "&str"));
             superArgs =
-                    List.of("host", "client_id", toRustStringLiteral(spec.authorizationUrl()),
+                    List.of("host", "client_id", toRustStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")),
                             formatRustScopes(spec.scopes()));
         } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             constructorParams =
                     List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
                             p("redirect_uri", "&str"));
             superArgs =
-                    List.of("host", toRustStringLiteral(spec.openIdConnectUrl()),
+                    List.of("host", toRustStringLiteral(java.util.Objects.toString(spec.openIdConnectUrl(), "")),
                             "client_id", "client_secret", "redirect_uri", "vec![]");
         } else {
             LOGGER.warn("Unsupported scheme base class: {}", spec.baseClass());

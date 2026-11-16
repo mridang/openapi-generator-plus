@@ -208,6 +208,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             auth,
+            "PetApi.addPet",
         )
     }
 
@@ -268,6 +269,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "multipart/form-data",
             null,
+            "PetApi.addPetPhotos",
         )
     }
 
@@ -325,6 +327,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             auth,
+            "PetApi.addPetTreatment",
         )
     }
 
@@ -389,6 +392,7 @@ class PetApi : BaseApi {
             arrayOf(),
             "application/json",
             auth,
+            "PetApi.deletePet",
         )
     }
 
@@ -446,6 +450,7 @@ class PetApi : BaseApi {
             arrayOf("application/octet-stream"),
             "application/json",
             null,
+            "PetApi.downloadPetDocument",
         )
     }
 
@@ -489,6 +494,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.findPetsBornOn",
         )
     }
 
@@ -556,6 +562,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.findPetsByStatus",
         )
     }
 
@@ -618,6 +625,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.getExternalPetInfo",
         )
     }
 
@@ -681,6 +689,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.getMultiServerPetInfo",
         )
     }
 
@@ -725,6 +734,7 @@ class PetApi : BaseApi {
             arrayOf("image/jpeg", "image/png"),
             "application/json",
             null,
+            "PetApi.getPetAvatar",
         )
     }
 
@@ -769,6 +779,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.getPetAvatarThumbnail",
         )
     }
 
@@ -839,6 +850,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.getPetById",
         )
     }
 
@@ -923,6 +935,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.getPetByName",
         )
     }
 
@@ -967,6 +980,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.getPetPassport",
         )
     }
 
@@ -1024,6 +1038,7 @@ class PetApi : BaseApi {
             arrayOf("image/jpeg", "image/png", "application/json"),
             "application/json",
             null,
+            "PetApi.getPetPhoto",
         )
     }
 
@@ -1117,6 +1132,7 @@ class PetApi : BaseApi {
             arrayOf("text/plain"),
             "application/json",
             null,
+            "PetApi.getPetSummary",
         )
     }
 
@@ -1246,6 +1262,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.getPetTag",
         )
     }
 
@@ -1308,6 +1325,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.getStagingPetInfo",
         )
     }
 
@@ -1372,6 +1390,7 @@ class PetApi : BaseApi {
             arrayOf(),
             effectiveRequestContentType,
             null,
+            "PetApi.setPetAvatar",
         )
     }
 
@@ -1419,6 +1438,7 @@ class PetApi : BaseApi {
             arrayOf(),
             "application/json",
             null,
+            "PetApi.setPetAvatarThumbnail",
         )
     }
 
@@ -1490,6 +1510,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/x-www-form-urlencoded",
             null,
+            "PetApi.setPetPreferences",
         )
     }
 
@@ -1543,6 +1564,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "application/json",
             null,
+            "PetApi.updatePet",
         )
     }
 
@@ -1599,6 +1621,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             "multipart/form-data",
             null,
+            "PetApi.uploadPetCertificate",
         )
     }
 
@@ -1690,6 +1713,7 @@ class PetApi : BaseApi {
             arrayOf("application/json"),
             effectiveRequestContentType,
             null,
+            "PetApi.uploadPetDocument",
         )
     }
 }

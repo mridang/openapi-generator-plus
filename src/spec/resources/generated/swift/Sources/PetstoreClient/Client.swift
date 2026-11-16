@@ -29,6 +29,9 @@ import Foundation
 /// let client = try Client(authenticator: authenticator, transportOptions: transport)
 /// ```
 public final class Client: Sendable {
+  /* The transport this client built; kept so ``close()`` can release it. */
+  private let ownedClient: DefaultApiClient
+
   /// API operations for the PetApi group.
   public let pet: PetApi
   /// API operations for the StoreApi group.
@@ -49,6 +52,7 @@ public final class Client: Sendable {
   public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) throws {
     let opts = transportOptions ?? TransportOptions.defaults
     let apiClient = try DefaultApiClient(transportOptions: opts)
+    self.ownedClient = apiClient
 
     if let httpAware = authenticator as? HttpAwareAuthenticator {
       httpAware.setApiClient(apiClient)
@@ -60,6 +64,14 @@ public final class Client: Sendable {
 
     self.pet = PetApi(apiClient: apiClient, config: config, authenticator: authenticator)
     self.store = StoreApi(apiClient: apiClient, config: config, authenticator: authenticator)
+  }
+
+  /// Releases the HTTP stack this client built. A `URLSession` supplied through
+  /// ``TransportOptionsBuilder/session(_:)`` belongs to the caller and is never
+  /// invalidated. Idempotent; any request made afterwards throws
+  /// ``ConfigurationError/invalidState(_:)``.
+  public func close() {
+    ownedClient.close()
   }
 
   /// Creates a client authenticated with a static Bearer token.

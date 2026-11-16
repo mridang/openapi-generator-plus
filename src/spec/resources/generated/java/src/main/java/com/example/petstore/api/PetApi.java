@@ -435,6 +435,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "addPet",
         "POST",
         path,
         queryParams,
@@ -495,6 +496,7 @@ public class PetApi extends BaseApi {
     formBody.put("metadata", options.metadata());
 
     return invokeApiForResult(
+        "addPetPhotos",
         "POST",
         path,
         queryParams,
@@ -585,6 +587,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "addPetTreatment",
         "POST",
         path,
         queryParams,
@@ -689,6 +692,7 @@ public class PetApi extends BaseApi {
       headerParams.put("Cookie", cookieJoiner.toString());
     }
     return invokeApiForResult(
+        "deletePet",
         "DELETE",
         path,
         queryParams,
@@ -746,6 +750,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "downloadPetDocument",
         "GET",
         path,
         queryParams,
@@ -790,6 +795,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "findPetsBornOn",
         "GET",
         path,
         queryParams,
@@ -899,6 +905,7 @@ public class PetApi extends BaseApi {
                   false));
     }
     return invokeApiForResult(
+        "findPetsByStatus",
         "GET",
         path,
         queryParams,
@@ -974,6 +981,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getExternalPetInfo",
         "GET",
         path,
         queryParams,
@@ -1049,6 +1057,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getMultiServerPetInfo",
         "GET",
         path,
         queryParams,
@@ -1093,6 +1102,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getPetAvatar",
         "GET",
         path,
         queryParams,
@@ -1139,6 +1149,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getPetAvatarThumbnail",
         "GET",
         path,
         queryParams,
@@ -1225,6 +1236,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getPetById",
         "GET",
         path,
         queryParams,
@@ -1304,6 +1316,7 @@ public class PetApi extends BaseApi {
                   false));
     }
     return invokeApiForResult(
+        "getPetByName",
         "GET",
         path,
         queryParams,
@@ -1352,6 +1365,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getPetPassport",
         "GET",
         path,
         queryParams,
@@ -1409,6 +1423,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getPetPhoto",
         "GET",
         path,
         queryParams,
@@ -1508,6 +1523,7 @@ public class PetApi extends BaseApi {
       headerParams.put("Cookie", cookieJoiner.toString());
     }
     return invokeApiForResult(
+        "getPetSummary",
         "GET",
         path,
         queryParams,
@@ -1696,6 +1712,7 @@ public class PetApi extends BaseApi {
                   false));
     }
     return invokeApiForResult(
+        "getPetTag",
         "GET",
         path,
         queryParams,
@@ -1771,6 +1788,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "getStagingPetInfo",
         "GET",
         path,
         queryParams,
@@ -1878,6 +1896,7 @@ public class PetApi extends BaseApi {
       effectiveRequestContentType = requestContentType;
     }
     return invokeApiForResult(
+        "setPetAvatar",
         "PUT",
         path,
         queryParams,
@@ -1932,6 +1951,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "setPetAvatarThumbnail",
         "PUT",
         path,
         queryParams,
@@ -2004,6 +2024,7 @@ public class PetApi extends BaseApi {
     }
 
     return invokeApiForResult(
+        "setPetPreferences",
         "POST",
         path,
         queryParams,
@@ -2054,6 +2075,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
+        "updatePet",
         "PUT",
         path,
         queryParams,
@@ -2110,6 +2132,7 @@ public class PetApi extends BaseApi {
     formBody.put("file", options.file());
 
     return invokeApiForResult(
+        "uploadPetCertificate",
         "POST",
         path,
         queryParams,
@@ -2245,6 +2268,7 @@ public class PetApi extends BaseApi {
       effectiveRequestContentType = requestContentType;
     }
     return invokeApiForResult(
+        "uploadPetDocument",
         "POST",
         path,
         queryParams,

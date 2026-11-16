@@ -20,6 +20,7 @@ use crate::errors::oauth2_server_error::OAuth2ServerError;
 use crate::errors::oauth2_token_error::OAuth2TokenError;
 use crate::errors::serialization_error::SerializationError;
 use crate::errors::server_error::ServerError;
+use crate::errors::too_many_requests_error::TooManyRequestsError;
 use crate::errors::unauthorized_error::UnauthorizedError;
 use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
 
@@ -70,6 +71,7 @@ impl OpenAPIError for ForbiddenError {}
 impl OpenAPIError for NotFoundError {}
 impl OpenAPIError for ConflictError {}
 impl OpenAPIError for UnprocessableEntityError {}
+impl OpenAPIError for TooManyRequestsError {}
 impl OpenAPIError for InternalServerError {}
 impl OpenAPIError for NetworkError {}
 impl OpenAPIError for NetworkTimeoutError {}

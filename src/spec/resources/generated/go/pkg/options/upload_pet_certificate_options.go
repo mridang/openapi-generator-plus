@@ -3,10 +3,10 @@
 package options
 
 import (
-	"os"
+	"io"
 )
 
 // UploadPetCertificateOptions carries the parameters for the UploadPetCertificate operation.
 type UploadPetCertificateOptions struct {
-	File *os.File
+	File io.Reader
 }

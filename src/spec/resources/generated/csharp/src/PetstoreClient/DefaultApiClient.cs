@@ -379,6 +379,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             throw new InvalidOperationException("ApiClient has been closed");
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!url.IsAbsoluteUri)
         {
             throw new ArgumentException($"Request URL must be absolute: {url}", nameof(url));
@@ -592,7 +594,17 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                             StringComparison.OrdinalIgnoreCase
                         );
                     int redirectStatus = (int)response.StatusCode;
-                    bool preservesBody = redirectStatus == 307 || redirectStatus == 308;
+                    bool preservesBody =
+                        redirectStatus == 307
+                        || redirectStatus == 308
+                        || (
+                            (redirectStatus == 301 || redirectStatus == 302)
+                            && !string.Equals(
+                                currentMethod,
+                                "POST",
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                        );
                     if (isDowngrade && preservesBody && currentBody != null)
                     {
                         /* T-D2: refuse to replay a body that was sent over TLS
@@ -609,34 +621,30 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         );
                     }
 
-                    /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+                    /* Gap T3: pick follow-up method+body per RFC 9110 15.4.
                        307 + 308: preserve original method and body.
-                       303:       force GET, drop the body (and Content-Type/Length).
-                       301 + 302: historical browser behaviour — switch to GET
-                                  for non-GET/HEAD requests, drop the body. */
+                       303:       every method except HEAD becomes GET and the
+                                  body is dropped; HEAD stays HEAD.
+                       301 + 302: only POST becomes GET (body dropped); every
+                                  other method keeps its method and body. */
                     int statusCode = (int)response.StatusCode;
                     string methodUpper = currentMethod.ToUpperInvariant();
                     string nextMethod;
                     object? nextBody;
-                    if (statusCode == 307 || statusCode == 308)
-                    {
-                        nextMethod = currentMethod;
-                        nextBody = currentBody;
-                    }
-                    else if (statusCode == 303)
+                    if (statusCode == 303 && methodUpper != "HEAD")
                     {
                         nextMethod = "GET";
                         nextBody = null;
                     }
-                    else if (methodUpper == "GET" || methodUpper == "HEAD")
+                    else if ((statusCode == 301 || statusCode == 302) && methodUpper == "POST")
                     {
-                        nextMethod = currentMethod;
-                        nextBody = currentBody;
+                        nextMethod = "GET";
+                        nextBody = null;
                     }
                     else
                     {
-                        nextMethod = "GET";
-                        nextBody = null;
+                        nextMethod = currentMethod;
+                        nextBody = statusCode == 303 ? null : currentBody;
                     }
 
                     HttpRequestMessage next = new(new HttpMethod(nextMethod), nextUrl);

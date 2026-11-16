@@ -36,6 +36,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  *     .build();
  * Client client = new Client(authenticator, transport);
  * }</pre>
+ *
+ * <p>The client is {@link AutoCloseable}: closing it releases the HTTP stack the SDK built itself,
+ * and never closes a {@link java.net.http.HttpClient} the caller supplied through {@link
+ * TransportOptions}. A closed client rejects further requests with an {@link
+ * IllegalStateException}.
  */
 @SuppressFBWarnings(
     value = {"URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"},
@@ -44,7 +49,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * spelling here, because the accessor is public API and every other SDK
  * spells it the same way. */
 @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
-public final class Client {
+public final class Client implements AutoCloseable {
+
+  private final ApiClient apiClient;
 
   /** API operations for the PetApi group. */
   public final PetApi pet;
@@ -76,6 +83,7 @@ public final class Client {
    */
   public Client(Authenticator authenticator, TransportOptions transportOptions) {
     ApiClient apiClient = new DefaultApiClient(transportOptions);
+    this.apiClient = apiClient;
 
     if (authenticator instanceof HttpAwareAuthenticator httpAware) {
       httpAware.setApiClient(apiClient);
@@ -84,6 +92,20 @@ public final class Client {
     Configuration config = Configuration.builder().baseUrl(authenticator.getHost()).build();
     this.pet = new PetApi(apiClient, config, authenticator);
     this.store = new StoreApi(apiClient, config, authenticator);
+  }
+
+  /**
+   * Releases the HTTP stack this client built. Idempotent. A transport the caller supplied is never
+   * closed.
+   */
+  @Override
+  public void close() {
+    apiClient.close();
+  }
+
+  /** The transport shared by every API group; for tests in this package. */
+  ApiClient transport() {
+    return apiClient;
   }
 
   /**

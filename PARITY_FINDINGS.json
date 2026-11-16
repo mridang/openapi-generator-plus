@@ -44676,6 +44676,314 @@
    "status": "open",
    "note": "",
    "batch": null
+  },
+  {
+   "id": "F1055",
+   "severity": "medium",
+   "title": "A path parameter (or request body) named like an SDK-injected argument (options, ctx, requestOptions, cancellationToken, api, opts) produces a duplicate parameter and does not compile in any SDK",
+   "lens": "oas-conformance:parameters",
+   "category": "spec-coverage",
+   "languages": [
+    "java",
+    "kotlin",
+    "csharp",
+    "php",
+    "python",
+    "ruby",
+    "node",
+    "dart",
+    "go",
+    "rust",
+    "swift",
+    "elixir"
+   ],
+   "description": "OAS Parameter Object (4.8.12) only requires name+in to be unique, so /search/{options} or /x/{ctx} is legal. The generator builds the method signature as path params, body param, then a synthetic `options` argument (AbstractBetterCodegen.computeSignatureArgs, ~3672-3705), and nothing disambiguates it: reserved-words/<lang>.txt contains no `options`, `ctx`, `requestOptions`, `cancellationToken`, `api` or `opts` (only self/Self/data/self for a few languages), and toParamName only escapes words from that list. The goldens show the injected names: node `getPetSummary(petId, asOf, options: GetPetSummaryOptions, requestOptions?)`, java/kotlin/csharp/python/dart/swift/rust/php/ruby `options`, go `(ctx, ..., options)`, elixir `(api, ..., options, opts)`, csharp also `cancellationToken`. A path param `options` therefore yields two parameters of the same name (TypeScript TS2300, Java/Kotlin/C#/Dart/Swift/Rust/Go compile errors, Python SyntaxError, Ruby/PHP/Elixir silently shadow so the path value is replaced by the options object). Same for a body named options via x-codegen-request-body-name, and for a query param when an Options class field collides with a language reserved member. Canonical: suffix a colliding path/body name with `Param` (or `_`) in toParamName for the injected-name set, in all twelve, and add a petstore path param named `options`.",
+   "evidence": [
+    {
+     "file": "src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java",
+     "line": 3705,
+     "quote": "args.add(signatureArg(\"options\", \"options\", optionsClassName, nullable, false));"
+    },
+    {
+     "file": "src/spec/resources/generated/node/src/api/pet-api.ts",
+     "line": 1614,
+     "quote": "options: GetPetSummaryOptions,\n    requestOptions?: RequestOptions"
+    },
+    {
+     "file": "src/spec/resources/generated/go/pkg/pet_api.go",
+     "line": 2001,
+     "quote": "GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions)"
+    },
+    {
+     "file": "src/main/resources/reserved-words/node.txt",
+     "line": 0,
+     "quote": "no entry for options/requestOptions (grep -x returns nothing for any language)"
+    }
+   ],
+   "unit_testable": true,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F1056",
+   "severity": "medium",
+   "title": "Header parameters named Accept, Content-Type or Authorization are not ignored as OAS requires, and they overwrite the negotiated Accept/Content-Type",
+   "lens": "oas-conformance:parameters",
+   "category": "spec-coverage",
+   "languages": [
+    "node",
+    "python"
+   ],
+   "description": "OAS 3.0/3.1 Parameter Object (name field): if `in` is `header` and name is `Accept`, `Content-Type` or `Authorization` the parameter definition SHALL be ignored. Nothing in src/main filters them (grep for isHeaderParam/accept/authorization finds no filter; StripParametersRule only runs when configured). Many real specs declare an `Authorization` or `Content-Type` header parameter, so the SDK exposes it as an option and sends it. Node base_api applies `overlay(headerParams)` after selectHeaders, and overlay deletes any same-named (case-insensitive) header first, so an optional `Content-Type` header parameter replaces the Content-Type chosen for the serialized body and an `Accept` parameter replaces the generated Accept; python does the same with _merge_headers(headers, header_params). A caller passing contentType 'text/plain' for a JSON body, or a stale Accept, produces a request whose body and Content-Type disagree. The other ten SDKs get the same generated option (the filter is missing in the shared codegen) but their merge order was not read. Canonical: drop those three header parameters in AbstractBetterCodegen.postProcessOperationsWithModels (and warn), as upstream openapi-generator documents it should.",
+   "evidence": [
+    {
+     "file": "src/main/resources/templates/node/base_api.mustache",
+     "line": 155,
+     "quote": "overlay(headerParams);"
+    },
+    {
+     "file": "src/main/resources/templates/python/base_api.mustache",
+     "line": 230,
+     "quote": "_merge_headers(headers, header_params)"
+    },
+    {
+     "file": "src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java",
+     "line": 0,
+     "quote": "no filter on header params named Accept/Content-Type/Authorization"
+    }
+   ],
+   "unit_testable": true,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F1057",
+   "severity": "low",
+   "title": "node path parameters are inserted with String.replace, so `$&`, `$$` and `$'` in a value are expanded as replacement patterns and corrupt the URL",
+   "lens": "oas-conformance:parameters",
+   "category": "wire",
+   "languages": [
+    "node"
+   ],
+   "description": "Node api template builds the path with `path.replace(`{name}`, ValueSerializer.serializeStyled(...))`. For a string pattern JS still interprets `$&`, `$$`, `$'` and `$\\`` in the replacement. ValueSerializer.encodePathSegment deliberately keeps `$`, `&` and `'` literal (it maps %24, %26, %27 back), so a legal value reaches the replacement unchanged. Verified with node: `/pet/{petId}/summary`.replace('{petId}', 'a$&b') gives /pet/a{petId}b/summary, 'US$$' gives /pet/US$/summary, and \"x$'y\" gives /pet/x/summaryy/summary (the rest of the path is spliced in). A caller-controlled id can therefore change the request target. F303 fixed the same defect for server-variable values only. Ruby uses gsub with a string but encodes backslash, java/kotlin/dart/csharp/php/go/rust/swift/elixir use literal replace. Fix with a function replacement `path.replace(token, () => value)`.",
+   "evidence": [
+    {
+     "file": "src/main/resources/templates/node/api/apis.mustache",
+     "line": 253,
+     "quote": "path = path.replace(`{${'{{baseName}}'}}`, ... ValueSerializer.serializeStyled(...))"
+    },
+    {
+     "file": "src/main/resources/templates/node/value_serializer.mustache",
+     "line": 257,
+     "quote": ".replace(/%24/g, '$')\n      .replace(/%26/g, '&')"
+    }
+   ],
+   "unit_testable": true,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F1058",
+   "severity": "medium",
+   "title": "The Encoding Object of a request body (multipart and form-urlencoded) is never read: contentType, headers, style, explode and allowReserved are ignored in all twelve SDKs",
+   "lens": "oas-conformance:content-types",
+   "category": "spec-coverage",
+   "languages": [
+    "java",
+    "kotlin",
+    "csharp",
+    "php",
+    "python",
+    "ruby",
+    "node",
+    "dart",
+    "go",
+    "rust",
+    "swift",
+    "elixir"
+   ],
+   "description": "OAS Encoding Object (4.8.15) lets a spec set per-property contentType, headers, style, explode and allowReserved for multipart/form-data and application/x-www-form-urlencoded. src/main contains no reference to getEncoding or any encoding map (grep returns only test text), so the templates cannot see it. The README says 'Only contentType used', which is wrong: even contentType is not used. Observable effects: an `encoding: {metadata: {contentType: application/xml}}` or `text/plain` part is always sent as application/json (go writeJSONMultipartPart, node/python equivalents); a file part with `encoding.file.contentType: image/png` gets its type from the file extension (go test MultipartFilePartContentTypeFromExtension) rather than the spec; a form-urlencoded array property with `style: form, explode: false` is still sent as repeated keys, and `style: deepObject` for an object field is rejected (go isFormComposite, node scalar()). The petstore fixture only has `encoding.metadata.contentType: application/json`, which equals the hard-wired default, so nothing catches it. Canonical: surface the per-property encoding on CodegenProperty/CodegenParameter in postProcessOperationsWithModels and make each SDK's multipart and form builders honour contentType and style/explode, or fail generation loudly; correct the README row.",
+   "evidence": [
+    {
+     "file": "README.md",
+     "line": 381,
+     "quote": "Advanced multipart encoding (headers, style, explode in Encoding Object) | Only `contentType` used in encoding object"
+    },
+    {
+     "file": "src/main/resources/templates/go/base_api.mustache",
+     "line": 593,
+     "quote": "case map[string]any: return writeJSONMultipartPart(writer, name, v)"
+    },
+    {
+     "file": "src/spec/resources/specs/petstore/openapi.yaml",
+     "line": 475,
+     "quote": "encoding:\n              metadata:\n                contentType: application/json"
+    }
+   ],
+   "unit_testable": true,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F1059",
+   "severity": "medium",
+   "title": "multipart/mixed and multipart/related request bodies are classified as multipart by the codegen but sent as JSON with an invalid Content-Type at runtime",
+   "lens": "oas-conformance:content-types",
+   "category": "spec-coverage",
+   "languages": [
+    "node",
+    "python"
+   ],
+   "description": "Upstream DefaultCodegen sets op.isMultipart for any content type starting with `multipart` (DefaultCodegen.java:4880), and AbstractBetterCodegen.deriveRequestBodyKind returns \"multipart\" on that flag, but the runtime tests only the literal 'multipart/form-data': node base_api `const isMultipart = contentType === 'multipart/form-data'` (headers) and serializeBody `if (contentType === 'multipart/form-data')`; python `is_multipart = content_type == 'multipart/form-data'`. For a spec whose only body type is multipart/mixed or multipart/related (Google-style uploads), the form parts object is not treated as multipart: node sends Content-Type: multipart/mixed (no boundary) and falls through to JSON serialization of the parts object; the header selector also keeps the declared type instead of generating a boundary. OAS 4.8.14 lists multipart/* as valid and says form-data defaults apply. Other languages were not read. Canonical: either reject non-form-data multipart at generation time with a clear error, or build the multipart envelope for every multipart/* type with the declared subtype.",
+   "evidence": [
+    {
+     "file": "src/main/resources/templates/node/base_api.mustache",
+     "line": 143,
+     "quote": "const isMultipart = contentType === 'multipart/form-data';"
+    },
+    {
+     "file": "src/main/resources/templates/node/base_api.mustache",
+     "line": 352,
+     "quote": "if (contentType === 'multipart/form-data') {"
+    },
+    {
+     "file": "src/main/resources/templates/python/base_api.mustache",
+     "line": 226,
+     "quote": "is_multipart = content_type == 'multipart/form-data'"
+    },
+    {
+     "file": "src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java",
+     "line": 3782,
+     "quote": "if (op.isMultipart) {"
+    }
+   ],
+   "unit_testable": true,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F1060",
+   "severity": "medium",
+   "title": "Only one flow of an OAuth2 security scheme gets an authenticator; the other declared flows are dropped without a warning",
+   "lens": "oas-conformance:security",
+   "category": "spec-coverage",
+   "languages": [
+    "java",
+    "kotlin",
+    "csharp",
+    "php",
+    "python",
+    "ruby",
+    "node",
+    "dart",
+    "go",
+    "rust",
+    "swift",
+    "elixir"
+   ],
+   "description": "OAS Security Scheme / OAuth Flows Object (4.8.28-29) allows implicit, password, clientCredentials and authorizationCode in one scheme. buildOAuthSpec returns on the first non-null flow in the fixed order clientCredentials, password, authorizationCode, implicit, so a scheme declaring authorizationCode and clientCredentials only produces ClientCredentials, and the loop at detectSecuritySchemes sets has* flags for every flow while emitting wrappers for one. The `LOGGER.warn(\"Unsupported OAuth2 flow\")` fires only when no flow is recognised. A user with an authorizationCode+clientCredentials scheme cannot get the interactive flow at all through the per-scheme class, and no message says a flow was skipped. Canonical: one wrapper per declared flow (name suffix by flow) or at least a warning naming the dropped flows.",
+   "evidence": [
+    {
+     "file": "src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java",
+     "line": 1197,
+     "quote": "if (scheme.getFlows().getClientCredentials() != null) {"
+    },
+    {
+     "file": "src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java",
+     "line": 1228,
+     "quote": "LOGGER.warn(\"Unsupported OAuth2 flow for scheme: {}\", schemeName);"
+    },
+    {
+     "file": "src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java",
+     "line": 812,
+     "quote": "hasOAuth2ClientCredentials = true; (set for every declared flow)"
+    }
+   ],
+   "unit_testable": true,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F1061",
+   "severity": "low",
+   "title": "http security schemes other than basic and bearer (digest, negotiate, custom schemes) produce no authenticator and the warning hides the scheme name",
+   "lens": "oas-conformance:security",
+   "category": "spec-coverage",
+   "languages": [
+    "java",
+    "kotlin",
+    "csharp",
+    "php",
+    "python",
+    "ruby",
+    "node",
+    "dart",
+    "go",
+    "rust",
+    "swift",
+    "elixir"
+   ],
+   "description": "OAS 4.8.27 http scheme takes any IANA HTTP Authentication Scheme name. buildSchemeAuthSpec handles `basic` and `bearer` only and otherwise falls to `LOGGER.warn(\"Unsupported security scheme type: {}\", scheme.getType())`, which prints HTTP, not the scheme, so the user cannot tell which scheme was skipped. Operations that require such a scheme still compile but the SDK offers no authenticator class for it; README Known Limitations and AGENTS S11 mention only mutual TLS. `bearerFormat` is also never read. Canonical: log the scheme string, and document digest/custom as unsupported or provide a generic `Authorization: <scheme> <credentials>` authenticator.",
+   "evidence": [
+    {
+     "file": "src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java",
+     "line": 1190,
+     "quote": "LOGGER.warn(\"Unsupported security scheme type: {}\", scheme.getType());"
+    }
+   ],
+   "unit_testable": true,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F1062",
+   "severity": "high",
+   "title": "When an operation declares several 2xx responses with different schemas, every success body is decoded as the lexicographically lowest one",
+   "lens": "oas-conformance:responses",
+   "category": "spec-coverage",
+   "languages": [
+    "java",
+    "kotlin",
+    "csharp",
+    "php",
+    "python",
+    "ruby",
+    "node",
+    "dart",
+    "go",
+    "rust",
+    "swift",
+    "elixir"
+   ],
+   "description": "OAS Responses Object (4.8.16) maps each status code to its own content. Upstream findMethodResponse picks one response, the smallest key among those starting with `2` or equal to `default` (DefaultCodegen.java:4591-4603), and sets returnType from it. Nothing in this repo reads op.responses (no is2xx/{{#responses}} in any template; AbstractBetterCodegen only touches op.getResponses for doc text), so every SDK has a single return type and decodes any 2xx body with it. With `200: Pet` and `201: Order` (or `202: Job`), a 201 body is parsed as Pet and fails with a SerializationError or returns a Pet of nulls; with `200` having no content and `202` carrying Job, the Job is discarded and the method returns void. 200/204 pairs work by accident through the empty-body path. Canonical: generate a result union per operation when 2xx schemas differ (or at least expose the status code and raw decoded value), and add a petstore operation with two success schemas.",
+   "evidence": [
+    {
+     "file": "src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java",
+     "line": 4171,
+     "quote": "op.getResponses() ... (only used for doc unescaping)"
+    },
+    {
+     "file": "src/spec/resources/generated/node/src/api/pet-api.ts",
+     "line": 1604,
+     "quote": "return getPetSummaryResult.data as string;"
+    },
+    {
+     "file": "src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java",
+     "line": 0,
+     "quote": "no use of op.responses / is2xx in src/main/resources/templates"
+    }
+   ],
+   "unit_testable": true,
+   "status": "open",
+   "note": "",
+   "batch": null
   }
  ]
 }

@@ -137,7 +137,7 @@ describe Petstore::Client::Errors::ApiError do
   it 'loads every error class into the Errors namespace' do
     %w[
       OpenAPIError ApiError ClientError ServerError BadRequestError UnauthorizedError
-      ForbiddenError NotFoundError ConflictError UnprocessableEntityError
+      ForbiddenError NotFoundError ConflictError UnprocessableEntityError TooManyRequestsError
       InternalServerError NetworkError NetworkTimeoutError SerializationError
       OAuth2ServerError OAuth2TokenError
     ].each do |name|
@@ -154,6 +154,7 @@ describe Petstore::Client::Errors::ApiError do
     404 => Petstore::Client::Errors::NotFoundError,
     409 => Petstore::Client::Errors::ConflictError,
     422 => Petstore::Client::Errors::UnprocessableEntityError,
+    429 => Petstore::Client::Errors::TooManyRequestsError,
     418 => Petstore::Client::Errors::ClientError,
     500 => Petstore::Client::Errors::InternalServerError,
     503 => Petstore::Client::Errors::ServerError,

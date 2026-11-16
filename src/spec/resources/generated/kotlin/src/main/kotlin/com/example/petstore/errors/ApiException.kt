@@ -124,7 +124,7 @@ open class ApiException : OpenAPIException {
         /**
          * Map an HTTP response that was not a success to the exception for its status.
          *
-         * 400, 401, 403, 404, 409 and 422 map to their named [ClientException]
+         * 400, 401, 403, 404, 409, 422 and 429 map to their named [ClientException]
          * subclasses and any other 4xx to [ClientException]; 500 maps to
          * [InternalServerErrorException] and any other 5xx to [ServerException];
          * any other status maps to `ApiException` itself. A JSON body is decoded
@@ -163,6 +163,7 @@ open class ApiException : OpenAPIException {
                 404 -> NotFoundException(message, responseHeaders, responseBody, errorBody)
                 409 -> ConflictException(message, responseHeaders, responseBody, errorBody)
                 422 -> UnprocessableEntityException(message, responseHeaders, responseBody, errorBody)
+                429 -> TooManyRequestsException(message, responseHeaders, responseBody, errorBody)
                 in 400..499 -> ClientException(statusCode, message, responseHeaders, responseBody, errorBody)
                 500 -> InternalServerErrorException(message, responseHeaders, responseBody, errorBody)
                 in 500..599 -> ServerException(statusCode, message, responseHeaders, responseBody, errorBody)

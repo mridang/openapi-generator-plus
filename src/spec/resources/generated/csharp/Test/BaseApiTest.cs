@@ -14,6 +14,9 @@ using PetstoreClient.Auth;
 using PetstoreClient.Errors;
 using Xunit;
 
+/* These tests exercise the SDK without a test-runner cancellation token on purpose. */
+#pragma warning disable xUnit1051
+
 namespace Test;
 
 [Collection("Chasm")]
@@ -96,7 +99,8 @@ public class BaseApiTest
             object? body,
             string[] accepts,
             string contentType,
-            IAuthenticator? auth = null
+            IAuthenticator? auth = null,
+            string? operationName = null
         )
         {
             return await InvokeApiForResultAsync<T>(
@@ -108,7 +112,8 @@ public class BaseApiTest
                 accepts,
                 contentType,
                 typeof(T),
-                auth
+                auth,
+                operationName: operationName
             );
         }
 
@@ -181,6 +186,7 @@ public class BaseApiTest
             { 404, typeof(NotFoundException) },
             { 409, typeof(ConflictException) },
             { 422, typeof(UnprocessableEntityException) },
+            { 429, typeof(TooManyRequestsException) },
             { 418, typeof(ClientException) },
             { 500, typeof(InternalServerErrorException) },
             { 502, typeof(ServerException) },
@@ -375,6 +381,26 @@ public class BaseApiTest
             )
         );
         Assert.Contains("text/plain", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ContentTypeErrorNamesTheOperationNotTheType()
+    {
+        var textApi = new TestableApi(new TextPlainApiClient(), "http://localhost");
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            textApi.CallForResultAsync<JsonNode>(
+                "GET",
+                "/test/echo",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json",
+                operationName: "PetApi.getPetById"
+            )
+        );
+        Assert.Contains("for PetApi.getPetById:", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("JsonNode", ex.Message, StringComparison.Ordinal);
     }
 
     private sealed class TextPlainApiClient : IApiClient
@@ -1399,6 +1425,19 @@ public class BaseApiTest
         );
 
         Assert.Equal(expected, encoded);
+    }
+
+    [Fact]
+    public void ContentCookieKeepsOnlyTheUnreservedSetLiteral()
+    {
+        var api = new TestableApi("http://localhost");
+
+        var encoded = api.ContentParameter(
+            new Dictionary<string, string> { ["k"] = "a b~*\u00e9" },
+            "cookie"
+        );
+
+        Assert.Equal("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D", encoded);
     }
 
     [Theory]

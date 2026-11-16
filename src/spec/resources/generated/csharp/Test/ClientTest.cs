@@ -11,6 +11,9 @@ using PetstoreClient.Auth;
 using PetstoreClient.Auth.OAuth;
 using Xunit;
 
+/* These tests exercise the SDK without a test-runner cancellation token on purpose. */
+#pragma warning disable xUnit1051
+
 namespace Test;
 
 public sealed class ClientTest : IDisposable
@@ -60,6 +63,23 @@ public sealed class ClientTest : IDisposable
         }
 
         Assert.Equal(1, handler.Requests);
+        Assert.False(handler.Disposed);
+    }
+
+    [Fact]
+    public async Task ClosedClientRejectsFurtherRequestsAndKeepsTheSuppliedHandlerOpen()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var client = new Client(_authenticator, transport);
+        client.Dispose();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.Store.GetInventoryAsync()
+        );
+
+        Assert.Contains("closed", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(0, handler.Requests);
         Assert.False(handler.Disposed);
     }
 

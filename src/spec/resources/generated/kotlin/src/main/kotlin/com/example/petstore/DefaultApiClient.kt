@@ -261,33 +261,26 @@ class DefaultApiClient internal constructor(
                     )
                 }
 
-                // Pick the follow-up method+body per RFC 7231 / 7538.
+                // Pick the follow-up method+body per RFC 9110 section 15.4.
                 // 307 + 308: preserve the original method and body.
-                // 303:       force GET, drop the body (drop Content-Type/Length too).
-                // 301 + 302: historical browser behaviour — switch to GET for non-GET/HEAD
-                //            requests, drop the body.
+                // 303:       every method except HEAD becomes GET (body dropped).
+                // 301 + 302: only POST becomes GET (body dropped); every other
+                //            method keeps its method and body.
                 val statusCode = response.status.value
                 val nextMethod: String
                 val nextBody: Any?
-                when (statusCode) {
-                    307, 308 -> {
-                        nextMethod = currentMethod
-                        nextBody = currentBody
+                when {
+                    statusCode == 303 && !currentMethod.equals("HEAD", ignoreCase = true) -> {
+                        nextMethod = "GET"
+                        nextBody = null
                     }
-                    303 -> {
+                    (statusCode == 301 || statusCode == 302) && currentMethod.equals("POST", ignoreCase = true) -> {
                         nextMethod = "GET"
                         nextBody = null
                     }
                     else -> {
-                        if (currentMethod.equals("GET", ignoreCase = true) ||
-                            currentMethod.equals("HEAD", ignoreCase = true)
-                        ) {
-                            nextMethod = currentMethod
-                            nextBody = currentBody
-                        } else {
-                            nextMethod = "GET"
-                            nextBody = null
-                        }
+                        nextMethod = currentMethod
+                        nextBody = currentBody
                     }
                 }
 

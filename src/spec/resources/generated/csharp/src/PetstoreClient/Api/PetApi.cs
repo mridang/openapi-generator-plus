@@ -380,7 +380,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(Pet),
                 options?.Auth,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.AddPet"
             )
             .ConfigureAwait(false);
     }
@@ -504,7 +505,8 @@ public class PetApi : BaseApi
                 "multipart/form-data",
                 typeof(List<Photo>),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.AddPetPhotos"
             )
             .ConfigureAwait(false);
     }
@@ -602,7 +604,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(PetTreatment),
                 options?.Auth,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.AddPetTreatment"
             )
             .ConfigureAwait(false);
     }
@@ -711,7 +714,8 @@ public class PetApi : BaseApi
                 "application/json",
                 null,
                 options?.Auth,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.DeletePet"
             )
             .ConfigureAwait(false);
     }
@@ -821,7 +825,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(System.IO.Stream),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.DownloadPetDocument"
             )
             .ConfigureAwait(false);
     }
@@ -909,7 +914,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(List<Pet>),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.FindPetsBornOn"
             )
             .ConfigureAwait(false);
     }
@@ -1054,7 +1060,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(List<Pet>),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.FindPetsByStatus"
             )
             .ConfigureAwait(false);
     }
@@ -1158,7 +1165,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(Pet),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetExternalPetInfo"
             )
             .ConfigureAwait(false);
     }
@@ -1262,7 +1270,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(Pet),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetMultiServerPetInfo"
             )
             .ConfigureAwait(false);
     }
@@ -1352,7 +1361,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(System.IO.Stream),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetPetAvatar"
             )
             .ConfigureAwait(false);
     }
@@ -1442,7 +1452,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(byte[]),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetPetAvatarThumbnail"
             )
             .ConfigureAwait(false);
     }
@@ -1548,7 +1559,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(Pet),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetPetById"
             )
             .ConfigureAwait(false);
     }
@@ -1713,7 +1725,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(Pet),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetPetByName"
             )
             .ConfigureAwait(false);
     }
@@ -1803,7 +1816,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(PetPassport),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetPetPassport"
             )
             .ConfigureAwait(false);
     }
@@ -1913,7 +1927,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(System.IO.Stream),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetPetPhoto"
             )
             .ConfigureAwait(false);
     }
@@ -2105,7 +2120,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(string),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetPetSummary"
             )
             .ConfigureAwait(false);
     }
@@ -2368,7 +2384,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(Pet),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetPetTag"
             )
             .ConfigureAwait(false);
     }
@@ -2472,7 +2489,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(Pet),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.GetStagingPetInfo"
             )
             .ConfigureAwait(false);
     }
@@ -2567,7 +2585,8 @@ public class PetApi : BaseApi
                 null,
                 null,
                 rawBody: true,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.SetPetAvatar"
             )
             .ConfigureAwait(false);
     }
@@ -2639,7 +2658,8 @@ public class PetApi : BaseApi
                 "application/json",
                 null,
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.SetPetAvatarThumbnail"
             )
             .ConfigureAwait(false);
     }
@@ -2775,7 +2795,8 @@ public class PetApi : BaseApi
                 "application/x-www-form-urlencoded",
                 typeof(ApiResponse),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.SetPetPreferences"
             )
             .ConfigureAwait(false);
     }
@@ -2864,7 +2885,8 @@ public class PetApi : BaseApi
                 "application/json",
                 typeof(Pet),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.UpdatePet"
             )
             .ConfigureAwait(false);
     }
@@ -2977,7 +2999,8 @@ public class PetApi : BaseApi
                 "multipart/form-data",
                 typeof(ApiResponse),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.UploadPetCertificate"
             )
             .ConfigureAwait(false);
     }
@@ -3136,7 +3159,8 @@ public class PetApi : BaseApi
                 effectiveRequestContentType,
                 typeof(ApiResponse),
                 null,
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.UploadPetDocument"
             )
             .ConfigureAwait(false);
     }

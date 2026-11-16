@@ -14,14 +14,14 @@ import (
 	"testing"
 )
 
-func TestSkills_UploadParametersAreDocumentedAsOsFile(t *testing.T) {
+func TestSkills_UploadParametersAreDocumentedAsIoReader(t *testing.T) {
 	t.Parallel()
 	skills := readSourceFile(t, "../SKILLS.md")
-	if !strings.Contains(skills, "File upload parameters are typed as `*os.File`.") {
-		t.Errorf("expected SKILLS.md to document file upload parameters as *os.File")
+	if !strings.Contains(skills, "File upload parameters and binary request bodies are typed as `io.Reader`;") {
+		t.Errorf("expected SKILLS.md to document file upload parameters as io.Reader")
 	}
-	if strings.Contains(skills, "typed as `io.Reader`") {
-		t.Errorf("expected SKILLS.md not to document file upload parameters as io.Reader")
+	if strings.Contains(skills, "typed as `*os.File`") {
+		t.Errorf("expected SKILLS.md not to document file upload parameters as *os.File")
 	}
 }
 

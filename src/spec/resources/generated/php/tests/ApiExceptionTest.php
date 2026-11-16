@@ -120,6 +120,7 @@ test('every status-specific error keeps an optional cause', function (string $cl
     \PetstoreClient\Errors\NotFoundException::class,
     \PetstoreClient\Errors\ConflictException::class,
     \PetstoreClient\Errors\UnprocessableEntityException::class,
+    \PetstoreClient\Errors\TooManyRequestsException::class,
     \PetstoreClient\Errors\InternalServerErrorException::class,
 ]);
 
@@ -135,6 +136,7 @@ test('every typed API error extends the base ApiException', function (): void {
         new \PetstoreClient\Errors\NotFoundException('not found'),
         new \PetstoreClient\Errors\ConflictException('conflict'),
         new \PetstoreClient\Errors\UnprocessableEntityException('unprocessable'),
+        new \PetstoreClient\Errors\TooManyRequestsException('slow down'),
         new \PetstoreClient\Errors\ClientException(418, 'client error'),
         new \PetstoreClient\Errors\InternalServerErrorException('server error'),
         new \PetstoreClient\Errors\ServerException(503, 'server error'),
@@ -201,6 +203,7 @@ test('fromResponse maps every status to its exception', function (int $status, s
     [404, \PetstoreClient\Errors\NotFoundException::class],
     [409, \PetstoreClient\Errors\ConflictException::class],
     [422, \PetstoreClient\Errors\UnprocessableEntityException::class],
+    [429, \PetstoreClient\Errors\TooManyRequestsException::class],
     [418, \PetstoreClient\Errors\ClientException::class],
     [500, \PetstoreClient\Errors\InternalServerErrorException::class],
     [503, \PetstoreClient\Errors\ServerException::class],
@@ -249,6 +252,7 @@ test('every error type lives in the Errors namespace under the root', function (
     \PetstoreClient\Errors\NotFoundException::class,
     \PetstoreClient\Errors\ConflictException::class,
     \PetstoreClient\Errors\UnprocessableEntityException::class,
+    \PetstoreClient\Errors\TooManyRequestsException::class,
     \PetstoreClient\Errors\InternalServerErrorException::class,
     \PetstoreClient\Errors\NetworkException::class,
     \PetstoreClient\Errors\NetworkTimeoutException::class,
