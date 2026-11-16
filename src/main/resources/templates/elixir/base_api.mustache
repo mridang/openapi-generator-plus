@@ -418,6 +418,13 @@ defmodule {{moduleName}}.Api.BaseApi do
 
   defp query_string_pairs(_k, value, _allow_reserved) when is_nil(value) or value == [], do: []
 
+  # An exploded object parameter: one `name=value` pair per property.
+  defp query_string_pairs(_k, {:exploded_object, pairs}, allow_reserved) do
+    Enum.map(pairs, fn {name, value} ->
+      "#{encode_query_component(name)}=#{encode_query_value({{moduleName}}.ObjectSerializer.to_query_value(value, nil), allow_reserved)}"
+    end)
+  end
+
   defp query_string_pairs(k, values, allow_reserved) when is_list(values) do
     encoded_key = encode_query_component(to_string(k))
 

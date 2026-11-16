@@ -66,6 +66,55 @@ defmodule {{moduleName}}.ValueSerializer do
   defp set_to_list(%MapSet{} = set), do: MapSet.to_list(set)
   defp set_to_list(value), do: value
 
+  # An object-valued parameter: a model struct or a map. The temporal structs
+  # are scalars (they stringify to one value), so they are not objects.
+  defguardp is_object(value)
+            when is_map(value) and not is_struct(value, DateTime) and
+                   not is_struct(value, NaiveDateTime) and not is_struct(value, Date) and
+                   not is_struct(value, Time) and not is_struct(value, Duration)
+
+  # D47: an object-valued parameter is written by its wire names, in
+  # declaration order for a model and in key order for a map. An unset property
+  # is left out; a nested object or array is a SerializationError, because
+  # there is no one wire form for it.
+  @doc false
+  @spec object_pairs(map()) :: [{String.t(), String.t()}]
+  def object_pairs(%{__struct__: module} = model) do
+    fields = Map.from_struct(model)
+
+    if function_exported?(module, :attribute_map, 0) and function_exported?(module, :json_key_order, 0) do
+      field_by_wire = Map.new(module.attribute_map(), fn {field, wire} -> {wire, field} end)
+
+      module.json_key_order()
+      |> Enum.map(fn wire -> {wire, Map.get(fields, Map.get(field_by_wire, wire))} end)
+      |> object_leaves()
+    else
+      fields |> Enum.sort_by(fn {key, _value} -> to_string(key) end) |> object_leaves()
+    end
+  end
+
+  def object_pairs(map) when is_map(map) do
+    map |> Enum.sort_by(fn {key, _value} -> to_string(key) end) |> object_leaves()
+  end
+
+  defp object_leaves(entries) do
+    entries
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Enum.map(fn {key, value} -> {to_string(key), object_leaf!(to_string(key), value)} end)
+  end
+
+  defp object_leaf!(key, value) do
+    if is_list(value) or is_object(value) do
+      raise {{moduleName}}.Errors.SerializationError,
+        message: "Property '#{key}' of an object parameter is itself an object or an array and cannot be serialized"
+    end
+
+    {{moduleName}}.ObjectSerializer.stringify(value)
+  end
+
+  # `k1,v1,k2,v2`: the flat form of a non-exploded object.
+  defp flatten_object(pairs), do: Enum.flat_map(pairs, fn {key, value} -> [key, value] end)
+
   # Returns the wire-value string for `value` when `schema_type` resolves to a
   # generated enum module that maps the atom via `value/1`; otherwise nil so
   # the caller falls back to `stringify/1`.
@@ -172,7 +221,7 @@ defmodule {{moduleName}}.ValueSerializer do
 
   """
   @spec serialize_styled(String.t(), term(), atom(), String.t(), atom() | nil, String.t() | nil, boolean()) ::
-          String.t() | [String.t()] | nil
+          String.t() | [String.t()] | {:exploded_object, [{String.t(), String.t()}]} | nil
   # Path parameters are required components of the URL - accepting an empty
   # string would silently produce a malformed URL like `/resource//details`,
   # which most servers route to 404 instead of surfacing the bug at the call
@@ -358,6 +407,15 @@ defmodule {{moduleName}}.ValueSerializer do
   defp serialize_form(nil, :query, _explode), do: nil
   defp serialize_form(nil, _location, _explode), do: ""
 
+  # An exploded object in the query repeats each property as its own
+  # `name=value` pair (the parameter name is not used); the query builder
+  # unpacks the tagged pairs.
+  defp serialize_form(value, :query, true) when is_object(value), do: {:exploded_object, object_pairs(value)}
+
+  defp serialize_form(value, _location, _explode) when is_object(value) do
+    value |> object_pairs() |> flatten_object() |> Enum.join(",")
+  end
+
   defp serialize_form(value, _location, explode) when is_list(value) do
     if explode do
       Enum.map(value, &{{moduleName}}.ObjectSerializer.stringify/1)
@@ -372,6 +430,14 @@ defmodule {{moduleName}}.ValueSerializer do
 
   defp serialize_simple(nil, :query), do: nil
   defp serialize_simple(nil, _location), do: ""
+
+  defp serialize_simple(value, :path) when is_object(value) do
+    value |> object_pairs() |> flatten_object() |> Enum.map_join(",", &encode_path_segment/1)
+  end
+
+  defp serialize_simple(value, _location) when is_object(value) do
+    value |> object_pairs() |> flatten_object() |> Enum.join(",")
+  end
 
   defp serialize_simple(value, :path) when is_list(value) do
     Enum.map_join(value, ",", fn v -> encode_path_segment({{moduleName}}.ObjectSerializer.stringify(v)) end)
@@ -410,8 +476,6 @@ defmodule {{moduleName}}.ValueSerializer do
   def serialize_deep_object(_param_name, nil), do: %{}
 
   def serialize_deep_object(param_name, value) when is_map(value) do
-    Map.new(value, fn {key, val} ->
-      {"#{param_name}[#{key}]", {{moduleName}}.ObjectSerializer.stringify(val)}
-    end)
+    Map.new(object_pairs(value), fn {key, val} -> {"#{param_name}[#{key}]", val} end)
   end
 end
