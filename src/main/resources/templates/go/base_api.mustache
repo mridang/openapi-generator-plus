@@ -356,6 +356,11 @@ func buildQueryStringOrdered(queryParams map[string]any, order []string) string 
 			}
 		case string:
 			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, encodeQueryValue(val, allowReserved)))
+		case queryPairs:
+			for _, pair := range val {
+				name := strings.ReplaceAll(url.QueryEscape(pair[0]), "+", "%20")
+				parts = append(parts, fmt.Sprintf("%s=%s", name, encodeQueryValue(pair[1], allowReserved)))
+			}
 		default:
 			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, encodeQueryValue(stringify(v), allowReserved)))
 		}

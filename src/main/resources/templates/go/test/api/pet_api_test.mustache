@@ -867,6 +867,47 @@ func TestPetApi_GetPetTagSendsByteParametersAsBase64(t *testing.T) {
 	}
 }
 
+// D47/F1143, F1158: the PetCriteria parameters go out as exploded form, comma
+// form, deepObject and a simple header, and the path parameters keep their
+// matrix and label styles.
+func TestPetApi_GetPetTagSendsObjectValuedAndStyledParameters(t *testing.T) {
+	t.Parallel()
+	var rawPath, query, header string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rawPath, query, header = r.URL.Path, r.URL.RawQuery, r.Header.Get("X-Criteria")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	breed := "lab"
+	minAge := int32(3)
+	criteria := models.PetCriteria{Breed: &breed, MinAge: &minAge}
+	_, _ = api.GetPetTag(context.Background(), int64(5), "cute", &options.GetPetTagOptions{
+		Criteria:     &criteria,
+		CriteriaCsv:  &criteria,
+		CriteriaDeep: &criteria,
+		XCriteria:    &criteria,
+	})
+	if rawPath != "/pet/;petId=5/tag/.cute" {
+		t.Errorf("expected the matrix and label path styles, got %q", rawPath)
+	}
+	for _, want := range []string{
+		"breed=lab&min_age=3",
+		"criteriaCsv=breed%2Clab%2Cmin_age%2C3",
+		"criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3",
+	} {
+		if !strings.Contains(query, want) {
+			t.Errorf("expected %q in the query, got %q", want, query)
+		}
+	}
+	if header != "breed,lab,min_age,3" {
+		t.Errorf("expected X-Criteria breed,lab,min_age,3, got %q", header)
+	}
+}
+
 func TestPetApi_GetPetTag(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
