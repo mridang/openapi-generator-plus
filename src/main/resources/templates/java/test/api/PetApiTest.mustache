@@ -1275,4 +1275,68 @@ class PetApiTest {
                         + " [multipart/form-data, application/octet-stream]");
         assertThat(capturing.capturedUrl).isNull();
     }
+
+    private static final class SummaryRecording implements ApiClient {
+        @javax.annotation.Nullable String capturedUrl;
+        @javax.annotation.Nullable java.util.Map<String, String> capturedHeaders;
+
+        @Override
+        public {{invokerPackage}}.ApiHttpResponse sendRequest(
+                String method,
+                String url,
+                java.util.Map<String, String> headers,
+                @javax.annotation.Nullable Object body) {
+            this.capturedUrl = url;
+            this.capturedHeaders = headers;
+            return new {{invokerPackage}}.ApiHttpResponse(
+                    200, "plain summary", java.util.Map.of("Content-Type", "text/plain"));
+        }
+    }
+
+    @Test
+    void getPetSummarySendsTheMatrixPathTheDateArrayAndTheRequiredCookie() throws Exception {
+        SummaryRecording recording = new SummaryRecording();
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        String summary = petApi.getPetSummary(
+                7L,
+                LocalDate.of(2024, 1, 15),
+                new {{apiPackage}}.options.GetPetSummaryOptions("abc")
+                        .days(List.of(LocalDate.of(2024, 1, 15), LocalDate.of(2024, 2, 1))));
+
+        assertThat(summary).isEqualTo("plain summary");
+        String url = java.net.URLDecoder.decode(
+                String.valueOf(recording.capturedUrl), StandardCharsets.UTF_8);
+        assertThat(url).startsWith("http://localhost/pet/7/summary/;asOf=2024-01-15");
+        assertThat(url).contains("days=2024-01-15").contains("days=2024-02-01");
+        assertThat(recording.capturedHeaders).containsEntry("Cookie", "session=abc");
+    }
+
+    @Test
+    void getPetSummaryRefusesAnEmptyRequiredCookieBeforeSending() throws Exception {
+        SummaryRecording recording = new SummaryRecording();
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        assertThatThrownBy(() -> petApi.getPetSummary(
+                        7L, LocalDate.of(2024, 1, 15),
+                        new {{apiPackage}}.options.GetPetSummaryOptions("")))
+                .isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'session' when calling PetApi.getPetSummary");
+        assertThat(recording.capturedUrl).isNull();
+    }
+
+    @Test
+    void getPetByNameRefusesAnEmptyRequiredHeaderBeforeSending() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        assertThatThrownBy(() -> petApi.getPetByName("rex", new GetPetByNameOptions("cats", "")))
+                .isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'X-Correlation-Id'"
+                        + " when calling PetApi.getPetByName");
+        assertThat(capturing.capturedUrl).isNull();
+    }
 }
