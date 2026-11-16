@@ -1925,4 +1925,111 @@ public static class ObjectSerializerTest
             Assert.IsType<SerializationException>(ex);
         }
     }
+
+    public class FixtureEdgeCaseTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Theory]
+        [InlineData("In-Stock", EdgeCases.PhaseEnum.InStock)]
+        [InlineData("on-hold", EdgeCases.PhaseEnum.OnHold)]
+        [InlineData("OUT_OF_STOCK", EdgeCases.PhaseEnum.OUTOFSTOCK)]
+        public void InlineEnumKeepsItsExactWireValue(string wire, EdgeCases.PhaseEnum member)
+        {
+            EdgeCases? decoded = _serializer.Deserialize<EdgeCases>("{\"phase\":\"" + wire + "\"}");
+
+            Assert.Equal(member, decoded!.Phase);
+            Assert.Contains("\"phase\":\"" + wire + "\"", _serializer.Serialize(decoded), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void InlineEnumRejectsAnUnknownWireValue()
+        {
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<EdgeCases>("{\"phase\":\"in-stock\"}"));
+        }
+
+        [Fact]
+        public void PropertiesNamedAfterKeywordsAndLiteralsKeepTheirWireKeys()
+        {
+            const string json =
+                "{\"and\":true,\"or\":false,\"not\":true,\"class\":\"c\",\"return\":\"r\","
+                + "\"null\":\"n\",\"true\":true,\"false\":false}";
+
+            EdgeCases decoded = _serializer.Deserialize<EdgeCases>(json)!;
+
+            Assert.True(decoded.And);
+            Assert.False(decoded.Or);
+            Assert.True(decoded.Not);
+            Assert.Equal("c", decoded.Class);
+            Assert.Equal("r", decoded.Return);
+            Assert.Equal("n", decoded.Null);
+            Assert.True(decoded.True);
+            Assert.False(decoded.False);
+
+            string back = _serializer.Serialize(decoded);
+            Assert.Contains("\"and\":true", back, StringComparison.Ordinal);
+            Assert.Contains("\"or\":false", back, StringComparison.Ordinal);
+            Assert.Contains("\"not\":true", back, StringComparison.Ordinal);
+            Assert.Contains("\"class\":\"c\"", back, StringComparison.Ordinal);
+            Assert.Contains("\"return\":\"r\"", back, StringComparison.Ordinal);
+            Assert.Contains("\"null\":\"n\"", back, StringComparison.Ordinal);
+            Assert.Contains("\"true\":true", back, StringComparison.Ordinal);
+            Assert.Contains("\"false\":false", back, StringComparison.Ordinal);
+        }
+
+        [Theory]
+        [InlineData("3600s", 3600L, 0L)]
+        [InlineData("3600.5s", 3600L, 5_000_000L)]
+        [InlineData("-90s", -90L, 0L)]
+        [InlineData("315576000000s", 315_576_000_000L, 0L)]
+        public void DurationDecodesAndKeepsItsSign(string wire, long seconds, long extraTicks)
+        {
+            TimeSpan expected = TimeSpan.FromTicks((seconds * TimeSpan.TicksPerSecond) + (seconds < 0 ? -extraTicks : extraTicks));
+
+            EdgeCases? decoded = _serializer.Deserialize<EdgeCases>("{\"retryAfter\":\"" + wire + "\"}");
+
+            Assert.Equal(expected, decoded!.RetryAfter);
+            EdgeCases? again = _serializer.Deserialize<EdgeCases>(_serializer.Serialize(decoded));
+            Assert.Equal(expected, again!.RetryAfter);
+        }
+
+        [Theory]
+        [InlineData("0.1234567890123456789")]
+        [InlineData("12345678901234567890.5")]
+        [InlineData("0.00000001")]
+        [InlineData("100000000000000000000")]
+        public void BareNumberIsExactAndWrittenInPlainNotation(string literal)
+        {
+            Pet? decoded = _serializer.Deserialize<Pet>(
+                "{\"name\":\"a\",\"photoUrls\":[],\"weightKg\":" + literal + "}");
+
+            Assert.Equal(decimal.Parse(literal, CultureInfo.InvariantCulture), decoded!.WeightKg);
+            Assert.Contains("\"weightKg\":" + literal, _serializer.Serialize(decoded), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void ReadOnlyPropertyIsStillDecoded()
+        {
+            Account? decoded = _serializer.Deserialize<Account>("{\"id\":7,\"username\":\"u\"}");
+
+            Assert.Equal(7L, decoded!.Id);
+        }
+
+        [Fact]
+        public void WriteOnlyPropertyIsStillWritten()
+        {
+            string json = _serializer.Serialize(new Account("u") { Password = "p" });
+
+            Assert.Contains("\"password\":\"p\"", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void WriteOnlyPropertyIsStillDecoded()
+        {
+            Account? decoded = _serializer.Deserialize<Account>("{\"username\":\"u\",\"password\":\"p\"}");
+
+            Assert.Equal("p", decoded!.Password);
+        }
+    }
 }
