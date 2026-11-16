@@ -1009,6 +1009,35 @@ void main() {
       }
     });
 
+    /* A digit-leading query parameter gets a legal Dart identifier (n2ndPage)
+     * while the wire name stays `2ndPage`. */
+    test('findPetsByStatus sends the digit-leading query parameter under its spec name', () async {
+      String? capturedQuery;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedQuery = request.uri.query;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.findPetsByStatus(const FindPetsByStatusOptions(n2ndPage: 2));
+
+        expect(capturedQuery, contains('2ndPage=2'));
+        expect(capturedQuery, isNot(contains('n2ndPage')));
+      } finally {
+        await server.close();
+      }
+    });
+
     /* getPetTag byte parameters (D51): the `fingerprint` query and the
      * `X-Fingerprint` header are `format: byte`, so bytes `hi` reach the wire
      * as `aGk=` and bytes FB FF as `+/8=` in the standard alphabet, and the
