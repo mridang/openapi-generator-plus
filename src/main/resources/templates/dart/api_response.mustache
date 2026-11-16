@@ -7,13 +7,13 @@ class ApiHttpResponse {
   /// The raw response body string.
   final String body;
 
-  /// The response headers.
+  /// The response headers (an unmodifiable copy).
   final Map<String, String> headers;
 
   /// Creates an HTTP API response.
-  const ApiHttpResponse({
+  ApiHttpResponse({
     required this.statusCode,
     required this.body,
-    required this.headers,
-  });
+    required Map<String, String> headers,
+  }) : headers = Map.unmodifiable(headers);
 }

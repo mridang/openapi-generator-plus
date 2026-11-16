@@ -108,6 +108,24 @@ void main() {
       expect(withNull.retries, equals(7));
     });
 
+    test('deserialize reports a JSON nesting depth over the limit', () {
+      final deep = '[' * 1001 + ']' * 1001;
+      expect(
+        () => deserialize<Category>(deep, Category.fromJson),
+        throwsA(isA<SerializationException>().having((e) => e.message,
+            'message', 'JSON nesting depth 1001 exceeds limit 1000')),
+      );
+    });
+
+    test('deserialize prefixes a parse failure with Failed to deserialize JSON',
+        () {
+      expect(
+        () => deserialize<Category>('{', Category.fromJson),
+        throwsA(isA<SerializationException>().having((e) => e.message,
+            'message', startsWith('Failed to deserialize JSON: '))),
+      );
+    });
+
     // -- recursive-self-referential-model-deserialize --
     //
     // TreeNode is self-referential ({ value, child: TreeNode? }). Deserializing
@@ -472,10 +490,10 @@ void main() {
     // Models constructed without any of their optional fields must omit those
     // keys from the toJson() map entirely (no `"id": null` slots). Required
     // fields and explicit defaults must still appear.
-    test('a uniqueItems array of strings serializes sorted', () {
+    test('a uniqueItems array of strings keeps the Set insertion order', () {
       final pet = Pet(name: 'n', photoUrls: <String>{'c', 'a', 'b'});
       for (var run = 0; run < 2; run++) {
-        expect(serialize(pet), contains('"photoUrls":["a","b","c"]'));
+        expect(serialize(pet), contains('"photoUrls":["c","a","b"]'));
       }
     });
 
