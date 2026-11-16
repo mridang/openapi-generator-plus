@@ -898,8 +898,10 @@ class {{classname}} {
 
   /// Dumps every field{{#isAdditionalPropertiesTrue}} and the additionalProperties map{{/isAdditionalPropertiesTrue}}; lists, maps
   /// and byte data render element-wise through Dart's own container output.
+  /// A `format: password` property prints as `***`; the value on the wire is
+  /// unchanged.
   @override
-  String toString() => '{{classname}}({{#vars}}{{name}}: ${{{name}}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: $additionalProperties{{/isAdditionalPropertiesTrue}})';
+  String toString() => '{{classname}}({{#vars}}{{name}}: {{#isPassword}}***{{/isPassword}}{{^isPassword}}${{{name}}}{{/isPassword}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: $additionalProperties{{/isAdditionalPropertiesTrue}})';
 }
 {{/isPrimitiveAnyOf}}
 {{/isPrimitiveOneOf}}

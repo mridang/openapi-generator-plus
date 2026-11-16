@@ -155,9 +155,17 @@ OAuth2 authenticators resolve the access token by making an HTTP call to the tok
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
 
+#### Unauthorized answers
+
+When the API answers 401 to a call authenticated by an OAuth2 or OpenID Connect authenticator, the SDK calls the authenticator's `invalidateAccessToken()` (the cached access token is dropped, the refresh token is kept), obtains a new token and sends the request once more. A second 401 is raised as `UnauthorizedException`. A multipart body is not replayed, and Basic, Bearer, API key and Implicit authenticators never replay.
+
+#### PKCE
+
+`buildAuthorizationUrl` adds a PKCE S256 `code_challenge` (RFC 7636) to every authorization URL and keeps the matching 43-character verifier in the authenticator; `exchangeCode` sends it as `code_verifier`. Build the URL and exchange the code on the same authenticator instance.
+
 #### Token caching
 
-The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+The token manager caches the access token in memory and refreshes it up to `60` seconds before its declared expiry (never more than half of the token's lifetime). This single safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed and is not applied twice: a token valid for 60 seconds is reused for 30. A token valid for 1 second or less is fetched again on every call; tune your authorization server's `expires_in` if it is too short.
 
 #### Client authentication method
 
@@ -276,15 +284,21 @@ final transport = TransportOptions.builder()
 
 Network errors before a response and statuses 408, 409, 429 and 500-599 (not 501) are retried with a backoff of 0.5 s doubling to 8 s with 25% jitter; `Retry-After` (at most 60 s) is honoured, the request timeout is never extended, and a multipart body is never retried.
 
-A 401 on an OAuth2 or OpenID Connect call drops the cached access token and replays the request once with fresh headers. The authorization-code flow sends a PKCE `S256` challenge and verifier.
-
-### Custom HTTP Client
+### Custom HTTP client
 
 ```dart
 final transport = TransportOptions.builder()
   .httpClient(myHttpClient) // a package:http Client you own; the SDK never closes it
   .build();
 ```
+
+### Cancellation
+
+The SDK has no cancellation handle of its own. Bound a call by time with `TransportOptions.builder().timeout(ms)`: a call that exceeds it fails with `NetworkTimeoutException`. Closing the client (`client.close()`) makes the next call raise `StateError`.
+
+### Raw responses, timeouts and the request id
+
+Each operation has a `...WithHttpInfo` variant returning `ApiResult<T>` (`statusCode`, `data`, `rawBody`, `headers`). `timeout` is one end-to-end budget in milliseconds. An `X-Request-ID` header is added to each request when you set `TransportOptions.builder().injectRequestId(true)`.
 
 ## API Methods
 

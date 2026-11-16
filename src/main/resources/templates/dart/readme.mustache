@@ -6,6 +6,112 @@ Auto-generated Dart SDK client for the {{appName}} API.
 
 - **Dart SDK:** `>=3.11.0 <4.0.0`
 
+### Tooling
+
+The Dart toolchain bundles the formatter, linter, static analyser, and
+upgrade tool. No additional tools need to be installed.
+
+| Tool        | Command                | Notes                                                |
+|-------------|------------------------|------------------------------------------------------|
+| Formatter   | `dart format .`        | Built into the Dart SDK                              |
+| Linter      | `dart analyze`         | Uses `package:lints/recommended.yaml`                |
+| Analyser    | `dart analyze`         | Strict casts, inference and raw types (`analysis_options.yaml`) |
+| Auto-fix    | `dart fix --apply`     | Applies analyser-suggested fixes (Rector-equivalent) |
+
+## Installation
+
+Add the dependency to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  {{packageName}}: ^{{packageVersion}}
+```
+
+Then run `dart pub get`.
+
+## Usage
+
+```dart
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+final client = {{clientClassName}}.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+);
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}
+// Every operation is a method on an API group, for example
+// client.{{clientPropertyName}}.{{operationId}}(...).
+{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}```
+
+Close the client with `client.close()` to release its connections. Errors derive
+from `{{errorPrefix}}Exception`; `NetworkException` and `NetworkTimeoutException` mean no
+HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See
+[SKILLS.md](SKILLS.md) for authentication, servers and error handling.
+
+### Raw responses
+
+Every operation has a `...WithHttpInfo` variant returning an `ApiResult<T>`
+with `statusCode`, `data`, `rawBody` and the lower-cased `headers`. It is the
+way to read a response header.
+
+### Timeouts
+
+`TransportOptions.builder().timeout(5000)` sets one end-to-end budget in
+milliseconds for the whole call, redirects included; the default is 10 seconds
+and `null` waits indefinitely. A call that exceeds it fails with
+`NetworkTimeoutException`.
+
+### Automatic retries
+
+`TransportOptions.builder().maxRetries(n)` sets how many times a failed call is
+sent again; the default is 2 and `0` turns retries off. A call is retried after
+a network error that happened before a response arrived, and after a response
+with status 408, 409, 429 or 500-599 (not 501). The wait starts at 0.5 seconds,
+doubles up to 8 seconds and carries up to 25% jitter; a `Retry-After` header
+(seconds or an HTTP date, at most 60 seconds) replaces it. Retries never extend
+the request timeout: a wait that would outlast it is not taken and the last
+error is reported. A call with a multipart body is never retried. Every retry
+is a new request and asks the authenticator for its headers again.
+
+```dart
+final transport = TransportOptions.builder().maxRetries(0).build();
+```
+
+### Expired tokens
+
+When an OAuth2 or OpenID Connect call answers 401, the SDK drops the cached
+access token (the refresh token is kept), obtains a new one and sends the
+request once more. A second 401 is reported as `UnauthorizedException`. API-key,
+basic and bearer authenticators are never replayed, and neither is a multipart
+body. `invalidateAccessToken()` on the OAuth2 and OpenID Connect authenticators
+does the same on demand.
+
+The authorization-code flow (also through OpenID Connect) is protected with
+PKCE `S256`: `buildAuthorizationUrl` adds `code_challenge` and
+`code_challenge_method=S256`, keeps the matching verifier in the authenticator,
+and `exchangeCode` sends it as `code_verifier`.
+
+### Request id
+
+Set `TransportOptions.builder().injectRequestId(true)` and the SDK adds a unique
+`X-Request-ID` header to every request unless you set your own (header names are
+matched case-insensitively). Quote it when you report a problem with a call.
+
+### Cancellation
+
+The SDK has no cancellation API of its own. To bound how long a call can
+take, set the request timeout on `TransportOptions`; a call that exceeds it
+fails with `NetworkTimeoutException`.
+
+### Custom HTTP client
+
+`TransportOptions.builder().httpClient(client)` makes the SDK send every
+request through your own `package:http` `Client`. The SDK keeps its request
+timeout, redirect handling, user agent and default headers on top, and never
+closes the client: you own its lifecycle. Because the client carries its own
+proxy and TLS settings, combining it with `proxy`, `caCertPath` or
+`verifySsl(false)` is rejected when the options are built.
+
 ## Platform support
 
 The HTTP transport ships in two variants selected automatically at compile time
@@ -24,16 +130,6 @@ everywhere:
   rather than being silently ignored; everything else works unchanged. The
   gzip-lie response hardening is a native-only extra (the browser already
   decodes `Content-Encoding`).
-
-The Dart toolchain bundles the formatter, linter, static analyser, and
-upgrade tool. No additional tools need to be installed.
-
-| Tool        | Command                | Notes                                                |
-|-------------|------------------------|------------------------------------------------------|
-| Formatter   | `dart format .`        | Built into the Dart SDK                              |
-| Linter      | `dart analyze`         | Uses `package:lints/recommended.yaml`                |
-| Analyser    | `dart analyze`         | Strict casts, inference and raw types (`analysis_options.yaml`) |
-| Auto-fix    | `dart fix --apply`     | Applies analyser-suggested fixes (Rector-equivalent) |
 
 ## Build
 
@@ -100,59 +196,6 @@ The SDK's `ClientException` (every 4xx response) has the same name as
 `import 'package:http/http.dart' as http;`, and refer to its type as
 `http.ClientException`. The SDK itself imports `package:http` that way.
 
-## Configuration
-
-### Retries
-
-`TransportOptions.builder().maxRetries(n)` sets how many times a failed call is
-sent again; the default is 2 and `0` turns retries off. A call is retried after
-a network error that happened before a response arrived, and after a response
-with status 408, 409, 429 or 500-599 (not 501). The wait starts at 0.5 seconds,
-doubles up to 8 seconds and carries up to 25% jitter; a `Retry-After` header
-(seconds or an HTTP date, at most 60 seconds) replaces it. Retries never extend
-the request timeout: a wait that would outlast it is not taken and the last
-error is reported. A call with a multipart body is never retried. Every retry
-is a new request and asks the authenticator for its headers again.
-
-```dart
-final transport = TransportOptions.builder().maxRetries(0).build();
-```
-
-### Token refresh on 401
-
-When an OAuth2 or OpenID Connect call answers 401, the SDK drops the cached
-access token (the refresh token is kept), obtains a new one and sends the
-request once more. A second 401 is reported as `UnauthorizedException`. API-key,
-basic and bearer authenticators are never replayed, and neither is a multipart
-body. `invalidateAccessToken()` on the OAuth2 and OpenID Connect authenticators
-does the same on demand.
-
-### PKCE
-
-The authorization-code flow (also through OpenID Connect) is protected with
-PKCE `S256`: `buildAuthorizationUrl` adds `code_challenge` and
-`code_challenge_method=S256`, keeps the matching verifier in the authenticator,
-and `exchangeCode` sends it as `code_verifier`.
-
-## Not supported
-
-### Webhooks and callbacks
-
-This SDK is **client → server** only. Spec entries describing
-server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
-per-operation `callbacks` — are intentionally skipped during code
-generation. If you need to receive webhook deliveries, write the
-handler yourself and use this SDK only to deserialize the incoming
-payload (e.g. by reusing the relevant request-body model).
-
-### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
-
-JSON Schema 2019-09 keywords for "if field X is present, field Y is
-also required" are **not enforced** by this SDK. No mainstream
-OpenAPI client codegen implements them. The server is the authoritative
-validator; if you want client-side checking, plug in a JSON Schema
-validator library for your language.
-
 ### Schema constraints
 
 The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
@@ -168,14 +211,40 @@ plug in a JSON Schema validator library.
 order (insertion order for the default `LinkedHashSet`). The order is not
 sorted and is not specified, so do not rely on it.
 
-### Custom HTTP client
+## Not supported
 
-`TransportOptions.builder().httpClient(client)` makes the SDK send every
-request through your own `package:http` `Client`. The SDK keeps its request
-timeout, redirect handling, user agent and default headers on top, and never
-closes the client: you own its lifecycle. Because the client carries its own
-proxy and TLS settings, combining it with `proxy`, `caCertPath` or
-`verifySsl(false)` is rejected when the options are built.
+### Webhooks and callbacks
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType`
+
+Request and response bodies in `application/xml` and the XML `nodeType`
+keyword are not generated (#70, #88). An operation that only declares XML has
+no usable body in this SDK.
+
+### Link Objects
+
+OpenAPI Link Objects are ignored (#78).
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes produce no authenticator (#90). Configure a client
+certificate on your own `package:http` `Client` and pass it with
+`TransportOptions.builder().httpClient(client)`.
+
+### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
+
+JSON Schema 2019-09 keywords for "if field X is present, field Y is
+also required" are **not enforced** by this SDK. No mainstream
+OpenAPI client codegen implements them. The server is the authoritative
+validator; if you want client-side checking, plug in a JSON Schema
+validator library for your language.
 
 ### SOCKS proxies
 
@@ -186,12 +255,6 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
-
-### Per-call cancellation
-
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutException`.
 
 ### `LICENSE` file is not auto-emitted
 

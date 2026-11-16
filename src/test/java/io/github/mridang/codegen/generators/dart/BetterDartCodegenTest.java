@@ -37,4 +37,23 @@ class BetterDartCodegenTest {
     assertThat(BetterDartCodegen.serverBeforeOptions(List.of(path, options)))
         .containsExactly(path, options);
   }
+
+  @Test
+  void modelsNamedLikeACoreTypeGetThePrefix() {
+    final BetterDartCodegen codegen = new BetterDartCodegen();
+    assertThat(codegen.toModelName("Error")).isEqualTo("ModelError");
+    assertThat(codegen.toModelName("Exception")).isEqualTo("ModelException");
+    assertThat(codegen.toModelName("Uri")).isEqualTo("ModelUri");
+    assertThat(codegen.toModelName("Category")).isEqualTo("Category");
+    assertThat(codegen.toModelName("Result")).isEqualTo("Result");
+  }
+
+  @Test
+  void parametersNamedLikeInjectedArgumentsGetASuffix() {
+    final BetterDartCodegen codegen = new BetterDartCodegen();
+    assertThat(codegen.toParamName("options")).isEqualTo("optionsParam");
+    assertThat(codegen.toParamName("server")).isEqualTo("serverParam");
+    assertThat(codegen.toParamName("path")).isEqualTo("pathParam");
+    assertThat(codegen.toParamName("petId")).isEqualTo("petId");
+  }
 }

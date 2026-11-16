@@ -69,15 +69,26 @@ class DefaultApiClient extends AbstractApiClient {
       /* A caller-supplied custom CA certificate (TLS pinning) that is
        * missing, unreadable, or unparseable must fail fast. It is a
        * configuration error, so it surfaces as an ArgumentError rather than
-       * the raw dart:io FileSystemException / TlsException that
-       * setTrustedCertificates throws. */
+       * the raw dart:io FileSystemException / TlsException. The two causes
+       * keep their own sentence (D79), so a message says whether the file
+       * could not be read or is not a PEM bundle. */
+      final path = options.caCertPath!;
+      final List<int> bytes;
       try {
-        context.setTrustedCertificates(options.caCertPath!);
-      } catch (e) {
-        throw ArgumentError.value(
-          options.caCertPath,
-          'caCertPath',
-          'failed to read or parse CA certificate: $e',
+        bytes = File(path).readAsBytesSync();
+      } on FileSystemException catch (e) {
+        throw ArgumentError(
+          'failed to read CA certificate from "$path": '
+          '${e.osError?.message ?? e.message}',
+        );
+      }
+      try {
+        context.setTrustedCertificatesBytes(bytes);
+      } on TlsException catch (e) {
+        final cause = e.osError?.message ?? e.message;
+        final reason = cause.isEmpty ? 'no PEM blocks found' : cause;
+        throw ArgumentError(
+          'failed to parse CA certificate from "$path": $reason',
         );
       }
     }

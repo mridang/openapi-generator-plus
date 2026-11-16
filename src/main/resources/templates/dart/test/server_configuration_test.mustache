@@ -156,6 +156,75 @@ void main() {
         equals('https://us.example.com/us'),
       );
     });
+
+    test('the third global server round-trips every text field unchanged', () {
+      final server = allServers[2];
+
+      expect(server.urlTemplate, equals('https://{tenant}.example.com/api'));
+      expect(server.description,
+          equals('Bob\'s "sandbox" & co: \$5 #{x} a*/b'));
+      final tenant = server.variables['tenant']!;
+      expect(tenant.defaultValue, equals('o\'neil'));
+      expect(tenant.description, equals('Tenant\'s "id"'));
+      expect(tenant.enumValues, equals(['o\'neil', 'a&b']));
+    });
+
+    test('the third global server resolves to the raw characters', () {
+      final server = allServers[2];
+
+      expect(server.url(), equals('https://o\'neil.example.com/api'));
+      expect(server.url({'tenant': 'a&b'}), equals('https://a&b.example.com/api'));
+    });
+
+    test('does not expand a placeholder that a substituted value introduces', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://{env}.api.example.com/{version}',
+        variables: {
+          'env': ServerVariable(defaultValue: '{version}'),
+          'version': ServerVariable(defaultValue: 'v2'),
+        },
+      );
+
+      expect(config.url(), equals('https://{version}.api.example.com/v2'));
+    });
+
+    test('does not expand a placeholder an override introduces, in either order', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://{a}.example.com/{b}',
+        variables: {
+          'a': ServerVariable(defaultValue: 'x'),
+          'b': ServerVariable(defaultValue: 'y'),
+        },
+      );
+
+      expect(config.url({'b': '{a}'}), equals('https://x.example.com/{a}'));
+      expect(config.url({'a': '{b}'}), equals('https://{b}.example.com/y'));
+    });
+
+    test('a placeholder without a variable is left in place', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://{host}/{unknown}',
+        variables: {'host': ServerVariable(defaultValue: 'h')},
+      );
+
+      expect(config.url(), equals('https://h/{unknown}'));
+    });
+
+    test('a constant configuration cannot be modified through its variables', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: {
+          'env': ServerVariable(
+              defaultValue: 'prod', enumValues: ['prod', 'staging']),
+        },
+      );
+
+      expect(() => config.variables['other'] = const ServerVariable(defaultValue: 'x'),
+          throwsUnsupportedError);
+      expect(() => config.variables['env']!.enumValues.add('dev'),
+          throwsUnsupportedError);
+      expect(() => allServers.add(config), throwsUnsupportedError);
+    });
   });
 }
 {{/generateTests}}
