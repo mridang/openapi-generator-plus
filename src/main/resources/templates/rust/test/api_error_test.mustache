@@ -11,8 +11,10 @@ use {{packageName}}::errors::{
 };
 use {{packageName}}::models::Category;
 use {{packageName}}::ApiError;
+use {{packageName}}::ApiErrorKind;
 use {{packageName}}::SerializationError;
 use {{packageName}}::{{errorPrefix}}Error;
+use {{packageName}}::{{errorPrefix}}ErrorExt;
 
 #[test]
 fn test_api_error_exposes_status_message_body_headers() {
@@ -752,4 +754,41 @@ fn test_generic_wrappers_refuse_a_status_that_does_not_belong() {
     assert!(ServerError::try_from(refused(500)).is_ok());
     assert!(ServerError::try_from(refused(599)).is_ok());
     assert!(NetworkError::try_from(refused(0)).is_ok());
+}
+
+// -- Matching SDK errors without downcasting ---------------------------------
+
+#[test]
+fn test_boxed_error_helpers_resolve_every_http_wrapper_to_its_api_error() {
+    let boxed: Vec<(Box<dyn std::error::Error + Send + Sync>, u16)> = vec![
+        (Box::new(ApiError::new(302, "x".to_string(), None, None)), 302),
+        (Box::new(client_chain(418, "x")), 418),
+        (Box::new(server_chain(503, "x")), 503),
+        (Box::new(BadRequestError::try_from(client_chain(400, "x")).expect("400")), 400),
+        (Box::new(NotFoundError::try_from(client_chain(404, "x")).expect("404")), 404),
+        (Box::new(InternalServerError::try_from(server_chain(500, "x")).expect("500")), 500),
+    ];
+    for (err, status) in boxed {
+        assert!(err.is_api_error(), "got: {}", err);
+        assert_eq!(status, err.as_api_error().expect("an ApiError").status_code());
+        assert_eq!(Some(status), err.api_error_kind().map(|kind| kind.status_code()));
+    }
+}
+
+#[test]
+fn test_boxed_error_helpers_return_none_for_other_errors() {
+    let err: Box<dyn std::error::Error + Send + Sync> =
+        Box::new(SerializationError::new("failed".to_string(), None));
+
+    assert!(!err.is_api_error());
+    assert!(err.as_api_error().is_none());
+    assert!(err.api_error_kind().is_none());
+}
+
+#[test]
+fn test_boxed_error_kind_can_be_matched() {
+    let err: Box<dyn std::error::Error + Send + Sync> =
+        Box::new(NotFoundError::try_from(client_chain(404, "gone")).expect("404"));
+
+    assert!(matches!(err.api_error_kind(), Some(ApiErrorKind::NotFound(_))));
 }
