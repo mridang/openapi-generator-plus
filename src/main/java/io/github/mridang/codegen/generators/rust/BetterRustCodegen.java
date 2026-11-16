@@ -712,8 +712,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
      * CR, LF and TAB are escaped, and every other C0 control becomes
      * a braced Unicode escape. Rust has no interpolation sigils in string literals.
      */
-    private String toRustStringLiteral(String value) {
-        final String escaped = escapeEnumStringValue(value);
+    String toRustStringLiteral(String value) {
+        final String escaped = escapeEnumStringValue(value == null ? "" : value);
         final StringBuilder out = new StringBuilder(escaped.length());
         for (int i = 0; i < escaped.length(); i++) {
             final char c = escaped.charAt(i);
@@ -1223,48 +1223,48 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             ? spec.keyIn().toLowerCase(Locale.ROOT)
                             : "header");
             constructorParams = List.of(p("host", "&str"), p("api_key", "&str"));
-            superArgs = List.of("host", "\"" + spec.keyParamName() + "\"", "api_key", loc);
+            superArgs = List.of("host", toRustStringLiteral(spec.keyParamName()), "api_key", loc);
         } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             constructorParams =
                     List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"));
             superArgs =
                     List.of("host", "client_id", "client_secret",
-                            "\"" + spec.tokenUrl() + "\"", formatRustScopes(spec.scopes()));
+                            toRustStringLiteral(spec.tokenUrl()), formatRustScopes(spec.scopes()));
         } else if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             // refresh_url is &str — empty string means "fall back to token_url"
             final String refreshArg =
-                    spec.refreshUrl() != null ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
+                    spec.refreshUrl() != null ? toRustStringLiteral(spec.refreshUrl()) : "\"\"";
             constructorParams =
                     List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
                             p("username", "&str"), p("password", "&str"));
             // Signature: (host, client_id, client_secret, token_url, username, password, scopes, refresh_url)
             superArgs =
                     List.of("host", "client_id", "client_secret",
-                            "\"" + spec.tokenUrl() + "\"",
+                            toRustStringLiteral(spec.tokenUrl()),
                             "username", "password", formatRustScopes(spec.scopes()), refreshArg);
         } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             // refresh_url is &str — empty string means "fall back to token_url"
             final String refreshArg =
-                    spec.refreshUrl() != null ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
+                    spec.refreshUrl() != null ? toRustStringLiteral(spec.refreshUrl()) : "\"\"";
             constructorParams =
                     List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
                             p("redirect_uri", "&str"));
             // Signature: (host, client_id, client_secret, authorization_url, token_url, redirect_uri, scopes, refresh_url)
             superArgs =
                     List.of("host", "client_id", "client_secret",
-                            "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                            toRustStringLiteral(spec.authorizationUrl()), toRustStringLiteral(spec.tokenUrl()),
                             "redirect_uri", formatRustScopes(spec.scopes()), refreshArg);
         } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             constructorParams = List.of(p("host", "&str"), p("client_id", "&str"));
             superArgs =
-                    List.of("host", "client_id", "\"" + spec.authorizationUrl() + "\"",
+                    List.of("host", "client_id", toRustStringLiteral(spec.authorizationUrl()),
                             formatRustScopes(spec.scopes()));
         } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             constructorParams =
                     List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
                             p("redirect_uri", "&str"));
             superArgs =
-                    List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
+                    List.of("host", toRustStringLiteral(spec.openIdConnectUrl()),
                             "client_id", "client_secret", "redirect_uri", "vec![]");
         } else {
             LOGGER.warn("Unsupported scheme base class: {}", spec.baseClass());

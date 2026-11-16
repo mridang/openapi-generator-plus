@@ -281,7 +281,11 @@ fn render_error(
     }
     if let Some(headers) = headers {
         if !headers.is_empty() {
-            msg.push_str(&format!("\nResponse headers: {:?}", headers));
+            /* Compact JSON with the keys sorted (D17), so the line is the same
+             * on every run and in every SDK. */
+            let sorted: std::collections::BTreeMap<&String, &String> = headers.iter().collect();
+            let json = serde_json::to_string(&sorted).unwrap_or_default();
+            msg.push_str(&format!("\nResponse headers: {}", json));
         }
     }
     if let Some(body) = body {

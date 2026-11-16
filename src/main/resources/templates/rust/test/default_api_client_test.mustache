@@ -73,7 +73,8 @@ async fn test_default_api_client_rejects_an_untrusted_certificate_by_default() {
 
 /* A configured CA is the only trust anchor. example.com presents a chain from a
  * public CA, which the system store trusts but the fixture CA does not, so the
- * handshake must be refused. The test is skipped when the host is unreachable. */
+ * handshake must be refused. An unreachable host fails the test rather than
+ * skipping it, so the sole-anchor coverage never silently disappears. */
 #[tokio::test]
 async fn test_custom_ca_cert_replaces_the_system_trust_store() {
     use std::net::ToSocketAddrs;
@@ -85,10 +86,10 @@ async fn test_custom_ca_cert_replaces_the_system_trust_store() {
             std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)).is_ok()
         })
         .unwrap_or(false);
-    if !reachable {
-        eprintln!("skipping: example.com:443 is unreachable");
-        return;
-    }
+    assert!(
+        reachable,
+        "example.com:443 must be reachable: the sole-anchor check needs a chain from a public CA"
+    );
     let transport = TransportOptionsBuilder::new()
         .verify_ssl(true)
         .ca_cert_path(testcontainers_helper::ca_cert_path())
@@ -573,7 +574,7 @@ async fn test_default_api_client_respects_max_redirects_limit() {
         .send_request("GET", &format!("{}/test/redirect/302", chasm_url), &HashMap::new(), None)
         .await
         .expect_err("a redirect beyond the cap must be refused");
-    assert!(err.to_string().contains("too many redirects"), "got: {}", err);
+    assert!(err.to_string().contains("Too many redirects (exceeded 0)"), "got: {}", err);
 }
 
 // WAVE E (per-request redirect state): redirect counting and the
@@ -663,7 +664,7 @@ async fn test_default_api_client_redirect_state_is_per_request_not_shared() {
     let (r_over_limit, r_within_limit) = tokio::join!(f_over_limit, f_within_limit);
     let err = r_over_limit.expect_err("the request exceeding the redirect cap must be refused");
     assert!(
-        err.to_string().contains("too many redirects"),
+        err.to_string().contains("Too many redirects (exceeded 0)"),
         "expected a 'too many redirects' refusal, got: {}",
         err
     );

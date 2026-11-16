@@ -12,7 +12,9 @@ use reqwest::{Client, ClientBuilder};
 use reqwest::Proxy;
 use uuid::Uuid;
 
-use crate::api_client::{ApiClient, MultipartValue, RequestBody, RequestOptions};
+use crate::api_client::{
+    insert_header, remove_header, ApiClient, MultipartValue, RequestBody, RequestOptions,
+};
 use crate::errors::api_error::{ApiError, TransportFailure};
 use crate::errors::configuration_error::ConfigurationError;
 use crate::errors::{NetworkError, NetworkTimeoutError};
@@ -201,12 +203,12 @@ impl ApiClient for DefaultApiClient {
                 .filter(|_| !self.closed.load(Ordering::SeqCst))
                 .ok_or_else(|| {
                     Box::new(ConfigurationError::InvalidState(
-                        "ApiClient is closed".to_string(),
+                        "ApiClient has been closed and can no longer send requests".to_string(),
                     )) as Box<dyn std::error::Error + Send + Sync>
                 })?;
             let mut merged: HashMap<String, String> = self.transport_options.default_headers();
             for (k, v) in &headers {
-                merged.insert(k.clone(), v.clone());
+                insert_header(&mut merged, k.clone(), v.clone());
             }
             /* RFC 9110 section 5.1: field names are case-insensitive, so a caller
              * header in any case suppresses the injected value and keeps its own
@@ -220,7 +222,7 @@ impl ApiClient for DefaultApiClient {
                     merged.insert("User-Agent".to_string(), ua.to_string());
                 }
             }
-            if !merged.contains_key("Accept-Encoding") {
+            if !has_header(&merged, "Accept-Encoding") {
                 merged.insert(
                     "Accept-Encoding".to_string(),
                     "gzip, deflate, br, zstd".to_string(),
@@ -244,7 +246,8 @@ impl ApiClient for DefaultApiClient {
                      * generated) onto the outgoing request; if the caller set
                      * a Content-Type it would not contain our boundary, so the
                      * server could not parse the body. */
-                    merged.insert(
+                    insert_header(
+                        &mut merged,
                         "Content-Type".to_string(),
                         format!("multipart/form-data; boundary={}", boundary),
                     );
@@ -255,7 +258,7 @@ impl ApiClient for DefaultApiClient {
 
             /* Do not send Content-Type when there is no request body */
             if body_bytes.is_none() {
-                merged.remove("Content-Type");
+                remove_header(&mut merged, "Content-Type");
             }
 
             let http_method = method.parse::<reqwest::Method>().map_err(|e| {
@@ -315,7 +318,7 @@ impl ApiClient for DefaultApiClient {
                      * redirect loop preserves a `Content-Length` of exactly
                      * `0` even when there is no `next_body` (see below), since
                      * an empty body's length is unconditionally zero. */
-                    merged.insert("Content-Length".to_string(), "0".to_string());
+                    insert_header(&mut merged, "Content-Length".to_string(), "0".to_string());
                 }
             }
 
@@ -364,8 +367,8 @@ impl ApiClient for DefaultApiClient {
                         return Err(Box::new(ApiError::new(
                             status_code,
                             format!(
-                                "Refusing to follow redirect to non-http(s) URL: {}",
-                                next_url
+                                "Refusing to follow redirect to non-HTTP(S) URL: {}",
+                                redacted_url(&next_url)
                             ),
                             None,
                             None,
@@ -393,9 +396,13 @@ impl ApiClient for DefaultApiClient {
                                 "Refusing to replay request body across HTTPS->HTTP redirect: {} -> {}",
                                 current_url
                                     .as_ref()
-                                    .map(|u| u.to_string())
-                                    .unwrap_or_else(|| url.clone()),
-                                next_url
+                                    .map(redacted_url)
+                                    .unwrap_or_else(|| {
+                                        reqwest::Url::parse(&url)
+                                            .map(|u| redacted_url(&u))
+                                            .unwrap_or_default()
+                                    }),
+                                redacted_url(&next_url)
                             ),
                             None,
                             None,
@@ -466,11 +473,18 @@ impl ApiClient for DefaultApiClient {
 
                 /* Exceeding the redirect cap must fail loudly rather
                  * than silently returning the last 3xx as a normal response.
-                 * Unified across the 12 SDKs ("too many redirects"). */
-                if is_redirect_status(response.status().as_u16()) && hops >= max {
+                 * Only a 3xx with a usable Location counts (D70): one without
+                 * is returned unchanged. */
+                let has_next_hop = response
+                    .headers()
+                    .get("location")
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|l| current_url.as_ref().and_then(|c| c.join(l).ok()))
+                    .is_some();
+                if is_redirect_status(response.status().as_u16()) && hops >= max && has_next_hop {
                     return Err(Box::new(ApiError::new(
                         response.status().as_u16(),
-                        format!("too many redirects (exceeded {})", max),
+                        format!("Too many redirects (exceeded {})", max),
                         None,
                         None,
                     )) as Box<dyn std::error::Error + Send + Sync>);
@@ -599,6 +613,9 @@ fn remaining_budget(deadline: std::time::Instant) -> Duration {
 /// reset) [`NetworkError`]. Both carry status 0 and keep the reqwest error as
 /// their source.
 fn transport_error(e: reqwest::Error) -> Box<dyn std::error::Error + Send + Sync> {
+    /* The URL is dropped from the error: a query-parameter API key sits in it
+     * and the message and the source chain end up in logs and error trackers. */
+    let e = e.without_url();
     let message = e.to_string();
     if e.is_timeout() {
         let api_error = ApiError::transport(TransportFailure::Timeout, message, Arc::new(e));
@@ -613,6 +630,15 @@ fn transport_error(e: reqwest::Error) -> Box<dyn std::error::Error + Send + Sync
             Err(other) => Box::new(other),
         }
     }
+}
+
+/// Renders `url` for an error message without its query or fragment: an API
+/// key sent as a query parameter must not reach logs through a message.
+pub(crate) fn redacted_url(url: &reqwest::Url) -> String {
+    let mut redacted = url.clone();
+    redacted.set_query(None);
+    redacted.set_fragment(None);
+    redacted.to_string()
 }
 
 /// Returns true when `headers` holds `name` under ASCII case-folding.
@@ -1039,7 +1065,8 @@ fn is_text_content_type(content_type: &str) -> bool {
 mod tests {
     use super::{
         build_filename_directive, decode_text_body, is_https_to_http_body_replay,
-        redirect_next_method, mime_for_filename, parse_charset, same_origin, serialize_multipart_body,
+        redacted_url, redirect_next_method, mime_for_filename, parse_charset, same_origin,
+        serialize_multipart_body,
         validate_multipart_field_name, validate_multipart_filename, SENSITIVE_HEADER_NAMES,
     };
     use crate::api_client::MultipartValue;
@@ -1098,6 +1125,32 @@ mod tests {
         assert!(is_https_to_http_body_replay(301, "PATCH", Some(&https), &http, true));
         /* 303 never replays a body. */
         assert!(!is_https_to_http_body_replay(303, "PUT", Some(&https), &http, true));
+    }
+
+    /* F861: a query-parameter API key must not reach a redirect refusal
+     * message, so the query and fragment are dropped from the URLs it names. */
+    #[test]
+    fn test_redacted_url_drops_the_query_and_fragment() {
+        let url = reqwest::Url::parse("https://api.example.com/pets?api_key=SECRET&x=1#frag")
+            .expect("valid url");
+        assert_eq!("https://api.example.com/pets", redacted_url(&url));
+    }
+
+    #[tokio::test]
+    async fn test_transport_error_does_not_carry_the_request_url() {
+        let err = reqwest::Client::new()
+            .get("http://127.0.0.1:1/pets?api_key=SECRET")
+            .send()
+            .await
+            .expect_err("nothing listens on port 1");
+        let boxed = super::transport_error(err);
+        let mut text = boxed.to_string();
+        let mut source = boxed.source();
+        while let Some(cause) = source {
+            text.push_str(&cause.to_string());
+            source = cause.source();
+        }
+        assert!(!text.contains("SECRET"), "got: {}", text);
     }
 
     /* RFC 9110 section 15.4: the method a redirect hop uses. */

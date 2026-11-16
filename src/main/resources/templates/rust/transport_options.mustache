@@ -284,7 +284,7 @@ impl TransportOptionsBuilder {
     }
 
     /// Sets the end-to-end request timeout in milliseconds, or `None` for no
-    /// timeout. A negative value is reported by [`build`](Self::build) as
+    /// timeout. A zero or negative value is reported by [`build`](Self::build) as
     /// [`ConfigurationError::InvalidTimeout`].
     pub fn timeout(mut self, val: Option<i64>) -> Self {
         self.timeout = val;
@@ -344,13 +344,13 @@ impl TransportOptionsBuilder {
     /// Returns [`ConfigurationError::InvalidProxy`] when the proxy URL is
     /// invalid, [`ConfigurationError::InvalidCaCertificate`] when the CA
     /// certificate file cannot be read or parsed, and
-    /// [`ConfigurationError::InvalidTimeout`] when the timeout is negative.
+    /// [`ConfigurationError::InvalidTimeout`] when the timeout is zero or negative.
     pub fn build(self) -> Result<TransportOptions, ConfigurationError> {
         if let Some(e) = self.proxy_error {
             return Err(e);
         }
         if let Some(ms) = self.timeout {
-            if ms < 0 {
+            if ms <= 0 {
                 return Err(ConfigurationError::InvalidTimeout(ms));
             }
         }

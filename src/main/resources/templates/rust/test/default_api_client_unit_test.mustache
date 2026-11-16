@@ -219,6 +219,96 @@ async fn test_redirect_preserving_a_bodyless_post_keeps_the_zero_content_length(
     assert_eq!(Some("0".to_string()), head_header(&head, "content-length"), "{}", head);
 }
 
+/// Starts a server that answers every request with `response` verbatim.
+fn start_fixed_response_server(response: &'static str) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// D70: a 3xx without a usable Location is returned unchanged, even when the
+/// redirect budget is zero; "too many redirects" needs a Location to follow.
+#[tokio::test]
+async fn test_a_3xx_without_location_is_returned_unchanged_when_max_redirects_is_zero() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 302 Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(0))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let response = client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("a 3xx without a Location is not a redirect to follow");
+
+    assert_eq!(302, response.status_code());
+}
+
+/// A 3xx that does carry a Location still fails once the budget is spent.
+#[tokio::test]
+async fn test_a_3xx_with_location_fails_when_max_redirects_is_zero() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 302 Found\r\nLocation: /next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(0))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let err = client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect_err("a redirect beyond the budget is refused");
+
+    assert!(err.to_string().contains("Too many redirects (exceeded 0)"), "got: {}", err);
+}
+
+/// F1044: two spellings of one header are sent once, the later layer winning,
+/// and a caller's lower-case Accept-Encoding suppresses the SDK's own.
+#[tokio::test]
+async fn test_request_headers_merge_case_insensitively() {
+    let (base_url, head) = start_head_capture_server();
+    let transport = TransportOptionsBuilder::new()
+        .default_header("accept", "text/plain")
+        .default_header("accept-encoding", "identity")
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let mut headers = HashMap::new();
+    headers.insert("Accept".to_string(), "application/json".to_string());
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    let lines = |name: &str| {
+        head.lines()
+            .filter(|line| line.to_lowercase().starts_with(&format!("{}:", name)))
+            .count()
+    };
+    assert_eq!(1, lines("accept"), "{}", head);
+    assert_eq!(Some("application/json".to_string()), head_header(&head, "accept"), "{}", head);
+    assert_eq!(1, lines("accept-encoding"), "{}", head);
+    assert_eq!(Some("identity".to_string()), head_header(&head, "accept-encoding"), "{}", head);
+}
+
 #[tokio::test]
 async fn test_empty_user_agent_is_sent_as_an_empty_header() {
     let (base_url, head) = start_head_capture_server();
@@ -1470,10 +1560,10 @@ async fn test_redirect_exhaustion_returns_error() {
         result.is_err(),
         "exceeding max_redirects must return an error, not the last 3xx"
     );
-    let err = result.unwrap_err().to_string().to_lowercase();
+    let err = result.unwrap_err().to_string();
     assert!(
-        err.contains("too many redirects"),
-        "error must mention 'too many redirects': {}",
+        err.contains("Too many redirects (exceeded 3)"),
+        "error must carry the canonical D16 wording: {}",
         err
     );
 }
@@ -1498,10 +1588,10 @@ async fn test_redirect_to_non_http_scheme_returns_error() {
         result.is_err(),
         "redirect to a non-http(s) scheme must return an error"
     );
-    let err = result.unwrap_err().to_string().to_lowercase();
+    let err = result.unwrap_err().to_string();
     assert!(
-        err.contains("non-http") || err.contains("file:"),
-        "error must mention the refused non-http(s) target: {}",
+        err.contains("Refusing to follow redirect to non-HTTP(S) URL: file:"),
+        "error must carry the canonical D16 wording: {}",
         err
     );
 }
@@ -1686,9 +1776,10 @@ async fn test_request_after_close_returns_invalid_state() {
         .await
         .expect_err("use-after-close must return an error, not succeed silently");
     match err.downcast_ref::<ConfigurationError>() {
-        Some(ConfigurationError::InvalidState(reason)) => {
-            assert!(reason.contains("closed"), "{}", reason)
-        }
+        Some(ConfigurationError::InvalidState(reason)) => assert_eq!(
+            "ApiClient has been closed and can no longer send requests", reason,
+            "D29 canonical wording"
+        ),
         other => panic!("expected ConfigurationError::InvalidState, got {:?}", other),
     }
 }

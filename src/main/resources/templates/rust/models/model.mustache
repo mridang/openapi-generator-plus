@@ -34,6 +34,21 @@ pub enum {{classname}} {
 {{/allowableValues}}
 }
 
+{{#isString}}
+impl std::fmt::Display for {{classname}} {
+    /// Writes the wire value, not the variant name.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+{{#allowableValues}}
+{{#enumVars}}
+            {{classname}}::{{name}} => {{{value}}},
+{{/enumVars}}
+{{/allowableValues}}
+        })
+    }
+}
+{{/isString}}
+
 impl {{classname}} {
     /// Returns all allowed values of {{classname}}.
     pub fn all_values() -> Vec<{{classname}}> {
@@ -77,6 +92,21 @@ pub enum {{classname}}{{enumName}} {
 {{/enumVars}}
 {{/allowableValues}}
 }
+
+{{#isString}}
+impl std::fmt::Display for {{classname}}{{enumName}} {
+    /// Writes the wire value, not the variant name.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+{{#allowableValues}}
+{{#enumVars}}
+            {{classname}}{{enumName}}::{{name}} => {{{value}}},
+{{/enumVars}}
+{{/allowableValues}}
+        })
+    }
+}
+{{/isString}}
 
 {{^isDiscriminator}}
 {{^required}}

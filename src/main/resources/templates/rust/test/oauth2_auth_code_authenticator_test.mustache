@@ -130,7 +130,7 @@ async fn test_refresh_grant_goes_to_the_refresh_url() {
         ("", "https://auth.example.com/token"),
     ] {
         let client = Arc::new(FakeApiClient::new());
-        client.enqueue(r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#, 200);
+        client.enqueue(r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#, 200);
         client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
         let mut auth = OAuth2AuthorizationCodeAuthenticator::new(
             "https://api.example.com",
@@ -164,7 +164,7 @@ async fn test_refresh_grant_goes_to_the_refresh_url() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
     let client = Arc::new(FakeApiClient::new());
-    client.enqueue(r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#, 200);
+    client.enqueue(r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#, 200);
     client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
     let mut auth = UserAuthAuthorizationCodeAuthenticator::new(
         "https://api.example.com",
@@ -246,6 +246,7 @@ async fn test_exchange_code_rejects_empty_code() {
         "expected OAuth2AuthorizationCodeError::EmptyCode, got {:?}",
         err
     );
+    assert_eq!("Authorization code must not be empty", err.to_string());
 
     let result_ws = auth.exchange_code("   ").await;
     assert!(result_ws.is_err(), "whitespace-only code must be rejected");
@@ -277,6 +278,7 @@ async fn test_exchange_code_rejects_whitespace_only_code() {
         "expected OAuth2AuthorizationCodeError::EmptyCode, got {:?}",
         err
     );
+    assert_eq!("Authorization code must not be empty", err.to_string());
 
     assert!(
         client.last_body().is_none(),
@@ -288,7 +290,7 @@ async fn test_exchange_code_rejects_whitespace_only_code() {
 async fn test_includes_refresh_token_on_refresh() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
-        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
         200,
     );
     client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
@@ -396,7 +398,7 @@ fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_refresh_carries_the_client_credentials_and_a_rejection_is_sent_once() {
     let client = Arc::new(FakeApiClient::new());
-    client.enqueue(r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#, 200);
+    client.enqueue(r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#, 200);
     client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
@@ -442,7 +444,7 @@ async fn test_second_exchange_code_sends_the_new_code() {
 async fn test_second_exchange_without_refresh_token_drops_the_old_one() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#, 200);
-    client.enqueue(r#"{"access_token":"tok2","expires_in":1}"#, 200);
+    client.enqueue(r#"{"access_token":"tok2","expires_in":0}"#, 200);
     client.enqueue(r#"{"access_token":"tok3","expires_in":3600}"#, 200);
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
@@ -470,4 +472,13 @@ async fn test_failed_exchange_keeps_the_previous_session() {
 
     assert_eq!(Some(&"Bearer tok1".to_string()), headers.get("Authorization"));
     assert_eq!(2, client.urls().len());
+}
+
+/* D09: the not-yet-exchanged state reads with the canonical wording. */
+#[test]
+fn test_code_not_exchanged_error_uses_the_canonical_message() {
+    assert_eq!(
+        "Must call exchange_code() before making API requests",
+        OAuth2AuthorizationCodeError::CodeNotExchanged.to_string()
+    );
 }

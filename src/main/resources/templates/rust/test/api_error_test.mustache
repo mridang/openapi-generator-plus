@@ -75,7 +75,23 @@ fn test_api_error_display_renders_status_headers_and_body() {
     );
 
     assert_eq!(
-        "bad gateway\nHTTP status code: 502\nResponse headers: {\"x-trace\": \"abc\"}\nResponse body: upstream down",
+        "bad gateway\nHTTP status code: 502\nResponse headers: {\"x-trace\":\"abc\"}\nResponse body: upstream down",
+        err.to_string()
+    );
+}
+
+/* D17: the headers line is compact JSON with the keys sorted, not the map's
+ * random iteration order. */
+#[test]
+fn test_api_error_display_sorts_the_response_headers() {
+    let mut headers = HashMap::new();
+    headers.insert("x-b".to_string(), "2".to_string());
+    headers.insert("a-first".to_string(), "1".to_string());
+    headers.insert("x-c".to_string(), "3".to_string());
+    let err = ApiError::new(500, "boom".to_string(), Some(headers), None);
+
+    assert_eq!(
+        "boom\nHTTP status code: 500\nResponse headers: {\"a-first\":\"1\",\"x-b\":\"2\",\"x-c\":\"3\"}",
         err.to_string()
     );
 }
