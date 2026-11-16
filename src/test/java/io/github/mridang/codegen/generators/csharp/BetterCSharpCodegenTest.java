@@ -90,4 +90,14 @@ class BetterCSharpCodegenTest {
     assertThat(BetterCSharpCodegen.isJsonContent(contentParameter("text/plain"))).isFalse();
     assertThat(BetterCSharpCodegen.isJsonContent(new CodegenParameter())).isFalse();
   }
+
+  @Test
+  void renamesAParameterNamedLikeAnInjectedArgument() {
+    final BetterCSharpCodegen codegen = new BetterCSharpCodegen();
+
+    assertThat(codegen.toParamName("options")).isEqualTo("optionsParam");
+    assertThat(codegen.toParamName("cancellationToken")).isEqualTo("cancellationTokenParam");
+    assertThat(codegen.toParamName("server")).isEqualTo("serverParam");
+    assertThat(codegen.toParamName("pet_id")).isEqualTo("petId");
+  }
 }

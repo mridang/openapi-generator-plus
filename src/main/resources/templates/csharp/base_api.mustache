@@ -104,6 +104,17 @@ public abstract class BaseApi
            distinguishes the sentinel from a real authenticator. */
         IAuthenticator? effectiveAuth =
             ReferenceEquals(auth, NoAuth.Instance) ? null : (auth ?? Authenticator);
+        /* Only the client-level authenticator is handed the transport when the
+           facade is built. A per-call OAuth2 or OIDC authenticator would
+           otherwise fail with "ApiClient has not been injected", so it is given
+           this API's client; the call is idempotent (F856). */
+        if (
+            effectiveAuth is IHttpAwareAuthenticator httpAware
+            && !ReferenceEquals(effectiveAuth, Authenticator)
+        )
+        {
+            httpAware.SetApiClient(ApiClient);
+        }
         string url;
         if (path.StartsWith("http://", StringComparison.Ordinal) || path.StartsWith("https://", StringComparison.Ordinal))
         {
