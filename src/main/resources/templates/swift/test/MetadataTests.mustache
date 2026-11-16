@@ -12,7 +12,7 @@ import Testing
         #expect(!(data.isEmpty))
 
         let restored = try JSONDecoder().decode(Metadata.self, from: data)
-        #expect(restored != nil)
+        _ = restored
     }
 
     @Test func testDeserializeFromJSON() throws {

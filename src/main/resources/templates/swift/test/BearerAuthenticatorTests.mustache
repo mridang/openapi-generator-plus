@@ -12,25 +12,25 @@ import Testing
 
     @Test func rawTokenIsPrefixedWithBearer() async throws {
         let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
-        let headers = try await auth.authHeaders()
+        let headers = await auth.authHeaders()
         #expect(headers["Authorization"] == "Bearer xyz")
     }
 
     @Test func alreadyPrefixedTokenIsNotDoubled() async throws {
         let auth = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer xyz")
-        let headers = try await auth.authHeaders()
+        let headers = await auth.authHeaders()
         #expect(headers["Authorization"] == "Bearer xyz")
     }
 
     @Test func lowercaseBearerPrefixIsStripped() async throws {
         let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearer xyz")
-        let headers = try await auth.authHeaders()
+        let headers = await auth.authHeaders()
         #expect(headers["Authorization"] == "Bearer xyz")
     }
 
     @Test func mixedCaseBearerPrefixIsStripped() async throws {
         let auth = try BearerAuthenticator(host: "https://api.example.com", token: "BeArEr xyz")
-        let headers = try await auth.authHeaders()
+        let headers = await auth.authHeaders()
         #expect(headers["Authorization"] == "Bearer xyz")
     }
 

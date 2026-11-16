@@ -234,6 +234,14 @@ Why: an understated floor advertises a version the manifest rejects; a missing R
 Where: `readme.mustache`, `package_swift.mustache`, `SharedRuntimeContainer`.
 Test: `SwiftClientSpec`.
 
+### Decisions taken in batch 6
+Rule: every `ApiError` for a response that arrived carries the real lower-cased headers: the three redirect refusals (hop cap, non-HTTP(S) Location, HTTPS to HTTP body replay) and the undecodable-body error use `DefaultApiClient.lowercasedHeaders(of:)`, the same helper the normal path uses (F1050, D13); `nil` still means no response arrived. `OAuth2AuthorizationCodeError` is a `LocalizedError` whose `emptyCode` text is `Authorization code must not be empty` (F931, D09); the use-after-close text is pinned (F925).
+Why: audit proposals, taken as the default; no wire effect.
+Where: `default_api_client.mustache`, `errors/oauth2_authorization_code_error.mustache`.
+Test: `DefaultApiClientTests` (hop-cap and scheme refusals assert the `location` header; the HTTPS to HTTP downgrade test is not asserted because the stub ends in URLSession's own "too many HTTP redirects" before the delegate refuses), `OAuth2AuthCodeAuthenticatorTests`.
+Generated tests: a comparison of a non-optional value with `nil` is written `_ = value` or dropped, an `is` check that is always true is a typed assignment (`let _: ClientError = error`), and `try` is not written before the non-throwing `authHeaders()` of the API key, bearer and basic authenticators (F525). Measure with `swift build --build-tests` and look for warnings in `Tests/`.
+Not taken in batch 6, left open: the single expiry margin and the no-`expires_in` expiry rule (F854, F1045, F1046; every token-manager test uses `expires_in: 1` as "already stale"), monotonic expiry clocks (F1054), the redirect guard on a supplied session (F1047), the canonical D16, D77 and D79 message wording (F924, F927, F932), and swift reserved names with backticks (F872; changes goldens and the reserved-word spec).
+
 ## Known limitations and out of scope
 
 - Linux has no proxy support (`ConfigurationError.proxyUnsupported`) and no CA pin; SOCKS proxies are rejected by design (README). Reason: FoundationNetworking.
@@ -241,7 +249,7 @@ Test: `SwiftClientSpec`.
 - Query, form and multipart parameters are held in `[String: ...]` dictionaries, so their wire order is not the spec order and multipart order is nondeterministic (D53, F087, parked).
 - Not applied yet, intended per the ledger: lenient `LocalizedError` text on `OAuth2AuthorizationCodeError` (D09), the redirect-refusal wording of D16, the `timeout(_:) throws` validation (D77, `invalidTimeout`), proxy and CA error message grammar (D79), duplicate-key and required-default handling in `init(from:)` for D62 and D63, and the `Content-Encoding` header removal of D92.
 - Declared-charset decoding is lenient UTF-8 with a fallback; windows-1252, shift_jis and iso-8859-x bodies can decode as mojibake (F258, open for swift).
-- Generated tests compare some non-optional values to `nil` (about 100 sites, F525) and the required date parameter guard has no petstore fixture (F433). `swift build -strict-concurrency=complete` (`make analyse`) is run by no spec (F382); test sources get weaker strictness than sources (F193, deferred).
+- The required date parameter guard has no petstore fixture (F433, needs a spec change). Generated tests no longer compare non-optional values to `nil` or test always-true casts (F525). `swift build -strict-concurrency=complete` (`make analyse`) is run by no spec (F382); test sources get weaker strictness than sources (F193, deferred).
 - The API surface harmonisation of `ConfigurationError` is parked (F699).
 - Out of scope: webhooks, callbacks, XML, Link Objects, mutual TLS (S11). OpenAPI 3.1 and 3.2 are tracked by epics #96 and #49; loading 3.2 is #50.
 

@@ -14,7 +14,7 @@ import Testing
             username: "alice",
             password: "s3cret"
         )
-        let headers = try await auth.authHeaders()
+        let headers = await auth.authHeaders()
         #expect(headers["Authorization"] == "Basic YWxpY2U6czNjcmV0")
     }
 
@@ -25,7 +25,7 @@ import Testing
             username: "\u{FC}n\u{EF}c\u{F8}d\u{E9}",
             password: "p\u{E4}ssw\u{F6}rd"
         )
-        let headers = try await auth.authHeaders()
+        let headers = await auth.authHeaders()
         #expect(headers["Authorization"] == "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==")
     }
 

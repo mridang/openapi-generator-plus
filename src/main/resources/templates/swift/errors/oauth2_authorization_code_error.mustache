@@ -9,9 +9,18 @@ import Foundation
 /// This is a caller mistake, not an API failure, so like
 /// ``ConfigurationError`` it conforms to plain `Error` and is deliberately not
 /// part of the SDK error hierarchy rooted at ``{{errorPrefix}}Error``.
-public enum OAuth2AuthorizationCodeError: Error, Equatable {
+public enum OAuth2AuthorizationCodeError: Error, Equatable, LocalizedError {
     /// Auth headers were requested before `exchangeCode(_:)`.
     case codeNotExchanged
     /// `exchangeCode(_:)` was called with an empty or whitespace-only code.
     case emptyCode
+
+    public var errorDescription: String? {
+        switch self {
+        case .codeNotExchanged:
+            return "Authorization code has not been exchanged; call exchangeCode(_:) first"
+        case .emptyCode:
+            return "Authorization code must not be empty"
+        }
+    }
 }
