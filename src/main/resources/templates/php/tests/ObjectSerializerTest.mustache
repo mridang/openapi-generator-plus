@@ -138,6 +138,67 @@ test('serialize uuid value roundtrips', function (): void {
     expect($serialized)->toBe('"550e8400-e29b-41d4-a716-446655440000"');
 });
 
+test('a uuid model property is decoded from uppercase and written lowercase', function (): void {
+    /** @var Order $order */
+    $order = ObjectSerializer::deserialize('{"trackingId":"123E4567-E89B-12D3-A456-426614174000"}', Order::class);
+
+    expect($order->trackingId)->toBeInstanceOf(\Symfony\Component\Uid\Uuid::class);
+    expect(ObjectSerializer::serialize($order))->toContain('"trackingId":"123e4567-e89b-12d3-a456-426614174000"');
+});
+
+test('a malformed uuid model property is rejected on decode', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"trackingId":"not-a-uuid"}', Order::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('models named Error and Result nest and round trip', function (): void {
+    $model = new EdgeCases(
+        lastError: new \{{modelPackage}}\Error(500, 'boom'),
+        outcome: new \{{modelPackage}}\Result(true)
+    );
+    $json = ObjectSerializer::serialize($model);
+
+    expect($json)->toContain('"lastError":{"code":500,"message":"boom"}');
+    expect($json)->toContain('"outcome":{"ok":true}');
+    /** @var EdgeCases $back */
+    $back = ObjectSerializer::deserialize($json, EdgeCases::class);
+    expect($back->lastError)->toBeInstanceOf(\{{modelPackage}}\Error::class);
+    expect($back->lastError?->code)->toBe(500);
+    expect($back->lastError?->message)->toBe('boom');
+    expect($back->outcome)->toBeInstanceOf(\{{modelPackage}}\Result::class);
+    expect($back->outcome?->ok)->toBeTrue();
+});
+
+test('an inline enum keeps its mixed-case wire values', function (\{{modelPackage}}\EdgeCasesPhaseEnum $case, string $wire): void {
+    $json = ObjectSerializer::serialize(new EdgeCases(phase: $case));
+
+    expect($json)->toContain('"phase":"' . $wire . '"');
+    /** @var EdgeCases $back */
+    $back = ObjectSerializer::deserialize($json, EdgeCases::class);
+    expect($back->phase)->toBe($case);
+})->with([
+    'hyphenated and capitalised' => [\{{modelPackage}}\EdgeCasesPhaseEnum::IN_STOCK, 'In-Stock'],
+    'hyphenated lower case' => [\{{modelPackage}}\EdgeCasesPhaseEnum::ON_HOLD, 'on-hold'],
+    'upper snake case' => [\{{modelPackage}}\EdgeCasesPhaseEnum::OUT_OF_STOCK, 'OUT_OF_STOCK'],
+]);
+
+test('availability members with quotes, backslashes and template syntax round trip', function (
+    Availability $case,
+    string $wireJson
+): void {
+    $json = ObjectSerializer::serialize(new StockItem(Priority::NUMBER_1, $case));
+
+    expect($json)->toContain('"availability":' . $wireJson);
+    /** @var StockItem $back */
+    $back = ObjectSerializer::deserialize($json, StockItem::class);
+    expect($back->availability)->toBe($case);
+})->with([
+    'apostrophe' => [Availability::OCLOCK, '"o\'clock"'],
+    'backslash' => [Availability::A_B, '"a\\\\b"'],
+    'dollar' => [Availability::EQ, '"$eq"'],
+    'hash brace' => [Availability::X, '"#{x}"'],
+]);
+
 // -- toHeaderValue --
 
 test('to header value returns empty string for null', function (): void {
