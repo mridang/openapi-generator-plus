@@ -125,10 +125,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "number", "boolean", "string", "object", "any", "unknown",
                                 "void", "undefined", "null", "Array", "Set", "Buffer", "UUID",
                                 "URI", "Email", "Decimal",
-                                // A schema named like the global Error would shadow it in
-                                // every model file that imports it; Result is renamed to
-                                // match the other SDKs (D45, F173).
-                                "Error", "Result",
                                 // 4.8 — Temporal.* types come from `temporal-polyfill`,
                                 // not from generated models, so the model-import filter
                                 // must not treat them as model classes.
@@ -695,6 +691,22 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected String getModelNameCollisionPrefix() {
         return "Model";
+    }
+
+    /** Schema names that would shadow a global or collide with another SDK's model name. */
+    private static final Set<String> SHADOWING_MODEL_NAMES = Set.of("Error", "Result");
+
+    /**
+     * Prefixes a schema named like the global {@code Error} (which it would shadow
+     * in every model file that imports it) or like {@code Result} with {@code Model},
+     * matching the other SDKs (D45, F173). This is done here and not through the
+     * language primitives, because a primitive is never rewritten where a property
+     * refers to it.
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        return SHADOWING_MODEL_NAMES.contains(modelName) ? "Model" + modelName : modelName;
     }
 
     /**
@@ -1486,6 +1498,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 final boolean nestsModel = model.vars.stream().anyMatch(BetterNodeCodegen::nestsModel);
                 modelMap.put("hasTypeDecorator", model.vars.stream().anyMatch(this::needsTypeDecorator));
                 modelMap.put(
+                        "hasWireRename",
+                        model.vars.stream()
+                                .anyMatch(v -> Boolean.TRUE.equals(v.vendorExtensions.get("isRenamedWire"))));
+                modelMap.put(
                         "hasPasswordField",
                         model.vars.stream()
                                 .anyMatch(v -> Boolean.TRUE.equals(v.vendorExtensions.get("isPasswordFormat"))));
@@ -1606,6 +1622,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         if ("duration".equals(property.dataFormat)) {
             property.vendorExtensions.put("isDurationFormat", true);
+        }
+        if (property.name != null && property.baseName != null && !property.name.equals(property.baseName)) {
+            property.vendorExtensions.put("isRenamedWire", true);
         }
         if ("password".equals(property.dataFormat)) {
             property.vendorExtensions.put("isPasswordFormat", true);

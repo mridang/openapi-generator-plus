@@ -115,7 +115,7 @@ test('AK: proxy url with userinfo carries credentials', function (): void {
 // -- HTTP proxy with TLS --
 
 test('ignores ambient proxy environment variables when no proxy is configured', function (): void {
-    $chasmUrl = getenv('CHASM_INTERNAL_HTTP_URL') ?: '';
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
     $names = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'];
     $saved = [];
     foreach ($names as $name) {

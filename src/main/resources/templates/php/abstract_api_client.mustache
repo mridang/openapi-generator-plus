@@ -640,6 +640,19 @@ abstract class AbstractApiClient implements ApiClient
             return null;
         }
         if (isset($parsed['scheme'])) {
+            /* parse_url() is lenient: it accepts an unterminated or invalid IP
+             * literal such as http://[bad. A web URL needs a usable host. */
+            if (in_array(strtolower($parsed['scheme']), ['http', 'https'], true)) {
+                $host = $parsed['host'] ?? '';
+                $literal = str_starts_with($host, '[') || str_ends_with($host, ']');
+                if (
+                    $host === ''
+                    || ($literal && filter_var(trim($host, '[]'), FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) === false)
+                ) {
+                    return null;
+                }
+            }
+
             return $location;
         }
         $baseParts = parse_url($base);

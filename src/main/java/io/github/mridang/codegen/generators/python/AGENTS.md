@@ -314,6 +314,10 @@ Where: `default_api_client.mustache` (`_is_sensitive_header` from `transport_opt
 `test_store_api.mustache` (`TestStoreApiFixtureOperations`: createAccount, swatch, swatch groups, timestamp groups, department, tree, defaults, stock item), `test/api/test_pet_api.mustache` (PetCriteria styles, addPetTreatment, scalar multipart parts, Mirror server, matrix and label path, deepObject filter, `2ndPage`), `test_object_serializer.mustache` (`TestFixtureModelsOnTheWire`: uuid, Error and Result, hostile Availability members, phase, Separator, biometricChip, prefixItems location, keyword property names, duplicate key), `test_server_configuration.mustache` (hostile third server), `test_default_api_client.mustache` (redirect-chain budget, multi-value headers, Set-Cookie not replayed).
 Not applicable to Python: the Pet.nickname and Order.quantity rows of F1124, because Python enforces schema constraints (S3).
 
+### Object-valued parameters and text/plain strings
+Rule: a model or mapping passed as a query, header, cookie or path parameter is written per style (`ValueSerializer._serialize_object`): exploded form in a query becomes one `name=value` entry per property (`ValueSerializer.query_entries` merges them into the query), unexploded form and simple are a comma list of name,value pairs, matrix, label, spaceDelimited and pipeDelimited follow the OAS table. A `text/*` response for a `StrictStr` operation is returned as the text (`return_type` is the pydantic type name, not `str`).
+Where: `value_serializer.mustache`, `api/api.mustache`, `base_api.mustache`. Test: `test_value_serializer.mustache`, `test/api/test_pet_api.mustache`.
+
 ### Not done in batch 7 (python)
 - F1080 (bounded, redacted ApiError rendering) changes the shared D14/D17 rendering of all twelve SDKs; it needs one cross-language decision first.
 - F1058, F1060, F1055 need the shared codegen (`AbstractBetterCodegen`); F1100 is an API-shape decision.

@@ -144,7 +144,9 @@ class BaseApiTest {
 
     class CountingOAuthAuthenticator : {{invokerPackage}}.auth.HttpAwareAuthenticator {
         var invalidations = 0
-        override fun setApiClient(apiClient: ApiClient) {}
+        override fun setApiClient(apiClient: ApiClient) {
+            // The counting authenticator never calls back into the client.
+        }
         override fun invalidateAccessToken() {
             invalidations++
         }

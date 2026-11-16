@@ -502,7 +502,7 @@ describe {{moduleName}}::Api::PetApi do
           1,
           {{moduleName}}::Api::Options::UploadPetDocumentOptions.new(
             file: StringIO.new('doc'), is_primary: true, page_count: 3,
-            taken_at: Time.utc(2024, 1, 2, 3, 4, 5), swatch: 'red'
+            taken_at: Time.utc(2024, 1, 2, 3, 4, 5), swatch: 'red' # steep:ignore ArgumentTypeMismatch
           )
         )
         body = captured_body.pop
@@ -720,7 +720,8 @@ describe {{moduleName}}::Api::PetApi do
       treatment = {{moduleName}}::Models::Medication.new(drug_name: 'aspirin', dosage: '5mg')
 
       result = api.add_pet_treatment(
-        7, treatment, {{moduleName}}::Api::Options::AddPetTreatmentOptions.new(auth: @auth)
+        7, treatment, # steep:ignore ArgumentTypeMismatch
+        {{moduleName}}::Api::Options::AddPetTreatmentOptions.new(auth: @auth)
       )
 
       _(client.url).must_equal('http://127.0.0.1:1/pet/7/treatment')

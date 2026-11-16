@@ -1107,7 +1107,7 @@ async fn test_binary_response_octet_stream_decoded_from_base64() {
     let api = PetApi::new(client, config, None);
 
     let result = api
-        .get_pet_by_id_with_http_info(1, None)
+        .get_pet_avatar_with_http_info(1)
         .await
         .expect("binary response must surface as Ok");
 
@@ -1141,7 +1141,7 @@ async fn test_binary_response_image_png_decoded_from_base64() {
     let api = PetApi::new(client, config, None);
 
     let result = api
-        .get_pet_by_id_with_http_info(1, None)
+        .get_pet_avatar_with_http_info(1)
         .await
         .expect("binary response must surface as Ok");
 

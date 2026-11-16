@@ -554,8 +554,9 @@ func toStringSlice(value any) ([]string, bool) {
 	// enums, typed scalars) that the type switch above cannot name. Each element
 	// is stringified through the same per-element path as []any, so enum and
 	// scalar elements encode identically whether boxed as []any or a typed slice.
-	/* []byte (format:byte) is one base64 scalar, not a list of numbers. */
-	if rv.Kind() == reflect.Slice && rv.Type().Elem().Kind() == reflect.Uint8 {
+	/* []byte (format:byte) is one base64 scalar, not a list of numbers, and a
+	 * [16]byte (uuid.UUID) is one canonical-text scalar. */
+	if (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) && rv.Type().Elem().Kind() == reflect.Uint8 {
 		return nil, false
 	}
 	if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {

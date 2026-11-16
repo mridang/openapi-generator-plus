@@ -249,43 +249,40 @@ test('sets cookie header', function (): void {
  * A transport that issues a new token (t1, t2, ...) at the token endpoint and
  * accepts only the bearer token t2 at every other URL, answering 401 otherwise.
  */
-function makeTokenRotatingApiClient(): object
+final class TokenRotatingApiClient implements ApiClient
 {
-    return new class implements ApiClient {
-        /** @var list<array{url: string, headers: array<string, string>}> */
-        public array $requests = [];
-        private int $issued = 0;
+    /** @var list<array{url: string, headers: array<string, string>}> */
+    public array $requests = [];
+    private int $issued = 0;
 
-        public function close(): void
-        {
-        }
+    public function close(): void
+    {
+    }
 
-        /** @param array<string, string> $headers */
-        public function sendRequest(
-            string $method,
-            string $url,
-            array $headers,
-            mixed $body,
-            bool $noRedirect = false,
-        ): ApiHttpResponse {
-            $this->requests[] = ['url' => $url, 'headers' => $headers];
-            if ($url === 'https://auth.example.com/token') {
-                $this->issued++;
-                return new ApiHttpResponse(
-                    200,
-                    (string) json_encode(['access_token' => 't' . $this->issued, 'expires_in' => 3600]),
-                    ['Content-Type' => 'application/json']
-                );
-            }
-            $status = ($headers['Authorization'] ?? '') === 'Bearer t2' ? 200 : 401;
-            return new ApiHttpResponse($status, '{}', ['Content-Type' => 'application/json']);
+    /** @param array<string, string> $headers */
+    public function sendRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        bool $noRedirect = false,
+    ): ApiHttpResponse {
+        $this->requests[] = ['url' => $url, 'headers' => $headers];
+        if ($url === 'https://auth.example.com/token') {
+            $this->issued++;
+            return new ApiHttpResponse(
+                200,
+                (string) json_encode(['access_token' => 't' . $this->issued, 'expires_in' => 3600]),
+                ['Content-Type' => 'application/json']
+            );
         }
-    };
+        $status = ($headers['Authorization'] ?? '') === 'Bearer t2' ? 200 : 401;
+        return new ApiHttpResponse($status, '{}', ['Content-Type' => 'application/json']);
+    }
 }
 
 test('a 401 drops the cached token and replays the request once with a fresh one', function (): void {
-    $client = makeTokenRotatingApiClient();
-    assert($client instanceof ApiClient);
+    $client = new TokenRotatingApiClient();
     $auth = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
         'https://api.example.com',
         'id',
@@ -299,7 +296,6 @@ test('a 401 drops the cached token and replays the request once with a fresh one
     $result = $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
 
     expect($result)->toBeArray();
-    /** @var object{requests: list<array{url: string, headers: array<string, string>}>} $client */
     $apiCalls = array_values(array_filter(
         $client->requests,
         static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
@@ -310,8 +306,7 @@ test('a 401 drops the cached token and replays the request once with a fresh one
 });
 
 test('a per-call oauth authenticator is given the transport before it is used', function (): void {
-    $client = makeTokenRotatingApiClient();
-    assert($client instanceof ApiClient);
+    $client = new TokenRotatingApiClient();
     $auth = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
         'https://api.example.com',
         'id',
@@ -323,7 +318,6 @@ test('a per-call oauth authenticator is given the transport before it is used', 
 
     $api->call('GET', '/items', [], [], null, ['application/json'], null, null, $auth);
 
-    /** @var object{requests: list<array{url: string, headers: array<string, string>}>} $client */
     expect($client->requests[0]['url'])->toBe('https://auth.example.com/token');
 });
 

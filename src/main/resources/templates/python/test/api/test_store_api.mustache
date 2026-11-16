@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlsplit
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any
+from pydantic import SecretStr
 from {{packageName}}.api.options.search_store_options import SearchStoreOptions
 from {{packageName}}.api.store_api import StoreApi
 from {{packageName}}.configuration import Configuration
@@ -211,7 +212,7 @@ class TestStoreApiFixtureOperations:
 
         api, seen = _recording_server('{"id":7,"username":"u"}')
 
-        account = await api.create_account(Account(username='u', password='p'))
+        account = await api.create_account(Account(username='u', password=SecretStr('p')))
 
         assert seen['method'] == 'POST'
         assert seen['path'] == '/store/account'

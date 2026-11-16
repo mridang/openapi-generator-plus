@@ -654,7 +654,7 @@ describe {{moduleName}}::ValueSerializer do
     }.each do |(style, explode), expected|
       it "renders an object in a path by #{style} explode=#{explode}" do
         result = {{moduleName}}::ValueSerializer.serialize_styled(
-          'criteria', { 'breed' => 'lab', 'min_age' => 3 }, :path, 'Criteria', nil, style, explode
+          'criteria', { 'breed' => 'lab', 'min_age' => 3 }, :path, 'Criteria', nil, style, explode # steep:ignore ArgumentTypeMismatch
         )
         _(result).must_equal(expected)
       end

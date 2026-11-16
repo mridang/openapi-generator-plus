@@ -244,6 +244,11 @@ internal object ValueSerializer {
             return rejectDotSegment(paramName, location, serialize(value, location, schemaType, collectionFormat))
         }
 
+        val fields = serializer.toWireMap(value)
+        if (fields != null) {
+            return serializeFields(paramName, fields, location, style, explode)
+        }
+
         var items = toStringList(value)
 
         // For path styles, percent-encode each individual item BEFORE applying
@@ -274,6 +279,71 @@ internal object ValueSerializer {
             "spaceDelimited" -> if (explode && value is Collection<*>) ArrayList(items) else items.joinToString(" ")
             "pipeDelimited" -> if (explode && value is Collection<*>) ArrayList(items) else items.joinToString("|")
             else -> serialize(value, location, schemaType, collectionFormat)
+        }
+    }
+
+    /**
+     * Expands the wire-keyed fields of an object-valued parameter per its
+     * style and explode flag (OAS 3 style table). A path value has each key and
+     * value segment-encoded before the structural separators are applied. A
+     * query value whose style explodes into separate parameters comes back as a
+     * [Map] of one entry per field, which [putQuery] spreads into the query.
+     */
+    private fun serializeFields(
+        paramName: String,
+        fields: Map<String, String>,
+        location: String,
+        style: String,
+        explode: Boolean,
+    ): Any? {
+        val pairs =
+            fields.entries.map { (key, field) ->
+                if ("path" == location) encodePathSegment(key) to encodePathSegment(field) else key to field
+            }
+
+        fun flat(separator: String) = pairs.joinToString(separator) { "${it.first}$separator${it.second}" }
+
+        fun keyed(separator: String) = pairs.joinToString(separator) { "${it.first}=${it.second}" }
+
+        return when (style) {
+            "matrix" -> if (explode) pairs.joinToString("") { ";${it.first}=${it.second}" } else ";$paramName=${flat(",")}"
+            "label" -> if (explode) ".${keyed(".")}" else ".${flat(",")}"
+            "simple" -> rejectDotSegment(paramName, location, if (explode) keyed(",") else flat(","))
+            "form" ->
+                when {
+                    !explode -> flat(",")
+                    "query" == location -> LinkedHashMap(fields)
+                    else -> keyed("&")
+                }
+            "spaceDelimited" -> if (explode && "query" == location) LinkedHashMap(fields) else flat(" ")
+            "pipeDelimited" -> if (explode && "query" == location) LinkedHashMap(fields) else flat("|")
+            else -> flat(",")
+        }
+    }
+
+    /**
+     * Stores a styled query value: a [Map] (an object-valued parameter that
+     * explodes into separate parameters) is spread into one entry per key, any
+     * other value is stored under [name], and `null` omits the parameter.
+     *
+     * @param queryParams the query parameters being built
+     * @param name the parameter name
+     * @param styled the value returned by [serializeStyled]
+     * @param allowReserved whether the parameter preserves reserved characters
+     */
+    @JvmStatic
+    fun putQuery(
+        queryParams: MutableMap<String, Any?>,
+        name: String,
+        styled: Any?,
+        allowReserved: Boolean,
+    ) {
+        if (styled is Map<*, *>) {
+            for ((key, field) in styled) {
+                queryParams[key.toString()] = maybeAllowReserved(field, allowReserved)
+            }
+        } else if (styled != null) {
+            queryParams[name] = maybeAllowReserved(styled, allowReserved)
         }
     }
 

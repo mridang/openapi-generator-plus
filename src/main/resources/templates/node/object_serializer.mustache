@@ -407,6 +407,36 @@ function withAdditionalPropertiesKey(value: object): object {
   return copy;
 }
 
+/**
+ * Re-keys a model instance under the wire names of its renamed properties, when
+ * the model declares any in its static `__wireNames`. The copy keeps the model
+ * prototype so the registry lookups on its constructor still work.
+ */
+function withWireNames(value: object): object {
+  const names = (value.constructor as { __wireNames?: Readonly<Record<string, string>> } | undefined)?.__wireNames;
+  if (!names) {
+    return value;
+  }
+  const copy = Object.create(Object.getPrototypeOf(value) as object) as object;
+  for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
+    Object.defineProperty(copy, Object.prototype.hasOwnProperty.call(names, key) ? names[key] : key, descriptor);
+  }
+  return copy;
+}
+
+/**
+ * The property name behind a wire key of a holder re-keyed by
+ * {@link withWireNames}; the key itself when it was not renamed.
+ */
+function propertyNameOf(holder: unknown, wireKey: string): string {
+  const names = (holder as { constructor?: { __wireNames?: Readonly<Record<string, string>> } } | null)?.constructor
+    ?.__wireNames;
+  if (!names) {
+    return wireKey;
+  }
+  return Object.keys(names).find((property) => names[property] === wireKey) ?? wireKey;
+}
+
 function revalidateNestedFields(holder: Record<string, unknown>): void {
   for (const key of Object.keys(holder)) {
     holder[key] = revalidateNestedValue(holder[key]);
@@ -594,6 +624,7 @@ export class ObjectSerializer {
       return JSON.stringify(obj, function (_key, value) {
         if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
           value = withAdditionalPropertiesKey(value as object);
+          value = withWireNames(value as object);
         }
         if (value !== null && typeof value === 'object') {
           const holder = this as unknown as object;
@@ -656,18 +687,19 @@ export class ObjectSerializer {
          * applies only to plain objects that are not nested inside a model
          * instance, so a free-form value never changes JSON type.
          */
+        const propKey = propertyNameOf(this, _key);
         if (typeof value === 'string') {
           const ctor = (this as { constructor?: unknown }).constructor as
             | { __decimalFields?: ReadonlySet<string> }
             | undefined;
           const ownDecimals = ctor && ctor.__decimalFields instanceof Set ? ctor.__decimalFields : undefined;
-          const plainFallback = !underModel.has(this as unknown as object) && decimalFieldNames().has(_key);
-          if (ownDecimals ? ownDecimals.has(_key) : plainFallback) {
+          const plainFallback = !underModel.has(this as unknown as object) && decimalFieldNames().has(propKey);
+          if (ownDecimals ? ownDecimals.has(propKey) : plainFallback) {
             return rawDecimal(value);
           }
           const uuidCtor = ctor as { __uuidFields?: ReadonlySet<string> } | undefined;
           const ownUuids = uuidCtor && uuidCtor.__uuidFields instanceof Set ? uuidCtor.__uuidFields : undefined;
-          if (ownUuids ? ownUuids.has(_key) : !underModel.has(this as unknown as object) && uuidFieldNames().has(_key)) {
+          if (ownUuids ? ownUuids.has(propKey) : !underModel.has(this as unknown as object) && uuidFieldNames().has(propKey)) {
             if (UUID_SHAPE.test(value)) {
               return value.toLowerCase();
             }
@@ -682,7 +714,7 @@ export class ObjectSerializer {
           const nullableCtor = (this as { constructor?: unknown }).constructor as
             | { __requiredNullableFields?: ReadonlySet<string> }
             | undefined;
-          if (nullableCtor?.__requiredNullableFields instanceof Set && nullableCtor.__requiredNullableFields.has(_key)) {
+          if (nullableCtor?.__requiredNullableFields instanceof Set && nullableCtor.__requiredNullableFields.has(propKey)) {
             return null;
           }
           return undefined;

@@ -231,7 +231,7 @@ class TransportOptionsTest {
                 val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
                     TransportOptions.builder().proxy(proxy).build()
                 }
-                assertEquals("Invalid proxy URL (unterminated IPv6 literal): $proxy", ex.message)
+                assertEquals("Invalid proxy URL (unterminated IPv6 literal): ${proxy.replace("user@", "***@")}", ex.message)
             }
         }
 

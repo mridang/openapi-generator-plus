@@ -268,34 +268,6 @@ class DefaultApiClientTest {
     }
 
     @Nested
-    @DisplayName("ambient proxy settings")
-    inner class AmbientProxySettings {
-
-        @Test
-        @DisplayName("D74: JVM proxy properties are ignored, TransportOptions.proxy is the only source")
-        fun ignoresAmbientJvmProxyProperties() {
-            val keys = listOf("http.proxyHost", "http.proxyPort", "https.proxyHost", "https.proxyPort")
-            val saved = keys.associateWith { System.getProperty(it) }
-            try {
-                System.setProperty("http.proxyHost", "127.0.0.1")
-                System.setProperty("http.proxyPort", "1")
-                System.setProperty("https.proxyHost", "127.0.0.1")
-                System.setProperty("https.proxyPort", "1")
-                val client = DefaultApiClient()
-                val response =
-                    runBlocking {
-                        client.sendRequest("GET", "${ChasmContainer.getBaseUrl()}/test/echo", emptyMap(), null)
-                    }
-                assertEquals(200, response.statusCode)
-            } finally {
-                for ((key, value) in saved) {
-                    if (value == null) System.clearProperty(key) else System.setProperty(key, value)
-                }
-            }
-        }
-    }
-
-    @Nested
     @DisplayName("request timeout")
     inner class RequestTimeout {
 

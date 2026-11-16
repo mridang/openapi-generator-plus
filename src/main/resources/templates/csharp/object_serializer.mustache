@@ -499,6 +499,7 @@ internal partial class ObjectSerializer
          * an absolute URI; both replace the lenient System.Text.Json defaults. */
         options.Converters.Add(new StrictBase64Converter());
         options.Converters.Add(new AbsoluteUriConverter());
+        options.Converters.Add(new LiteralStringConverter());
         return options;
     }
 
@@ -1109,5 +1110,78 @@ internal sealed partial class AbsoluteUriConverter : JsonConverter<Uri>
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteStringValue(value.OriginalString);
+    }
+}
+
+/// <summary>
+/// Writes every string value with the minimal JSON escaping: the quote, the
+/// backslash and the C0 controls only. Every other character, including
+/// U+007F, U+2028, U+2029, the slash, the angle brackets, the ampersand and
+/// the apostrophe, is written literally, the same bytes the other SDKs emit.
+/// A lone surrogate is written as an escape so the output stays valid UTF-8.
+/// System.Text.Json's own encoders always escape U+007F, U+2028 and U+2029.
+/// </summary>
+internal sealed class LiteralStringConverter : JsonConverter<string>
+{
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        return reader.GetString();
+    }
+
+    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        System.Text.StringBuilder builder = new(value.Length + 2);
+        builder.Append('"');
+        for (int i = 0; i < value.Length; i++)
+        {
+            char c = value[i];
+            switch (c)
+            {
+                case '"':
+                    builder.Append("\\\"");
+                    break;
+                case '\\':
+                    builder.Append("\\\\");
+                    break;
+                case '\b':
+                    builder.Append("\\b");
+                    break;
+                case '\f':
+                    builder.Append("\\f");
+                    break;
+                case '\n':
+                    builder.Append("\\n");
+                    break;
+                case '\r':
+                    builder.Append("\\r");
+                    break;
+                case '\t':
+                    builder.Append("\\t");
+                    break;
+                default:
+                    if (c < ' ')
+                    {
+                        builder.Append("\\u").Append(((int)c).ToString("x4", System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                    else if (char.IsHighSurrogate(c) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
+                    {
+                        builder.Append(c).Append(value[i + 1]);
+                        i++;
+                    }
+                    else if (char.IsSurrogate(c))
+                    {
+                        builder.Append("\\u").Append(((int)c).ToString("x4", System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        builder.Append(c);
+                    }
+                    break;
+            }
+        }
+        builder.Append('"');
+        writer.WriteRawValue(builder.ToString(), skipInputValidation: true);
     }
 }

@@ -610,7 +610,18 @@ public abstract class BaseApi
                 value = reserved.Value;
                 allowReserved = true;
             }
-            if (value != null)
+            if (value is ValueSerializer.ExplodedFields exploded)
+            {
+                foreach (KeyValuePair<string, string> field in exploded.Fields)
+                {
+                    parts.Add(
+                        Uri.EscapeDataString(field.Key)
+                            + "="
+                            + EncodeQueryValue(field.Value, allowReserved)
+                    );
+                }
+            }
+            else if (value != null)
             {
                 if (value is System.Collections.IEnumerable enumerable and not string)
                 {

@@ -85,7 +85,7 @@ void main() {
 
     for (final location in ApiKeyLocation.values) {
       for (final key in ['', '   ', ' \t\n\r\f\v ']) {
-        test('${location.name} rejects the blank key "$key"', () {
+        test('${location.name} rejects the blank key of ${key.length} characters', () {
           expect(
             () => build(key, location),
             throwsA(

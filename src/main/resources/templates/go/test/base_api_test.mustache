@@ -262,7 +262,7 @@ func TestBaseApi_ForwardsAuthHeaders(t *testing.T) {
 
 func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 	t.Parallel()
-	client := &capturingApiClient{}
+	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
 
@@ -294,7 +294,7 @@ func (a *injectableAuth) SetApiClient(client auth.ApiClient) { a.injected = clie
 // own client before its headers are asked for.
 func TestBaseApi_PerCallHttpAwareAuthenticatorIsInjected(t *testing.T) {
 	t.Parallel()
-	client := &capturingApiClient{}
+	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
 	perCall := &injectableAuth{baseApiAuth: *newBaseApiAuth()}
@@ -454,6 +454,7 @@ type capturingApiClient struct {
 	capturedURL     string
 	capturedBody    any
 	capturedOpts    *{{packageName}}.RequestOptions
+	responseBody    string
 }
 
 func (c *capturingApiClient) SendRequest(method, url string, headers map[string]string, body any) (*{{packageName}}.ApiHttpResponse, error) {
@@ -468,7 +469,15 @@ func (c *capturingApiClient) SendRequestWithOptions(method, url string, headers 
 	}
 	c.capturedURL = url
 	c.capturedBody = body
-	return &{{packageName}}.ApiHttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
+	return &{{packageName}}.ApiHttpResponse{StatusCode: 200, Body: c.body(), Headers: map[string]string{"content-type": "application/json"}}, nil
+}
+
+// body is the canned response text: "{}" unless a test sets responseBody.
+func (c *capturingApiClient) body() string {
+	if c.responseBody == "" {
+		return "{}"
+	}
+	return c.responseBody
 }
 
 // Close satisfies the ApiClient contract; this stub holds no resources.

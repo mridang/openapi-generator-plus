@@ -365,6 +365,7 @@ Test: `skills_test`.
 
 ### Not done in batch 7 (needs shared Java, another language, or an owner decision)
 - F860 (token and discovery requests still merge transport default headers): needs a change to the `ApiClient#send_request` contract in all twelve.
+- F865 (a typed `additionalProperties` schema does not check the extra values): the model never receives `additionalPropertiesType`, which the shared Java has to supply; the extras are captured and round-tripped untyped.
 - F866 (sibling `default` on a `$ref` property is dropped before the template sees it), F1062 (several 2xx schemas), F1055 (a parameter named like an injected argument), F1058 (Encoding Object), F1060 (one OAuth2 flow per scheme): the loss is in `AbstractBetterCodegen`.
 - F855 (401 invalidation and replay), F857 (per-scheme credentials), F858 (PKCE), F840 (form-style cookies), F229 (keep-alive), F912 (end-to-end timeout), F1100 (pagination): design decisions that are not taken.
 - F1152, F1153, F1174, F1161: gates and fixtures outside the ruby tree.

@@ -365,6 +365,21 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/required}}
 {{/vars}}
   ]);
+{{#hasWireRename}}
+
+  /**
+   * Fields whose property name differs from the wire name (a name that starts
+   * with a digit or is a reserved word), as property name to wire name.
+   * ObjectSerializer.serialize writes each under its wire name.
+   */
+  static readonly __wireNames: Readonly<Record<string, string>> = {
+{{#vars}}
+{{#vendorExtensions.isRenamedWire}}
+    '{{name}}': '{{baseName}}',
+{{/vendorExtensions.isRenamedWire}}
+{{/vars}}
+  };
+{{/hasWireRename}}
 
 {{#vars}}
 {{#description}}

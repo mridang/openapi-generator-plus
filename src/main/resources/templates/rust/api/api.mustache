@@ -726,7 +726,12 @@ impl {{classname}} {
             multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}}))));
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
+{{#isEnumRef}}
+            multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}}))));
+{{/isEnumRef}}
+{{^isEnumRef}}
             multipart.push(("{{baseName}}".to_string(), MultipartValue::Json(object_serializer::serialize(&opts.{{paramName}})?)));
+{{/isEnumRef}}
 {{/isPrimitiveType}}
 {{/isFile}}
 {{/isArray}}
@@ -750,7 +755,12 @@ impl {{classname}} {
                 multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(val))));
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
+{{#isEnumRef}}
+                multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(val))));
+{{/isEnumRef}}
+{{^isEnumRef}}
                 multipart.push(("{{baseName}}".to_string(), MultipartValue::Json(object_serializer::serialize(val)?)));
+{{/isEnumRef}}
 {{/isPrimitiveType}}
 {{/isFile}}
 {{/isArray}}

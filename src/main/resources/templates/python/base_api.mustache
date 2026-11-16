@@ -355,7 +355,7 @@ class BaseApi:
                 if return_type == 'bytes':
                     import base64
                     data = base64.b64decode(response.body) if response.body else b''
-                elif return_type == 'str' and self._is_text_media_type(resp_content_type):
+                elif return_type in ('str', 'StrictStr') and self._is_text_media_type(resp_content_type):
                     data = response.body
                 else:
                     raise SerializationException(

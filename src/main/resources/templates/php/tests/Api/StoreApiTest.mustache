@@ -333,9 +333,13 @@ test('get swatch groups decodes a list of string keyed enum maps', function (): 
     $groups = $api->getSwatchGroups();
 
     expect($groups)->toHaveCount(2);
-    expect($groups[0]->get('a'))->toBe(\{{invokerPackage}}\Models\Swatch::RED);
-    expect($groups[0]->get('b'))->toBe(\{{invokerPackage}}\Models\Swatch::BLUE);
-    expect($groups[1]->get('c'))->toBe(\{{invokerPackage}}\Models\Swatch::GREEN);
+    $first = $groups->get(0);
+    $second = $groups->get(1);
+    expect($first)->toBeInstanceOf(\Ds\Map::class);
+    expect($second)->toBeInstanceOf(\Ds\Map::class);
+    expect($first->get('a'))->toBe(\{{invokerPackage}}\Models\Swatch::RED);
+    expect($first->get('b'))->toBe(\{{invokerPackage}}\Models\Swatch::BLUE);
+    expect($second->get('c'))->toBe(\{{invokerPackage}}\Models\Swatch::GREEN);
 });
 
 test('get timestamp groups decodes a list of string keyed date-time maps', function (): void {
@@ -344,7 +348,9 @@ test('get timestamp groups decodes a list of string keyed date-time maps', funct
     $groups = $api->getTimestampGroups();
 
     expect($groups)->toHaveCount(1);
-    $at = $groups[0]->get('at');
+    $group = $groups->get(0);
+    expect($group)->toBeInstanceOf(\Ds\Map::class);
+    $at = $group->get('at');
     expect($at)->toBeInstanceOf(\DateTime::class);
     assert($at instanceof \DateTime);
     expect($at->getTimestamp())->toBe(1705312800);

@@ -2057,7 +2057,7 @@ public static class ObjectSerializerTest
         [InlineData("#{x}", Availability.X)]
         public void AvailabilityKeepsEachHostileWireValue(string wire, Availability member)
         {
-            string quoted = System.Text.Json.JsonSerializer.Serialize(wire);
+            string quoted = _serializer.Serialize(wire);
 
             StockItem? item = _serializer.Deserialize<StockItem>("{\"priority\":1,\"availability\":" + quoted + "}");
 

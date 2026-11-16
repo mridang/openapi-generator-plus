@@ -220,7 +220,9 @@ test('empty state is omitted', function (): void {
     $url = $authenticator->buildAuthorizationUrl('');
 
     expect($url)->not->toContain('state');
-    expect($url)->toBe($authenticator->buildAuthorizationUrl());
+    // Each URL carries its own PKCE challenge, so everything else must match.
+    $withoutChallenge = static fn (string $u): string => (string) preg_replace('/code_challenge=[^&]*/', '', $u);
+    expect($withoutChallenge($url))->toBe($withoutChallenge($authenticator->buildAuthorizationUrl()));
 });
 
 test('auth headers before exchange returns recoverable error', function (): void {

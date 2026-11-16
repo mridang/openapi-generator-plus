@@ -1848,8 +1848,8 @@ class ObjectSerializerTest {
             java.util.Set<{{modelPackage}}.Separator> seen = new java.util.HashSet<>();
             for (String wire : new String[] {" ", "@@", "a-b", "a_b"}) {
                 String json = "\"" + wire + "\"";
-                {{modelPackage}}.Separator member = serializer.deserialize(json, {{modelPackage}}.Separator.class);
-                assertNotNull(member);
+                {{modelPackage}}.Separator member = java.util.Objects.requireNonNull(
+                    serializer.deserialize(json, {{modelPackage}}.Separator.class));
                 assertEquals(wire, member.getValue());
                 assertEquals(json, serializer.serialize(member));
                 seen.add(member);
@@ -1919,8 +1919,9 @@ class ObjectSerializerTest {
                 assertNotNull(edge.retryAfter);
                 assertEquals(json, serializer.serialize(edge));
             }
-            assertEquals(3600L, java.util.Objects.requireNonNull(serializer.deserialize(
-                "{\"retryAfter\":\"3600s\"}", {{modelPackage}}.EdgeCases.class).retryAfter).getSeconds());
+            {{modelPackage}}.EdgeCases hour = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"retryAfter\":\"3600s\"}", {{modelPackage}}.EdgeCases.class));
+            assertEquals(3600L, java.util.Objects.requireNonNull(hour.retryAfter).getSeconds());
         }
 
         @Test

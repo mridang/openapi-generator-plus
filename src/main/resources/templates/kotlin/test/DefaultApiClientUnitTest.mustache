@@ -1735,7 +1735,8 @@ class DefaultApiClientUnitTest {
             assertEquals("[url=http://h/p, t=1]", redactUrlsInMessage("[url=http://h/p?k=v, t=1]"))
         }
 
-
+        @Test
+        @DisplayName("connect and socket deadlines raise NetworkTimeoutException")
         fun connectAndSocketDeadlinesRaiseNetworkTimeoutException() {
             // The `timeout` option arms three Ktor deadlines from one budget —
             // request, connect and socket — so every one of them must classify

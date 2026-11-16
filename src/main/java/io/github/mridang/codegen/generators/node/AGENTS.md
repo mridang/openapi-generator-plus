@@ -324,7 +324,8 @@ Where: `value_serializer.mustache`, `base_api.mustache`. Test: `test/value-seria
 - F1106: Temporal values are recognised by `Symbol.toStringTag` (`isTemporalValue`), so a native `Temporal` or a second polyfill copy is accepted.
 
 ### Names and models
-- F173, F1131 (D45): a schema named `Error` or `Result` is generated as `ModelError` or `ModelResult` (`languageSpecificPrimitives`); the global `Error` is never shadowed. Test: `BetterNodeCodegenTest`, `test/object-serializer.test.mustache`.
+- F173, F1131 (D45): a schema named `Error` or `Result` is generated as `ModelError` or `ModelResult` (`BetterNodeCodegen.toModelName`, not `languageSpecificPrimitives`: a primitive is never rewritten where a property refers to it); the global `Error` is never shadowed. Test: `BetterNodeCodegenTest`, `test/object-serializer.test.mustache`.
+- A property whose name differs from its wire name (`n2fa` for `2fa`) is written under the wire name: the model declares `__wireNames` and `ObjectSerializer.serialize` re-keys the instance, looking the field registries up by property name. Test: `test/object-serializer.test.mustache` (`keep their wire keys`).
 - F1055: a parameter named `options`, `requestOptions` or `server` becomes `optionsParam`, `requestOptionsParam`, `serverParam` (`BetterNodeCodegen.toParamName`). Test: `BetterNodeCodegenTest`.
 - F867: a model with a `format: password` field gets a `util.inspect` hook that prints the field as `***`; the field and the wire value are real. Test: `test/object-serializer.test.mustache`.
 - F1156: the file header prints the info description through `lambda.unescapeDocComment`. Test: `test/metadata.test.mustache`.

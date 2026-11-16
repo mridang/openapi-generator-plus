@@ -113,7 +113,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
             return $this->delegate;
         }
 
-        if (!$this->apiClient instanceof ApiClient) {
+        $apiClient = $this->apiClient;
+        if (!$apiClient instanceof ApiClient) {
             throw new \LogicException(
                 'ApiClient has not been injected. '
                 . 'Ensure the {{clientClassName}} constructor calls setApiClient() '
@@ -123,7 +124,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
 
         /* Discovery is an HTTP call like any other: a transport failure
          * propagates unchanged as NetworkException / NetworkTimeoutException. */
-        $response = $this->apiClient->sendRequest(
+        $response = $apiClient->sendRequest(
             'GET',
             $this->openIdConnectUrl,
             ['Accept' => 'application/json'],
@@ -204,7 +205,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
             );
         }
         $this->discoveredEndpoints = $endpoints;
-        $this->delegate->setApiClient($this->apiClient);
+        $this->delegate->setApiClient($apiClient);
         $this->discoveryExpiry = time() + $this->parseMaxAge($response->headers);
 
         return $this->delegate;

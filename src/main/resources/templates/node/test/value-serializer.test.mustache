@@ -459,7 +459,7 @@ describe('ValueSerializer', () => {
     test('a Date is still a single value, not an object', () => {
       expect(
         ValueSerializer.serializeStyled('at', new Date(Date.UTC(2024, 0, 1)), 'query', 'Date', null, 'form', true)
-      ).toBe('2024-01-01T00:00:00+00:00');
+      ).toBe('2024-01-01T00:00:00.000+00:00');
     });
 
     test('deepObject uses wire names and rejects a nested leaf', () => {

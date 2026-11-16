@@ -511,7 +511,7 @@ test('get pet by name refuses a missing required header before sending', functio
     expect(fn () => $api->getPetByName('Rex', new GetPetByNameOptions(category: 'dogs', xCorrelationId: '')))
         ->toThrow(
             \InvalidArgumentException::class,
-            "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName"
+            "Missing the required parameter 'X-Correlation-Id' when calling PetApi.getPetByName"
         );
     expect($captured->url)->toBe('');
 });

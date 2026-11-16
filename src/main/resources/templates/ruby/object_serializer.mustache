@@ -651,7 +651,7 @@ module {{moduleName}}
     # An absolute RFC 3986 URI: a scheme, ':' and no whitespace or control
     # characters. Any scheme is valid (http, ftp, mailto, urn); a relative
     # reference is not.
-    URI_REGEX = /\A[A-Za-z][A-Za-z0-9+.-]*:[^\s\x00-\x1F\x7F]*\z/
+    URI_REGEX = /\A[A-Za-z][A-Za-z0-9+.-]*:[^\x00-\x20\x7F]*\z/
 
     # Validate a `format: uri` wire value and return it unchanged.
     def self.validate_uri(value)

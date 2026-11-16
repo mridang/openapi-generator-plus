@@ -61,14 +61,14 @@ class TestAmbientProxyEnvironmentIsIgnored:
         ['HTTP_PROXY', 'http_proxy', 'HTTPS_PROXY', 'https_proxy', 'ALL_PROXY', 'all_proxy'],
     )
     def test_a_client_without_a_proxy_connects_directly(
-        self, chasm_internal_http_url: Any, monkeypatch: pytest.MonkeyPatch, variable: str
+        self, chasm_http_url: Any, monkeypatch: pytest.MonkeyPatch, variable: str
     ) -> None:
         monkeypatch.delenv('NO_PROXY', raising=False)
         monkeypatch.delenv('no_proxy', raising=False)
         monkeypatch.setenv(variable, 'http://127.0.0.1:1')
         client = DefaultApiClient(TransportOptions.builder().build())
 
-        response = client.send_request('GET', chasm_internal_http_url + '/test/echo', {}, None)
+        response = client.send_request('GET', chasm_http_url + '/test/echo', {}, None)
 
         assert response.status_code == 200
         assert not isinstance(client._pool_manager, urllib3.ProxyManager)
