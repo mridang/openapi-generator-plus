@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 527, forced 4, needs-spec 2, open 74, parked 32, partial 5. Severity: critical 3, high 60, medium 547, low 212.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 530, forced 4, needs-spec 2, open 71, parked 32, partial 5. Severity: critical 3, high 60, medium 547, low 212.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -118,7 +118,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 527, forced 4,
 | F110 | medium | fixed | L06-simple-auth | php | php authenticator constructors do not mark secret parameters #[\SensitiveParameter], so secrets appear in exception stack traces (the docblock claims they do not) |
 | F111 | medium | fixed | L06-simple-auth | swift | swift authenticators leak secrets through dump()/Mirror because they redact description but have no customMirror |
 | F112 | medium | fixed | L07-oauth-oidc | java, kotlin, csharp, php, python, ruby, elixir, node, go, rust, swift, dart | Implicit flow: empty access token accepted (sends 'Authorization: Bearer ') in 7 SDKs, rejected as unset in 5 |
-| F113 | medium | open | L07-oauth-oidc | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | OIDC authenticator never requests the `openid` scope |
+| F113 | medium | fixed | L07-oauth-oidc | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | OIDC authenticator never requests the `openid` scope |
 | F114 | medium | fixed | L07-oauth-oidc | go, kotlin | RFC 6749 §5.2 error parsing: go loses `error` when error_description/error_uri is non-string; kotlin stringifies numeric `error` and loses it on object/array description |
 | F115 | medium | false-positive | L07-oauth-oidc | rust, kotlin, php, swift, elixir, go, java, python, ruby | Token-response and OIDC-discovery error messages are not harmonized (rust lowercase, kotlin/php/swift/elixir/go variants; python/ruby accept non-string endpoints) |
 | F116 | medium | fixed | L07-oauth-oidc | swift, rust, java, csharp, ruby, kotlin, go, dart | Unclamped expires_in / discovery max-age arithmetic: swift traps, rust panics, java/csharp/ruby throw raw runtime exceptions, kotlin/go silently wrap |
@@ -126,7 +126,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 527, forced 4,
 | F118 | medium | fixed | L07-oauth-oidc | elixir | elixir auth-code/OIDC: exchange_code returns a new struct the Client never sees, so API calls keep raising 'Must call exchange_code' |
 | F119 | medium | fixed | L07-oauth-oidc | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | exchangeCode() is silently ignored when a token is cached or a refresh token exists (goes through the caching getAccessToken) |
 | F120 | medium | fixed | L07-oauth-oidc | java | java auth-code getAuthHeaders NPEs when the OP issued no refresh_token and the access token expired |
-| F121 | medium | open | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | A zero or negative timeout means something different in each SDK; only rust validates it |
+| F121 | medium | fixed | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | A zero or negative timeout means something different in each SDK; only rust validates it |
 | F122 | medium | fixed | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Per-operation server codegen emits duplicate types when two servers of one operation share a variable or a description |
 | F123 | medium | fixed | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Test gaps: no test covers CA sole-anchor, garbage-CA rejection outside 3 SDKs, proxy failure classes, timeout <= 0, or a shared per-operation server variable |
 | F124 | medium | fixed | L08-config | csharp | csharp declares per-operation server types un-prefixed at namespace level (cross-operation collisions) and emits a duplicate <summary> |
@@ -755,7 +755,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 527, forced 4,
 | F747 | medium | fixed | api-surface | elixir, go, rust | API surface: harmonise options `uploadpetdocumentoptions` (3 differences) |
 | F748 | medium | fixed | review | php | php status-leaf ctor defaults responseHeaders to [] instead of null |
 | F749 | low | open | review | node | node base-api.test status 400 exception test is flaky on a cold start (NetworkError on the first request) |
-| F750 | medium | open | review | java, kotlin, csharp, php, python, ruby, node, dart, go, elixir | Negative transport timeout is rejected only in rust and swift; the other ten accept it silently |
+| F750 | medium | fixed | review | java, kotlin, csharp, php, python, ruby, node, dart, go, elixir | Negative transport timeout is rejected only in rust and swift; the other ten accept it silently |
 | F751 | medium | fixed | review | php | php TraceContextUtilTest hard-codes trace flags 01 and fails with current open-telemetry/sdk |
 | F752 | low | open | review | csharp, swift, java, kotlin, python, ruby, node, dart, php, elixir | Status-specific error constructors accept a cause in some SDKs only |
 | F753 | medium | fixed | review | kotlin | The worktree was created at an older commit without kotlin templates; I ran git checkout -b parity/error-api-kotlin 8731130e first. |
@@ -2326,7 +2326,7 @@ setAccessToken("") passes the printable-ASCII check everywhere. getAuthHeaders t
 - `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/BearerAuthenticator.java:26`
 
 ## F113 [medium] OIDC authenticator never requests the `openid` scope
-- Status: **open** | Lens: L07-oauth-oidc | Category: behavior | Unit-testable (reviewer's view): True
+- Status: **fixed** (the OpenID Connect authenticator puts openid first in the scope list in all twelve SDKs; the tests that asserted no scope now assert openid) | Lens: L07-oauth-oidc | Category: behavior | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 Uniform gap. Every SsoAuthAuthenticator wrapper passes empty scopes (listOf()/[]/nil/vec![]), and OpenIdConnectAuthenticator adds nothing, so the authorize URL has no scope parameter. OIDC Core §3.1.2.1 requires scope to contain 'openid'; without it the request is plain OAuth2 (no id_token) and OPs such as Google reject a missing scope. The generator ignores the scopes listed on `security: - ssoAuth: [...]` requirements and does not default to 'openid'.
@@ -2413,7 +2413,7 @@ java puts tokenManager.getRefreshToken() (null when the OP returned no refresh_t
 - `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/auth/oauth/OAuth2AuthorizationCodeAuthenticator.kt:118` — "refresh_token" to (tokenManager.getRefreshToken() ?: ""),
 
 ## F121 [medium] A zero or negative timeout means something different in each SDK; only rust validates it
-- Status: **open** | Lens: L08-config | Category: behavior | Unit-testable (reviewer's view): True
+- Status: **fixed** (a negative timeout is rejected by every SDK with its own invalid-argument error (rust and swift already did); a regression test in each) | Lens: L08-config | Category: behavior | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 Every builder takes the timeout with no range check except rust, whose build() returns ConfigurationError::InvalidTimeout for a negative value. The other 11 pass the raw number to their HTTP library, giving library-specific results (from library semantics, not run here). java: Duration.ofMillis(<=0) passed to HttpClient.Builder.connectTimeout and HttpRequest timeout throws a raw IllegalArgumentException at client construction or request time. kotlin: Ktor HttpTimeout requires values > 0, raw IAE. csharp: HttpClient.Timeout throws ArgumentOutOfRangeException for 0, but -1 equals Timeout.InfiniteTimeSpan, so timeout(-1) silently means no timeout. python: urllib3.Timeout(total<=0) raises ValueError on every request rather than at configuration. node: AbortSignal.timeout(-1) throws RangeError per request (verified locally), and 0 aborts immediately, giving NetworkTimeoutError. go: http.Client sets a deadline only when Timeout > 0, so 0 and negative both mean no timeout. rust: 0 is a zero deadline (immediate timeout), negative is rejected at build. php: max_duration=0 is Symfony's 'unlimited'. dart: Future.timeout with a negative duration fires immediately. Same input, different accept/reject and wire outcome. Under the error contract a negative timeout is a caller mistake and should be rejected at configuration, as rust does. A shared rule (reject < 0, decide whether 0 means no deadline) is needed.
@@ -8267,7 +8267,7 @@ php/errors/*Exception.mustache leaves declare `?array $responseHeaders = []`. Th
 base-api.test 'status 400 throws correct exception' is flaky on a cold start (NetworkError on the first request), seen once.
 
 ## F750 [medium] Negative transport timeout is rejected only in rust and swift; the other ten accept it silently
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (a negative timeout is rejected by every SDK with its own invalid-argument error (rust and swift already did); a regression test in each) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, elixir
 
 rust/transport_options.mustache:292-299 rejects a negative timeout in TransportOptionsBuilder::build with ConfigurationError::InvalidTimeout ('invalid timeout: N ms; must not be negative'). After this change set, swift rejects it in DefaultApiClient.init (swift/default_api_client.mustache:894-896) with ConfigurationError.invalidTimeout. A grep of the other ten languages' transport options and client templates finds no negative-timeout check, so `timeout(-1)` is accepted and passed to the HTTP library, where the behaviour is library-defined. rust and swift also reject at different stages: rust at builder build(), swift at client construction. One rule is needed: reject at the same point with each language's argument error and the canonical message.

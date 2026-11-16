@@ -7857,10 +7857,11 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F113",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "the OpenID Connect authenticator puts openid first in the scope list in all twelve SDKs; the tests that asserted no scope now assert openid",
    "priority_triage": "high",
-   "plain": "OpenID Connect sign-in never asks for the openid scope, so strict identity providers reject it."
+   "plain": "OpenID Connect sign-in never asks for the openid scope, so strict identity providers reject it.",
+   "commit": "348772812"
   },
   {
    "title": "RFC 6749 §5.2 error parsing: go loses `error` when error_description/error_uri is non-string; kotlin stringifies numeric `error` and loses it on object/array description",
@@ -8337,10 +8338,11 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F121",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "a negative timeout is rejected by every SDK with its own invalid-argument error (rust and swift already did); a regression test in each",
    "priority_triage": "medium",
-   "plain": "A zero or negative timeout is silently accepted in every SDK except Rust, with different meanings."
+   "plain": "A zero or negative timeout is silently accepted in every SDK except Rust, with different meanings.",
+   "commit": "348772812"
   },
   {
    "title": "Per-operation server codegen emits duplicate types when two servers of one operation share a variable or a description",
@@ -33842,9 +33844,10 @@
    "description": "rust/transport_options.mustache:292-299 rejects a negative timeout in TransportOptionsBuilder::build with ConfigurationError::InvalidTimeout ('invalid timeout: N ms; must not be negative'). After this change set, swift rejects it in DefaultApiClient.init (swift/default_api_client.mustache:894-896) with ConfigurationError.invalidTimeout. A grep of the other ten languages' transport options and client templates finds no negative-timeout check, so `timeout(-1)` is accepted and passed to the HTTP library, where the behaviour is library-defined. rust and swift also reject at different stages: rust at builder build(), swift at client construction. One rule is needed: reject at the same point with each language's argument error and the canonical message.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "a negative timeout is rejected by every SDK with its own invalid-argument error (rust and swift already did); a regression test in each",
+   "batch": null,
+   "commit": "348772812"
   },
   {
    "id": "F751",
