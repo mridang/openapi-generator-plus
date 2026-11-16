@@ -1275,6 +1275,23 @@ void main() {
         equals('https://eu.example.com/v1'),
       );
     });
+
+    test('the Mirror server variant keeps a&b and it\'s in the URL without entities', () {
+      expect(
+        GetMultiServerPetInfoServerMirror(
+          GetMultiServerPetInfoServerMirrorRegion.EU,
+          GetMultiServerPetInfoServerChannel.A_B,
+        ).getUrl(),
+        equals('https://eu.mirror.example.com/a&b/v1'),
+      );
+      expect(
+        GetMultiServerPetInfoServerMirror(
+          GetMultiServerPetInfoServerMirrorRegion.US,
+          GetMultiServerPetInfoServerChannel.IT_S,
+        ).getUrl(),
+        equals("https://us.mirror.example.com/it's/v1"),
+      );
+    });
   });
 }
 {{/generateTests}}

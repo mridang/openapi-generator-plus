@@ -225,15 +225,30 @@ void main() {
     });
 
     test('sets cookie from auth', () async {
-      final config = ConfigurationBuilder()
-          .baseUrl(chasmHttpUrl)
-          .build();
-      final auth = _BaseApiAuth(cookies: {'session': 'abc123'});
-      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+      String? receivedCookie;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedCookie = request.headers.value('cookie');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Test","photoUrls":[]}')
+          ..close();
+      });
 
       try {
-        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), AddPetOptions(auth: auth));
-      } catch (_) {}
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final auth = _BaseApiAuth(cookies: {'session': 'abc123'});
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.addPet(
+            Pet(name: 'Test', photoUrls: <String>{}), AddPetOptions(auth: auth));
+        expect(receivedCookie, equals('session=abc123'));
+      } finally {
+        await server.close();
+      }
     });
 
     test('forwards auth query params', () async {
