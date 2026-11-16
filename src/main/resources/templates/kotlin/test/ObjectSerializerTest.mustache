@@ -1141,6 +1141,32 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("type:number Decimal is exact: no double round trip and no exponent notation")
+        fun decimalNumberFieldIsExactAndPlain() {
+            // D83/F1162: a bare `type: number` keeps every digit and is written in plain
+            // notation, whatever notation the wire value used.
+            val rows =
+                listOf(
+                    "0.1234567890123456789" to "0.1234567890123456789",
+                    "12345678901234567890.5" to "12345678901234567890.5",
+                    "1.50" to "1.50",
+                    "1E-8" to "0.00000001",
+                    "1E+20" to "100000000000000000000",
+                )
+            for ((wire, written) in rows) {
+                val decoded =
+                    serializer.deserialize<{{modelPackage}}.Pet>(
+                        "{\"name\":\"f\",\"photoUrls\":[],\"weightKg\":$wire}",
+                    )
+                assertNotNull(decoded, wire)
+                assertEquals(0, java.math.BigDecimal(wire).compareTo(decoded!!.weightKg), wire)
+                val json = serializer.serialize(decoded)
+                assertTrue(json.contains("\"weightKg\":$written"), "$wire must be written as $written, got: $json")
+                assertFalse(Regex("[0-9][eE][+-]?[0-9]").containsMatchIn(json), "no exponent notation expected, got: $json")
+            }
+        }
+
+        @Test
         @DisplayName("non-lowercase string enum (Availability) round-trips with wire casing preserved")
         fun nonLowercaseStringEnumPreservesWireCasing() {
             // Availability is a non-lowercase string enum (Available, Sold,
