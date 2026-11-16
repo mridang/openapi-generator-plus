@@ -64,7 +64,7 @@ Test: `searchStore.q` rows in `test/api/store_api_test.mustache`.
 ### Schema constraints are not enforced (S3, D55, F056)
 Rule: the client does not enforce `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems`, `maxItems`; rust has no native enforcement, so the server owns validation, and the README section says so.
 Why: only python gets it natively and cheaply through pydantic; hand-written enforcement would differ per language.
-Where: `readme.mustache` (the constraint notes; the section heading required by S3 is still named "Numeric / string constraint validation" and should be "Schema constraints", intended).
+Where: `readme.mustache` (the "Schema constraints" section holds the constraint notes).
 Test: none: asserting absence is not worth a test; the README text is the contract.
 
 ### allOf with a discriminator (S4, F057, F802)
@@ -98,7 +98,7 @@ Where: `api/api.mustache`, `api/options.mustache`.
 Test: server-override rows in `test/api/pet_api_test.mustache`.
 
 ### Injected transport (S9, F405)
-Rule (intended, not yet implemented): the client builder will accept a `reqwest::Client`, keep the SDK defaults, never close a caller-supplied client, and fail fast on conflicts with the SDK's own proxy, TLS or pool settings. Today `DefaultApiClient` builds its own `reqwest::Client` from `TransportOptions` in `build_http_client`.
+Rule: the client accepts a `reqwest::Client` (`Client::with_http_client`, `DefaultApiClient::with_client`), keeps the SDK defaults, never closes a caller-supplied client, and fails fast with `ConfigurationError::InvalidArgument` on a conflicting proxy, CA or `verify_ssl(false)`. Landed. Open: a supplied client that follows redirects itself bypasses the SDK redirect guard (F1047; reqwest offers no way to read the policy back, so the README tells callers to use `Policy::none()`).
 Why: OpenAI, Stainless, Speakeasy, Fern, Azure and Stripe SDKs all accept the standard client. F405 is open.
 Where: `default_api_client.mustache`, `transport_options.mustache`, `client.mustache`.
 Test: none yet.
@@ -124,7 +124,7 @@ Where: `configuration.mustache`, `transport_options.mustache`.
 Test: `test/configuration_test.mustache`, `test/transport_options_test.mustache`.
 
 ### Timeouts, redirects, validation timing (S16, D76, D77, D79, D72, D73)
-Rule: one end-to-end timeout budget (a `std::time::Instant` deadline; `remaining_budget` per hop, a zero remainder is `NetworkTimeoutError`); a caller-supplied stream or file handle is never closed; proxy URL validation happens in `build()`, not in the builder setter; `caCertPath` is validated even when `verify_ssl` is false and pins the trust store. The budget is landed. Intended: `timeout` must be a positive number of milliseconds or `None` (message "must be positive"), and proxy/CA errors store the full canonical message and display it verbatim with credentials redacted.
+Rule: one end-to-end timeout budget (a `std::time::Instant` deadline; `remaining_budget` per hop, a zero remainder is `NetworkTimeoutError`); a caller-supplied stream or file handle is never closed; proxy URL validation happens in `build()`, not in the builder setter; `caCertPath` is validated even when `verify_ssl` is false and pins the trust store. The budget is landed. Landed (batch 6): `timeout` must be a positive number of milliseconds or `None`; zero and negative values fail `build()` with `ConfigurationError::InvalidTimeout`, displayed as `Invalid timeout: must be a positive number of milliseconds (got N)` (D77). Intended: proxy/CA errors store the full canonical message and display it verbatim with credentials redacted (D79; today the variants still print an `invalid proxy URL:` prefix plus a reason, and `test_transport_options_invalid_proxy_url_throws_exception` pins the reasons).
 Why: the budget used to apply per hop; redirects could multiply it.
 Where: `default_api_client.mustache`, `transport_options.mustache`, `errors/configuration_error.mustache`.
 Test: `test/default_api_client_test.mustache`, `test/default_api_client_unit_test.mustache`, `test/transport_options_test.mustache`.
@@ -148,7 +148,7 @@ Where: `oauth2_token_manager.mustache`, `oauth2_auth_code_authenticator.mustache
 Test: `test/oauth2_token_manager_test.mustache`.
 
 ### OAuth wording, grammar and request order (D05, D07, D08, D09, D10)
-Rule: OIDC always requests `openid`; token and discovery errors use the shared wording ("Token response is not valid JSON", "... is not a JSON object", "Token response missing or empty access_token field", no parser detail); `expires_in` and `max-age` use one digits-plus-fraction grammar with a one-year ceiling and a saturating `max-age` parse; precondition texts are "Authorization code must not be empty" and "Must call exchange_code() before making API requests". The token body and authorize URL are emitted in the fixed order grant_type, code, refresh_token, username, password, client_id, client_secret, redirect_uri, scope, then the rest sorted (`ordered_params`), which is landed; the wording and grammar items are intended.
+Rule: OIDC always requests `openid`; token and discovery errors use the shared wording ("Token response is not valid JSON", "... is not a JSON object", "Token response missing or empty access_token field", no parser detail); `expires_in` and `max-age` use one digits-plus-fraction grammar with a one-year ceiling and a saturating `max-age` parse; precondition texts are "Authorization code must not be empty" and "Must call exchange_code() before making API requests" (both landed in batch 6, pinned in `test/oauth2_auth_code_authenticator_test.mustache`). The token body and authorize URL are emitted in the fixed order grant_type, code, refresh_token, username, password, client_id, client_secret, redirect_uri, scope, then the rest sorted (`ordered_params`), which is landed; the remaining wording and grammar items are intended.
 Why: `HashMap` order and per-language wording made bytes and messages differ.
 Where: `auth/oauth/*.mustache`, `errors/oauth2_token_error.mustache`, `errors/oauth2_authorization_code_error.mustache`.
 Test: the `test/oauth2_*_test.mustache` and `test/openid_connect_authenticator_test.mustache` files.
@@ -160,16 +160,16 @@ Where: `auth/oauth/oauth2_implicit_authenticator.mustache`, `base_api.mustache`,
 Test: `test/oauth2_implicit_authenticator_test.mustache`.
 
 ### Unusable responses carry the real headers (D13, F099)
-Rule (intended): the three redirect-refusal `ApiError::new` calls pass `Some(headers)`, and the decompress failure keeps `Some(resp_headers)`.
+Rule (intended): the three redirect-refusal `ApiError::new` calls pass `Some(headers)`, and the decompress failure keeps `Some(resp_headers)`. Not yet done: the refusals still pass `None`.
 Why: a response that arrived is not a "no response" error.
 Where: `default_api_client.mustache`.
 Test: `test/default_api_client_test.mustache`.
 
 ### Error text matrix (D14, D15, D16, D17, D20, D28, D29, D79)
-Rule (intended): exact-string tests for `OAuth2ServerError`; serializer messages start with "Failed to ..."; the redirect refusals read "non-HTTP(S)", "<cur> -> <next>" and "Too many redirects (exceeded {})"; the "Response headers:" line is compact JSON with sorted keys (a `BTreeMap`); list values render `[a, b, c]` not `{:?}`; `ConfigurationError` `Display` prints the reason verbatim; the missing-parameter message names the caller-facing `{{paramName}}` identifier; use-after-close is `ConfigurationError::InvalidState` with the canonical text and an accurate struct doc.
+Rule: landed in batch 6: the redirect refusals read "Refusing to follow redirect to non-HTTP(S) URL: <next>", "Refusing to replay request body across HTTPS->HTTP redirect: <cur> -> <next>" and "Too many redirects (exceeded {})" (D16; the URLs are printed without query or fragment, F861); the "Response headers:" line is compact JSON with sorted keys (D17, a `BTreeMap` in `render_error`); use-after-close is `ConfigurationError::InvalidState("ApiClient has been closed and can no longer send requests")` (D29). Still intended: exact-string tests for `OAuth2ServerError`; serializer messages start with "Failed to ..."; list values render `[a, b, c]` not `{:?}`; `ConfigurationError` `Display` prints the reason verbatim (only `InvalidTimeout` does today); the missing-parameter message names the caller-facing `{{paramName}}` identifier.
 Why: one message grammar across all twelve; `HashMap` order is random.
 Where: `errors/*.mustache`, `object_serializer.mustache`, `default_api_client.mustache`, `server_configuration.mustache`, `api/api.mustache`.
-Test: `test/api_error_test.mustache` (replace the `is_empty` assertion with exact-string rows), `test/default_api_client_test.mustache`, `test/server_configuration_test.mustache`.
+Test: `test/api_error_test.mustache` (the headers rows are exact; replace the remaining `is_empty` assertion with exact-string rows), `test/default_api_client_unit_test.mustache` (redirect refusals, use-after-close), `test/server_configuration_test.mustache`.
 
 ### Header injection checks are case-insensitive (D21, F299)
 Rule: `has_header()` compares names with `eq_ignore_ascii_case`; if the caller supplied any case variant of `User-Agent` or `X-Request-ID`, even empty, nothing is injected and the caller's key and value stay as written.
@@ -190,10 +190,10 @@ Where: `base_api.mustache`, `api_client.mustache`, `default_api_client.mustache`
 Test: `test/base_api_test.mustache`, pet API tests for `setPetPreferences`.
 
 ### String literals and doc prose (D40, D41)
-Rule (intended): every spec string written into a code literal (defaults, server URLs and variables, OAuth URLs and scopes) goes through one value-preserving escaper (`toRustStringLiteral`; control characters as `\u{..}`), and descriptions use triple braces in `api.mustache` and `servers.mustache`; the manifest description goes through `lambda.jsonString`.
+Rule: every spec string written into a code literal (defaults, server URLs and variables, OAuth URLs and scopes) goes through one value-preserving escaper (`toRustStringLiteral`; control characters as `\u{..}`; the API key name and the OAuth and OpenID Connect URLs of the scheme wrappers use it since batch 6), and descriptions use triple braces in `api.mustache` and `servers.mustache`; the manifest description goes through `lambda.jsonString`.
 Why: stripping or double-escaping changed values.
 Where: `BetterRustCodegen.toDefaultValue`, `formatRustScopes`, `servers.mustache`, `api/api.mustache`, `cargo_toml.mustache`.
-Test: the golden and the escape rows in the shared specs.
+Test: the golden, the escape rows in the shared specs and `BetterRustCodegenTest`.
 
 ### Per-operation server types (D42, F122, F145)
 Rule: a server variable gets one type per operation; a name occurring in two or more variants of the operation becomes `<VariantName><Var>`, a variable used once keeps its plain name (`enrichOperationServers`, computed once).
@@ -315,9 +315,24 @@ Out of scope in every SDK, and the README says so (S11, closed backlog issues #5
 
 SOCKS proxies are rejected at construction (only `http://` and `https://`); enabling them needs extra reqwest features in all twelve. The SDK ships no `LICENSE` file.
 
-Open or deferred ledger items that touch rust: F346 (no data-returning variant of the request-content-type selector; needs a naming decision because `_with_content_type` returns `ApiResult` and cannot be renamed); F804 (dropping `reqwest::Client` does not close an idle keep-alive socket, so the canonical close text cannot be met until the project chooses between rewording it or `pool_max_idle_per_host(0)` for all twelve); F580 (`test_custom_ca_cert_replaces_the_system_trust_store` silently skips when `example.com:443` is unreachable, so CA coverage depends on the network, unverified); F308 (integer enum members stay `NUMBER_<n>` with `non_camel_case_types = "allow"`, parked); F390 (an overflowing `1e400` is rejected, the other seven accept it as Infinity, parked); F195 (the inline-comment ban is off for rust because `getInlineCommentPattern()` returns null, deferred; doc comments are `///` and block comments are used); F191 (rust is the only SDK whose docs build runs in a spec, deferred for the rest); F057 (allOf with a discriminator, open); F405 and F803 (see Settled); F290 (infallible `auth_headers()` returns an empty map, forced here).
+Open or deferred ledger items that touch rust: F346 (no data-returning variant of the request-content-type selector; needs a naming decision because `_with_content_type` returns `ApiResult` and cannot be renamed); F804 (decided in batch 6, see below); F308 (integer enum members stay `NUMBER_<n>` with `non_camel_case_types = "allow"`, parked); F390 (an overflowing `1e400` is rejected, the other seven accept it as Infinity, parked); F195 (the inline-comment ban is off for rust because `getInlineCommentPattern()` returns null, deferred; doc comments are `///` and block comments are used); F191 (rust is the only SDK whose docs build runs in a spec, deferred for the rest); F057 (allOf with a discriminator, open); F405 and F803 (see Settled); F290 (infallible `auth_headers()` returns an empty map, forced here).
 
 The oneOf and anyOf wrapper no-match strings differ per language (rust: `<X>: anyOf payload matched no member schema`); this is documented and not harmonised (F396). A `format: number` is `f64` and lossy by design. The first-wins duplicate keys and 512-level decoder cap forced exceptions belong to swift, not rust.
+
+### Decisions taken in batch 6
+
+The audit's own proposal was used as the default where no owner decision existed. None of these changes the public API shape.
+
+- **Header merging is case-insensitive (F1044, extends D21).** Every layer (transport defaults, configuration defaults, header selector, operation headers, auth headers, injected headers) writes through `api_client::insert_header`, which replaces an entry whose name matches under ASCII case-folding; the later layer wins and keeps its spelling. `remove_header` is the case-insensitive removal used for `Content-Type`. A caller's `accept-encoding` in any case suppresses the SDK's own. Where: `api_client.mustache`, `base_api.mustache`, `default_api_client.mustache`. Test: in-crate tests of `insert_header`/`remove_header` and `test_request_headers_merge_case_insensitively` in `test/default_api_client_unit_test.mustache`.
+- **A 3xx without a usable Location is returned unchanged (F1051, D70).** "Too many redirects" is raised only when the budget is spent and the response carries a Location that resolves against the current URL, so `max_redirects(Some(0))` against a Location-less 302 returns the 302. Test: `test_a_3xx_without_location_is_returned_unchanged_when_max_redirects_is_zero` and its with-Location counterpart in `test/default_api_client_unit_test.mustache`.
+- **One expiry margin (F854, F1046).** The token manager stores `now + expires_in - min(60 s, expires_in / 2)` and compares it as is, so a 60 s token is reused for 30 s instead of never; a non-positive `expires_in` is stale at once. Test: `test_expires_in_within_the_old_stacked_margins_is_still_cached` in `test/oauth2_token_manager_test.mustache`. The stale-token tests now use `expires_in: 0`.
+- **A refresh response without `expires_in` clears the expiry (F1045).** The token is then cached until a 401 or `invalidate_access_token`, as the first fetch and `exchange` already do; the old expiry is never kept. Test: `test_refresh_without_expires_in_clears_the_stale_expiry`.
+- **Credentials stay out of messages (F861).** `transport_error` calls `reqwest::Error::without_url` before it builds the message and keeps the stripped error as the source; the redirect-refusal messages print URLs through `redacted_url` (no query, no fragment). Test: `test_transport_error_does_not_carry_the_request_url` and `test_redacted_url_drops_the_query_and_fragment` (in-crate, `default_api_client.mustache`).
+- **String enums implement `Display` (F869).** A string-valued enum (standalone or inline) writes its wire value, so `Color::Green.to_string()` is `green`. Integer enums are unchanged. Where: `models/model.mustache`. Test: `test_string_enum_displays_its_wire_value` in `test/composed_schema_test.mustache`.
+- **Scheme literals are escaped (F278, D40).** The API key name, token URL, authorization URL, refresh URL and OpenID Connect URL go through `toRustStringLiteral`, so a name holding a quote or backslash cannot break the generated source. Test: `BetterRustCodegenTest`.
+- **F580.** `test_custom_ca_cert_replaces_the_system_trust_store` fails, rather than returns, when `example.com:443` is unreachable: the sole-anchor coverage never disappears silently. The CI runner has network access (it fetches crates).
+- **F804 close semantics.** The canonical text is reworded for rust: `close()` makes the client refuse new requests and drops its handle on the pooled `reqwest::Client`; idle keep-alive sockets are released by reqwest's idle timeout, not at the call. No `pool_max_idle_per_host(0)` (it would cost every caller a connection per request).
+- **D77, D09, D16, D17, D29** landed as described under their sections above.
 
 ## Build-breaking rules
 

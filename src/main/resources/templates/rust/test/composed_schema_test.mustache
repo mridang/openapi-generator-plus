@@ -4,6 +4,20 @@ use std::collections::HashSet;
 
 use {{packageName}}::models::*;
 
+// -- String enums render as their wire value (F869) --
+
+#[test]
+fn test_string_enum_displays_its_wire_value() {
+    assert_eq!("green", Color::Green.to_string());
+    assert_eq!("a-b", Separator::AB.to_string());
+    assert_eq!("a_b", Separator::AB2.to_string());
+}
+
+#[test]
+fn test_inline_string_enum_displays_its_wire_value() {
+    assert_eq!("pending", PetStatusEnum::Pending.to_string());
+}
+
 // -- oneOf with discriminator: PetFood --
 
 #[test]

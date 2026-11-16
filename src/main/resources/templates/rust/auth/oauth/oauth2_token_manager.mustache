@@ -18,9 +18,12 @@ use crate::utils::form_url_encode;
 ///
 /// Uses the shared ApiClient instance so that token exchange requests honour
 /// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
-/// Safety margin applied to token expiry checks so that we refresh slightly
-/// before the token actually expires, avoiding a race against the server clock.
-const EXPIRY_SAFETY_MARGIN: Duration = Duration::from_secs(60);
+/// Largest safety margin, in seconds, taken off a token's lifetime so that we
+/// refresh slightly before the token actually expires, avoiding a race against
+/// the server clock. The margin is applied once, when the token is stored, and
+/// is capped at half the lifetime so a short token is still cached for part of
+/// its life (`expires_in` 60 is reused for 30 s, 3600 for 3540 s).
+const EXPIRY_SAFETY_MARGIN_SECONDS: u64 = 60;
 
 /// Ceiling applied to a server-supplied `expires_in`, in seconds (one year), so
 /// an absurd lifetime cannot overflow the expiry arithmetic.
@@ -148,14 +151,11 @@ impl OAuth2TokenManager {
             match inner.token_expiry {
                 None => return Ok(inner.access_token.clone()),
                 Some(expiry) => {
-                    /* checked_sub guards against Instant arithmetic underflow
-                     * when expiry is already in the (recent) past — this
-                     * happens on the synthetic "immediately stale" marker we
-                     * write for unparseable/non-positive expires_in values. */
-                    if let Some(deadline) = expiry.checked_sub(EXPIRY_SAFETY_MARGIN) {
-                        if Instant::now() < deadline {
-                            return Ok(inner.access_token.clone());
-                        }
+                    /* The stored expiry already carries the safety margin, so
+                     * it is compared as is. An unparseable or non-positive
+                     * expires_in is stored as "now" and reads as stale. */
+                    if Instant::now() < expiry {
+                        return Ok(inner.access_token.clone());
                     }
                 }
             }
@@ -335,6 +335,11 @@ impl OAuth2TokenManager {
                 inner.refresh_token = refresh.to_string();
             }
         }
+        /* A response without `expires_in` (RFC 6749 section 5.1 only
+         * RECOMMENDS it) sets no expiry, exactly as exchange and the first
+         * fetch do: the token is cached until a 401 or an invalidate. Keeping
+         * the previous, already lapsed expiry would refresh on every call. */
+        inner.token_expiry = None;
         if let Some(expires_in_value) = parsed.get("expires_in") {
             if !expires_in_value.is_null() {
                 /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
@@ -346,13 +351,10 @@ impl OAuth2TokenManager {
                 let expires_in =
                     parse_expires_in(Some(expires_in_value)).min(MAX_EXPIRES_IN_SECONDS);
                 if expires_in > 0 {
-                    let buffer_secs = expires_in.min(30);
-                    inner.token_expiry =
-                        Some(Instant::now() + Duration::from_secs(expires_in - buffer_secs));
+                    let lifetime = Duration::from_secs(expires_in);
+                    let margin = Duration::from_secs(EXPIRY_SAFETY_MARGIN_SECONDS).min(lifetime / 2);
+                    inner.token_expiry = Some(Instant::now() + (lifetime - margin));
                 } else {
-                    /* Setting expiry to "now" makes the safe cache check
-                     * (`now < expiry - margin` with checked_sub) yield
-                     * "expired" so the next call refetches. */
                     inner.token_expiry = Some(Instant::now());
                 }
             }
