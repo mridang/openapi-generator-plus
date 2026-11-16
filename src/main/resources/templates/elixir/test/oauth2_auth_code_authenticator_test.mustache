@@ -552,6 +552,35 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert length(String.split(url, "?")) - 1 == 1
     end
 
+    test "invalidate_access_token drops the access token and keeps the refresh token" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
+        },
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+        }
+      ])
+
+      auth = create_authenticator()
+      auth = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(auth, fake_client)
+      auth = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "C")
+
+      assert {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)["Authorization"] ==
+               "Bearer tok1"
+
+      assert {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.invalidate_access_token(auth) == :ok
+
+      assert {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)["Authorization"] ==
+               "Bearer tok2"
+
+      assert [{_, _exchange}, {_, refresh}] = FakeApiClient.requests(fake_client)
+      assert refresh =~ "grant_type=refresh_token"
+      assert refresh =~ "refresh_token=ref1"
+    end
+
     test "redacts the secret" do
       auth = create_authenticator()
 

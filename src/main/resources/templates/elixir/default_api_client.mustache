@@ -165,6 +165,10 @@ defmodule {{moduleName}}.DefaultApiClient do
       are not added to this call. Used for the identity provider's token
       endpoint and OpenID Connect discovery, so an `Authorization` or API-key
       default header meant for the API never reaches another host.
+    * `:deadline` -- a `System.monotonic_time(:millisecond)` instant by which the
+      whole call, redirects included, must be over. Without it the call has
+      `TransportOptions.timeout` from now. Used by the retry loop in
+      `Api.BaseApi`, so the attempts of one operation share a single budget.
   """
   @impl {{moduleName}}.ApiClient
   @spec send_request(
@@ -270,7 +274,7 @@ defmodule {{moduleName}}.DefaultApiClient do
           merged,
           serialized_body,
           opts.max_redirects || 20,
-          no_redirect
+          {no_redirect, Keyword.get(request_opts, :deadline)}
         )
       rescue
         e in [
@@ -788,13 +792,15 @@ defmodule {{moduleName}}.DefaultApiClient do
     end
   end
 
-  defp do_request_with_redirects(client, method, url, headers, body, max_redirects, no_redirect) do
+  defp do_request_with_redirects(client, method, url, headers, body, max_redirects, {no_redirect, given_deadline}) do
     # One end-to-end budget for the whole call: the deadline is fixed here and
-    # every redirect hop spends what is left of it, never a fresh timeout.
+    # every redirect hop spends what is left of it, never a fresh timeout. A
+    # deadline handed in by the caller (a retry of the same operation) is kept.
     deadline =
-      case client.transport_options.timeout do
-        nil -> nil
-        total -> System.monotonic_time(:millisecond) + total
+      case {given_deadline, client.transport_options.timeout} do
+        {nil, nil} -> nil
+        {nil, total} -> System.monotonic_time(:millisecond) + total
+        {given, _total} -> given
       end
 
     do_request_with_redirects(client, method, url, url, headers, body, {max_redirects, 0}, {no_redirect, deadline})

@@ -79,6 +79,24 @@ defmodule {{moduleName}}.TransportOptionsTest do
     assert opts.max_redirects == nil
   end
 
+  test "max_retries defaults to 2 and 0 turns retries off" do
+    assert {{moduleName}}.TransportOptions.new().max_retries == 2
+    assert {{moduleName}}.TransportOptions.new(max_retries: 0).max_retries == 0
+    assert {{moduleName}}.TransportOptions.new(max_retries: 5).max_retries == 5
+  end
+
+  test "a negative or non-integer max_retries is rejected" do
+    for bad <- [-1, 1.5, nil, "2"] do
+      err =
+        assert_raise ArgumentError, fn ->
+          {{moduleName}}.TransportOptions.new(max_retries: bad)
+        end
+
+      assert err.message ==
+               "Invalid max_retries: must be a non-negative integer (got #{inspect(bad)})"
+    end
+  end
+
   test "a zero or negative timeout is rejected with the canonical message" do
     for bad <- [-1, 0] do
       err =
