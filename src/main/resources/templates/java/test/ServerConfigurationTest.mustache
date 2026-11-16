@@ -133,7 +133,7 @@ class ServerConfigurationTest {
 
         assertEquals("https://{tenant}.example.com/api", server.getUrlTemplate());
         assertEquals("Bob's \"sandbox\" & co: $5 #{x} a*/b", server.getDescription());
-        ServerVariable tenant = server.getVariables().get("tenant");
+        ServerVariable tenant = java.util.Objects.requireNonNull(server.getVariables().get("tenant"));
         assertEquals("o'neil", tenant.getDefaultValue());
         assertEquals("Tenant's \"id\"", tenant.getDescription());
         assertEquals(List.of("o'neil", "a&b"), tenant.getEnumValues());

@@ -243,7 +243,7 @@ public final class ObjectSerializer {
     String sign = duration.isNegative() ? "-" : "";
     Duration abs = duration.abs();
     long secs = abs.toSeconds();
-    int nanos = abs.getNano();
+    int nanos = abs.toNanosPart();
     if (nanos == 0) {
       return sign + secs + "s";
     }
