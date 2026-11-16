@@ -1317,4 +1317,114 @@ public class PetApiTest
             System.Globalization.CultureInfo.CurrentCulture = previous;
         }
     }
+
+    [Fact]
+    public void DeprecatedOperationsCarryTheObsoleteMarkerOnEveryVariant()
+    {
+        string[] names =
+        [
+            "FindPetsByStatusAsync",
+            "FindPetsByStatusWithHttpInfoAsync",
+            "GetPetByIdAsync",
+            "GetPetByIdWithHttpInfoAsync",
+        ];
+
+        foreach (string name in names)
+        {
+            var variants = typeof(PetApi).GetMethods().Where(m => m.Name == name).ToList();
+
+            Assert.NotEmpty(variants);
+            Assert.All(
+                variants,
+                m => Assert.NotNull(Attribute.GetCustomAttribute(m, typeof(ObsoleteAttribute)))
+            );
+        }
+    }
+
+    [Fact]
+    public void DeprecatedModelCarriesTheObsoleteMarker()
+    {
+        var marker = (ObsoleteAttribute?)Attribute.GetCustomAttribute(typeof(Tag), typeof(ObsoleteAttribute));
+
+        Assert.NotNull(marker);
+        Assert.Contains("deprecated", marker!.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperationsThatAreNotDeprecatedCarryNoObsoleteMarker()
+    {
+        var method = typeof(PetApi).GetMethods().First(m => m.Name == "AddPetAsync");
+
+        Assert.Null(Attribute.GetCustomAttribute(method, typeof(ObsoleteAttribute)));
+    }
+
+    [Fact]
+    public async Task GetPetSummarySendsTheMatrixDateSegmentTheCookieAndTheDateArray()
+    {
+        var client = new DateWireCapturingApiClient { ResponseBody = "\"ok\"" };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetSummaryAsync(
+            7L,
+            new DateOnly(2024, 1, 15),
+            new GetPetSummaryOptions
+            {
+                Session = "s1",
+                Days = [new DateOnly(2024, 1, 2), new DateOnly(2024, 1, 3)],
+            });
+
+        Assert.Contains("/pet/7/summary/;asOf=2024-01-15", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+        Assert.Equal("session=s1", client.CapturedHeaders["Cookie"]);
+        Assert.Contains("days=2024-01-02", client.CapturedUrl.Query, StringComparison.Ordinal);
+        Assert.Contains("days=2024-01-03", client.CapturedUrl.Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GetPetSummaryWithoutTheRequiredCookieIsRefusedBeforeAnyRequest()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var ex = await Assert.ThrowsAnyAsync<ArgumentException>(() => api.GetPetSummaryAsync(
+            7L, new DateOnly(2024, 1, 15), new GetPetSummaryOptions { Session = "" }));
+
+        Assert.StartsWith(
+            "Missing the required parameter 'session' when calling PetApi.GetPetSummary",
+            ex.Message,
+            StringComparison.Ordinal);
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task GetPetByNameWithoutTheRequiredHeaderIsRefusedBeforeAnyRequest()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var ex = await Assert.ThrowsAnyAsync<ArgumentException>(() => api.GetPetByNameAsync(
+            "Rex", new GetPetByNameOptions { Category = "c", XCorrelationId = "" }));
+
+        Assert.StartsWith(
+            "Missing the required parameter 'xCorrelationId' when calling PetApi.GetPetByName",
+            ex.Message,
+            StringComparison.Ordinal);
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task FindPetsByStatusSendsTheDeepObjectFilterOneKeyPerEntry()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.FindPetsByStatusAsync(new FindPetsByStatusOptions
+        {
+            Filter = new Dictionary<string, string> { ["color"] = "blue", ["size"] = "large" },
+        });
+
+        Assert.Contains(
+            "filter%5Bcolor%5D=blue&filter%5Bsize%5D=large",
+            client.CapturedUrl!.Query,
+            StringComparison.Ordinal);
+    }
 }

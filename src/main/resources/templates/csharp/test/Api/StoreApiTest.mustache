@@ -339,13 +339,16 @@ public class StoreApiTest
     {
         public Uri? Url { get; private set; }
         public Dictionary<string, string> Headers { get; private set; } = new();
+        public object? SentBody { get; private set; }
+        public string ResponseBody { get; set; } = "{\"id\":1}";
 
         public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
             string method, Uri url, Dictionary<string, string> headers, object? body)
         {
             Url = url;
             Headers = new Dictionary<string, string>(headers);
-            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "{\"id\":1}",
+            SentBody = body;
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, ResponseBody,
                 new Dictionary<string, string> { { "Content-Type", "application/json" } }));
         }
     }
@@ -473,5 +476,35 @@ public class StoreApiTest
             new SearchStoreOptions { Q = new PhotoMetadata { Location = new PhotoMetadataLocation { Lat = double.NaN } } }));
 
         Assert.Equal(0, client.CallCount);
+    }
+
+    [Fact]
+    public async Task GetOrderByTrackingIdPutsTheLowercaseUuidInThePath()
+    {
+        var client = new RequestCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetOrderByTrackingIdAsync(Guid.Parse("E621E1F8-C36C-495A-93FC-0C247A3E6E5F"));
+
+        Assert.EndsWith(
+            "/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f",
+            client.Url!.AbsolutePath,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CreateAccountSendsTheWriteOnlyPasswordAndDecodesTheReadOnlyId()
+    {
+        var client = new RequestCapturingApiClient
+        {
+            ResponseBody = "{\"id\":7,\"username\":\"u\"}",
+        };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var created = await api.CreateAccountAsync(new Account("u") { Password = "p" });
+
+        Assert.Equal(7L, created.Id);
+        Assert.Contains("\"password\":\"p\"", client.SentBody!.ToString(), StringComparison.Ordinal);
+        Assert.Contains("\"username\":\"u\"", client.SentBody!.ToString(), StringComparison.Ordinal);
     }
 }
