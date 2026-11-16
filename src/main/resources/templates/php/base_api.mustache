@@ -477,12 +477,21 @@ class BaseApi
             }
             if ($body instanceof \SplFileObject) {
                 $path = $body->getRealPath();
-                $contents = @file_get_contents($path !== false ? $path : $body->getPathname());
-                return $contents !== false ? $contents : '';
+                $source = $path !== false ? $path : $body->getPathname();
+                $contents = @file_get_contents($source);
+                if ($contents === false) {
+                    throw new \InvalidArgumentException(
+                        sprintf('Failed to read request body file "%s"', $source)
+                    );
+                }
+                return $contents;
             }
             if (is_resource($body)) {
                 $contents = stream_get_contents($body);
-                return $contents !== false ? $contents : '';
+                if ($contents === false) {
+                    throw new \InvalidArgumentException('Failed to read request body stream');
+                }
+                return $contents;
             }
             if ($body instanceof \Psr\Http\Message\StreamInterface) {
                 return (string) $body;

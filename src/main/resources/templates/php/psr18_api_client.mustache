@@ -174,17 +174,26 @@ class Psr18ApiClient extends AbstractApiClient
                     $filename = $v->getFilename();
                     self::validateMultipartFilename($filename);
                     $mime = $this->guessMimeType($path !== false ? $path : null, $filename);
-                    $content = @file_get_contents($path !== false ? $path : $v->getPathname());
+                    $source = $path !== false ? $path : $v->getPathname();
+                    $content = @file_get_contents($source);
+                    if ($content === false) {
+                        throw new \InvalidArgumentException(
+                            sprintf('Failed to read multipart file "%s"', $source)
+                        );
+                    }
                     $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"; '
                         . self::buildFilenameDirective($filename) . $crlf;
                     $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
-                    $out .= ($content !== false ? $content : '') . $crlf;
+                    $out .= $content . $crlf;
                 } elseif (
                     is_resource($v)
                     || $v instanceof \Psr\Http\Message\StreamInterface
                 ) {
                     /* The caller owns the stream: it is read but never closed. */
                     $content = is_resource($v) ? stream_get_contents($v) : (string) $v;
+                    if ($content === false) {
+                        throw new \InvalidArgumentException('Failed to read multipart stream');
+                    }
                     /* A raw-bytes part has no explicit filename, so the field
                      * NAME is reused as the filename and the Content-Type is
                      * guessed from that filename's extension (falling back to
@@ -196,7 +205,7 @@ class Psr18ApiClient extends AbstractApiClient
                     $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"; '
                         . self::buildFilenameDirective($filename) . $crlf;
                     $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
-                    $out .= ($content !== false ? $content : '') . $crlf;
+                    $out .= $content . $crlf;
                 } else {
                     $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
                     $out .= $crlf;

@@ -255,7 +255,7 @@ Models are generated as PHP classes under the `{{invokerPackage}}\Models` namesp
 ```php
 {{#models}}{{#model}}{{#-first}}use {{invokerPackage}}\Models\{{classname}};
 
-$model = new {{classname}}();{{/-first}}{{/model}}{{/models}}
+$model = new {{classname}}({{#requiredVars}}{{name}}: {{#isString}}'example'{{/isString}}{{#isInteger}}1{{/isInteger}}{{#isLong}}1{{/isLong}}{{#isNumber}}1.0{{/isNumber}}{{#isFloat}}1.0{{/isFloat}}{{#isDouble}}1.0{{/isDouble}}{{#isBoolean}}true{{/isBoolean}}{{#isMap}}new \Ds\Map(){{/isMap}}{{#isArray}}{{#uniqueItems}}new \Ds\Set(){{/uniqueItems}}{{^uniqueItems}}new \Ds\Vector(){{/uniqueItems}}{{/isArray}}{{^-last}}, {{/-last}}{{/requiredVars}});{{/-first}}{{/model}}{{/models}}
 ```
 
 ## Binary / File Uploads

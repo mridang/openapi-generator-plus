@@ -71,7 +71,7 @@ Test: `ValueSerializerTest`, `BaseApiTest`, and the petstore content-parameter o
 ### Schema constraints are not enforced client-side (S3, D55, F056, 2026-11-16)
 Rule: php does not enforce `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems`, `maxItems`; the server owns validation.
 Why: only python's pydantic enforces them natively and cheaply; php would need a validator dependency for no correctness gain.
-Where: `templates/php/readme.mustache` ("Numeric / string constraint validation"; the shared section is named "Schema constraints", rename pending).
+Where: `templates/php/readme.mustache` (the single "Schema constraints" section; the older "Numeric / string constraint validation" caveat was removed in batch 6, F891).
 Test: README golden.
 
 ### allOf with a discriminator uses class inheritance (S4, F057, 2026-11-16)
@@ -147,10 +147,10 @@ Where: `abstract_api_client.mustache` (`hrtime` deadline, `NetworkTimeoutExcepti
 Test: `DefaultApiClientTest`, `TransportOptionsTest`.
 
 ### Timeout must be a positive millisecond count or null (D77, F121)
-Rule: `TransportOptionsBuilder::timeout()` and the `TransportOptions` constructor throw `\InvalidArgumentException` for `<= 0` (pending in the golden).
+Rule: the `TransportOptions` constructor (which `build()` runs) throws `\InvalidArgumentException('Invalid timeout: must be a positive number of milliseconds (got N)')` for `<= 0` (templates done in batch 6, golden regeneration pending).
 Why: zero or negative is ambiguous across transports.
 Where: `transport_options_builder.mustache`, `transport_options.mustache`.
-Test: `TransportOptionsTest` (to be added with the fix).
+Test: `TransportOptionsTest` (negative and zero rows pin the message).
 
 ### Ambient proxy settings are ignored (D74, F090)
 Rule: with no `TransportOptions::proxy`, php passes `no_proxy = '*'` to Symfony so `HTTP(S)_PROXY` env vars are ignored (pending in the golden).
@@ -165,7 +165,7 @@ Where: `default_api_client.mustache`, `transport_options.mustache`.
 Test: `TransportOptionsTest`, `DefaultApiClientTest`.
 
 ### Redirect, header and error rendering (D13, D16, D17, D21, D29)
-Rule: the three redirect refusals pass the real response headers and use the shared wording (`Refusing to follow redirect to non-HTTP(S) URL: <url>`, `... redirect: <from> -> <to>`, `Too many redirects (exceeded maxRedirects=N)`); `ApiException` headers default to `null` (null means no response arrived); the `Response headers:` line is compact JSON with sorted keys and unescaped slashes and unicode (D17 pending in the golden); User-Agent and X-Request-ID checks are case-insensitive via `array_change_key_case`; use-after-close throws `\LogicException` with the canonical message.
+Rule: the three redirect refusals pass the real response headers and use the shared wording (`Refusing to follow redirect to non-HTTP(S) URL: <url>`, `... redirect: <from> -> <to>`, `Too many redirects (exceeded N)`); `ApiException` headers default to `null` (null means no response arrived); the `Response headers:` line is compact JSON with sorted keys and unescaped slashes and unicode (D17 pending in the golden); User-Agent and X-Request-ID checks are case-insensitive via `array_change_key_case`; use-after-close throws `\LogicException` with the canonical message.
 Why: one rendering and one injection rule for all twelve; a null versus empty header map is a signal (see R-headers).
 Where: `abstract_api_client.mustache`, `api_error.mustache`, `default_api_client.mustache`, `psr18_api_client.mustache`.
 Test: `ApiExceptionTest`, `DefaultApiClientTest`, `Psr18ApiClientUnitTest`.
@@ -296,12 +296,43 @@ Why: ledger F382, WONTFIX.
 Where: `makefile.mustache`, `PhpFormattingSpec`, `PhpModernizationSpec`.
 Test: the two specs.
 
+## Decisions taken in batch 6
+
+### Float text is the shortest round-trip form (F897)
+Rule: `ObjectSerializer::stringify` writes a finite float with `json_encode(..., JSON_PRESERVE_ZERO_FRACTION)` (exponent marker upper-cased), so query, path, header, form and multipart text carry the same digits as a JSON body whatever the `precision` ini says. Non-finite values keep the `(string)` form.
+Where: `object_serializer.mustache`. Test: `ObjectSerializerTest` (precision ini set to 14).
+
+### A bad `caCertPath` fails with `verifySsl` off too (F899, D73)
+Rule: the CA file is read and parsed first; `cafile`/`capath` are set only when verifying.
+Where: `default_api_client.mustache`. Test: `DefaultApiClientUnitTest`.
+
+### An unreadable body or part throws (F900)
+Rule: a binary body file or stream, and a PSR-18 or Symfony multipart file or stream part, that cannot be read throws `\InvalidArgumentException` naming the path ("Failed to read request body file", "Failed to read multipart file", "Failed to read ... stream"); it never sends an empty body.
+Where: `base_api.mustache`, `psr18_api_client.mustache`, `default_api_client.mustache`. Test: `BaseApiTest`, `Psr18ApiClientUnitTest`.
+
+### One OAuth2 expiry margin and expiry reset (F854, F895, F896, F903)
+Rule: the token is stored expiring 30 s early (never more than its lifetime) and read with no second margin, so a 60 s token is reused for 30 s; a response without `expires_in` clears the previous expiry; invalid JSON reports `Token response is not valid JSON`, a list or scalar `Token response is not a JSON object`.
+Where: `auth/oauth/oauth2_token_manager.mustache`. Test: `OAuth2TokenManagerTest`.
+
+### Redirect refusals, no-Location tail, maxRedirects, Accept-Encoding (F902, F904, F905)
+Rule: the three refusals use the shared wording and carry the real lower-cased response headers; a final 3xx without a usable `Location` after the budget is returned, not refused; `maxRedirects < 0` throws `Invalid maxRedirects: must not be negative (got N)`; a caller's `accept-encoding` in any casing suppresses the SDK's own, and the body-less Content-Type removal is case-insensitive.
+Where: `abstract_api_client.mustache`, `transport_options.mustache`. Test: `DefaultApiClientUnitTest`, `TransportOptionsTest`.
+
+### SKILLS model sample (F887)
+Rule: the sample builds the first model with named arguments for its required scalar and collection properties.
+Where: `skills.mustache`. Test: golden.
+
+### Pinned messages (F924, F925, F931)
+Rule: the timeout message, the use-after-close message and `Authorization code must not be empty` are asserted verbatim.
+Test: `TransportOptionsTest`, `DefaultApiClientUnitTest`, `OAuth2AuthCodeAuthenticatorTest`.
+
 ## Known limitations and out of scope
 
 - Model fields of `format: byte` hold the base64 text (`?string`), with raw bytes through `getXAsBytes()` and `setXFromBytes()`; the other eleven hold native bytes. Decode validation is decided (D58) but the representation difference is deferred (F136), so the root "native bytes in memory in all 12" sentence is false for php.
 - Deferred: schema-constraint enforcement (S3), SOCKS proxies (README), the missing `LICENSE` file, per-call cancellation (S7), webhooks, callbacks, XML, Link Objects and mutual TLS (S11, closed #53, #70, #78, #88, #90).
 - Loading OpenAPI 3.2 documents and the 3.1 and 3.2 feature backlog are tracked as epics #49 (3.2) and #96 (3.1); loading 3.2 is #50 (the pinned swagger-parser rejects it).
-- Pending in the golden although decided: S1, D17, D20, D47, D54, D74, D77, D81.
+- Pending in the golden although decided: S1, D17, D20, D47, D54, D74, D81. D73, D77 and the batch 6 items below are done in the templates and wait for golden regeneration.
+- Not implemented in php: S5 (required plus nullable). The golden `RequiredNullable::$note` is a non-nullable `string` (the `type: [string, "null"]` form is not seen as nullable), so a decoded null is rejected; F215, F834 and F923 stay open for php and need a codegen and serializer change.
 - Not run by a spec: the warnings-fatal phpDocumentor docs build (`make docs`, F191, deferred).
 - Typed `int64` values above 2^53 lose precision through Symfony's `float` step (README caveat; not fixable without changing the wire layer).
 
