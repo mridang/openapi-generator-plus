@@ -673,6 +673,24 @@ import Testing
         #expect(json == #"{"text":"q\"b\\\n"}"#)
     }
 
+    /* D57: a date-time without an offset is rejected, whatever the host zone;
+       a date-only value stays accepted. */
+    @Test(arguments: [
+        "2024-01-01T10:00:00", "2024-01-01T10:00:00.123", "2024-01-01 10:00:00", "2024-01-01T10:00",
+        "2024-01-01T10:00:00 ", "20240101T100000",
+    ])
+    func testDateTimeWithoutAnOffsetIsRejected(text: String) {
+        #expect(ObjectSerializer.parseDate(text) == nil)
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"shipDate\":\"\(text)\"}", as: Order.self)
+        }
+    }
+
+    @Test(arguments: ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00+02:00", "2024-01-01T10:00:00.5-05:00", "2024-01-01"])
+    func testDateTimeWithAnOffsetOrDateOnlyIsAccepted(text: String) {
+        #expect(ObjectSerializer.parseDate(text) != nil)
+    }
+
     // MARK: - Every wire-shape failure is a SerializationError
 
     /* Malformed JSON, a wrong primitive type, a missing required field, an
