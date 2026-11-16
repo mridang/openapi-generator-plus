@@ -88,7 +88,7 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    void aUnicodeSpaceIsNotBlankSoThePrintableAsciiCheckRejectsIt() {
+    void unicodeSpaceIsNotBlankSoThePrintableAsciiCheckRejectsIt() {
         for (char space : new char[] {(char) 0xA0, (char) 0x2003}) {
             String token = String.valueOf(space);
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
@@ -100,13 +100,13 @@ class BearerAuthenticatorTest {
     }
 
     @Test
-    void aTokenThatMerelyBeginsWithTheWordBearerIsKeptWhole() {
+    void tokenThatMerelyBeginsWithTheWordBearerIsKeptWhole() {
         BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "bearerxyz");
         assertEquals("Bearer bearerxyz", auth.getAuthHeaders().get("Authorization"));
     }
 
     @Test
-    void aDoubledBearerPrefixIsStrippedOnlyOnce() {
+    void doubledBearerPrefixIsStrippedOnlyOnce() {
         BearerAuthenticator auth =
                 new BearerAuthenticator("https://api.example.com", "Bearer Bearer xyz");
         assertEquals("Bearer Bearer xyz", auth.getAuthHeaders().get("Authorization"));
