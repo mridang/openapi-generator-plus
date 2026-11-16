@@ -588,6 +588,35 @@ describe {{moduleName}}::ObjectSerializer do
       _(File.read(path)).must_include(%q(# @see https://example.com/docs/account Account <docs> & "notes" it's here))
     end
 
+    # readOnly and writeOnly have no wire effect: a readOnly property is still
+    # decoded and a writeOnly one is still written and decoded.
+    it 'decodes a readOnly property' do
+      account = {{moduleName}}::ObjectSerializer.deserialize('{"id":7,"username":"ann"}', 'Account')
+      _(account.id).must_equal(7)
+    end
+
+    it 'serializes a writeOnly property' do
+      account = {{moduleName}}::Models::Account.new(username: 'ann', password: 'hunter2')
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(account))).must_equal(
+        'username' => 'ann', 'password' => 'hunter2'
+      )
+    end
+
+    it 'decodes a writeOnly property' do
+      account = {{moduleName}}::ObjectSerializer.deserialize('{"username":"ann","password":"hunter2"}', 'Account')
+      _(account.password).must_equal('hunter2')
+    end
+
+    # format: password stays a plain String but never prints in a model's
+    # string form.
+    it 'masks a format: password property in inspect' do
+      account = {{moduleName}}::Models::Account.new(username: 'ann', password: 'hunter2')
+      _(account.inspect).must_include('password=***')
+      _(account.inspect).must_include('username="ann"')
+      _(account.inspect).wont_include('hunter2')
+      _(account.password).must_equal('hunter2')
+    end
+
     # Self-referential model (TreeNode has a `child` of its own type). A
     # nested payload must decode every level into a typed TreeNode, with the
     # absent innermost `child` left nil rather than wrapped in an empty model.

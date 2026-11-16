@@ -538,6 +538,46 @@ describe {{moduleName}}::Api::PetApi do
 
       _(result).wont_be_nil
     end
+
+    # F1143 / F1158: the styled path segments, the deepObject and the
+    # object-valued query and header parameters reach the wire as the OAS
+    # style tables say, never as an object's to_s.
+    it 'sends matrix and label path segments' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_tag(5, 'cute')
+        request = captured.pop
+
+        _(request[:request_line]).must_match(%r{\AGET /pet/(;|%3B)petId(=|%3D)5/tag/\.cute[ ?]})
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'expands object-valued query and header parameters by style' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        criteria = {{moduleName}}::Models::PetCriteria.new(breed: 'lab', min_age: 3)
+        api.get_pet_tag(
+          5, 'cute',
+          {{moduleName}}::Api::Options::GetPetTagOptions.new(
+            criteria: criteria, criteria_csv: criteria, criteria_deep: criteria, x_criteria: criteria
+          )
+        )
+        request = captured.pop
+        line = request[:request_line]
+
+        _(line).must_include 'breed=lab&min_age=3'
+        _(line).must_include 'criteriaCsv=breed%2Clab%2Cmin_age%2C3'
+        _(line).must_include 'criteriaDeep%5Bbreed%5D=lab'
+        _(line).must_include 'criteriaDeep%5Bmin_age%5D=3'
+        _(request[:headers]['x-criteria']).must_equal 'breed,lab,min_age,3'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
   end
 
   describe '#get_pet_summary doc comments' do

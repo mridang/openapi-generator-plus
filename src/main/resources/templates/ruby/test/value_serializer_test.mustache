@@ -610,4 +610,69 @@ describe {{moduleName}}::ValueSerializer do
       _({{moduleName}}::ValueSerializer.serialize(date, :path, 'string')).must_equal('2024-12-31')
     end
   end
+
+  # D47: an object value (a model or a Hash) is expanded by style and explode,
+  # never rendered through its to_s.
+  describe 'object values' do
+    def object_model
+      model = Class.new
+      model.const_set(:ATTRIBUTE_MAP, { breed: 'breed', min_age: 'min_age', unset: 'unset' }.freeze)
+      model.define_method(:breed) { 'lab' }
+      model.define_method(:min_age) { 3 }
+      model.define_method(:unset) { nil }
+      model.new
+    end
+
+    it 'expands an exploded form query value to one entry per property' do
+      result = {{moduleName}}::ValueSerializer.query_entries('criteria', object_model, 'Criteria', nil, 'form', true, false)
+      _(result).must_equal({ 'breed' => 'lab', 'min_age' => '3' })
+    end
+
+    it 'joins a non-exploded form query value into one comma-separated entry' do
+      result = {{moduleName}}::ValueSerializer.query_entries('criteriaCsv', object_model, 'Criteria', nil, 'form', false, false)
+      _(result).must_equal({ 'criteriaCsv' => 'breed,lab,min_age,3' })
+    end
+
+    it 'keeps a scalar under its own name' do
+      result = {{moduleName}}::ValueSerializer.query_entries('filter', 'x', 'String', nil, 'form', true, false)
+      _(result).must_equal({ 'filter' => 'x' })
+    end
+
+    it 'wraps an exploded entry when the parameter allows reserved characters' do
+      result = {{moduleName}}::ValueSerializer.query_entries('criteria', { 'breed' => 'a/b' }, 'Criteria', nil, 'form', true, true)
+      _(result['breed']).must_be_kind_of({{moduleName}}::ValueSerializer::AllowReservedValue)
+      _(result['breed'].value).must_equal('a/b')
+    end
+
+    {
+      ['simple', false] => 'breed,lab,min_age,3',
+      ['simple', true] => 'breed=lab,min_age=3',
+      ['matrix', false] => ';criteria=breed,lab,min_age,3',
+      ['matrix', true] => ';breed=lab;min_age=3',
+      ['label', false] => '.breed,lab,min_age,3',
+      ['label', true] => '.breed=lab.min_age=3'
+    }.each do |(style, explode), expected|
+      it "renders an object in a path by #{style} explode=#{explode}" do
+        result = {{moduleName}}::ValueSerializer.serialize_styled(
+          'criteria', { 'breed' => 'lab', 'min_age' => 3 }, :path, 'Criteria', nil, style, explode
+        )
+        _(result).must_equal(expected)
+      end
+    end
+
+    it 'flattens an object in a query by spaceDelimited and pipeDelimited style' do
+      fields = { 'breed' => 'lab', 'min_age' => 3 }
+      space = {{moduleName}}::ValueSerializer.serialize_styled('c', fields, :query, 'Criteria', nil, 'spaceDelimited', false)
+      pipe = {{moduleName}}::ValueSerializer.serialize_styled('c', fields, :query, 'Criteria', nil, 'pipeDelimited', false)
+      _(space).must_equal('breed lab min_age 3')
+      _(pipe).must_equal('breed|lab|min_age|3')
+    end
+
+    it 'renders a model in a header by simple style' do
+      result = {{moduleName}}::ValueSerializer.serialize_styled(
+        'X-Criteria', object_model, :header, 'Criteria', nil, 'simple', false
+      )
+      _(result).must_equal('breed,lab,min_age,3')
+    end
+  end
 end

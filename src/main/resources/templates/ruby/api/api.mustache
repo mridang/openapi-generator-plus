@@ -266,11 +266,12 @@ module {{moduleName}}
 {{#queryParams}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         unless options.nil? || options.{{paramName}}.nil?
-          query_params['{{baseName}}'] =
-            ::{{moduleName}}::ValueSerializer.maybe_allow_reserved(
-              ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}),
+          query_params.merge!(
+            ::{{moduleName}}::ValueSerializer.query_entries(
+              '{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}},
               {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
             )
+          )
         end
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryDeepObject}}
@@ -281,11 +282,12 @@ module {{moduleName}}
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyled}}
         unless options.nil? || options.{{paramName}}.nil?
-          query_params['{{baseName}}'] =
-            ::{{moduleName}}::ValueSerializer.maybe_allow_reserved(
-              ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}),
+          query_params.merge!(
+            ::{{moduleName}}::ValueSerializer.query_entries(
+              '{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}},
               {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
             )
+          )
         end
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}

@@ -114,16 +114,47 @@ module {{moduleName}}
         detail
       end
 
+      # Most bytes of the response body that #message renders.
+      MAX_RENDERED_BODY_BYTES = 1024
+
       # Build a human-readable error message from the stored attributes. The
-      # headers and body sections are left out when they are nil or empty.
+      # headers and body sections are left out when they are nil or empty. The
+      # headers have their credentials redacted (the S15 list plus Set-Cookie),
+      # and the body is cut at 1 KiB with control characters escaped, so one
+      # error never floods or forges a log line. The full values stay in
+      # #response_headers and #response_body.
       def message
         msg = detail_message
 
         msg += "\nHTTP status code: #{status_code}" if status_code && status_code != 0
-        msg += "\nResponse headers: #{JSON.generate(response_headers.sort.to_h)}" unless response_headers.nil? || response_headers.empty?
-        msg += "\nResponse body: #{response_body}" unless response_body.nil? || response_body.empty?
+        msg += "\nResponse headers: #{JSON.generate(rendered_headers.sort.to_h)}" unless response_headers.nil? || response_headers.empty?
+        msg += "\nResponse body: #{rendered_body}" unless response_body.nil? || response_body.empty?
 
         msg
+      end
+
+      private
+
+      # The response headers with every credential value replaced by +***+.
+      #
+      # @return [Hash{String => String}]
+      def rendered_headers
+        headers = ::{{moduleName}}::TransportOptions.redact_headers(response_headers || {})
+        headers.to_h { |name, value| [name, name.to_s.casecmp?('set-cookie') ? '***' : value] }
+      end
+
+      # The response body cut at {MAX_RENDERED_BODY_BYTES} bytes, control
+      # characters written as escapes, and a suffix counting the bytes left out.
+      #
+      # @return [String]
+      def rendered_body
+        text = response_body.to_s
+        excess = text.bytesize - MAX_RENDERED_BODY_BYTES
+        text = text.byteslice(0, MAX_RENDERED_BODY_BYTES).to_s.scrub if excess.positive?
+        text = text.gsub(/[\x00-\x1f\x7f]/) do |char|
+          { "\n" => '\\n', "\r" => '\\r', "\t" => '\\t' }.fetch(char) { format('\\x%02X', char.ord) }
+        end
+        excess.positive? ? "#{text}... (#{excess} more bytes)" : text
       end
     end
   end
