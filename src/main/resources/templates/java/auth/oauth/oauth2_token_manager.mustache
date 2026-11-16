@@ -29,9 +29,10 @@ import javax.annotation.Nullable;
 public class OAuth2TokenManager {
 
     /**
-     * Safety margin (in seconds) applied to token expiry checks so that we
-     * refresh slightly before the token actually expires, avoiding a race
-     * against the server clock.
+     * Upper bound (in seconds) of the single safety margin taken off a token's
+     * lifetime so that we refresh slightly before it actually expires, avoiding
+     * a race against the server clock. The margin is capped at half the
+     * lifetime, so a short token is still cached for part of its life.
      */
     private static final long EXPIRY_SAFETY_MARGIN_SECONDS = 60L;
     /** Ceiling applied to a server-supplied expires_in (one year), so an absurd
@@ -41,6 +42,8 @@ public class OAuth2TokenManager {
     private final ObjectMapper objectMapper;
     @Nullable private ApiClient apiClient;
     @Nullable private String    accessToken;
+    /** The instant until which the token is served from the cache: the expiry
+     * minus the safety margin, or null when the server gave no lifetime. */
     @Nullable private Instant   tokenExpiry;
     @Nullable private String    refreshToken;
     private boolean             exchanged;
@@ -116,7 +119,7 @@ public class OAuth2TokenManager {
             Map<String, String> extraHeaders, @Nullable String refreshUrl) {
         if (accessToken != null
                 && (tokenExpiry == null
-                        || Instant.now().isBefore(tokenExpiry.minusSeconds(EXPIRY_SAFETY_MARGIN_SECONDS)))) {
+                        || Instant.now().isBefore(tokenExpiry))) {
             return accessToken;
         }
         boolean refreshGrant = "refresh_token".equals(params.get("grant_type"));
@@ -281,6 +284,14 @@ public class OAuth2TokenManager {
                     || !accessTokenNode.isTextual() || accessTokenNode.asText().isEmpty()) {
                 throw new OAuth2TokenException("Token response missing or empty access_token field");
             }
+            /* RFC 6749 section 7.1: a client must not use an access token whose
+             * type it does not understand. Only "bearer" (any case) or an absent
+             * token_type is sent as a Bearer credential; the value is not echoed. */
+            JsonNode tokenTypeNode = json.get("token_type");
+            if (tokenTypeNode != null && !tokenTypeNode.isNull()
+                    && !(tokenTypeNode.isTextual() && "bearer".equalsIgnoreCase(tokenTypeNode.asText()))) {
+                throw new OAuth2TokenException("Unsupported token_type in token response");
+            }
             this.accessToken = accessTokenNode.asText();
             if (json.has("refresh_token")) {
                 /* Require a JSON string (like access_token above): asText() would
@@ -300,11 +311,16 @@ public class OAuth2TokenManager {
                  * (preferable to caching a token of unknown lifetime forever). */
                 long expiresIn = parseExpiresIn(json.get("expires_in"));
                 if (expiresIn > 0L) {
-                    long bufferSecs = Math.min(expiresIn, 30L);
-                    this.tokenExpiry = Instant.now().plusSeconds(expiresIn - bufferSecs);
+                    long marginSecs = Math.min(EXPIRY_SAFETY_MARGIN_SECONDS, (expiresIn + 1L) / 2L);
+                    this.tokenExpiry = Instant.now().plusSeconds(expiresIn - marginSecs);
                 } else {
                     this.tokenExpiry = Instant.now();
                 }
+            } else {
+                /* No lifetime given (RFC 6749 section 5.1 makes expires_in
+                 * RECOMMENDED): the token has no expiry, so a stale one from an
+                 * earlier grant is not kept and refreshed on every call. */
+                this.tokenExpiry = null;
             }
         } catch (IOException e) {
             /* A 2xx answer whose body is not JSON is unusable. Neither the

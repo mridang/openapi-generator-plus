@@ -63,8 +63,18 @@ class ApiExceptionTest {
         assertEquals(
                 "boom"
                         + "\nHTTP status code: 500"
-                        + "\nResponse headers: {x-request-id=abc}"
+                        + "\nResponse headers: {\"x-request-id\":\"abc\"}"
                         + "\nResponse body: the body",
+                ex.toString());
+    }
+
+    @Test
+    void responseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
+        ApiException ex = new ApiException(
+                502, "bad", new java.util.LinkedHashMap<>(Map.of("b", "x/y", "a", "1")), null);
+
+        assertEquals(
+                "bad\nHTTP status code: 502\nResponse headers: {\"a\":\"1\",\"b\":\"x/y\"}",
                 ex.toString());
     }
 

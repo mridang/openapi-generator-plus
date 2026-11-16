@@ -238,8 +238,8 @@ class OAuth2TokenManagerTest {
 
     @Test
     void expiresInLongLivedTokenAppliesFullBuffer() {
-        // Gap CM: long-lived tokens get the full 30s safety margin clamped
-        // by min(expires_in, 30). With expires_in=3600 the token must remain
+        // Gap CM: long-lived tokens get one safety margin of at most 60 s
+        // (half the lifetime at most). With expires_in=3600 the token must remain
         // valid (cached) on a second call within the same instant.
         AtomicInteger callCount = new AtomicInteger(0);
         ApiClient client = (method, url, headers, body) -> {
@@ -261,15 +261,18 @@ class OAuth2TokenManagerTest {
         assertEquals(1, callCount.get());
     }
 
-    @Test
-    void expiresInExactlyBufferReturnsZeroBuffer() {
-        // Gap CM: expires_in == 30 (the buffer) collapses expiry to now.
-        // The next getAccessToken call must therefore refetch.
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"1,2", "0,2", "30,1", "60,1", "90,1", "120,1"})
+    void expiresInAppliesOneMarginCappedAtHalfTheLifetime(int expiresIn, int expectedFetches) {
+        /* One margin, min(60 s, half the lifetime, rounded up): a token of 30 to
+         * 120 s is cached for part of its life instead of being refetched on
+         * every call; a 1 s or 0 s token is never reused. */
         AtomicInteger callCount = new AtomicInteger(0);
         ApiClient client = (method, url, headers, body) -> {
             int n = callCount.incrementAndGet();
             return new ApiHttpResponse(200,
-                    "{\"access_token\":\"edge" + n + "\",\"expires_in\":30}", Map.of());
+                    "{\"access_token\":\"edge" + n + "\",\"expires_in\":" + expiresIn + "}",
+                    Map.of());
         };
 
         OAuth2TokenManager manager = new OAuth2TokenManager();
@@ -277,11 +280,54 @@ class OAuth2TokenManagerTest {
 
         Map<String, String> params = new HashMap<>();
         params.put("grant_type", "client_credentials");
-        String first = manager.getAccessToken("https://auth.example.com/token", params);
-        String second = manager.getAccessToken("https://auth.example.com/token", params);
+        manager.getAccessToken("https://auth.example.com/token", params);
+        manager.getAccessToken("https://auth.example.com/token", params);
 
-        assertEquals("edge1", first);
-        assertEquals("edge2", second);
+        assertEquals(expectedFetches, callCount.get());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"Bearer,true", "bearer,true", "BEARER,true", "DPoP,false", "N_A,false"})
+    void tokenTypeOtherThanBearerIsRejected(String tokenType, boolean accepted) {
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(fakeClient(
+                "{\"access_token\":\"at\",\"token_type\":\"" + tokenType + "\"}"));
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        if (accepted) {
+            assertEquals("at", manager.getAccessToken("https://auth.example.com/token", params));
+        } else {
+            OAuth2TokenException ex = assertThrowsExactly(OAuth2TokenException.class,
+                    () -> manager.getAccessToken("https://auth.example.com/token", params));
+            assertEquals("Unsupported token_type in token response", ex.getMessage());
+        }
+    }
+
+    @Test
+    void refreshResponseWithoutExpiresInKeepsNoExpiry() {
+        /* A refresh answer without expires_in must not keep the lapsed expiry of
+         * the first grant, or every following call would refresh again. */
+        AtomicInteger callCount = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            int n = callCount.incrementAndGet();
+            if (n == 1) {
+                return new ApiHttpResponse(200,
+                        "{\"access_token\":\"a1\",\"refresh_token\":\"R\",\"expires_in\":0}",
+                        Map.of());
+            }
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"a2\",\"refresh_token\":\"R\"}", Map.of());
+        };
+
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+        manager.getAccessToken("https://auth.example.com/token", params);
+        assertEquals("a2", manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals("a2", manager.getAccessToken("https://auth.example.com/token", params));
         assertEquals(2, callCount.get());
     }
 

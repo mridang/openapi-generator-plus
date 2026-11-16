@@ -1244,8 +1244,8 @@ class DefaultApiClientUnitTest {
   @Test
   void sensitiveHeaderNamesIncludesApiKeyHeaderNames() {
 {{#apiKeyHeaderNames}}    assertTrue(
-        DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("{{lowerName}}"),
-        "expected SENSITIVE_HEADER_NAMES to contain harvested apiKey header '{{lowerName}}'");
+        DefaultApiClient.SENSITIVE_HEADER_NAMES.contains("{{{lowerName}}}"),
+        "expected SENSITIVE_HEADER_NAMES to contain harvested apiKey header '{{{lowerName}}}'");
 {{/apiKeyHeaderNames}}  }
 
   @Test
@@ -1254,7 +1254,7 @@ class DefaultApiClientUnitTest {
     // manual redirect loop follows a cross-origin 307. Use the first harvested
     // apiKey header name for the assertion.
     String apiKeyHeader = List.of(
-{{#apiKeyHeaderNames}}        "{{name}}"{{^-last}},{{/-last}}
+{{#apiKeyHeaderNames}}        "{{{name}}}"{{^-last}},{{/-last}}
 {{/apiKeyHeaderNames}}    ).get(0);
 
     final java.util.concurrent.atomic.AtomicReference<String> seenApiKey =
@@ -1345,8 +1345,30 @@ class DefaultApiClientUnitTest {
             ApiException.class, () -> client.sendRequest("GET", url, Map.of(), null));
     assertEquals(302, ex.getStatusCode());
     assertTrue(
-        ex.toString().contains("Too many redirects (exceeded maxRedirects) following " + url),
-        "unexpected message: " + ex);
+        ex.toString().contains("Too many redirects (exceeded 2)"), "unexpected message: " + ex);
+  }
+
+  @Test
+  void redirectWithoutLocationIsReturnedWhenTheBudgetIsZero() throws Exception {
+    // D70: "too many redirects" needs a Location to follow; a bare 3xx is returned.
+    TransportOptions transport =
+        TransportOptions.builder().followRedirects(true).maxRedirects(0).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/redirect-no-location", Map.of(), null);
+    assertEquals(302, response.statusCode());
+  }
+
+  @Test
+  void redirectWithLocationExhaustsAZeroBudget() throws Exception {
+    TransportOptions transport =
+        TransportOptions.builder().followRedirects(true).maxRedirects(0).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class,
+            () -> client.sendRequest("GET", baseUrl + "/redirect-307", Map.of(), null));
+    assertTrue(ex.toString().contains("Too many redirects (exceeded 0)"), "was: " + ex);
   }
 
   {{! -- T-D3: non-http(s) redirect target is refused with a typed error -- }}
@@ -1359,7 +1381,10 @@ class DefaultApiClientUnitTest {
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiException ex = assertThrowsExactly(ApiException.class,
         () -> client.sendRequest("GET", baseUrl + "/redirect-bad-scheme", Map.of(), null));
-    assertTrue(ex.toString().toLowerCase(java.util.Locale.ROOT).contains("non-http"));
+    assertTrue(
+        ex.toString()
+            .contains("Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd"),
+        "was: " + ex);
     assertTrue(ex.getStatusCode() >= 300 && ex.getStatusCode() < 400,
         "a refused redirect must carry the 3xx status, was " + ex.getStatusCode());
   }
@@ -1401,6 +1426,59 @@ class DefaultApiClientUnitTest {
         () -> client.sendRequest("GET", baseUrl + "/echo", Map.of(), null));
     assertFalse(((Object) ex) instanceof {{errorPrefix}}Exception,
         "use-after-close must not be an SDK error");
+    assertEquals("ApiClient has been closed and can no longer send requests", ex.getMessage());
+  }
+
+  @Test
+  void staleConnectionRetryDrawsFromTheRemainingBudget() throws Exception {
+    // D76: the one retry after "header parser received no bytes" shares the end-to-end
+    // budget. The first connection is held 1.5 s and dropped without a byte; the second is
+    // never answered. With a 2 s budget the call ends near 2 s, not near 3.5 s.
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      Thread acceptor =
+          new Thread(
+              () -> {
+                try (java.net.Socket first = silent.accept()) {
+                  Thread.sleep(1500);
+                } catch (IOException | InterruptedException ignored) {
+                  return;
+                }
+                try (java.net.Socket second = silent.accept()) {
+                  Thread.sleep(6000);
+                } catch (IOException | InterruptedException ignored) {
+                  // The test is over.
+                }
+              });
+      acceptor.setDaemon(true);
+      acceptor.start();
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(2000).build());
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/never-answers";
+      long startedNanos = System.nanoTime();
+      assertThrowsExactly(
+          {{invokerPackage}}.errors.NetworkTimeoutException.class,
+          () -> client.sendRequest("GET", url, Map.of(), null));
+      long elapsedMillis = (System.nanoTime() - startedNanos) / 1_000_000L;
+      assertTrue(elapsedMillis < 3000, "the retry got a fresh budget: " + elapsedMillis + " ms");
+      acceptor.interrupt();
+    }
+  }
+
+  @Test
+  void queryIsReplayedAsAnIdempotentMethodAndPostIsNot() {
+    assertTrue(DefaultApiClient.isIdempotentMethod("QUERY"));
+    assertTrue(DefaultApiClient.isIdempotentMethod("put"));
+    assertFalse(DefaultApiClient.isIdempotentMethod("POST"));
+    assertFalse(DefaultApiClient.isIdempotentMethod("PATCH"));
+  }
+
+  @Test
+  void callerAcceptEncodingInAnyCaseIsKeptAlone() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/echo-headers", Map.of("accept-encoding", "identity"), null);
+    assertTrue(response.body().toLowerCase(java.util.Locale.ROOT).contains("identity"));
+    assertFalse(response.body().toLowerCase(java.util.Locale.ROOT).contains("gzip"), response.body());
   }
 
   {{! -- Gap H: response body charset handling -- }}

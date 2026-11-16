@@ -290,14 +290,25 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Prefixes a model named {@code Error} with {@code Model}: {@code Error}
-     * would shadow {@code java.lang.Error} (error-prone JavaLangClash).
-     * {@code Result} has no java.lang counterpart and keeps its own name.
+     * Names of {@code java.lang} types that generated sources use unqualified. A model of the
+     * same name would shadow them across the whole models package.
+     */
+    private static final Set<String> JAVA_LANG_CLASHES =
+            Set.of(
+                    "Error", "Exception", "Throwable", "String", "Object", "Integer", "Long",
+                    "Short", "Byte", "Double", "Float", "Boolean", "Character", "Number", "Void",
+                    "Class", "Enum", "Record", "Override", "Deprecated", "Thread", "System");
+
+    /**
+     * Prefixes a model named like a {@code java.lang} type with {@code Model}: {@code Error}
+     * would shadow {@code java.lang.Error} (error-prone JavaLangClash) and {@code String} or
+     * {@code Object} would break every model that uses them. {@code Result} has no java.lang
+     * counterpart and keeps its own name.
      */
     @Override
     public String toModelName(String name) {
         final String modelName = super.toModelName(name);
-        if ("Error".equals(modelName)) {
+        if (JAVA_LANG_CLASHES.contains(modelName)) {
             return "Model" + modelName;
         }
         return modelName;
@@ -496,8 +507,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                     final String lower = scheme.getName().toLowerCase(java.util.Locale.ROOT);
                     if (seen.add(lower)) {
                         final Map<String, String> e = new HashMap<>();
-                        e.put("name", scheme.getName());
-                        e.put("lowerName", lower);
+                        e.put("name", escapeJavaLiteral(scheme.getName()));
+                        e.put("lowerName", escapeJavaLiteral(lower));
                         apiKeyHeaderNames.add(e);
                     }
                 }

@@ -12,6 +12,7 @@ import {{invokerPackage}}.DefaultApiClient;
 import {{invokerPackage}}.ObjectSerializer;
 import {{invokerPackage}}.TraceContextUtil;
 import {{invokerPackage}}.auth.Authenticator;
+import {{invokerPackage}}.auth.HttpAwareAuthenticator;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Type;
@@ -172,6 +173,12 @@ public abstract class BaseApi {
             effectiveAuth = null;
         } else if (auth != null) {
             effectiveAuth = auth;
+            {{! A per-call OAuth2 or OpenID Connect authenticator was never handed
+                the client-level transport: give it this API's client so its token
+                and discovery requests use the same proxy, TLS and timeout. }}
+            if (auth instanceof HttpAwareAuthenticator httpAware) {
+                httpAware.setApiClient(apiClient);
+            }
         } else {
             effectiveAuth = this.authenticator;
         }

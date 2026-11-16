@@ -280,7 +280,9 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         // No exchangeCode(null) case: the code parameter is @NonNull, so
         // NullAway rejects a literal null at compile time. Empty + whitespace
         // exercise the runtime guard.
-        assertThrowsExactly(IllegalArgumentException.class, () -> auth.exchangeCode(""));
+        IllegalArgumentException empty = assertThrowsExactly(
+                IllegalArgumentException.class, () -> auth.exchangeCode(""));
+        assertEquals("Authorization code must not be empty", empty.getMessage());
         assertThrowsExactly(IllegalArgumentException.class, () -> auth.exchangeCode("   "));
     }
 
@@ -308,6 +310,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
                 () -> auth.getAuthHeaders(),
                 "expected getAuthHeaders to throw before exchangeCode");
         assertNotNull(caught);
+        assertEquals("Must call exchangeCode() before making API requests", caught.getMessage());
 
         // Caller continues normally after catching -- no process crash.
         assertEquals("https://api.example.com", auth.getHost());

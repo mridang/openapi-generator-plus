@@ -360,7 +360,7 @@ public final class DefaultApiClient implements ApiClient {
             return null;
         }
         return "Basic " + Base64.getEncoder().encodeToString(
-                java.net.URLDecoder.decode(userInfo, StandardCharsets.UTF_8)
+                java.net.URLDecoder.decode(userInfo.replace("+", "%2B"), StandardCharsets.UTF_8)
                         .getBytes(StandardCharsets.UTF_8));
     }
 
@@ -382,7 +382,7 @@ public final class DefaultApiClient implements ApiClient {
         s.add("cookie");
         s.add("proxy-authorization");
         {{#apiKeyHeaderNames}}
-        s.add("{{lowerName}}");
+        s.add("{{{lowerName}}}");
         {{/apiKeyHeaderNames}}
         SENSITIVE_HEADER_NAMES = java.util.Collections.unmodifiableSet(s);
     }
@@ -410,7 +410,8 @@ public final class DefaultApiClient implements ApiClient {
             boolean noRedirect) {
 
         if (this.closed) {
-            throw new IllegalStateException("ApiClient has been closed");
+            throw new IllegalStateException(
+                    "ApiClient has been closed and can no longer send requests");
         }
         Map<String, String> mergedHeaders = new HashMap<>(transportOptions.getDefaultHeaders());
         mergedHeaders.putAll(headers);
@@ -489,7 +490,9 @@ public final class DefaultApiClient implements ApiClient {
             builder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
         }
 
-        mergedHeaders.putIfAbsent("Accept-Encoding", getSupportedEncodings());
+        if (!hasHeader(mergedHeaders, "Accept-Encoding")) {
+            mergedHeaders.put("Accept-Encoding", getSupportedEncodings());
+        }
 
         if (proxyAuthHeader != null) {
             mergedHeaders.put("Proxy-Authorization", proxyAuthHeader);
@@ -503,7 +506,7 @@ public final class DefaultApiClient implements ApiClient {
         }
 
         try {
-            HttpResponse<byte[]> response = sendWithRetry(builder.build());
+            HttpResponse<byte[]> response = sendWithRetry(builder.build(), deadlineNanos);
 
             /*
              * Manual redirect handling when maxRedirects is configured. The
@@ -562,7 +565,7 @@ public final class DefaultApiClient implements ApiClient {
                         throw new ApiException(
                                 response.statusCode(),
                                 "Refusing to replay request body across HTTPS->HTTP redirect: "
-                                        + redirectUri,
+                                        + originalUri + " -> " + redirectUri,
                                 copyResponseHeaders(response.headers()),
                                 null);
                     }
@@ -618,7 +621,7 @@ public final class DefaultApiClient implements ApiClient {
                     for (Map.Entry<String, String> entry : redirectHeaders.entrySet()) {
                         redirectBuilder.header(entry.getKey(), entry.getValue());
                     }
-                    response = sendWithRetry(redirectBuilder.build());
+                    response = sendWithRetry(redirectBuilder.build(), deadlineNanos);
                     currentMethod = nextMethod;
                     currentBody = nextBody;
                     currentHeaders = redirectHeaders;
@@ -631,10 +634,15 @@ public final class DefaultApiClient implements ApiClient {
                  * normal result. A 3xx without a Location header leaves the
                  * loop early with budget to spare; that is a legitimate
                  * terminal response and is returned as-is. */
-                if (redirectsRemaining <= 0 && isRedirect(response.statusCode())) {
+                if (redirectsRemaining <= 0 && isRedirect(response.statusCode())
+                        && hasUsableLocation(response, originalUri)) {
                     throw new ApiException(
                             response.statusCode(),
-                            "Too many redirects (exceeded maxRedirects) following " + url,
+                            "Too many redirects (exceeded "
+                                    + (transportOptions.getMaxRedirects() != null
+                                            ? transportOptions.getMaxRedirects()
+                                            : 20)
+                                    + ")",
                             copyResponseHeaders(response.headers()),
                             null);
                 }
@@ -718,7 +726,7 @@ public final class DefaultApiClient implements ApiClient {
      * could otherwise be applied twice. Any other IOException propagates
      * unchanged.
      */
-    private HttpResponse<byte[]> sendWithRetry(HttpRequest request)
+    private HttpResponse<byte[]> sendWithRetry(HttpRequest request, long deadlineNanos)
             throws IOException, InterruptedException {
         try {
             return sendBounded(request);
@@ -727,7 +735,18 @@ public final class DefaultApiClient implements ApiClient {
             if (message != null
                     && message.contains("header parser received no bytes")
                     && isIdempotentMethod(request.method())) {
-                return sendBounded(request);
+                if (request.timeout().isEmpty()) {
+                    return sendBounded(request);
+                }
+                /* The retry draws from the same end-to-end budget as the first
+                 * attempt, never a fresh full timeout. */
+                long remainingNanos = deadlineNanos - System.nanoTime();
+                if (remainingNanos <= 0) {
+                    throw new HttpTimeoutException("request timed out");
+                }
+                return sendBounded(HttpRequest.newBuilder(request, (name, value) -> true)
+                        .timeout(Duration.ofNanos(remainingNanos))
+                        .build());
             }
             throw e;
         }
@@ -771,13 +790,30 @@ public final class DefaultApiClient implements ApiClient {
         }
     }
 
+    /**
+     * Whether a 3xx carries a Location that a further hop could follow. A
+     * redirect without one is a terminal response, never "too many redirects".
+     */
+    private static boolean hasUsableLocation(HttpResponse<byte[]> response, URI base) {
+        String location = response.headers().firstValue("location").orElse(null);
+        if (location == null || location.isEmpty()) {
+            return false;
+        }
+        try {
+            resolveLocation(base, location);
+            return true;
+        } catch (IllegalArgumentException unusableLocation) {
+            return false;
+        }
+    }
+
     private static boolean hasHeader(Map<String, String> headers, String name) {
         return headers.keySet().stream().anyMatch(key -> key.equalsIgnoreCase(name));
     }
 
-    private static boolean isIdempotentMethod(String method) {
+    static boolean isIdempotentMethod(String method) {
         return switch (method.toUpperCase(Locale.ROOT)) {
-            case "GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE" -> true;
+            case "GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE", "QUERY" -> true;
             default -> false;
         };
     }

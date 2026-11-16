@@ -90,6 +90,9 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
         }
         /* Discovery is an HTTP call like any other: a transport failure
          * propagates unchanged as NetworkException / NetworkTimeoutException. */
+        if (!isSecureOrLoopback(openIdConnectUrl)) {
+            throw new IllegalArgumentException("OIDC discovery URL must use https");
+        }
         Map<String, String> headers = new HashMap<>();
         headers.put("Accept", "application/json");
         ApiHttpResponse response = apiClient.sendRequest(
@@ -113,6 +116,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
             throw new SerializationException(
                     "OIDC discovery document is not a JSON object");
         }
+        requireMatchingIssuer(discovery);
         String authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint");
         String tokenEndpoint         = requireEndpoint(discovery, "token_endpoint");
         /* The session (tokens and the exchanged flag) lives in the token
@@ -163,7 +167,54 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
             throw new SerializationException(
                     "OIDC discovery document is missing '" + field + "'");
         }
+        if (!isSecureOrLoopback(value)) {
+            throw new SerializationException(
+                    "OIDC discovery document field must be an https URL: " + field);
+        }
         return value;
+    }
+
+    /**
+     * Reject a discovery document whose {@code issuer} differs from the
+     * discovery URL without its {@code /.well-known/openid-configuration}
+     * suffix (OpenID Connect Discovery 4.3), compared without a trailing slash.
+     * A document without an issuer, or a discovery URL of another shape, is
+     * not checked.
+     */
+    private void requireMatchingIssuer(JsonNode discovery) {
+        JsonNode issuer = discovery.get("issuer");
+        String suffix = "/.well-known/openid-configuration";
+        if (issuer == null || !issuer.isTextual() || !openIdConnectUrl.endsWith(suffix)) {
+            return;
+        }
+        String expected = openIdConnectUrl.substring(0, openIdConnectUrl.length() - suffix.length());
+        if (!stripTrailingSlash(issuer.asText()).equals(stripTrailingSlash(expected))) {
+            throw new SerializationException(
+                    "OIDC discovery document issuer does not match the discovery URL");
+        }
+    }
+
+    private static String stripTrailingSlash(String url) {
+        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+    }
+
+    /** An https URL, or any URL whose host is a loopback address (RFC 8252 section 8.3). */
+    private static boolean isSecureOrLoopback(String url) {
+        try {
+            java.net.URI uri = java.net.URI.create(url);
+            String scheme = uri.getScheme();
+            if ("https".equalsIgnoreCase(scheme)) {
+                return true;
+            }
+            String host = uri.getHost();
+            return "http".equalsIgnoreCase(scheme)
+                    && host != null
+                    && ("localhost".equalsIgnoreCase(host)
+                            || host.equals("127.0.0.1")
+                            || host.equals("[::1]"));
+        } catch (IllegalArgumentException invalid) {
+            return false;
+        }
     }
 
     /**

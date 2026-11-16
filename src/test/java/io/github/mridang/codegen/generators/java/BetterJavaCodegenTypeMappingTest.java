@@ -35,6 +35,23 @@ class BetterJavaCodegenTypeMappingTest {
         assertEquals("ModelError", codegen.toModelName("Error"));
     }
 
+    /* An apiKey header name goes into a Java string literal, so quotes and backslashes are escaped. */
+    @Test
+    void apiKeyHeaderNamesAreEscapedForJavaLiterals() {
+        assertEquals("X-Api\\\"Key\\\\", BetterJavaCodegen.escapeJavaLiteral("X-Api\"Key\\"));
+        assertEquals("X-Api'Key$", BetterJavaCodegen.escapeJavaLiteral("X-Api'Key$"));
+    }
+
+    /* A schema named like a java.lang type is prefixed so it cannot shadow it (F173). */
+    @Test
+    void javaLangNamedModelsArePrefixed() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        assertEquals("ModelString", codegen.toModelName("String"));
+        assertEquals("ModelObject", codegen.toModelName("Object"));
+        assertEquals("ModelException", codegen.toModelName("Exception"));
+        assertEquals("Pet", codegen.toModelName("Pet"));
+    }
+
     /* Bucket 4.8 — typeMapping + importMapping for java.time.Duration. */
     @Test
     void durationFormatMapsToDuration() {

@@ -42,6 +42,16 @@ public enum {{classname}} {
   }
 
   /**
+   * Returns the wire value, so the string form of a constant is what is sent.
+   *
+   * @return the wire value as a string
+   */
+  @Override
+  public String toString() {
+    return String.valueOf(value);
+  }
+
+  /**
    * Returns the enum constant for the given wire value.
    *
    * @param value the wire value
@@ -86,6 +96,16 @@ public enum {{classname}} {
   }
 
   /**
+   * Returns the wire value, so the string form of a constant is what is sent.
+   *
+   * @return the wire value as a string
+   */
+  @Override
+  public String toString() {
+    return String.valueOf(value);
+  }
+
+  /**
    * Returns the enum constant for the given wire value.
    *
    * @param value the wire value
@@ -126,6 +146,16 @@ public enum {{classname}} {
   @com.fasterxml.jackson.annotation.JsonValue
   public String getValue() {
     return value;
+  }
+
+  /**
+   * Returns the wire value, so the string form of a constant is what is sent.
+   *
+   * @return the wire value as a string
+   */
+  @Override
+  public String toString() {
+    return String.valueOf(value);
   }
 
   /**
@@ -596,6 +626,16 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 
     /**
+     * Returns the wire value, so the string form of a constant is what is sent.
+     *
+     * @return the wire value as a string
+     */
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    /**
      * Returns the enum constant for the given wire value.
      *
      * @param value the wire value
@@ -640,6 +680,16 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 
     /**
+     * Returns the wire value, so the string form of a constant is what is sent.
+     *
+     * @return the wire value as a string
+     */
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    /**
      * Returns the enum constant for the given wire value.
      *
      * @param value the wire value
@@ -680,6 +730,16 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     @JsonValue
     public String getValue() {
       return value;
+    }
+
+    /**
+     * Returns the wire value, so the string form of a constant is what is sent.
+     *
+     * @return the wire value as a string
+     */
+    @Override
+    public String toString() {
+      return String.valueOf(value);
     }
 
     /**
@@ -763,13 +823,13 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   private java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties = new java.util.LinkedHashMap<>();
 
   /**
-   * Stores an additional, undeclared property.
+   * Stores an additional, undeclared property. Callers use it to send extra keys.
    *
    * @param key the property name
    * @param value the property value
    */
   @com.fasterxml.jackson.annotation.JsonAnySetter
-  void setAdditionalProperty(String key, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}} value) {
+  public void setAdditionalProperty(String key, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}} value) {
     this.additionalProperties.put(key, value);
   }
 
@@ -870,7 +930,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     StringBuilder sb = new StringBuilder();
     sb.append(getClass().getSimpleName()).append("{");
 {{#vars}}
-    sb.append("{{^-first}}, {{/-first}}{{name}}=").append({{#isByteArray}}java.util.Arrays.toString({{name}}){{/isByteArray}}{{^isByteArray}}{{#isContainer}}{{invokerPackage}}.ObjectSerializer.structuralToString({{name}}){{/isContainer}}{{^isContainer}}{{name}}{{/isContainer}}{{/isByteArray}});
+    sb.append("{{^-first}}, {{/-first}}{{name}}=").append({{#isByteArray}}java.util.Arrays.toString({{name}}){{/isByteArray}}{{^isByteArray}}{{#isContainer}}{{invokerPackage}}.ObjectSerializer.structuralToString({{name}}){{/isContainer}}{{^isContainer}}{{#isPassword}}({{name}} == null ? "null" : "***"){{/isPassword}}{{^isPassword}}{{name}}{{/isPassword}}{{/isContainer}}{{/isByteArray}});
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
     sb.append("{{#hasVars}}, {{/hasVars}}additionalProperties=").append({{invokerPackage}}.ObjectSerializer.structuralToString(additionalProperties));

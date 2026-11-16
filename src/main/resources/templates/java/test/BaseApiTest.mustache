@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -170,6 +171,31 @@ class BaseApiTest {
         @Override
         public Map<String, String> getCookieParams() {
             return cookies;
+        }
+    }
+
+    static class HttpAwareTestAuthenticator
+            implements {{invokerPackage}}.auth.HttpAwareAuthenticator {
+
+        private final java.util.concurrent.atomic.AtomicReference<ApiClient> injected;
+
+        HttpAwareTestAuthenticator(java.util.concurrent.atomic.AtomicReference<ApiClient> injected) {
+            this.injected = injected;
+        }
+
+        @Override
+        public void setApiClient(ApiClient apiClient) {
+            injected.set(apiClient);
+        }
+
+        @Override
+        public String getHost() {
+            return "";
+        }
+
+        @Override
+        public Map<String, String> getAuthHeaders() {
+            return Map.of();
         }
     }
 
@@ -678,6 +704,24 @@ class BaseApiTest {
                     "application/json",
                     null, perCallAuth);
             assertEquals("per-call-token", client.capturedHeaders.get("X-Client-Auth"));
+        }
+
+        @Test
+        @DisplayName("a per-call HTTP-aware authenticator is given the API's client")
+        void perCallHttpAwareAuthenticatorReceivesTheClient() throws ApiException {
+            var client = new CapturingApiClient();
+            var injected = new java.util.concurrent.atomic.AtomicReference<ApiClient>();
+            var perCallAuth =
+                    new HttpAwareTestAuthenticator(injected);
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, perCallAuth);
+            assertSame(client, injected.get());
         }
 
         /*

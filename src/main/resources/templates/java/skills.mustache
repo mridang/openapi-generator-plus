@@ -253,6 +253,31 @@ var transport = TransportOptions.builder()
 var client = new {{clientClassName}}(authenticator, transport);
 ```
 
+### Custom HTTP client
+
+```java
+var httpClient = java.net.http.HttpClient.newBuilder()
+    .followRedirects(java.net.http.HttpClient.Redirect.NEVER)
+    .build();
+var transport = TransportOptions.builder().httpClient(httpClient).build();
+```
+
+The SDK sends every request through your client and never closes it. Combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails at `build()`.
+
+### Cancellation
+
+Interrupt the calling thread; the call throws `java.util.concurrent.CancellationException` (the `InterruptedException` is its cause) and is never reported as `NetworkTimeoutException`.
+
+```java
+var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+var task = executor.submit(() -> client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}});
+task.cancel(true);
+```
+
+### Raw responses, timeouts and the request id
+
+Each operation has a `...WithHttpInfo` variant returning `ApiResult<T>` (`statusCode()`, `data()`, `rawBody()`, `headers()`). `timeout` is one end-to-end budget in positive milliseconds. An `X-Request-ID` header is added to each request unless you set one.
+
 ## API Methods
 
 Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
