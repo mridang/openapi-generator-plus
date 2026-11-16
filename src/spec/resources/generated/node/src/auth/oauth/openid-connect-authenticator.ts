@@ -65,7 +65,11 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.redirectUri = redirectUri;
-    this.scopes = Object.freeze([...scopes]);
+    /* OpenID Connect Core 3.1.2.1: the scope parameter must contain 'openid'. */
+    this.scopes = Object.freeze([
+      "openid",
+      ...scopes.filter((s) => s !== "openid"),
+    ]);
   }
 
   /**

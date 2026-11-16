@@ -22,6 +22,9 @@ import (
 // host. Match it with errors.Is.
 var ErrInvalidProxyURL = errors.New("invalid proxy URL")
 
+// ErrInvalidTimeout is returned by Build when the timeout is negative.
+var ErrInvalidTimeout = errors.New("invalid timeout")
+
 // ErrInvalidCACertificate is returned by TransportOptionsBuilder.Build when the
 // CA certificate file cannot be read or contains no PEM certificate. Match it
 // with errors.Is.
@@ -274,6 +277,9 @@ func (b *TransportOptionsBuilder) InjectRequestID(val bool) *TransportOptionsBui
 func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 	if b.proxyErr != nil {
 		return nil, b.proxyErr
+	}
+	if b.timeout != nil && *b.timeout < 0 {
+		return nil, fmt.Errorf("%w: must not be negative: %d", ErrInvalidTimeout, *b.timeout)
 	}
 	var caCertPool *x509.CertPool
 	if b.caCertPath != "" {

@@ -84,6 +84,11 @@ class TestTransportOptions:
         assert opts.follow_redirects is True
         assert opts.max_redirects is None
 
+    def test_negative_timeout_raises_value_error(self) -> None:
+        with pytest.raises(ValueError):
+            TransportOptions.builder().timeout(-1)
+        assert TransportOptions.builder().timeout(0).build().timeout == 0
+
     def test_invalid_proxy_url_throws_exception(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             TransportOptions.builder().proxy("not-a-url").build()

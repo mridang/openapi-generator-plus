@@ -216,6 +216,13 @@ public sealed class TransportOptionsBuilder
     /// <returns>This builder.</returns>
     public TransportOptionsBuilder Timeout(int? timeout)
     {
+        if (timeout is < 0)
+        {
+            throw new ArgumentException(
+                $"Invalid timeout (must not be negative): {timeout}",
+                nameof(timeout)
+            );
+        }
         _timeout = timeout;
         return this;
     }

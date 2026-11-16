@@ -135,6 +135,15 @@ class TransportOptionsTest {
   }
 
   @Test
+  @DisplayName("a negative timeout throws IllegalArgumentException")
+  void negativeTimeoutThrowsException() {
+    assertThrowsExactly(
+        IllegalArgumentException.class, () -> TransportOptions.builder().timeout(-1));
+    // Zero and null stay valid: zero is a zero-length deadline, null means none.
+    assertEquals(0, TransportOptions.builder().timeout(0).build().getTimeout());
+  }
+
+  @Test
   @DisplayName("invalid proxy URL throws IllegalArgumentException")
   void invalidProxyUrlThrowsException() {
     IllegalArgumentException ex =

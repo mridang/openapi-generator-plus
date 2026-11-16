@@ -122,6 +122,13 @@ public class TransportOptionsTest
     }
 
     [Fact]
+    public void NegativeTimeoutThrowsException()
+    {
+        Assert.Throws<ArgumentException>(() => TransportOptions.Builder().Timeout(-1));
+        Assert.Equal(0, TransportOptions.Builder().Timeout(0).Build().Timeout);
+    }
+
+    [Fact]
     public void InvalidProxyUrlThrowsException()
     {
         var ex = Assert.Throws<ArgumentException>(() =>

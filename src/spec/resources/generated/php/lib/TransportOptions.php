@@ -68,6 +68,9 @@ final class TransportOptions
         public readonly bool $injectRequestId = false,
     ) {
         self::assertValidProxy($proxy);
+        if ($timeout !== null && $timeout < 0) {
+            throw new \InvalidArgumentException("Invalid timeout (must not be negative): $timeout");
+        }
     }
 
     /**

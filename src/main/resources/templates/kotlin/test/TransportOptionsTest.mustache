@@ -175,6 +175,15 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("a negative timeout is rejected")
+        fun negativeTimeoutIsRejected() {
+            assertThrowsExactly(IllegalArgumentException::class.java) {
+                TransportOptions.builder().timeout(-1)
+            }
+            assertEquals(0L, TransportOptions.builder().timeout(0).build().timeout)
+        }
+
+        @Test
         @DisplayName("a proxy URL with an unterminated IPv6 literal is rejected")
         fun proxyUrlWithAnUnterminatedIpv6LiteralIsRejected() {
             for (proxy in listOf("http://[::1:3128", "http://user@[::1:3128")) {

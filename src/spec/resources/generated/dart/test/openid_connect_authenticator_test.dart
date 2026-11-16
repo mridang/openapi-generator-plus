@@ -440,7 +440,7 @@ void main() {
     });
 
     test(
-      'SsoAuthAuthenticator discovers from the declared OpenID Connect URL',
+      'SsoAuthAuthenticator discovers from the declared OpenID Connect URL and requests the openid scope',
       () async {
         final client = _FakeApiClient();
         client.enqueue(document);
@@ -461,7 +461,7 @@ void main() {
         expect(
           url,
           equals(
-            'https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback',
+            'https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=openid',
           ),
         );
       },

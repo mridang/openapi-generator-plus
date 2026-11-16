@@ -98,6 +98,12 @@ test('follow redirects defaults to true with null max redirects', function (): v
     expect($opts->maxRedirects)->toBeNull();
 });
 
+test('a negative timeout throws exception', function (): void {
+    expect(fn () => TransportOptions::builder()->timeout(-1)->build())
+        ->toThrow(\InvalidArgumentException::class);
+    expect(TransportOptions::builder()->timeout(0)->build()->timeout)->toBe(0);
+});
+
 test('invalid proxy url throws exception', function (): void {
     // A bad proxy URL is a configuration mistake, not an SDK error.
     expect(fn () => TransportOptions::builder()->proxy('not-a-url')->build())

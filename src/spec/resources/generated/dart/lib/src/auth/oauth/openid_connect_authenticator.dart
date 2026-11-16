@@ -61,7 +61,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
        _clientId = clientId,
        _clientSecret = clientSecret,
        _redirectUri = redirectUri,
-       _scopes = scopes;
+       _scopes = ['openid', ...scopes.where((s) => s != 'openid')];
 
   @override
   String host() => _host;

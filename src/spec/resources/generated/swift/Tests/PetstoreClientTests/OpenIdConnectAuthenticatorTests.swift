@@ -352,7 +352,7 @@ import Testing
       redirectUri: "https://app.example.com/cb")
     #expect(
       String(describing: auth)
-        == "SsoAuthAuthenticator(host: https://api.example.com, openIDConnectURL: https://auth.example.com/.well-known/openid-configuration, clientID: cid, clientSecret: ***, redirectURI: https://app.example.com/cb, scopes: [])"
+        == "SsoAuthAuthenticator(host: https://api.example.com, openIDConnectURL: https://auth.example.com/.well-known/openid-configuration, clientID: cid, clientSecret: ***, redirectURI: https://app.example.com/cb, scopes: [\"openid\"])"
     )
   }
 }

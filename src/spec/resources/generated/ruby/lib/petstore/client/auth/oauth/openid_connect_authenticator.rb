@@ -42,7 +42,8 @@ module Petstore::Client
           @client_id = client_id
           @client_secret = client_secret
           @redirect_uri = redirect_uri
-          @scopes = scopes.freeze
+          # OpenID Connect Core 3.1.2.1: the scope parameter must contain 'openid'.
+          @scopes = (['openid'] + scopes.reject { |s| s == 'openid' }).freeze
           @api_client = nil
           @delegate = nil
           @discovery_expiry = Time.at(0)

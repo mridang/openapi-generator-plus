@@ -73,8 +73,20 @@ func NewOpenIdConnectAuthenticator(host, openIDConnectURL, clientID, clientSecre
 		clientID:         clientID,
 		clientSecret:     clientSecret,
 		redirectURI:      redirectURI,
-		scopes:           scopes,
+		scopes:           withOpenIDScope(scopes),
 	}
+}
+
+// withOpenIDScope puts "openid" first and drops any repeat: OpenID Connect Core 3.1.2.1
+// requires the scope parameter to contain it.
+func withOpenIDScope(scopes []string) []string {
+	result := []string{"openid"}
+	for _, s := range scopes {
+		if s != "openid" {
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 // Host returns the API base URL.

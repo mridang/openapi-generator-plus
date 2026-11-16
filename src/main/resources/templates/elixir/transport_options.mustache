@@ -100,12 +100,17 @@ defmodule {{moduleName}}.TransportOptions do
 
   ## Raises
 
-    `ArgumentError` if the proxy URL is not a valid URL with an http or https scheme and a host.
+    `ArgumentError` if the proxy URL is not a valid URL with an http or https scheme and a host,
+    or if `:timeout` is negative.
 
   """
   @spec new(keyword()) :: t()
   def new(opts \\ []) do
     result = struct!(__MODULE__, opts)
+
+    if is_integer(result.timeout) and result.timeout < 0 do
+      raise ArgumentError, "Invalid timeout (must not be negative): #{result.timeout}"
+    end
 
     if result.proxy do
       parsed = URI.parse(result.proxy)

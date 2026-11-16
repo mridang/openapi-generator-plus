@@ -73,7 +73,8 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
         self._client_id = client_id
         self._client_secret = client_secret
         self._redirect_uri = redirect_uri
-        self._scopes = tuple(scopes)
+        # OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid".
+        self._scopes = tuple(["openid", *(s for s in scopes if s != "openid")])
         self._api_client: Optional[ApiClient] = None
         self._delegate: Optional[OAuth2AuthorizationCodeAuthenticator] = None
         self._discovery_expiry: float = 0.0

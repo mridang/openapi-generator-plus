@@ -268,6 +268,9 @@ public final class TransportOptions {
      * @return this builder
      */
     public Builder timeout(@Nullable Integer timeout) {
+      if (timeout != null && timeout < 0) {
+        throw new IllegalArgumentException("Invalid timeout (must not be negative): " + timeout);
+      }
       this.timeout = timeout;
       return this;
     }

@@ -70,7 +70,8 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
         _clientId = clientId;
         _clientSecret = clientSecret;
         _redirectUri = redirectUri;
-        _scopes = [.. scopes];
+        /* OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid". */
+        _scopes = ["openid", .. scopes.Where(s => s != "openid")];
     }
 
     /// <inheritdoc/>

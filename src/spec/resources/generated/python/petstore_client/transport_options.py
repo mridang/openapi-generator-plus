@@ -220,6 +220,8 @@ class TransportOptionsBuilder:
         Returns:
             This builder.
         """
+        if timeout is not None and timeout < 0:
+            raise ValueError(f"Invalid timeout (must not be negative): {timeout}")
         self._timeout = timeout
         return self
 

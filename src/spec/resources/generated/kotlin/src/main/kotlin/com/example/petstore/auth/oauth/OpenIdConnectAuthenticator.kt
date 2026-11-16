@@ -44,8 +44,11 @@ open class OpenIdConnectAuthenticator(
     private val clientId: String,
     private val clientSecret: String,
     private val redirectUri: String,
-    private val scopes: List<String>,
+    scopes: List<String>,
 ) : HttpAwareAuthenticator {
+    /** OpenID Connect Core 3.1.2.1: the scope parameter must contain `openid`. */
+    private val scopes: List<String> = listOf("openid") + scopes.filter { it != "openid" }
+
     private val json = Json { ignoreUnknownKeys = true }
 
     @Volatile

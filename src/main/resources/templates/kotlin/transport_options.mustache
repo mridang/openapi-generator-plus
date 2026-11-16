@@ -155,7 +155,10 @@ class TransportOptions private constructor(
          * @param timeout timeout in milliseconds, or `null` for no timeout
          * @return this builder
          */
-        fun timeout(timeout: Long?): Builder = apply { this.timeout = timeout }
+        fun timeout(timeout: Long?): Builder = apply {
+            require(timeout == null || timeout >= 0) { "Invalid timeout (must not be negative): $timeout" }
+            this.timeout = timeout
+        }
 
         /**
          * Enable or disable automatic redirect following.

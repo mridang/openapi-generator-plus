@@ -367,7 +367,7 @@ public sealed class ClientTest : IDisposable
             authorizeUrl,
             StringComparison.Ordinal
         );
-        Assert.DoesNotContain("scope=", authorizeUrl, StringComparison.Ordinal);
+        Assert.Contains("scope=openid", authorizeUrl, StringComparison.Ordinal);
     }
 
     private sealed class ScriptedApiClient : IApiClient

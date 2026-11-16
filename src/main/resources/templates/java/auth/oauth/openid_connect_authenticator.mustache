@@ -66,7 +66,11 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
         this.clientId         = clientId;
         this.clientSecret     = clientSecret;
         this.redirectUri      = redirectUri;
-        this.scopes           = List.copyOf(scopes);
+        /* OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid". */
+        this.scopes           = java.util.stream.Stream.concat(
+                java.util.stream.Stream.of("openid"),
+                scopes.stream().filter(s -> !"openid".equals(s)))
+                .collect(java.util.stream.Collectors.toUnmodifiableList());
     }
 
     @Override

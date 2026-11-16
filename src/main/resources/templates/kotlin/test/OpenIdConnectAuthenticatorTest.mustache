@@ -387,7 +387,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun generatedSchemeWrapperDiscoversFromItsSpecUrlWithoutScopes() {
+    fun generatedSchemeWrapperDiscoversFromItsSpecUrlAndSendsTheOpenIdScope() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"))
 
@@ -400,7 +400,7 @@ class OpenIdConnectAuthenticatorTest {
         assertEquals("https://auth.example.com/.well-known/openid-configuration", client.lastUrl)
         assertEquals(
             "https://auth.example.com/authorize?response_type=code&client_id=cid" +
-                "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback",
+                "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=openid",
             url,
         )
     }

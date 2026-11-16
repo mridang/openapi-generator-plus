@@ -93,7 +93,8 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
       client_id: client_id,
       client_secret: client_secret,
       redirect_uri: redirect_uri,
-      scopes: scopes,
+      # OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid".
+      scopes: ["openid" | Enum.reject(scopes, &(&1 == "openid"))],
       api_client: nil,
       delegate: nil,
       discovery_expiry: 0,

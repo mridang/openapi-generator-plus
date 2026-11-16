@@ -102,7 +102,12 @@ case "$cmd" in
       done
       specs="$(printf '%s*Spec,' "$@")"
       gens="$(printf 'Generate%sClientTest,' "$@")"
-      run_step verify "$m" -B verify "-Dtest=${gens%,}" "-Dit.test=${specs%,}" -DfailIfNoTests=false
+      # Focused runs stay modest so the machine is not oversubscribed: fewer generators and
+      # formatters at once than the full unit-test phase.
+      run_step verify "$m" -B verify "-Dtest=${gens%,}" "-Dit.test=${specs%,}" -DfailIfNoTests=false \
+        -Dformatter.parallelism=2 \
+        -Djunit.jupiter.execution.parallel.config.fixed.parallelism=3 \
+        -Djunit.jupiter.execution.parallel.config.fixed.max-pool-size=3
     fi
     # go.mod and go.sum follow upstream module releases, so they drift without any change
     # here; everything else regenerated must match what is committed.

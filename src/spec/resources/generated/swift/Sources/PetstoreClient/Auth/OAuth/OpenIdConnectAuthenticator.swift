@@ -44,7 +44,8 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     self.clientID = clientID
     self.clientSecret = clientSecret
     self.redirectURI = redirectURI
-    self.scopes = scopes
+    /* OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid". */
+    self.scopes = ["openid"] + scopes.filter { $0 != "openid" }
     super.init()
   }
 

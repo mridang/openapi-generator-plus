@@ -362,7 +362,7 @@ class TestOidcAuthorizationUrl:
 
 
 class TestSsoAuthWrapper:
-    def test_discovers_from_the_spec_url_and_requests_no_scope(self) -> None:
+    def test_discovers_from_the_spec_url_and_requests_the_openid_scope(self) -> None:
         from petstore_client.auth.oauth.sso_auth_authenticator import (
             SsoAuthAuthenticator,
         )
@@ -375,7 +375,7 @@ class TestSsoAuthWrapper:
 
         assert auth.build_authorization_url() == (
             "https://auth.example.com/authorize?response_type=code&client_id=cid"
-            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb&scope=openid"
         )
         assert mock_client.send_request.call_args[0][1] == (
             "https://auth.example.com/.well-known/openid-configuration"

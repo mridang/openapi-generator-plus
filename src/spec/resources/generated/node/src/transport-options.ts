@@ -204,6 +204,11 @@ export class TransportOptionsBuilder {
    * @returns this builder
    */
   timeout(timeout: number | null): this {
+    if (timeout !== null && timeout < 0) {
+      throw new RangeError(
+        `Invalid timeout (must not be negative): ${timeout}`,
+      );
+    }
     this._timeout = timeout;
     return this;
   }

@@ -287,7 +287,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void schemeWrapperDiscoversFromTheSpecUrlAndSendsNoScopeWhenTheSpecHasNone() {
+  void schemeWrapperDiscoversFromTheSpecUrlAndSendsTheOpenIdScopeWhenTheSpecHasNone() {
     AtomicReference<String> capturedUrl = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -305,7 +305,7 @@ class OpenIdConnectAuthenticatorTest {
     String url = auth.buildAuthorizationUrl(null);
 
     assertEquals("https://auth.example.com/.well-known/openid-configuration", capturedUrl.get());
-    assertFalse(url.contains("scope="), url);
+    assertTrue(url.contains("scope=openid"), url);
   }
 
   @org.junit.jupiter.params.ParameterizedTest

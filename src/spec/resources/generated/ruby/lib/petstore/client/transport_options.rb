@@ -163,6 +163,8 @@ module Petstore::Client
       # @param val [Integer, nil] timeout in milliseconds, or +nil+ for no timeout
       # @return [self]
       def timeout(val)
+        raise ArgumentError, "Invalid timeout (must not be negative): #{val}" if val&.negative?
+
         @timeout = val
         self
       end

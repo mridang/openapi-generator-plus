@@ -97,6 +97,11 @@ describe("TransportOptions", () => {
     expect(opts.maxRedirects).toBeNull();
   });
 
+  test("a negative timeout throws RangeError", () => {
+    expect(() => TransportOptions.builder().timeout(-1)).toThrow(RangeError);
+    expect(TransportOptions.builder().timeout(0).build().timeout).toBe(0);
+  });
+
   test("invalid proxy URL throws TypeError", () => {
     let caught: unknown;
     try {

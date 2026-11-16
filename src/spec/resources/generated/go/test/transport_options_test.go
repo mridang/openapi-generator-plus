@@ -53,6 +53,18 @@ func TestTransportOptions_ProxyDefaultsToNull(t *testing.T) {
 	}
 }
 
+func TestTransportOptions_NegativeTimeoutIsRejected(t *testing.T) {
+	t.Parallel()
+	negative := -1
+	if _, err := petstore.NewTransportOptionsBuilder().Timeout(&negative).Build(); !errors.Is(err, petstore.ErrInvalidTimeout) {
+		t.Fatalf("expected ErrInvalidTimeout, got %v", err)
+	}
+	zero := 0
+	if _, err := petstore.NewTransportOptionsBuilder().Timeout(&zero).Build(); err != nil {
+		t.Fatalf("a zero timeout must stay valid, got %v", err)
+	}
+}
+
 func TestTransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()

@@ -80,7 +80,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
         $this->redirectUri = $redirectUri;
-        $this->scopes = $scopes;
+        /* OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid". */
+        $this->scopes = array_values(array_unique(array_merge(['openid'], $scopes)));
     }
 
     /**
