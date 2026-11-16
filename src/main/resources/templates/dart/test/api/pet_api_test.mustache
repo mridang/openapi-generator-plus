@@ -1,5 +1,6 @@
 {{>api_info}}
 {{#generateTests}}
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -1033,6 +1034,44 @@ void main() {
 
         expect(capturedQuery, contains('2ndPage=2'));
         expect(capturedQuery, isNot(contains('n2ndPage')));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('addPetTreatment sends the chosen anyOf variant as the request body', () async {
+      String? requestBody;
+      String? requestPath;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        requestPath = request.uri.path;
+        requestBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"drugName":"Amoxicillin","dosage":"250mg"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.addPetTreatment(
+          3,
+          PetTreatment.ofValues([
+            Medication.fromJson(
+                {'drugName': 'Amoxicillin', 'dosage': '250mg'}),
+          ]),
+          null,
+        );
+
+        expect(requestPath, equals('/pet/3/treatment'));
+        expect(jsonDecode(requestBody!),
+            equals({'drugName': 'Amoxicillin', 'dosage': '250mg'}));
+        expect(result.actualInstance, isA<Medication>());
       } finally {
         await server.close();
       }
