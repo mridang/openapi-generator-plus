@@ -1437,3 +1437,30 @@ test('a multi server operation uses the chosen server and the configured base ur
     }
     expect($captured->url)->toStartWith('http://localhost:9999/');
 });
+
+// -- fixture servers --
+
+test('the mirror operation server resolves reserved characters raw', function (string $channel, string $expected): void {
+    $server = new \{{invokerPackage}}\Api\GetMultiServerPetInfoServerMirror(
+        \{{invokerPackage}}\Api\GetMultiServerPetInfoServerMirrorRegion::EU,
+        \{{invokerPackage}}\Api\GetMultiServerPetInfoServerChannel::from($channel)
+    );
+
+    expect($server->getUrl())->toBe($expected);
+})->with([
+    'ampersand' => ['a&b', 'https://eu.mirror.example.com/a&b/v1'],
+    'apostrophe' => ["it's", "https://eu.mirror.example.com/it's/v1"],
+]);
+
+test('the third global server round trips its url, description and variable', function (): void {
+    $server = \{{invokerPackage}}\Servers::server2();
+    $tenant = $server->variables['tenant'];
+
+    expect($server->urlTemplate)->toBe('https://{tenant}.example.com/api');
+    expect($server->description)->toBe('Bob\'s "sandbox" & co: $5 #{x} a*/b');
+    expect($tenant->defaultValue)->toBe("o'neil");
+    expect($tenant->description)->toBe('Tenant\'s "id"');
+    expect($tenant->enumValues)->toBe(["o'neil", 'a&b']);
+    expect($server->getUrl())->toBe("https://o'neil.example.com/api");
+    expect($server->getUrl(['tenant' => 'a&b']))->toBe('https://a&b.example.com/api');
+});

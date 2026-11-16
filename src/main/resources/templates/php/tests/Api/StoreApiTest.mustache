@@ -318,3 +318,86 @@ test('create account sends the writeOnly password as an unauthenticated json bod
     expect($captured->body)->toContain('"username":"ada"');
     expect($captured->body)->toContain('"password":"hunter2"');
 });
+
+// -- response-shape operations: the generated method picks the return type --
+
+test('get swatch decodes a bare enum', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '"red"');
+
+    expect($api->getSwatch())->toBe(\{{invokerPackage}}\Models\Swatch::RED);
+});
+
+test('get swatch groups decodes a list of string keyed enum maps', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '[{"a":"red","b":"blue"},{"c":"green"}]');
+
+    $groups = $api->getSwatchGroups();
+
+    expect($groups)->toHaveCount(2);
+    expect($groups[0]->get('a'))->toBe(\{{invokerPackage}}\Models\Swatch::RED);
+    expect($groups[0]->get('b'))->toBe(\{{invokerPackage}}\Models\Swatch::BLUE);
+    expect($groups[1]->get('c'))->toBe(\{{invokerPackage}}\Models\Swatch::GREEN);
+});
+
+test('get timestamp groups decodes a list of string keyed date-time maps', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '[{"at":"2024-01-15T10:00:00Z"}]');
+
+    $groups = $api->getTimestampGroups();
+
+    expect($groups)->toHaveCount(1);
+    $at = $groups[0]->get('at');
+    expect($at)->toBeInstanceOf(\DateTime::class);
+    assert($at instanceof \DateTime);
+    expect($at->getTimestamp())->toBe(1705312800);
+});
+
+test('get department decodes the mutually recursive pair', function (): void {
+    $api = newStoreApiForMock(
+        200,
+        'application/json',
+        '{"name":"Research","lead":{"name":"Ada","department":{"name":"Inner"}}}'
+    );
+
+    $department = $api->getDepartment();
+
+    expect($department->name)->toBe('Research');
+    expect($department->lead)->toBeInstanceOf(\{{invokerPackage}}\Models\Employee::class);
+    expect($department->lead?->name)->toBe('Ada');
+    expect($department->lead?->department)->toBeInstanceOf(\{{invokerPackage}}\Models\Department::class);
+    expect($department->lead?->department?->name)->toBe('Inner');
+});
+
+test('get tree decodes the self recursive node', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '{"value":"root","child":{"value":"leaf"}}');
+
+    $tree = $api->getTree();
+
+    expect($tree->value)->toBe('root');
+    expect($tree->child?->value)->toBe('leaf');
+    expect($tree->child?->child)->toBeNull();
+});
+
+test('get defaults keeps the schema defaults for absent fields', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '{"retries":9}');
+
+    $defaults = $api->getDefaults();
+
+    expect($defaults->retries)->toBe(9);
+    expect($defaults->ratio)->toBe(1.5);
+    expect($defaults->ceiling)->toBe(9000000000);
+    expect($defaults->label)->toBe('untitled');
+});
+
+test('get stock item decodes the integer backed enum and the nested arrays', function (): void {
+    $api = newStoreApiForMock(
+        200,
+        'application/json',
+        '{"priority":2,"availability":"on-hold","matrix":[[1,2],[3]]}'
+    );
+
+    $item = $api->getStockItem();
+
+    expect($item->priority)->toBe(\{{invokerPackage}}\Models\Priority::NUMBER_2);
+    expect($item->availability)->toBe(\{{invokerPackage}}\Models\Availability::ON_HOLD);
+    expect($item->matrix?->toArray()[0]->toArray())->toBe([1, 2]);
+    expect($item->matrix?->toArray()[1]->toArray())->toBe([3]);
+});

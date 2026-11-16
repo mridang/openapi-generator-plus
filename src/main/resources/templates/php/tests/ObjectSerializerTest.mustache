@@ -1358,6 +1358,38 @@ test('a prefixItems array of mixed element types round trips in order', function
     expect(ObjectSerializer::serialize($pet))->toContain('"location":[1.5,2.5,"here"]');
 });
 
+test('every separator enum value decodes to its own case and re-encodes', function (): void {
+    $cases = [];
+    foreach ([' ', '@@', 'a-b', 'a_b'] as $wire) {
+        $case = ObjectSerializer::deserialize((string) json_encode($wire), \{{modelPackage}}\Separator::class);
+        expect($case)->toBeInstanceOf(\{{modelPackage}}\Separator::class);
+        assert($case instanceof \{{modelPackage}}\Separator);
+        expect(ObjectSerializer::serialize($case))->toBe((string) json_encode($wire));
+        $cases[] = $case->name;
+    }
+
+    expect(array_unique($cases))->toHaveCount(4);
+});
+
+test('values beyond the schema constraints are accepted and round trip', function (): void {
+    /** @var Pet $pet */
+    $pet = ObjectSerializer::deserialize('{"name":"n","photoUrls":[],"nickname":"ZZZZZZZZZZ"}', Pet::class);
+    expect($pet->nickname)->toBe('ZZZZZZZZZZ');
+    expect(ObjectSerializer::serialize($pet))->toContain('"nickname":"ZZZZZZZZZZ"');
+
+    /** @var Order $order */
+    $order = ObjectSerializer::deserialize('{"quantity":500}', Order::class);
+    expect($order->quantity)->toBe(500);
+});
+
+test('a pattern constrained property accepts and round trips a matching value', function (): void {
+    /** @var EdgeCases $model */
+    $model = ObjectSerializer::deserialize('{"slug":"12/ab"}', EdgeCases::class);
+
+    expect($model->slug)->toBe('12/ab');
+    expect(ObjectSerializer::serialize($model))->toContain('"slug":"12/ab"');
+});
+
 test('a duplicate object key resolves to the last value', function (): void {
     /** @var Category $category */
     $category = ObjectSerializer::deserialize('{"id":1,"id":2,"name":"Dogs"}', Category::class);
