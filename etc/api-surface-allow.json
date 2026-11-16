@@ -1172,6 +1172,179 @@
    "aspect": "params",
    "languages": ["elixir","rust","dart"],
    "reason": "internal helper that the generated api classes call; elixir passes the trailing arguments as options and rust as a parameter struct"
+  },
+  {
+   "element": "servervariable.<ctor>",
+   "aspect": "ctor-optional",
+   "languages": ["csharp"],
+   "reason": "a csharp record parameter default must be a compile-time constant, so the optional description and values are provided by overloaded constructors; a call site is the same"
+  },
+  {
+   "element": ["oauth2authorizationcodeauthenticator.<ctor>","oauth2clientcredentialsauthenticator.<ctor>","oauth2implicitauthenticator.<ctor>","oauth2passwordauthenticator.<ctor>","openidconnectauthenticator.<ctor>"],
+   "aspect": "ctor-optional",
+   "languages": ["swift","dart","python"],
+   "reason": "these languages default the optional scopes (and refresh URL and client auth method) with default arguments; the languages without default arguments take them in an overload, so every call that works in one works in the others"
+  },
+  {
+   "element": "oauth2tokenerror.<ctor>",
+   "aspect": "ctor",
+   "languages": ["java","kotlin"],
+   "reason": "java and kotlin exceptions take an optional cause for chaining, which every SDK also supports through its own mechanism"
+  },
+  {
+   "element": ["client.<ctor>","defaultapiclient.<ctor>","abstractapiclient.<ctor>"],
+   "aspect": "ctor",
+   "languages": ["php","python","dart"],
+   "reason": "the extra trailing argument injects the HTTP client (PSR-18 in php, a urllib3 pool in python, an http client in dart) for tests and custom transports; the other SDKs inject it through a different constructor or builder"
+  },
+  {
+   "element": "client.<ctor>",
+   "aspect": "params",
+   "languages": ["php"],
+   "reason": "the extra trailing argument injects the PSR-18 HTTP client"
+  },
+  {
+   "element": ["client.withtoken","client.withauthenticator"],
+   "aspect": "params",
+   "languages": ["php"],
+   "reason": "the extra trailing argument injects the PSR-18 HTTP client"
+  },
+  {
+   "element": "*.setapiclient",
+   "aspect": "params",
+   "languages": ["swift","dart","ruby"],
+   "reason": "setApiClient takes its one argument positionally in these languages, so the parameter name is not part of the call"
+  },
+  {
+   "element": "*.setapiclient",
+   "aspect": "optional",
+   "languages": ["elixir"],
+   "reason": "elixir passes the client as the one positional argument; the surface check reads its unnamed argument as optional"
+  },
+  {
+   "element": ["petapi.*","storeapi.*"],
+   "aspect": "optional",
+   "languages": ["elixir"],
+   "reason": "elixir folds the optional server and content-type selectors into one trailing opts keyword list"
+  },
+  {
+   "element": "oauth2tokenmanager.getaccesstoken",
+   "aspect": "optional",
+   "languages": ["elixir"],
+   "reason": "elixir folds the optional refresh URL into a trailing opts keyword list"
+  },
+  {
+   "element": ["storeapi.placeorder","storeapi.placeorderwithhttpinfo","oauth2tokenmanager.exchange","oauth2authorizationcodeauthenticator.buildauthorizationurl","oauth2implicitauthenticator.buildauthorizationurl","openidconnectauthenticator.buildauthorizationurl"],
+   "aspect": "optional",
+   "languages": ["java"],
+   "reason": "java has no optional arguments: the argument is annotated @Nullable and the caller passes null when it has no value"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": ["swift","python","ruby"],
+   "reason": "fromResponse takes its three arguments positionally in every call; only the parameter names differ"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "optional",
+   "languages": ["elixir"],
+   "reason": "elixir's from_response takes the same three positional arguments; the names differ"
+  },
+  {
+   "element": "authenticator.isnoauth",
+   "aspect": "*",
+   "languages": ["node","dart"],
+   "reason": "internal type-guard helper used by the generated code to tell an unauthenticated operation from an authenticated one; the other SDKs keep this check private or inline"
+  },
+  {
+   "element": "httpawareauthenticator.ishttpawareauthenticator",
+   "aspect": "member",
+   "languages": ["node"],
+   "value": "extra*",
+   "reason": "node uses a type-guard function where the other SDKs use an interface check; it is not part of the call surface"
+  },
+  {
+   "element": ["configuration.fromserver","transportoptions.assertvalidproxy","transportoptions.validateproxy","transportoptionsbuilder.useragentopt","oauth2authorizationcodeauthenticator.authheadersorthrow","apierror.detailmessage","apierror.registerstatuserror","apierror.withsource","uploadpetdocumentoptions.primary"],
+   "aspect": "member",
+   "languages": ["elixir","php","ruby","rust","swift","node"],
+   "value": "extra*",
+   "reason": "language-specific helper on a type that already has the shared surface: a validation helper the builder calls, a Result-style accessor, or a registration hook; it adds no capability that another SDK lacks"
+  },
+  {
+   "element": ["baseapi.config","petapi.config","storeapi.config"],
+   "aspect": "member",
+   "languages": ["ruby"],
+   "value": "extra*",
+   "reason": "ruby exposes the API-level configuration as a reader the subclasses use, since it has no protected visibility across the generated files"
+  },
+  {
+   "element": ["baseapi.invokeapi","baseapi.invokeapiforresult","baseapi.invokeapiforemptyresult","baseapi.buildcollectionparam"],
+   "aspect": "member",
+   "languages": ["elixir","dart","rust"],
+   "value": "extra*",
+   "reason": "helper that the generated api classes call; these languages have no protected visibility across files"
+  },
+  {
+   "element": ["apierror.cause","networkerror.cause","networktimeouterror.cause"],
+   "aspect": "member",
+   "languages": ["dart"],
+   "value": "extra*",
+   "reason": "dart has no built-in exception chaining, so the wrapped error is a field called cause"
+  },
+  {
+   "element": ["networkerror.<ctor>","networktimeouterror.<ctor>"],
+   "aspect": "ctor-optional",
+   "languages": ["dart"],
+   "reason": "dart exceptions take the cause as an optional named argument"
+  },
+  {
+   "element": "openapierror.<ctor>",
+   "aspect": "ctor",
+   "languages": ["dart"],
+   "reason": "openapierror is the sealed base class in dart; the subclasses carry the message and cause"
+  },
+  {
+   "element": "oauth2authorizationcodeauthenticator.<ctor>",
+   "aspect": "ctor",
+   "languages": ["ruby","node"],
+   "reason": "the trailing token manager argument hands an existing session to the rediscovered OpenID Connect delegate; java and kotlin do it with a package-private constructor"
+  },
+  {
+   "element": "apierror.<ctor>",
+   "aspect": "ctor",
+   "languages": ["rust"],
+   "reason": "rust parses the error body itself and attaches the cause with with_source, so its constructor takes only the status, message, headers and body"
+  },
+  {
+   "element": ["abstractapiclient","allowreservedvalue","petstore","valueserializerallowreservedvalue"],
+   "aspect": "type",
+   "languages": ["node","php","dart","python","ruby"],
+   "reason": "internal support type: a shared base class or marker value that the other SDKs inline or hide, not a type users construct"
+  },
+  {
+   "element": "oauth2tokenerror",
+   "aspect": "kind",
+   "languages": ["swift"],
+   "reason": "swift models the OAuth2 token error as an enum, which is how its error types are written"
+  },
+  {
+   "element": "iso8601duration.formatprotobufduration",
+   "aspect": "params",
+   "languages": ["swift"],
+   "reason": "positional argument; only the parameter name differs"
+  },
+  {
+   "element": ["configuration.<ctor>","transportoptions.<ctor>"],
+   "aspect": "ctor-optional",
+   "languages": ["ruby"],
+   "reason": "these value objects are built through their builder, which supplies every default; their keyword constructor takes all values"
+  },
+  {
+   "element": "uploadpetdocumentoptions.isprimary",
+   "aspect": "params",
+   "languages": ["rust"],
+   "reason": "rust options are a struct with a builder; the isPrimary builder method takes the value where the other SDKs expose a plain field"
   }
  ]
 }

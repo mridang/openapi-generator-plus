@@ -89,8 +89,11 @@ case "$cmd" in
     elif [ "$#" -eq 0 ]; then
       run_step verify "$m" -B verify
     else
+      # Focused run: only the named languages' generators and specs. The unit tests and the
+      # other generators are covered by the full quick gate that runs once before a push.
       specs="$(printf '%s*Spec,' "$@")"
-      run_step verify "$m" -B verify "-Dit.test=${specs%,}" -DfailIfNoTests=false
+      gens="$(printf 'Generate%sClientTest,' "$@")"
+      run_step verify "$m" -B verify "-Dtest=${gens%,}" "-Dit.test=${specs%,}" -DfailIfNoTests=false
     fi
     # go.mod and go.sum follow upstream module releases, so they drift without any change
     # here; everything else regenerated must match what is committed.

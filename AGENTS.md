@@ -23,6 +23,10 @@ rules hold for every session and every agent, however the work starts:
   states why in its `reason`. The agent workflow below cost about 650k tokens per landed item with
   cheap models and landed nothing in its last round (`etc/parity-findings.py tokens`), so use it only
   for a hard item that spans all twelve languages, and then with Sonnet language agents.
+- **Never stop on a promise.** A turn ends on a finished result, a real blocker or a question,
+  never on "starting now": the tool call goes in the same turn. Work in rounds of 30 to 50 edits,
+  then run the touched languages' specs once (`etc/ci-local.sh check <Lang...>`, about 2 minutes
+  each) and push once; CI takes about 30 minutes, so do not wait for it between rounds.
 - **Review before the PR leaves draft.** After every few batches, run one independent review of the
   cumulative diff and of every allow rule added (one Sonnet agent, or the `idiom-<lang>` agents for
   the languages touched). Harmonised means the same capabilities and behaviour, expressed the way
