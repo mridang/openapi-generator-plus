@@ -786,6 +786,13 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert defaults.greeting == "it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b"
     end
 
+    test "deserialize renders the numeric defaults as their exact typed values" do
+      defaults = {{moduleName}}.ObjectSerializer.deserialize(~s({}), "Defaults")
+      assert defaults.ratio === 1.5
+      assert defaults.scale === 0.25
+      assert defaults.ceiling === 9_000_000_000
+    end
+
     test "deserialize preserves an explicit null over the default" do
       json_str = ~s({"label":null,"retries":7})
       defaults = {{moduleName}}.ObjectSerializer.deserialize(json_str, "Defaults")

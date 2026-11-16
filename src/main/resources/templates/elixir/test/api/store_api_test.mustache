@@ -240,6 +240,123 @@ defmodule {{moduleName}}.Api.StoreApiTest do
     Agent.stop(name)
   end
 
+  # The response-shape operations: each return type is decoded by the
+  # generated function itself, so a wrong return type or a decoder that cannot
+  # handle a bare enum, a map-of-array or a recursive model fails here.
+  test "get_swatch decodes a bare enum response to its atom" do
+    {:ok, name} = StubApiClient.start(~s("blue"))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, :blue} = {{moduleName}}.Api.StoreApi.get_swatch(api)
+    assert StubApiClient.captured(name).url == "http://localhost/store/swatch"
+
+    Agent.stop(name)
+  end
+
+  test "get_swatch_groups decodes an array of maps of enums" do
+    {:ok, name} = StubApiClient.start(~s([{"a":"red"},{"b":"blue"}]))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, [%{"a" => :red}, %{"b" => :blue}]} = {{moduleName}}.Api.StoreApi.get_swatch_groups(api)
+
+    Agent.stop(name)
+  end
+
+  test "get_timestamp_groups decodes an array of maps of date-times" do
+    {:ok, name} = StubApiClient.start(~s([{"a":"2024-01-15T10:30:00Z"}]))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, [%{"a" => %DateTime{} = at}]} = {{moduleName}}.Api.StoreApi.get_timestamp_groups(api)
+    assert DateTime.compare(at, ~U[2024-01-15 10:30:00Z]) == :eq
+
+    Agent.stop(name)
+  end
+
+  test "get_department decodes the mutually recursive Department and Employee" do
+    body = ~s({"name":"eng","lead":{"name":"ann","department":{"name":"eng"}}})
+    {:ok, name} = StubApiClient.start(body)
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, %{{moduleName}}.Models.Department{name: "eng", lead: lead}} =
+             {{moduleName}}.Api.StoreApi.get_department(api)
+
+    assert %{{moduleName}}.Models.Employee{name: "ann", department: department} = lead
+    assert %{{moduleName}}.Models.Department{name: "eng"} = department
+
+    Agent.stop(name)
+  end
+
+  test "get_tree decodes the self-referential TreeNode" do
+    {:ok, name} = StubApiClient.start(~s({"value":"root","child":{"value":"leaf"}}))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, %{{moduleName}}.Models.TreeNode{value: "root", child: child}} =
+             {{moduleName}}.Api.StoreApi.get_tree(api)
+
+    assert %{{moduleName}}.Models.TreeNode{value: "leaf"} = child
+
+    Agent.stop(name)
+  end
+
+  test "get_defaults decodes an empty object with the schema defaults applied" do
+    {:ok, name} = StubApiClient.start(~s({}))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, %{{moduleName}}.Models.Defaults{retries: 3, mode: :medium}} =
+             {{moduleName}}.Api.StoreApi.get_defaults(api)
+
+    Agent.stop(name)
+  end
+
+  test "get_stock_item sends asOf as a date-time and decodes the referenced enums" do
+    {:ok, name} = StubApiClient.start(~s({"priority":1,"availability":"Sold"}))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    options = %{{moduleName}}.Api.Options.GetStockItemOptions{as_of: ~U[2024-01-15 10:30:00Z]}
+
+    assert {:ok, %{{moduleName}}.Models.StockItem{priority: :number_1, availability: :sold}} =
+             {{moduleName}}.Api.StoreApi.get_stock_item(api, options)
+
+    assert StubApiClient.captured(name).url =~ "asOf=2024-01-15T10%3A30%3A00"
+
+    Agent.stop(name)
+  end
+
+  test "get_order_by_tracking_id puts the canonical lowercase uuid in the path" do
+    {:ok, name} = StubApiClient.start(~s({"id":1}))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, %{{moduleName}}.Models.Order{id: 1}} =
+             {{moduleName}}.Api.StoreApi.get_order_by_tracking_id(api, "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
+
+    assert StubApiClient.captured(name).url ==
+             "http://localhost/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
+
+    Agent.stop(name)
+  end
+
+  test "get_order_by_tracking_id rejects a malformed uuid before sending" do
+    {:ok, name} = StubApiClient.start(~s({"id":1}))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+      {{moduleName}}.Api.StoreApi.get_order_by_tracking_id(api, "not-a-uuid")
+    end
+
+    assert StubApiClient.captured(name) == nil
+
+    Agent.stop(name)
+  end
+
   # readOnly and writeOnly have no wire effect: the writeOnly password is sent
   # and the readOnly id of the response is decoded.
   test "create_account sends the writeOnly property and decodes the readOnly one" do

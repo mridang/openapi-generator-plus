@@ -123,7 +123,7 @@ defmodule {{moduleName}}.Api.BaseApi do
       case auth do
         @no_auth -> nil
         nil -> Map.get(state, :authenticator)
-        explicit -> explicit
+        explicit -> inject_api_client(explicit, Map.get(state, :api_client))
       end
 
     query_params =
@@ -339,6 +339,20 @@ defmodule {{moduleName}}.Api.BaseApi do
       _ -> Enum.join(param, ",")
     end
   end
+
+  # A per-call authenticator never went through the client constructor, so an
+  # OAuth2 or OpenID Connect one has no transport yet and would fail with
+  # "ApiClient has not been injected". It is handed the client's transport
+  # here, like the client-level authenticator is.
+  defp inject_api_client(%{__struct__: mod} = auth, api_client) when is_map(api_client) do
+    if function_exported?(mod, :set_api_client, 2) do
+      mod.set_api_client(auth, api_client)
+    else
+      auth
+    end
+  end
+
+  defp inject_api_client(auth, _api_client), do: auth
 
   # Resolve an authenticator's credentials for the given behaviour callback
   # (:auth_headers, :query_params, or :cookie_params). Authenticators are

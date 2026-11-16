@@ -65,6 +65,43 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert String.contains?(url, "state=my-state")
     end
 
+    test "openid is always requested, prepended once and de-duplicated case-sensitively" do
+      for {given, expected} <- [
+            {[], "openid"},
+            {["profile"], "openid profile"},
+            {["profile", "openid"], "openid profile"},
+            {["openid", "openid"], "openid"},
+            {["OpenID", "profile"], "openid OpenID profile"}
+          ] do
+        fake_client = FakeApiClient.new([
+          %{{moduleName}}.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{
+              "issuer" => "https://auth.example.com",
+              "authorization_endpoint" => "https://auth.example.com/authorize",
+              "token_endpoint" => "https://auth.example.com/token"
+            })
+          }
+        ])
+
+        auth =
+          {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.new(
+            "https://api.example.com",
+            "https://auth.example.com/.well-known/openid-configuration",
+            "my-client-id",
+            "my-client-secret",
+            "https://app.example.com/callback",
+            given
+          )
+
+        auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+        url = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+
+        scope = url |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query() |> Map.fetch!("scope")
+        assert scope == expected
+      end
+    end
+
     test "empty state is omitted" do
       fake_client = FakeApiClient.new([
         %{{moduleName}}.ApiHttpResponse{
