@@ -326,6 +326,32 @@ Where: `skills.mustache`. Test: golden.
 Rule: the timeout message, the use-after-close message and `Authorization code must not be empty` are asserted verbatim.
 Test: `TransportOptionsTest`, `DefaultApiClientUnitTest`, `OAuth2AuthCodeAuthenticatorTest`.
 
+## Decisions taken in batch 7
+
+### One OAuth2 expiry margin, one-year ceiling, strict grammar (F854, D08)
+Rule: a token is stored expiring `min(60 s, expires_in / 2)` early and read with no second margin, so a 60 s token is reused for 30 s and a 30 s token for 15 s; tests that need an already-stale token send `expires_in` 0. `expires_in` strings match `^[0-9]+(\.[0-9]+)?$` after trimming ASCII whitespace (hex, exponent, sign, underscore, trailing dot are stale), and the parsed value and the OIDC `max-age` are clamped to 31 536 000 s before any arithmetic (an over-long digit run saturates to the ceiling).
+Where: `auth/oauth/oauth2_token_manager.mustache`, `auth/oauth/openid_connect_authenticator.mustache`. Test: `OAuth2TokenManagerTest`, `OpenIdConnectAuthenticatorTest`.
+
+### Ambient proxy variables are ignored (D74, F090)
+Rule: with no `TransportOptions::proxy` the Symfony client gets `no_proxy = '*'`, so `http_proxy`, `https_proxy`, `all_proxy` and `no_proxy` in the environment are never used (implemented in the template in batch 7; it was only described before).
+Where: `default_api_client.mustache`. Test: `DefaultApiClientTest` (dead proxy in `$_SERVER`).
+
+### A text body for a typed return is a `SerializationException` (F041, F4)
+Rule: a non-JSON text 2xx body (text/plain, XML) for any return type other than `string` or no return type throws `SerializationException` naming the Content-Type; `string` and untyped operations still get the body unchanged. Binary (non-text) bodies keep the base64 path.
+Where: `base_api.mustache`. Test: `BaseApiTest`.
+
+### Canonical serializer messages (D15, F245)
+Rule: deserialize failures read `Failed to deserialize JSON: <detail>` (no `to <class>`), and a JSON text nested past 1000 levels fails with `JSON nesting depth <N> exceeds limit 1000` from an SDK pre-scan that only runs when the text holds more than 1000 openers and ignores brackets inside strings.
+Where: `object_serializer.mustache`. Test: `ObjectSerializerTest`.
+
+### Proxy errors do not echo credentials (D79, F424)
+Rule: the three `Invalid proxy URL` messages render the URL with any userinfo replaced by `***@`.
+Where: `transport_options.mustache`. Test: `TransportOptionsTest`.
+
+### Symfony constraint floor (F51)
+Rule: Symfony components are required as `^6.4|^7.4` (6.0 to 6.3 are end of life). Symfony 8 is not admitted until the templates and the php spec are verified against it; the PSR-18 transport already lets an application avoid the Symfony client.
+Where: `composer.mustache`.
+
 ## Known limitations and out of scope
 
 - Model fields of `format: byte` hold the base64 text (`?string`), with raw bytes through `getXAsBytes()` and `setXFromBytes()`; the other eleven hold native bytes. Decode validation is decided (D58) but the representation difference is deferred (F136), so the root "native bytes in memory in all 12" sentence is false for php.
