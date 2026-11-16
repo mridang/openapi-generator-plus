@@ -480,8 +480,10 @@ public struct {{classname}}: Codable, @unchecked Sendable {
     /// Wraps every retained variant of this anyOf, in declaration order. Mirrors
     /// the multi-instance constructors the other SDKs expose (e.g. Java's
     /// `List<Object>` form and Kotlin's `matchedInstances = …`) so a co-satisfying
-    /// value can be built in code, not only decoded.
-    public init(_ values: [Any]) {
+    /// value can be built in code, not only decoded. An empty list wraps no variant,
+    /// so it yields `nil` instead of an instance that traps when it is read.
+    public init?(_ values: [Any]) {
+        guard !values.isEmpty else { return nil }
         self._values = values
     }
 

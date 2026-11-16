@@ -239,6 +239,11 @@ import Testing
     #expect(roundTripped?["durationMinutes"] as? Int == 45)
   }
 
+  /// An anyOf wrapper built from no variants is refused, because reading it would trap.
+  @Test func testPetTreatmentFromNoVariantsIsNil() {
+    #expect(PetTreatment([]) == nil)
+  }
+
   /// anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
   /// Retaining both members with DIFFERENT `notes` values must encode the
   /// LAST-declared member's value (Surgery) and emit `notes` exactly once —
@@ -246,7 +251,7 @@ import Testing
   @Test func testPetTreatmentSharedPropertyCollisionLastWins() throws {
     let medication = Medication(drugName: "Amoxicillin", notes: "from-medication")
     let surgery = Surgery(procedureName: "Spay", notes: "from-surgery")
-    let treatment = PetTreatment([medication, surgery])
+    let treatment = try #require(PetTreatment([medication, surgery]))
 
     let data = try JSONEncoder().encode(treatment)
     let json = String(decoding: data, as: UTF8.self)

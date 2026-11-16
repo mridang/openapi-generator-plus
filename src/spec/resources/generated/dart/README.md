@@ -75,10 +75,11 @@ dart test
 ### Decimal / `format: number` precision
 
 Dart's `jsonDecode` returns a `num` (the union of `int` and `double`).
-For JSON numbers above 2^53 the parser silently picks `double`, so
-`format: int64` values larger than 9 007 199 254 740 991 — Twitter
-/ X IDs, Snowflake IDs, Discord IDs, and similar 64-bit auto-
-increment IDs — lose precision.
+On the Dart VM (Flutter mobile and desktop, servers) an integer literal
+that fits in 64 bits stays an exact `int`, so `format: int64` values such
+as Twitter / X, Snowflake and Discord IDs are preserved. Compiled to
+JavaScript (Flutter web) `int` is a double, so integers above 2^53
+(9 007 199 254 740 991) lose precision there.
 
 `format: decimal` / `format: number` values are likewise stored as
 `double`, so monetary values lose exact decimal representation.

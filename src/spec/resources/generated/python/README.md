@@ -56,7 +56,8 @@ This SDK leans on pydantic 2's native typed surfaces:
 | ---------------------------------- | --------------------------------- |
 | `string`                           | `pydantic.StrictStr`              |
 | `integer`                          | `pydantic.StrictInt`              |
-| `number`                           | `pydantic.StrictFloat`            |
+| `number` (no format)               | `decimal.Decimal` (`JsonNumber`)  |
+| `number`, `format: float` / `double` | `pydantic.StrictFloat`          |
 | `boolean`                          | `pydantic.StrictBool`             |
 | `string`, `format: uri`            | URL-validated `str` (round-trips verbatim) |
 | `string`, `format: uri-reference`  | `pydantic.StrictStr` (may be relative) |

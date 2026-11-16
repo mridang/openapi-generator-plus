@@ -1293,7 +1293,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
   ///
   /// - Parameters:
-  ///   - requestContentType: Optional request Content-Type, chosen from the declared types (image/jpeg, image/png, application/json). Defaults to the first declared type (image/jpeg) when nil or unrecognized.
+  ///   - requestContentType: Optional request Content-Type, chosen from the declared types (image/jpeg, image/png, application/json). Defaults to the first declared type (image/jpeg) when nil; an unrecognized value throws `ConfigurationError.invalidArgument`.
   public func setPetAvatar(petId: Int64, body: Data, requestContentType: String? = nil) async throws
   {
     let result = try await setPetAvatarWithHTTPInfo(
@@ -1586,7 +1586,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
-  ///   - requestContentType: Optional request Content-Type, chosen from the declared types (multipart/form-data, application/octet-stream). Defaults to the first declared type (multipart/form-data) when nil or unrecognized.
+  ///   - requestContentType: Optional request Content-Type, chosen from the declared types (multipart/form-data, application/octet-stream). Defaults to the first declared type (multipart/form-data) when nil; an unrecognized value throws `ConfigurationError.invalidArgument`.
   public func uploadPetDocument(
     petId: Int64, options: UploadPetDocumentOptions, requestContentType: String? = nil
   ) async throws -> ApiResponse {

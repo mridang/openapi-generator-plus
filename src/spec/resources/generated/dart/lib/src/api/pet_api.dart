@@ -307,9 +307,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -405,9 +404,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -466,9 +464,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -564,9 +561,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -586,9 +582,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'documentId'
@@ -656,9 +651,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'bornOn'
@@ -852,9 +846,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -932,9 +925,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -1006,9 +998,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -1076,9 +1067,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -1159,9 +1149,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -1258,9 +1247,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'name'
@@ -1342,9 +1330,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -1414,9 +1401,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -1436,9 +1422,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'photoId'
@@ -1523,9 +1508,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -1545,9 +1529,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'asOf'
@@ -1669,9 +1652,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -1691,9 +1673,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'tagName'
@@ -1879,9 +1860,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -1946,9 +1926,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -2017,9 +1996,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -2099,9 +2077,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -2194,9 +2171,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -2272,9 +2248,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'
@@ -2370,9 +2345,8 @@ class PetApi extends BaseApi {
      * the result in a second encoder would encode it twice (a space would
      * become %2520, `a/b` would become a%252Fb). Substitute the styled
      * value directly — it is encoded exactly once. A `format: date`
-     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
-     * flows through serializeStyled like any other string with no special
-     * casing. */
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
     path = path.replaceAll(
       '{'
       'petId'

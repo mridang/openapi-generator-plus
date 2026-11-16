@@ -92,7 +92,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#consumes}}
 {{#-last}}
 {{^-first}}
-    ///   - requestContentType: Optional request Content-Type, chosen from the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type ({{vendorExtensions.op.effectiveConsumes}}) when nil or unrecognized.
+    ///   - requestContentType: Optional request Content-Type, chosen from the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type ({{vendorExtensions.op.effectiveConsumes}}) when nil; an unrecognized value throws `ConfigurationError.invalidArgument`.
 {{/-first}}
 {{/-last}}
 {{/consumes}}
