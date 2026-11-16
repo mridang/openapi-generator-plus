@@ -63,7 +63,7 @@ module {{moduleName}}
 {{/serverVariables}}
         }
         # One pass: a placeholder that a substituted value introduces is never expanded again.
-        '{{url}}'.gsub(/\{([^{}]+)\}/) { values.fetch(Regexp.last_match(1)) { Regexp.last_match(0) } }
+        '{{url}}'.gsub(/\{([^{}]+)\}/) { |placeholder| values.fetch(placeholder.delete_prefix('{').delete_suffix('}')) { placeholder } }
 {{/hasVariables}}
 {{^hasVariables}}
         '{{url}}'

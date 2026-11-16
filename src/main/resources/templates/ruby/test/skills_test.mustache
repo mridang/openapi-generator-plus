@@ -43,6 +43,14 @@ describe 'SKILLS' do
     _(section).must_include '`Retry-After`'
   end
 
+  it 'lists the transport subsections in the canonical order' do
+    skills = File.read(File.join(File.expand_path('..', File.dirname(__FILE__)), 'SKILLS.md'))
+    section = skills.split('## Configuration', 2).last.to_s.split('## API Methods', 2).first.to_s
+    headings = section.scan(/^### (.+)$/).flatten
+    wanted = ['Custom Transport Options', 'Custom HTTP client', 'Retries', 'Cancellation']
+    _(headings.select { |heading| wanted.include?(heading) }).must_equal wanted
+  end
+
   it 'parses the Error Handling example' do
     _(RubyVM::InstructionSequence.compile(error_handling_example)).wont_be_nil
   end

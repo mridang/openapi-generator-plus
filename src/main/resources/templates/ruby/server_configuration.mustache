@@ -48,6 +48,7 @@ module {{moduleName}}
     # @return [String] the fully resolved URL
     # @raise [ArgumentError] if an override value is not in the variable's enum
     def url(overrides = {})
+      # @type var values: Hash[String, String]
       values = {}
       variables.each do |var_name, var|
         value = overrides.fetch(var_name, var.default_value)
@@ -63,7 +64,7 @@ module {{moduleName}}
       # One pass over the template: a placeholder that a substituted value
       # introduces is never expanded again. The block form also keeps a value
       # with backslash sequences literal.
-      url_template.gsub(/\{([^{}]+)\}/) { values.fetch(Regexp.last_match(1)) { Regexp.last_match(0) } }
+      url_template.gsub(/\{([^{}]+)\}/) { |placeholder| values.fetch(placeholder.delete_prefix('{').delete_suffix('}')) { placeholder } }
     end
   end
 end
