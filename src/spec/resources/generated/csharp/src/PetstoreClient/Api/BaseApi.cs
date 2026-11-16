@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -111,6 +111,17 @@ public abstract class BaseApi
         IAuthenticator? effectiveAuth = ReferenceEquals(auth, NoAuth.Instance)
             ? null
             : (auth ?? Authenticator);
+        /* Only the client-level authenticator is handed the transport when the
+           facade is built. A per-call OAuth2 or OIDC authenticator would
+           otherwise fail with "ApiClient has not been injected", so it is given
+           this API's client; the call is idempotent (F856). */
+        if (
+            effectiveAuth is IHttpAwareAuthenticator httpAware
+            && !ReferenceEquals(effectiveAuth, Authenticator)
+        )
+        {
+            httpAware.SetApiClient(ApiClient);
+        }
         string url;
         if (
             path.StartsWith("http://", StringComparison.Ordinal)
@@ -619,7 +630,18 @@ public abstract class BaseApi
                 value = reserved.Value;
                 allowReserved = true;
             }
-            if (value != null)
+            if (value is ValueSerializer.ExplodedFields exploded)
+            {
+                foreach (KeyValuePair<string, string> field in exploded.Fields)
+                {
+                    parts.Add(
+                        Uri.EscapeDataString(field.Key)
+                            + "="
+                            + EncodeQueryValue(field.Value, allowReserved)
+                    );
+                }
+            }
+            else if (value != null)
             {
                 if (value is System.Collections.IEnumerable enumerable and not string)
                 {

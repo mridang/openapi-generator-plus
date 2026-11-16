@@ -67,6 +67,33 @@ describe Petstore::Client::Errors::ApiError do
     _(err.message).must_equal("boom\nHTTP status code: 500\nResponse headers: {\"x-id\":\"1\"}\nResponse body: oops")
   end
 
+  it 'cuts a long response body at 1 KiB and counts the bytes left out' do
+    err = Petstore::Client::Errors::ApiError.new(
+      status_code: 502, message: 'bad gateway', response_headers: nil, response_body: 'a' * 3000
+    )
+
+    _(err.message).must_equal("bad gateway\nHTTP status code: 502\nResponse body: #{'a' * 1024}... (1976 more bytes)")
+    _(err.response_body.bytesize).must_equal 3000
+  end
+
+  it 'escapes control characters in the rendered response body' do
+    err = Petstore::Client::Errors::ApiError.new(
+      status_code: 500, message: 'boom', response_headers: nil, response_body: "a\r\nb\tc\u0001"
+    )
+
+    _(err.message).must_equal("boom\nHTTP status code: 500\nResponse body: a\\r\\nb\\tc\\x01")
+  end
+
+  it 'redacts credential headers and Set-Cookie in the rendered headers only' do
+    headers = { 'set-cookie' => 'sid=abc', 'x-api-key' => 'k', 'x-id' => '1' }
+    err = Petstore::Client::Errors::ApiError.new(
+      status_code: 500, message: 'boom', response_headers: headers, response_body: nil
+    )
+
+    _(err.message).must_equal("boom\nHTTP status code: 500\nResponse headers: {\"set-cookie\":\"***\",\"x-api-key\":\"***\",\"x-id\":\"1\"}")
+    _(err.response_headers['set-cookie']).must_equal 'sid=abc'
+  end
+
   it 'substitutes the default text for an empty detail message' do
     _(Petstore::Client::Errors::ApiError.new('').message).must_equal('Error message: the server returns an error')
     _(Petstore::Client::Errors::ApiError.new(message: '').message).must_equal('Error message: the server returns an error')

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -11,6 +11,9 @@ import * as path from "node:path";
 import {
   GetExternalPetInfoServer,
   GetExternalPetInfoServerServer0,
+  GetMultiServerPetInfoServerChannel,
+  GetMultiServerPetInfoServerMirror,
+  GetMultiServerPetInfoServerMirrorRegion,
   GetMultiServerPetInfoServerPrimary,
   GetMultiServerPetInfoServerRegionalRegion,
   GetMultiServerPetInfoServerRegional,
@@ -29,11 +32,16 @@ import type { ApiClient } from "../../src/api-client.js";
 import type { ApiHttpResponse } from "../../src/api-http-response.js";
 import { BearerAuthenticator } from "../../src/auth/bearer-authenticator.js";
 import { Configuration } from "../../src/configuration.js";
+import { Servers } from "../../src/servers.js";
 import {
+  Medication,
   Pet,
+  PetCriteria,
   PetStatusEnum,
+  PetTreatment,
   PhotoMetadata,
   SetPetAvatarThumbnailRequest,
+  Swatch,
 } from "../../src/models/index.js";
 import { ApiError } from "../../src/errors/api-error.js";
 import { InternalServerError, NotFoundError } from "../../src/errors/index.js";
@@ -1343,6 +1351,31 @@ describe("PetApi against a recording client", () => {
     },
   );
 
+  test.each([
+    [
+      GetMultiServerPetInfoServerChannel.A_B,
+      "https://eu.mirror.example.com/a&b/v1/pet/3/multi",
+    ],
+    [
+      GetMultiServerPetInfoServerChannel.IT_S,
+      "https://eu.mirror.example.com/it's/v1/pet/3/multi",
+    ],
+  ])(
+    "getMultiServerPetInfo resolves the Mirror variant for the channel %s",
+    async (channel, expected) => {
+      await recordingApi.getMultiServerPetInfo(
+        3,
+        new GetMultiServerPetInfoServerMirror(
+          GetMultiServerPetInfoServerMirrorRegion.EU,
+          channel,
+        ),
+      );
+
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]!.url).toBe(expected);
+    },
+  );
+
   test.each([".", ".."])(
     "getPetByName rejects the dot segment %p before sending",
     async (name) => {
@@ -1394,6 +1427,170 @@ describe("PetApi against a recording client", () => {
       expect(recorded[0]!.headers["X-Fingerprint"]).toBe(header);
     },
   );
+
+  test("getPetTag expands the object-valued criteria parameters per their styles", async () => {
+    const criteria = new PetCriteria({ breed: "lab", min_age: 3 });
+
+    await recordingApi.getPetTag(5, "sample", {
+      criteria,
+      criteriaCsv: criteria,
+      criteriaDeep: criteria,
+      xCriteria: criteria,
+    });
+
+    expect(new URL(recorded[0]!.url).search).toContain(
+      "breed=lab&min_age=3&criteriaCsv=breed%2Clab%2Cmin_age%2C3&criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3",
+    );
+    expect(recorded[0]!.headers["X-Criteria"]).toBe("breed,lab,min_age,3");
+  });
+
+  test("getPetTag writes the matrix path parameter and the label path parameter", async () => {
+    await recordingApi.getPetTag(5, "cute");
+
+    expect(new URL(recorded[0]!.url).pathname).toBe("/pet/;petId=5/tag/.cute");
+  });
+
+  test("findPetsByStatus writes the deepObject filter as bracketed keys", async () => {
+    await recordingApi
+      .findPetsByStatus({ filter: { color: "blue", size: "large" } })
+      .catch(() => undefined);
+
+    expect(new URL(recorded[0]!.url).search).toContain(
+      "filter%5Bcolor%5D=blue&filter%5Bsize%5D=large",
+    );
+  });
+
+  test("findPetsByStatus keeps the digit-leading query parameter name", async () => {
+    await recordingApi.findPetsByStatus({ n2ndPage: 2 }).catch(() => undefined);
+
+    expect(new URL(recorded[0]!.url).searchParams.get("2ndPage")).toBe("2");
+  });
+
+  test("getPetByName without the required X-Correlation-Id header sends no request", async () => {
+    const error = await recordingApi
+      .getPetByName("x", { category: "sample" } as never)
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test("getPetSummary without the required session cookie sends no request", async () => {
+    const error = await recordingApi
+      .getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {} as never)
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Missing the required parameter 'session' when calling PetApi.getPetSummary",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test("addPetTreatment sends the chosen anyOf variant as the request body", async () => {
+    const sent: {
+      path?: string;
+      body?: string | Buffer | Record<string, unknown> | null;
+    } = {};
+    const treatmentApi = new PetApi(
+      {
+        async sendRequest(
+          _method,
+          url,
+          _headers,
+          body,
+        ): Promise<ApiHttpResponse> {
+          sent.path = new URL(url).pathname;
+          sent.body = body;
+          return {
+            statusCode: 200,
+            body: '{"drugName":"Amoxicillin","dosage":"250mg"}',
+            headers: { "content-type": "application/json" },
+          };
+        },
+      },
+      Configuration.builder()
+        .baseUrl("https://client-base.example.com")
+        .build(),
+    );
+
+    const result = await treatmentApi.addPetTreatment(
+      7,
+      new PetTreatment(
+        new Medication({ drugName: "Amoxicillin", dosage: "250mg" }),
+      ),
+    );
+
+    expect(sent.path).toBe("/pet/7/treatment");
+    expect(JSON.parse(sent.body as string)).toEqual({
+      drugName: "Amoxicillin",
+      dosage: "250mg",
+    });
+    expect(result).toBeInstanceOf(PetTreatment);
+    expect(result.getActualInstance()).toBeInstanceOf(Medication);
+  });
+
+  test("uploadPetDocument sends the non-string scalar parts as plain text parts", async () => {
+    const chunks: Buffer[] = [];
+    const server = http.createServer((req, res) => {
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end("{}");
+      });
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const port = (server.address() as { port: number }).port;
+      const uploadApi = new PetApi(
+        undefined,
+        Configuration.builder().baseUrl(`http://127.0.0.1:${port}`).build(),
+      );
+
+      await uploadApi.uploadPetDocument(1, {
+        file: Buffer.from("document-content"),
+        isPrimary: true,
+        pageCount: 3,
+        takenAt: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)),
+        swatch: Swatch.Red,
+      });
+    } finally {
+      server.close();
+    }
+
+    const body = Buffer.concat(chunks).toString("utf-8");
+    const part = (name: string) =>
+      body.split("\r\n--").find((p) => p.includes(`name="${name}"`))!;
+    expect(part("isPrimary")).toMatch(/name="isPrimary"\r\n\r\ntrue$/);
+    expect(part("pageCount")).toMatch(/name="pageCount"\r\n\r\n3$/);
+    expect(part("takenAt")).toMatch(
+      /name="takenAt"\r\n\r\n2024-01-15T10:30:00\.000\+00:00$/,
+    );
+    expect(part("swatch")).toMatch(/name="swatch"\r\n\r\nred$/);
+    for (const name of ["isPrimary", "pageCount", "takenAt", "swatch"]) {
+      expect(part(name)).not.toContain("Content-Type");
+    }
+  });
+
+  test("the third global server keeps its hostile text unchanged", () => {
+    const server = Servers.SERVER_2;
+
+    expect(server.urlTemplate).toBe("https://{tenant}.example.com/api");
+    expect(server.description).toBe('Bob\'s "sandbox" & co: $5 #{x} a*/b');
+    const tenant = server.variables["tenant"]!;
+    expect(tenant.defaultValue).toBe("o'neil");
+    expect(tenant.description).toBe('Tenant\'s "id"');
+    expect([...tenant.enumValues]).toEqual(["o'neil", "a&b"]);
+    expect(server.getUrl()).toBe("https://o'neil.example.com/api");
+    expect(server.getUrl({ tenant: "a&b" })).toBe(
+      "https://a&b.example.com/api",
+    );
+  });
 
   test("without a variant the client base URL is used", async () => {
     await recordingApi.getExternalPetInfo(1);

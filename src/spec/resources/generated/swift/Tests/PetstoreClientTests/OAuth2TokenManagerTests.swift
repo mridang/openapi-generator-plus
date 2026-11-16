@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -142,9 +142,26 @@ import Testing
     #expect(second == "tok1")
   }
 
+  /* The token request is a form post that asks for JSON, and it is never
+     replayed across a redirect. */
+  @Test func testTokenRequestIsAFormPostAskingForJson() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    _ = try await manager.getAccessToken(
+      tokenURL: "https://auth.example.com/token", params: ["grant_type": "client_credentials"])
+
+    #expect(client.lastMethod == "POST")
+    #expect(client.lastHeaders["Content-Type"] == "application/x-www-form-urlencoded")
+    #expect(client.lastHeaders["Accept"] == "application/json")
+    #expect(client.lastNoRedirect)
+  }
+
   @Test func testRefetchesTokenWhenExpired() async throws {
     let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
     let manager = OAuth2TokenManager()
@@ -286,10 +303,11 @@ import Testing
   }
 
   @Test func testExpiresInShortLivedTokenDoesNotStorm() async throws {
-    // Gap CM: short-lived token (expires_in < 30s buffer) must produce
-    // exactly ONE network call from a single getAccessToken call.
+    /* A token that is stale the moment it arrives (expires_in 0) must
+     * still produce exactly ONE network call from a single
+     * getAccessToken call. */
     let client = CountingMockApiClient(
-      responseBody: "{\"access_token\":\"short\",\"expires_in\":10}",
+      responseBody: "{\"access_token\":\"short\",\"expires_in\":0}",
       delayNanos: 0
     )
 
@@ -335,7 +353,7 @@ import Testing
   }
 
   @Test func testExpiresInLongLivedTokenAppliesFullBuffer() async throws {
-    // Gap CM: long-lived token gets full 30s buffer; second call uses cache.
+    /* A long-lived token is cached; the second call is served from the cache. */
     let client = CountingMockApiClient(
       responseBody: "{\"access_token\":\"long\",\"expires_in\":3600}",
       delayNanos: 0
@@ -355,11 +373,43 @@ import Testing
     #expect(client.callCount == 1)
   }
 
-  @Test func testExpiresInExactlyBufferReturnsZeroBuffer() async throws {
-    // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+  /* One margin of min(60 s, expires_in / 2) is taken off the lifetime when
+   * the token is stored and none when it is read, so a 60 s token is reused
+   * for 30 s and a 3600 s token for 3540 s. */
+  @Test(arguments: [(1, 0.5), (30, 15.0), (60, 30.0), (90, 45.0), (120, 60.0), (3600, 3540.0)])
+  func testExpiryTakesOneMarginOfAtMostSixtySeconds(expiresIn: Int, reusableFor: Double) {
+    let now = Date(timeIntervalSince1970: 1_000_000)
+    let expiry = OAuth2TokenManager.expiry(for: expiresIn, now: now)
+    #expect(expiry.timeIntervalSince(now) == reusableFor)
+  }
+
+  @Test func testNonPositiveExpiresInIsStaleImmediately() {
+    let now = Date(timeIntervalSince1970: 1_000_000)
+    #expect(OAuth2TokenManager.expiry(for: 0, now: now) == now)
+    #expect(OAuth2TokenManager.expiry(for: -5, now: now) == now)
+  }
+
+  @Test func testNinetySecondTokenIsReusedWithoutAnotherRequest() async throws {
+    let client = CountingMockApiClient(
+      responseBody: "{\"access_token\":\"edge\",\"expires_in\":90}",
+      delayNanos: 0
+    )
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+    let params = ["grant_type": "client_credentials"]
+    let tokenURL = "https://auth.example.com/token"
+
+    _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+    _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+    #expect(
+      client.callCount == 1, "a 90 s token must be reused, got \(client.callCount) token requests")
+  }
+
+  @Test func testExpiresInZeroIsRefetchedOnTheNextCall() async throws {
     let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"edge1\",\"expires_in\":30}"))
-    client.responses.append(makeResponse(body: "{\"access_token\":\"edge2\",\"expires_in\":30}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"edge1\",\"expires_in\":0}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"edge2\",\"expires_in\":0}"))
 
     let manager = OAuth2TokenManager()
     manager.setApiClient(client)
@@ -372,6 +422,28 @@ import Testing
 
     #expect(first == "edge1")
     #expect(second == "edge2")
+  }
+
+  /* A refresh response without expires_in clears the lapsed expiry, so the
+   * refreshed token is cached and the following call sends no request. */
+  @Test func testRefreshResponseWithoutExpiresInClearsTheExpiry() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok2\",\"refresh_token\":\"ref2\"}"))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+    let params = ["grant_type": "client_credentials"]
+    let tokenURL = "https://auth.example.com/token"
+
+    _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+    let refreshed = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+    let cached = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+    #expect(refreshed == "tok2")
+    #expect(cached == "tok2")
+    #expect(client.requests.count == 2, "the third call must be served from the cache")
   }
 
   /// Splits an application/x-www-form-urlencoded body into its decoded fields.
@@ -400,7 +472,7 @@ import Testing
   @Test func testRefreshGrantCarriesRefreshTokenAndClientCredentialsOnly() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
     let manager = OAuth2TokenManager()
     manager.setApiClient(client)
@@ -427,7 +499,7 @@ import Testing
   @Test func testRejectedRefreshFallsBackToTheOriginalGrant() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
     let manager = OAuth2TokenManager()
@@ -446,7 +518,7 @@ import Testing
   @Test func testMalformedRefreshResponseFallsBackToTheOriginalGrant() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "<html>gateway</html>"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
     let manager = OAuth2TokenManager()
@@ -463,7 +535,7 @@ import Testing
   @Test func testFailedRefreshAndFailedOriginalGrantSurfacesTheOriginalGrantError() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
     client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
     let manager = OAuth2TokenManager()
@@ -546,7 +618,7 @@ import Testing
     let client = MockApiClient()
     client.responses.append(
       makeResponse(
-        body: "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}"
+        body: "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":0}"
       ))
     client.responses.append(
       makeResponse(
@@ -776,8 +848,8 @@ import Testing
       Issue.record("Expected OAuth2TokenError when access_token is missing")
     } catch let error as OAuth2TokenError {
       switch error {
-      case .missingAccessToken:
-        break
+      case .missingAccessToken(let message):
+        #expect(message == "Token response missing or empty access_token field")
       default:
         Issue.record("expected .missingAccessToken, got \(error)")
       }
@@ -803,14 +875,38 @@ import Testing
       Issue.record("Expected OAuth2TokenError for a non-JSON token response")
     } catch let error as OAuth2TokenError {
       switch error {
-      case .invalidResponse:
-        break
+      case .invalidResponse(let message):
+        #expect(message == "Token response is not valid JSON")
       default:
         Issue.record("expected .invalidResponse, got \(error)")
       }
     } catch {
       Issue.record("expected OAuth2TokenError, got \(error)")
     }
+  }
+
+  /* D07: the three token failures have one canonical text each, with no
+     parser detail. */
+  @Test(arguments: [
+    ("[1,2]", "Token response is not a JSON object"),
+    ("\"text\"", "Token response is not a JSON object"),
+    ("", "Token response is not valid JSON"),
+    ("{\"access_token\":\"\"}", "Token response missing or empty access_token field"),
+    ("{\"access_token\":42}", "Token response missing or empty access_token field"),
+    ("{}", "Token response missing or empty access_token field"),
+  ])
+  func testTokenFailuresCarryTheCanonicalMessage(body: String, message: String) async {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: body))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    let error = await #expect(throws: OAuth2TokenError.self) {
+      _ = try await manager.getAccessToken(
+        tokenURL: "https://auth.example.com/token",
+        params: ["grant_type": "client_credentials"])
+    }
+    #expect(error?.errorDescription == message)
   }
 
   /// RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
@@ -924,7 +1020,7 @@ import Testing
   @Test func testRefreshGoesToRefreshUrlAndFallbackToTokenUrl() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
     let manager = OAuth2TokenManager()
@@ -946,7 +1042,7 @@ import Testing
   @Test func testRefreshGrantParamsArePostedExactlyOnce() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"unexpected\",\"expires_in\":3600}"))
@@ -1008,7 +1104,7 @@ import Testing
   @Test func testExchangeBypassesTheRefreshToken() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
     let manager = OAuth2TokenManager()
     manager.setApiClient(client)

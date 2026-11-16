@@ -10,6 +10,9 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
+
+use crate::api_client::ApiClient;
 
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 
@@ -60,6 +63,25 @@ pub trait Authenticator: Send + Sync {
     /// Returns cookie parameters to include for authentication.
     fn cookie_params(&self) -> HashMap<String, String> {
         HashMap::new()
+    }
+
+    /// Hands the authenticator the transport to use for its own requests (token
+    /// endpoints, discovery) when it has none yet.
+    ///
+    /// `BaseApi` calls this before it asks the effective authenticator for
+    /// headers, so a per-call authenticator passed in an operation's options
+    /// works without the client having injected it. It never replaces a client
+    /// that was injected already. The default does nothing; OAuth2 and OpenID
+    /// Connect authenticators override it.
+    fn inject_api_client(&self, _client: Arc<dyn ApiClient>) {}
+
+    /// Drops the cached access token, so the next call to
+    /// [`try_auth_headers`](Self::try_auth_headers) gets a new one (a refresh
+    /// grant first). Returns `true` when this authenticator keeps a token that
+    /// can be renewed, which tells `BaseApi` that replaying a request refused
+    /// with 401 can succeed. The default returns `false`.
+    fn invalidate_access_token<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
+        Box::pin(async { false })
     }
 
     /// Returns a mutable reference to this authenticator as an

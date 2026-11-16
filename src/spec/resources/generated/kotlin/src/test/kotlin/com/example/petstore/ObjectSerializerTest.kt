@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -1183,6 +1183,32 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("type:number Decimal is exact: no double round trip and no exponent notation")
+        fun decimalNumberFieldIsExactAndPlain() {
+            // D83/F1162: a bare `type: number` keeps every digit and is written in plain
+            // notation, whatever notation the wire value used.
+            val rows =
+                listOf(
+                    "0.1234567890123456789" to "0.1234567890123456789",
+                    "12345678901234567890.5" to "12345678901234567890.5",
+                    "1.50" to "1.50",
+                    "1E-8" to "0.00000001",
+                    "1E+20" to "100000000000000000000",
+                )
+            for ((wire, written) in rows) {
+                val decoded =
+                    serializer.deserialize<com.example.petstore.models.Pet>(
+                        "{\"name\":\"f\",\"photoUrls\":[],\"weightKg\":$wire}",
+                    )
+                assertNotNull(decoded, wire)
+                assertEquals(0, java.math.BigDecimal(wire).compareTo(decoded!!.weightKg), wire)
+                val json = serializer.serialize(decoded)
+                assertTrue(json.contains("\"weightKg\":$written"), "$wire must be written as $written, got: $json")
+                assertFalse(Regex("[0-9][eE][+-]?[0-9]").containsMatchIn(json), "no exponent notation expected, got: $json")
+            }
+        }
+
+        @Test
         @DisplayName("non-lowercase string enum (Availability) round-trips with wire casing preserved")
         fun nonLowercaseStringEnumPreservesWireCasing() {
             // Availability is a non-lowercase string enum (Available, Sold,
@@ -1226,6 +1252,171 @@ class ObjectSerializerTest {
                     "{\"priority\":1,\"availability\":\"out-of-stock\"}",
                 )
             }
+        }
+
+        @Test
+        @DisplayName("colliding schema names (Error, Result) keep their wire keys through EdgeCases")
+        fun collidingSchemaNamesRoundTrip() {
+            // F1131/D45: lastError and outcome decode and re-encode under their own keys.
+            val wire = "{\"lastError\":{\"code\":7,\"message\":\"boom\"},\"outcome\":{\"ok\":true}}"
+            val decoded = serializer.deserialize<com.example.petstore.models.EdgeCases>(wire)
+            assertNotNull(decoded)
+            assertEquals(7, decoded!!.lastError!!.code)
+            assertEquals("boom", decoded.lastError!!.message)
+            assertEquals(true, decoded.outcome!!.ok)
+            assertEquals(
+                kotlinx.serialization.json.Json
+                    .parseToJsonElement(wire),
+                kotlinx.serialization.json.Json
+                    .parseToJsonElement(serializer.serialize(decoded)),
+            )
+        }
+
+        @Test
+        @DisplayName("enum members with non-identifier wire values (Separator) decode to distinct constants")
+        fun separatorEnumRoundTrip() {
+            // F1124: ' ', '@@', 'a-b' and 'a_b' sanitise to empty or colliding identifiers.
+            val members = mutableSetOf<Any>()
+            for (wire in listOf(" ", "@@", "a-b", "a_b")) {
+                val decoded = serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"separator\":\"$wire\"}")
+                assertNotNull(decoded, wire)
+                members.add(decoded!!.separator!!)
+                assertEquals(wire, decoded.separator!!.value)
+                assertTrue(serializer.serialize(decoded).contains("\"separator\":\"$wire\""), wire)
+            }
+            assertEquals(4, members.size)
+        }
+
+        @Test
+        @DisplayName("a contentEncoding property (PetPassport.biometricChip) is a base64 byte field")
+        fun contentEncodedPropertyIsBase64Bytes() {
+            // F1116: normalised to format: byte, so it decodes from and encodes to standard base64.
+            val decoded = serializer.deserialize<com.example.petstore.models.PetPassport>("{\"biometricChip\":\"AQID\"}")
+            assertNotNull(decoded)
+            assertArrayEquals(byteArrayOf(1, 2, 3), decoded!!.biometricChip)
+            assertTrue(serializer.serialize(decoded).contains("\"biometricChip\":\"AQID\""))
+        }
+
+        @Test
+        @DisplayName("a uuid property (Order.trackingId) is written lowercase, read from uppercase and malformed is rejected")
+        fun uuidPropertyIsCanonicalLowercase() {
+            // F1130/D67
+            val upper = "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"
+            val decoded = serializer.deserialize<com.example.petstore.models.Order>("{\"trackingId\":\"$upper\"}")
+            assertNotNull(decoded)
+            assertTrue(
+                serializer.serialize(decoded!!).contains("\"trackingId\":\"${upper.lowercase()}\""),
+                "expected the lowercase form",
+            )
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.Order>("{\"trackingId\":\"not-a-uuid\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("a prefixItems tuple (Pet.location) keeps its mixed items in order")
+        fun prefixItemsTupleRoundTrips() {
+            // F1175: two numbers then a string.
+            val decoded =
+                serializer.deserialize<com.example.petstore.models.Pet>(
+                    "{\"name\":\"f\",\"photoUrls\":[],\"location\":[1.5,2.5,\"x\"]}",
+                )
+            assertNotNull(decoded)
+            assertEquals(3, decoded!!.location!!.size)
+            assertTrue(serializer.serialize(decoded).contains("\"location\":[1.5,2.5,\"x\"]"))
+        }
+
+        @Test
+        @DisplayName("a date-time without an offset is rejected, never completed from the host time zone")
+        fun dateTimeWithoutOffsetIsRejected() {
+            // D57/F080, F1163: the host time zone must never fill the missing offset in.
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.Order>("{\"shipDate\":\"2024-01-15T10:30:00\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("a duplicate object key resolves to the last value")
+        fun duplicateKeyKeepsTheLastValue() {
+            // F1067
+            val decoded = serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":\"first\",\"name\":\"last\",\"photoUrls\":[]}")
+            assertNotNull(decoded)
+            assertEquals("last", decoded!!.name)
+        }
+
+        @Test
+        @DisplayName("hostile Availability members map to their exact JSON-quoted wire strings")
+        fun hostileAvailabilityMembersRoundTrip() {
+            // D46/F1144: an apostrophe, a backslash, a dollar sign and an interpolation opener.
+            for (wire in listOf("o'clock", "a\\b", "\$eq", "#" + "{x}")) {
+                val member =
+                    com.example.petstore.models.Availability
+                        .fromValue(wire)
+                val json =
+                    serializer.serialize(
+                        com.example.petstore.models.StockItem(
+                            priority = com.example.petstore.models.Priority.NUMBER_1,
+                            availability = member,
+                        ),
+                    )
+                val quoted =
+                    kotlinx.serialization.json
+                        .JsonPrimitive(wire)
+                        .toString()
+                assertTrue(json.contains("\"availability\":$quoted"), "expected $quoted on the wire, got: $json")
+                val decoded = serializer.deserialize<com.example.petstore.models.StockItem>(json)
+                assertNotNull(decoded)
+                assertEquals(member, decoded!!.availability)
+            }
+        }
+
+        @Test
+        @DisplayName("an inline enum (EdgeCases.phase) round-trips its non-identifier wire values")
+        fun inlineEnumWireValuesRoundTrip() {
+            // F1146: each wire value decodes to a distinct member and re-encodes verbatim.
+            val members = mutableSetOf<Any>()
+            for (wire in listOf("In-Stock", "on-hold", "OUT_OF_STOCK")) {
+                val decoded = serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"phase\":\"$wire\"}")
+                assertNotNull(decoded, wire)
+                members.add(decoded!!.phase!!)
+                assertEquals(wire, decoded.phase!!.value)
+                assertTrue(serializer.serialize(decoded).contains("\"phase\":\"$wire\""), wire)
+            }
+            assertEquals(3, members.size)
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"phase\":\"in-stock\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("keyword-named and digit-leading properties keep their wire keys")
+        fun keywordAndDigitLeadingPropertiesKeepWireKeys() {
+            // F1114/F1113: the identifier is mangled, the wire key never is.
+            val note =
+                "{\"and\":true,\"or\":false,\"not\":true,\"class\":\"c\",\"return\":\"r\"," +
+                    "\"null\":\"n\",\"true\":true,\"false\":false,\"2fa\":true}"
+            val decoded = serializer.deserialize<com.example.petstore.models.EdgeCases>(note)
+            assertNotNull(decoded)
+            val keys =
+                kotlinx.serialization.json.Json
+                    .parseToJsonElement(serializer.serialize(decoded!!))
+                    .let { it as kotlinx.serialization.json.JsonObject }
+                    .keys
+            assertEquals(setOf("and", "or", "not", "class", "return", "null", "true", "false", "2fa"), keys)
+            assertEquals(decoded, serializer.deserialize<com.example.petstore.models.EdgeCases>(serializer.serialize(decoded)))
+        }
+
+        @Test
+        @DisplayName("request JSON writes U+2028, U+2029, DEL and non-ASCII literally")
+        fun requestJsonWritesSeparatorsAndDelLiterally() {
+            // D84/F1148: only the quote, the backslash and controls below U+0020 are escaped.
+            val text = "a\u2028b\u2029c\u007fd\u00e9/<>&"
+            val json =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .EdgeCases(permissionsNote = text),
+                )
+            assertTrue(json.contains("\"permissionsNote\":\"$text\""), "expected the literal text, got: $json")
         }
 
         @Test

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -123,7 +123,7 @@ import Testing
   }
 
   @Test func testInvalidProxyUrlThrowsException() throws {
-    #expect(throws: ConfigurationError.invalidProxy("not a valid url")) {
+    #expect(throws: ConfigurationError.invalidProxy("Invalid proxy URL: not a valid url")) {
       try TransportOptionsBuilder().proxy("not a valid url").build()
     }
   }
@@ -132,25 +132,75 @@ import Testing
    * setter runs, so the setter never throws. */
   @Test func testInvalidProxyIsReportedByBuildNotBySetter() {
     let builder = TransportOptionsBuilder().proxy("ftp://proxy.example.com:21")
-    #expect(throws: ConfigurationError.invalidProxy("ftp://proxy.example.com:21")) {
+    #expect(throws: ConfigurationError.self) {
       _ = try builder.build()
     }
   }
 
   /* Anything that is not an http(s) URL with a host is refused with the
-   * offending text echoed back in invalidProxy, whatever the reason. */
+   * canonical message for its reason, the offending text echoed back. */
   @Test(arguments: [
-    "ftp://proxy.example.com:21",
-    "file:///tmp/proxy",
-    "ws://proxy.example.com:8080",
-    "proxy.example.com:8080",
-    "http://",
-    "http:///only-a-path",
+    (
+      "ftp://proxy.example.com:21",
+      "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21"
+    ),
+    ("file:///tmp/proxy", "Invalid proxy URL (must use http or https scheme): file:///tmp/proxy"),
+    (
+      "ws://proxy.example.com:8080",
+      "Invalid proxy URL (must use http or https scheme): ws://proxy.example.com:8080"
+    ),
+    ("http://", "Invalid proxy URL (missing host): http://"),
+    ("http:///only-a-path", "Invalid proxy URL (missing host): http:///only-a-path"),
   ])
-  func testProxyWithoutHttpSchemeOrHostIsRejected(url: String) throws {
-    #expect(throws: ConfigurationError.invalidProxy(url)) {
+  func testProxyWithoutHttpSchemeOrHostIsRejected(url: String, message: String) throws {
+    #expect(throws: ConfigurationError.invalidProxy(message)) {
       try TransportOptionsBuilder().proxy(url).build()
     }
+  }
+
+  /* A proxy without a scheme is refused, whichever way the platform parses
+   * it, and the message names the offending text. */
+  @Test func testProxyWithoutSchemeIsRejected() throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy("proxy.example.com:8080").build()
+    }
+    let message = error?.errorDescription ?? ""
+    #expect(message.hasPrefix("Invalid proxy URL"))
+    #expect(message.hasSuffix(": proxy.example.com:8080"))
+  }
+
+  /* The proxy URL goes into the message, so its userinfo never does:
+   * `user:password@` is shown as `***@`. */
+  @Test(arguments: [
+    (
+      "socks5://svc:s3cret@proxy.example.com:1080",
+      "Invalid proxy URL (must use http or https scheme): socks5://***@proxy.example.com:1080"
+    ),
+    (
+      "ftp://svc:s3cret@proxy.example.com:21",
+      "Invalid proxy URL (must use http or https scheme): ftp://***@proxy.example.com:21"
+    ),
+  ])
+  func testProxyErrorMasksTheUserinfo(url: String, message: String) throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy(url).build()
+    }
+    #expect(error == ConfigurationError.invalidProxy(message))
+    let description = error?.errorDescription ?? ""
+    #expect(description.range(of: "s3cret") == nil)
+  }
+
+  /* D77: the timeout is nil or a positive number of milliseconds; zero and
+   * negative values are refused when the options are built. */
+  @Test(arguments: [0, -1, -5000])
+  func testNonPositiveTimeoutIsRejectedWithTheCanonicalMessage(timeout: Int) throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().timeout(timeout).build()
+    }
+    #expect(error == ConfigurationError.invalidTimeout(timeout))
+    #expect(
+      error?.errorDescription
+        == "Invalid timeout: must be a positive number of milliseconds (got \(timeout))")
   }
 
   @Test func testProxySchemeIsMatchedCaseInsensitively() throws {
@@ -174,7 +224,10 @@ import Testing
       "socks5://proxy.example.com:1080",
     ]
     for url in urls {
-      #expect(throws: ConfigurationError.invalidProxy(url)) {
+      #expect(
+        throws: ConfigurationError.invalidProxy(
+          "Invalid proxy URL (must use http or https scheme): \(url)")
+      ) {
         try TransportOptionsBuilder().proxy(url).build()
       }
     }
@@ -304,13 +357,13 @@ import Testing
     @Test func testSettingProxyRaisesOnLinux() throws {
       // On Linux, URLSession does not support proxy configuration.
       // TransportOptions accepts the proxy value; DefaultApiClient's init
-      // rejects it with ConfigurationError.proxyUnsupported rather than
+      // rejects it with ConfigurationError.invalidProxy rather than
       // silently ignoring the proxy setting.
       let opts = try TransportOptionsBuilder()
         .proxy("http://proxy.example.com:8080")
         .build()
       #expect(opts.proxy != nil)
-      #expect(throws: ConfigurationError.proxyUnsupported) {
+      #expect(throws: ConfigurationError.invalidProxy(DefaultApiClient.proxyUnsupportedMessage)) {
         _ = try DefaultApiClient(transportOptions: opts)
       }
     }

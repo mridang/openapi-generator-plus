@@ -97,6 +97,25 @@ module Petstore::Client
       required_nullable = {}
       REQUIRED_NULLABLE = required_nullable.freeze
 
+      # Properties declared +format: password+. #inspect prints them as +***+
+      # so a logged model never carries the secret; the value itself is
+      # unchanged and still sent and decoded like any other string.
+      # @type var password_attributes: Hash[Symbol, bool]
+      password_attributes = {}
+      PASSWORD_ATTRIBUTES = password_attributes.freeze
+      private_constant :PASSWORD_ATTRIBUTES
+
+      # @return [String] a readable form with every +format: password+ value masked
+      def inspect
+        return super if PASSWORD_ATTRIBUTES.empty?
+
+        fields = self.class::ATTRIBUTE_MAP.keys.map do |name|
+          value = send(name)
+          "#{name}=#{PASSWORD_ATTRIBUTES.key?(name) && !value.nil? ? '***' : value.inspect}"
+        end
+        "#<#{self.class.name} #{fields.join(' ')}>"
+      end
+
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
         JSON_KEY_MAP[key.to_s] || key.to_sym

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -9,15 +9,19 @@ import type { ApiClient, RequestOptions } from "../api-client.js";
 import type { ApiResult } from "../api-result.js";
 import type { Authenticator } from "../auth/authenticator.js";
 import { isNoAuth } from "../auth/authenticator.js";
+import { isHttpAwareAuthenticator } from "../auth/http-aware-authenticator.js";
 /* Imported through the errors barrel, which loads every status-specific
  * error, so ApiError.fromResponse knows them all. */
 import { ApiError, SerializationError } from "../errors/index.js";
 import { Configuration } from "../configuration.js";
 import { DefaultApiClient } from "#transport";
 import { HeaderSelector } from "../header-selector.js";
-import { ObjectSerializer } from "../object-serializer.js";
-import { Temporal } from "temporal-polyfill";
-import { AllowReservedValue, ValueSerializer } from "../value-serializer.js";
+import { ObjectSerializer, isTemporalValue } from "../object-serializer.js";
+import {
+  AllowReservedValue,
+  ExplodedObject,
+  ValueSerializer,
+} from "../value-serializer.js";
 import { injectTraceContext } from "../trace-context-util.js";
 
 /**
@@ -117,6 +121,16 @@ export abstract class BaseApi {
      *     back to the configured client authenticator (secured op).
      *   - auth is a real authenticator  -> per-call override; use it. */
     const effectiveAuth = isNoAuth(auth) ? null : (auth ?? this.authenticator);
+    /* The client injects its transport into the authenticator it was built
+     * with. A per-call OAuth2 or OpenID Connect authenticator was never given
+     * one, so hand it this API's own client before it fetches a token. */
+    if (
+      auth != null &&
+      effectiveAuth === auth &&
+      isHttpAwareAuthenticator(auth)
+    ) {
+      auth.setApiClient(this.apiClient);
+    }
     if (effectiveAuth) {
       const authQueryParams = effectiveAuth.getQueryParams();
       for (const [k, v] of Object.entries(authQueryParams)) {
@@ -143,6 +157,14 @@ export abstract class BaseApi {
           allowReserved
             ? ValueSerializer.encodeQueryAllowingReserved(v)
             : ValueSerializer.encodeQueryComponent(v);
+        if (value instanceof ExplodedObject) {
+          /* An exploded object contributes one entry per property, under the
+           * property's own name. */
+          return value.entries.map(
+            ([name, entry]) =>
+              `${ValueSerializer.encodeQueryComponent(name)}=${encodeQueryValue(entry)}`,
+          );
+        }
         const encodedKey = ValueSerializer.encodeQueryComponent(k);
         return Array.isArray(value)
           ? value.map(
@@ -172,8 +194,13 @@ export abstract class BaseApi {
     };
     overlay(this.config.defaultHeaders);
     overlay(headerParams);
+    const credentialHeaderNames: string[] = Object.keys(
+      this.config.defaultHeaders,
+    );
     if (effectiveAuth) {
-      overlay(await effectiveAuth.getAuthHeadersAsync());
+      const authHeaders = await effectiveAuth.getAuthHeadersAsync();
+      credentialHeaderNames.push(...Object.keys(authHeaders));
+      overlay(authHeaders);
       const cookies = effectiveAuth.getCookieParams();
       const cookieEntries = Object.entries(cookies);
       if (cookieEntries.length > 0) {
@@ -215,11 +242,16 @@ export abstract class BaseApi {
       (s): s is AbortSignal => s != null,
     );
     const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
-    const response = signal
-      ? await this.apiClient.sendRequest(method, url, headers, serializedBody, {
-          signal,
-        })
-      : await this.apiClient.sendRequest(method, url, headers, serializedBody);
+    const response = await this.apiClient.sendRequest(
+      method,
+      url,
+      headers,
+      serializedBody,
+      {
+        ...(signal ? { signal } : {}),
+        credentialHeaderNames,
+      },
+    );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       this.throwApiError(response);
@@ -386,7 +418,10 @@ export abstract class BaseApi {
     ) {
       return body as Buffer;
     }
-    if (contentType === "multipart/form-data") {
+    if (/^multipart\//i.test(contentType)) {
+      /* Any multipart subtype (form-data, mixed, related) is assembled by the
+       * transport from the form parts object; the subtype comes from the
+       * Content-Type header. */
       return body as Record<string, unknown>;
     }
     if (
@@ -448,12 +483,7 @@ export abstract class BaseApi {
       const isScalarObject = (value: object): boolean =>
         value instanceof Date ||
         value instanceof Uint8Array ||
-        value instanceof Temporal.PlainDate ||
-        value instanceof Temporal.PlainTime ||
-        value instanceof Temporal.PlainDateTime ||
-        value instanceof Temporal.Instant ||
-        value instanceof Temporal.ZonedDateTime ||
-        value instanceof Temporal.Duration;
+        isTemporalValue(value);
       const scalar = (key: string, value: unknown): string => {
         if (
           typeof value === "object" &&

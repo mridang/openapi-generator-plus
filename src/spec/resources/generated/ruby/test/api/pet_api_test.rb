@@ -12,24 +12,27 @@ require 'socket'
 require 'base64'
 require 'date'
 
-# An ApiClient that records the URL and headers it is handed and answers 200
-# with a minimal pet, so the request an operation builds can be inspected
-# without a server.
+# An ApiClient that records the URL, headers and body it is handed and answers
+# 200 with a minimal pet (or the given body), so the request an operation
+# builds can be inspected without a server.
 class RecordingPetClient
-  attr_reader :url, :headers, :calls
+  attr_reader :url, :headers, :calls, :request_body
 
-  def initialize
+  def initialize(body: '{"name":"Rex","photoUrls":["u"]}', content_type: 'application/json')
     @calls = 0
+    @body = body
+    @content_type = content_type
   end
 
-  def send_request(_method, url, headers, _body, **_kwargs)
+  def send_request(_method, url, headers, body, **_kwargs)
     @calls += 1
     @url = url
     @headers = headers
+    @request_body = body
     Petstore::Client::ApiHttpResponse.new(
       status_code: 200,
-      body: '{"name":"Rex","photoUrls":["u"]}',
-      headers: { 'content-type' => 'application/json' }
+      body: @body,
+      headers: { 'content-type' => @content_type }
     )
   end
 end
@@ -120,6 +123,40 @@ describe Petstore::Client::Api::PetApi do
         _(request[:request_line]).wont_include 'T00'
         _(request[:request_line]).wont_include '2024-01-01T'
         _(request[:headers]['report-date']).must_equal '2024-01-01'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  # A digit-leading parameter gets a legal identifier (n2nd_page) while the
+  # wire name stays 2ndPage.
+  describe '#find_pets_by_status digit-leading parameter' do
+    it 'sends 2ndPage under its original name' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status(Petstore::Client::Api::Options::FindPetsByStatusOptions.new(n2nd_page: 2))
+        _(captured.pop[:request_line]).must_include '2ndPage=2'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  # F1158: a deepObject query parameter reaches the wire as bracketed keys.
+  describe '#find_pets_by_status deepObject filter' do
+    it 'sends filter[key]=value pairs' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status(
+          Petstore::Client::Api::Options::FindPetsByStatusOptions.new(filter: { 'color' => 'brown', 'size' => 'large' })
+        )
+        line = captured.pop[:request_line]
+
+        _(line).must_include 'filter%5Bcolor%5D=brown'
+        _(line).must_include 'filter%5Bsize%5D=large'
       ensure
         server.close
         thread.join(2)
@@ -456,6 +493,45 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
+    # F1125: non-string scalar form fields go out as plain text parts in their
+    # canonical wire form, not as JSON parts and not through to_s.
+    it 'sends boolean, integer, date-time and enum fields as plain text multipart parts' do
+      api, server, thread, captured_body, = capture_document_request
+      begin
+        api.upload_pet_document(
+          1,
+          Petstore::Client::Api::Options::UploadPetDocumentOptions.new(
+            file: StringIO.new('doc'), is_primary: true, page_count: 3,
+            taken_at: Time.utc(2024, 1, 2, 3, 4, 5), swatch: 'red' # steep:ignore ArgumentTypeMismatch
+          )
+        )
+        body = captured_body.pop
+
+        _(body).must_include("name=\"isPrimary\"\r\n\r\ntrue\r\n")
+        _(body).must_include("name=\"pageCount\"\r\n\r\n3\r\n")
+        _(body).must_include("name=\"takenAt\"\r\n\r\n2024-01-02T03:04:05.000+00:00\r\n")
+        _(body).must_include("name=\"swatch\"\r\n\r\nred\r\n")
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # S16 / F406: a caller-supplied stream is read, never closed.
+    it 'leaves a caller-supplied upload stream open' do
+      api, server, thread, captured_body, = capture_document_request
+      begin
+        io = StringIO.new('doc')
+        api.upload_pet_document(1, Petstore::Client::Api::Options::UploadPetDocumentOptions.new(file: io))
+        captured_body.pop
+
+        _(io.closed?).must_equal(false)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     it 'still sends a multipart body when multipart/form-data is selected (default)' do
       # Guards against over-correction: the default (and explicit multipart)
       # selection must keep shipping a multipart/form-data envelope.
@@ -537,6 +613,122 @@ describe Petstore::Client::Api::PetApi do
       )
 
       _(result).wont_be_nil
+    end
+
+    # F1143 / F1158: the styled path segments, the deepObject and the
+    # object-valued query and header parameters reach the wire as the OAS
+    # style tables say, never as an object's to_s.
+    it 'sends matrix and label path segments' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_tag(5, 'cute')
+        request = captured.pop
+
+        _(request[:request_line]).must_match(%r{\AGET /pet/(;|%3B)petId(=|%3D)5/tag/\.cute[ ?]})
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'expands object-valued query and header parameters by style' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        criteria = Petstore::Client::Models::PetCriteria.new(breed: 'lab', min_age: 3)
+        api.get_pet_tag(
+          5, 'cute',
+          Petstore::Client::Api::Options::GetPetTagOptions.new(
+            criteria: criteria, criteria_csv: criteria, criteria_deep: criteria, x_criteria: criteria
+          )
+        )
+        request = captured.pop
+        line = request[:request_line]
+
+        _(line).must_include 'breed=lab&min_age=3'
+        _(line).must_include 'criteriaCsv=breed%2Clab%2Cmin_age%2C3'
+        _(line).must_include 'criteriaDeep%5Bbreed%5D=lab'
+        _(line).must_include 'criteriaDeep%5Bmin_age%5D=3'
+        _(request[:headers]['x-criteria']).must_equal 'breed,lab,min_age,3'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  # F1068 / F1127: the matrix-style date segment, the required session cookie
+  # and the date-array query reach the wire, and the required parameters are
+  # refused before anything is sent.
+  describe '#get_pet_summary' do
+    def summary_api(client)
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      Petstore::Client::Api::PetApi.new(client, config)
+    end
+
+    it 'sends the matrix date segment, the session cookie and the date array, and returns the text' do
+      client = RecordingPetClient.new(body: 'hello', content_type: 'text/plain')
+      options = Petstore::Client::Api::Options::GetPetSummaryOptions.new(
+        session: 'abc', days: [Date.new(2024, 2, 1), Date.new(2024, 2, 2)]
+      )
+
+      result = summary_api(client).get_pet_summary(7, Date.new(2024, 1, 15), options)
+
+      _(result).must_equal('hello')
+      _(client.url).must_include('/pet/7/summary/;asOf=2024-01-15?')
+      _(client.url).must_include('days=2024-02-01&days=2024-02-02')
+      _(client.headers['Cookie']).must_equal('session=abc')
+    end
+
+    [nil, ''].each do |session|
+      it "refuses the required session cookie #{session.inspect} before sending" do
+        client = RecordingPetClient.new
+        # @type var missing: untyped
+        missing = session
+        options = Petstore::Client::Api::Options::GetPetSummaryOptions.new(session: missing)
+
+        err = assert_raises(ArgumentError) { summary_api(client).get_pet_summary(7, Date.new(2024, 1, 15), options) }
+        _(err.message).must_equal("Missing the required parameter 'session' when calling PetApi.get_pet_summary")
+        _(client.calls).must_equal(0)
+      end
+    end
+  end
+
+  describe '#get_pet_by_name required header' do
+    [nil, ''].each do |value|
+      it "refuses the required X-Correlation-Id header #{value.inspect} before sending" do
+        client = RecordingPetClient.new
+        config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+        api = Petstore::Client::Api::PetApi.new(client, config)
+        # @type var missing: untyped
+        missing = value
+        options = Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: missing)
+
+        err = assert_raises(ArgumentError) { api.get_pet_by_name('Rex', options) }
+        _(err.message).must_equal("Missing the required parameter 'x_correlation_id' when calling PetApi.get_pet_by_name")
+        _(client.calls).must_equal(0)
+      end
+    end
+  end
+
+  # F1142: a request body that is the anyOf wrapper, with a path parameter and
+  # OAuth, is sent as the matched variant's JSON and the answer decoded back.
+  describe '#add_pet_treatment' do
+    it 'sends the variant JSON under the per-call credentials and decodes the answer' do
+      client = RecordingPetClient.new(body: '{"drugName":"aspirin","dosage":"5mg"}')
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      treatment = Petstore::Client::Models::Medication.new(drug_name: 'aspirin', dosage: '5mg')
+
+      result = api.add_pet_treatment(
+        7, treatment, # steep:ignore ArgumentTypeMismatch
+        Petstore::Client::Api::Options::AddPetTreatmentOptions.new(auth: @auth)
+      )
+
+      _(client.url).must_equal('http://127.0.0.1:1/pet/7/treatment')
+      _(JSON.parse(client.request_body)).must_equal('drugName' => 'aspirin', 'dosage' => '5mg')
+      _(client.headers['Authorization']).must_equal('Bearer test-token')
+      _(result).must_be_kind_of(Petstore::Client::Models::Medication)
+      _(result.drug_name).must_equal('aspirin')
     end
   end
 
@@ -1236,6 +1428,31 @@ describe Petstore::Client::Api::PetApi do
       _(block).must_include '# @raise [ApiError] if fails to make API call'
     end
 
+    # F1155: the deprecation marker sits on the data method and on its
+    # with_http_info twin, only on the deprecated operations, and on the
+    # deprecated parameter and model.
+    it 'marks a deprecated operation on both of its methods' do
+      %w[find_pets_by_status find_pets_by_status_with_http_info get_pet_by_id get_pet_by_id_with_http_info].each do |name|
+        _(doc_block(name)).must_include '# @deprecated This operation is deprecated.'
+      end
+    end
+
+    it 'does not mark an operation that is not deprecated' do
+      %w[add_pet add_pet_with_http_info delete_pet].each do |name|
+        _(doc_block(name)).wont_include '# @deprecated This operation is deprecated.'
+      end
+    end
+
+    it 'marks the deprecated parameter on its options class' do
+      path = String(Object.const_source_location(Petstore::Client::Api::Options::FindPetsByStatusOptions.name)&.first)
+      _(File.read(path)).must_include '# @deprecated This parameter is deprecated.'
+    end
+
+    it 'marks the deprecated model' do
+      path = String(Object.const_source_location(Petstore::Client::Models::Tag.name)&.first)
+      _(File.read(path)).must_include '# @deprecated This schema is deprecated.'
+    end
+
     it 'documents the authenticator only on options that carry one' do
       _(doc_block('add_pet')).must_include '# @param options [AddPetOptions] ' \
                                            'options carrying an optional per-call authenticator'
@@ -1343,6 +1560,30 @@ describe Petstore::Client::Api::PetApi do
 
       _(primary).must_equal 'https://primary.example.com/v1/pet/7/multi'
       _(regional).must_equal 'https://eu.example.com/v1/pet/7/multi'
+    end
+
+    # The Mirror variant has two variables, and its channel values hold
+    # characters that are special in a URL and in a string literal.
+    {
+      'a&b' => 'https://eu.mirror.example.com/a&b/v1/pet/7/multi',
+      "it's" => "https://eu.mirror.example.com/it's/v1/pet/7/multi"
+    }.each do |channel, expected|
+      it "resolves the Mirror variant for the channel #{channel.inspect}" do
+        server = Petstore::Client::Api::GetMultiServerPetInfoServerMirror.new(
+          region: Petstore::Client::Api::GetMultiServerPetInfoServerMirrorRegion::EU, channel: channel
+        )
+        url = url_sent_to(server) { |api, chosen| api.get_multi_server_pet_info(7, server: chosen) }
+        _(url).must_equal expected
+      end
+    end
+
+    it 'rejects a Mirror channel outside the declared values' do
+      err = assert_raises(ArgumentError) do
+        Petstore::Client::Api::GetMultiServerPetInfoServerMirror.new(
+          region: Petstore::Client::Api::GetMultiServerPetInfoServerMirrorRegion::EU, channel: 'other'
+        )
+      end
+      _(err.message).must_include "Invalid value 'other' for server variable 'channel'"
     end
   end
 end

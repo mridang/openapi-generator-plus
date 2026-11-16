@@ -209,7 +209,9 @@ final class ValueSerializer
      * @param string|null $style      the OAS 3.0 parameter style
      * @param bool        $explode    whether to explode array values
      *
-     * @return string|array<int, string>|null the serialized value
+     * @return string|array<int|string, string>|null the serialized value; a
+     *         map keyed by name when an object explodes into one query
+     *         parameter per property (see {@see putQueryParam()})
      */
     public static function serializeStyled(
         string $paramName,
@@ -254,6 +256,11 @@ final class ValueSerializer
                 return null;
             }
             return '';
+        }
+
+        if (is_object($value) && self::isModel($value)) {
+            return self::serializeObjectStyled($paramName, $value, $location, $style, $explode)
+                ?? self::serialize($value, $location, $schemaType, $collectionFormat);
         }
 
         $stringifier = self::stringifierFor($schemaType);
@@ -301,6 +308,82 @@ final class ValueSerializer
             'pipeDelimited' => $isList ? ($explode ? $items : implode('|', $items)) : $scalar,
             'simple' => $isList ? implode(',', $items) : $scalar,
             default => self::serialize($value, $location, $schemaType, $collectionFormat),
+        };
+    }
+
+    /**
+     * Sets a query parameter from a styled value. A map keyed by name (an
+     * object that explodes into one parameter per property) is merged into the
+     * query as it is; any other value is set under the parameter's own name.
+     *
+     * @param array<string, mixed>                  $query  the query parameters so far
+     * @param string|array<int|string, string>|null $styled the result of {@see serializeStyled()}
+     *
+     * @return array<string, mixed> the query parameters with the value added
+     */
+    public static function putQueryParam(array $query, string $name, string|array|null $styled): array
+    {
+        if (is_array($styled) && $styled !== [] && !array_is_list($styled)) {
+            foreach ($styled as $key => $value) {
+                $query[(string) $key] = $value;
+            }
+
+            return $query;
+        }
+        $query[$name] = $styled;
+
+        return $query;
+    }
+
+    /**
+     * Whether a value is a generated model, as opposed to a date, enum, UUID
+     * or other value object that has its own text form.
+     */
+    private static function isModel(object $value): bool
+    {
+        return !$value instanceof \UnitEnum
+            && str_starts_with($value::class, 'PetstoreClient\Models\\');
+    }
+
+    /**
+     * Serializes a model as an OAS object: its wire names and stringified
+     * values, laid out by style and explode (RFC 6570 for the non-deep styles).
+     *
+     * @return string|array<string, string>|null null for a style that has no object form
+     */
+    private static function serializeObjectStyled(
+        string $paramName,
+        object $model,
+        string $location,
+        string $style,
+        bool $explode
+    ): string|array|null {
+        $decoded = json_decode(ObjectSerializer::serialize($model), true);
+        $map = [];
+        foreach (is_array($decoded) ? $decoded : [] as $key => $item) {
+            $map[(string) $key] = ObjectSerializer::stringify($item);
+        }
+        $encode = $location === 'path'
+            ? self::encodePathSegment(...)
+            : static fn (string $text): string => $text;
+        $flat = [];
+        $pairs = [];
+        foreach ($map as $key => $item) {
+            $flat[] = $encode($key);
+            $flat[] = $encode($item);
+            $pairs[] = $encode($key) . '=' . $encode($item);
+        }
+
+        return match ($style) {
+            'form' => $explode ? $map : implode(',', $flat),
+            'simple' => implode(',', $explode ? $pairs : $flat),
+            'label' => '.' . implode($explode ? '.' : ',', $explode ? $pairs : $flat),
+            'matrix' => $explode
+                ? implode('', array_map(static fn (string $pair): string => ';' . $pair, $pairs))
+                : ';' . $paramName . '=' . implode(',', $flat),
+            'spaceDelimited' => $explode ? $map : implode(' ', $flat),
+            'pipeDelimited' => $explode ? $map : implode('|', $flat),
+            default => null,
         };
     }
 

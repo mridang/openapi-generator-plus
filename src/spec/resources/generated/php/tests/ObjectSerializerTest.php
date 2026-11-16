@@ -138,6 +138,67 @@ test('serialize uuid value roundtrips', function (): void {
     expect($serialized)->toBe('"550e8400-e29b-41d4-a716-446655440000"');
 });
 
+test('a uuid model property is decoded from uppercase and written lowercase', function (): void {
+    /** @var Order $order */
+    $order = ObjectSerializer::deserialize('{"trackingId":"123E4567-E89B-12D3-A456-426614174000"}', Order::class);
+
+    expect($order->trackingId)->toBeInstanceOf(\Symfony\Component\Uid\Uuid::class);
+    expect(ObjectSerializer::serialize($order))->toContain('"trackingId":"123e4567-e89b-12d3-a456-426614174000"');
+});
+
+test('a malformed uuid model property is rejected on decode', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"trackingId":"not-a-uuid"}', Order::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('models named Error and Result nest and round trip', function (): void {
+    $model = new EdgeCases(
+        lastError: new \PetstoreClient\Models\Error(500, 'boom'),
+        outcome: new \PetstoreClient\Models\Result(true)
+    );
+    $json = ObjectSerializer::serialize($model);
+
+    expect($json)->toContain('"lastError":{"code":500,"message":"boom"}');
+    expect($json)->toContain('"outcome":{"ok":true}');
+    /** @var EdgeCases $back */
+    $back = ObjectSerializer::deserialize($json, EdgeCases::class);
+    expect($back->lastError)->toBeInstanceOf(\PetstoreClient\Models\Error::class);
+    expect($back->lastError?->code)->toBe(500);
+    expect($back->lastError?->message)->toBe('boom');
+    expect($back->outcome)->toBeInstanceOf(\PetstoreClient\Models\Result::class);
+    expect($back->outcome?->ok)->toBeTrue();
+});
+
+test('an inline enum keeps its mixed-case wire values', function (\PetstoreClient\Models\EdgeCasesPhaseEnum $case, string $wire): void {
+    $json = ObjectSerializer::serialize(new EdgeCases(phase: $case));
+
+    expect($json)->toContain('"phase":"' . $wire . '"');
+    /** @var EdgeCases $back */
+    $back = ObjectSerializer::deserialize($json, EdgeCases::class);
+    expect($back->phase)->toBe($case);
+})->with([
+    'hyphenated and capitalised' => [\PetstoreClient\Models\EdgeCasesPhaseEnum::IN_STOCK, 'In-Stock'],
+    'hyphenated lower case' => [\PetstoreClient\Models\EdgeCasesPhaseEnum::ON_HOLD, 'on-hold'],
+    'upper snake case' => [\PetstoreClient\Models\EdgeCasesPhaseEnum::OUT_OF_STOCK, 'OUT_OF_STOCK'],
+]);
+
+test('availability members with quotes, backslashes and template syntax round trip', function (
+    Availability $case,
+    string $wireJson
+): void {
+    $json = ObjectSerializer::serialize(new StockItem(Priority::NUMBER_1, $case));
+
+    expect($json)->toContain('"availability":' . $wireJson);
+    /** @var StockItem $back */
+    $back = ObjectSerializer::deserialize($json, StockItem::class);
+    expect($back->availability)->toBe($case);
+})->with([
+    'apostrophe' => [Availability::OCLOCK, '"o\'clock"'],
+    'backslash' => [Availability::A_B, '"a\\\\b"'],
+    'dollar' => [Availability::EQ, '"$eq"'],
+    'hash brace' => [Availability::X, '"#{x}"'],
+]);
+
 // -- toHeaderValue --
 
 test('to header value returns empty string for null', function (): void {
@@ -619,6 +680,16 @@ test('deserialize holds the exact string default literal for greeting', function
     $defaults = ObjectSerializer::deserialize('{}', Defaults::class);
     expect($defaults)->toBeInstanceOf(Defaults::class);
     expect($defaults->greeting)->toBe("it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b");
+});
+
+test('numeric schema defaults are exact typed values', function (): void {
+    /** @var Defaults $defaults */
+    $defaults = ObjectSerializer::deserialize('{}', Defaults::class);
+
+    expect($defaults->ratio)->toBe(1.5);
+    expect($defaults->scale)->toBe(0.25);
+    expect($defaults->weight)->toBe(2.0);
+    expect($defaults->ceiling)->toBe(9000000000);
 });
 
 test('deserialize preserves explicit null over a defaulted field', function (): void {
@@ -1264,6 +1335,80 @@ test('byte fields hold raw bytes and are base64 only on the wire', function (): 
     expect($backScans->toArray())->toBe([$scanA, 'scan-B']);
 });
 
+test('a contentEncoding base64 property holds raw bytes and is base64 on the wire', function (): void {
+    $passport = new PetPassport(biometricChip: "chip\x00\xff");
+
+    $json = ObjectSerializer::serialize($passport);
+    /** @var array<string, mixed> $data */
+    $data = json_decode($json, true);
+    expect($data['biometricChip'])->toBe(base64_encode("chip\x00\xff"));
+
+    /** @var PetPassport $back */
+    $back = ObjectSerializer::deserialize('{"biometricChip":"' . base64_encode("chip\x00\xff") . '"}', PetPassport::class);
+    expect($back->biometricChip)->toBe("chip\x00\xff");
+});
+
+test('a prefixItems array of mixed element types round trips in order', function (): void {
+    /** @var Pet $pet */
+    $pet = ObjectSerializer::deserialize(
+        '{"name":"n","photoUrls":[],"location":[1.5,2.5,"here"]}',
+        Pet::class
+    );
+
+    expect($pet->location)->toBeInstanceOf(\Ds\Vector::class);
+    expect($pet->location?->toArray())->toBe([1.5, 2.5, 'here']);
+    expect(ObjectSerializer::serialize($pet))->toContain('"location":[1.5,2.5,"here"]');
+});
+
+test('every separator enum value decodes to its own case and re-encodes', function (): void {
+    $cases = [];
+    foreach ([' ', '@@', 'a-b', 'a_b'] as $wire) {
+        $case = ObjectSerializer::deserialize((string) json_encode($wire), \PetstoreClient\Models\Separator::class);
+        expect($case)->toBeInstanceOf(\PetstoreClient\Models\Separator::class);
+        assert($case instanceof \PetstoreClient\Models\Separator);
+        expect(ObjectSerializer::serialize($case))->toBe((string) json_encode($wire));
+        $cases[] = $case->name;
+    }
+
+    expect(array_unique($cases))->toHaveCount(4);
+});
+
+test('values beyond the schema constraints are accepted and round trip', function (): void {
+    /** @var Pet $pet */
+    $pet = ObjectSerializer::deserialize('{"name":"n","photoUrls":[],"nickname":"ZZZZZZZZZZ"}', Pet::class);
+    expect($pet->nickname)->toBe('ZZZZZZZZZZ');
+    expect(ObjectSerializer::serialize($pet))->toContain('"nickname":"ZZZZZZZZZZ"');
+
+    /** @var Order $order */
+    $order = ObjectSerializer::deserialize('{"quantity":500}', Order::class);
+    expect($order->quantity)->toBe(500);
+});
+
+test('a pattern constrained property accepts and round trips a matching value', function (): void {
+    /** @var EdgeCases $model */
+    $model = ObjectSerializer::deserialize('{"slug":"12/ab"}', EdgeCases::class);
+
+    expect($model->slug)->toBe('12/ab');
+    expect(ObjectSerializer::serialize($model))->toContain('"slug":"12/ab"');
+});
+
+test('a duplicate object key resolves to the last value', function (): void {
+    /** @var Category $category */
+    $category = ObjectSerializer::deserialize('{"id":1,"id":2,"name":"Dogs"}', Category::class);
+
+    expect($category->id)->toBe(2);
+    expect($category->name)->toBe('Dogs');
+});
+
+test('a digit-leading property keeps its wire name', function (): void {
+    $json = ObjectSerializer::serialize(new EdgeCases(n2fa: true));
+
+    expect($json)->toContain('"2fa":true');
+    /** @var EdgeCases $back */
+    $back = ObjectSerializer::deserialize('{"2fa":true}', EdgeCases::class);
+    expect($back->n2fa)->toBeTrue();
+});
+
 test('byte models expose no raw-bytes accessors', function (): void {
     foreach (['getThumbnailAsBytes', 'setThumbnailFromBytes', 'getScansAsBytes', 'setScansFromBytes'] as $method) {
         expect(method_exists(PetPassport::class, $method))->toBeFalse();
@@ -1315,6 +1460,19 @@ test('strict model rejects an undeclared key through deserialize', function (): 
         ->toThrow(\PetstoreClient\Errors\SerializationException::class, "Unknown property 'extra'");
     expect(fn () => ObjectSerializer::deserialize('{"name":"x","extra":1}', StrictTag::class))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class, '(unevaluatedProperties:false)');
+});
+
+test('a plain model ignores an undeclared key and keeps the declared fields', function (): void {
+    $category = ObjectSerializer::deserialize(
+        '{"id":42,"name":"Dogs","unexpectedField":{"nested":[1,2]},"another":"x"}',
+        Category::class
+    );
+
+    expect($category)->toBeInstanceOf(Category::class);
+    assert($category instanceof Category);
+    expect($category->id)->toBe(42);
+    expect($category->name)->toBe('Dogs');
+    expect(property_exists($category, 'unexpectedField'))->toBeFalse();
 });
 
 test('strict model has no public unknown-property hook', function (): void {
@@ -1470,7 +1628,23 @@ test('nesting exactly at the depth cap decodes and one level past it is rejected
     $pastCap = str_repeat('[', ObjectSerializer::MAX_JSON_DEPTH + 1)
         . str_repeat(']', ObjectSerializer::MAX_JSON_DEPTH + 1);
     expect(fn (): mixed => ObjectSerializer::deserialize($pastCap, 'object[]'))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+        ->toThrow(
+            \PetstoreClient\Errors\SerializationException::class,
+            'JSON nesting depth 1001 exceeds limit 1000'
+        );
+});
+
+test('brackets inside string literals do not count towards the nesting depth', function (): void {
+    $body = '["' . str_repeat('[', 1500) . '"]';
+    expect(ObjectSerializer::deserialize($body, 'string[]'))->toBe([str_repeat('[', 1500)]);
+});
+
+test('a deserialize failure carries the canonical message with the parser detail', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"id":"not-a-number","name":"Dogs"}', Category::class))
+        ->toThrow(function (\Exception $e): void {
+            expect($e->getMessage())->toStartWith('Failed to deserialize JSON: ');
+            expect($e->getMessage())->not->toContain(' to ' . Category::class);
+        });
 });
 
 test('a container leaf is not JSON-decoded a second time', function (string $leafType, string $literal): void {
@@ -1572,7 +1746,41 @@ test('date-time decode rejects text that is not RFC 3339 with an offset', functi
     'epoch number' => ['1700000000'],
     'epoch text' => ['"1700000000"'],
     'impossible calendar date' => ['"2024-02-30T10:00:00Z"'],
+    'date only' => ['"2024-01-01"'],
+    'space separator' => ['"2024-01-01 10:00:00Z"'],
 ]);
+
+test('a readOnly property is decoded from a response', function (): void {
+    $account = ObjectSerializer::deserialize('{"id":7,"username":"ada"}', Account::class);
+
+    expect($account)->toBeInstanceOf(Account::class);
+    assert($account instanceof Account);
+    expect($account->id)->toBe(7);
+    expect($account->username)->toBe('ada');
+});
+
+test('a writeOnly property is serialized', function (): void {
+    $json = ObjectSerializer::serialize(new Account('ada', null, 'hunter2'));
+
+    expect($json)->toContain('"password":"hunter2"');
+});
+
+test('a password property is masked in var_dump and print_r output', function (): void {
+    $account = new Account('ada', 7, 'hunter2');
+
+    expect(print_r($account, true))->not->toContain('hunter2');
+    expect(print_r($account, true))->toContain('***');
+    expect(print_r($account, true))->toContain('ada');
+    expect($account->password)->toBe('hunter2');
+});
+
+test('a writeOnly property is kept when decoded', function (): void {
+    $account = ObjectSerializer::deserialize('{"username":"ada","password":"hunter2"}', Account::class);
+
+    expect($account)->toBeInstanceOf(Account::class);
+    assert($account instanceof Account);
+    expect($account->password)->toBe('hunter2');
+});
 
 test('date-time decode accepts RFC 3339 with any fraction length', function (string $text, string $expected): void {
     /** @var Order $order */

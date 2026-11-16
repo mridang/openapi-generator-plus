@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -542,7 +542,7 @@ class TestAuthInjection:
 
     async def test_sets_cookie_header(self, api: Any) -> None:
         auth = StubAuthenticator(cookies={"session": "abc123"})
-        await api.call(
+        result = await api.call(
             "GET",
             "/test/echo",
             {},
@@ -550,9 +550,27 @@ class TestAuthInjection:
             None,
             ["application/json"],
             "application/json",
-            None,
+            "object",
             auth,
         )
+        assert result is not None
+        assert result["headers"]["cookie"] == "session=abc123"
+
+    async def test_joins_several_auth_cookies_with_a_semicolon(self, api: Any) -> None:
+        auth = StubAuthenticator(cookies={"session": "abc123", "theme": "dark"})
+        result = await api.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            "object",
+            auth,
+        )
+        assert result is not None
+        assert result["headers"]["cookie"] == "session=abc123; theme=dark"
 
     async def test_falls_back_to_client_level_authenticator(self) -> None:
         client = CapturingApiClient()
@@ -846,6 +864,20 @@ class TestBodySerialization:
         )
         assert client.captured_body is not None
         assert "name=alice" in str(client.captured_body)
+
+    @pytest.mark.parametrize("declared", ["multipart/mixed", "multipart/related"])
+    async def test_non_form_data_multipart_body_stays_a_parts_dict(
+        self, declared: str
+    ) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url="http://localhost")
+        stub = StubApi(api_client=client, config=config)
+        parts = {"meta": "x", "file": b"abc"}
+        await stub.call(
+            "POST", "/test/echo", {}, {}, parts, ["application/json"], declared, None
+        )
+        assert client.captured_body is parts
+        assert client.captured_headers["Content-Type"] == declared
 
     async def test_form_urlencoded_body_encodes_space_as_plus(self) -> None:
         # form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
@@ -1306,6 +1338,29 @@ class TestHeaderFlowThrough:
             "accept"
         ]
         assert client.captured_headers["accept"] == "application/vnd.x+json"
+
+    async def test_an_explicit_accept_header_parameter_beats_default_and_negotiated(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        config = Configuration(
+            base_url="http://localhost", default_headers={"Accept": "application/xml"}
+        )
+        stub = StubApi(api_client=client, config=config)
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {"accept": "text/plain"},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert [k for k in client.captured_headers if k.lower() == "accept"] == [
+            "accept"
+        ]
+        assert client.captured_headers["accept"] == "text/plain"
 
     async def test_a_lower_case_default_content_type_is_dropped_without_a_body(
         self,

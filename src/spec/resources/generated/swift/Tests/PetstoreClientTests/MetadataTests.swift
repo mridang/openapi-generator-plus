@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -20,6 +20,17 @@ import Testing
 
     let restored = try JSONDecoder().decode(Metadata.self, from: data)
     _ = restored
+  }
+
+  /* The header comment of a source file prints the API description as prose:
+     a quote in it is a quote, not a backslash and a quote. */
+  @Test func testFileHeaderDescriptionHasNoEscapedQuotes() throws {
+    let file = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+      .appendingPathComponent("Sources/PetstoreClient/DefaultApiClient.swift")
+    let source = try String(contentsOf: file, encoding: .utf8)
+    let header = source.components(separatedBy: "\n").prefix { $0.hasPrefix("//") }
+    #expect(!header.isEmpty)
+    #expect(!header.contains { $0.contains("\\\"") })
   }
 
   @Test func testDeserializeFromJSON() throws {

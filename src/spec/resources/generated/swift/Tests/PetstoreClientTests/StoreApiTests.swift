@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -138,6 +138,19 @@ import Testing
     #expect(result.password == "p")
   }
 
+  /* A format: password property never reaches a log; the wire form is
+     unchanged. */
+  @Test func testPasswordPropertyIsMaskedInTheStringForms() throws {
+    let account = Account(username: "u", password: "s3cret-value")
+    #expect(!String(describing: account).contains("s3cret-value"))
+    #expect(!String(reflecting: account).contains("s3cret-value"))
+    var dumped = ""
+    dump(account, to: &dumped)
+    #expect(!dumped.contains("s3cret-value"))
+    #expect(String(describing: account).contains("***"))
+    #expect(try ObjectSerializer.serialize(account).contains("\"password\":\"s3cret-value\""))
+  }
+
   @Test func testPlaceOrderServerError() async throws {
     let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
     let error = await #expect(throws: InternalServerError.self) {
@@ -253,6 +266,64 @@ import Testing
     let result = try await mockApi.getTimestampGroups()
     #expect(result.count == 1)
     #expect(result[0]["t"] == Date(timeIntervalSince1970: 1_704_164_645))
+  }
+
+  /* A uuid path parameter is written in lowercase whatever the caller's case. */
+  @Test func testGetOrderByTrackingIdPutsTheLowercaseUuidInThePath() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+    let id = try #require(UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"))
+
+    _ = try await api.getOrderByTrackingId(trackingId: id)
+
+    #expect(
+      mockClient.lastURL
+        == "https://example.com/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
+  }
+
+  /* The response-shape operations decode a bare enum, a mutually recursive
+     pair, a self-recursive model, schema defaults and an integer-backed enum
+     with nested arrays. */
+  @Test func testGetSwatchDecodesABareEnum() async throws {
+    let mockApi = storeApiForMock(statusCode: 200, body: "\"green\"")
+    #expect(try await mockApi.getSwatch() == Swatch.green)
+  }
+
+  @Test func testGetDepartmentDecodesMutuallyRecursiveModels() async throws {
+    let mockApi = storeApiForMock(
+      statusCode: 200,
+      body: "{\"name\":\"d\",\"lead\":{\"name\":\"e\",\"department\":{\"name\":\"d2\"}}}")
+    let result = try await mockApi.getDepartment()
+    #expect(result.name == "d")
+    #expect(result.lead?.name == "e")
+    #expect(result.lead?.department?.name == "d2")
+  }
+
+  @Test func testGetTreeDecodesASelfRecursiveModel() async throws {
+    let mockApi = storeApiForMock(
+      statusCode: 200,
+      body: "{\"value\":\"a\",\"child\":{\"value\":\"b\",\"child\":{\"value\":\"c\"}}}")
+    let result = try await mockApi.getTree()
+    #expect(result.value == "a")
+    #expect(result.child?.child?.value == "c")
+  }
+
+  @Test func testGetDefaultsAppliesSchemaDefaults() async throws {
+    let mockApi = storeApiForMock(statusCode: 200, body: "{}")
+    let result = try await mockApi.getDefaults()
+    #expect(result.retries == 3)
+    #expect(result.ratio == 1.5)
+    #expect(result.ceiling == 9_000_000_000)
+  }
+
+  @Test func testGetStockItemDecodesAnIntegerEnumAndNestedArrays() async throws {
+    let mockApi = storeApiForMock(
+      statusCode: 200, body: "{\"priority\":2,\"matrix\":[[1],[2,3]]}")
+    let result = try await mockApi.getStockItem()
+    #expect(result.priority == .NUMBER_2)
+    #expect(result.matrix == [[1], [2, 3]])
   }
 
   @Test func testDeleteOrderNotFound() async throws {

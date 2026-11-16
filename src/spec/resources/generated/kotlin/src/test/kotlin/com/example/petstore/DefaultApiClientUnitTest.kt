@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -469,6 +469,43 @@ class DefaultApiClientUnitTest {
                 apiClient.sendRequest("GET", "http://localhost/test", callerHeaders, null)
             }
             assertEquals("application/json", capturedAccept)
+        }
+    }
+
+    @Nested
+    @DisplayName("default header layering")
+    inner class DefaultHeaderLayering {
+        @Test
+        @DisplayName("a caller header replaces a default header of another letter case")
+        fun callerHeaderReplacesDefaultCaseInsensitively() {
+            val seen = mutableListOf<List<String>>()
+            val client =
+                mockClient(requestCapture = { req ->
+                    seen.add(req.headers.getAll("Accept").orEmpty())
+                })
+            val transport = TransportOptions.builder().defaultHeader("accept", "text/plain").build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", mapOf("Accept" to "application/json"), null)
+            }
+            assertEquals(listOf(listOf("application/json")), seen)
+        }
+
+        @Test
+        @DisplayName("a no-redirect (token) request does not carry the transport default headers")
+        fun noRedirectRequestSkipsDefaultHeaders() {
+            val seen = mutableListOf<String?>()
+            val client =
+                mockClient(requestCapture = { req ->
+                    seen.add(req.headers["X-Api-Secret"])
+                })
+            val transport = TransportOptions.builder().defaultHeader("X-Api-Secret", "api-only").build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("POST", "http://localhost/token", emptyMap(), "a=b", noRedirect = true)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals(listOf<String?>(null, "api-only"), seen)
         }
     }
 
@@ -1385,6 +1422,68 @@ class DefaultApiClientUnitTest {
     }
 
     @Nested
+    @DisplayName("decoded response headers")
+    inner class DecodedResponseHeaders {
+        @Test
+        @DisplayName("D92: a decoded body drops Content-Encoding and Content-Length from the returned headers")
+        fun decodedBodyDropsEncodingAndLength() {
+            val gzipped =
+                java.io
+                    .ByteArrayOutputStream()
+                    .also { out ->
+                        java.util.zip
+                            .GZIPOutputStream(out)
+                            .use { it.write("{\"a\":1}".toByteArray()) }
+                    }.toByteArray()
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = gzipped,
+                        status = HttpStatusCode.OK,
+                        headers =
+                            headersOf(
+                                "Content-Type" to listOf("application/json"),
+                                "Content-Encoding" to listOf("gzip"),
+                                "Content-Length" to listOf(gzipped.size.toString()),
+                                "X-Kept" to listOf("yes"),
+                            ),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+
+            val response = runBlocking { apiClient.sendRequest("GET", "http://localhost/gz", emptyMap(), null) }
+
+            assertEquals("{\"a\":1}", response.body)
+            assertNull(response.headers["content-encoding"])
+            assertNull(response.headers["content-length"])
+            assertEquals("yes", response.headers["x-kept"])
+        }
+
+        @Test
+        @DisplayName("F1063: a Set-Cookie of one response is never replayed as a Cookie header")
+        fun setCookieIsNeverReplayed() {
+            val cookies = mutableListOf<String?>()
+            val engine =
+                MockEngine { request ->
+                    cookies.add(request.headers["Cookie"])
+                    respond(
+                        content = "{}",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type" to listOf("application/json"), "Set-Cookie" to listOf("sid=1; Path=/")),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/a", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/b", emptyMap(), null)
+            }
+
+            assertEquals(listOf<String?>(null, null), cookies)
+        }
+    }
+
+    @Nested
     @DisplayName("Content-Encoding lie")
     inner class ContentEncodingLie {
         @Test
@@ -1754,6 +1853,33 @@ class DefaultApiClientUnitTest {
             assertInstanceOf(com.example.petstore.errors.NetworkException::class.java, ex)
             assertEquals(0, ex.statusCode)
             assertInstanceOf(io.ktor.client.plugins.HttpRequestTimeoutException::class.java, ex.cause)
+        }
+
+        @Test
+        @DisplayName("F861: a network error message never carries the query of the request URL")
+        fun networkErrorMessageDropsTheQuery() {
+            val engine =
+                MockEngine { _ ->
+                    kotlinx.coroutines.delay(5_000)
+                    respond("late", HttpStatusCode.OK)
+                }
+            val client =
+                HttpClient(engine) {
+                    followRedirects = false
+                    install(io.ktor.client.plugins.HttpTimeout) { requestTimeoutMillis = 50 }
+                }
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.NetworkTimeoutException::class.java) {
+                    runBlocking {
+                        DefaultApiClient(client).sendRequest("GET", "http://localhost/slow?api_key=SECRET", emptyMap(), null)
+                    }
+                }
+            assertFalse(ex.message.orEmpty().contains("SECRET"), ex.message)
+            assertEquals(
+                "Query and fragment dropped: http://localhost/x",
+                redactUrlsInMessage("Query and fragment dropped: http://localhost/x?k=SECRET#f"),
+            )
+            assertEquals("[url=http://h/p, t=1]", redactUrlsInMessage("[url=http://h/p?k=v, t=1]"))
         }
 
         @Test

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -131,7 +131,7 @@ import Testing
   @Test func testIncludesRefreshTokenOnRefresh() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
     let auth = createAuthenticator()
@@ -152,7 +152,7 @@ import Testing
   @Test func testRefreshGrantGoesToRefreshUrlAndCodeExchangeToTokenUrl() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
     let auth = OAuth2AuthorizationCodeAuthenticator(
@@ -175,7 +175,7 @@ import Testing
   @Test func testRefreshGrantFallsBackToTokenUrlWithoutRefreshUrl() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
     let auth = createAuthenticator()
@@ -329,8 +329,11 @@ import Testing
 
     let url = try auth.buildAuthorizationURL(state: "s")
 
+    let withoutPkce = url.replacingOccurrences(
+      of: "&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256$", with: "",
+      options: .regularExpression)
     #expect(
-      url
+      withoutPkce
         == "https://auth.example.com/authorize?response_type=code&client_id=my-client-id&redirect_uri=https://app.example.com/callback&scope=read%20write&state=s"
     )
   }
@@ -352,12 +355,68 @@ import Testing
     )
   }
 
+  /* SHA-256 known answers (FIPS 180-4). */
+  @Test(arguments: [
+    ("", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+    ("abc", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"),
+    (
+      "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+      "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
+    ),
+  ])
+  func testSha256MatchesTheKnownAnswers(input: String, hex: String) {
+    let digest = PKCE.sha256(Array(input.utf8))
+    #expect(digest.map { String(format: "%02x", $0) }.joined() == hex)
+  }
+
+  /* RFC 7636 appendix B: the S256 challenge of the specification's verifier. */
+  @Test func testS256ChallengeMatchesRfc7636AppendixB() {
+    #expect(
+      PKCE.challenge(for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+        == "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+  }
+
+  /* The authorization URL carries an S256 challenge and the code exchange
+     proves it with the matching verifier. */
+  @Test func testAuthorizationUrlChallengeIsProvedByTheCodeExchange() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let url = try auth.buildAuthorizationURL(state: "s")
+    let items = URLComponents(string: url)?.queryItems ?? []
+    #expect(items.first { $0.name == "code_challenge_method" }?.value == "S256")
+    let challenge = try #require(items.first { $0.name == "code_challenge" }?.value)
+
+    try await auth.exchangeCode("the-code")
+
+    let body = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    let verifier = try #require(
+      body.split(separator: "&").first { $0.hasPrefix("code_verifier=") }
+        .map { String($0.dropFirst("code_verifier=".count)) })
+    #expect(verifier.count >= 43)
+    #expect(PKCE.challenge(for: verifier) == challenge)
+  }
+
+  @Test func testCodeExchangeWithoutAnAuthorizationUrlSendsNoVerifier() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("the-code")
+
+    let body = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(!body.contains("code_verifier"))
+  }
+
   /* RFC 6749 section 6: the refresh grant authenticates the client the
    * same way the code exchange did. */
   @Test func testRefreshBodyCarriesClientCredentials() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
     let auth = createAuthenticator()
@@ -378,7 +437,7 @@ import Testing
   @Test func testRejectedRefreshSurfacesServerErrorAfterOneRefreshPost() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"unexpected\",\"expires_in\":3600}"))

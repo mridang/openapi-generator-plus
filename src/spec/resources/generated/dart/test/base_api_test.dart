@@ -38,6 +38,26 @@ class _BaseApiAuth implements Authenticator {
   Map<String, String> cookieParams() => cookies;
 }
 
+class _ClientRecordingAuth implements HttpAwareAuthenticator {
+  ApiClient? injected;
+
+  @override
+  void setApiClient(ApiClient client) {
+    injected = client;
+  }
+
+  @override
+  String host() => '';
+  @override
+  Map<String, String> authHeaders() => const {};
+  @override
+  Future<Map<String, String>> authHeadersAsync() async => const {};
+  @override
+  Map<String, String> queryParams() => const {};
+  @override
+  Map<String, String> cookieParams() => const {};
+}
+
 class _CapturingApiClient implements ApiClient {
   String capturedUrl = '';
   String capturedBody = '';
@@ -226,16 +246,32 @@ void main() {
     });
 
     test('sets cookie from auth', () async {
-      final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
-      final auth = _BaseApiAuth(cookies: {'session': 'abc123'});
-      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+      String? receivedCookie;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedCookie = request.headers.value('cookie');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Test","photoUrls":[]}')
+          ..close();
+      });
 
       try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final auth = _BaseApiAuth(cookies: {'session': 'abc123'});
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
         await api.addPet(
           Pet(name: 'Test', photoUrls: <String>{}),
           AddPetOptions(auth: auth),
         );
-      } catch (_) {}
+        expect(receivedCookie, equals('session=abc123'));
+      } finally {
+        await server.close();
+      }
     });
 
     test('forwards auth query params', () async {
@@ -374,6 +410,18 @@ void main() {
     );
 
     // -- OptionalAuthParamTests --
+
+    test(
+      'a per-call HTTP-aware authenticator receives the API transport',
+      () async {
+        final transport = _CapturingApiClient();
+        final recorder = _ClientRecordingAuth();
+        final api = PetApi(apiClient: transport);
+
+        await api.deletePet(1, DeletePetOptions(auth: recorder));
+        expect(identical(recorder.injected, transport), isTrue);
+      },
+    );
 
     test(
       'op-level auth is optional named param and falls back to client-level',
@@ -724,6 +772,40 @@ void main() {
                 'config default Accept must override the '
                 'operation-negotiated application/json',
           );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'an explicit Accept header parameter beats the config default and the negotiated Accept',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String? receivedAccept;
+        server.listen((request) {
+          receivedAccept = request.headers.value('accept');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.text
+            ..write('ok')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .defaultHeader('Accept', 'application/xml')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.invokeApi(
+            method: 'GET',
+            path: '/x',
+            headerParams: {'Accept': 'text/plain'},
+            accepts: ['application/json'],
+          );
+          expect(receivedAccept, equals('text/plain'));
         } finally {
           await server.close();
         }

@@ -326,6 +326,16 @@ defmodule PetstoreClient.DefaultApiClient do
         Base.encode64(body_binary)
       end
 
+    # D92: once the body has been decoded the returned headers no longer
+    # describe it, so Content-Encoding and Content-Length are dropped. An
+    # identity or empty body was not decoded and keeps them.
+    decoded? =
+      (response.body || "") != "" and
+        String.downcase(String.trim(content_encoding)) not in ["", "identity"]
+
+    headers =
+      if decoded?, do: Map.drop(headers, ["content-encoding", "content-length"]), else: headers
+
     %PetstoreClient.ApiHttpResponse{
       status_code: response.status,
       body: response_body,
@@ -1009,13 +1019,31 @@ defmodule PetstoreClient.DefaultApiClient do
     end
   end
 
+  # A Location that cannot be resolved, or that names an http(s) URL the
+  # transport could not send (`http://[bad`), resolves to nil: the 3xx comes
+  # back as the response, never as an exception (D71).
   defp resolve_url(base, location) do
-    case URI.parse(location) do
-      %URI{scheme: s} when not is_nil(s) -> location
-      _ -> base |> URI.merge(location) |> URI.to_string()
-    end
+    resolved =
+      case URI.parse(location) do
+        %URI{scheme: s} when not is_nil(s) -> location
+        _ -> base |> URI.merge(location) |> URI.to_string()
+      end
+
+    if sendable_url?(resolved), do: resolved, else: nil
   rescue
     _ -> nil
+  end
+
+  # Only an http(s) URL is checked here: any other scheme is refused by name
+  # in the caller.
+  defp sendable_url?(url) do
+    case URI.parse(url) do
+      %URI{scheme: scheme} when scheme in ["http", "https"] ->
+        match?({:ok, %URI{host: host}} when is_binary(host) and host != "", URI.new(url))
+
+      _ ->
+        true
+    end
   end
 
   @doc false
@@ -1079,9 +1107,16 @@ defmodule PetstoreClient.DefaultApiClient do
   defp default_port("http"), do: 80
   defp default_port(_), do: nil
 
+  # The static list plus the redaction rule (S15): a header whose name contains
+  # key, token or secret carries a credential, wherever it came from (a
+  # default header, a custom authenticator), so it does not follow a
+  # cross-origin hop either.
   defp strip_sensitive_headers(headers) when is_map(headers) do
     Enum.reject(headers, fn {k, _v} ->
-      String.downcase(to_string(k)) in @sensitive_redirect_headers
+      lowered = String.downcase(to_string(k))
+
+      lowered in @sensitive_redirect_headers or
+        String.contains?(lowered, ["key", "token", "secret"])
     end)
     |> Map.new()
   end

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -13,7 +13,7 @@ import Foundation
 /// shared ``ApiClient`` with the same transport configuration (proxy, TLS, timeouts)
 /// as regular API calls.
 public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
-  @unchecked Sendable
+  AccessTokenInvalidating, @unchecked Sendable
 {
   private let _host: String
   private let clientID: String
@@ -51,6 +51,13 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
     self.clientAuthMethod = clientAuthMethod
     self.tokenManager = OAuth2TokenManager()
     super.init()
+  }
+
+  /// Drops the cached access token so that the next call fetches a fresh one
+  /// (a refresh grant first when a refresh token is held). The SDK calls this
+  /// itself when the API answers 401.
+  public func invalidateAccessToken() {
+    tokenManager.invalidateAccessToken()
   }
 
   /// Returns the API base URL.

@@ -500,6 +500,66 @@ async fn test_store_api_get_by_swatch_sends_enum_wire_values() {
     );
 }
 
+/* D67, F217: a required uuid path parameter is written in the lowercase
+ * hyphenated form, whichever case the caller's value was parsed from. */
+#[tokio::test]
+async fn test_store_api_get_order_by_tracking_id_puts_the_lowercase_uuid_in_the_path() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let tracking_id =
+        uuid::Uuid::parse_str("E621E1F8-C36C-495A-93FC-0C247A3E6E5F").expect("a valid uuid");
+
+    api.get_order_by_tracking_id(tracking_id)
+        .await
+        .expect("get_order_by_tracking_id failed");
+
+    assert_eq!(
+        "http://localhost/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f",
+        client.url.lock().unwrap().as_str()
+    );
+}
+
+/* D56, F025, F055: a write-only property is sent on the request and a
+ * read-only property is kept when the response is decoded. */
+#[tokio::test]
+async fn test_store_api_create_account_sends_the_write_only_password() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let mut account = Account::new("u".to_string());
+    account.password = Some("p".to_string());
+
+    /* The stub answers `{}`, which lacks the required username, so the decode
+     * fails after the request was dispatched; only the request is asserted. */
+    let _ = api.create_account_with_http_info(account).await;
+
+    let body = client
+        .body
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("a request body must be sent");
+    let body = String::from_utf8(body).expect("a JSON body is UTF-8");
+    assert!(body.contains(r#""password":"p""#), "got: {}", body);
+}
+
+#[tokio::test]
+async fn test_store_api_create_account_keeps_the_read_only_id() {
+    let api = new_store_api_for_mock(200, "application/json", r#"{"id":7,"username":"u"}"#);
+
+    let created = api
+        .create_account(Account::new("u".to_string()))
+        .await
+        .expect("create_account failed");
+
+    assert_eq!(Some(7), created.id);
+}
+
 /// The API group can be built without wiring a client, configuration or
 /// authenticator, like the no-argument constructors in the other SDKs.
 #[test]

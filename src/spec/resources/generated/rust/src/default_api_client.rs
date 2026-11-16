@@ -226,7 +226,11 @@ impl ApiClient for DefaultApiClient {
                         "ApiClient has been closed and can no longer send requests".to_string(),
                     )) as Box<dyn std::error::Error + Send + Sync>
                 })?;
-            let mut merged: HashMap<String, String> = self.transport_options.default_headers();
+            let mut merged: HashMap<String, String> = if options.skip_default_headers {
+                HashMap::new()
+            } else {
+                self.transport_options.default_headers()
+            };
             for (k, v) in &headers {
                 insert_header(&mut merged, k.clone(), v.clone());
             }
@@ -382,11 +386,8 @@ impl ApiClient for DefaultApiClient {
                          * response. Unified across the 12 SDKs. */
                         return Err(Box::new(ApiError::new(
                             status_code,
-                            format!(
-                                "Refusing to follow redirect to non-HTTP(S) URL: {}",
-                                redacted_url(&next_url)
-                            ),
-                            None,
+                            non_http_redirect_message(&next_url),
+                            Some(collect_headers(response.headers())),
                             None,
                         ))
                             as Box<dyn std::error::Error + Send + Sync>);
@@ -409,21 +410,11 @@ impl ApiClient for DefaultApiClient {
                     ) {
                         return Err(Box::new(ApiError::new(
                             status_code,
-                            format!(
-                                "Refusing to replay request body across HTTPS->HTTP redirect: {} -> {}",
-                                current_url
-                                    .as_ref()
-                                    .map(redacted_url)
-                                    .unwrap_or_else(|| {
-                                        reqwest::Url::parse(&url)
-                                            .map(|u| redacted_url(&u))
-                                            .unwrap_or_default()
-                                    }),
-                                redacted_url(&next_url)
-                            ),
+                            replay_refusal_message(current_url.as_ref(), &url, &next_url),
+                            Some(collect_headers(response.headers())),
                             None,
-                            None,
-                        )) as Box<dyn std::error::Error + Send + Sync>);
+                        ))
+                            as Box<dyn std::error::Error + Send + Sync>);
                     }
 
                     /* Pick follow-up method+body per RFC 9110 section 15.4.
@@ -470,8 +461,7 @@ impl ApiClient for DefaultApiClient {
                         });
                     }
                     for (k, v) in &redirect_headers {
-                        let lk = k.to_lowercase();
-                        if cross_origin && SENSITIVE_HEADER_NAMES.iter().any(|s| *s == lk) {
+                        if cross_origin && is_credential_header(k) {
                             continue;
                         }
                         redirect_builder = redirect_builder.header(k.as_str(), v.as_str());
@@ -501,7 +491,7 @@ impl ApiClient for DefaultApiClient {
                     return Err(Box::new(ApiError::new(
                         response.status().as_u16(),
                         format!("Too many redirects (exceeded {})", max),
-                        None,
+                        Some(collect_headers(response.headers())),
                         None,
                     ))
                         as Box<dyn std::error::Error + Send + Sync>);
@@ -519,17 +509,7 @@ impl ApiClient for DefaultApiClient {
              * parseable for Set-Cookie; callers needing structured cookie
              * access should iterate `response.headers().get_all("set-cookie")`
              * on a reqwest Response themselves. */
-            let mut resp_headers: HashMap<String, String> = HashMap::new();
-            for name in response.headers().keys() {
-                let joined = response
-                    .headers()
-                    .get_all(name)
-                    .iter()
-                    .map(|v| String::from_utf8_lossy(v.as_bytes()).into_owned())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                resp_headers.insert(name.as_str().to_string(), joined);
-            }
+            let mut resp_headers: HashMap<String, String> = collect_headers(response.headers());
 
             let content_type = resp_headers
                 .get("content-type")
@@ -551,9 +531,11 @@ impl ApiClient for DefaultApiClient {
                 .unwrap_or_default();
             let resp_bytes = match decompress_body(&content_encoding, &raw_bytes) {
                 Ok(Some(decoded)) => {
-                    /* The headers stay exactly as received on the wire:
-                     * content-encoding and content-length still describe the
-                     * compressed body, as in the other SDKs. */
+                    /* D92: the returned headers describe the body the caller
+                     * receives, so the two that described the compressed body
+                     * are dropped. */
+                    resp_headers.remove("content-encoding");
+                    resp_headers.remove("content-length");
                     decoded
                 }
                 Ok(None) => raw_bytes.to_vec(),
@@ -651,6 +633,61 @@ fn transport_error(e: reqwest::Error) -> Box<dyn std::error::Error + Send + Sync
             Err(other) => Box::new(other),
         }
     }
+}
+
+/// Returns true when a header must not follow a redirect to another origin:
+/// a name in [`SENSITIVE_HEADER_NAMES`] or one the redaction rule treats as a
+/// credential (`Authorization`, `Proxy-Authorization`, `Cookie`, or a name
+/// containing `key`, `token` or `secret`), so a tenant token set as a default
+/// header or by a custom authenticator is stripped as well (F1093).
+fn is_credential_header(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    SENSITIVE_HEADER_NAMES.contains(&lower.as_str())
+        || crate::transport_options::is_sensitive_header(&lower)
+}
+
+/// Copies a response's headers into the map the SDK hands back: lower-case
+/// names, repeated lines joined with `, ` in wire order (RFC 9110 section 5.3).
+fn collect_headers(headers: &reqwest::header::HeaderMap) -> HashMap<String, String> {
+    let mut map: HashMap<String, String> = HashMap::new();
+    for name in headers.keys() {
+        let joined = headers
+            .get_all(name)
+            .iter()
+            .map(|v| String::from_utf8_lossy(v.as_bytes()).into_owned())
+            .collect::<Vec<_>>()
+            .join(", ");
+        map.insert(name.as_str().to_string(), joined);
+    }
+    map
+}
+
+/// D16: the refusal text for a `Location` that is not an http(s) URL.
+fn non_http_redirect_message(next: &reqwest::Url) -> String {
+    format!(
+        "Refusing to follow redirect to non-HTTP(S) URL: {}",
+        redacted_url(next)
+    )
+}
+
+/// D16: the refusal text for replaying a request body across an HTTPS to HTTP
+/// redirect. `fallback` is the request URL as given, used when it did not parse.
+fn replay_refusal_message(
+    current: Option<&reqwest::Url>,
+    fallback: &str,
+    next: &reqwest::Url,
+) -> String {
+    let from = match current {
+        Some(url) => redacted_url(url),
+        None => reqwest::Url::parse(fallback)
+            .map(|u| redacted_url(&u))
+            .unwrap_or_default(),
+    };
+    format!(
+        "Refusing to replay request body across HTTPS->HTTP redirect: {} -> {}",
+        from,
+        redacted_url(next)
+    )
 }
 
 /// Renders `url` for an error message without its query or fragment: an API
@@ -1085,8 +1122,9 @@ fn is_text_content_type(content_type: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_filename_directive, decode_text_body, is_https_to_http_body_replay,
-        mime_for_filename, parse_charset, redacted_url, redirect_next_method, same_origin,
+        build_filename_directive, collect_headers, decode_text_body, is_credential_header,
+        is_https_to_http_body_replay, mime_for_filename, non_http_redirect_message, parse_charset,
+        redacted_url, redirect_next_method, replay_refusal_message, same_origin,
         serialize_multipart_body, validate_multipart_field_name, validate_multipart_filename,
         SENSITIVE_HEADER_NAMES,
     };
@@ -1109,6 +1147,70 @@ mod tests {
         bundle.extend_from_slice(&ca);
         assert_eq!(root_certificates(&ca).len(), 1);
         assert_eq!(root_certificates(&bundle).len(), 2);
+    }
+
+    /* D16: the redirect refusal texts, with the query and fragment left out. */
+    #[test]
+    fn test_redirect_refusal_messages_are_canonical_and_credential_free() {
+        let file = reqwest::Url::parse("file:///etc/passwd?k=secret#frag").unwrap();
+        assert_eq!(
+            "Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd",
+            non_http_redirect_message(&file)
+        );
+        let from = reqwest::Url::parse("https://a.example/x?api_key=secret").unwrap();
+        let to = reqwest::Url::parse("http://b.example/y?api_key=secret#f").unwrap();
+        assert_eq!(
+            "Refusing to replay request body across HTTPS->HTTP redirect: \
+             https://a.example/x -> http://b.example/y",
+            replay_refusal_message(Some(&from), "ignored", &to)
+        );
+        assert_eq!(
+            "Refusing to replay request body across HTTPS->HTTP redirect: \
+             https://c.example/z -> http://b.example/y",
+            replay_refusal_message(None, "https://c.example/z?api_key=secret", &to)
+        );
+    }
+
+    /* F1093: the redirect strip also covers any header the redaction rule calls
+     * a credential, not only the spec's own names. */
+    #[test]
+    fn test_is_credential_header_covers_the_redaction_rule() {
+        for name in [
+            "Authorization",
+            "COOKIE",
+            "Proxy-Authorization",
+            "X-Tenant-Token",
+            "Api-Key",
+            "X-Client-Secret",
+        ] {
+            assert!(
+                is_credential_header(name),
+                "{name} must be stripped across origins"
+            );
+        }
+        for name in ["X-Trace", "Accept", "Content-Type", "X-Request-ID"] {
+            assert!(
+                !is_credential_header(name),
+                "{name} must survive a cross-origin hop"
+            );
+        }
+    }
+
+    /* D13: a refusal carries the headers of the response that arrived, so the
+     * helper keeps every name lower-case and joins repeated lines in order. */
+    #[test]
+    fn test_collect_headers_lowercases_names_and_joins_repeated_lines() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.append("Location", "http://b.example/y".parse().unwrap());
+        headers.append("Set-Cookie", "a=1".parse().unwrap());
+        headers.append("Set-Cookie", "b=2".parse().unwrap());
+        let collected = collect_headers(&headers);
+        assert_eq!(
+            Some(&"http://b.example/y".to_string()),
+            collected.get("location")
+        );
+        assert_eq!(Some(&"a=1, b=2".to_string()), collected.get("set-cookie"));
+        assert_eq!(2, collected.len());
     }
 
     /* ── HTTPS->HTTP body-replay predicate ──

@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -29,7 +29,7 @@ from petstore_client.errors import (
     NetworkException,
     NetworkTimeoutException,
 )
-from petstore_client.transport_options import TransportOptions
+from petstore_client.transport_options import TransportOptions, _is_sensitive_header
 
 from types import ModuleType
 
@@ -644,7 +644,14 @@ class DefaultApiClient:
 
         if isinstance(body, dict):
             boundary = str(uuid.uuid4())
-            merged_headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
+            multipart_type = "multipart/form-data"
+            for header_name, header_value in merged_headers.items():
+                if header_name.lower() == "content-type":
+                    declared = header_value.split(";", 1)[0].strip().lower()
+                    if re.fullmatch(r"multipart/[a-z0-9!#$&^_.+-]+", declared):
+                        multipart_type = declared
+            _remove_header(merged_headers, "Content-Type")
+            merged_headers["Content-Type"] = f"{multipart_type}; boundary={boundary}"
             encoded_body = self._build_multipart_body(body, boundary)
         elif isinstance(body, (bytes, bytearray, memoryview)):
             # Every byte-like binary body goes out verbatim; anything else
@@ -789,6 +796,11 @@ class DefaultApiClient:
         # or read response.headers.getlist('set-cookie') on the raw urllib3
         # HTTPHeaderDict.
         response_headers = _lower_headers(response.headers)
+        if raw_data and content_encoding not in ("", "identity"):
+            # D92: the body above was decoded, so the headers must describe the
+            # body the caller receives, not the encoded bytes on the wire.
+            response_headers.pop("content-encoding", None)
+            response_headers.pop("content-length", None)
 
         return ApiHttpResponse(
             status_code=response.status, body=response_body, headers=response_headers
@@ -936,7 +948,12 @@ class DefaultApiClient:
                 # Proxy-Authorization on cross-origin hops, including
                 # the HTTPS -> HTTP downgrade case.
                 for key in list(next_headers.keys()):
-                    if key.lower() in self._SENSITIVE_HEADERS:
+                    # Besides the fixed list, any header whose name looks like a
+                    # credential (key, token, secret: the S15 rule) is dropped, so
+                    # a default header or a custom authenticator header cannot leak.
+                    if key.lower() in self._SENSITIVE_HEADERS or _is_sensitive_header(
+                        key
+                    ):
                         del next_headers[key]
 
             # Drop body-bearing headers when the follow-up carries no body

@@ -25,6 +25,8 @@ struct FakeApiClient {
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
     last_no_redirect: Mutex<Option<bool>>,
+    last_skip_default_headers: Mutex<Option<bool>>,
+    last_headers: Mutex<HashMap<String, String>>,
     requests: Mutex<Vec<(String, String)>>,
 }
 
@@ -35,6 +37,8 @@ impl FakeApiClient {
             last_url: Mutex::new(None),
             last_body: Mutex::new(None),
             last_no_redirect: Mutex::new(None),
+            last_skip_default_headers: Mutex::new(None),
+            last_headers: Mutex::new(HashMap::new()),
             requests: Mutex::new(Vec::new()),
         }
     }
@@ -82,7 +86,7 @@ impl ApiClient for FakeApiClient {
         &self,
         _method: &str,
         url: &str,
-        _headers: &HashMap<String, String>,
+        headers: &HashMap<String, String>,
         body: Option<&RequestBody>,
         options: &RequestOptions,
     ) -> Pin<
@@ -100,6 +104,8 @@ impl ApiClient for FakeApiClient {
             let mut last_no_redirect = self.last_no_redirect.lock().unwrap();
             *last_no_redirect = Some(options.no_redirect);
         }
+        *self.last_skip_default_headers.lock().unwrap() = Some(options.skip_default_headers);
+        *self.last_headers.lock().unwrap() = headers.clone();
         let mut sent_body = String::new();
         if let Some(RequestBody::Bytes(b)) = body {
             sent_body = String::from_utf8_lossy(b).to_string();
@@ -1284,4 +1290,66 @@ async fn test_failed_exchange_restores_the_previous_session() {
     assert_eq!("one", token);
     assert_eq!("ref1", manager.refresh_token().await);
     assert_eq!(2, client.requests().len());
+}
+
+/* F1075, F860: a token request is a form post that accepts JSON, and it asks the
+ * transport to leave the API's default headers out of it. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_request_headers_and_default_header_opt_out() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+    manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("should succeed");
+
+    let headers = client.last_headers.lock().unwrap().clone();
+    assert_eq!(
+        Some(&"application/x-www-form-urlencoded".to_string()),
+        headers.get("Content-Type")
+    );
+    assert_eq!(Some(&"application/json".to_string()), headers.get("Accept"));
+    assert_eq!(
+        Some(true),
+        *client.last_skip_default_headers.lock().unwrap()
+    );
+}
+
+/* F855: invalidating drops the cached token and keeps the refresh token, so
+ * the next call refreshes first. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_invalidate_then_get_uses_the_refresh_grant_first() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+    client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+    manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("should succeed");
+    manager.invalidate_access_token().await;
+    let second = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("should succeed");
+
+    assert_eq!("tok2", second);
+    let requests = client.requests();
+    assert!(
+        requests[1].1.contains("grant_type=refresh_token"),
+        "{:?}",
+        requests
+    );
 }

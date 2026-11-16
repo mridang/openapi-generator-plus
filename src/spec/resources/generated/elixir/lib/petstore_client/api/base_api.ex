@@ -165,7 +165,7 @@ defmodule PetstoreClient.Api.BaseApi do
       case auth do
         @no_auth -> nil
         nil -> Map.get(state, :authenticator)
-        explicit -> explicit
+        explicit -> inject_api_client(explicit, Map.get(state, :api_client))
       end
 
     query_params =
@@ -398,6 +398,20 @@ defmodule PetstoreClient.Api.BaseApi do
     end
   end
 
+  # A per-call authenticator never went through the client constructor, so an
+  # OAuth2 or OpenID Connect one has no transport yet and would fail with
+  # "ApiClient has not been injected". It is handed the client's transport
+  # here, like the client-level authenticator is.
+  defp inject_api_client(%{__struct__: mod} = auth, api_client) when is_map(api_client) do
+    if function_exported?(mod, :set_api_client, 2) do
+      mod.set_api_client(auth, api_client)
+    else
+      auth
+    end
+  end
+
+  defp inject_api_client(auth, _api_client), do: auth
+
   # Resolve an authenticator's credentials for the given behaviour callback
   # (:auth_headers, :query_params, or :cookie_params). Authenticators are
   # PetstoreClient.Auth.Authenticator behaviours: the credential providers are
@@ -462,6 +476,13 @@ defmodule PetstoreClient.Api.BaseApi do
   end
 
   defp query_string_pairs(_k, value, _allow_reserved) when is_nil(value) or value == [], do: []
+
+  # An exploded object parameter: one `name=value` pair per property.
+  defp query_string_pairs(_k, {:exploded_object, pairs}, allow_reserved) do
+    Enum.map(pairs, fn {name, value} ->
+      "#{encode_query_component(name)}=#{encode_query_value(PetstoreClient.ObjectSerializer.to_query_value(value, nil), allow_reserved)}"
+    end)
+  end
 
   defp query_string_pairs(k, values, allow_reserved) when is_list(values) do
     encoded_key = encode_query_component(to_string(k))

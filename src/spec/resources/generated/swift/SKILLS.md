@@ -120,7 +120,7 @@ When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a
 
 #### Token caching
 
-The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+The token manager caches the access token in memory and refreshes it shortly before its declared expiry: one safety margin of `min(60 seconds, expires_in / 2)` is taken off the lifetime when the token is stored, so a token with a 60 second lifetime is reused for 30 seconds. The margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. A token response without `expires_in` is cached until the token is invalidated.
 
 #### Client authentication method
 
@@ -167,21 +167,25 @@ let client = try Client(authenticator: FakeAuthenticator())
 
 ## Error Handling
 
-All API errors derive from `ApiError`. The error hierarchy is:
+Every error the SDK raises for a call derives from the root error `OpenAPIError`. The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-    - `TooManyRequestsError` (429)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
-  - `NetworkError` (no HTTP response, status 0)
-    - `NetworkTimeoutError` (the request timed out, status 0)
+- `OpenAPIError` (root)
+  - `SerializationError` (a request or response body could not be encoded or decoded)
+  - `OAuth2ServerError` (the token endpoint answered with a non-2xx status)
+  - `OAuth2TokenError` (the token endpoint answered 2xx with a body that is not a token response)
+  - `ApiError` (the API answered with an error, or the request could not be sent)
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```swift
 do {
@@ -194,8 +198,16 @@ do {
     print("Server error: \(error)")
 } catch let error as ApiError {
     print("API error: \(error)")
+} catch let error as SerializationError {
+    print("Body could not be encoded or decoded: \(error)")
+} catch let error as OAuth2ServerError {
+    print("Token request refused with status \(error.statusCode): \(error)")
+} catch let error as OAuth2TokenError {
+    print("Unusable token response: \(error)")
 }
 ```
+
+A mistake in how the SDK is configured or called (a bad proxy URL, a missing required parameter, a closed client) is a `ConfigurationError`, which is not part of this hierarchy.
 
 ## Configuration
 

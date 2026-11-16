@@ -814,6 +814,45 @@ test('cross origin redirect strips api key header', function (): void {
     expect($capturedHeaders)->not->toHaveKey('x-internal-key');
 });
 
+test('cross origin redirect strips credential looking and default headers but keeps the rest', function (): void {
+    $seen = [];
+    $hop = 0;
+    $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$seen, &$hop): MockResponse {
+        $hop++;
+        if ($hop === 1) {
+            return new MockResponse('', [
+                'http_code' => 302,
+                'response_headers' => ['Location' => 'https://other.example.com/final'],
+            ]);
+        }
+        /** @var array<int, string> $lines */
+        $lines = $options['headers'] ?? [];
+        foreach ($lines as $line) {
+            $parts = explode(':', $line, 2);
+            if (count($parts) === 2) {
+                $seen[strtolower(trim($parts[0]))] = trim($parts[1]);
+            }
+        }
+        return new MockResponse('ok', ['http_code' => 200]);
+    });
+    $transport = TransportOptions::builder()
+        ->followRedirects(true)
+        ->defaultHeaders(['X-Tenant' => 'acme'])
+        ->build();
+    $client = new StubbedDefaultApiClient($mock, $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', [
+        'X-Auth-Token' => 'secret-1',
+        'Api-Key' => 'secret-2',
+        'X-Trace' => 'keep-me',
+    ], null);
+
+    expect($seen)->not->toHaveKey('x-auth-token');
+    expect($seen)->not->toHaveKey('api-key');
+    expect($seen)->not->toHaveKey('x-tenant');
+    expect($seen['x-trace'] ?? null)->toBe('keep-me');
+});
+
 test('cross origin redirect strips authorization and cookie', function (): void {
     /* The classic credential carriers (Authorization, Cookie,
      * Proxy-Authorization) are ALWAYS stripped on a cross-origin hop,
@@ -1089,6 +1128,49 @@ test('a final 3xx without a Location after the redirect budget is returned, not 
     expect($response->statusCode)->toBe(302);
 });
 
+test('a 3xx whose Location is absent or unparseable comes back as the redirect response', function (array $headers): void {
+    $calls = 0;
+    $mockClient = new MockHttpClient(
+        function () use (&$calls, $headers): MockResponse {
+            $calls++;
+            return new MockResponse('{"redirect":"none"}', ['http_code' => 302, 'response_headers' => $headers]);
+        }
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe(302);
+    expect($response->body)->toBe('{"redirect":"none"}');
+    expect($calls)->toBe(1);
+})->with([
+    'no location' => [[]],
+    'malformed location' => [['Location' => 'http://[bad']],
+]);
+
+test('a token request does not carry the transport default headers', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen = $options['headers'];
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $transport = TransportOptions::builder()
+        ->defaultHeaders(['Authorization' => 'Bearer api-only', 'X-Tenant' => 't1'])
+        ->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('POST', 'https://auth.example.com/token', ['Accept' => 'application/json'], 'a=b', noRedirect: true);
+    $lines = strtolower(implode("\n", $seen));
+    expect($lines)->not->toContain('authorization:');
+    expect($lines)->not->toContain('x-tenant');
+
+    $client->sendRequest('GET', 'https://api.example.com/items', [], null);
+    $lines = strtolower(implode("\n", $seen));
+    expect($lines)->toContain('authorization: bearer api-only');
+    expect($lines)->toContain('x-tenant: t1');
+});
+
 test('a caller accept-encoding in any casing is not duplicated', function (): void {
     $seen = [];
     $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
@@ -1287,6 +1369,61 @@ test('decompresses a valid gzip-encoded response body', function (): void {
 
     expect($response->statusCode)->toBe(200);
     expect($response->body)->toBe($payload);
+});
+
+test('a Set-Cookie response is never replayed on a later request', function (): void {
+    $seen = [];
+    $calls = 0;
+    $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$seen, &$calls): MockResponse {
+        $calls++;
+        /** @var array<int, string> $lines */
+        $lines = $options['headers'] ?? [];
+        $seen[$calls] = strtolower(implode("\n", $lines));
+        return new MockResponse('ok', [
+            'http_code' => 200,
+            'response_headers' => ['Set-Cookie' => 'session=abc; Path=/'],
+        ]);
+    });
+    $client = new StubbedDefaultApiClient($mock);
+
+    $client->sendRequest('GET', 'https://api.example.com/login', [], null);
+    $client->sendRequest('GET', 'https://api.example.com/items', [], null);
+
+    expect($seen[2])->not->toContain('cookie:');
+});
+
+test('a decoded body drops the Content-Encoding and Content-Length headers', function (): void {
+    $gzipped = (string) gzencode('{"ok":true}');
+    $mockResponse = new MockResponse($gzipped, [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => 'gzip',
+            'Content-Length' => (string) strlen($gzipped),
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+    expect($response->headers)->not->toHaveKey('content-encoding');
+    expect($response->headers)->not->toHaveKey('content-length');
+    expect($response->headers['content-type'] ?? null)->toBe('application/json');
+});
+
+test('an identity encoded body keeps its Content-Length', function (): void {
+    $mockResponse = new MockResponse('{"ok":true}', [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Length' => '11',
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+    expect($response->headers['content-length'] ?? null)->toBe('11');
 });
 
 test('wraps a gzip decompression failure as api exception', function (): void {

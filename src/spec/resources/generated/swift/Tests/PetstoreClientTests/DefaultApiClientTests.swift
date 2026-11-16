@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -562,6 +562,7 @@ import Testing
           method: "GET", url: "https://example.com/start", headers: [:], body: nil)
       }
       #expect(error?.responseHeaders?["location"] != nil)
+      #expect(error?.message == DefaultApiClient.tooManyRedirectsMessage(limit: 2))
     }
 
     // redirect-scheme-refusal-silent: a Location pointing at a non-HTTP(S)
@@ -580,6 +581,7 @@ import Testing
           method: "GET", url: "https://example.com/start", headers: [:], body: nil)
       }
       #expect(error?.responseHeaders?["location"] != nil)
+      #expect(error?.message == DefaultApiClient.nonHttpRedirectMessage(next: "file:///etc/passwd"))
     }
 
     // downgrade-body-replay-silent: an HTTPS->HTTP redirect with a body in
@@ -806,6 +808,25 @@ import Testing
       #expect(requests.first?.url?.absoluteString == "https://example.com/x")
       #expect(requests.first?.value(forHTTPHeaderField: "User-Agent") == "Custom/1.0")
       #expect(requests.first?.timeoutInterval == 4.0)
+    }
+
+    /* A redirect through a caller-supplied session is checked by the SDK's
+       own rules: a Location that is not http(s) is refused with the canonical
+       message, as it is on a session the SDK builds itself. */
+    @Test func testSuppliedSessionRefusesANonHttpRedirect() async throws {
+      RedirectStubURLProtocol.configure { _ in
+        return .redirect(status: 302, location: "file:///etc/passwd")
+      }
+      let config = URLSessionConfiguration.ephemeral
+      config.protocolClasses = [RedirectStubURLProtocol.self]
+      let transport = try TransportOptionsBuilder().session(URLSession(configuration: config))
+        .build()
+      let client = try DefaultApiClient(transportOptions: transport)
+      let error = await #expect(throws: ApiError.self) {
+        _ = try await client.sendRequest(
+          method: "GET", url: "https://example.com/start", headers: [:], body: nil)
+      }
+      #expect(error?.message == DefaultApiClient.nonHttpRedirectMessage(next: "file:///etc/passwd"))
     }
 
     /* close() never invalidates a session the caller supplied. */

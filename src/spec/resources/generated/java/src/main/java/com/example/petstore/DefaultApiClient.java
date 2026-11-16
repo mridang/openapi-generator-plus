@@ -406,7 +406,12 @@ public final class DefaultApiClient implements ApiClient {
     if (this.closed) {
       throw new IllegalStateException("ApiClient has been closed and can no longer send requests");
     }
-    Map<String, String> mergedHeaders = new HashMap<>(transportOptions.getDefaultHeaders());
+    /* A no-redirect request is an OAuth2 token request, which goes to the
+     * identity provider, a different origin: it carries only the SDK's own
+     * headers, never the caller's default headers (which may hold the API
+     * credentials). */
+    Map<String, String> mergedHeaders =
+        noRedirect ? new HashMap<>() : new HashMap<>(transportOptions.getDefaultHeaders());
     mergedHeaders.putAll(headers);
 
     /* RFC 9110 section 5.1: field names are case-insensitive, so a caller
@@ -675,6 +680,12 @@ public final class DefaultApiClient implements ApiClient {
             responseHeaders,
             e);
       }
+      if (!"identity".equalsIgnoreCase(contentEncoding.trim())) {
+        /* D92: the returned headers describe the body the caller
+         * receives, so the encoding and length of the wire body go. */
+        responseHeaders.remove("content-encoding");
+        responseHeaders.remove("content-length");
+      }
       Charset responseCharset = parseCharset(contentType);
       String responseBody =
           isTextContentType(contentType)
@@ -839,7 +850,13 @@ public final class DefaultApiClient implements ApiClient {
    * folding sits in a named, annotated method rather than a synthetic lambda.
    */
   private static boolean isSensitiveHeader(Set<String> sensitiveHeaders, String name) {
-    return sensitiveHeaders.contains(name.toLowerCase(Locale.ROOT));
+    String lower = name.toLowerCase(Locale.ROOT);
+    /* The static list, plus the S15 name heuristic: a header whose name
+     * contains key, token or secret is a credential whatever put it there. */
+    return sensitiveHeaders.contains(lower)
+        || lower.contains("key")
+        || lower.contains("token")
+        || lower.contains("secret");
   }
 
   /**

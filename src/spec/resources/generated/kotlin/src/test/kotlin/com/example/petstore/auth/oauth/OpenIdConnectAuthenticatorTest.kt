@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -68,7 +68,7 @@ class OpenIdConnectAuthenticatorTest {
     fun buildsAuthorizationUrlFromDiscovery() {
         val client = FakeApiClient()
         client.enqueue(
-            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
         )
 
         val auth = createAuthenticator()
@@ -86,7 +86,7 @@ class OpenIdConnectAuthenticatorTest {
     fun emptyStateIsOmittedFromTheAuthorizationUrl() {
         val client = FakeApiClient()
         client.enqueue(
-            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
         )
 
         val auth = createAuthenticator()
@@ -103,7 +103,7 @@ class OpenIdConnectAuthenticatorTest {
     fun fetchesDiscoveryDocument() {
         val client = FakeApiClient()
         client.enqueue(
-            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
         )
 
         val auth = createAuthenticator()
@@ -120,7 +120,7 @@ class OpenIdConnectAuthenticatorTest {
         val client = FakeApiClient()
         // Discovery document
         client.enqueue(
-            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
         )
         // Token response
         client.enqueue("""{"access_token":"oidc-tok","expires_in":3600}""")
@@ -139,7 +139,7 @@ class OpenIdConnectAuthenticatorTest {
         val client = FakeApiClient()
         // Discovery document
         client.enqueue(
-            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
         )
         // Token response
         client.enqueue("""{"access_token":"oidc-tok","expires_in":3600}""")
@@ -270,7 +270,7 @@ class OpenIdConnectAuthenticatorTest {
     @Test
     fun throwsWhenDiscoveryMissingTokenEndpoint() {
         val client = FakeApiClient()
-        client.enqueue("""{"authorization_endpoint":"https://auth.example.com/authorize"}""")
+        client.enqueue("""{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize"}""")
 
         val auth = createAuthenticator()
         auth.setApiClient(client)
@@ -300,7 +300,7 @@ class OpenIdConnectAuthenticatorTest {
     fun fetchesDiscoveryDocumentOnlyOnce() {
         val client = FakeApiClient()
         client.enqueue(
-            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
         )
 
         val auth = createAuthenticator()
@@ -316,6 +316,43 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    fun throwsWhenDiscoveryIssuerDoesNotMatchTheDiscoveryUrl() {
+        // F859: a document served under one issuer must not name another.
+        for (doc in listOf(
+            """{"issuer":"https://evil.example.net","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+        )) {
+            val client = FakeApiClient()
+            client.enqueue(doc)
+            val auth = createAuthenticator()
+            auth.setApiClient(client)
+
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                    runBlocking { auth.buildAuthorizationUrl() }
+                }
+            assertTrue(ex.message!!.contains("OIDC discovery issuer does not match the discovery URL"), doc)
+        }
+    }
+
+    @Test
+    fun throwsWhenDiscoveredEndpointIsNotHttps() {
+        // F859: the token endpoint receives the client secret and the code.
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"http://auth.example.com/token"}""",
+        )
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val ex =
+            assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                runBlocking { auth.buildAuthorizationUrl() }
+            }
+        assertTrue(ex.message!!.contains("OIDC discovery 'token_endpoint' must use https"))
+    }
+
+    @Test
     fun redactsSecret() {
         val auth = createAuthenticator()
         val rendered = auth.toString()
@@ -324,7 +361,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     private fun discovery(authorizeUrl: String) =
-        """{"authorization_endpoint":"$authorizeUrl","token_endpoint":"https://auth.example.com/token"}"""
+        """{"issuer":"https://auth.example.com","authorization_endpoint":"$authorizeUrl","token_endpoint":"https://auth.example.com/token"}"""
 
     @Test
     fun discoveryIsFetchedAgainOnceItsMaxAgeHasElapsed() {

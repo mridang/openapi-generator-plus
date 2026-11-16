@@ -18,6 +18,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.StreamReadConstraints;
+import com.fasterxml.jackson.core.StreamWriteFeature;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -181,6 +182,10 @@ public final class ObjectSerializer {
     if (value instanceof Boolean b) {
       return b.toString();
     }
+    if (value instanceof java.math.BigDecimal decimal) {
+      /* Plain notation, never an exponent (D83). */
+      return decimal.toPlainString();
+    }
     if (value instanceof java.time.LocalDate ld) {
       return DateTimeFormatter.ISO_LOCAL_DATE.format(ld);
     }
@@ -237,7 +242,7 @@ public final class ObjectSerializer {
   static String formatDuration(Duration duration) {
     String sign = duration.isNegative() ? "-" : "";
     Duration abs = duration.abs();
-    long secs = abs.getSeconds();
+    long secs = abs.toSeconds();
     int nanos = abs.getNano();
     if (nanos == 0) {
       return sign + secs + "s";
@@ -392,6 +397,9 @@ public final class ObjectSerializer {
                 recurse through the call stack. */
                 .streamReadConstraints(
                     StreamReadConstraints.builder().maxNestingDepth(MAX_JSON_DEPTH).build())
+                /* A bare type: number is exact and written in
+                plain notation, never as 1E-8 or 1.0E+3. */
+                .enable(StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
                 .build())
         .visibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
         .visibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)

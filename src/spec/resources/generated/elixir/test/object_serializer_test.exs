@@ -842,6 +842,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert defaults.greeting == "it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b"
     end
 
+    test "deserialize renders the numeric defaults as their exact typed values" do
+      defaults = PetstoreClient.ObjectSerializer.deserialize(~s({}), "Defaults")
+      assert defaults.ratio === 1.5
+      assert defaults.scale === 0.25
+      assert defaults.ceiling === 9_000_000_000
+    end
+
     test "deserialize preserves an explicit null over the default" do
       json_str = ~s({"label":null,"retries":7})
       defaults = PetstoreClient.ObjectSerializer.deserialize(json_str, "Defaults")
@@ -1410,6 +1417,246 @@ defmodule PetstoreClient.ObjectSerializerTest do
         end
 
       assert err.message =~ "Failed to serialize object to JSON: "
+    end
+  end
+
+  describe "fixture rows every SDK pins (EdgeCases, Order, Availability, Pet)" do
+    test "the escape-sensitive Availability members serialize to their wire strings and decode back" do
+      for {atom, wire} <- [oclock: "o'clock", a_b: "a\\b", eq: "$eq", x: "\#{x}"] do
+        item = %PetstoreClient.Models.StockItem{priority: :number_1, availability: atom}
+        data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(item))
+        assert data["availability"] == wire
+
+        decoded =
+          PetstoreClient.ObjectSerializer.deserialize(
+            Jason.encode!(%{"priority" => 1, "availability" => wire}),
+            "StockItem"
+          )
+
+        assert decoded.availability == atom
+      end
+    end
+
+    test "EdgeCases.cutoff (format: time) keeps its milliseconds on the wire and decodes back" do
+      edge = %PetstoreClient.Models.EdgeCases{cutoff: ~T[10:30:00.123456]}
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(edge))
+      assert data["cutoff"] == "10:30:00.123"
+
+      whole = %PetstoreClient.Models.EdgeCases{cutoff: ~T[10:30:00]}
+
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(whole))["cutoff"] ==
+               "10:30:00"
+
+      decoded =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"cutoff":"10:30:00.123"}), "EdgeCases")
+
+      assert Time.compare(decoded.cutoff, ~T[10:30:00.123]) == :eq
+    end
+
+    test "an undeclared key on a non-strict model is ignored and the declared fields survive" do
+      category =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"id":7,"name":"cats","unexpected":"x"}),
+          "Category"
+        )
+
+      assert %PetstoreClient.Models.Category{id: 7, name: "cats"} = category
+
+      pet =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"name":"Rex","photoUrls":[],"unexpected":{"a":1}}),
+          "Pet"
+        )
+
+      assert pet.name == "Rex"
+    end
+
+    test "Order.trackingId is written lowercase, decoded lowercase and rejected when malformed" do
+      upper = "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"
+      lower = String.downcase(upper)
+
+      order = %PetstoreClient.Models.Order{tracking_id: upper}
+
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(order))["trackingId"] ==
+               lower
+
+      decoded =
+        PetstoreClient.ObjectSerializer.deserialize(
+          Jason.encode!(%{"trackingId" => upper}),
+          "Order"
+        )
+
+      assert decoded.tracking_id == lower
+
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"trackingId":"not-a-uuid"}), "Order")
+      end
+    end
+
+    test "the prefixItems array Pet.location keeps its mixed items in order" do
+      pet = %PetstoreClient.Models.Pet{
+        name: "Rex",
+        photo_urls: MapSet.new(),
+        location: [1.5, 2.5, "label"]
+      }
+
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(pet))
+      assert data["location"] == [1.5, 2.5, "label"]
+
+      decoded =
+        PetstoreClient.ObjectSerializer.deserialize(
+          Jason.encode!(%{"name" => "Rex", "photoUrls" => [], "location" => [1.5, 2.5, "label"]}),
+          "Pet"
+        )
+
+      assert decoded.location == [1.5, 2.5, "label"]
+    end
+
+    test "a digit-leading and a keyword-named property keep their wire keys" do
+      edge = %PetstoreClient.Models.EdgeCases{
+        n2fa: true,
+        class: "c",
+        return: "r",
+        _and: true,
+        _or: false,
+        _not: true
+      }
+
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(edge))
+
+      assert data["2fa"] == true
+      assert data["class"] == "c"
+      assert data["return"] == "r"
+      assert data["and"] == true
+      assert data["or"] == false
+      assert data["not"] == true
+
+      decoded =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"2fa":true,"class":"c","return":"r","and":true,"or":false,"not":true,"null":"n","true":true,"false":false}),
+          "EdgeCases"
+        )
+
+      assert decoded.n2fa == true
+      assert decoded.class == "c"
+      assert decoded.return == "r"
+      assert decoded._and == true
+      assert decoded._or == false
+      assert decoded._not == true
+      assert decoded.null == "n"
+      assert decoded._true == true
+      assert decoded._false == false
+    end
+
+    test "the Error and Result schemas round-trip through their models" do
+      error = PetstoreClient.ObjectSerializer.deserialize(~s({"code":1,"message":"m"}), "Error")
+      assert %PetstoreClient.Models.Error{code: 1, message: "m"} = error
+
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(error)) == %{
+               "code" => 1,
+               "message" => "m"
+             }
+
+      result = PetstoreClient.ObjectSerializer.deserialize(~s({"ok":true}), "Result")
+      assert %PetstoreClient.Models.Result{ok: true} = result
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(result)) == %{"ok" => true}
+    end
+
+    test "PetPassport.biometricChip (contentEncoding base64) round-trips as bytes" do
+      chip = <<1, 2, 3, 255>>
+      passport = %PetstoreClient.Models.PetPassport{biometric_chip: chip}
+
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(passport))
+      assert data["biometricChip"] == Base.encode64(chip)
+
+      decoded =
+        PetstoreClient.ObjectSerializer.deserialize(
+          Jason.encode!(%{"biometricChip" => Base.encode64(chip)}),
+          "PetPassport"
+        )
+
+      assert decoded.biometric_chip == chip
+    end
+
+    test "a duplicate object key resolves to the last value, even when the first has the wrong type" do
+      pet =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"name":"a","name":"b","photoUrls":[]}),
+          "Pet"
+        )
+
+      assert pet.name == "b"
+
+      retyped =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"name":5,"name":"b","photoUrls":[]}),
+          "Pet"
+        )
+
+      assert retyped.name == "b"
+    end
+
+    test "EdgeCases.slug accepts a value matching its pattern" do
+      edge = PetstoreClient.ObjectSerializer.deserialize(~s({"slug":"12/ab"}), "EdgeCases")
+      assert edge.slug == "12/ab"
+    end
+
+    test "a date-time without an offset is rejected whatever the host zone" do
+      for value <- ["2024-01-01T10:00:00", "2024-01-01T10:00:00.123", "2024-01-01T10:00"] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.convert_to_type(value, "DateTime")
+        end
+
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(
+            Jason.encode!(%{"expiresAt" => value}),
+            "EdgeCases"
+          )
+        end
+      end
+    end
+
+    test "U+2028 and U+2029 are written literally and only quote, backslash and controls are escaped" do
+      json = PetstoreClient.ObjectSerializer.serialize(%{"k" => "a\u2028b\u2029c\"d\\e\nf"})
+
+      assert json =~ "a\u2028b\u2029c"
+      refute json =~ "\\u2028"
+      refute json =~ "\\u2029"
+      assert json =~ ~S(c\"d\\e\nf)
+    end
+
+    test "a protobuf duration decodes within its bound and is rejected beyond it" do
+      one_hour = PetstoreClient.ObjectSerializer.convert_to_type("3600s", "Duration")
+      assert PetstoreClient.ObjectSerializer.stringify(one_hour) == "3600s"
+
+      for ok <- ["315576000000s", "-315576000000s"] do
+        assert %Duration{} = PetstoreClient.ObjectSerializer.convert_to_type(ok, "Duration")
+      end
+
+      for bad <- ["315576000001s", "-315576000001s"] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.convert_to_type(bad, "Duration")
+        end
+      end
+    end
+
+    test "the Separator enum members round-trip through their wire strings" do
+      for {atom, wire} <- [space_1: " ", value_0040_0040: "@@", a_b: "a-b", a_b_2: "a_b"] do
+        assert PetstoreClient.Models.Separator.value(atom) == wire
+        assert PetstoreClient.Models.Separator.from_value(wire) == atom
+
+        edge = %PetstoreClient.Models.EdgeCases{separator: atom}
+        data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(edge))
+        assert data["separator"] == wire
+
+        decoded =
+          PetstoreClient.ObjectSerializer.deserialize(
+            Jason.encode!(%{"separator" => wire}),
+            "EdgeCases"
+          )
+
+        assert decoded.separator == atom
+      end
     end
   end
 

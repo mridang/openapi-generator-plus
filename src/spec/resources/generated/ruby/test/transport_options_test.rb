@@ -250,6 +250,17 @@ describe Petstore::Client::TransportOptions do
     end
   end
 
+  {
+    'socks5://user:secret@proxy.example.com:1080' =>
+      'Invalid proxy URL (must use http or https scheme): socks5://***@proxy.example.com:1080'
+  }.each do |proxy, message|
+    it "masks the userinfo of the proxy #{proxy.inspect} in the error" do
+      error = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.proxy(proxy) }
+      _(error.message).must_equal message
+      _(error.message).wont_include 'secret'
+    end
+  end
+
   it 'accepts an upper-case proxy scheme and keeps it as given' do
     opts = Petstore::Client::TransportOptions.builder.proxy('HTTPS://proxy.example.com:8443').build
     _(opts.proxy).must_equal 'HTTPS://proxy.example.com:8443'

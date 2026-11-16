@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -63,7 +63,7 @@ class OAuth2PasswordAuthenticatorTest {
         // authorization-code authenticator and the other SDKs), so the required
         // arguments can be passed positionally without it.
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"r1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"r1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
         val auth =
             OAuth2PasswordAuthenticator(
@@ -142,7 +142,7 @@ class OAuth2PasswordAuthenticatorTest {
     @Test
     fun usesRefreshTokenOnSubsequentCalls() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
 
         val auth = createAuthenticator()
@@ -273,7 +273,7 @@ class OAuth2PasswordAuthenticatorTest {
     @Test
     fun refreshGrantCarriesTheClientCredentialsInBodyMode() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
 
         val auth = createAuthenticator()
@@ -291,7 +291,7 @@ class OAuth2PasswordAuthenticatorTest {
     @Test
     fun refreshGrantCarriesTheBasicHeaderInBasicMode() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
 
         val auth =
@@ -317,7 +317,7 @@ class OAuth2PasswordAuthenticatorTest {
     @Test
     fun rejectedRefreshReRunsThePasswordGrant() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
         client.enqueue("""{"access_token":"tok3","expires_in":3600}""")
 
@@ -335,7 +335,7 @@ class OAuth2PasswordAuthenticatorTest {
     @Test
     fun generatedSchemeWrapperRoutesTheFirstGrantToTheTokenUrlAndTheRefreshToTheRefreshUrl() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
 
         val auth = LegacyAuthPasswordAuthenticator("https://api.example.com", "cid", "sec", "alice", "pw")

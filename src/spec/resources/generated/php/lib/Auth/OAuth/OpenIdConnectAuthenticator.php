@@ -69,6 +69,9 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
     /** RFC 8414 recommended default max-age for OIDC discovery documents. */
     private const int DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400;
 
+    /** Ceiling in seconds applied to a server-supplied max-age (one year). */
+    private const int MAX_DISCOVERY_MAX_AGE_SECONDS = 31536000;
+
     /**
      * Create a new OpenID Connect authenticator.
      *
@@ -124,7 +127,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
             return $this->delegate;
         }
 
-        if (!$this->apiClient instanceof ApiClient) {
+        $apiClient = $this->apiClient;
+        if (!$apiClient instanceof ApiClient) {
             throw new \LogicException(
                 'ApiClient has not been injected. '
                 . 'Ensure the Client constructor calls setApiClient() '
@@ -134,7 +138,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
 
         /* Discovery is an HTTP call like any other: a transport failure
          * propagates unchanged as NetworkException / NetworkTimeoutException. */
-        $response = $this->apiClient->sendRequest(
+        $response = $apiClient->sendRequest(
             'GET',
             $this->openIdConnectUrl,
             ['Accept' => 'application/json'],
@@ -162,6 +166,27 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         $tokenEndpoint = $discovery['token_endpoint'] ?? null;
         if (!is_string($tokenEndpoint) || $tokenEndpoint === '') {
             throw new SerializationException("OIDC discovery document is missing 'token_endpoint'");
+        }
+
+        /* OpenID Connect Discovery 1.0 section 4.3: the issuer must equal the
+         * URL the document was fetched from (minus the well-known suffix),
+         * which is the defence against a document served for another issuer.
+         * A document that carries no issuer is not rejected here. */
+        $wellKnown = '/.well-known/openid-configuration';
+        $issuer = $discovery['issuer'] ?? null;
+        if (is_string($issuer) && str_ends_with($this->openIdConnectUrl, $wellKnown)) {
+            $expectedIssuer = rtrim(substr($this->openIdConnectUrl, 0, -strlen($wellKnown)), '/');
+            if (rtrim($issuer, '/') !== $expectedIssuer) {
+                throw new SerializationException(
+                    "OIDC discovery issuer '" . $issuer . "' does not match '" . $expectedIssuer . "'"
+                );
+            }
+        }
+        /* The authorization code and the client secret travel to these
+         * endpoints: refuse clear text unless the host is a loopback address
+         * (RFC 8252 section 8.3). */
+        foreach (['authorization_endpoint' => $authorizationEndpoint, 'token_endpoint' => $tokenEndpoint] as $name => $endpoint) {
+            $this->assertSecureEndpoint($name, $endpoint);
         }
 
         /* The session (tokens and the exchanged flag) lives in the token manager,
@@ -194,10 +219,32 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
             );
         }
         $this->discoveredEndpoints = $endpoints;
-        $this->delegate->setApiClient($this->apiClient);
+        $this->delegate->setApiClient($apiClient);
         $this->discoveryExpiry = time() + $this->parseMaxAge($response->headers);
 
         return $this->delegate;
+    }
+
+    /**
+     * Rejects a discovered endpoint that is not https, unless it is a loopback host.
+     *
+     * @throws SerializationException when the endpoint would send credentials in clear text
+     */
+    private function assertSecureEndpoint(string $name, string $endpoint): void
+    {
+        $parts = parse_url($endpoint);
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower(trim((string) ($parts['host'] ?? ''), '[]'));
+        if ($scheme === 'https') {
+            return;
+        }
+        $loopback = $host === 'localhost' || $host === '::1' || str_starts_with($host, '127.');
+        if ($scheme === 'http' && $loopback) {
+            return;
+        }
+        throw new SerializationException(
+            "OIDC discovery document '" . $name . "' must be an https URL (got '" . $endpoint . "')"
+        );
     }
 
     /**
@@ -211,7 +258,11 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         foreach ($headers as $name => $value) {
             if (strcasecmp((string) $name, 'Cache-Control') === 0) {
                 if (preg_match('/max-age=(\d+)/i', (string) $value, $matches) === 1) {
-                    return (int) $matches[1];
+                    $digits = ltrim($matches[1], '0');
+                    if (strlen($digits) > 8) {
+                        return self::MAX_DISCOVERY_MAX_AGE_SECONDS;
+                    }
+                    return min((int) $digits, self::MAX_DISCOVERY_MAX_AGE_SECONDS);
                 }
                 return self::DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
             }
@@ -238,6 +289,16 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
     public function exchangeCode(string $code): void
     {
         $this->getDelegate()->exchangeCode($code);
+    }
+
+    /**
+     * Drops the cached access token so that the next call fetches a fresh one
+     * (a refresh grant first when a refresh token is held). The SDK calls this
+     * itself when the API answers 401; callers may use it to force a refresh.
+     */
+    public function invalidateAccessToken(): void
+    {
+        $this->delegate?->invalidateAccessToken();
     }
 
     /**

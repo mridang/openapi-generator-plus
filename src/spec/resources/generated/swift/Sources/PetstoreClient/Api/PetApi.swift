@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -541,10 +541,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
           style: "form", explode: true), allowReserved: false)
     }
     if let options = options, let val = options.filter {
-      if let dict = (val as Any) as? [String: Any] {
-        for (k, v) in ValueSerializer.serializeDeepObject("filter", value: dict) {
-          queryParams[k] = v
-        }
+      for (k, v) in try ValueSerializer.serializeDeepObjectValue("filter", value: val) {
+        queryParams[k] = v
       }
     }
     if let options = options, let val = options.bornAfter {
@@ -562,8 +560,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     var headerParams: [String: String] = [:]
     if let options = options, let val = options.reportDate {
-      headerParams["Report-Date"] =
-        "\(ValueSerializer.serializeStyled("Report-Date", value: val, location: "header", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+      headerParams["Report-Date"] = try ValueSerializer.headerValue(
+        ValueSerializer.serializeStyled(
+          "Report-Date", value: val, location: "header", schemaType: "String", collectionFormat: "",
+          style: "simple", explode: false))
     }
 
     let requestBody: Any? = nil
@@ -916,8 +916,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
 
     var headerParams: [String: String] = [:]
-    headerParams["X-Correlation-Id"] =
-      "\(ValueSerializer.serializeStyled("X-Correlation-Id", value: options.xCorrelationId, location: "header", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    headerParams["X-Correlation-Id"] = try ValueSerializer.headerValue(
+      ValueSerializer.serializeStyled(
+        "X-Correlation-Id", value: options.xCorrelationId, location: "header", schemaType: "String",
+        collectionFormat: "", style: "simple", explode: false))
 
     let requestBody: Any? = nil
     let params = InvokeAPIParams(
@@ -1209,10 +1211,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
           collectionFormat: "", style: "form", explode: false), allowReserved: false)
     }
     if let options = options, let val = options.criteriaDeep {
-      if let dict = (val as Any) as? [String: Any] {
-        for (k, v) in ValueSerializer.serializeDeepObject("criteriaDeep", value: dict) {
-          queryParams[k] = v
-        }
+      for (k, v) in try ValueSerializer.serializeDeepObjectValue("criteriaDeep", value: val) {
+        queryParams[k] = v
       }
     }
     if let options = options, let val = options.fingerprint {
@@ -1224,12 +1224,16 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     var headerParams: [String: String] = [:]
     if let options = options, let val = options.xCriteria {
-      headerParams["X-Criteria"] =
-        "\(ValueSerializer.serializeStyled("X-Criteria", value: val, location: "header", schemaType: "PetCriteria", collectionFormat: "", style: "simple", explode: false) ?? "")"
+      headerParams["X-Criteria"] = try ValueSerializer.headerValue(
+        ValueSerializer.serializeStyled(
+          "X-Criteria", value: val, location: "header", schemaType: "PetCriteria",
+          collectionFormat: "", style: "simple", explode: false))
     }
     if let options = options, let val = options.xFingerprint {
-      headerParams["X-Fingerprint"] =
-        "\(ValueSerializer.serializeStyled("X-Fingerprint", value: val, location: "header", schemaType: "Data", collectionFormat: "", style: "simple", explode: false) ?? "")"
+      headerParams["X-Fingerprint"] = try ValueSerializer.headerValue(
+        ValueSerializer.serializeStyled(
+          "X-Fingerprint", value: val, location: "header", schemaType: "Data", collectionFormat: "",
+          style: "simple", explode: false))
     }
 
     let requestBody: Any? = nil
@@ -1346,7 +1350,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     if let requestContentType {
       guard declaredRequestContentTypes.contains(requestContentType) else {
         throw ConfigurationError.invalidArgument(
-          "Unsupported request content-type '\(requestContentType)' for setPetAvatar; declared types are \(declaredRequestContentTypes)"
+          "Unsupported request content-type '\(requestContentType)' for setPetAvatar; declared types are [\(declaredRequestContentTypes.joined(separator: ", "))]"
         )
       }
       effectiveRequestContentType = requestContentType
@@ -1679,7 +1683,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     if let requestContentType {
       guard declaredRequestContentTypes.contains(requestContentType) else {
         throw ConfigurationError.invalidArgument(
-          "Unsupported request content-type '\(requestContentType)' for uploadPetDocument; declared types are \(declaredRequestContentTypes)"
+          "Unsupported request content-type '\(requestContentType)' for uploadPetDocument; declared types are [\(declaredRequestContentTypes.joined(separator: ", "))]"
         )
       }
       effectiveRequestContentType = requestContentType

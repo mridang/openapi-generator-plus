@@ -13,7 +13,7 @@ module Petstore::Client
   #
   # @api private
   class HeaderSelector # :nodoc:
-    JSON_MIME_PATTERN = %r{^application/(json|[\w!\#$&.+\-^_]+\+json)\s*(;|$)}i
+    JSON_MIME_PATTERN = %r{^application/(json|[\w!\#$&.+\-^]+\+json)\s*(;|$)}i
 
     # Select headers for an API request.
     #

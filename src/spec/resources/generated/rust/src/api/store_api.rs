@@ -166,7 +166,9 @@ impl StoreApi {
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
-            Some(&object_serializer::to_path_value(&order_id)),
+            Some(&object_serializer::stringify_param(
+                &order_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -261,7 +263,11 @@ impl StoreApi {
         let mut path = "/store/by-swatch/{pathSwatch}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "pathSwatch",
-            Some(&object_serializer::to_path_value(&path_swatch)),
+            Some(&object_serializer::stringify_param(
+                &path_swatch,
+                "simple",
+                false,
+            )?),
             None,
             "path",
             "Swatch",
@@ -279,9 +285,14 @@ impl StoreApi {
         let mut query_params: Vec<(String, String, bool)> = Vec::new();
         if let Some(opts) = options {
             if let Some(ref val) = opts.query_swatch {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "querySwatch",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
                     "Swatch",
@@ -308,7 +319,7 @@ impl StoreApi {
             if let Some(ref val) = opts.preferred_swatch {
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "Preferred-Swatch",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "simple", false)?),
                     None,
                     "header",
                     "Swatch",
@@ -775,7 +786,9 @@ impl StoreApi {
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
-            Some(&object_serializer::to_path_value(&order_id)),
+            Some(&object_serializer::stringify_param(
+                &order_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -867,7 +880,11 @@ impl StoreApi {
         let mut path = "/store/order/by-tracking/{trackingId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "trackingId",
-            Some(&object_serializer::to_path_value(&tracking_id)),
+            Some(&object_serializer::stringify_param(
+                &tracking_id,
+                "simple",
+                false,
+            )?),
             None,
             "path",
             "uuid::Uuid",
@@ -963,9 +980,14 @@ impl StoreApi {
         let mut query_params: Vec<(String, String, bool)> = Vec::new();
         if let Some(opts) = options {
             if let Some(ref val) = opts.as_of {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "asOf",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
                     "crate::date_time::DateTime",
@@ -1455,7 +1477,12 @@ impl StoreApi {
         if let Some(opts) = options {
             if let Some(ref val) = opts.labels {
                 let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs: Option<Vec<(String, String)>> = None;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "labels",
                     None,
                     Some(&items),
@@ -1480,9 +1507,14 @@ impl StoreApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.at {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "at",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
                     "chrono::NaiveTime",

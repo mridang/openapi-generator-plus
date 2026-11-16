@@ -652,7 +652,7 @@ module Petstore::Client
     # An absolute RFC 3986 URI: a scheme, ':' and no whitespace or control
     # characters. Any scheme is valid (http, ftp, mailto, urn); a relative
     # reference is not.
-    URI_REGEX = /\A[A-Za-z][A-Za-z0-9+.-]*:[^\s\x00-\x1F\x7F]*\z/
+    URI_REGEX = /\A[A-Za-z][A-Za-z0-9+.-]*:[^\x00-\x20\x7F]*\z/
 
     # Validate a `format: uri` wire value and return it unchanged.
     def self.validate_uri(value)
@@ -665,6 +665,10 @@ module Petstore::Client
     # sign, integer seconds, optional fractional part (1–9 digits), and a
     # trailing "s" (e.g. "3600s", "3600.000000001s", "-1.5s").
     PROTOBUF_DURATION_REGEX = /\A-?\d+(\.\d{1,9})?s\z/
+
+    # Largest magnitude, in whole seconds, a protobuf-JSON duration may carry
+    # (D88): +-315 576 000 000 s, about 10 000 years.
+    PROTOBUF_DURATION_MAX_SECONDS = 315_576_000_000
 
     # Render an ISO8601::Duration as a protobuf-JSON duration string.
     #
@@ -715,6 +719,10 @@ module Petstore::Client
       int_part, frac_part = digits.split('.', 2)
       secs = int_part.to_i
       nanos = frac_part.nil? ? 0 : frac_part.ljust(9, '0').to_i
+      if secs > PROTOBUF_DURATION_MAX_SECONDS || (secs == PROTOBUF_DURATION_MAX_SECONDS && nanos.positive?)
+        raise Errors::SerializationError,
+              "Protobuf-JSON duration out of range (+-#{PROTOBUF_DURATION_MAX_SECONDS} s) for format: duration: #{value.inspect}"
+      end
       # ISO-8601 places the sign before the 'P' (the gem emits the "-PT…"
       # form on the serialize side). Interpolating a signed Float into
       # "PT…S" would build the malformed "PT-3600.0S", which the iso8601

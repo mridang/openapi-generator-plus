@@ -221,7 +221,7 @@ class StoreApi extends BaseApi
          * unchanged. */
         $allowReservedKeys = [];
         if ($options instanceof \PetstoreClient\Api\Options\GetBySwatchOptions && $options->querySwatch instanceof \PetstoreClient\Models\Swatch) {
-            $queryParams['querySwatch'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'querySwatch', ValueSerializer::serializeStyled(
                 'querySwatch',
                 $options->querySwatch,
                 'query',
@@ -229,7 +229,7 @@ class StoreApi extends BaseApi
                 null,
                 'form',
                 true,
-            );
+            ));
         }
         $headerParams = [];
         if ($options instanceof \PetstoreClient\Api\Options\GetBySwatchOptions && $options->preferredSwatch instanceof \PetstoreClient\Models\Swatch) {
@@ -785,7 +785,7 @@ class StoreApi extends BaseApi
          * unchanged. */
         $allowReservedKeys = [];
         if ($options instanceof \PetstoreClient\Api\Options\GetStockItemOptions && $options->asOf instanceof \DateTime) {
-            $queryParams['asOf'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'asOf', ValueSerializer::serializeStyled(
                 'asOf',
                 $options->asOf,
                 'query',
@@ -793,7 +793,7 @@ class StoreApi extends BaseApi
                 null,
                 'form',
                 true,
-            );
+            ));
         }
         $headerParams = [];
         $requestBody = null;
@@ -1175,7 +1175,7 @@ class StoreApi extends BaseApi
             $queryParams['q'] = \PetstoreClient\ObjectSerializer::serialize($options->q);
         }
         if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->labels !== null) {
-            $queryParams['labels'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'labels', ValueSerializer::serializeStyled(
                 'labels',
                 $options->labels,
                 'query',
@@ -1183,10 +1183,10 @@ class StoreApi extends BaseApi
                 'multi',
                 'form',
                 true,
-            );
+            ));
         }
         if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->at instanceof \DateTimeImmutable) {
-            $queryParams['at'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'at', ValueSerializer::serializeStyled(
                 'at',
                 $options->at,
                 'query',
@@ -1194,7 +1194,7 @@ class StoreApi extends BaseApi
                 null,
                 'form',
                 true,
-            );
+            ));
         }
         $headerParams = [];
         if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->xFilter !== null) {

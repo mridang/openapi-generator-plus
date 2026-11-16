@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -256,6 +256,10 @@ abstract class BaseApi {
 
         val response = apiClient.sendRequest(method, url, headers, requestBody)
 
+        if (response.statusCode == 401 && effectiveAuth is HttpAwareAuthenticator) {
+            // A cached OAuth2 token the API no longer accepts must not outlive this answer.
+            effectiveAuth.invalidateAccessToken()
+        }
         if (response.statusCode < 200 || response.statusCode >= 300) {
             throw ApiException.fromResponse(response.statusCode, response.headers, response.body)
         }

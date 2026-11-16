@@ -260,6 +260,129 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
+  # The response-shape operations: each return type is decoded by the
+  # generated function itself, so a wrong return type or a decoder that cannot
+  # handle a bare enum, a map-of-array or a recursive model fails here.
+  test "get_swatch decodes a bare enum response to its atom" do
+    {:ok, name} = StubApiClient.start(~s("blue"))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, :blue} = PetstoreClient.Api.StoreApi.get_swatch(api)
+    assert StubApiClient.captured(name).url == "http://localhost/store/swatch"
+
+    Agent.stop(name)
+  end
+
+  test "get_swatch_groups decodes an array of maps of enums" do
+    {:ok, name} = StubApiClient.start(~s([{"a":"red"},{"b":"blue"}]))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, [%{"a" => :red}, %{"b" => :blue}]} =
+             PetstoreClient.Api.StoreApi.get_swatch_groups(api)
+
+    Agent.stop(name)
+  end
+
+  test "get_timestamp_groups decodes an array of maps of date-times" do
+    {:ok, name} = StubApiClient.start(~s([{"a":"2024-01-15T10:30:00Z"}]))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, [%{"a" => %DateTime{} = at}]} =
+             PetstoreClient.Api.StoreApi.get_timestamp_groups(api)
+
+    assert DateTime.compare(at, ~U[2024-01-15 10:30:00Z]) == :eq
+
+    Agent.stop(name)
+  end
+
+  test "get_department decodes the mutually recursive Department and Employee" do
+    body = ~s({"name":"eng","lead":{"name":"ann","department":{"name":"eng"}}})
+    {:ok, name} = StubApiClient.start(body)
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, %PetstoreClient.Models.Department{name: "eng", lead: lead}} =
+             PetstoreClient.Api.StoreApi.get_department(api)
+
+    assert %PetstoreClient.Models.Employee{name: "ann", department: department} = lead
+    assert %PetstoreClient.Models.Department{name: "eng"} = department
+
+    Agent.stop(name)
+  end
+
+  test "get_tree decodes the self-referential TreeNode" do
+    {:ok, name} = StubApiClient.start(~s({"value":"root","child":{"value":"leaf"}}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, %PetstoreClient.Models.TreeNode{value: "root", child: child}} =
+             PetstoreClient.Api.StoreApi.get_tree(api)
+
+    assert %PetstoreClient.Models.TreeNode{value: "leaf"} = child
+
+    Agent.stop(name)
+  end
+
+  test "get_defaults decodes an empty object with the schema defaults applied" do
+    {:ok, name} = StubApiClient.start(~s({}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, %PetstoreClient.Models.Defaults{retries: 3, mode: :medium}} =
+             PetstoreClient.Api.StoreApi.get_defaults(api)
+
+    Agent.stop(name)
+  end
+
+  test "get_stock_item sends asOf as a date-time and decodes the referenced enums" do
+    {:ok, name} = StubApiClient.start(~s({"priority":1,"availability":"Sold"}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    options = %PetstoreClient.Api.Options.GetStockItemOptions{as_of: ~U[2024-01-15 10:30:00Z]}
+
+    assert {:ok, %PetstoreClient.Models.StockItem{priority: :number_1, availability: :sold}} =
+             PetstoreClient.Api.StoreApi.get_stock_item(api, options)
+
+    assert StubApiClient.captured(name).url =~ "asOf=2024-01-15T10%3A30%3A00"
+
+    Agent.stop(name)
+  end
+
+  test "get_order_by_tracking_id puts the canonical lowercase uuid in the path" do
+    {:ok, name} = StubApiClient.start(~s({"id":1}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, %PetstoreClient.Models.Order{id: 1}} =
+             PetstoreClient.Api.StoreApi.get_order_by_tracking_id(
+               api,
+               "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"
+             )
+
+    assert StubApiClient.captured(name).url ==
+             "http://localhost/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
+
+    Agent.stop(name)
+  end
+
+  test "get_order_by_tracking_id rejects a malformed uuid before sending" do
+    {:ok, name} = StubApiClient.start(~s({"id":1}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.Api.StoreApi.get_order_by_tracking_id(api, "not-a-uuid")
+    end
+
+    assert StubApiClient.captured(name) == nil
+
+    Agent.stop(name)
+  end
+
   # readOnly and writeOnly have no wire effect: the writeOnly password is sent
   # and the readOnly id of the response is decoded.
   test "create_account sends the writeOnly property and decodes the readOnly one" do

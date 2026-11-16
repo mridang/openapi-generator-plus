@@ -167,21 +167,27 @@ public sealed class FakeAuthenticator : IAuthenticator
 
 ## Error Handling
 
-All API errors derive from `ApiException`. The error hierarchy is:
+Every error the SDK raises derives from `OpenAPIException`, so one `catch (OpenAPIException)` covers them all. The hierarchy is:
 
-- `ApiException` (base)
-  - `ClientException` (4xx)
-    - `BadRequestException` (400)
-    - `UnauthorizedException` (401)
-    - `ForbiddenException` (403)
-    - `NotFoundException` (404)
-    - `ConflictException` (409)
-    - `UnprocessableEntityException` (422)
-    - `TooManyRequestsException` (429)
-  - `ServerException` (5xx)
-    - `InternalServerErrorException` (500)
-  - `NetworkException` (no HTTP response, status 0)
-    - `NetworkTimeoutException` (the request timed out, status 0)
+- `OpenAPIException` (root)
+  - `ApiException` (an HTTP response or transport failure)
+    - `ClientException` (4xx)
+      - `BadRequestException` (400)
+      - `UnauthorizedException` (401)
+      - `ForbiddenException` (403)
+      - `NotFoundException` (404)
+      - `ConflictException` (409)
+      - `UnprocessableEntityException` (422)
+      - `TooManyRequestsException` (429)
+    - `ServerException` (5xx)
+      - `InternalServerErrorException` (500)
+    - `NetworkException` (no HTTP response, status 0)
+      - `NetworkTimeoutException` (the request timed out, status 0)
+  - `SerializationException` (a request or response body that cannot be encoded or decoded)
+  - `OAuth2ServerException` (the token endpoint answered with an OAuth2 error)
+  - `OAuth2TokenException` (the token endpoint answered with an unusable body)
+
+`SerializationException`, `OAuth2ServerException` and `OAuth2TokenException` are siblings of `ApiException`, not subclasses, so a `catch (ApiException)` alone does not handle them; end with a catch of the root type.
 
 ```csharp
 using PetstoreClient;
@@ -209,6 +215,10 @@ async Task AddPetOrReportAsync(global::PetstoreClient.Client client, Pet pet)
     catch (ApiException e)
     {
         Console.WriteLine($"API error: {e.Message}");
+    }
+    catch (OpenAPIException e)
+    {
+        Console.WriteLine($"SDK error: {e.Message}");
     }
 }
 ```

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -59,6 +59,18 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         "X-API-Key",
         "X-Internal-Key",
     };
+
+    /* A header is dropped on a cross-origin hop when it is in the fixed set or
+       its name says it carries a credential (key, token or secret), so a default
+       header or a custom authenticator header is not replayed to another
+       origin (F1093). */
+    private static bool IsCredentialHeader(string name)
+    {
+        return SensitiveHeaderNames.Contains(name)
+            || name.Contains("key", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("token", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("secret", StringComparison.OrdinalIgnoreCase);
+    }
 
     private readonly HttpClient _httpClient;
     private readonly TransportOptions _transportOptions;
@@ -227,7 +239,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             }
             if (transportOptions.VerifySsl)
             {
-                handler.ServerCertificateCustomValidationCallback = (_, cert, _, sslPolicyErrors) =>
+                handler.ServerCertificateCustomValidationCallback = (
+                    _,
+                    cert,
+                    serverChain,
+                    sslPolicyErrors
+                ) =>
                 {
                     /* The pinned CA replaces the system roots, but host name
                      * verification still applies: a certificate issued by the
@@ -247,6 +264,15 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     customChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                     customChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
                     customChain.ChainPolicy.CustomTrustStore.AddRange(caCerts);
+                    /* The intermediates the server sent in its handshake are
+                     * candidates for the path from the leaf to the pinned root. */
+                    if (serverChain != null)
+                    {
+                        foreach (X509ChainElement element in serverChain.ChainElements)
+                        {
+                            customChain.ChainPolicy.ExtraStore.Add(element.Certificate);
+                        }
+                    }
                     return customChain.Build(cert);
                 };
             }
@@ -670,7 +696,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     );
                     foreach (KeyValuePair<string, string> header in currentHeaders)
                     {
-                        if (crossOrigin && SensitiveHeaderNames.Contains(header.Key))
+                        if (crossOrigin && IsCredentialHeader(header.Key))
                         {
                             continue;
                         }

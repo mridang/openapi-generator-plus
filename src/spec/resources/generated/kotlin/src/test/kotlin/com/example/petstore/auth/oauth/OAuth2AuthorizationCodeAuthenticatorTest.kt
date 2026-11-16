@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -164,8 +164,8 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     @Test
     fun secondExchangeWithoutRefreshTokenDropsTheOldRefreshToken() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
-        client.enqueue("""{"access_token":"tok2","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":0}""")
         client.enqueue("""{"access_token":"tok3","expires_in":3600}""")
 
         val auth = createAuthenticator()
@@ -198,7 +198,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     @Test
     fun refreshCarriesClientCredentialsAndARejectedRefreshIsPostedOnce() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
         client.enqueue("""{"access_token":"unexpected","expires_in":3600}""")
 
@@ -220,7 +220,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     @Test
     fun includesRefreshTokenOnRefresh() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
 
         val auth = createAuthenticator()
@@ -340,7 +340,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     @Test
     fun routesTheCodeExchangeToTheTokenUrlAndTheRefreshToTheRefreshUrl() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
 
         val auth =
@@ -366,7 +366,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     @Test
     fun generatedSchemeWrapperUsesItsSpecUrlsAndScopes() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
 
         val auth =

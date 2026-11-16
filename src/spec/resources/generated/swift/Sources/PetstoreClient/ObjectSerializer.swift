@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -77,6 +77,13 @@ internal enum ObjectSerializer {
     }
     if let date = dateFormatter.date(from: string) {
       return date
+    }
+    /* The date-only fallback takes exactly yyyy-MM-dd: a date and time with
+     * no offset ("2024-01-01T10:00:00") is not an instant, and a lenient
+     * prefix match would read it in whatever zone the host uses. */
+    guard string.range(of: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", options: .regularExpression) != nil
+    else {
+      return nil
     }
     return dateOnlyFormatter.date(from: string)
   }

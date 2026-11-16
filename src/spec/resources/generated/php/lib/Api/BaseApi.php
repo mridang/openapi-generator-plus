@@ -25,6 +25,7 @@ use PetstoreClient\ObjectSerializer;
 use PetstoreClient\TraceContextUtil;
 use PetstoreClient\ValueSerializer;
 use PetstoreClient\Auth\Authenticator;
+use PetstoreClient\Auth\HttpAwareAuthenticator;
 use PetstoreClient\Auth\NoAuth;
 
 /**
@@ -135,6 +136,11 @@ class BaseApi
         } else {
             $effectiveAuth = $auth ?? $this->authenticator;
         }
+        if ($auth instanceof \PetstoreClient\Auth\Authenticator && $effectiveAuth instanceof HttpAwareAuthenticator) {
+            /* A per-call authenticator never went through the Client
+             * constructor, so it has no transport for its token requests yet. */
+            $effectiveAuth->setApiClient($this->apiClient);
+        }
         if ($effectiveAuth instanceof Authenticator) {
             foreach ($effectiveAuth->getQueryParams() as $k => $v) {
                 $queryParams[$k] = $v;
@@ -191,6 +197,32 @@ class BaseApi
 
         $response = $this->apiClient->sendRequest($method, $url, $headers, $serializedBody);
 
+        if (
+            $response->statusCode === 401
+            && $effectiveAuth instanceof Authenticator
+            && method_exists($effectiveAuth, 'invalidateAccessToken')
+            && ($serializedBody === null || is_string($serializedBody))
+        ) {
+            /* A revoked or rotated token keeps failing while it is cached.
+             * Drop it, obtain a new one (a refresh grant first) and replay the
+             * request once. A body that cannot be replayed (a stream) is not
+             * retried, and a failed re-authentication leaves the 401 as is. */
+            $effectiveAuth->invalidateAccessToken();
+            try {
+                $retryAuthHeaders = $effectiveAuth->getAuthHeaders();
+            } catch (\PetstoreClient\Errors\OpenAPIException) {
+                $retryAuthHeaders = null;
+            }
+            if ($retryAuthHeaders !== null) {
+                $response = $this->apiClient->sendRequest(
+                    $method,
+                    $url,
+                    array_merge($headers, $retryAuthHeaders),
+                    $serializedBody
+                );
+            }
+        }
+
         if ($response->statusCode < 200 || $response->statusCode >= 300) {
             throw ApiException::fromResponse($response->statusCode, $response->headers, $response->body);
         }
@@ -209,6 +241,18 @@ class BaseApi
             $isNonJson = $respContentType !== null
                 && !$this->headerSelector->isJsonMime($respContentType);
 
+            if (
+                $isNonJson && $returnType !== null && $returnType !== 'string'
+                && $this->isTextMediaType((string) $respContentType)
+            ) {
+                /* A model, number or collection cannot be built from a
+                 * non-JSON text body, and handing back the raw string in its
+                 * place would give the caller the wrong type. */
+                throw new SerializationException(
+                    "Cannot deserialize a response with Content-Type '" . $respContentType
+                        . "' as " . $returnType . '; expected a JSON body'
+                );
+            }
             if ($isNonJson && $this->isTextMediaType((string) $respContentType)) {
                 /* A text response (text/plain, XML, ...) crosses the
                  * transport as its decoded string, never base64: hand it

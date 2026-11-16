@@ -352,7 +352,7 @@ test('password refresh in body mode carries the client credentials to the refres
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-1',
         'refresh_token' => 'refresh-1',
-        'expires_in' => 1,
+        'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-2',
@@ -387,7 +387,7 @@ test('password refresh in basic mode sends the basic header and no client id in 
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-1',
         'refresh_token' => 'refresh-1',
-        'expires_in' => 1,
+        'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-2',
@@ -422,7 +422,7 @@ test('password rejected refresh re-runs the password grant at the token url', fu
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-1',
         'refresh_token' => 'refresh-1',
-        'expires_in' => 1,
+        'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(
         400,

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -41,6 +41,8 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   /** RFC 8414 recommended default max-age for OIDC discovery documents. */
   private static readonly DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400;
   private static readonly MAX_AGE_PATTERN = /max-age=(\d+)/i;
+  /** Longest discovery max-age (one year, in seconds) a server may claim. */
+  private static readonly MAX_DISCOVERY_MAX_AGE_SECONDS = 31_536_000;
 
   /**
    * Create a new OpenID Connect authenticator.
@@ -214,7 +216,10 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
         if (match) {
           const seconds = Number.parseInt(match[1], 10);
           return Number.isFinite(seconds)
-            ? seconds
+            ? Math.min(
+                seconds,
+                OpenIdConnectAuthenticator.MAX_DISCOVERY_MAX_AGE_SECONDS,
+              )
             : OpenIdConnectAuthenticator.DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
         }
         return OpenIdConnectAuthenticator.DEFAULT_DISCOVERY_MAX_AGE_SECONDS;

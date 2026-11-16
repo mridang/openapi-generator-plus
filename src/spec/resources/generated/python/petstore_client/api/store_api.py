@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -220,17 +220,22 @@ class StoreApi(BaseApi):
         )
         query_params: Dict[str, Any] = {}
         if options is not None and options.query_swatch is not None:
-            query_params["querySwatch"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
+            query_params.update(
+                ValueSerializer.query_entries(
                     "querySwatch",
-                    options.query_swatch,
-                    "query",
-                    "Swatch",
-                    None,
-                    "form",
-                    True,
-                ),
-                False,
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "querySwatch",
+                            options.query_swatch,
+                            "query",
+                            "Swatch",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         header_params: Dict[str, str] = {}
         if options is not None and options.preferred_swatch is not None:
@@ -687,11 +692,22 @@ class StoreApi(BaseApi):
         path = "/store/stock-item"
         query_params: Dict[str, Any] = {}
         if options is not None and options.as_of is not None:
-            query_params["asOf"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
-                    "asOf", options.as_of, "query", "AwareDatetime", None, "form", True
-                ),
-                False,
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "asOf",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "asOf",
+                            options.as_of,
+                            "query",
+                            "AwareDatetime",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         header_params: Dict[str, str] = {}
         body = None
@@ -1004,24 +1020,40 @@ class StoreApi(BaseApi):
                 "q", self._object_serializer.serialize(options.q), "query"
             )
         if options is not None and options.labels is not None:
-            query_params["labels"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
+            query_params.update(
+                ValueSerializer.query_entries(
                     "labels",
-                    options.labels,
-                    "query",
-                    "Set[StrictStr]",
-                    "multi",
-                    "form",
-                    True,
-                ),
-                False,
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "labels",
+                            options.labels,
+                            "query",
+                            "Set[StrictStr]",
+                            "multi",
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         if options is not None and options.at is not None:
-            query_params["at"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
-                    "at", options.at, "query", "datetime.time", None, "form", True
-                ),
-                False,
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "at",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "at",
+                            options.at,
+                            "query",
+                            "datetime.time",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         header_params: Dict[str, str] = {}
         if options is not None and options.x_filter is not None:

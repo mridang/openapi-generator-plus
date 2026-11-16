@@ -24,6 +24,9 @@ use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
+use Symfony\Component\Serializer\Mapping\Loader\AttributeLoader;
+use Symfony\Component\Serializer\NameConverter\MetadataAwareNameConverter;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer;
@@ -216,6 +219,9 @@ class ObjectSerializer
                  * typed container — preserving the immutable Phase-2 PHP
                  * type-surface end-to-end. */
                 new DsAwareObjectNormalizer(
+                    nameConverter: new MetadataAwareNameConverter(
+                        new ClassMetadataFactory(new AttributeLoader())
+                    ),
                     propertyTypeExtractor: $propertyTypeExtractor,
                 ),
             ], [new JsonEncoder()]);
@@ -360,12 +366,13 @@ class ObjectSerializer
         ) {
             return $normalized;
         }
-        foreach (self::publicModelProperties($value) as $wireName => $property) {
-            if (array_key_exists($wireName, $normalized)) {
-                $normalized[$wireName] = self::flattenAdditionalProperties(
-                    $property->getValue($value),
-                    $normalized[$wireName]
-                );
+        /* The normalizer keys a model by its wire names (its name converter
+         * reads the SerializedName attribute in both directions), so each
+         * declared property is matched by wire name. */
+        $properties = self::publicModelProperties($value);
+        foreach ($normalized as $key => $item) {
+            if (isset($properties[$key])) {
+                $normalized[$key] = self::flattenAdditionalProperties($properties[$key]->getValue($value), $item);
             }
         }
         if (
@@ -690,6 +697,9 @@ class ObjectSerializer
             return null;
         }
         try {
+            if (is_string($data)) {
+                self::assertJsonDepth($data);
+            }
             return self::deserializeInternal($data, $class, $httpHeaders);
         } catch (SerializationException $e) {
             throw $e;
@@ -701,10 +711,55 @@ class ObjectSerializer
             | \DateException $e
         ) {
             throw new SerializationException(
-                'Failed to deserialize JSON to ' . $class . ': ' . $e->getMessage(),
+                'Failed to deserialize JSON: ' . $e->getMessage(),
                 0,
                 $e
             );
+        }
+    }
+
+    /**
+     * Refuses a JSON text nested deeper than {@see MAX_JSON_DEPTH} with the
+     * canonical message, whatever the parser would say. Brackets inside string
+     * literals do not count. A text with no more openers than the cap cannot
+     * be too deep, so only a payload with many of them is scanned.
+     *
+     * @throws SerializationException when the nesting exceeds the cap
+     */
+    private static function assertJsonDepth(string $json): void
+    {
+        if (substr_count($json, '[') + substr_count($json, '{') <= self::MAX_JSON_DEPTH) {
+            return;
+        }
+        /** @var list<true> $open one entry per container still open */
+        $open = [];
+        $inString = false;
+        $escaped = false;
+        $length = strlen($json);
+        for ($i = 0; $i < $length; $i++) {
+            $char = $json[$i];
+            if ($inString) {
+                if ($escaped) {
+                    $escaped = false;
+                } elseif ($char === '\\') {
+                    $escaped = true;
+                } elseif ($char === '"') {
+                    $inString = false;
+                }
+                continue;
+            }
+            if ($char === '"') {
+                $inString = true;
+            } elseif ($char === '[' || $char === '{') {
+                $open[] = true;
+                if (count($open) > self::MAX_JSON_DEPTH) {
+                    throw new SerializationException(
+                        'JSON nesting depth ' . count($open) . ' exceeds limit ' . self::MAX_JSON_DEPTH
+                    );
+                }
+            } elseif ($char === ']' || $char === '}') {
+                array_pop($open);
+            }
         }
     }
 
@@ -1119,8 +1174,10 @@ class ObjectSerializer
                 /** @var object $result */
                 $result = self::getSerializer()->denormalize($payload, $class, JsonEncoder::FORMAT);
                 return self::captureAdditionalProperties($result, $payload);
+            } catch (SerializationException $e) {
+                throw $e;
             } catch (\Throwable $e) {
-                throw new SerializationException($e->getMessage(), 0, $e);
+                throw new SerializationException('Failed to deserialize JSON: ' . $e->getMessage(), 0, $e);
             }
         }
 
@@ -1145,8 +1202,10 @@ class ObjectSerializer
                 $result = self::captureAdditionalProperties($result, $data);
             }
             return $result;
+        } catch (SerializationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
-            throw new SerializationException($e->getMessage(), 0, $e);
+            throw new SerializationException('Failed to deserialize JSON: ' . $e->getMessage(), 0, $e);
         }
     }
 

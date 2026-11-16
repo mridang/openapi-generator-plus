@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -270,6 +270,11 @@ internal static class ValueSerializer
             return location == "path" ? EncodePathSegment(s) : s;
         }
 
+        if (items == null && ModelFields(value) is { } fields)
+        {
+            return SerializeObjectStyled(paramName, fields, style, explode, enc);
+        }
+
         switch (style)
         {
             case "matrix":
@@ -320,6 +325,80 @@ internal static class ValueSerializer
 
             default:
                 return Serialize(value, location, schemaType, collectionFormat);
+        }
+    }
+
+    /// <summary>
+    /// The wire fields of an exploded object-valued query parameter: each pair
+    /// is written as its own <c>name=value</c> query entry under the property's
+    /// own name, not under the parameter name.
+    /// </summary>
+    /// <param name="Fields">The property names mapped to their values, in declaration order.</param>
+    public sealed record ExplodedFields(IReadOnlyList<KeyValuePair<string, string>> Fields);
+
+    private static readonly ObjectSerializer FieldSerializer = new();
+
+    /* A generated model (never an enum) is an object-valued parameter. Its
+     * wire fields are the top-level JSON properties: strings unquoted, other
+     * values as their JSON text, null properties omitted. */
+    private static List<KeyValuePair<string, string>>? ModelFields(object value)
+    {
+        System.Type type = value.GetType();
+        if (type.IsEnum || type.Namespace != "PetstoreClient.Models")
+        {
+            return null;
+        }
+        List<KeyValuePair<string, string>> fields = [];
+        using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(
+            FieldSerializer.Serialize(value)
+        );
+        if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            return null;
+        }
+        foreach (System.Text.Json.JsonProperty property in document.RootElement.EnumerateObject())
+        {
+            fields.Add(
+                new KeyValuePair<string, string>(
+                    property.Name,
+                    property.Value.ValueKind == System.Text.Json.JsonValueKind.String
+                        ? property.Value.GetString()!
+                        : property.Value.GetRawText()
+                )
+            );
+        }
+        return fields;
+    }
+
+    /* OAS 3 object serialization: exploded form and the delimited query
+     * styles emit one entry per property, the other forms flatten to one
+     * string (name,value pairs, or name=value pairs when exploded). */
+    private static object SerializeObjectStyled(
+        string paramName,
+        List<KeyValuePair<string, string>> fields,
+        string style,
+        bool explode,
+        Func<string, string> enc
+    )
+    {
+        IEnumerable<string> pairs = fields.Select(f => enc(f.Key) + "=" + enc(f.Value));
+        IEnumerable<string> flat = fields.SelectMany(f => new[] { enc(f.Key), enc(f.Value) });
+        switch (style)
+        {
+            case "matrix":
+                return explode
+                    ? string.Concat(pairs.Select(p => ";" + p))
+                    : ";" + paramName + "=" + string.Join(",", flat);
+            case "label":
+                return "." + (explode ? string.Join(".", pairs) : string.Join(",", flat));
+            case "form":
+                return explode ? new ExplodedFields(fields) : string.Join(",", flat);
+            case "spaceDelimited":
+                return explode ? new ExplodedFields(fields) : string.Join(" ", flat);
+            case "pipeDelimited":
+                return explode ? new ExplodedFields(fields) : string.Join("|", flat);
+            default:
+                return explode ? string.Join(",", pairs) : string.Join(",", flat);
         }
     }
 

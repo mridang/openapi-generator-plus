@@ -187,21 +187,25 @@ let client = Client::new(Box::new(FakeAuthenticator), None);
 
 ## Error Handling
 
-All API errors derive from `ApiError`. The error hierarchy is:
+Every failure the SDK produces implements the `OpenAPIError` marker trait, so a `&dyn OpenAPIError` holds any of them. It has four direct kinds: `ApiError` (an HTTP response or a transport failure), `SerializationError` (a request or response body that cannot be encoded or decoded), `OAuth2ServerError` (the token endpoint answered with an error) and `OAuth2TokenError` (the token response was unusable). The last two surface from the first authenticated call, so they are siblings of `ApiError`, not subtypes of it. Caller mistakes (a bad argument, a closed client) are the separate `ConfigurationError`. The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-    - `TooManyRequestsError` (429)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
-  - `NetworkError` (no HTTP response, status 0)
-    - `NetworkTimeoutError` (the request timed out, status 0)
+- `OpenAPIError` (root marker trait)
+  - `SerializationError`
+  - `OAuth2ServerError`
+  - `OAuth2TokenError`
+  - `ApiError`
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```rust
 use std::error::Error;

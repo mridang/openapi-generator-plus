@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -253,6 +253,27 @@ final class PetApiTests {
       try await api.setPetAvatar(
         petId: 1, body: imageData, requestContentType: "application/unknown-type")
     }
+  }
+
+  /* D20: the refusal names the value, the operation and the declared types. */
+  @Test func testUnknownRequestContentTypeMessageIsCanonical() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let error = await #expect(throws: ConfigurationError.self) {
+      try await api.setPetAvatar(
+        petId: 1, body: Data([0xFF]), requestContentType: "application/unknown-type")
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(
+      message
+        == "Unsupported request content-type 'application/unknown-type' for setPetAvatar; "
+        + "declared types are [image/jpeg, image/png, application/json]")
+    #expect(mockClient.lastURL.isEmpty)
   }
 
   // binary-body-raw-bytes: a request body declared type:string format:binary
@@ -598,6 +619,18 @@ final class PetApiTests {
         try await $0.getMultiServerPetInfo(
           petId: 3, server: GetMultiServerPetInfoServerRegional(region: .AP))
       } == "https://ap.example.com/v1/pet/3/multi")
+    /* The Mirror server's variables hold reserved characters that go into
+       the URL as they are, with no entity escaping. */
+    #expect(
+      try await operationServerUrl {
+        try await $0.getMultiServerPetInfo(
+          petId: 3, server: GetMultiServerPetInfoServerMirror(region: .EU, channel: .A_B))
+      } == "https://eu.mirror.example.com/a&b/v1/pet/3/multi")
+    #expect(
+      try await operationServerUrl {
+        try await $0.getMultiServerPetInfo(
+          petId: 3, server: GetMultiServerPetInfoServerMirror(region: .US, channel: .IT_S))
+      } == "https://us.mirror.example.com/it's/v1/pet/3/multi")
   }
 
   /* Without a server of its own the call uses the configured base URL. */
@@ -969,6 +1002,214 @@ final class PetApiTests {
       name: "a..b", options: GetPetByNameOptions(category: "dog", xCorrelationId: "c-1"))
 
     #expect(mockClient.lastURL.hasPrefix("https://example.com/pet/byName/a..b?"))
+  }
+
+  /* Object-valued query and header parameters expand by their OAS style:
+     form exploded is one pair per field, form not exploded is one comma
+     separated value, deepObject is bracketed, and a simple header is comma
+     separated. The matrix and label path styles prefix their values. */
+  @Test func testObjectValuedParametersAreExpandedByStyle() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":5,\"name\":\"cute\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let criteria = PetCriteria(breed: "lab", minAge: 3)
+    let options = GetPetTagOptions(
+      criteria: criteria, criteriaCsv: criteria, criteriaDeep: criteria, xCriteria: criteria)
+    _ = try await api.getPetTag(petId: 5, tagName: "cute", options: options)
+
+    let url = mockClient.lastURL
+    #expect(url.hasPrefix("https://example.com/pet/;petId=5/tag/.cute?"), "got: \(url)")
+    #expect(
+      url.hasSuffix(
+        "breed=lab&min_age=3&criteriaCsv=breed%2Clab%2Cmin_age%2C3"
+          + "&criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3"),
+      "got: \(url)")
+    #expect(mockClient.lastHeaders["X-Criteria"] == "breed,lab,min_age,3")
+  }
+
+  /* findPetsByStatus.filter is a deepObject map. */
+  @Test func testFilterMapIsSentAsADeepObject() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "[]"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.findPetsByStatus(options: FindPetsByStatusOptions(filter: ["color": "blue"]))
+
+    #expect(mockClient.lastURL.contains("filter%5Bcolor%5D=blue"), "got: \(mockClient.lastURL)")
+  }
+
+  /* The digit-leading query parameter keeps its wire name. */
+  @Test func testDigitLeadingQueryParameterKeepsItsWireName() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "[]"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.findPetsByStatus(options: FindPetsByStatusOptions(n2ndPage: 2))
+
+    #expect(mockClient.lastURL.contains("2ndPage=2"), "got: \(mockClient.lastURL)")
+  }
+
+  /* getPetSummary: a matrix-style date path segment, a required cookie, and
+     a repeated date query parameter, answered with text/plain. */
+  @Test func testGetPetSummarySendsMatrixPathCookieAndRepeatedDays() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "all quiet"
+    mockClient.responseHeaders = ["Content-Type": "text/plain"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let summary = try await api.getPetSummary(
+      petId: 5, asOf: "2024-01-15",
+      options: GetPetSummaryOptions(session: "abc", days: ["2024-01-16", "2024-01-17"]))
+
+    #expect(summary == "all quiet")
+    #expect(
+      mockClient.lastURL
+        == "https://example.com/pet/5/summary/;asOf=2024-01-15?days=2024-01-16&days=2024-01-17")
+    #expect(mockClient.lastHeaders["Cookie"] == "session=abc")
+  }
+
+  /* A missing required header or cookie is refused before anything is sent. */
+  @Test func testRequiredHeaderEmptyThrows() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetByName(
+        name: "x", options: GetPetByNameOptions(category: "dog", xCorrelationId: ""))
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(
+      message == "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName")
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
+  @Test func testRequiredCookieEmptyThrows() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetSummary(
+        petId: 5, asOf: "2024-01-15", options: GetPetSummaryOptions(session: ""))
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(message == "Missing the required parameter 'session' when calling PetApi.getPetSummary")
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
+  /* A request body that is an anyOf wrapper goes out as the variant the
+     caller chose, on the operation's own path. */
+  @Test func testAddPetTreatmentSendsTheChosenVariantAsTheBody() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"drugName\":\"Amoxicillin\"}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let treatment = try JSONDecoder().decode(
+      PetTreatment.self, from: Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8))
+
+    _ = try await api.addPetTreatment(petId: 5, petTreatment: treatment)
+
+    #expect(mockClient.lastMethod == "POST")
+    #expect(mockClient.lastURL == "https://example.com/pet/5/treatment")
+    #expect(mockClient.lastHeaders["Content-Type"] == "application/json")
+    let sent =
+      try JSONSerialization.jsonObject(with: mockClient.lastBody ?? Data()) as? [String: Any]
+    #expect(sent?["drugName"] as? String == "Amoxicillin")
+    #expect(sent?["dosage"] as? String == "250mg")
+  }
+
+  // MARK: - Response shapes through the mock server
+
+  /* A response header repeated by the server keeps every value, and header
+     names are lower-cased. */
+  @Test func testRepeatedResponseHeadersKeepEveryValue() async throws {
+    let client = DefaultApiClient()
+    let response = try await client.sendRequest(
+      method: "GET", url: "\(chasmHttpUrl)/test/response-headers", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
+    #expect(response.headers["x-custom-header"] == "foo")
+    let link = try #require(response.headers["link"])
+    #expect(link.contains("rel=\"next\""))
+    #expect(link.contains("rel=\"prev\""))
+  }
+
+  /* A 200 with no body comes back with an empty body, not an error. */
+  @Test func testEmptyBodyResponseIsReturnedAsIs() async throws {
+    let client = DefaultApiClient()
+    let response = try await client.sendRequest(
+      method: "GET", url: "\(chasmHttpUrl)/test/empty", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
+    #expect(response.body.isEmpty)
+  }
+
+  /* The typed status routes answer with the named status and a JSON object,
+     which the SDK maps to the error type of that status. */
+  @Test(arguments: [
+    ("pet/1", 400, "BadRequestError"), ("pet/1", 401, "UnauthorizedError"),
+    ("pet/1", 403, "ForbiddenError"), ("pet/1", 404, "NotFoundError"),
+    ("pet/1", 409, "ConflictError"), ("pet/1", 418, "ClientError"),
+    ("pet/1", 422, "UnprocessableEntityError"), ("pet/1", 500, "InternalServerError"),
+    ("pet/1", 502, "ServerError"),
+    ("store/order/1", 404, "NotFoundError"), ("store/order/1", 422, "UnprocessableEntityError"),
+    ("store/order/1", 500, "InternalServerError"), ("store/order/1", 502, "ServerError"),
+  ])
+  func testTypedStatusRoutesMapToTheirErrorType(route: String, status: Int, typeName: String)
+    async throws
+  {
+    let client = DefaultApiClient()
+    let response = try await client.sendRequest(
+      method: "GET", url: "\(chasmHttpUrl)/test/status/\(status)/\(route)", headers: [:], body: nil)
+    #expect(response.statusCode == status)
+    let error = ApiError.fromResponse(
+      statusCode: response.statusCode, headers: response.headers, body: response.body)
+    #expect(String(describing: type(of: error)) == typeName)
+    #expect(error.errorBody is [String: Any])
+  }
+
+  // MARK: - Redirects through the mock server
+
+  /* A 3xx without a Location header is returned as the response. */
+  @Test func testRedirectWithoutLocationIsReturnedAsIs() async throws {
+    let client = DefaultApiClient()
+    let response = try await client.sendRequest(
+      method: "GET", url: "\(chasmHttpUrl)/test/redirect/no-location", headers: [:], body: nil)
+    #expect(response.statusCode == 302)
+    /* swift-corelibs-foundation drops the body of a 3xx answer. */
+    #if !canImport(FoundationNetworking)
+      #expect(response.body.contains("no-location"))
+    #endif
+  }
+
+  /* One timeout is the budget of the whole redirect chain (three hops of
+     500 ms each): too small a budget fails, a sufficient one completes. */
+  @Test func testRedirectChainFailsWithinOneTimeoutBudget() async throws {
+    let transport = try TransportOptionsBuilder().timeout(1200).build()
+    let client = try DefaultApiClient(transportOptions: transport)
+    let error = await #expect(throws: NetworkTimeoutError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "\(chasmHttpUrl)/test/redirect/chain/1", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 0)
+  }
+
+  @Test func testRedirectChainInsideTheBudgetCompletes() async throws {
+    let transport = try TransportOptionsBuilder().timeout(5000).build()
+    let client = try DefaultApiClient(transportOptions: transport)
+    let response = try await client.sendRequest(
+      method: "GET", url: "\(chasmHttpUrl)/test/redirect/chain/1", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
   }
 
   // query-allow-empty-omitted: findPetsByStatus.status is an optional query

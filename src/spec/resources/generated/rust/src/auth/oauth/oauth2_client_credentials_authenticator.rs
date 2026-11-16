@@ -155,6 +155,17 @@ impl Authenticator for OAuth2ClientCredentialsAuthenticator {
         })
     }
 
+    fn inject_api_client(&self, client: Arc<dyn ApiClient>) {
+        self.token_manager.ensure_api_client(client);
+    }
+
+    fn invalidate_access_token<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
+        Box::pin(async move {
+            self.token_manager.invalidate_access_token().await;
+            true
+        })
+    }
+
     fn as_http_aware_mut(&mut self) -> Option<&mut dyn HttpAwareAuthenticator> {
         Some(self)
     }

@@ -13,6 +13,8 @@ module Petstore::Client::Models
     OPENAPI_TYPES: Hash[Symbol, String]
     OPENAPI_FORMATS: Hash[Symbol, String]
     REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+    def inspect: () -> String
     attr_reader retries: Integer?
     attr_reader mode: String?
     attr_reader label: String?

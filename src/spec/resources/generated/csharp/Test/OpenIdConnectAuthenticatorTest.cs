@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -232,6 +232,93 @@ public class OpenIdConnectAuthenticatorTest
         auth.SetApiClient(client);
 
         await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+    }
+
+    [Fact]
+    public async Task RejectsADiscoveryDocumentWhoseIssuerDiffersFromTheDiscoveryUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"issuer\":\"https://evil.example.com\","
+                + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}"
+        );
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() =>
+            auth.BuildAuthorizationUrlAsync()
+        );
+        Assert.Contains("issuer", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AcceptsAnIssuerWithATrailingSlash()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"issuer\":\"https://auth.example.com/\","
+                + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}"
+        );
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync();
+        Assert.StartsWith(
+            "https://auth.example.com/authorize?",
+            url.ToString(),
+            StringComparison.Ordinal
+        );
+    }
+
+    [Theory]
+    [InlineData("http://auth.example.com/token", "https://auth.example.com/authorize")]
+    [InlineData("https://auth.example.com/token", "http://auth.example.com/authorize")]
+    public async Task RejectsADiscoveredEndpointThatIsNotHttps(
+        string tokenEndpoint,
+        string authorizationEndpoint
+    )
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\""
+                + authorizationEndpoint
+                + "\","
+                + "\"token_endpoint\":\""
+                + tokenEndpoint
+                + "\"}"
+        );
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() =>
+            auth.BuildAuthorizationUrlAsync()
+        );
+        Assert.Contains("must use https", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AcceptsAPlainHttpEndpointOnALoopbackHost()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"http://127.0.0.1:8080/authorize\","
+                + "\"token_endpoint\":\"http://localhost:8080/token\"}"
+        );
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync();
+        Assert.StartsWith(
+            "http://127.0.0.1:8080/authorize?",
+            url.ToString(),
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]

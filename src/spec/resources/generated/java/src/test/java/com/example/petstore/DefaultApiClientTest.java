@@ -288,6 +288,51 @@ class DefaultApiClientTest {
       assertEquals(0, ex.getStatusCode());
       assertNotNull(ex.getCause(), "the transport exception must be kept as the cause");
     }
+
+    @Test
+    @DisplayName("one timeout covers the whole redirect chain")
+    void timeoutCoversTheWholeRedirectChain() {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder().followRedirects(true).timeout(1200).build());
+      assertThrowsExactly(
+          com.example.petstore.errors.NetworkTimeoutException.class,
+          () ->
+              client.sendRequest(
+                  "GET", chasmUrl + "/test/redirect/chain/1", new HashMap<>(), null));
+    }
+
+    @Test
+    @DisplayName("a redirect chain inside the budget completes")
+    void redirectChainInsideTheBudgetCompletes() {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder().followRedirects(true).timeout(5000).build());
+      assertEquals(
+          200,
+          client
+              .sendRequest("GET", chasmUrl + "/test/redirect/chain/1", new HashMap<>(), null)
+              .statusCode());
+    }
+  }
+
+  @Nested
+  @DisplayName("response header fixtures")
+  class ResponseHeaderFixtures {
+
+    @Test
+    @DisplayName("a response header reaches the caller lower-cased")
+    void aResponseHeaderReachesTheCaller() {
+      DefaultApiClient client = new DefaultApiClient();
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET", ChasmContainer.getBaseUrl() + "/test/response-headers", new HashMap<>(), null);
+      assertEquals(200, response.statusCode());
+      assertTrue(
+          response.headers().containsKey("x-custom-header"), "headers were: " + response.headers());
+    }
   }
 
   @Nested

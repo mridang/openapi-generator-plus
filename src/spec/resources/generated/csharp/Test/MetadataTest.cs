@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -136,6 +136,50 @@ public class MetadataTest
                     + "keep-listed manifest."
             );
         }
+    }
+
+    private static DirectoryInfo ProjectRoot()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (
+            root is not null
+            && !File.Exists(Path.Combine(root.FullName, "PetstoreClient.Test.csproj"))
+        )
+        {
+            root = root.Parent;
+        }
+        Assert.True(root is not null, "the project root must be above the test output");
+        return root!;
+    }
+
+    [Fact]
+    public void FileHeaderCarriesTheInfoDescriptionWithoutStringEscapes()
+    {
+        /* The description is escaped for string literals when it is read; a
+           comment must show the prose, so no backslash may sit before a quote. */
+        var model = Path.Combine(
+            ProjectRoot().FullName,
+            "src",
+            "PetstoreClient",
+            "Models",
+            "Metadata.cs"
+        );
+
+        var header = string.Join("\n", File.ReadLines(model).Take(2));
+
+        Assert.StartsWith("//", header, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\\"", header, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SkillsGuideNamesTheRootErrorAndItsNonApiSiblings()
+    {
+        var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
+
+        Assert.Contains("OpenAPIException", skills, StringComparison.Ordinal);
+        Assert.Contains("SerializationException", skills, StringComparison.Ordinal);
+        Assert.Contains("OAuth2ServerException", skills, StringComparison.Ordinal);
+        Assert.Contains("OAuth2TokenException", skills, StringComparison.Ordinal);
     }
 
     [Fact]

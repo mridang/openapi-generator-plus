@@ -135,9 +135,21 @@ defmodule PetstoreClient.ObjectSerializer do
     if depth > @max_json_depth do
       {:error, "JSON nesting depth #{depth} exceeds limit #{@max_json_depth}"}
     else
-      Jason.decode(data)
+      # Jason keeps the FIRST of a duplicated object key; every other SDK keeps
+      # the last. Decode objects in document order and fold them into maps so
+      # the last occurrence wins.
+      with {:ok, decoded} <- Jason.decode(data, objects: :ordered_objects) do
+        {:ok, last_key_wins(decoded)}
+      end
     end
   end
+
+  defp last_key_wins(%Jason.OrderedObject{values: values}) do
+    Map.new(values, fn {key, value} -> {key, last_key_wins(value)} end)
+  end
+
+  defp last_key_wins(list) when is_list(list), do: Enum.map(list, &last_key_wins/1)
+  defp last_key_wins(other), do: other
 
   @doc """
   Serialize an object to a JSON string.
@@ -1406,11 +1418,13 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
+  @max_protobuf_duration_micros 315_576_000_000 * 1_000_000
+
   @doc """
   Parse a `google.protobuf.Duration` protobuf-JSON string into a
   `Duration.t()`.
 
-  Accepts the grammar `-?\\d+(\\.\\d{1,9})?s`. The fractional part is
+  Accepts the grammar `-?\\d+(\\.\\d{1,9})?s` within +-315,576,000,000 seconds. The fractional part is
   right-padded to nine digits to recover nanoseconds; sub-microsecond digits
   are truncated to fit `Duration`'s microsecond resolution. Returns
   `{:ok, Duration.t()}` on success or `:error` on malformed input.
@@ -1439,13 +1453,20 @@ defmodule PetstoreClient.ObjectSerializer do
       end
 
     total_micros = secs * 1_000_000 + micros
-    total_micros = if sign == "-", do: -total_micros, else: total_micros
 
-    {:ok,
-     %Duration{
-       second: div(total_micros, 1_000_000),
-       microsecond: {rem(total_micros, 1_000_000), 6}
-     }}
+    # google.protobuf.Duration allows +-315,576,000,000 seconds (D88); a larger
+    # magnitude is rejected, never decoded.
+    if total_micros > @max_protobuf_duration_micros do
+      :error
+    else
+      total_micros = if sign == "-", do: -total_micros, else: total_micros
+
+      {:ok,
+       %Duration{
+         second: div(total_micros, 1_000_000),
+         microsecond: {rem(total_micros, 1_000_000), 6}
+       }}
+    end
   end
 
   defp duration_to_microseconds(%Duration{} = d) do

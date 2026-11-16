@@ -229,7 +229,7 @@ test('forwards auth headers', function (): void {
 
 test('sets cookie header', function (): void {
     $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
-    makeBaseApiTestableApi()->call(
+    $result = makeBaseApiTestableApi()->call(
         'GET',
         '/test/echo',
         [],
@@ -237,10 +237,100 @@ test('sets cookie header', function (): void {
         null,
         ['application/json'],
         'application/json',
-        null,
+        'object',
         $auth
     );
-    expect(true)->toBeTrue();
+    expect($result)->toBeArray();
+    /** @var array{headers: array<string, string>} $result */
+    expect($result['headers']['cookie'])->toBe('session=abc123');
+});
+
+/**
+ * A transport that issues a new token (t1, t2, ...) at the token endpoint and
+ * accepts only the bearer token t2 at every other URL, answering 401 otherwise.
+ * Every request it receives is appended to $requests.
+ *
+ * @param \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests
+ */
+function tokenRotatingApiClient(\ArrayObject $requests): ApiClient
+{
+    return new class ($requests) implements ApiClient {
+        private int $issued = 0;
+
+        /** @param \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+        public function __construct(private readonly \ArrayObject $requests)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            $this->requests[] = ['url' => $url, 'headers' => $headers];
+            if ($url === 'https://auth.example.com/token') {
+                $this->issued++;
+                return new ApiHttpResponse(
+                    200,
+                    (string) json_encode(['access_token' => 't' . $this->issued, 'expires_in' => 3600]),
+                    ['Content-Type' => 'application/json']
+                );
+            }
+            $status = ($headers['Authorization'] ?? '') === 'Bearer t2' ? 200 : 401;
+            return new ApiHttpResponse($status, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+}
+
+test('a 401 drops the cached token and replays the request once with a fresh one', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = tokenRotatingApiClient($requests);
+    $auth = new \PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost'), $auth);
+
+    $result = $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+
+    expect($result)->toBeArray();
+    $apiCalls = array_values(array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    ));
+    expect($apiCalls)->toHaveCount(2);
+    expect($apiCalls[0]['headers']['Authorization'])->toBe('Bearer t1');
+    expect($apiCalls[1]['headers']['Authorization'])->toBe('Bearer t2');
+});
+
+test('a per-call oauth authenticator is given the transport before it is used', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = tokenRotatingApiClient($requests);
+    $auth = new \PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/items', [], [], null, ['application/json'], null, null, $auth);
+
+    expect($requests[0]['url'])->toBe('https://auth.example.com/token');
 });
 
 test('a binary body is sent as raw bytes whether given as string, stream resource or PSR-7 stream', function (
@@ -693,6 +783,42 @@ test('skips deserialization for non json content type', function (): void {
     expect($result)->toBe('hello');
 });
 
+test('rejects a text plain body for a model return with a serialization error naming the content type', function (string $returnType): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello', ['Content-Type' => 'text/plain; charset=utf-8']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+
+    expect(fn () => $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        $returnType
+    ))
+        ->toThrow(
+            \PetstoreClient\Errors\SerializationException::class,
+            "Content-Type 'text/plain'"
+        );
+})->with([\PetstoreClient\Models\Pet::class, 'int', 'array<string>']);
+
 test('a binary return type gets the raw bytes of a JSON body', function (): void {
     $client = new class implements ApiClient {
         public function close(): void
@@ -935,6 +1061,28 @@ test('config default Accept wins over operation-negotiated Accept', function ():
         null
     );
     expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
+});
+
+test('an explicit Accept header parameter wins over the configured default and the negotiated one', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('Accept', 'application/xml')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        ['Accept' => 'text/csv'],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedHeaders['Accept'] ?? null)->toBe('text/csv');
+    expect(array_keys(array_change_key_case($client->capturedHeaders, CASE_LOWER)))
+        ->toContain('accept');
 });
 
 // -- BinaryResponseTests --

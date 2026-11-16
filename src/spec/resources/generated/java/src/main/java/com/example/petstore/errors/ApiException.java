@@ -297,12 +297,63 @@ public class ApiException extends OpenAPIException {
     }
     if (responseHeaders != null && !responseHeaders.isEmpty()) {
       /* D17: compact JSON with the keys sorted, the same text as the other SDKs. */
-      buf.append("\nResponse headers: ")
-          .append(ERROR_BODY_SERIALIZER.serialize(new java.util.TreeMap<>(responseHeaders)));
+      java.util.Map<String, String> shown = new java.util.TreeMap<>();
+      for (java.util.Map.Entry<String, String> header : responseHeaders.entrySet()) {
+        shown.put(header.getKey(), isSensitiveHeader(header.getKey()) ? "***" : header.getValue());
+      }
+      buf.append("\nResponse headers: ").append(ERROR_BODY_SERIALIZER.serialize(shown));
     }
     if (responseBody != null && !responseBody.isEmpty()) {
-      buf.append("\nResponse body: ").append(responseBody);
+      buf.append("\nResponse body: ").append(renderBody(responseBody));
     }
     return buf.toString();
+  }
+
+  /** The most response-body bytes the rendered form shows; the field keeps the whole body. */
+  private static final int MAX_RENDERED_BODY_BYTES = 1024;
+
+  /**
+   * Whether the rendered form masks this response header: the credential and cookie headers, and
+   * any name containing key, token or secret (the S15 list).
+   */
+  private static boolean isSensitiveHeader(String name) {
+    String lower = name.toLowerCase(java.util.Locale.ROOT);
+    return lower.equals("authorization")
+        || lower.equals("proxy-authorization")
+        || lower.equals("cookie")
+        || lower.equals("set-cookie")
+        || lower.contains("key")
+        || lower.contains("token")
+        || lower.contains("secret");
+  }
+
+  /**
+   * Cap the body at {@link #MAX_RENDERED_BODY_BYTES} bytes with a "... (N more bytes)" suffix and
+   * escape carriage returns, line feeds and other control characters, so one hostile or oversized
+   * body cannot flood or forge log lines.
+   */
+  private static String renderBody(String body) {
+    byte[] bytes = body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    String shown = body;
+    String suffix = "";
+    if (bytes.length > MAX_RENDERED_BODY_BYTES) {
+      shown =
+          new String(bytes, 0, MAX_RENDERED_BODY_BYTES, java.nio.charset.StandardCharsets.UTF_8);
+      suffix = "... (" + (bytes.length - MAX_RENDERED_BODY_BYTES) + " more bytes)";
+    }
+    StringBuilder escaped = new StringBuilder(shown.length());
+    for (int i = 0; i < shown.length(); i++) {
+      char c = shown.charAt(i);
+      if (c == '\r') {
+        escaped.append("\\r");
+      } else if (c == '\n') {
+        escaped.append("\\n");
+      } else if (c < 0x20 || c == 0x7f) {
+        escaped.append(String.format("\\u%04x", (int) c));
+      } else {
+        escaped.append(c);
+      }
+    }
+    return escaped.append(suffix).toString();
   }
 }

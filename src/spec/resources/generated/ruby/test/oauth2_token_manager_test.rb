@@ -544,6 +544,18 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(client.last_no_redirect).must_equal true
   end
 
+  it 'token POST carries the form Content-Type and a JSON Accept header' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'tok_h', 'expires_in' => 3600 } }
+                                 ])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(client.last_headers['Content-Type']).must_equal 'application/x-www-form-urlencoded'
+    _(client.last_headers['Accept']).must_equal 'application/json'
+  end
+
   # Bucket 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
   # manager must refuse the whole 300-399 range (302 and 307 both exercised
   # here, plus 301/303/308) rather than replaying the credential-bearing

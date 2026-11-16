@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -201,7 +201,27 @@ class TransportOptionsTest {
                     assertThrowsExactly(IllegalArgumentException::class.java) {
                         TransportOptions.builder().proxy(proxy).build()
                     }
-                assertEquals("Invalid proxy URL (missing host): $proxy", ex.message)
+                assertEquals("Invalid proxy URL (missing host): " + proxy.replace("user:pw@", "***@"), ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName("a proxy URL error never carries the user-info")
+        fun proxyUrlErrorMasksTheUserInfo() {
+            val cases =
+                mapOf(
+                    "socks5://svc:s3cret@proxy:1080" to "Invalid proxy URL (must use http or https scheme): socks5://***@proxy:1080",
+                    "svc:s3cret@proxy:3128" to "Invalid proxy URL (missing scheme): ***@proxy:3128",
+                    "http://svc:s3cret@[::1:3128" to "Invalid proxy URL (unterminated IPv6 literal): http://***@[::1:3128",
+                    "http://svc:s3cret@:3128" to "Invalid proxy URL (missing host): http://***@:3128",
+                )
+            for ((proxy, expected) in cases) {
+                val ex =
+                    assertThrowsExactly(IllegalArgumentException::class.java) {
+                        TransportOptions.builder().proxy(proxy).build()
+                    }
+                assertEquals(expected, ex.message)
+                assertFalse(ex.message.orEmpty().contains("s3cret"))
             }
         }
 
@@ -250,7 +270,7 @@ class TransportOptionsTest {
                     assertThrowsExactly(IllegalArgumentException::class.java) {
                         TransportOptions.builder().proxy(proxy).build()
                     }
-                assertEquals("Invalid proxy URL (unterminated IPv6 literal): $proxy", ex.message)
+                assertEquals("Invalid proxy URL (unterminated IPv6 literal): ${proxy.replace("user@", "***@")}", ex.message)
             }
         }
 

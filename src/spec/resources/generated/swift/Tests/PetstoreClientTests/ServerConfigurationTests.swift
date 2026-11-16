@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -70,7 +70,7 @@ import Testing
       variable: "env", value: "dev", allowed: ["prod", "staging"])
     #expect(
       error.errorDescription
-        == "Invalid value 'dev' for server variable 'env'. Allowed values: [\"prod\", \"staging\"]")
+        == "Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]")
   }
 
   @Test func variableWithoutEnumAcceptsAnyOverride() throws {

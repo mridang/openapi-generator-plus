@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -141,8 +141,16 @@ class DefaultApiClient internal constructor(
             throw IllegalStateException("ApiClient has been closed and can no longer send requests")
         }
         val mergedHeaders = mutableMapOf<String, String>()
-        mergedHeaders.putAll(transportOptions.defaultHeaders)
-        mergedHeaders.putAll(headers)
+        /* The token POST (noRedirect) goes to the identity provider, another origin: the caller's
+         * default headers (an API Authorization or key header) are not sent there (F860). */
+        if (!noRedirect) {
+            mergedHeaders.putAll(transportOptions.defaultHeaders)
+        }
+        for ((name, value) in headers) {
+            // Header names are case-insensitive: a later layer replaces the earlier one.
+            mergedHeaders.keys.removeAll { it.equals(name, ignoreCase = true) }
+            mergedHeaders[name] = value
+        }
 
         if (transportOptions.userAgent != null && !hasHeader(mergedHeaders, "User-Agent")) {
             mergedHeaders["User-Agent"] = transportOptions.userAgent!!
@@ -386,10 +394,20 @@ class DefaultApiClient internal constructor(
                     .getEncoder()
                     .encodeToString(rawBytes)
             }
+        /* D92: the returned headers describe the body the caller receives, so once the body was
+         * decoded they no longer carry the Content-Encoding or the (encoded) Content-Length. */
+        val decodedBody =
+            wireBytes.isNotEmpty() && contentEncoding.trim().lowercase() !in listOf("", "identity")
+        val returnedHeaders =
+            if (decodedBody) {
+                responseHeaders.filterKeys { !it.equals("content-encoding", true) && !it.equals("content-length", true) }
+            } else {
+                responseHeaders
+            }
         return ApiHttpResponse(
             statusCode = response.status.value,
             body = responseBody,
-            headers = responseHeaders,
+            headers = returnedHeaders,
         )
     }
 
@@ -411,12 +429,12 @@ class DefaultApiClient internal constructor(
             is io.ktor.client.network.sockets.ConnectTimeoutException,
             is io.ktor.client.network.sockets.SocketTimeoutException,
             is java.net.SocketTimeoutException,
-            -> NetworkTimeoutException(e.toString(), e)
+            -> NetworkTimeoutException(redactUrlsInMessage(e.toString()), e)
             is kotlinx.coroutines.CancellationException -> e
-            is java.nio.channels.UnresolvedAddressException -> NetworkException(e.toString(), e)
+            is java.nio.channels.UnresolvedAddressException -> NetworkException(redactUrlsInMessage(e.toString()), e)
             is IllegalArgumentException -> e
             is OpenAPIException -> e
-            else -> NetworkException(e.toString(), e)
+            else -> NetworkException(redactUrlsInMessage(e.toString()), e)
         }
 
     private fun buildRequestBody(
@@ -803,6 +821,14 @@ internal fun usableRedirectLocation(
  * dropped, because a query-parameter API key is part of the query.
  */
 internal fun redactUrl(url: String): String = url.substringBefore('#').substringBefore('?')
+
+private val urlWithQuery = Regex("""(https?://[^\s?#,\]\)]*)[?#][^\s,\]\)]*""", RegexOption.IGNORE_CASE)
+
+/**
+ * [message] with the query and fragment of every http(s) URL in it removed. Ktor's timeout
+ * exceptions print the request URL, which can hold a query-parameter API key (F861).
+ */
+internal fun redactUrlsInMessage(message: String): String = urlWithQuery.replace(message, "$1")
 
 /** True when [headers] holds [name] under any ASCII letter case (RFC 9110 section 5.1). */
 private fun hasHeader(

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -33,10 +33,11 @@ import kotlin.time.Clock
 @OptIn(kotlin.time.ExperimentalTime::class)
 class OAuth2TokenManager {
     private companion object {
-        /** The one safety margin (in seconds) applied to a token's lifetime, when the
-         *  expiry is stored, so that we refresh slightly before the token actually
-         *  expires. It is never applied a second time when the token is read. */
-        private const val EXPIRY_SAFETY_MARGIN_SECONDS: Long = 30L
+        /** The longest safety margin (in seconds) applied to a token's lifetime, when
+         *  the expiry is stored, so that we refresh slightly before the token actually
+         *  expires. The margin is capped at half the lifetime, and it is never applied
+         *  a second time when the token is read. */
+        private const val EXPIRY_SAFETY_MARGIN_SECONDS: Long = 60L
 
         /** Longest token lifetime honoured (one year), so a huge `expires_in`
          *  cannot overflow the millisecond expiry arithmetic. */
@@ -336,7 +337,7 @@ class OAuth2TokenManager {
             val expiresIn = minOf(parseExpiresIn(expiresInElement), MAX_EXPIRES_IN_SECONDS)
             this.tokenExpiryMs =
                 if (expiresIn > 0L) {
-                    val bufferSecs = minOf(expiresIn, EXPIRY_SAFETY_MARGIN_SECONDS)
+                    val bufferSecs = minOf(expiresIn / 2L, EXPIRY_SAFETY_MARGIN_SECONDS)
                     Clock.System.now().toEpochMilliseconds() + (expiresIn - bufferSecs) * 1000L
                 } else {
                     Clock.System.now().toEpochMilliseconds()

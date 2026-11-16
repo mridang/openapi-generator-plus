@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -236,7 +236,9 @@ class BaseApi:
                 if query_string:
                     url += "?" + query_string
 
-        is_multipart = content_type == "multipart/form-data"
+        is_multipart = content_type is not None and content_type.lower().startswith(
+            "multipart/"
+        )
         headers = self._header_selector.select_headers(
             accepts, content_type or "", is_multipart
         )
@@ -286,7 +288,7 @@ class BaseApi:
 
         serialized_body = None
         if body is not None:
-            if content_type == "multipart/form-data":
+            if is_multipart:
                 serialized_body = body
             elif raw_body:
                 # The operation's body is format: binary. Whatever declared
@@ -383,7 +385,7 @@ class BaseApi:
                     import base64
 
                     data = base64.b64decode(response.body) if response.body else b""
-                elif return_type == "str" and self._is_text_media_type(
+                elif return_type in ("str", "StrictStr") and self._is_text_media_type(
                     resp_content_type
                 ):
                     data = response.body

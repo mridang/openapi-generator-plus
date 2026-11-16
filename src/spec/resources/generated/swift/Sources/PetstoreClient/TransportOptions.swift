@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -195,7 +195,8 @@ public final class TransportOptionsBuilder {
     return self
   }
 
-  /// Set the end-to-end request timeout in milliseconds (`nil` for no timeout).
+  /// Set the end-to-end request timeout in milliseconds (`nil` for no
+  /// timeout). A value that is not positive is rejected by ``build()``.
   @discardableResult
   public func timeout(_ val: Int?) -> TransportOptionsBuilder {
     self.timeout = val
@@ -263,22 +264,30 @@ public final class TransportOptionsBuilder {
   /// Build and return an immutable ``TransportOptions`` instance.
   ///
   /// - Throws: ``ConfigurationError/invalidProxy(_:)`` if the proxy URL is
-  ///   not valid or does not use the http or https scheme, and
+  ///   not valid or does not use the http or https scheme,
+  ///   ``ConfigurationError/invalidTimeout(_:)`` if the timeout is zero or
+  ///   negative, and
   ///   ``ConfigurationError/invalidArgument(_:)`` if a supplied session is
   ///   combined with a proxy, a CA certificate, disabled TLS verification
   ///   or a redirect policy.
   public func build() throws -> TransportOptions {
+    if let timeout = timeout, timeout <= 0 {
+      throw ConfigurationError.invalidTimeout(timeout)
+    }
     var parsedProxy: URL? = nil
     if let val = proxy {
-      guard let parsed = URL(string: val) else {
-        throw ConfigurationError.invalidProxy(val)
+      /* A string with no scheme at all is "not a valid URL", whether or
+         not the platform's parser accepts it (Foundation on Linux
+         percent-encodes spaces and parses it as a relative reference). */
+      guard let parsed = URL(string: val), parsed.scheme?.isEmpty == false else {
+        throw ConfigurationError.invalidProxyURL(val)
       }
       let scheme = parsed.scheme?.lowercased() ?? ""
       guard scheme == "http" || scheme == "https" else {
-        throw ConfigurationError.invalidProxy(val)
+        throw ConfigurationError.invalidProxyURL(val, reason: "must use http or https scheme")
       }
       guard let host = parsed.host, !host.isEmpty else {
-        throw ConfigurationError.invalidProxy(val)
+        throw ConfigurationError.invalidProxyURL(val, reason: "missing host")
       }
       parsedProxy = parsed
     }

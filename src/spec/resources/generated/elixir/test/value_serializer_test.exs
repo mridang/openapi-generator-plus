@@ -613,6 +613,75 @@ defmodule PetstoreClient.ValueSerializerTest do
     end
   end
 
+  describe "object-valued parameters (D47)" do
+    test "a model is written by its wire names in declaration order, in every style" do
+      criteria = %PetstoreClient.Models.PetCriteria{breed: "lab", min_age: 3}
+
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "criteria",
+               criteria,
+               :query,
+               "PetCriteria",
+               nil,
+               "form",
+               true
+             ) ==
+               {:exploded_object, [{"breed", "lab"}, {"min_age", "3"}]}
+
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "criteria",
+               criteria,
+               :query,
+               "PetCriteria",
+               nil,
+               "form",
+               false
+             ) ==
+               "breed,lab,min_age,3"
+
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "criteria",
+               criteria,
+               :header,
+               "PetCriteria",
+               nil,
+               "simple",
+               false
+             ) ==
+               "breed,lab,min_age,3"
+
+      assert PetstoreClient.ValueSerializer.serialize_deep_object("criteria", criteria) ==
+               %{"criteria[breed]" => "lab", "criteria[min_age]" => "3"}
+    end
+
+    test "an unset property is left out and a map is written in key order" do
+      assert PetstoreClient.ValueSerializer.object_pairs(%PetstoreClient.Models.PetCriteria{
+               breed: "lab"
+             }) == [{"breed", "lab"}]
+
+      assert PetstoreClient.ValueSerializer.object_pairs(%{"b" => 2, "a" => 1}) == [
+               {"a", "1"},
+               {"b", "2"}
+             ]
+    end
+
+    test "a nested object or array leaf is a SerializationError" do
+      for leaf <- [%{"x" => 1}, [1, 2]] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "criteria",
+            %{"a" => leaf},
+            :query,
+            "map()",
+            nil,
+            "form",
+            false
+          )
+        end
+      end
+    end
+  end
+
   describe "serialize_deep_object/2" do
     test "basic map returns bracketed keys" do
       result =

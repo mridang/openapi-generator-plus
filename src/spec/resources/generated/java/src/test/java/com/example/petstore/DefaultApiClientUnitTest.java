@@ -101,6 +101,17 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/set-cookie",
+        exchange -> {
+          exchange.getResponseHeaders().add("Set-Cookie", "sid=abc; Path=/");
+          byte[] response = "{}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
+    server.createContext(
         "/redirect-307",
         exchange -> {
           // Self-loop 307: replays method + body
@@ -665,6 +676,27 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void aResponseCookieIsNeverReplayedOnTheNextRequest() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    client.sendRequest("GET", baseUrl + "/set-cookie", Map.of(), null);
+    ApiHttpResponse echoed = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, echoed.statusCode());
+    assertFalse(echoed.body().contains("\"cookie\""), "echoed: " + echoed.body());
+  }
+
+  @Test
+  void aNoRedirectRequestCarriesNoTransportDefaultHeaders() throws Exception {
+    TransportOptions transport =
+        TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/echo-headers", Map.of("X-Own", "own"), null, true);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"x-own\":\"own\""));
+    assertFalse(response.body().contains("x-custom"));
+  }
+
+  @Test
   void extractsProxyAuthHeaderFromProxyUrlUserInfo() throws Exception {
     /* Gap AK: java.net.http.HttpClient silently drops userinfo embedded in
      * the proxy URL. DefaultApiClient must extract `user:pass`, base64-encode
@@ -1169,6 +1201,8 @@ class DefaultApiClientUnitTest {
         new java.util.concurrent.atomic.AtomicReference<>("__unset__");
     final java.util.concurrent.atomic.AtomicReference<String> seenTarget =
         new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    final java.util.concurrent.atomic.AtomicReference<String> seenTenantToken =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
     HttpServer proxy = HttpServer.create(new InetSocketAddress(0), 0);
     proxy.createContext(
         "/x",
@@ -1187,6 +1221,7 @@ class DefaultApiClientUnitTest {
           seenTarget.set(exchange.getRequestURI().toString());
           seenProxyAuth.set(exchange.getRequestHeaders().getFirst("Proxy-Authorization"));
           seenAuth.set(exchange.getRequestHeaders().getFirst("Authorization"));
+          seenTenantToken.set(exchange.getRequestHeaders().getFirst("X-Tenant-Token"));
           exchange.sendResponseHeaders(200, -1);
           exchange.close();
         });
@@ -1200,6 +1235,7 @@ class DefaultApiClientUnitTest {
       DefaultApiClient client = new DefaultApiClient(transport);
       Map<String, String> headers = new HashMap<>();
       headers.put("Authorization", "Bearer caller-secret");
+      headers.put("X-Tenant-Token", "tenant-secret");
       ApiHttpResponse response = client.sendRequest("GET", "http://a.test/x", headers, null);
       assertEquals(200, response.statusCode());
       assertEquals("http://b.test/y", seenTarget.get());
@@ -1208,6 +1244,8 @@ class DefaultApiClientUnitTest {
               + Base64.getEncoder().encodeToString("user:pass".getBytes(StandardCharsets.UTF_8)),
           seenProxyAuth.get());
       assertNull(seenAuth.get(), "the caller's Authorization must be stripped cross-origin");
+      assertNull(
+          seenTenantToken.get(), "a header named like a credential must be stripped cross-origin");
     } finally {
       proxy.stop(0);
     }
@@ -1635,6 +1673,8 @@ class DefaultApiClientUnitTest {
         client.sendRequest("GET", baseUrl + "/content-encoding-deflate", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertEquals("{\"ok\":true}", response.body());
+    assertFalse(response.headers().containsKey("content-encoding"));
+    assertFalse(response.headers().containsKey("content-length"));
   }
 
   @Test

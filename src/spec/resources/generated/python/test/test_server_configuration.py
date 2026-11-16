@@ -162,3 +162,24 @@ class TestServerVariableResolution:
         )
 
         assert config.get_url({"region": "us"}) == "https://us.a.example.com/us/v1"
+
+
+class TestHostileGlobalServer:
+    """The third global server carries quotes, an ampersand, a dollar sign and
+    an interpolation opener in every text field."""
+
+    def test_url_description_and_variable_round_trip_unchanged(self) -> None:
+        server = ALL[2]
+
+        assert server.url_template == "https://{tenant}.example.com/api"
+        assert server.description == 'Bob\'s "sandbox" & co: $5 #{x} a*/b'
+        tenant = server.variables["tenant"]
+        assert tenant.default_value == "o'neil"
+        assert tenant.description == 'Tenant\'s "id"'
+        assert tuple(tenant.enum_values) == ("o'neil", "a&b")
+
+    def test_the_url_is_resolved_with_the_raw_characters(self) -> None:
+        server = ALL[2]
+
+        assert server.get_url() == "https://o'neil.example.com/api"
+        assert server.get_url({"tenant": "a&b"}) == "https://a&b.example.com/api"

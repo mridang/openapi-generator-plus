@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -35,6 +35,17 @@ describe("package.json manifest", () => {
 });
 
 describe("generated model docblocks (L1 parity)", () => {
+  test("the file header prints the info description verbatim, without a backslash before a quote", () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, "..", "src", "models", "account.ts"),
+      "utf-8",
+    );
+    const header = source.split("\n").slice(0, 3).join("\n");
+
+    expect(header).toContain('"quoted" text');
+    expect(header).not.toContain('\\"');
+  });
+
   test('no generated model carries a literal "@example null" / "Example: null" doc line', () => {
     // A property whose schema example is the JSON null literal must not leak a
     // useless `@example null` JSDoc line into the generated model. The shared

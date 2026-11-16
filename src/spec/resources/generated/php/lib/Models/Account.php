@@ -42,4 +42,22 @@ class Account
         $this->username = $username;
         $this->password = $password;
     }
+
+    /**
+     * Masks the `format: password` properties so var_dump() and print_r() never
+     * print them.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        $vars = get_object_vars($this);
+        foreach (['password', ] as $name) {
+            if (($vars[$name] ?? null) !== null) {
+                $vars[$name] = '***';
+            }
+        }
+
+        return $vars;
+    }
 }

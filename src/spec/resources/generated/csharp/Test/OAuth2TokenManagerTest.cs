@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -29,6 +29,7 @@ public class OAuth2TokenManagerTest
         public string? LastBody { get; private set; }
         public Uri? LastUrl { get; private set; }
         public bool LastNoRedirect { get; private set; }
+        public Dictionary<string, string> LastHeaders { get; private set; } = new();
         public int CallCount { get; private set; }
 
         public Task<ApiHttpResponse> SendRequestAsync(
@@ -48,6 +49,7 @@ public class OAuth2TokenManagerTest
         {
             CallCount++;
             LastUrl = url;
+            LastHeaders = new Dictionary<string, string>(headers);
             LastBody = body?.ToString();
             LastNoRedirect = noRedirect;
             return Task.FromResult(_responses.Dequeue());
@@ -69,6 +71,24 @@ public class OAuth2TokenManagerTest
         );
 
         Assert.Equal("tok123", token);
+    }
+
+    [Fact]
+    public async Task TokenRequestIsAFormPostThatAcceptsJson()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok123\",\"expires_in\":3600}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        await manager.GetAccessTokenAsync(
+            new Uri("https://auth.example.com/token"),
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+        );
+
+        Assert.Equal("application/x-www-form-urlencoded", client.LastHeaders["Content-Type"]);
+        Assert.Equal("application/json", client.LastHeaders["Accept"]);
     }
 
     [Fact]

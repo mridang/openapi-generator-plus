@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -129,8 +129,16 @@ import Testing
       responseHeaders: ["a": "b"])
     #expect(
       full.errorDescription
-        == "not found\nHTTP status code: 404\nResponse headers: [\"a\": \"b\"]\nResponse body: {}"
+        == "not found\nHTTP status code: 404\nResponse headers: {\"a\":\"b\"}\nResponse body: {}"
     )
+
+    let several = ApiError(
+      statusCode: 302, message: "moved",
+      responseHeaders: ["location": "https://a.example/x", "b": "2", "a": "1"])
+    #expect(
+      several.errorDescription
+        == "moved\nHTTP status code: 302\nResponse headers: "
+        + "{\"a\":\"1\",\"b\":\"2\",\"location\":\"https://a.example/x\"}")
 
     let emptyParts = ApiError(
       statusCode: 500, message: "boom", responseBody: "", responseHeaders: [:])
@@ -140,6 +148,34 @@ import Testing
     #expect(transport.errorDescription == "connection reset")
 
     #expect(ApiError().errorDescription == "Error message: the server returns an error")
+  }
+
+  /* The rendered form caps the body, escapes control characters and masks
+   * credential headers; the full body stays on responseBody. */
+  @Test func testErrorDescriptionCapsTheBodyEscapesControlsAndMasksSecretHeaders() {
+    let body = String(repeating: "a", count: 1024) + "tail\nforged: line"
+    let err = ApiError(
+      statusCode: 502, message: "bad gateway", responseBody: body,
+      responseHeaders: [
+        "x-request-id": "abc", "set-cookie": "session=1", "X-Api-Key": "k",
+        "authorization": "Bearer t",
+      ])
+
+    let text = err.errorDescription ?? ""
+
+    #expect(text.contains("\"x-request-id\":\"abc\""))
+    #expect(text.contains("\"set-cookie\":\"***\""))
+    #expect(text.contains("\"X-Api-Key\":\"***\""))
+    #expect(text.contains("\"authorization\":\"***\""))
+    #expect(!text.contains("Bearer t"))
+    #expect(text.contains(String(repeating: "a", count: 1024) + "... (17 more bytes)"))
+    #expect(!text.contains("forged"))
+    #expect(err.responseBody == body)
+  }
+
+  @Test func testANewlineInTheBodyIsShownEscaped() {
+    let err = ApiError(statusCode: 500, message: "boom", responseBody: "one\r\ntwo")
+    #expect(err.errorDescription == "boom\nHTTP status code: 500\nResponse body: one\\x0D\\x0Atwo")
   }
 
   /* A response body nested deeper than the serializer's cap is kept as the
@@ -277,12 +313,11 @@ import Testing
     // not an API failure, so ConfigurationError and
     // OAuth2AuthorizationCodeError conform to plain Error only.
     let errors: [any Error] = [
-      ConfigurationError.invalidProxy("://bad"),
+      ConfigurationError.invalidProxy("Invalid proxy URL: ://bad"),
       ConfigurationError.invalidServerVariable(
         variable: "region", value: "mars", allowed: ["us", "eu"]),
       ConfigurationError.invalidCACertificate("missing"),
-      ConfigurationError.proxyUnsupported,
-      ConfigurationError.tlsOptionsUnsupported,
+      ConfigurationError.invalidTimeout(0),
       ConfigurationError.invalidArgument("bad"),
       ConfigurationError.invalidState("closed"),
       OAuth2AuthorizationCodeError.codeNotExchanged,

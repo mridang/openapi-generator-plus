@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -1025,6 +1025,36 @@ public class DefaultApiClientUnitTest
     }
 
     [Theory]
+    [InlineData("X-Tenant-Token")]
+    [InlineData("X-Custom-Auth-Key")]
+    [InlineData("X-Client-Secret")]
+    public async Task CrossOriginRedirectStripsAnyHeaderNamedLikeACredential(
+        string credentialHeader
+    )
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://other.example.com/landed")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>
+            {
+                { credentialHeader, "secret" },
+                { "X-Trace", "keep" },
+            },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.True(handler.Requests[0].Headers.Contains(credentialHeader));
+        Assert.False(handler.Requests[1].Headers.Contains(credentialHeader));
+        Assert.True(handler.Requests[1].Headers.Contains("X-Trace"));
+    }
+
+    [Theory]
     [InlineData("http://origin.example.com/start", "http://origin.example.com:80/landed")]
     [InlineData("https://origin.example.com/start", "https://origin.example.com:443/landed")]
     [InlineData("http://origin.example.com:80/start", "http://origin.example.com/landed")]
@@ -1416,6 +1446,25 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(302, response.StatusCode);
         Assert.Equal(maxRedirects + 1, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task ReturnsARedirectWithAnUnparseableLocationUnchanged()
+    {
+        /* D71: a Location that cannot be parsed is not a place to go, so the
+           3xx comes back to the caller as the response, never as an exception. */
+        var handler = new MalformedLocationHandler();
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(302, response.StatusCode);
+        Assert.Equal(1, handler.Calls);
     }
 
     [Fact]
@@ -1813,10 +1862,9 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void ZeroTimeoutIsRejectedAtConstruction()
+    public void ZeroTimeoutIsRejectedAtConfiguration()
     {
-        var transport = TransportOptions.Builder().Timeout(0).Build();
-        var ex = Assert.ThrowsAny<ArgumentException>(() => new DefaultApiClient(transport));
+        var ex = Assert.ThrowsAny<ArgumentException>(() => TransportOptions.Builder().Timeout(0));
         Assert.False(
             typeof(OpenAPIException).IsInstanceOfType(ex),
             "a configuration mistake must not be an SDK error"
@@ -2232,6 +2280,25 @@ public class DefaultApiClientUnitTest
     /// so tests can assert on stripped/preserved headers and the count of
     /// hops actually performed.
     /// </summary>
+    private sealed class MalformedLocationHandler : HttpMessageHandler
+    {
+        public int Calls { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            Calls++;
+            var redirect = new HttpResponseMessage(HttpStatusCode.Redirect)
+            {
+                Content = new StringContent(""),
+            };
+            redirect.Headers.TryAddWithoutValidation("Location", "http://[bad");
+            return Task.FromResult(redirect);
+        }
+    }
+
     private sealed class RedirectingHandler : HttpMessageHandler
     {
         private readonly HttpStatusCode _firstStatus;

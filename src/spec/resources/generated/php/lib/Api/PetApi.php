@@ -598,13 +598,13 @@ class PetApi extends BaseApi
          * always be sent. When the caller omits it (null), omit the key entirely
          * so no spurious 'status=' appears on the wire. */
         if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->status !== null) {
-            $queryParams['status'] = ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true);
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'status', ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true));
         }
         if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->filter !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $options->filter));
         }
         if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->bornAfter instanceof \DateTime) {
-            $queryParams['bornAfter'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'bornAfter', ValueSerializer::serializeStyled(
                 'bornAfter',
                 $options->bornAfter,
                 'query',
@@ -612,10 +612,10 @@ class PetApi extends BaseApi
                 null,
                 'form',
                 true,
-            );
+            ));
         }
         if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->n2ndPage !== null) {
-            $queryParams['2ndPage'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, '2ndPage', ValueSerializer::serializeStyled(
                 '2ndPage',
                 $options->n2ndPage,
                 'query',
@@ -623,7 +623,7 @@ class PetApi extends BaseApi
                 null,
                 'form',
                 true,
-            );
+            ));
         }
         $headerParams = [];
         if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->reportDate instanceof \DateTime) {
@@ -1159,7 +1159,7 @@ class PetApi extends BaseApi
         /* Required query param: always present (non-nullable on the Options
          * object), so it is emitted unconditionally. An empty string is a
          * legitimate value and is sent as-is. */
-        $queryParams['category'] = ValueSerializer::serializeStyled('category', $options->category, 'query', 'string', null, 'form', true);
+        $queryParams = ValueSerializer::putQueryParam($queryParams, 'category', ValueSerializer::serializeStyled('category', $options->category, 'query', 'string', null, 'form', true));
         $headerParams = [];
         /** @var string $headerValue */
         $headerValue = ValueSerializer::serializeStyled(
@@ -1460,7 +1460,7 @@ class PetApi extends BaseApi
          * unchanged. */
         $allowReservedKeys = [];
         if ($options->days !== null) {
-            $queryParams['days'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'days', ValueSerializer::serializeStyled(
                 'days',
                 $options->days,
                 'query',
@@ -1468,7 +1468,7 @@ class PetApi extends BaseApi
                 'multi',
                 'form',
                 true,
-            );
+            ));
         }
         $headerParams = [];
         $cookieParts = [];
@@ -1591,7 +1591,7 @@ class PetApi extends BaseApi
         $allowReservedKeys = [];
         $allowReservedKeys['revision'] = true;
         if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->colors !== null) {
-            $queryParams['colors'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'colors', ValueSerializer::serializeStyled(
                 'colors',
                 $options->colors,
                 'query',
@@ -1599,10 +1599,10 @@ class PetApi extends BaseApi
                 'pipes',
                 'pipeDelimited',
                 false,
-            );
+            ));
         }
         if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->sizes !== null) {
-            $queryParams['sizes'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'sizes', ValueSerializer::serializeStyled(
                 'sizes',
                 $options->sizes,
                 'query',
@@ -1610,17 +1610,17 @@ class PetApi extends BaseApi
                 'ssv',
                 'spaceDelimited',
                 false,
-            );
+            ));
         }
         /* Optional allowEmptyValue query param: allowEmptyValue means the server
          * tolerates an empty value IF the key is sent, not that the key must
          * always be sent. When the caller omits it (null), omit the key entirely
          * so no spurious 'filter=' appears on the wire. */
         if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->filter !== null) {
-            $queryParams['filter'] = ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true);
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'filter', ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true));
         }
         if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->revision !== null) {
-            $queryParams['revision'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'revision', ValueSerializer::serializeStyled(
                 'revision',
                 $options->revision,
                 'query',
@@ -1628,10 +1628,10 @@ class PetApi extends BaseApi
                 null,
                 'form',
                 true,
-            );
+            ));
         }
         if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->criteria instanceof \PetstoreClient\Models\PetCriteria) {
-            $queryParams['criteria'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'criteria', ValueSerializer::serializeStyled(
                 'criteria',
                 $options->criteria,
                 'query',
@@ -1639,10 +1639,10 @@ class PetApi extends BaseApi
                 null,
                 'form',
                 true,
-            );
+            ));
         }
         if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->criteriaCsv instanceof \PetstoreClient\Models\PetCriteria) {
-            $queryParams['criteriaCsv'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'criteriaCsv', ValueSerializer::serializeStyled(
                 'criteriaCsv',
                 $options->criteriaCsv,
                 'query',
@@ -1650,13 +1650,13 @@ class PetApi extends BaseApi
                 null,
                 'form',
                 false,
-            );
+            ));
         }
         if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->criteriaDeep instanceof \PetstoreClient\Models\PetCriteria) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('criteriaDeep', $options->criteriaDeep));
         }
         if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->fingerprint !== null) {
-            $queryParams['fingerprint'] = ValueSerializer::serializeStyled(
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'fingerprint', ValueSerializer::serializeStyled(
                 'fingerprint',
                 \PetstoreClient\ObjectSerializer::encodeBase64Param($options->fingerprint),
                 'query',
@@ -1664,7 +1664,7 @@ class PetApi extends BaseApi
                 null,
                 'form',
                 true,
-            );
+            ));
         }
         $headerParams = [];
         if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->xCriteria instanceof \PetstoreClient\Models\PetCriteria) {

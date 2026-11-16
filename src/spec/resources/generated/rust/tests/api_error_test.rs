@@ -103,6 +103,60 @@ fn test_api_error_display_sorts_the_response_headers() {
     );
 }
 
+/* F1080: the rendered text carries a bounded, single-line body and no
+ * credential-bearing header value; the full body and headers stay on the
+ * error's accessors. */
+#[test]
+fn test_api_error_display_caps_the_body_and_escapes_control_characters() {
+    let body = format!("{}\r\nforged: line", "a".repeat(1024));
+    let err = ApiError::new(500, "boom".to_string(), None, Some(body.clone()));
+    let text = err.to_string();
+    let expected_body = format!("{}... ({} more bytes)", "a".repeat(1024), body.len() - 1024);
+    assert_eq!(
+        format!(
+            "boom\nHTTP status code: 500\nResponse body: {}",
+            expected_body
+        ),
+        text
+    );
+    assert_eq!(
+        Some(body.as_str()),
+        err.response_body(),
+        "the full body stays on the error"
+    );
+
+    let hostile = ApiError::new(
+        500,
+        "boom".to_string(),
+        None,
+        Some("x\ny\u{7}z".to_string()),
+    );
+    assert_eq!(
+        "boom\nHTTP status code: 500\nResponse body: x\\ny\\u0007z",
+        hostile.to_string()
+    );
+}
+
+#[test]
+fn test_api_error_display_masks_credential_bearing_response_headers() {
+    let mut headers = HashMap::new();
+    headers.insert("set-cookie".to_string(), "sid=abc".to_string());
+    headers.insert("www-authenticate".to_string(), "Bearer realm=x".to_string());
+    headers.insert("x-api-key".to_string(), "k".to_string());
+    headers.insert("x-trace".to_string(), "abc".to_string());
+    let err = ApiError::new(401, "boom".to_string(), Some(headers.clone()), None);
+    assert_eq!(
+        "boom\nHTTP status code: 401\nResponse headers: \
+         {\"set-cookie\":\"***\",\"www-authenticate\":\"***\",\"x-api-key\":\"***\",\"x-trace\":\"abc\"}",
+        err.to_string()
+    );
+    assert_eq!(
+        Some(&headers),
+        err.response_headers(),
+        "the real values stay on the error"
+    );
+}
+
 /// An empty header map and an empty body add no lines, a transport failure
 /// (status 0) adds no status line, and an empty message gets the default text.
 #[test]
@@ -777,6 +831,22 @@ fn test_skills_error_handling_example_has_the_common_catch_arms() {
         !skills.contains("is_a::<NetworkTimeoutError>"),
         "SKILLS.md error example must not add an arm the other SDKs lack"
     );
+}
+
+/* F1084: the SKILLS.md error section documents the whole tree, not only the
+ * ApiError branch. */
+#[test]
+fn test_skills_error_section_documents_the_full_error_tree() {
+    let skills = include_str!("../SKILLS.md");
+    for name in [
+        "`OpenAPIError` (root marker trait)",
+        "`SerializationError`",
+        "`OAuth2ServerError`",
+        "`OAuth2TokenError`",
+        "`ConfigurationError`",
+    ] {
+        assert!(skills.contains(name), "SKILLS.md must document {name}");
+    }
 }
 
 /// The generic wrappers wrap only a status of their own class: a `ClientError`

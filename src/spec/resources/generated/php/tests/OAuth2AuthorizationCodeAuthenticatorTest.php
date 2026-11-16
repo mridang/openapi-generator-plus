@@ -231,7 +231,9 @@ test('empty state is omitted', function (): void {
     $url = $authenticator->buildAuthorizationUrl('');
 
     expect($url)->not->toContain('state');
-    expect($url)->toBe($authenticator->buildAuthorizationUrl());
+    // Each URL carries its own PKCE challenge, so everything else must match.
+    $withoutChallenge = static fn (string $u): string => (string) preg_replace('/code_challenge=[^&]*/', '', $u);
+    expect($withoutChallenge($url))->toBe($withoutChallenge($authenticator->buildAuthorizationUrl()));
 });
 
 test('auth headers before exchange returns recoverable error', function (): void {
@@ -359,13 +361,65 @@ test('authorization url keeps only the unreserved characters literal', function 
         ['a*b', 'c~d']
     );
 
-    expect($authenticator->buildAuthorizationUrl("s-._~*!'()"))->toBe(
+    $withoutPkce = (string) preg_replace(
+        '/&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256\z/',
+        '',
+        $authenticator->buildAuthorizationUrl("s-._~*!'()")
+    );
+    expect($withoutPkce)->toBe(
         'https://auth.example.com/authorize?response_type=code'
         . '&client_id=id-._~%2A%21%27%28%29'
         . '&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb%3Fx%3D~%2A%21%27%28%29'
         . '&scope=a%2Ab%20c~d'
         . '&state=s-._~%2A%21%27%28%29'
     );
+});
+
+test('the authorization url carries a PKCE S256 challenge that the code exchange proves', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read']
+    );
+    $authenticator->setApiClient($client);
+
+    $query = parse_url($authenticator->buildAuthorizationUrl('s'), PHP_URL_QUERY);
+    parse_str((string) $query, $params);
+    expect($params['code_challenge_method'])->toBe('S256');
+    $challenge = $params['code_challenge'];
+
+    $authenticator->exchangeCode('the-code');
+
+    $body = $client->capturedRequests[0]['body'] ?? '';
+    parse_str((string) $body, $form);
+    $verifier = $form['code_verifier'];
+    expect($verifier)->toBeString();
+    assert(is_string($verifier));
+    expect(strlen($verifier))->toBeGreaterThanOrEqual(43);
+    $expected = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+    expect($challenge)->toBe($expected);
+});
+
+test('a code exchange without a built authorization url sends no code verifier', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read']
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('the-code');
+
+    expect($client->capturedRequests[0]['body'] ?? '')->not->toContain('code_verifier');
 });
 
 test('code exchange body keeps only the unreserved characters literal', function (): void {
@@ -417,7 +471,7 @@ test('auth code refresh carries the client credentials', function (): void {
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access1',
         'refresh_token' => 'refresh1',
-        'expires_in' => 1,
+        'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access2',
@@ -450,7 +504,7 @@ test('auth code rejected refresh surfaces the server error after one refresh req
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access1',
         'refresh_token' => 'refresh1',
-        'expires_in' => 1,
+        'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(
         400,
@@ -516,7 +570,7 @@ test('second exchange without a refresh token drops the old refresh token', func
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'token2',
-        'expires_in' => 1,
+        'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'token3',

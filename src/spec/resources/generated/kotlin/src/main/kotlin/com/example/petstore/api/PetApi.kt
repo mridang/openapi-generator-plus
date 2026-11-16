@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -526,26 +526,26 @@ class PetApi : BaseApi {
         val queryParams = mutableMapOf<String, Any?>()
         if (options != null) {
             val statusStyled = ValueSerializer.serializeStyled("status", options.status, "query", "String", null, "form", true)
-            if (statusStyled != null) {
-                queryParams["status"] = ValueSerializer.maybeAllowReserved(statusStyled, false)
-            }
+            ValueSerializer.putQuery(queryParams, "status", statusStyled, false)
         }
         if (options?.filter != null) {
             queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options!!.filter))
         }
         if (options?.bornAfter != null) {
-            queryParams["bornAfter"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("bornAfter", options!!.bornAfter, "query", "LocalDate", null, "form", true),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "bornAfter",
+                ValueSerializer.serializeStyled("bornAfter", options!!.bornAfter, "query", "LocalDate", null, "form", true),
+                false,
+            )
         }
         if (options?.n2ndPage != null) {
-            queryParams["2ndPage"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("2ndPage", options!!.n2ndPage, "query", "Int", null, "form", true),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "2ndPage",
+                ValueSerializer.serializeStyled("2ndPage", options!!.n2ndPage, "query", "Int", null, "form", true),
+                false,
+            )
         }
         val headerParams = mutableMapOf<String, String>()
         if (options?.reportDate != null) {
@@ -905,26 +905,23 @@ class PetApi : BaseApi {
                     ValueSerializer.serializeStyled("name", name, "path", "String", null, "simple", false) as String,
                 )
         val queryParams = mutableMapOf<String, Any?>()
-        if (options.category != null) {
-            queryParams["category"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("category", options.category, "query", "String", null, "form", true),
-                    false,
-                )
-        }
+        ValueSerializer.putQuery(
+            queryParams,
+            "category",
+            ValueSerializer.serializeStyled("category", options.category, "query", "String", null, "form", true),
+            false,
+        )
         val headerParams = mutableMapOf<String, String>()
-        if (options.xCorrelationId != null) {
-            headerParams["X-Correlation-Id"] =
-                ValueSerializer.serializeStyled(
-                    "X-Correlation-Id",
-                    options.xCorrelationId,
-                    "header",
-                    "String",
-                    null,
-                    "simple",
-                    false,
-                ) as String
-        }
+        headerParams["X-Correlation-Id"] =
+            ValueSerializer.serializeStyled(
+                "X-Correlation-Id",
+                options.xCorrelationId,
+                "header",
+                "String",
+                null,
+                "simple",
+                false,
+            ) as String
 
         return invokeApiForResult<Pet>(
             "GET",
@@ -1095,15 +1092,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         if (options.days != null) {
-            queryParams["days"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("days", options.days, "query", "List<LocalDate>", "multi", "form", true),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "days",
+                ValueSerializer.serializeStyled("days", options.days, "query", "List<LocalDate>", "multi", "form", true),
+                false,
+            )
         }
         val headerParams = mutableMapOf<String, String>()
         val cookieParts = mutableListOf<String>()
-        if (options.session != null) {
+        run {
             // RFC 6265 — validate the assembled cookie name/value before it is
             // joined into the Cookie header, exactly as the auth-cookie path in
             // BaseApi does. A CR/LF or other control character in the serialized
@@ -1185,55 +1183,59 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         if (options?.colors != null) {
-            queryParams["colors"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("colors", options!!.colors, "query", "List<String>", "pipes", "pipeDelimited", false),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "colors",
+                ValueSerializer.serializeStyled("colors", options!!.colors, "query", "List<String>", "pipes", "pipeDelimited", false),
+                false,
+            )
         }
         if (options?.sizes != null) {
-            queryParams["sizes"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("sizes", options!!.sizes, "query", "List<String>", "ssv", "spaceDelimited", false),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "sizes",
+                ValueSerializer.serializeStyled("sizes", options!!.sizes, "query", "List<String>", "ssv", "spaceDelimited", false),
+                false,
+            )
         }
         if (options != null) {
             val filterStyled = ValueSerializer.serializeStyled("filter", options.filter, "query", "String", null, "form", true)
-            if (filterStyled != null) {
-                queryParams["filter"] = ValueSerializer.maybeAllowReserved(filterStyled, false)
-            }
+            ValueSerializer.putQuery(queryParams, "filter", filterStyled, false)
         }
         if (options?.revision != null) {
-            queryParams["revision"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("revision", options!!.revision, "query", "String", null, "form", true),
-                    true,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "revision",
+                ValueSerializer.serializeStyled("revision", options!!.revision, "query", "String", null, "form", true),
+                true,
+            )
         }
         if (options?.criteria != null) {
-            queryParams["criteria"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("criteria", options!!.criteria, "query", "PetCriteria", null, "form", true),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "criteria",
+                ValueSerializer.serializeStyled("criteria", options!!.criteria, "query", "PetCriteria", null, "form", true),
+                false,
+            )
         }
         if (options?.criteriaCsv != null) {
-            queryParams["criteriaCsv"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("criteriaCsv", options!!.criteriaCsv, "query", "PetCriteria", null, "form", false),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "criteriaCsv",
+                ValueSerializer.serializeStyled("criteriaCsv", options!!.criteriaCsv, "query", "PetCriteria", null, "form", false),
+                false,
+            )
         }
         if (options?.criteriaDeep != null) {
             queryParams.putAll(ValueSerializer.serializeDeepObject("criteriaDeep", options!!.criteriaDeep))
         }
         if (options?.fingerprint != null) {
-            queryParams["fingerprint"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("fingerprint", options!!.fingerprint, "query", "ByteArray", null, "form", true),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "fingerprint",
+                ValueSerializer.serializeStyled("fingerprint", options!!.fingerprint, "query", "ByteArray", null, "form", true),
+                false,
+            )
         }
         val headerParams = mutableMapOf<String, String>()
         if (options?.xCriteria != null) {

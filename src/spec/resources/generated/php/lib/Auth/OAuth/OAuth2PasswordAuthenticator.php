@@ -106,6 +106,16 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator implements HttpAware
     }
 
     /**
+     * Drops the cached access token so that the next call fetches a fresh one
+     * (a refresh grant first when a refresh token is held). The SDK calls this
+     * itself when the API answers 401; callers may use it to force a refresh.
+     */
+    public function invalidateAccessToken(): void
+    {
+        $this->tokenManager->invalidateAccessToken();
+    }
+
+    /**
      * Returns the base URL of the API.
      *
      * @return string the API base URL

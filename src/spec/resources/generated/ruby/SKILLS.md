@@ -150,21 +150,25 @@ client = Petstore::Client::Petstore.new(fake_authenticator)
 
 ## Error Handling
 
-All API errors derive from `ApiError`. The error hierarchy is:
+Every error the SDK raises derives from `::Petstore::Client::Errors::OpenAPIError`, so one `rescue ::Petstore::Client::Errors::OpenAPIError` catches them all. An HTTP failure is an `ApiError`; a body that cannot be encoded or decoded is a `SerializationError`; an OAuth2 token request that failed or answered unusably is an `OAuth2ServerError` or `OAuth2TokenError`. The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-    - `TooManyRequestsError` (429)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
-  - `NetworkError` (no HTTP response, status 0)
-    - `NetworkTimeoutError` (the request timed out, status 0)
+- `::Petstore::Client::Errors::OpenAPIError` (root)
+  - `ApiError` (an HTTP response or a transport failure)
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
+  - `SerializationError` (a request or response body could not be encoded or decoded)
+  - `OAuth2ServerError` (the token endpoint answered with an error status)
+  - `OAuth2TokenError` (the token response was unusable)
 
 ```ruby
 def add_pet_or_report(client, pet)
@@ -177,6 +181,10 @@ rescue Petstore::Client::Errors::ServerError => e
   puts "Server error: #{e.message}"
 rescue Petstore::Client::Errors::ApiError => e
   puts "API error: #{e.message}"
+rescue Petstore::Client::Errors::SerializationError => e
+  puts "Serialization error: #{e.message}"
+rescue ::Petstore::Client::Errors::OpenAPIError => e
+  puts "SDK error: #{e.message}"
 end
 ```
 

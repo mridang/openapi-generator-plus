@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -173,6 +173,24 @@ public class BaseApiTest
         public Dictionary<string, string> GetQueryParams() => _queryParams;
 
         public Dictionary<string, string> GetCookieParams() => _cookies;
+    }
+
+    private sealed class HttpAwareTestAuthenticator : IHttpAwareAuthenticator
+    {
+        public IApiClient? Injected { get; private set; }
+
+        public void SetApiClient(IApiClient apiClient)
+        {
+            Injected = apiClient;
+        }
+
+        public string GetHost() => "";
+
+        public Dictionary<string, string> GetAuthHeaders() => [];
+
+        public Dictionary<string, string> GetQueryParams() => [];
+
+        public Dictionary<string, string> GetCookieParams() => [];
     }
 
     private TestableApi Api() => new(_fixture.BaseUrl);
@@ -505,8 +523,8 @@ public class BaseApiTest
         var auth = new TestAuthenticator(
             cookies: new Dictionary<string, string> { { "session", "abc123" } }
         );
-        await Api()
-            .CallAsync<object>(
+        var result = await Api()
+            .CallAsync<JsonNode>(
                 "GET",
                 "/test/echo",
                 new Dictionary<string, object?>(),
@@ -516,6 +534,53 @@ public class BaseApiTest
                 "application/json",
                 auth
             );
+        Assert.NotNull(result);
+        Assert.Equal("session=abc123", result!["headers"]?["cookie"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task InjectsItsClientIntoAPerCallHttpAwareAuthenticator()
+    {
+        var capturing = new CapturingApiClient();
+        var api = new TestableApi(capturing, "http://localhost");
+        var auth = new HttpAwareTestAuthenticator();
+
+        await api.CallAsync<object>(
+            "GET",
+            "/items",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json",
+            auth
+        );
+
+        Assert.Same(capturing, auth.Injected);
+    }
+
+    [Fact]
+    public async Task JoinsSeveralAuthCookiesWithASemicolon()
+    {
+        var auth = new TestAuthenticator(
+            cookies: new Dictionary<string, string> { { "session", "abc123" }, { "theme", "dark" } }
+        );
+        var result = await Api()
+            .CallAsync<JsonNode>(
+                "GET",
+                "/test/echo",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json",
+                auth
+            );
+        Assert.NotNull(result);
+        Assert.Equal(
+            "session=abc123; theme=dark",
+            result!["headers"]?["cookie"]?.GetValue<string>()
+        );
     }
 
     [Fact]

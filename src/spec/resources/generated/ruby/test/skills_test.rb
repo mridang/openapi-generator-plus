@@ -21,6 +21,20 @@ describe 'SKILLS' do
     _(error_handling_example).wont_include '(request)'
   end
 
+  it 'names the root error type and the non-HTTP error classes' do
+    skills = File.read(File.join(File.expand_path('..', File.dirname(__FILE__)), 'SKILLS.md'))
+    section = skills.split('## Error Handling', 2).last.to_s.split('## Configuration', 2).first.to_s
+    %w[SerializationError OAuth2ServerError OAuth2TokenError].each do |name|
+      _(section).must_include "`#{name}`"
+    end
+    _(section).must_include '::Petstore::Client::Errors::OpenAPIError'
+  end
+
+  it 'ends the Error Handling example with a rescue of the root error type' do
+    _(error_handling_example).must_include 'rescue Petstore::Client::Errors::SerializationError => e'
+    _(error_handling_example).must_include 'rescue ::Petstore::Client::Errors::OpenAPIError => e'
+  end
+
   it 'parses the Error Handling example' do
     _(RubyVM::InstructionSequence.compile(error_handling_example)).wont_be_nil
   end

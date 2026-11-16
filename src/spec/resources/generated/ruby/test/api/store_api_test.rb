@@ -17,9 +17,9 @@ describe Petstore::Client::Api::StoreApi do
   end
 
   # Starts a one-shot TCP server that records the real outgoing request line
-  # and headers (lower-cased names), then answers 200 with the given JSON
-  # +response_body+. The returned Queue receives one { request_line:, headers: }
-  # Hash.
+  # headers (lower-cased names) and body, then answers 200 with the given JSON
+  # +response_body+. The returned Queue receives one
+  # { request_line:, headers:, body: } Hash.
   def capture_wire_request(response_body)
     server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
     port = server.addr[1]
@@ -38,7 +38,9 @@ describe Petstore::Client::Api::StoreApi do
         name, value = line.split(':', 2)
         headers[name.to_s.strip.downcase] = value.to_s.strip
       end
-      captured << { request_line: request_line, headers: headers }
+      length = headers.fetch('content-length', '0').to_i
+      captured << { request_line: request_line, headers: headers,
+                    body: length.positive? ? client.read(length).to_s : '' }
       client.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
                    "Content-Length: #{response_body.bytesize}\r\nConnection: close\r\n\r\n#{response_body}")
       client.close
@@ -375,6 +377,80 @@ describe Petstore::Client::Api::StoreApi do
 
         _(request[:request_line]).must_equal 'GET /store/by-swatch/blue HTTP/1.1'
         _(request[:headers]).wont_include 'preferred-swatch'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#create_account' do
+    it 'sends the writeOnly password and decodes the readOnly id' do
+      api, server, thread, captured = capture_wire_request('{"id":9,"username":"ann"}')
+      begin
+        account = Petstore::Client::Models::Account.new(username: 'ann', password: 'hunter2')
+        result = api.create_account(account)
+        request = captured.pop
+
+        _(request[:request_line]).must_match(%r{\APOST /store/account })
+        _(request[:headers]['content-type']).must_include('application/json')
+        _(JSON.parse(request[:body])).must_equal('username' => 'ann', 'password' => 'hunter2')
+        _(result).must_be_kind_of(Petstore::Client::Models::Account)
+        _(result.id).must_equal(9)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'refuses a nil account before sending' do
+      api, server, thread, captured = capture_wire_request('{}')
+      begin
+        err = _ { api.create_account(nil) }.must_raise(ArgumentError)
+        _(err.message).must_equal("Missing the required parameter 'account' when calling StoreApi.create_account")
+        _(captured.empty?).must_equal(true)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'model responses' do
+    it 'decodes the self-referential tree from get_tree' do
+      api, server, thread, = capture_wire_request('{"value":"root","child":{"value":"leaf"}}')
+      begin
+        tree = api.get_tree
+
+        _(tree).must_be_kind_of(Petstore::Client::Models::TreeNode)
+        _(tree.child.value).must_equal('leaf')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'decodes the mutually recursive models from get_department' do
+      api, server, thread, = capture_wire_request('{"name":"Eng","lead":{"name":"Ann","department":{"name":"Eng"}}}')
+      begin
+        department = api.get_department
+
+        _(department).must_be_kind_of(Petstore::Client::Models::Department)
+        _(department.lead.department).must_be_kind_of(Petstore::Client::Models::Department)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'applies the schema defaults to the model get_defaults returns' do
+      api, server, thread, = capture_wire_request('{}')
+      begin
+        defaults = api.get_defaults
+
+        _(defaults.retries).must_equal(3)
+        _(defaults.ratio).must_equal(1.5)
+        _(defaults.ceiling).must_equal(9_000_000_000)
       ensure
         server.close
         thread.join(2)

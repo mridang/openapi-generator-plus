@@ -138,11 +138,12 @@ module Petstore::Client
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         unless options.nil? || options.query_swatch.nil?
-          query_params['querySwatch'] =
-            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
-              ::Petstore::Client::ValueSerializer.serialize_styled('querySwatch', options.query_swatch, :query, 'Swatch', nil, 'form', true),
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'querySwatch', options.query_swatch, 'Swatch', nil, 'form', true,
               false
             )
+          )
         end
         # @type var header_params: Hash[String, String]
         header_params = {}
@@ -486,11 +487,12 @@ module Petstore::Client
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         unless options.nil? || options.as_of.nil?
-          query_params['asOf'] =
-            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
-              ::Petstore::Client::ValueSerializer.serialize_styled('asOf', options.as_of, :query, 'Time', nil, 'form', true),
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'asOf', options.as_of, 'Time', nil, 'form', true,
               false
             )
+          )
         end
         # @type var header_params: Hash[String, String]
         header_params = {}
@@ -742,18 +744,20 @@ module Petstore::Client
         query_params = {}
         query_params['q'] = ::Petstore::Client::ObjectSerializer.serialize(options.q) unless options.nil? || options.q.nil?
         unless options.nil? || options.labels.nil?
-          query_params['labels'] =
-            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
-              ::Petstore::Client::ValueSerializer.serialize_styled('labels', options.labels, :query, 'Set<String>', :multi, 'form', true),
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'labels', options.labels, 'Set<String>', :multi, 'form', true,
               false
             )
+          )
         end
         unless options.nil? || options.at.nil?
-          query_params['at'] =
-            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
-              ::Petstore::Client::ValueSerializer.serialize_styled('at', options.at, :query, 'Tod::TimeOfDay', nil, 'form', true),
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'at', options.at, 'Tod::TimeOfDay', nil, 'form', true,
               false
             )
+          )
         end
         # @type var header_params: Hash[String, String]
         header_params = {}

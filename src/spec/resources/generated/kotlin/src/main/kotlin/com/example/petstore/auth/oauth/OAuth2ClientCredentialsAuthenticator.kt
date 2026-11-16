@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -42,6 +42,10 @@ open class OAuth2ClientCredentialsAuthenticator(
      */
     override fun setApiClient(apiClient: ApiClient) {
         tokenManager.apiClient = apiClient
+    }
+
+    override fun invalidateAccessToken() {
+        tokenManager.invalidateAccessToken()
     }
 
     override fun getHost(): String = host

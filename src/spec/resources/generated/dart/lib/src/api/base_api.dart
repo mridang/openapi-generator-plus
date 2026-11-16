@@ -15,6 +15,7 @@ import '../api_client.dart';
 import '../api_http_response.dart';
 import '../api_result.dart';
 import '../auth/authenticator.dart';
+import '../auth/http_aware_authenticator.dart';
 import '../configuration.dart';
 import '../default_api_client.dart';
 import '../header_selector.dart';
@@ -116,6 +117,16 @@ class BaseApi {
     final Authenticator? effectiveAuth = identical(auth, noAuth)
         ? null
         : (auth ?? _authenticator);
+    /* Only the client-level authenticator is injected by the Client
+     * constructor. A per-call OAuth2 or OIDC authenticator would otherwise
+     * fail with 'API client has not been injected', so it gets the transport
+     * this API class uses (proxy, TLS, timeouts) before its first token
+     * request. */
+    if (effectiveAuth != null &&
+        auth != null &&
+        effectiveAuth is HttpAwareAuthenticator) {
+      effectiveAuth.setApiClient(apiClient);
+    }
     if (effectiveAuth != null) {
       allQueryParams.addAll(effectiveAuth.queryParams());
     }
@@ -372,6 +383,16 @@ class BaseApi {
       if (value is AllowReservedValue) {
         value = value.value;
         allowReserved = true;
+      }
+
+      if (value is ExplodedObject) {
+        for (final pair in value.pairs.entries) {
+          parts.add(
+            '${encodeRfc3986QueryComponent(pair.key)}='
+            '${_encodeQueryValue(pair.value, allowReserved)}',
+          );
+        }
+        continue;
       }
 
       final encodedKey = encodeRfc3986QueryComponent(key);

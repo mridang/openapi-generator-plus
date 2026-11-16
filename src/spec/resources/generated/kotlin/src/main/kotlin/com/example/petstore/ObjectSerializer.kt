@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -574,6 +574,36 @@ internal class ObjectSerializer(
     private fun toJsonElement(value: Any?): JsonElement = toJsonElementStatic(value)
 
     /**
+     * The ordered, wire-keyed string fields of an object-valued parameter: a
+     * generated model (null properties dropped, keys as written on the wire) or
+     * a map. Returns null for any other value (scalars, collections, enums), so
+     * the caller falls back to the scalar path. A nested object or array field
+     * is rejected, because the OAS styles cannot express it.
+     *
+     * @param value the parameter value
+     * @return the fields, or null when [value] is not object-valued
+     */
+    fun toWireMap(value: Any?): Map<String, String>? {
+        if (value == null) return null
+        if (value is Map<*, *>) {
+            return value.entries.associate { (key, field) -> key.toString() to stringify(field) }
+        }
+        if (value is Collection<*> || isLeafValue(value)) return null
+        val model = unwrapInstance(value)
+        if (modelDescriptor(model) == null) return null
+        val fields = json.parseToJsonElement(serialize(value)) as? JsonObject ?: return null
+        val result = LinkedHashMap<String, String>()
+        for ((key, field) in fields) {
+            when (field) {
+                is JsonNull -> Unit
+                is JsonPrimitive -> result[key] = field.content
+                else -> throw IllegalArgumentException("Parameter field '$key' is a nested value; only flat objects can be encoded")
+            }
+        }
+        return result
+    }
+
+    /**
      * Recursively drop JSON object entries whose value is [JsonNull], so a model
      * property left at null is omitted from the serialized object entirely. Array
      * elements are recursed into but never removed (a null array element is a real
@@ -601,7 +631,15 @@ internal class ObjectSerializer(
                 val item = descriptor?.takeIf { it.kind == StructureKind.LIST }
                 JsonArray(element.map { stripJsonNulls(it, item?.getElementDescriptor(0)) })
             }
-            else -> element
+            // Re-encoding a parsed number literal would round it through a double
+            // (a BigDecimal field would lose digits), so a number token is kept
+            // as the raw text the model serializers wrote.
+            is JsonPrimitive ->
+                if (element !is JsonNull && !element.isString && element.content.toBigDecimalOrNull() != null) {
+                    JsonUnquotedLiteral(element.content)
+                } else {
+                    element
+                }
         }
 
     /**

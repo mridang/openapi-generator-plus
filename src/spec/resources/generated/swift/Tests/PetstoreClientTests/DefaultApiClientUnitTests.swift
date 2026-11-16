@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -652,10 +652,22 @@ import Testing
     let lowered = Set(DefaultApiClient.sensitiveRedirectHeaders.map { $0.lowercased() })
     #expect(
       lowered.contains("x-api-key"),
-      "spec apiKey header 'X-API-Key' must be on the strip-list")
+      "spec apiKey header must be on the strip-list")
     #expect(
       lowered.contains("x-internal-key"),
-      "spec apiKey header 'X-Internal-Key' must be on the strip-list")
+      "spec apiKey header must be on the strip-list")
+  }
+
+  /* A header the SDK cannot list at generation time (a default header or a
+     custom authenticator's header) is still dropped on a cross-origin hop
+     when its name says it carries a credential. */
+  @Test(arguments: [
+    ("X-Tenant-Token", true), ("x-auth-token", true), ("Api-Key", true), ("X-Client-Secret", true),
+    ("Authorization", true), ("cookie", true), ("Proxy-Authorization", true),
+    ("Accept", false), ("User-Agent", false), ("X-Request-ID", false),
+  ])
+  func testCredentialNamedHeadersAreStrippedOnACrossOriginHop(name: String, sensitive: Bool) {
+    #expect(DefaultApiClient.isSensitiveRedirectHeader(name) == sensitive)
   }
 
   // MARK: - noRedirect returns the 3xx as-is (Gap 3.2)
@@ -1058,6 +1070,70 @@ import Testing
         currentScheme: "https", nextScheme: "http", request: streamed, originalBody: nil))
   }
 
+  /* D16: the canonical wording of the three redirect refusals. */
+  @Test func testRedirectRefusalMessagesAreCanonical() {
+    #expect(
+      DefaultApiClient.tooManyRedirectsMessage(limit: 20) == "Too many redirects (exceeded 20)")
+    #expect(
+      DefaultApiClient.nonHttpRedirectMessage(next: "file:///etc/passwd")
+        == "Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd")
+    #expect(
+      DefaultApiClient.bodyReplayMessage(
+        current: "https://a.example/x", next: "http://a.example/y")
+        == "Refusing to replay request body across HTTPS->HTTP redirect: "
+        + "https://a.example/x -> http://a.example/y")
+  }
+
+  /* A caller-supplied session keeps the SDK's redirect rules: they are
+     attached to each task, so the guard is not lost with the session's own
+     delegate. */
+  @Test func testSuppliedSessionStillAppliesTheRedirectRules() throws {
+    let session = UnitStubURLProtocol.session { _ in (Data("{}".utf8), 200, [:]) }
+    let supplied = try TransportOptionsBuilder().session(session).build()
+    let client = try DefaultApiClient(transportOptions: supplied)
+    #expect(client.appliesRedirectRules)
+    client.close()
+  }
+
+  /* D29: a request after close() is a wrong call order, with one text. */
+  @Test func testSendAfterCloseThrowsTheCanonicalInvalidState() async throws {
+    let client = makeClient { _ in (self.body(), 200, [:]) }
+    client.close()
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com", headers: [:], body: nil)
+    }
+    #expect(
+      error
+        == ConfigurationError.invalidState(
+          "ApiClient has been closed and can no longer send requests"))
+  }
+
+  /* The token request goes to another origin, so the caller's default
+     headers stay off it; its own headers and the User-Agent still go. */
+  @Test func testNoRedirectRequestCarriesNoDefaultHeaders() async throws {
+    var seen: [URLRequest] = []
+    let transport = try TransportOptionsBuilder()
+      .defaultHeader(name: "X-Api-Secret", value: "api-only")
+      .userAgent("Agent/1.0")
+      .build()
+    let client = makeClient(transport: transport) { request in
+      seen.append(request)
+      return (self.body(), 200, [:])
+    }
+    _ = try await client.sendRequest(
+      method: "POST", url: "https://idp.example.com/token", headers: ["Accept": "application/json"],
+      body: Data("a=b".utf8), noRedirect: true)
+    _ = try await client.sendRequest(
+      method: "GET", url: "https://api.example.com/items", headers: [:], body: nil)
+
+    #expect(seen.count == 2)
+    #expect(seen[0].value(forHTTPHeaderField: "X-Api-Secret") == nil)
+    #expect(seen[0].value(forHTTPHeaderField: "Accept") == "application/json")
+    #expect(seen[0].value(forHTTPHeaderField: "User-Agent") == "Agent/1.0")
+    #expect(seen[1].value(forHTTPHeaderField: "X-Api-Secret") == "api-only")
+  }
+
   // MARK: - Bare utf-16 byte-order marks
 
   /* A bare utf-16 label honours a leading byte-order mark and drops it; the
@@ -1133,7 +1209,7 @@ import Testing
     let transport = try TransportOptionsBuilder().caCertPath(file.path).build()
     #expect(
       throws: ConfigurationError.invalidCACertificate(
-        "failed to parse \"\(file.path)\": no PEM blocks found or unparseable")
+        "failed to parse CA certificate from \"\(file.path)\": no PEM blocks found")
     ) {
       _ = try DefaultApiClient(transportOptions: transport)
     }
@@ -1144,7 +1220,10 @@ import Testing
        must fail loudly instead of being silently dropped. */
     @Test func testDisablingVerificationIsRefusedOnLinux() throws {
       let transport = try TransportOptionsBuilder().verifySsl(false).build()
-      #expect(throws: ConfigurationError.tlsOptionsUnsupported) {
+      #expect(
+        throws: ConfigurationError.invalidCACertificate(
+          DefaultApiClient.tlsOptionsUnsupportedMessage)
+      ) {
         _ = try DefaultApiClient(transportOptions: transport)
       }
     }
@@ -1155,7 +1234,10 @@ import Testing
       try Data([0x30, 0x03, 0x02, 0x01, 0x05]).write(to: file)
       defer { try? FileManager.default.removeItem(at: file) }
       let transport = try TransportOptionsBuilder().caCertPath(file.path).build()
-      #expect(throws: ConfigurationError.tlsOptionsUnsupported) {
+      #expect(
+        throws: ConfigurationError.invalidCACertificate(
+          DefaultApiClient.tlsOptionsUnsupportedMessage)
+      ) {
         _ = try DefaultApiClient(transportOptions: transport)
       }
     }
@@ -1170,11 +1252,14 @@ import Testing
     // trust store (security theater). It is a configuration mistake, not
     // an ApiError.
     let transport = try TransportOptionsBuilder().caCertPath("/nonexistent/ca.pem").build()
-    #expect(
-      throws: ConfigurationError.invalidCACertificate("failed to read \"/nonexistent/ca.pem\"")
-    ) {
+    let error = #expect(throws: ConfigurationError.self) {
       _ = try DefaultApiClient(transportOptions: transport)
     }
+    guard case .invalidCACertificate(let message)? = error else {
+      Issue.record("expected invalidCACertificate, got \(String(describing: error))")
+      return
+    }
+    #expect(message.hasPrefix("failed to read CA certificate from \"/nonexistent/ca.pem\": "))
   }
 
   /* RFC 9110 15.4: which methods a redirect rewrites. */

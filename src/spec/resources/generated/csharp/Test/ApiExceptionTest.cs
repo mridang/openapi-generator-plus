@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -381,5 +381,68 @@ public class ApiExceptionTest
             Assert.Equal("boom", error.Message);
             Assert.Same(inner, error.InnerException);
         }
+    }
+
+    [Fact]
+    public void RenderedBodyIsCappedAndNamesTheHiddenLength()
+    {
+        string body = new string('x', 1030);
+
+        var ex = new ApiException(502, "bad gateway", null, body);
+
+        string rendered = ex.ToString();
+        Assert.Contains(
+            new string('x', 1024) + "... (6 more characters)",
+            rendered,
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain(new string('x', 1025), rendered, StringComparison.Ordinal);
+        Assert.Equal(body, ex.ResponseBody);
+    }
+
+    [Fact]
+    public void RenderedBodyEscapesLineBreaksAndControlCharacters()
+    {
+        var ex = new ApiException(500, "boom", null, "a\r\nforged: line\u0007");
+
+        Assert.EndsWith(
+            "Response body: a\\r\\nforged: line\\u0007",
+            ex.ToString(),
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void RenderedHeadersHideCredentialCarryingValues()
+    {
+        var ex = new ApiException(
+            401,
+            "denied",
+            new Dictionary<string, string>
+            {
+                { "Set-Cookie", "session=s3cret" },
+                { "WWW-Authenticate", "Bearer realm=x" },
+                { "x-api-key", "k-123" },
+                { "x-request-id", "abc" },
+            }
+        );
+
+        string rendered = ex.ToString();
+        Assert.DoesNotContain("s3cret", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("Bearer realm", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("k-123", rendered, StringComparison.Ordinal);
+        Assert.Contains("\"Set-Cookie\":\"***\"", rendered, StringComparison.Ordinal);
+        Assert.Contains("\"x-request-id\":\"abc\"", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UnusableResponseFactoryIsNotPartOfThePublicSurface()
+    {
+        var factory = typeof(ApiException).GetMethod(
+            "ForUnusableResponse",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
+        );
+
+        Assert.Null(factory);
     }
 }

@@ -26,6 +26,10 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
   # clock step cannot make a token look valid for longer or lapse at once.
   @max_expiry_margin_ms 60_000
 
+  # A server-supplied expires_in is clamped to one year before any arithmetic,
+  # so a hostile or buggy value cannot produce an absurd expiry (D08).
+  @max_expires_in_seconds 31_536_000
+
   @type state :: %{
           api_client: term() | nil,
           access_token: String.t() | nil,
@@ -384,7 +388,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
           # (preferable to caching a token of unknown lifetime forever).
           case parse_expires_in(parsed["expires_in"]) do
             expires_in when expires_in > 0 ->
-              lifetime_ms = expires_in * 1000
+              lifetime_ms = min(expires_in, @max_expires_in_seconds) * 1000
               margin_ms = min(@max_expiry_margin_ms, div(lifetime_ms, 2))
 
               %{

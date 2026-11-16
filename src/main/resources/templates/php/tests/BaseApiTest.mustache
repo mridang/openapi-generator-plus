@@ -330,7 +330,8 @@ test('a per-call oauth authenticator is given the transport before it is used', 
 
     $api->call('GET', '/items', [], [], null, ['application/json'], null, null, $auth);
 
-    expect($requests[0]['url'])->toBe('https://auth.example.com/token');
+    $first = $requests[0] ?? ['url' => ''];
+    expect($first['url'])->toBe('https://auth.example.com/token');
 });
 
 test('a binary body is sent as raw bytes whether given as string, stream resource or PSR-7 stream', function (

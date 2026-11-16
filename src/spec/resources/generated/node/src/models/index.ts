@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -16,9 +16,10 @@ export * from "./department.js";
 export * from "./dry-food.js";
 export * from "./edge-cases.js";
 export * from "./employee.js";
-export * from "./error.js";
 export * from "./medication.js";
 export * from "./metadata.js";
+export * from "./model-error.js";
+export * from "./model-result.js";
 export * from "./order.js";
 export * from "./pet.js";
 export * from "./pet-criteria.js";
@@ -31,7 +32,6 @@ export * from "./photo-metadata.js";
 export * from "./photo-metadata-location.js";
 export * from "./priority.js";
 export * from "./required-nullable.js";
-export * from "./result.js";
 export * from "./separator.js";
 export * from "./set-pet-avatar-request.js";
 export * from "./set-pet-avatar-thumbnail-request.js";

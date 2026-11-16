@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -740,35 +740,62 @@ class PetApi(BaseApi):
         path = "/pet/findByStatus"
         query_params: Dict[str, Any] = {}
         if options is not None and options.status is not None:
-            query_params["status"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
-                    "status", options.status, "query", "StrictStr", None, "form", True
-                ),
-                False,
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "status",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "status",
+                            options.status,
+                            "query",
+                            "StrictStr",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         if options is not None and options.filter is not None:
             query_params.update(
                 ValueSerializer.serialize_deep_object("filter", options.filter)
             )
         if options is not None and options.born_after is not None:
-            query_params["bornAfter"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
-                    "bornAfter", options.born_after, "query", "date", None, "form", True
-                ),
-                False,
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "bornAfter",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "bornAfter",
+                            options.born_after,
+                            "query",
+                            "date",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         if options is not None and options.n2nd_page is not None:
-            query_params["2ndPage"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
+            query_params.update(
+                ValueSerializer.query_entries(
                     "2ndPage",
-                    options.n2nd_page,
-                    "query",
-                    "StrictInt",
-                    None,
-                    "form",
-                    True,
-                ),
-                False,
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "2ndPage",
+                            options.n2nd_page,
+                            "query",
+                            "StrictInt",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         header_params: Dict[str, str] = {}
         if options is not None and options.report_date is not None:
@@ -1249,17 +1276,22 @@ class PetApi(BaseApi):
         )
         query_params: Dict[str, Any] = {}
         if options is not None and options.category is not None:
-            query_params["category"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
+            query_params.update(
+                ValueSerializer.query_entries(
                     "category",
-                    options.category,
-                    "query",
-                    "StrictStr",
-                    None,
-                    "form",
-                    True,
-                ),
-                False,
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "category",
+                            options.category,
+                            "query",
+                            "StrictStr",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         header_params: Dict[str, str] = {}
         if options is not None and options.x_correlation_id is not None:
@@ -1530,11 +1562,22 @@ class PetApi(BaseApi):
         )
         query_params: Dict[str, Any] = {}
         if options is not None and options.days is not None:
-            query_params["days"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
-                    "days", options.days, "query", "List[date]", "multi", "form", True
-                ),
-                False,
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "days",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "days",
+                            options.days,
+                            "query",
+                            "List[date]",
+                            "multi",
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         header_params: Dict[str, str] = {}
         cookie_parts = []
@@ -1654,76 +1697,112 @@ class PetApi(BaseApi):
         )
         query_params: Dict[str, Any] = {}
         if options is not None and options.colors is not None:
-            query_params["colors"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
+            query_params.update(
+                ValueSerializer.query_entries(
                     "colors",
-                    options.colors,
-                    "query",
-                    "List[StrictStr]",
-                    "pipes",
-                    "pipeDelimited",
-                    False,
-                ),
-                False,
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "colors",
+                            options.colors,
+                            "query",
+                            "List[StrictStr]",
+                            "pipes",
+                            "pipeDelimited",
+                            False,
+                        ),
+                        False,
+                    ),
+                )
             )
         if options is not None and options.sizes is not None:
-            query_params["sizes"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
+            query_params.update(
+                ValueSerializer.query_entries(
                     "sizes",
-                    options.sizes,
-                    "query",
-                    "List[StrictStr]",
-                    "ssv",
-                    "spaceDelimited",
-                    False,
-                ),
-                False,
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "sizes",
+                            options.sizes,
+                            "query",
+                            "List[StrictStr]",
+                            "ssv",
+                            "spaceDelimited",
+                            False,
+                        ),
+                        False,
+                    ),
+                )
             )
         if options is not None and options.filter is not None:
-            query_params["filter"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
-                    "filter", options.filter, "query", "StrictStr", None, "form", True
-                ),
-                False,
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "filter",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "filter",
+                            options.filter,
+                            "query",
+                            "StrictStr",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         if options is not None and options.revision is not None:
-            query_params["revision"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
+            query_params.update(
+                ValueSerializer.query_entries(
                     "revision",
-                    options.revision,
-                    "query",
-                    "StrictStr",
-                    None,
-                    "form",
-                    True,
-                ),
-                True,
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "revision",
+                            options.revision,
+                            "query",
+                            "StrictStr",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        True,
+                    ),
+                )
             )
         if options is not None and options.criteria is not None:
-            query_params["criteria"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
+            query_params.update(
+                ValueSerializer.query_entries(
                     "criteria",
-                    options.criteria,
-                    "query",
-                    "PetCriteria",
-                    None,
-                    "form",
-                    True,
-                ),
-                False,
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "criteria",
+                            options.criteria,
+                            "query",
+                            "PetCriteria",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         if options is not None and options.criteria_csv is not None:
-            query_params["criteriaCsv"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
+            query_params.update(
+                ValueSerializer.query_entries(
                     "criteriaCsv",
-                    options.criteria_csv,
-                    "query",
-                    "PetCriteria",
-                    None,
-                    "form",
-                    False,
-                ),
-                False,
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "criteriaCsv",
+                            options.criteria_csv,
+                            "query",
+                            "PetCriteria",
+                            None,
+                            "form",
+                            False,
+                        ),
+                        False,
+                    ),
+                )
             )
         if options is not None and options.criteria_deep is not None:
             query_params.update(
@@ -1732,17 +1811,22 @@ class PetApi(BaseApi):
                 )
             )
         if options is not None and options.fingerprint is not None:
-            query_params["fingerprint"] = ValueSerializer.maybe_allow_reserved(
-                ValueSerializer.serialize_styled(
+            query_params.update(
+                ValueSerializer.query_entries(
                     "fingerprint",
-                    options.fingerprint,
-                    "query",
-                    "bytes",
-                    None,
-                    "form",
-                    True,
-                ),
-                False,
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "fingerprint",
+                            options.fingerprint,
+                            "query",
+                            "bytes",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
             )
         header_params: Dict[str, str] = {}
         if options is not None and options.x_criteria is not None:

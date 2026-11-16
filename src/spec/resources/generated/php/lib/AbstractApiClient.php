@@ -142,7 +142,9 @@ abstract class AbstractApiClient implements ApiClient
      * @param bool                  $noRedirect when true, suppress redirect following
      *                                          regardless of {@see TransportOptions::followRedirects}
      *                                          (Gap 3.2 -- used by {@see OAuth2TokenManager}
-     *                                          to refuse 307/308 on token POSTs)
+     *                                          to refuse 307/308 on token POSTs). Such a
+     *                                          request also omits the transport default
+     *                                          headers, which are meant for the API.
      *
      * @return ApiHttpResponse the HTTP response
      *
@@ -162,7 +164,13 @@ abstract class AbstractApiClient implements ApiClient
             throw new \LogicException('ApiClient has been closed and can no longer send requests');
         }
 
-        $mergedHeaders = array_merge($this->transportOptions->defaultHeaders, $headers);
+        /* A request that refuses redirects is an SDK token request (RFC 6749
+         * section 3.2). It goes to the identity provider, a different origin,
+         * so the caller's default headers (an Authorization or API key meant
+         * for the API) must not ride along. */
+        $mergedHeaders = $noRedirect
+            ? $headers
+            : array_merge($this->transportOptions->defaultHeaders, $headers);
         /* Field names are case-insensitive (RFC 9110 section 5.1): a caller's
          * user-agent or x-request-id in any casing wins and is left as written. */
         $presentHeaders = array_change_key_case($mergedHeaders, CASE_LOWER);
@@ -293,9 +301,23 @@ abstract class AbstractApiClient implements ApiClient
 
                     $redirectHeaders = $currentHeaders;
                     if ($crossOrigin) {
+                        /* Besides the fixed list, a header is a credential when
+                         * its name says so (key, token, secret, auth,
+                         * credential: the rule that redacts string forms) or
+                         * when the caller set it as a transport default, since
+                         * defaults and custom authenticators are where an
+                         * arbitrary secret header comes from. */
+                        $defaultHeaderNames = array_change_key_case($this->transportOptions->defaultHeaders, CASE_LOWER);
                         foreach (array_keys($redirectHeaders) as $hname) {
                             $lower = strtolower((string) $hname);
-                            if (in_array($lower, static::SENSITIVE_HEADER_NAMES, true)) {
+                            if (
+                                in_array($lower, static::SENSITIVE_HEADER_NAMES, true)
+                                || preg_match('/key|token|secret|auth|credential/', $lower) === 1
+                                || (
+                                    $lower !== 'user-agent'
+                                    && array_key_exists($lower, $defaultHeaderNames)
+                                )
+                            ) {
                                 unset($redirectHeaders[$hname]);
                             }
                         }
@@ -370,6 +392,11 @@ abstract class AbstractApiClient implements ApiClient
                     null,
                     $e
                 );
+            }
+            if ($contentEncoding !== '' && strtolower(trim($contentEncoding)) !== 'identity') {
+                /* D92: the headers describe the body the caller receives, and
+                 * that body is no longer encoded or the wire length. */
+                unset($responseHeaders['content-encoding'], $responseHeaders['content-length']);
             }
             $contentType = $response->headers['content-type'][0] ?? '';
             if (!$this->isTextContentType($contentType)) {
@@ -624,6 +651,19 @@ abstract class AbstractApiClient implements ApiClient
             return null;
         }
         if (isset($parsed['scheme'])) {
+            /* parse_url() is lenient: it accepts an unterminated or invalid IP
+             * literal such as http://[bad. A web URL needs a usable host. */
+            if (in_array(strtolower($parsed['scheme']), ['http', 'https'], true)) {
+                $host = $parsed['host'] ?? '';
+                $literal = str_starts_with($host, '[') || str_ends_with($host, ']');
+                if (
+                    $host === ''
+                    || ($literal && filter_var(trim($host, '[]'), FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) === false)
+                ) {
+                    return null;
+                }
+            }
+
             return $location;
         }
         $baseParts = parse_url($base);

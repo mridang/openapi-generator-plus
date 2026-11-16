@@ -136,6 +136,13 @@ impl OAuth2AuthorizationCodeAuthenticator {
         if !state.is_empty() {
             params.push(format!("state={}", url_query_encode(state)));
         }
+        /* RFC 9700 section 2.1.1 / RFC 7636: bind the code to this client with
+         * a PKCE S256 challenge; the verifier is kept for exchange_code. */
+        params.push(format!(
+            "code_challenge={}",
+            self.token_manager.begin_pkce()
+        ));
+        params.push("code_challenge_method=S256".to_string());
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component. Use '&' as the separator when one is already
          * present so existing params are preserved, '?' otherwise. */
@@ -171,6 +178,9 @@ impl OAuth2AuthorizationCodeAuthenticator {
         params.insert("client_id".to_string(), self.client_id.clone());
         params.insert("client_secret".to_string(), self.client_secret.clone());
         params.insert("redirect_uri".to_string(), self.redirect_uri.clone());
+        if let Some(verifier) = self.token_manager.pkce_verifier() {
+            params.insert("code_verifier".to_string(), verifier);
+        }
 
         /* Always a fresh authorization_code POST that replaces the session:
          * never served from the token cache or the refresh path, and a
@@ -178,6 +188,7 @@ impl OAuth2AuthorizationCodeAuthenticator {
         self.token_manager
             .exchange(&self.token_url, &params, &HashMap::new())
             .await?;
+        self.token_manager.clear_pkce();
         Ok(())
     }
 }
@@ -261,6 +272,17 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
             let mut headers = HashMap::new();
             headers.insert("Authorization".to_string(), format!("Bearer {}", token));
             Ok(headers)
+        })
+    }
+
+    fn inject_api_client(&self, client: Arc<dyn ApiClient>) {
+        self.token_manager.ensure_api_client(client);
+    }
+
+    fn invalidate_access_token<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
+        Box::pin(async move {
+            self.token_manager.invalidate_access_token().await;
+            true
         })
     }
 

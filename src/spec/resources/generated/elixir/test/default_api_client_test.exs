@@ -211,6 +211,107 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     end
   end
 
+  test "the redirect chain of three 500 ms hops fails under timeout 1200 and completes under 5000" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+    chain = "#{chasm_url}/test/redirect/chain/1"
+
+    tight =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(timeout: 1200))
+
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(tight, :get, chain, %{}, nil)
+    end
+
+    roomy =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(timeout: 5000))
+
+    assert PetstoreClient.DefaultApiClient.send_request(roomy, :get, chain, %{}, nil).status_code ==
+             200
+  end
+
+  test "a Set-Cookie of one response is never replayed on the next request" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+    client = PetstoreClient.DefaultApiClient.new()
+
+    first =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/response-headers",
+        %{},
+        nil
+      )
+
+    assert first.status_code == 200
+
+    second =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
+
+    assert second.status_code == 200
+
+    sent =
+      second.body
+      |> Jason.decode!()
+      |> Map.fetch!("headers")
+      |> Map.keys()
+      |> Enum.map(&String.downcase/1)
+
+    refute "cookie" in sent
+  end
+
+  test "an empty 200 body comes back as an empty body" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/empty",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert response.body in ["", nil]
+  end
+
+  # D74: no ambient proxy. The request still reaches the mock server although
+  # every proxy variable points at a port nothing listens on.
+  test "ambient proxy environment variables are ignored" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+    names = ["HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"]
+    saved = Enum.map(names, fn name -> {name, System.get_env(name)} end)
+
+    Enum.each(names, fn name -> System.put_env(name, "http://127.0.0.1:9") end)
+
+    try do
+      client = PetstoreClient.DefaultApiClient.new()
+
+      response =
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "#{chasm_url}/test/echo",
+          %{},
+          nil
+        )
+
+      assert response.status_code == 200
+    after
+      Enum.each(saved, fn
+        {name, nil} -> System.delete_env(name)
+        {name, value} -> System.put_env(name, value)
+      end)
+    end
+  end
+
   test "injects custom User-Agent header" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
@@ -667,7 +768,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       assert {:error, %PetstoreClient.Errors.ApiError{message: message, status_code: status}} =
                result
 
-      assert message =~ "Too many redirects (exceeded"
+      assert message == "Too many redirects (exceeded 0)"
       # A refused redirect is a response that arrived but cannot be used: it
       # carries the redirect's real status, never 0.
       assert status == 302
@@ -744,6 +845,8 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     assert response.status_code == 200
     assert String.contains?(response.body, "compressed fixture body")
+    refute Map.has_key?(response.headers, "content-encoding")
+    refute Map.has_key?(response.headers, "content-length")
   end
 
   # :brotli is an optional NIF declared only: :prod, so it is not loaded in
@@ -783,6 +886,8 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     assert response.status_code == 200
     assert String.contains?(response.body, "compressed fixture body")
+    refute Map.has_key?(response.headers, "content-encoding")
+    refute Map.has_key?(response.headers, "content-length")
   end
 
   # Gap T6 / close-lifecycle: close/1 is idempotent and returns :ok, and

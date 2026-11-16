@@ -442,6 +442,242 @@ void main() {
       expect(result, contains(r'\t'));
     });
 
+    // Fixture models: wire names, typed defaults and typed values
+
+    test(
+      'keyword-named EdgeCases properties keep their wire keys through a round trip',
+      () {
+        final wire = <String, Object?>{
+          'and': true,
+          'or': false,
+          'not': true,
+          'class': 'c',
+          'return': 'r',
+          'null': 'n',
+          'true': true,
+          'false': false,
+        };
+        final decoded = deserialize<EdgeCases>(
+          jsonEncode(wire),
+          EdgeCases.fromJson,
+        );
+        expect(decoded!.and, isTrue);
+        expect(decoded.or, isFalse);
+        expect(decoded.class_, equals('c'));
+        expect(decoded.return_, equals('r'));
+        expect(decoded.null_, equals('n'));
+        expect(decoded.true_, isTrue);
+        expect(decoded.false_, isFalse);
+        expect(jsonDecode(serialize(decoded)), equals(wire));
+      },
+    );
+
+    test(
+      'Defaults numeric defaults are exact typed values when the keys are absent',
+      () {
+        final defaults = deserialize<Defaults>('{}', Defaults.fromJson)!;
+        expect(defaults.ratio, equals(1.5));
+        expect(defaults.scale, equals(0.25));
+        expect(defaults.weight, equals(2.0));
+        expect(defaults.ceiling, equals(9000000000));
+      },
+    );
+
+    test('an explicit value replaces a numeric default', () {
+      final defaults = deserialize<Defaults>(
+        '{"ratio":2.5,"scale":0.5,"weight":3,"ceiling":7}',
+        Defaults.fromJson,
+      )!;
+      expect(defaults.ratio, equals(2.5));
+      expect(defaults.scale, equals(0.5));
+      expect(defaults.weight, equals(3.0));
+      expect(defaults.ceiling, equals(7));
+    });
+
+    test(
+      'a contentEncoding byte property decodes from and encodes to padded base64',
+      () {
+        final passport = deserialize<PetPassport>(
+          '{"biometricChip":"aGk="}',
+          PetPassport.fromJson,
+        )!;
+        expect(
+          passport.biometricChip,
+          equals(Uint8List.fromList([0x68, 0x69])),
+        );
+        expect(
+          jsonDecode(serialize(passport)),
+          equals(<String, Object?>{'biometricChip': 'aGk='}),
+        );
+      },
+    );
+
+    test(
+      'a uuid property is written lowercase, decoded from uppercase and refuses a malformed value',
+      () {
+        final order = deserialize<Order>(
+          '{"trackingId":"3F2504E0-4F89-11D3-9A0C-0305E82C3301"}',
+          Order.fromJson,
+        )!;
+        expect(
+          order.trackingId!.toString(),
+          equals('3f2504e0-4f89-11d3-9a0c-0305e82c3301'),
+        );
+        final written = jsonDecode(serialize(order)) as Map<String, dynamic>;
+        expect(
+          written['trackingId'],
+          equals('3f2504e0-4f89-11d3-9a0c-0305e82c3301'),
+        );
+        expect(
+          () =>
+              deserialize<Order>('{"trackingId":"not-a-uuid"}', Order.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'EdgeCases lastError and outcome (schemas named like built-in types) round trip',
+      () {
+        final wire = <String, Object?>{
+          'lastError': {'code': 1, 'message': 'm'},
+          'outcome': {'ok': true},
+        };
+        final decoded = deserialize<EdgeCases>(
+          jsonEncode(wire),
+          EdgeCases.fromJson,
+        )!;
+        expect(decoded.lastError!.code, equals(1));
+        expect(decoded.lastError!.message, equals('m'));
+        expect(decoded.outcome!.ok, isTrue);
+        expect(jsonDecode(serialize(decoded)), equals(wire));
+      },
+    );
+
+    test(
+      'an inline enum keeps its mixed-case wire values and refuses an unknown one',
+      () {
+        for (final wire in ['In-Stock', 'on-hold', 'OUT_OF_STOCK']) {
+          final decoded = deserialize<EdgeCases>(
+            '{"phase":"$wire"}',
+            EdgeCases.fromJson,
+          )!;
+          expect(decoded.phase!.value, equals(wire));
+          expect(
+            jsonDecode(serialize(decoded)),
+            equals(<String, Object?>{'phase': wire}),
+          );
+        }
+        expect(
+          () => deserialize<EdgeCases>(
+            '{"phase":"in-stock"}',
+            EdgeCases.fromJson,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test('a protobuf duration decodes to a Duration and encodes back', () {
+      final decoded = deserialize<EdgeCases>(
+        '{"retryAfter":"3600s"}',
+        EdgeCases.fromJson,
+      )!;
+      expect(decoded.retryAfter, equals(const Duration(seconds: 3600)));
+      expect(
+        jsonDecode(serialize(decoded)),
+        equals(<String, Object?>{'retryAfter': '3600s'}),
+      );
+    });
+
+    test(
+      'Availability members with quotes, backslashes and dollar signs round trip',
+      () {
+        for (final wire in ["o'clock", r'a\b', r'$eq', '#{x}']) {
+          expect(Availability.fromJson(wire).toJson(), equals(wire));
+        }
+      },
+    );
+
+    test(
+      'request JSON writes slash, angle brackets, ampersand, non-ASCII, U+2028, U+2029 and DEL literally',
+      () {
+        final out = serialize({'k': 'a\u2028b\u2029c\u007fd/<>&\u00e9'});
+        expect(out, equals('{"k":"a\u2028b\u2029c\u007fd/<>&\u00e9"}'));
+      },
+    );
+
+    test('request JSON escapes only the quote, the backslash and controls', () {
+      expect(serialize({'k': 'q"b\\n\n'}), equals(r'{"k":"q\"b\\n\n"}'));
+    });
+
+    test(
+      'a format time property passes through as the string it was given',
+      () {
+        for (final wire in ['10:30:00', '10:30:00.123']) {
+          final decoded = deserialize<EdgeCases>(
+            '{"cutoff":"$wire"}',
+            EdgeCases.fromJson,
+          )!;
+          expect(decoded.cutoff, equals(wire));
+          expect(
+            jsonDecode(serialize(decoded)),
+            equals(<String, Object?>{'cutoff': wire}),
+          );
+        }
+      },
+    );
+
+    test('a prefixItems tuple degrades to an open list that round trips', () {
+      final pet = deserialize<Pet>(
+        '{"name":"n","photoUrls":[],"location":[1.5,2.5,"label"]}',
+        Pet.fromJson,
+      )!;
+      expect(pet.location, equals([1.5, 2.5, 'label']));
+      final written = jsonDecode(serialize(pet)) as Map<String, dynamic>;
+      expect(written['location'], equals([1.5, 2.5, 'label']));
+    });
+
+    test('a JSON object with a duplicate key resolves to the last value', () {
+      expect(deserializeRaw('{"a":1,"a":2}'), equals({'a': 2}));
+      expect(
+        deserializeRaw('{"o":{"k":1,"k":2}}'),
+        equals({
+          'o': {'k': 2},
+        }),
+      );
+      final category = deserialize<Category>(
+        '{"id":"x","id":1,"name":"n"}',
+        Category.fromJson,
+      );
+      expect(category!.id, equals(1));
+    });
+
+    test(
+      'the four Separator wire values decode to distinct constants and re-encode',
+      () {
+        final wires = [' ', '@@', 'a-b', 'a_b'];
+        final constants = wires.map(Separator.fromJson).toSet();
+        expect(constants, hasLength(4));
+        for (final wire in wires) {
+          expect(Separator.fromJson(wire).toJson(), equals(wire));
+          final decoded = deserialize<EdgeCases>(
+            '{"separator":${jsonEncode(wire)}}',
+            EdgeCases.fromJson,
+          )!;
+          expect(decoded.separator!.value, equals(wire));
+        }
+      },
+    );
+
+    test('a slug matching the declared pattern is accepted', () {
+      final decoded = deserialize<EdgeCases>(
+        '{"slug":"12/ab"}',
+        EdgeCases.fromJson,
+      )!;
+      expect(decoded.slug, equals('12/ab'));
+    });
+
     // DeserializationErrorWrappingTests
 
     // The error contract: every wire-shape failure throws exactly
@@ -463,6 +699,11 @@ void main() {
           deserialize('{"retryAfter":"soon"}', EdgeCases.fromJson),
       'malformed date-time': () =>
           deserialize('{"expiresAt":"not-a-date"}', EdgeCases.fromJson),
+      'undeclared key on a model declaring unevaluatedProperties false': () =>
+          deserialize(
+            '{"id":1,"name":"x","unexpected":true}',
+            StrictTag.fromJson,
+          ),
     };
     wireShapeFailures.forEach((failure, decode) {
       test(
@@ -487,6 +728,26 @@ void main() {
         },
       );
     });
+
+    test(
+      'a model declaring unevaluatedProperties false decodes its declared keys',
+      () {
+        final tag = deserialize('{"id":1,"name":"x"}', StrictTag.fromJson);
+        expect(tag!.id, equals(1));
+        expect(tag.name, equals('x'));
+      },
+    );
+
+    test(
+      'a model without unevaluatedProperties false ignores an undeclared key',
+      () {
+        final category = deserialize(
+          '{"id":1,"name":"x","unexpected":true}',
+          Category.fromJson,
+        );
+        expect(category!.name, equals('x'));
+      },
+    );
 
     test(
       'truncated JSON throws SerializationException not raw parse error',

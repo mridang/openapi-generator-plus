@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -140,8 +140,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     var headerParams: [String: String] = [:]
     if let options = options, let val = options.preferredSwatch {
-      headerParams["Preferred-Swatch"] =
-        "\(ValueSerializer.serializeStyled("Preferred-Swatch", value: val, location: "header", schemaType: "Swatch", collectionFormat: "", style: "simple", explode: false) ?? "")"
+      headerParams["Preferred-Swatch"] = try ValueSerializer.headerValue(
+        ValueSerializer.serializeStyled(
+          "Preferred-Swatch", value: val, location: "header", schemaType: "Swatch",
+          collectionFormat: "", style: "simple", explode: false))
     }
 
     let requestBody: Any? = nil

@@ -189,21 +189,27 @@ final client = Client(authenticator: FakeAuthenticator());
 
 ## Error Handling
 
-All API errors derive from `ApiException`. The error hierarchy is:
+Every error the SDK raises derives from `OpenAPIException`, so one catch of that type handles every SDK failure. The error hierarchy is:
 
-- `ApiException` (base)
-  - `ClientException` (4xx)
-    - `BadRequestException` (400)
-    - `UnauthorizedException` (401)
-    - `ForbiddenException` (403)
-    - `NotFoundException` (404)
-    - `ConflictException` (409)
-    - `TooManyRequestsException` (429)
-    - `UnprocessableEntityException` (422)
-  - `ServerException` (5xx)
-    - `InternalServerErrorException` (500)
-  - `NetworkException` (no HTTP response, status 0)
-    - `NetworkTimeoutException` (the request timed out, status 0)
+- `OpenAPIException` (root)
+  - `ApiException` (an HTTP response or its absence)
+    - `ClientException` (4xx)
+      - `BadRequestException` (400)
+      - `UnauthorizedException` (401)
+      - `ForbiddenException` (403)
+      - `NotFoundException` (404)
+      - `ConflictException` (409)
+      - `TooManyRequestsException` (429)
+      - `UnprocessableEntityException` (422)
+    - `ServerException` (5xx)
+      - `InternalServerErrorException` (500)
+    - `NetworkException` (no HTTP response, status 0)
+      - `NetworkTimeoutException` (the request timed out, status 0)
+  - `SerializationException` (a request or response body that cannot be encoded or decoded)
+  - `OAuth2ServerException` (the token endpoint answered with an OAuth2 error)
+  - `OAuth2TokenException` (the token response is unusable)
+
+A malformed response body and a failed token exchange are not `ApiException`s, so end a catch sequence with the root type.
 
 ```dart
 Future<void> addPetOrReport(Client client, Pet pet, AddPetOptions? options) async {
@@ -217,6 +223,8 @@ Future<void> addPetOrReport(Client client, Pet pet, AddPetOptions? options) asyn
     print('Server error: $e');
   } on ApiException catch (e) {
     print('API error: $e');
+  } on OpenAPIException catch (e) {
+    print('SDK error: $e');
   }
 }
 ```

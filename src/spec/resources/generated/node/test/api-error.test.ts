@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -380,6 +380,52 @@ describe("ApiError", () => {
       expect(err.toString()).toBe(
         'not found\nHTTP status code: 404\nResponse headers: {"x-request-id":"abc"}\nResponse body: {"code":7}',
       );
+    });
+
+    test("caps the rendered body and says how much was left out, keeping the field whole", () => {
+      const body = "x".repeat(1030);
+      const err = new ApiError(502, "bad gateway", {}, body, null);
+
+      expect(err.toString()).toBe(
+        `bad gateway\nHTTP status code: 502\nResponse body: ${"x".repeat(1024)}... (6 more bytes)`,
+      );
+      expect(err.responseBody).toBe(body);
+    });
+
+    test("escapes CR, LF and other control characters in the rendered body", () => {
+      const err = new ApiError(
+        500,
+        "boom",
+        {},
+        "a\r\nHTTP status code: 200\u0001\u007f",
+        null,
+      );
+
+      expect(err.toString()).toBe(
+        "boom\nHTTP status code: 500\nResponse body: a\\r\\nHTTP status code: 200\\u0001\\u007f",
+      );
+    });
+
+    test("masks credential-bearing response headers and sorts the rest", () => {
+      const err = new ApiError(
+        401,
+        "denied",
+        {
+          "WWW-Authenticate": 'Bearer realm="x"',
+          "Set-Cookie": "sid=abc",
+          "X-Api-Key": "k-1",
+          "x-request-id": "abc",
+          "Content-Type": "text/plain",
+        },
+        null,
+        null,
+      );
+
+      expect(err.toString()).toBe(
+        "denied\nHTTP status code: 401\nResponse headers: " +
+          '{"Content-Type":"text/plain","Set-Cookie":"***","WWW-Authenticate":"***","X-Api-Key":"***","x-request-id":"abc"}',
+      );
+      expect(err.responseHeaders!["Set-Cookie"]).toBe("sid=abc");
     });
 
     test("omits an absent status, headers and body", () => {

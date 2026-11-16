@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -468,6 +468,18 @@ describe("generated documentation", () => {
     expect(call?.[3]).not.toBe("");
     expect(call?.[3]).not.toContain("/*");
     expect(skills).toContain("} else if (error instanceof ApiError) {");
+  });
+
+  test("SKILLS error handling names the root error and every branch of the tree", () => {
+    for (const name of [
+      "`OpenAPIError` (root)",
+      "`SerializationError`",
+      "`OAuth2ServerError`",
+      "`OAuth2TokenError`",
+      "} else if (error instanceof OpenAPIError) {",
+    ]) {
+      expect(skills).toContain(name);
+    }
   });
 
   test("README documents schema constraints, uniqueItems order, cancellation and the custom fetch", () => {

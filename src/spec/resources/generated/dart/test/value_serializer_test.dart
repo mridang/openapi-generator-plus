@@ -8,6 +8,8 @@
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
+import 'package:petstore_client/petstore_client.dart'
+    show SerializationException;
 import 'package:petstore_client/src/value_serializer.dart';
 import 'package:petstore_client/src/object_serializer.dart' show stringify;
 
@@ -565,6 +567,105 @@ void main() {
     test('serializeDeepObject null', () {
       final result = serializeDeepObject('filter', null);
       expect(result, isEmpty);
+    });
+
+    // Object-valued parameters (D47)
+
+    final criteria = <String, Object?>{'breed': 'lab', 'min_age': 3};
+
+    test(
+      'serializeStyled explodes a form-style object into one pair per property',
+      () {
+        final result = serializeStyled(
+          'criteria',
+          criteria,
+          'query',
+          'object',
+          '',
+          'form',
+          true,
+        );
+        expect(result, isA<ExplodedObject>());
+        expect(
+          (result as ExplodedObject).pairs,
+          equals({'breed': 'lab', 'min_age': '3'}),
+        );
+      },
+    );
+
+    test(
+      'serializeStyled joins a non-exploded form-style object into one value',
+      () {
+        expect(
+          serializeStyled(
+            'criteria',
+            criteria,
+            'query',
+            'object',
+            '',
+            'form',
+            false,
+          ),
+          equals('breed,lab,min_age,3'),
+        );
+      },
+    );
+
+    test('serializeStyled writes a simple-style object as a header list', () {
+      expect(
+        serializeStyled(
+          'X-Criteria',
+          criteria,
+          'header',
+          'object',
+          '',
+          'simple',
+          false,
+        ),
+        equals('breed,lab,min_age,3'),
+      );
+      expect(
+        serializeStyled(
+          'X-Criteria',
+          criteria,
+          'header',
+          'object',
+          '',
+          'simple',
+          true,
+        ),
+        equals('breed=lab,min_age=3'),
+      );
+    });
+
+    test('serializeStyled refuses a nested object leaf', () {
+      final nested = <String, Object?>{
+        'a': {'b': 1},
+      };
+      expect(
+        () => serializeStyled(
+          'criteria',
+          nested,
+          'query',
+          'object',
+          '',
+          'form',
+          true,
+        ),
+        throwsA(isA<SerializationException>()),
+      );
+      expect(
+        () => serializeDeepObject('criteria', nested),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('parameterObject leaves scalars, lists and dates alone', () {
+      expect(parameterObject('x'), isNull);
+      expect(parameterObject(<String>['a']), isNull);
+      expect(parameterObject(DateTime.utc(2024)), isNull);
+      expect(parameterObject(null), isNull);
+      expect(parameterObject(criteria), equals(criteria));
     });
 
     // Fallback

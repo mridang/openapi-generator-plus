@@ -694,6 +694,32 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert result["headers"]["accept"] == "application/xml"
   end
 
+  test "an explicit Accept header parameter beats the config default and the negotiated Accept",
+       %{chasm_url: chasm_url} do
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: chasm_url,
+        default_headers: %{"Accept" => "application/xml"}
+      )
+
+    state = %{config: config, api_client: PetstoreClient.DefaultApiClient.new()}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{"Accept" => "text/plain"},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object"
+             )
+
+    assert result["headers"]["accept"] == "text/plain"
+  end
+
   # Body serialization
 
   test "serializes JSON body for POST", %{state: state} do
@@ -878,20 +904,22 @@ defmodule PetstoreClient.Api.BaseApiTest do
       cookies: %{"session" => "abc123"}
     }
 
-    # Invoke with auth - the important thing is that it does not crash
-    _result =
-      PetstoreClient.Api.BaseApi.invoke_api(
-        state,
-        :get,
-        "/test/echo",
-        %{},
-        %{},
-        nil,
-        ["application/json"],
-        "application/json",
-        nil,
-        auth
-      )
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object",
+               auth
+             )
+
+    # chasm echoes the request headers (lowercased) under .headers
+    assert result["headers"]["cookie"] == "session=abc123"
   end
 
   # An authenticator cookie holding characters RFC 6265 forbids is a caller
@@ -1468,6 +1496,74 @@ defmodule PetstoreClient.Api.BaseApiTest do
            "Expected per-call auth header, got: #{inspect(headers)}"
 
     Agent.stop(name)
+  end
+
+  defmodule TokenAndApiClient do
+    # A struct-style api_client that answers a token request and the API call
+    # alike, and records every URL it was asked for.
+    defstruct [:agent]
+
+    def new do
+      {:ok, agent} = Agent.start_link(fn -> [] end)
+      %__MODULE__{agent: agent}
+    end
+
+    def send_request(%__MODULE__{agent: agent}, _method, url, headers, _body) do
+      Agent.update(agent, &(&1 ++ [{url, headers}]))
+
+      if String.ends_with?(url, "/token") do
+        %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "per-call-tok", "expires_in" => 3600}),
+          headers: %{"Content-Type" => "application/json"}
+        }
+      else
+        %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          body: "",
+          headers: %{"Content-Type" => "application/json"}
+        }
+      end
+    end
+
+    def requests(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1)
+  end
+
+  test "a per-call OAuth2 authenticator is handed the client's transport" do
+    api_client = TokenAndApiClient.new()
+
+    per_call_auth =
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+        "http://localhost",
+        "cid",
+        "secret",
+        "http://auth.example.com/token",
+        []
+      )
+
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: api_client}
+
+    assert {:ok, _} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/items",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil,
+               per_call_auth
+             )
+
+    [{token_url, _}, {api_url, api_headers}] = TokenAndApiClient.requests(api_client)
+    assert token_url == "http://auth.example.com/token"
+    assert api_url == "http://localhost/items"
+    assert api_headers["Authorization"] == "Bearer per-call-tok"
+
+    PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.close(per_call_auth)
   end
 
   # AUTH-APPLIED (Wave A1): a configured authenticator must actually be applied

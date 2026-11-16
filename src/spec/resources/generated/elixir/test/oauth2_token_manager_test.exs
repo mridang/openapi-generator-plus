@@ -7,7 +7,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     def new(responses) do
       {:ok, agent} =
         Agent.start_link(fn ->
-          %{responses: responses, last_url: nil, last_body: nil, bodies: [], call_count: 0}
+          %{
+            responses: responses,
+            last_url: nil,
+            last_body: nil,
+            last_headers: nil,
+            bodies: [],
+            call_count: 0
+          }
         end)
 
       %__MODULE__{agent: agent}
@@ -15,7 +22,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
 
     # A queued exception is raised instead of answered, to simulate a
     # transport failure.
-    def send_request(%__MODULE__{agent: agent}, _method, url, _headers, body) do
+    def send_request(%__MODULE__{agent: agent}, _method, url, headers, body) do
       response =
         Agent.get_and_update(agent, fn state ->
           [response | rest] = state.responses
@@ -25,6 +32,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
             | responses: rest,
               last_url: url,
               last_body: body,
+              last_headers: headers,
               bodies: state.bodies ++ [body],
               call_count: state.call_count + 1
           }
@@ -37,6 +45,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
 
     def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
     def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
+    def last_headers(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_headers)
     def bodies(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.bodies)
     def call_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.call_count)
   end
@@ -420,6 +429,57 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
 
         assert FakeApiClient.call_count(fake_client) == 1
       end
+    end
+
+    test "the token request carries a form-urlencoded Content-Type and a JSON Accept" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               "https://auth.example.com/token",
+               %{"grant_type" => "client_credentials"}
+             ) == "tok"
+
+      headers = FakeApiClient.last_headers(fake_client)
+      assert headers["Content-Type"] == "application/x-www-form-urlencoded"
+      assert headers["Accept"] == "application/json"
+    end
+
+    test "an oversized expires_in is clamped to one year" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{"access_token" => "forever", "expires_in" => 99_999_999_999_999})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+      before = System.monotonic_time(:millisecond)
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "forever"
+
+      expiry = Agent.get(manager, & &1.token_expiry)
+      assert expiry <= before + 31_536_000 * 1000 + 5_000
+      assert expiry > before + 31_536_000 * 1000 - 120_000
     end
 
     test "refresh_token empty string preserves existing" do

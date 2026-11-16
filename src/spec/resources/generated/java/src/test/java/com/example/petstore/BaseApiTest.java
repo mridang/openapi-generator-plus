@@ -740,17 +740,20 @@ class BaseApiTest {
     @DisplayName("sets Cookie header from auth cookies")
     void setsCookieHeader() throws Exception {
       var auth = new TestAuthenticator(Map.of(), Map.of(), Map.of("session", "abc123"));
-      api()
-          .call(
-              "GET",
-              "/test/echo",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"application/json"},
-              "application/json",
-              null,
-              auth);
+      JsonNode result =
+          api()
+              .call(
+                  "GET",
+                  "/test/echo",
+                  new HashMap<>(),
+                  new HashMap<>(),
+                  null,
+                  new String[] {"application/json"},
+                  "application/json",
+                  JSON_NODE_TYPE,
+                  auth);
+      assertNotNull(result);
+      assertEquals("session=abc123", result.get("headers").get("cookie").asText());
     }
 
     @Test
@@ -1352,6 +1355,30 @@ class BaseApiTest {
           "application/xml",
           client.capturedHeaders.get("Accept"),
           "config default Accept must override the negotiated Accept");
+    }
+
+    @Test
+    void headerParamAcceptWinsOverTheConfigDefaultAndTheNegotiatedAccept() throws ApiException {
+      var client = new CapturingApiClient();
+      var config = new Configuration("http://localhost", Map.of("Accept", "application/xml"));
+      var testApi = new TestableApi(client, config);
+      Map<String, String> headerParams = new HashMap<>();
+      headerParams.put("Accept", "text/plain");
+      testApi.call(
+          "GET",
+          "/test/echo",
+          new HashMap<>(),
+          headerParams,
+          null,
+          new String[] {"application/json"},
+          "application/json",
+          null,
+          null);
+      assertEquals(
+          "text/plain",
+          client.capturedHeaders.get("Accept"),
+          "an explicit Accept header parameter must beat the config default and the negotiated"
+              + " Accept");
     }
   }
 

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -24,6 +24,27 @@ const NANOS_PER_SECOND = 1_000_000_000n;
  * `"-1.5s"`).
  */
 const PROTO_DURATION_PATTERN = /^-?\d+(\.\d{1,9})?s$/;
+
+/**
+ * Whether a value is a Temporal object of the given kind (or of any kind when
+ * none is named), judged by its `Symbol.toStringTag`, which both the
+ * polyfill and a native `Temporal` set. An `instanceof` test against this
+ * module's own polyfill copy would be false for a native object, or for one
+ * from a second copy of the polyfill.
+ *
+ * @param value the value to test
+ * @param kind a Temporal class name such as `PlainTime` or `Duration`
+ * @returns true when the value is such a Temporal object
+ */
+export function isTemporalValue(value: unknown, kind?: string): boolean {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const tag = Object.prototype.toString.call(value);
+  return kind === undefined
+    ? tag.startsWith("[object Temporal.")
+    : tag === `[object Temporal.${kind}]`;
+}
 
 /**
  * Total nanoseconds in a {@link Temporal.Duration} as an exact BigInt.
@@ -427,6 +448,51 @@ function withAdditionalPropertiesKey(value: object): object {
   return copy;
 }
 
+/**
+ * Re-keys a model instance under the wire names of its renamed properties, when
+ * the model declares any in its static `__wireNames`. The copy keeps the model
+ * prototype so the registry lookups on its constructor still work.
+ */
+function withWireNames(value: object): object {
+  const names = (
+    value.constructor as
+      { __wireNames?: Readonly<Record<string, string>> } | undefined
+  )?.__wireNames;
+  if (!names) {
+    return value;
+  }
+  const copy = Object.create(Object.getPrototypeOf(value) as object) as object;
+  for (const [key, descriptor] of Object.entries(
+    Object.getOwnPropertyDescriptors(value),
+  )) {
+    Object.defineProperty(
+      copy,
+      Object.prototype.hasOwnProperty.call(names, key) ? names[key] : key,
+      descriptor,
+    );
+  }
+  return copy;
+}
+
+/**
+ * The property name behind a wire key of a holder re-keyed by
+ * {@link withWireNames}; the key itself when it was not renamed.
+ */
+function propertyNameOf(holder: unknown, wireKey: string): string {
+  const names = (
+    holder as {
+      constructor?: { __wireNames?: Readonly<Record<string, string>> };
+    } | null
+  )?.constructor?.__wireNames;
+  if (!names) {
+    return wireKey;
+  }
+  return (
+    Object.keys(names).find((property) => names[property] === wireKey) ??
+    wireKey
+  );
+}
+
 function revalidateNestedFields(holder: Record<string, unknown>): void {
   for (const key of Object.keys(holder)) {
     holder[key] = revalidateNestedValue(holder[key]);
@@ -630,6 +696,7 @@ export class ObjectSerializer {
           !Array.isArray(value)
         ) {
           value = withAdditionalPropertiesKey(value as object);
+          value = withWireNames(value as object);
         }
         if (value !== null && typeof value === "object") {
           const holder = this as unknown as object;
@@ -679,9 +746,9 @@ export class ObjectSerializer {
          * google.protobuf.Duration field rejects the ISO form. Without these
          * branches JSON.stringify would emit the polyfill's internal object.
          */
-        if (this[_key] instanceof Temporal.PlainTime)
+        if (isTemporalValue(this[_key], "PlainTime"))
           return formatPlainTime(this[_key] as Temporal.PlainTime);
-        if (this[_key] instanceof Temporal.Duration)
+        if (isTemporalValue(this[_key], "Duration"))
           return durationToProtoJson(this[_key] as Temporal.Duration);
         /**
          * 2.5 — `type: number` (no format) Decimal field. The model holds it
@@ -701,6 +768,7 @@ export class ObjectSerializer {
          * applies only to plain objects that are not nested inside a model
          * instance, so a free-form value never changes JSON type.
          */
+        const propKey = propertyNameOf(this, _key);
         if (typeof value === "string") {
           const ctor = (this as { constructor?: unknown }).constructor as
             { __decimalFields?: ReadonlySet<string> } | undefined;
@@ -710,8 +778,8 @@ export class ObjectSerializer {
               : undefined;
           const plainFallback =
             !underModel.has(this as unknown as object) &&
-            decimalFieldNames().has(_key);
-          if (ownDecimals ? ownDecimals.has(_key) : plainFallback) {
+            decimalFieldNames().has(propKey);
+          if (ownDecimals ? ownDecimals.has(propKey) : plainFallback) {
             return rawDecimal(value);
           }
           const uuidCtor = ctor as
@@ -722,9 +790,9 @@ export class ObjectSerializer {
               : undefined;
           if (
             ownUuids
-              ? ownUuids.has(_key)
+              ? ownUuids.has(propKey)
               : !underModel.has(this as unknown as object) &&
-                uuidFieldNames().has(_key)
+                uuidFieldNames().has(propKey)
           ) {
             if (UUID_SHAPE.test(value)) {
               return value.toLowerCase();
@@ -744,7 +812,7 @@ export class ObjectSerializer {
             { __requiredNullableFields?: ReadonlySet<string> } | undefined;
           if (
             nullableCtor?.__requiredNullableFields instanceof Set &&
-            nullableCtor.__requiredNullableFields.has(_key)
+            nullableCtor.__requiredNullableFields.has(propKey)
           ) {
             return null;
           }
@@ -1269,11 +1337,11 @@ export class ObjectSerializer {
      * (e.g. "3600s") rather than ISO-8601 ("PT15M"); google.protobuf.Duration
      * fields accept only the seconds-suffixed form.
      */
-    if (value instanceof Temporal.PlainTime) {
-      return formatPlainTime(value);
+    if (isTemporalValue(value, "PlainTime")) {
+      return formatPlainTime(value as Temporal.PlainTime);
     }
-    if (value instanceof Temporal.Duration) {
-      return durationToProtoJson(value);
+    if (isTemporalValue(value, "Duration")) {
+      return durationToProtoJson(value as Temporal.Duration);
     }
     return String(value);
   }

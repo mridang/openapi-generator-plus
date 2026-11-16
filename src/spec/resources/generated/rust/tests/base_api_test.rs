@@ -356,26 +356,26 @@ impl petstore::api_client::ApiClient for PlainTextApiClient {
     }
 }
 
+/* D32: a text/plain 200 for an operation that returns a model is a
+ * SerializationError naming the Content-Type, never a silently dropped body. */
 #[tokio::test]
-async fn test_base_api_skips_deserialization_for_non_json() {
+async fn test_base_api_rejects_a_text_plain_body_for_a_model_return() {
     let client = Arc::new(PlainTextApiClient);
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client, config, None);
-    /* Non-JSON responses should skip deserialization entirely.
-     * The result should be Ok with data = None, not an error from serde. */
-    let result = api.get_pet_by_id_with_http_info(1, None).await;
-    match result {
-        Ok(api_result) => {
-            assert!(
-                api_result.data().is_none(),
-                "expected data to be None for non-JSON response"
-            );
-            assert_eq!(api_result.raw_body(), "hello plain text");
-        }
-        Err(_) => { /* If the API returns an error, it should not be a deserialization error */ }
-    }
+    let err = api
+        .get_pet_by_id_with_http_info(1, None)
+        .await
+        .expect_err("a text/plain body for a model return must be an error");
+    let serialization = err
+        .downcast_ref::<SerializationError>()
+        .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
+    assert_eq!(
+        "Unexpected response Content-Type 'text/plain' for a JSON return type",
+        serialization.message()
+    );
 }
 
 struct VendorJsonApiClient;
@@ -422,10 +422,21 @@ async fn test_base_api_deserializes_vendor_json_mime_type() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client, config, None);
-    /* The vendor JSON MIME type (application/problem+json) should be recognized as JSON.
-     * The call may fail for other reasons (e.g. schema mismatch), but it should attempt
-     * JSON deserialization rather than treating the response as raw text. */
-    let _ = api.get_pet_by_id(1, None).await;
+    /* The vendor JSON MIME type (application/problem+json) is JSON, so the body
+     * goes through the model decoder: it lacks the required members, which is a
+     * SerializationError from the decoder and not the Content-Type error. */
+    let err = api
+        .get_pet_by_id(1, None)
+        .await
+        .expect_err("the JSON body lacks the required members");
+    let serialization = err
+        .downcast_ref::<SerializationError>()
+        .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
+    assert!(
+        !serialization.message().contains("Content-Type"),
+        "a vendor JSON type must be decoded as JSON, got: {}",
+        serialization.message()
+    );
 }
 
 // -- No-op authenticator for unit tests --
@@ -1439,7 +1450,7 @@ async fn test_binary_response_octet_stream_decoded_from_base64() {
     let api = PetApi::new(client, config, None);
 
     let result = api
-        .get_pet_by_id_with_http_info(1, None)
+        .get_pet_avatar_with_http_info(1)
         .await
         .expect("binary response must surface as Ok");
 
@@ -1478,7 +1489,7 @@ async fn test_binary_response_image_png_decoded_from_base64() {
     let api = PetApi::new(client, config, None);
 
     let result = api
-        .get_pet_by_id_with_http_info(1, None)
+        .get_pet_avatar_with_http_info(1)
         .await
         .expect("binary response must surface as Ok");
 
@@ -1489,17 +1500,21 @@ async fn test_binary_response_image_png_decoded_from_base64() {
 }
 
 #[tokio::test]
-async fn test_binary_response_json_parsed_to_object() {
+async fn test_json_response_for_a_model_return_is_parsed_to_the_model() {
     let client = Arc::new(BinaryResponseApiClient {
-        body: r#"{"id":42,"name":"test"}"#.to_string(),
+        body: r#"{"id":42,"name":"test","photoUrls":["u"]}"#.to_string(),
         content_type: "application/json".to_string(),
     });
     let config = ConfigurationBuilder::new()
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client, config, None);
-    // The API may not deserialize cleanly to a Pet, but should not panic
-    let _ = api.get_pet_by_id(42, None).await;
+    let pet = api
+        .get_pet_by_id(42, None)
+        .await
+        .expect("a JSON body for a model return must decode");
+    assert_eq!(Some(42), pet.id);
+    assert_eq!("test", pet.name);
 }
 
 #[tokio::test]
@@ -1529,7 +1544,7 @@ async fn test_byte_over_json_response_decodes_to_bytes() {
 }
 
 #[tokio::test]
-async fn test_binary_response_text_plain_returns_string() {
+async fn test_text_plain_body_for_a_string_return_is_the_text() {
     let client = Arc::new(BinaryResponseApiClient {
         body: "hello world".to_string(),
         content_type: "text/plain".to_string(),
@@ -1538,12 +1553,39 @@ async fn test_binary_response_text_plain_returns_string() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client, config, None);
-    // Should not panic; deserialization failure acceptable for non-JSON
-    let _ = api.get_pet_by_id(1, None).await;
+    let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 15).expect("a valid date");
+    let summary = api
+        .get_pet_summary(1, as_of, Some(&GetPetSummaryOptions::new("s".to_string())))
+        .await
+        .expect("a text/plain body for a String return is the text");
+    assert_eq!("hello world", summary);
 }
 
 #[tokio::test]
-async fn test_binary_response_empty_body_no_panic() {
+async fn test_text_plain_body_for_a_model_return_is_a_serialization_error_naming_the_type() {
+    let client = Arc::new(BinaryResponseApiClient {
+        body: "hello world".to_string(),
+        content_type: "text/plain; charset=utf-8".to_string(),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client, config, None);
+    let err = api
+        .get_pet_by_id(1, None)
+        .await
+        .expect_err("text/plain cannot be a model");
+    let serialization = err
+        .downcast_ref::<SerializationError>()
+        .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
+    assert_eq!(
+        "Unexpected response Content-Type 'text/plain' for a JSON return type",
+        serialization.message()
+    );
+}
+
+#[tokio::test]
+async fn test_binary_response_empty_body_is_accepted_by_a_void_operation() {
     let client = Arc::new(BinaryResponseApiClient {
         body: "".to_string(),
         content_type: "application/octet-stream".to_string(),
@@ -1553,10 +1595,10 @@ async fn test_binary_response_empty_body_no_panic() {
         .build();
     let api = PetApi::new(client, config, None);
     let auth = NoopAuthenticator;
-    // DeletePet is void -- empty body should not panic
-    let _ = api
-        .delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
-        .await;
+    // DeletePet is void -- an empty body is a success
+    api.delete_pet(1, Some(&DeletePetOptions::new().auth(Arc::new(auth))))
+        .await
+        .expect("a void operation accepts an empty body");
 }
 
 // -- NullBodyContentTypeTests --
@@ -2122,4 +2164,171 @@ async fn test_base_api_inherited_security_op_applies_client_authenticator() {
         Some("Bearer leaked-token"),
         "an inherited-security op with a configured client authenticator must apply its credential"
     );
+}
+
+/* F855, F856: a token-flow authenticator is told to drop its token when the
+ * API answers 401, the request is replayed once with the new credentials, and
+ * a per-call authenticator is handed the transport before it is used. */
+struct RenewableAuthenticator {
+    generation: std::sync::atomic::AtomicUsize,
+    injected: std::sync::atomic::AtomicUsize,
+}
+
+impl RenewableAuthenticator {
+    fn new() -> Self {
+        RenewableAuthenticator {
+            generation: std::sync::atomic::AtomicUsize::new(0),
+            injected: std::sync::atomic::AtomicUsize::new(0),
+        }
+    }
+}
+
+impl petstore::auth::Authenticator for RenewableAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+    {
+        Box::pin(async move {
+            let mut headers = HashMap::new();
+            headers.insert(
+                "Authorization".to_string(),
+                format!(
+                    "Bearer gen{}",
+                    self.generation.load(std::sync::atomic::Ordering::SeqCst)
+                ),
+            );
+            headers
+        })
+    }
+
+    fn inject_api_client(&self, _client: Arc<dyn petstore::api_client::ApiClient>) {
+        self.injected
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn invalidate_access_token<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
+        Box::pin(async move {
+            self.generation
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            true
+        })
+    }
+}
+
+/// Answers the statuses in order and records the Authorization header of each request.
+struct StatusSequenceApiClient {
+    statuses: Mutex<Vec<u16>>,
+    authorizations: Mutex<Vec<Option<String>>>,
+}
+
+impl petstore::api_client::ApiClient for StatusSequenceApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        headers: &HashMap<String, String>,
+        _body: Option<&petstore::api_client::RequestBody>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        petstore::api_http_response::ApiHttpResponse,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        self.authorizations
+            .lock()
+            .unwrap()
+            .push(headers.get("Authorization").cloned());
+        let status = self.statuses.lock().unwrap().remove(0);
+        Box::pin(async move {
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
+                status,
+                "{}".to_string(),
+                {
+                    let mut h = HashMap::new();
+                    h.insert("Content-Type".to_string(), "application/json".to_string());
+                    h
+                },
+            ))
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_a_401_renews_the_token_and_replays_the_request_once() {
+    let client = Arc::new(StatusSequenceApiClient {
+        statuses: Mutex::new(vec![401, 200]),
+        authorizations: Mutex::new(Vec::new()),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = Arc::new(RenewableAuthenticator::new());
+
+    api.delete_pet(1, Some(&DeletePetOptions::new().auth(auth.clone())))
+        .await
+        .expect("the replay with the new token succeeds");
+
+    assert_eq!(
+        vec![
+            Some("Bearer gen0".to_string()),
+            Some("Bearer gen1".to_string())
+        ],
+        *client.authorizations.lock().unwrap()
+    );
+}
+
+#[tokio::test]
+async fn test_a_second_401_is_reported_after_one_replay() {
+    let client = Arc::new(StatusSequenceApiClient {
+        statuses: Mutex::new(vec![401, 401]),
+        authorizations: Mutex::new(Vec::new()),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = Arc::new(RenewableAuthenticator::new());
+
+    let err = api
+        .delete_pet(1, Some(&DeletePetOptions::new().auth(auth.clone())))
+        .await
+        .expect_err("a 401 that survives the replay is an error");
+
+    assert!(
+        err.downcast_ref::<UnauthorizedError>().is_some(),
+        "got: {}",
+        err
+    );
+    assert_eq!(2, client.authorizations.lock().unwrap().len());
+}
+
+#[tokio::test]
+async fn test_a_per_call_authenticator_is_given_the_transport() {
+    let client = Arc::new(StatusSequenceApiClient {
+        statuses: Mutex::new(vec![200]),
+        authorizations: Mutex::new(Vec::new()),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client, config, None);
+    let auth = Arc::new(RenewableAuthenticator::new());
+
+    api.delete_pet(1, Some(&DeletePetOptions::new().auth(auth.clone())))
+        .await
+        .expect("delete_pet failed");
+
+    assert_eq!(1, auth.injected.load(std::sync::atomic::Ordering::SeqCst));
 }

@@ -225,6 +225,23 @@ mod tests {
         }
     }
 
+    /* D57, F080: a date-time without an offset is rejected whatever the host
+     * zone, with or without a fraction. */
+    #[test]
+    fn test_deserialize_rejects_a_date_time_without_an_offset() {
+        for text in [
+            "2024-01-01T12:30:45",
+            "2024-01-01T12:30:45.123",
+            "2024-01-01 12:30:45",
+        ] {
+            assert!(
+                serde_json::from_str::<DateTime>(&format!("\"{text}\"")).is_err(),
+                "{text} has no offset and must be rejected"
+            );
+            assert!(text.parse::<DateTime>().is_err(), "{text} must not parse");
+        }
+    }
+
     #[test]
     fn test_deserialize_rejects_non_date_time() {
         assert!(serde_json::from_str::<DateTime>("\"not-a-date\"").is_err());

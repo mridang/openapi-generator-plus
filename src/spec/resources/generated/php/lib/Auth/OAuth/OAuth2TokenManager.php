@@ -41,6 +41,9 @@ use PetstoreClient\Errors\OpenAPIException;
  */
 final class OAuth2TokenManager
 {
+    /** Ceiling in seconds applied to a server-supplied expires_in (one year). */
+    private const int MAX_EXPIRES_IN_SECONDS = 31536000;
+
     /** @var ApiClient|null The shared API client for making token requests. */
     private ?ApiClient $apiClient = null;
 
@@ -298,11 +301,11 @@ final class OAuth2TokenManager
              * (preferable to caching a token of unknown lifetime forever). */
             $expiresIn = $this->parseExpiresIn($responseBody['expires_in']);
             if ($expiresIn > 0) {
-                /* One margin only: the token is refreshed 30 s early, never
-                 * more than its whole lifetime, so a 60 s token is reused
-                 * for 30 s and not refetched on every call. */
-                $bufferSecs = min($expiresIn, 30);
-                $this->tokenExpiry = microtime(true) + $expiresIn - $bufferSecs;
+                /* One margin only, applied here and never again when the token
+                 * is read: min(60 s, half the lifetime), so a 60 s token is
+                 * reused for 30 s and not refetched on every call. */
+                $margin = min(60.0, $expiresIn / 2);
+                $this->tokenExpiry = microtime(true) + $expiresIn - $margin;
             } else {
                 $this->tokenExpiry = microtime(true);
             }
@@ -318,7 +321,9 @@ final class OAuth2TokenManager
      *
      * Returns `0` (caller skips caching) when the value is missing,
      * unparseable, or non-positive. Accepts integers, floors floats,
-     * and parses digit strings (e.g. `"3600"` from Salesforce).
+     * and parses strings matching `^[0-9]+(\.[0-9]+)?$` after trimming ASCII
+     * whitespace (e.g. `"3600"` from Salesforce). The result never exceeds
+     * one year.
      *
      * @param mixed $raw the raw JSON-decoded value
      */
@@ -344,25 +349,24 @@ final class OAuth2TokenManager
 
     private function parseExpiresIn(mixed $raw): int
     {
+        $ceiling = (float) self::MAX_EXPIRES_IN_SECONDS;
         if (is_int($raw)) {
-            return $raw;
+            return min($raw, self::MAX_EXPIRES_IN_SECONDS);
         }
         if (is_float($raw)) {
             if (is_nan($raw) || is_infinite($raw)) {
                 return 0;
             }
-            return (int) floor($raw);
+            return (int) min(floor($raw), $ceiling);
         }
         if (is_string($raw)) {
-            $trimmed = trim($raw);
-            if ($trimmed === '' || !is_numeric($trimmed)) {
+            $trimmed = trim($raw, " \t\n\v\f\r");
+            if (preg_match('/^[0-9]+(\.[0-9]+)?$/D', $trimmed) !== 1) {
                 return 0;
             }
-            $parsed = (float) $trimmed;
-            if (is_nan($parsed) || is_infinite($parsed)) {
-                return 0;
-            }
-            return (int) floor($parsed);
+            /* A digit run too long for a float becomes INF, which the
+             * ceiling saturates rather than treating as stale. */
+            return (int) min(floor((float) $trimmed), $ceiling);
         }
         return 0;
     }

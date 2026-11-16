@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -80,6 +80,25 @@ export class Account {
         `password must be a string, got ${typeof this.password}`,
       );
     }
+  }
+
+  /**
+   * String form for `util.inspect` and `console.log`: every `format: password`
+   * field prints as `***`. The field and the JSON sent on the wire keep the
+   * real value.
+   */
+  [Symbol.for("nodejs.util.inspect.custom")](
+    _depth: number,
+    options: Record<string, unknown>,
+    inspect: (value: unknown, options?: Record<string, unknown>) => string,
+  ): string {
+    const masked: Record<string, unknown> = {
+      ...(this as unknown as Record<string, unknown>),
+    };
+    if (masked["password"] != null) {
+      masked["password"] = "***";
+    }
+    return `Account ${inspect(masked, options)}`;
   }
 
   /**

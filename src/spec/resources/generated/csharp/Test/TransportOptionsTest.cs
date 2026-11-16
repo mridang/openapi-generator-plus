@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -125,7 +125,6 @@ public class TransportOptionsTest
     public void NegativeTimeoutThrowsException()
     {
         Assert.Throws<ArgumentException>(() => TransportOptions.Builder().Timeout(-1));
-        Assert.Equal(0, TransportOptions.Builder().Timeout(0).Build().Timeout);
     }
 
     [Fact]
@@ -136,6 +135,31 @@ public class TransportOptionsTest
         var ex = Assert.Throws<ArgumentException>(() => TransportOptions.Builder().Timeout(-5));
         Assert.StartsWith(
             "Invalid timeout: must be a positive number of milliseconds (got -5)",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Theory]
+    [InlineData("socks5://svc:s3cret@proxy:1080")]
+    [InlineData("svc:s3cret@proxy:1080 not a url")]
+    [InlineData("ftp://svc:s3cret@proxy:1080/path")]
+    public void ProxyErrorsNeverEchoThePassword(string proxy)
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy(proxy).Build()
+        );
+
+        Assert.DoesNotContain("s3cret", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("***@", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RejectsAZeroTimeoutWithTheCanonicalMessage()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => TransportOptions.Builder().Timeout(0));
+        Assert.StartsWith(
+            "Invalid timeout: must be a positive number of milliseconds (got 0)",
             ex.Message,
             StringComparison.Ordinal
         );

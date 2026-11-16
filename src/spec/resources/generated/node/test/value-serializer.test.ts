@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -7,8 +7,10 @@
 
 import {
   AllowReservedValue,
+  ExplodedObject,
   ValueSerializer,
 } from "../src/value-serializer.js";
+import { SerializationError } from "../src/errors/serialization-error.js";
 
 describe("ValueSerializer", () => {
   describe("path location", () => {
@@ -769,6 +771,133 @@ describe("ValueSerializer", () => {
     test("null returns empty object", () => {
       const result = ValueSerializer.serializeDeepObject("filter", null);
       expect(result).toEqual({});
+    });
+  });
+
+  describe("object-valued parameters", () => {
+    class Criteria {
+      color?: string | null;
+      min_count?: number;
+      note?: string | null;
+      constructor(data: Partial<Criteria>) {
+        Object.assign(this, data);
+      }
+    }
+    const criteria = new Criteria({ color: "red", min_count: 3, note: null });
+
+    test("toWireMap keeps declaration order and drops nulls", () => {
+      expect(ValueSerializer.toWireMap("criteria", criteria)).toEqual([
+        ["color", "red"],
+        ["min_count", "3"],
+      ]);
+    });
+
+    test("toWireMap rejects a nested object leaf", () => {
+      const error = (() => {
+        try {
+          ValueSerializer.toWireMap("criteria", { inner: { deeper: 1 } });
+          return undefined;
+        } catch (e) {
+          return e;
+        }
+      })();
+
+      expect(error).toBeInstanceOf(SerializationError);
+      expect((error as Error).message).toBe(
+        "Parameter 'criteria' has a nested value under 'inner', which cannot be written in this style",
+      );
+    });
+
+    test("toWireMap rejects an array leaf", () => {
+      expect(() =>
+        ValueSerializer.toWireMap("criteria", { tags: ["a"] }),
+      ).toThrow(SerializationError);
+    });
+
+    test("form with explode false is one comma-joined value", () => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "criteria",
+          criteria,
+          "query",
+          "Criteria",
+          null,
+          "form",
+          false,
+        ),
+      ).toBe("color,red,min_count,3");
+    });
+
+    test("form with explode true expands to one entry per property", () => {
+      const result = ValueSerializer.serializeStyled(
+        "criteria",
+        criteria,
+        "query",
+        "Criteria",
+        null,
+        "form",
+        true,
+      );
+
+      expect(result).toBeInstanceOf(ExplodedObject);
+      expect((result as ExplodedObject).entries).toEqual([
+        ["color", "red"],
+        ["min_count", "3"],
+      ]);
+    });
+
+    test.each([
+      ["simple", false, "color,red,min_count,3"],
+      ["simple", true, "color=red,min_count=3"],
+      ["matrix", false, ";criteria=color,red,min_count,3"],
+      ["matrix", true, ";color=red;min_count=3"],
+      ["label", false, ".color,red,min_count,3"],
+      ["label", true, ".color=red.min_count=3"],
+      ["pipeDelimited", false, "color|red|min_count|3"],
+      ["spaceDelimited", false, "color red min_count 3"],
+    ])("style %s with explode %p", (style, explode, expected) => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "criteria",
+          criteria,
+          "header",
+          "Criteria",
+          null,
+          style,
+          explode,
+        ),
+      ).toBe(expected);
+    });
+
+    test("a Date is still a single value, not an object", () => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "at",
+          new Date(Date.UTC(2024, 0, 1)),
+          "query",
+          "Date",
+          null,
+          "form",
+          true,
+        ),
+      ).toBe("2024-01-01T00:00:00.000+00:00");
+    });
+
+    test("deepObject uses wire names and rejects a nested leaf", () => {
+      expect(
+        ValueSerializer.serializeDeepObject(
+          "criteria",
+          criteria as unknown as Record<string, unknown>,
+        ),
+      ).toEqual({
+        "criteria[color]": "red",
+        "criteria[min_count]": "3",
+      });
+      expect(() =>
+        ValueSerializer.serializeDeepObject("criteria", {
+          inner: { deeper: 1 },
+        }),
+      ).toThrow(SerializationError);
     });
   });
 

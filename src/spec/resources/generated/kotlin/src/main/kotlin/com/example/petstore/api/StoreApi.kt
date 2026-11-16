@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -156,11 +156,12 @@ class StoreApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         if (options?.querySwatch != null) {
-            queryParams["querySwatch"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("querySwatch", options!!.querySwatch, "query", "Swatch", null, "form", true),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "querySwatch",
+                ValueSerializer.serializeStyled("querySwatch", options!!.querySwatch, "query", "Swatch", null, "form", true),
+                false,
+            )
         }
         val headerParams = mutableMapOf<String, String>()
         if (options?.preferredSwatch != null) {
@@ -474,11 +475,12 @@ class StoreApi : BaseApi {
         var path = "/store/stock-item"
         val queryParams = mutableMapOf<String, Any?>()
         if (options?.asOf != null) {
-            queryParams["asOf"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("asOf", options!!.asOf, "query", "OffsetDateTime", null, "form", true),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "asOf",
+                ValueSerializer.serializeStyled("asOf", options!!.asOf, "query", "OffsetDateTime", null, "form", true),
+                false,
+            )
         }
         val headerParams = mutableMapOf<String, String>()
 
@@ -696,18 +698,20 @@ class StoreApi : BaseApi {
             queryParams["q"] = objectSerializer.serialize(options!!.q)
         }
         if (options?.labels != null) {
-            queryParams["labels"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("labels", options!!.labels, "query", "Set<String>", "multi", "form", true),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "labels",
+                ValueSerializer.serializeStyled("labels", options!!.labels, "query", "Set<String>", "multi", "form", true),
+                false,
+            )
         }
         if (options?.at != null) {
-            queryParams["at"] =
-                ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("at", options!!.at, "query", "LocalTime", null, "form", true),
-                    false,
-                )
+            ValueSerializer.putQuery(
+                queryParams,
+                "at",
+                ValueSerializer.serializeStyled("at", options!!.at, "query", "LocalTime", null, "form", true),
+                false,
+            )
         }
         val headerParams = mutableMapOf<String, String>()
         if (options?.xFilter != null) {

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -689,6 +689,44 @@ class ValueSerializerTest {
         @DisplayName("scalar returns stringified value")
         fun scalarReturnsStringifiedValue() {
             assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "pipeDelimited", false))
+        }
+    }
+
+    @Nested
+    @DisplayName("object-valued parameters")
+    inner class ObjectValuedTests {
+        private val fields = linkedMapOf("breed" to "lab", "min_age" to "3")
+
+        @Test
+        @DisplayName("form exploded in a query spreads one parameter per field")
+        fun formExplodedSpreadsFields() {
+            val styled = ValueSerializer.serializeStyled("criteria", fields, "query", "object", null, "form", true)
+            assertEquals(fields, styled)
+            val params = mutableMapOf<String, Any?>()
+            ValueSerializer.putQuery(params, "criteria", styled, false)
+            assertEquals(mapOf("breed" to "lab", "min_age" to "3"), params)
+        }
+
+        @Test
+        @DisplayName("form not exploded is one comma separated key and value list")
+        fun formNotExplodedIsOneList() {
+            assertEquals("breed,lab,min_age,3", ValueSerializer.serializeStyled("criteria", fields, "query", "object", null, "form", false))
+        }
+
+        @Test
+        @DisplayName("simple joins the fields in a header")
+        fun simpleJoinsFields() {
+            assertEquals("breed,lab,min_age,3", ValueSerializer.serializeStyled("X", fields, "header", "object", null, "simple", false))
+            assertEquals("breed=lab,min_age=3", ValueSerializer.serializeStyled("X", fields, "header", "object", null, "simple", true))
+        }
+
+        @Test
+        @DisplayName("matrix and label prefix the fields in a path")
+        fun matrixAndLabelPrefixFields() {
+            assertEquals(";p=breed,lab,min_age,3", ValueSerializer.serializeStyled("p", fields, "path", "object", null, "matrix", false))
+            assertEquals(";breed=lab;min_age=3", ValueSerializer.serializeStyled("p", fields, "path", "object", null, "matrix", true))
+            assertEquals(".breed,lab,min_age,3", ValueSerializer.serializeStyled("p", fields, "path", "object", null, "label", false))
+            assertEquals(".breed=lab.min_age=3", ValueSerializer.serializeStyled("p", fields, "path", "object", null, "label", true))
         }
     }
 

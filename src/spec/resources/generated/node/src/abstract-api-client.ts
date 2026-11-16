@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -12,9 +12,8 @@ import { ApiError } from "./errors/index.js";
 import { NetworkError } from "./errors/network-error.js";
 import { NetworkTimeoutError } from "./errors/network-timeout-error.js";
 import type { ApiHttpResponse } from "./api-http-response.js";
-import { ObjectSerializer } from "./object-serializer.js";
+import { ObjectSerializer, isTemporalValue } from "./object-serializer.js";
 import { TransportOptions } from "./transport-options.js";
-import { Temporal } from "temporal-polyfill";
 
 /**
  * Header names that MUST be stripped when following a cross-origin
@@ -305,8 +304,20 @@ export abstract class AbstractApiClient implements ApiClient {
 
     if (body != null && typeof body === "object" && !Buffer.isBuffer(body)) {
       const boundary = globalThis.crypto.randomUUID();
+      /* The declared multipart subtype (form-data, mixed, related, ...) is
+       * kept; only the boundary is the SDK's own. */
+      const declaredType = Object.entries(mergedHeaders).find(
+        ([key]) => key.toLowerCase() === "content-type",
+      )?.[1];
+      const subtype =
+        /^multipart\/([\w!#$&.+\-^_]+)\s*(;|$)/i.exec(
+          declaredType ?? "",
+        )?.[1] ?? "form-data";
+      for (const key of Object.keys(mergedHeaders)) {
+        if (key.toLowerCase() === "content-type") delete mergedHeaders[key];
+      }
       mergedHeaders["Content-Type"] =
-        `multipart/form-data; boundary=${boundary}`;
+        `multipart/${subtype}; boundary=${boundary}`;
       body = await this.buildMultipartBody(
         body as Record<string, unknown>,
         boundary,
@@ -389,6 +400,15 @@ export abstract class AbstractApiClient implements ApiClient {
       response = await doFetch(
         url,
         fetchOptions as Parameters<typeof fetch>[1],
+      );
+      /* A secret can ride in a header the fixed list does not know: one the
+       * SDK attached from an authenticator or from default headers. Those
+       * names are tracked by origin and are never sent to another origin. */
+      const attachedCredentialNames = new Set<string>(
+        [
+          ...Object.keys(this.transportOptions.defaultHeaders),
+          ...(options?.credentialHeaderNames ?? []),
+        ].map((name) => name.toLowerCase()),
       );
       const noRedirect = options?.noRedirect === true;
       if (this.transportOptions.followRedirects && !noRedirect) {
@@ -503,8 +523,13 @@ export abstract class AbstractApiClient implements ApiClient {
 
           const redirectHeaders: Record<string, string> = {};
           for (const [k, v] of Object.entries(currentHeaders)) {
-            if (crossOrigin && SENSITIVE_HEADER_NAMES.has(k.toLowerCase()))
+            if (
+              crossOrigin &&
+              (SENSITIVE_HEADER_NAMES.has(k.toLowerCase()) ||
+                attachedCredentialNames.has(k.toLowerCase()))
+            ) {
               continue;
+            }
             if (
               nextBody === undefined &&
               (k.toLowerCase() === "content-type" ||
@@ -791,14 +816,7 @@ export abstract class AbstractApiClient implements ApiClient {
     /* A date, date-time, time or duration is a primitive in the schema, so
      * it is a plain text part in its canonical stringify form; only a
      * model, map or array is a JSON part. */
-    const isScalarObject =
-      value instanceof Date ||
-      value instanceof Temporal.PlainDate ||
-      value instanceof Temporal.PlainTime ||
-      value instanceof Temporal.PlainDateTime ||
-      value instanceof Temporal.Instant ||
-      value instanceof Temporal.ZonedDateTime ||
-      value instanceof Temporal.Duration;
+    const isScalarObject = value instanceof Date || isTemporalValue(value);
     if (typeof value === "object" && value !== null && !isScalarObject) {
       AbstractApiClient.assertNoControlChars(name, "multipart field name");
       const escapedName = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');

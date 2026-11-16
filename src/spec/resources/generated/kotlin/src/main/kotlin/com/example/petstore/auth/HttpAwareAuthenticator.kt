@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -38,4 +38,11 @@ interface HttpAwareAuthenticator : Authenticator {
      * @param apiClient the shared API client instance
      */
     fun setApiClient(apiClient: ApiClient)
+
+    /**
+     * Drop the cached access token so that the next call fetches (or refreshes) a new one.
+     * [BaseApi][com.example.petstore.api.BaseApi] calls it when the API answers 401, so a token revoked
+     * on the server is not served from the cache until it expires. The default does nothing.
+     */
+    fun invalidateAccessToken() {}
 }

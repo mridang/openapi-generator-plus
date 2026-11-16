@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -229,7 +229,7 @@ public sealed class TransportOptionsBuilder
     /// <returns>This builder.</returns>
     public TransportOptionsBuilder Timeout(int? timeout)
     {
-        if (timeout is < 0)
+        if (timeout is <= 0)
         {
             throw new ArgumentException(
                 $"Invalid timeout: must be a positive number of milliseconds (got {timeout})",
@@ -401,19 +401,22 @@ public sealed class TransportOptionsBuilder
         {
             if (!Uri.TryCreate(_proxy, UriKind.Absolute, out Uri? uri))
             {
-                throw new ArgumentException($"Invalid proxy URL: {_proxy}", nameof(_proxy));
+                throw new ArgumentException(
+                    $"Invalid proxy URL: {RedactProxyUserInfo(_proxy)}",
+                    nameof(_proxy)
+                );
             }
             if (uri.Scheme is not "http" and not "https")
             {
                 throw new ArgumentException(
-                    $"Invalid proxy URL (must use http or https scheme): {_proxy}",
+                    $"Invalid proxy URL (must use http or https scheme): {RedactProxyUserInfo(_proxy)}",
                     nameof(_proxy)
                 );
             }
             if (string.IsNullOrEmpty(uri.Host))
             {
                 throw new ArgumentException(
-                    $"Invalid proxy URL (missing host): {_proxy}",
+                    $"Invalid proxy URL (missing host): {RedactProxyUserInfo(_proxy)}",
                     nameof(_proxy)
                 );
             }
@@ -432,5 +435,17 @@ public sealed class TransportOptionsBuilder
             httpMessageHandler: _httpMessageHandler,
             cancellationToken: _cancellationToken
         );
+    }
+
+    /* The proxy URL may carry user:password, and a configuration error is
+     * logged and reported, so the user info is shown as ***@ (F1086). */
+    private static string RedactProxyUserInfo(string proxy)
+    {
+        int schemeEnd = proxy.IndexOf("://", StringComparison.Ordinal);
+        int start = schemeEnd < 0 ? 0 : schemeEnd + 3;
+        int length = proxy.AsSpan(start).IndexOfAny('/', '?', '#');
+        int end = length < 0 ? proxy.Length : start + length;
+        int at = proxy.AsSpan(start, end - start).LastIndexOf('@');
+        return at < 0 ? proxy : $"{proxy[..start]}***@{proxy[(start + at + 1)..]}";
     }
 }

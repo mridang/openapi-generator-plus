@@ -65,6 +65,9 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
   # RFC 8414 recommended default max-age for OIDC discovery documents.
   @default_discovery_max_age_seconds 86_400
 
+  # A server-supplied max-age is clamped to one year (D08).
+  @max_discovery_max_age_seconds 31_536_000
+
   @doc """
   Create a new OpenID Connect authenticator.
 
@@ -321,7 +324,11 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
       )
 
     response_headers = Map.get(response, :headers, %{}) || %{}
-    expiry = System.monotonic_time(:millisecond) + parse_max_age(response_headers) * 1000
+
+    expiry =
+      System.monotonic_time(:millisecond) +
+        min(parse_max_age(response_headers), @max_discovery_max_age_seconds) * 1000
+
     %{self | delegate: delegate, discovery_expiry: expiry}
   end
 

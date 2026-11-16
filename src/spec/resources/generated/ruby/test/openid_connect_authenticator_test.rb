@@ -111,6 +111,31 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(url).must_include 'scope=openid%20profile'
   end
 
+  # D05: OpenID Connect Core 3.1.2.1 requires the openid scope, so the
+  # authenticator always requests it, first and exactly once.
+  {
+    [] => 'scope=openid',
+    %w[profile] => 'scope=openid%20profile',
+    %w[profile openid email] => 'scope=openid%20profile%20email'
+  }.each do |scopes, expected|
+    it "always requests the openid scope for #{scopes.inspect}" do
+      client = FakeOidcClient.new([discovery_response])
+      auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my_client_id',
+        'my_client_secret',
+        'https://app.example.com/callback',
+        scopes
+      )
+      auth.api_client = client
+
+      url = auth.build_authorization_url('s')
+      _(url).must_include expected
+      _(url.scan('openid').length).must_equal 1
+    end
+  end
+
   it 'omits an empty state from the authorization URL' do
     client = FakeOidcClient.new([discovery_response])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(

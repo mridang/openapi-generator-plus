@@ -605,6 +605,10 @@ fn test_availability_string_enum_round_trips_with_wire_casing() {
         (Availability::Available, "\"Available\""),
         (Availability::Sold, "\"Sold\""),
         (Availability::OnHold, "\"on-hold\""),
+        (Availability::Oclock, "\"o'clock\""),
+        (Availability::AB, "\"a\\\\b\""),
+        (Availability::Eq, "\"$eq\""),
+        (Availability::X, "\"#{x}\""),
     ] {
         let data = serde_json::to_string(&member).expect("failed to serialize Availability");
         assert_eq!(
@@ -782,4 +786,223 @@ fn test_stock_item_matrix_nested_array_round_trips_typed_leaves() {
         serde_json::json!([[1, 2, 3], [4, 5]]),
         "nested matrix must round-trip to the same shape"
     );
+}
+
+/* -- hostile string enum members and sanitised-away identifiers (D46, F1144, F1124) --
+ *
+ * The wire values `o'clock`, `a\b`, `$eq` and `#{x}` hold characters that break
+ * a naive literal; each member serializes to its JSON-quoted wire string and
+ * decodes back. `Separator` has four wire values whose identifiers sanitise to
+ * empty or colliding names: each decodes to a distinct member and re-encodes to
+ * the original string. */
+#[test]
+fn test_availability_every_member_round_trips_through_its_display_text() {
+    let members = Availability::all_values();
+    assert_eq!(7, members.len(), "every wire value is a distinct member");
+    for member in members {
+        let wire = member.to_string();
+        let quoted = serde_json::to_string(&wire).expect("failed to quote the wire value");
+        let decoded: Availability =
+            serde_json::from_str(&quoted).expect("failed to decode the wire value");
+        assert_eq!(member, decoded, "{wire} must decode to its own member");
+        assert_eq!(
+            quoted,
+            serde_json::to_string(&member).expect("failed to serialize the member"),
+            "{wire} must re-encode to the original string"
+        );
+    }
+    assert_eq!("o'clock", Availability::Oclock.to_string());
+    assert_eq!("a\\b", Availability::AB.to_string());
+    assert_eq!("$eq", Availability::Eq.to_string());
+    assert_eq!("#{x}", Availability::X.to_string());
+}
+
+#[test]
+fn test_separator_wire_values_decode_to_distinct_members_and_re_encode() {
+    let wires = [" ", "@@", "a-b", "a_b"];
+    let mut seen = Vec::new();
+    for wire in wires {
+        let quoted = serde_json::to_string(wire).expect("failed to quote the wire value");
+        let member: Separator =
+            serde_json::from_str(&quoted).expect("failed to decode the wire value");
+        assert!(
+            !seen.contains(&member),
+            "{wire:?} must decode to a distinct member"
+        );
+        assert_eq!(
+            quoted,
+            serde_json::to_string(&member).expect("failed to serialize the member"),
+            "{wire:?} must re-encode to the original string"
+        );
+        seen.push(member);
+    }
+    assert_eq!(4, Separator::all_values().len());
+}
+
+/* -- an inline enum with non-identifier wire values (F1146) -- */
+
+#[test]
+fn test_edge_cases_phase_round_trips_its_wire_values() {
+    for (wire, member) in [
+        ("In-Stock", EdgeCasesPhaseEnum::InStock),
+        ("on-hold", EdgeCasesPhaseEnum::OnHold),
+        ("OUT_OF_STOCK", EdgeCasesPhaseEnum::OUTOFSTOCK),
+    ] {
+        let body = serde_json::json!({"phase": wire}).to_string();
+        let decoded: EdgeCases = serde_json::from_str(&body).expect("failed to decode phase");
+        assert_eq!(
+            Some(member),
+            decoded.phase,
+            "{wire} must decode to its own member"
+        );
+        assert_eq!(
+            body,
+            serde_json::to_string(&decoded).expect("failed to encode phase"),
+            "{wire} must re-encode to the original string"
+        );
+    }
+}
+
+/* -- unevaluatedProperties: false rejects an extra key (F1111) -- */
+
+#[test]
+fn test_strict_tag_rejects_an_unexpected_key() {
+    let err = serde_json::from_str::<StrictTag>(r#"{"id":1,"name":"x","unexpected":true}"#)
+        .expect_err("a model with unevaluatedProperties:false must reject an extra key");
+    assert!(err.to_string().contains("unexpected"), "got: {err}");
+    let ok: StrictTag =
+        serde_json::from_str(r#"{"id":1,"name":"x"}"#).expect("the declared keys are accepted");
+    assert_eq!(Some(1), ok.id);
+}
+
+/* -- schemas named Error and Result (D45, F173, F1131) --
+ *
+ * `Result` would shadow the prelude type inside the models module, so it is
+ * generated as `ModelResult`; `Error` shadows nothing and keeps its name. */
+#[test]
+fn test_edge_cases_error_and_result_models_round_trip() {
+    let body = r#"{"lastError":{"code":7,"message":"m"},"outcome":{"ok":true}}"#;
+    let decoded: EdgeCases = serde_json::from_str(body).expect("failed to decode EdgeCases");
+    let error: Error = decoded.last_error.clone().expect("lastError must decode");
+    assert_eq!(
+        (Some(7), Some("m".to_string())),
+        (error.code, error.message)
+    );
+    let outcome: ModelResult = decoded.outcome.clone().expect("outcome must decode");
+    assert_eq!(Some(true), outcome.ok);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(body).expect("valid JSON"),
+        serde_json::to_value(&decoded).expect("failed to encode EdgeCases")
+    );
+}
+
+/* -- properties named after keywords and literals keep their wire keys (F1114) -- */
+
+#[test]
+fn test_edge_cases_keyword_named_properties_keep_their_wire_keys() {
+    let mut edge = EdgeCases::new();
+    edge.and = Some(true);
+    edge.or = Some(false);
+    edge.not = Some(true);
+    edge.class = Some("c".to_string());
+    edge.r#return = Some("r".to_string());
+    edge.null = Some("n".to_string());
+    edge.r#true = Some(true);
+    edge.r#false = Some(false);
+    let wire = serde_json::to_value(&edge).expect("failed to encode EdgeCases");
+    assert_eq!(
+        serde_json::json!({
+            "and": true, "or": false, "not": true, "class": "c", "return": "r",
+            "null": "n", "true": true, "false": false
+        }),
+        wire
+    );
+    let back: EdgeCases = serde_json::from_value(wire).expect("failed to decode EdgeCases");
+    assert_eq!(edge, back);
+}
+
+/* -- numeric schema defaults are exact typed values (F1115) -- */
+
+#[test]
+fn test_defaults_numeric_literals_keep_their_exact_typed_values() {
+    let defaults: Defaults = serde_json::from_str("{}").expect("failed to decode Defaults");
+    assert_eq!(Some(1.5_f64), defaults.ratio);
+    assert_eq!(Some(0.25_f32), defaults.scale);
+    assert_eq!(Some(2.0_f64), defaults.weight);
+    assert_eq!(Some(9_000_000_000_i64), defaults.ceiling);
+}
+
+/* -- a uuid property is written lowercase and decoded from either case (F1130) -- */
+
+#[test]
+fn test_order_tracking_id_is_lowercase_on_the_wire_and_decodes_from_uppercase() {
+    let decoded: Order =
+        serde_json::from_str(r#"{"trackingId":"E621E1F8-C36C-495A-93FC-0C247A3E6E5F"}"#)
+            .expect("an uppercase uuid must decode");
+    let wire = serde_json::to_value(&decoded).expect("failed to encode Order");
+    assert_eq!(
+        serde_json::json!("e621e1f8-c36c-495a-93fc-0c247a3e6e5f"),
+        wire["trackingId"]
+    );
+    assert!(
+        serde_json::from_str::<Order>(r#"{"trackingId":"not-a-uuid"}"#).is_err(),
+        "a malformed uuid must be rejected on decode"
+    );
+}
+
+/* -- OAS 3.1 contentEncoding property is a base64 byte field (F1116) -- */
+
+#[test]
+fn test_pet_passport_content_encoded_property_is_base64_on_the_wire() {
+    let decoded: PetPassport =
+        serde_json::from_str(r#"{"biometricChip":"AAEC"}"#).expect("failed to decode PetPassport");
+    assert_eq!(Some(vec![0u8, 1, 2]), decoded.biometric_chip);
+    assert_eq!(
+        serde_json::json!("AAEC"),
+        serde_json::to_value(&decoded).expect("failed to encode PetPassport")["biometricChip"]
+    );
+}
+
+/* -- a prefixItems tuple degrades to an open list that round-trips (F1175) -- */
+
+#[test]
+fn test_pet_location_tuple_round_trips_as_an_open_list() {
+    let body = r#"{"name":"n","photoUrls":[],"location":[1.5,2.5,"label"]}"#;
+    let decoded: Pet = serde_json::from_str(body).expect("failed to decode Pet");
+    assert_eq!(
+        3,
+        decoded
+            .location
+            .as_ref()
+            .expect("location must decode")
+            .len()
+    );
+    assert_eq!(
+        serde_json::json!([1.5, 2.5, "label"]),
+        serde_json::to_value(&decoded).expect("failed to encode Pet")["location"]
+    );
+}
+
+/* -- a protobuf-JSON duration decodes and re-encodes (F1149) -- */
+
+#[test]
+fn test_edge_cases_retry_after_duration_round_trips() {
+    for (wire, expected) in [
+        ("3600s", chrono::Duration::seconds(3600)),
+        (
+            "3600.000000001s",
+            chrono::Duration::seconds(3600) + chrono::Duration::nanoseconds(1),
+        ),
+        ("-300s", chrono::Duration::seconds(-300)),
+        ("315576000000s", chrono::Duration::seconds(315_576_000_000)),
+    ] {
+        let body = serde_json::json!({"retryAfter": wire}).to_string();
+        let decoded: EdgeCases = serde_json::from_str(&body).expect("failed to decode retryAfter");
+        assert_eq!(Some(expected), decoded.retry_after, "{wire}");
+        assert_eq!(
+            body,
+            serde_json::to_string(&decoded).expect("failed to encode retryAfter"),
+            "{wire}"
+        );
+    }
 }

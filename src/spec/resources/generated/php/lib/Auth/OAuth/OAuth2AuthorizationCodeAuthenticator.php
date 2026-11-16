@@ -62,6 +62,9 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
     /** @var OAuth2TokenManager Token lifecycle manager. */
     private readonly OAuth2TokenManager $tokenManager;
 
+    /** @var string|null PKCE code verifier of the last authorization URL built, until the code is exchanged. */
+    private ?string $pkceVerifier = null;
+
     /**
      * Create a new authorization code authenticator.
      *
@@ -136,6 +139,14 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
         if ($state !== null && $state !== '') {
             $params['state'] = $state;
         }
+        /* RFC 9700 section 2.1.1 / RFC 7636: bind the code to this client with
+         * a PKCE S256 challenge. The verifier is kept for exchangeCode(). */
+        $this->pkceVerifier = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+        $params['code_challenge'] = rtrim(
+            strtr(base64_encode(hash('sha256', $this->pkceVerifier, true)), '+/', '-_'),
+            '='
+        );
+        $params['code_challenge_method'] = 'S256';
 
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component. Use '&' as the separator when one is already
@@ -177,7 +188,21 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
             'client_secret' => $this->clientSecret,
             'redirect_uri' => $this->redirectUri,
         ];
+        if ($this->pkceVerifier !== null) {
+            $params['code_verifier'] = $this->pkceVerifier;
+        }
         $this->tokenManager->exchange($this->tokenUrl, $params);
+        $this->pkceVerifier = null;
+    }
+
+    /**
+     * Drops the cached access token so that the next call fetches a fresh one
+     * (a refresh grant first when a refresh token is held). The SDK calls this
+     * itself when the API answers 401; callers may use it to force a refresh.
+     */
+    public function invalidateAccessToken(): void
+    {
+        $this->tokenManager->invalidateAccessToken();
     }
 
     /**

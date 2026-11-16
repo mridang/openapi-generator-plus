@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -28,6 +28,11 @@ class OAuth2TokenManager:
     # against the server clock. The margin is capped at half the lifetime, so
     # a short-lived token is still reused for the other half.
     _EXPIRY_SAFETY_MARGIN_S = 60
+
+    # Ceiling (one year, in seconds) applied to a server-supplied ``expires_in``
+    # before any date arithmetic, so a hostile or buggy value cannot produce an
+    # absurd expiry (D08).
+    _MAX_EXPIRES_IN_S = 31_536_000
 
     def __init__(self) -> None:
         """Create a new token manager.
@@ -278,7 +283,10 @@ class OAuth2TokenManager:
             # parse digit strings; on anything unparseable or non-positive,
             # mark the token as immediately stale so the next call refetches
             # (preferable to caching a token of unknown lifetime forever).
-            expires_in = self._parse_expires_in(token_data["expires_in"])
+            expires_in = min(
+                self._parse_expires_in(token_data["expires_in"]),
+                self._MAX_EXPIRES_IN_S,
+            )
             if expires_in > 0:
                 margin = min(self._EXPIRY_SAFETY_MARGIN_S, expires_in / 2)
                 self._token_expiry = time.time() + expires_in - margin

@@ -930,6 +930,39 @@ async fn test_authorization_stripped_on_cross_origin_redirect() {
         calls[0]
     );
 }
+/// F1093 (behavioural): a tenant token set by the caller is stripped on a
+/// cross-origin hop although no spec declares it, while a plain header survives.
+#[tokio::test]
+async fn test_token_named_header_stripped_on_cross_origin_redirect() {
+    let (origin_url, dest_captured) = start_cross_origin_redirect_servers();
+
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let mut headers = HashMap::new();
+    headers.insert(
+        "X-Tenant-Token".to_string(),
+        "tenant-secret-value".to_string(),
+    );
+    headers.insert("X-Trace".to_string(), "keep".to_string());
+
+    let _ = client
+        .send_request("GET", &format!("{}/start", origin_url), &headers, None)
+        .await;
+
+    let calls = dest_captured.lock().unwrap();
+    assert_eq!(
+        1,
+        calls.len(),
+        "the destination must receive exactly the follow-up request"
+    );
+    let followup = calls[0].to_lowercase();
+    assert!(!followup.contains("x-tenant-token:"), "got: {}", calls[0]);
+    assert!(followup.contains("x-trace:"), "got: {}", calls[0]);
+}
 
 /// Gap 3.1 (behavioural, spec-driven): a spec-declared apiKey-in-header name is
 /// joined into `SENSITIVE_HEADER_NAMES` at codegen time and therefore must ALSO
@@ -1365,6 +1398,51 @@ fn start_truncated_body_server() -> String {
     base_url
 }
 
+/* F1063: the client keeps no cookie jar, so a Set-Cookie on one response never
+ * comes back as a Cookie header on the next request. */
+#[tokio::test]
+async fn test_a_response_cookie_is_never_replayed() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+    thread::spawn(move || {
+        for (index, stream) in listener.incoming().take(2).enumerate() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+            let cookie = if index == 0 {
+                "Set-Cookie: sid=abc; Path=/\r\n"
+            } else {
+                ""
+            };
+            let response = format!(
+                "HTTP/1.1 200 OK\r\n{}Content-Length: 0\r\nConnection: close\r\n\r\n",
+                cookie
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    for _ in 0..2 {
+        client
+            .send_request("GET", &format!("{}/session", base_url), &headers, None)
+            .await
+            .expect("the request must succeed");
+    }
+
+    let first = rx.recv().expect("expected the first request");
+    let second = rx.recv().expect("expected the second request");
+    assert!(!first.to_lowercase().contains("cookie:"), "got: {}", first);
+    assert!(
+        !second.to_lowercase().contains("cookie:"),
+        "got: {}",
+        second
+    );
+}
+
 /// Gap AL: starts a server that LIES about its body encoding — it sets
 /// `Content-Encoding: gzip` on the response but writes a plain, non-gzip body.
 /// The client attempts to inflate the body and fails.
@@ -1587,6 +1665,17 @@ async fn test_every_advertised_content_encoding_is_decoded() {
             .unwrap_or_else(|e| panic!("{} response must decode, got: {}", encoding, e));
         assert_eq!(resp.status_code(), 200, "{}", encoding);
         assert_eq!(resp.body(), ENCODED_PAYLOAD, "{}", encoding);
+        /* D92: the returned headers describe the decoded body. */
+        assert!(
+            !resp.headers().contains_key("content-encoding"),
+            "{}",
+            encoding
+        );
+        assert!(
+            !resp.headers().contains_key("content-length"),
+            "{}",
+            encoding
+        );
     }
 }
 

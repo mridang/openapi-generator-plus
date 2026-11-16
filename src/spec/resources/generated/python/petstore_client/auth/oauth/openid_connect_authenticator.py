@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -20,6 +20,8 @@ from ...errors.serialization_exception import SerializationException
 
 # RFC 8414 recommended default max-age for OIDC discovery documents.
 _DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400
+# One-year ceiling on a server-supplied max-age (D08).
+_MAX_DISCOVERY_MAX_AGE_SECONDS = 31_536_000
 _MAX_AGE_PATTERN = re.compile(r"max-age=([0-9]+)", re.IGNORECASE)
 
 
@@ -36,7 +38,7 @@ def _parse_max_age(headers: Optional[Mapping[str, str]]) -> int:
             match = _MAX_AGE_PATTERN.search(value)
             if match:
                 try:
-                    return int(match.group(1))
+                    return min(int(match.group(1)), _MAX_DISCOVERY_MAX_AGE_SECONDS)
                 except ValueError:
                     return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
             return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS

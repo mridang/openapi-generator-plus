@@ -164,21 +164,25 @@ client = Client(FakeAuthenticator())
 
 ## Error Handling
 
-All API errors derive from `ApiException`. The error hierarchy is:
+Every error the SDK raises derives from `OpenAPIException`; catching it handles them all. `ApiException` is only the HTTP branch: a response body that cannot be decoded raises `SerializationException`, and a failed OAuth2 token exchange raises `OAuth2ServerException` or `OAuth2TokenException`, all siblings of `ApiException`. The error hierarchy is:
 
-- `ApiException` (base)
-  - `ClientException` (4xx)
-    - `BadRequestException` (400)
-    - `UnauthorizedException` (401)
-    - `ForbiddenException` (403)
-    - `NotFoundException` (404)
-    - `ConflictException` (409)
-    - `UnprocessableEntityException` (422)
-    - `TooManyRequestsException` (429)
-  - `ServerException` (5xx)
-    - `InternalServerErrorException` (500)
-  - `NetworkException` (no HTTP response, status 0)
-    - `NetworkTimeoutException` (the request timed out, status 0)
+- `OpenAPIException` (root)
+  - `SerializationException` (a body that cannot be encoded or decoded)
+  - `OAuth2ServerException` (the token endpoint answered with an OAuth2 error)
+  - `OAuth2TokenException` (the token response was unusable)
+  - `ApiException`
+    - `ClientException` (4xx)
+      - `BadRequestException` (400)
+      - `UnauthorizedException` (401)
+      - `ForbiddenException` (403)
+      - `NotFoundException` (404)
+      - `ConflictException` (409)
+      - `UnprocessableEntityException` (422)
+      - `TooManyRequestsException` (429)
+    - `ServerException` (5xx)
+      - `InternalServerErrorException` (500)
+    - `NetworkException` (no HTTP response, status 0)
+      - `NetworkTimeoutException` (the request timed out, status 0)
 
 ```python
 from petstore_client.errors import (
@@ -186,6 +190,7 @@ from petstore_client.errors import (
     ClientException,
     ServerException,
     ApiException,
+    OpenAPIException,
 )
 from petstore_client.models import Pet
 
@@ -200,6 +205,8 @@ async def main():
         print(f"Server error: {e}")
     except ApiException as e:
         print(f"API error: {e}")
+    except OpenAPIException as e:
+        print(f"SDK error (serialization or OAuth2): {e}")
 ```
 
 ## Configuration

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -33,6 +33,64 @@ import Testing
     override func authHeaders() async -> [String: String] { return _headers }
     override func queryParams() -> [String: String] { return _query }
     override func cookieParams() -> [String: String] { return _cookies }
+  }
+
+  /// An authenticator that needs the transport, reporting whether it got one.
+  private final class TransportAwareAuth: BaseAuthenticator, HttpAwareAuthenticator,
+    @unchecked Sendable
+  {
+    var injected: ApiClient?
+
+    func setApiClient(_ client: ApiClient) { injected = client }
+    override func host() -> String { return "" }
+    override func authHeaders() async -> [String: String] {
+      return ["Authorization": injected == nil ? "no transport" : "transport injected"]
+    }
+    override func queryParams() -> [String: String] { return [:] }
+    override func cookieParams() -> [String: String] { return [:] }
+  }
+
+  /// An authenticator that hands out a new token each time it is invalidated.
+  private final class RotatingAuth: BaseAuthenticator, AccessTokenInvalidating, @unchecked Sendable
+  {
+    var generation = 1
+    var invalidations = 0
+
+    func invalidateAccessToken() {
+      invalidations += 1
+      generation += 1
+    }
+    override func host() -> String { return "" }
+    override func authHeaders() async -> [String: String] {
+      return ["Authorization": "Bearer t\(generation)"]
+    }
+  }
+
+  /// Answers each request with the next status, recording every request.
+  private final class ScriptedApiClient: ApiClient, @unchecked Sendable {
+    var statuses: [Int]
+    var seenAuthorization: [String] = []
+
+    init(statuses: [Int]) { self.statuses = statuses }
+
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> ApiHttpResponse
+    {
+      try await sendRequest(
+        method: method, url: url, headers: headers, body: body, noRedirect: false)
+    }
+
+    func sendRequest(
+      method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
+    )
+      async throws -> ApiHttpResponse
+    {
+      seenAuthorization.append(headers["Authorization"] ?? "")
+      let status = statuses.isEmpty ? 200 : statuses.removeFirst()
+      return ApiHttpResponse(
+        statusCode: status, body: "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
+        headers: ["Content-Type": "application/json"])
+    }
   }
 
   // MARK: - Mock ApiClient
@@ -385,6 +443,99 @@ import Testing
       "config default Accept must win over the negotiated application/json")
   }
 
+  /* Header names are case-insensitive (RFC 9110 section 5.1): a default
+   * header spelled in another case replaces the negotiated one, so exactly
+   * one Accept goes out and it is the configured one. */
+  @Test func testDefaultHeaderInAnotherCaseReplacesTheNegotiatedHeader() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+
+    let config = ConfigurationBuilder()
+      .baseURL("https://example.com")
+      .defaultHeader(name: "accept", value: "application/xml")
+      .build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getPetById(petId: 1)
+    let accepts = mockClient.lastHeaders.filter { $0.key.lowercased() == "accept" }
+    #expect(accepts.count == 1, "two spellings of Accept were sent: \(accepts)")
+    #expect(accepts.values.first == "application/xml")
+  }
+
+  /* An Accept the operation sets itself beats both the configured default
+     and the negotiated one. */
+  @Test func testHeaderParameterAcceptWinsOverConfigDefaultAndNegotiated() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder()
+      .baseURL("https://example.com")
+      .defaultHeader(name: "Accept", value: "text/plain")
+      .build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let params = BaseApi.InvokeAPIParams(
+      method: "GET", path: "/items", queryParams: [:],
+      headerParams: ["Accept": "application/xml"], body: nil,
+      accepts: ["application/json"], contentType: "application/json",
+      returnType: "String", auth: BaseApi.noAuthSentinel)
+
+    _ = try await api.invokeAPI(params)
+
+    #expect(mockClient.lastHeaders["Accept"] == "application/xml")
+  }
+
+  @Test func testMergeHeadersReplacesEverySpellingOfAName() {
+    let merged = BaseApi.mergeHeaders(
+      ["Accept": "a", "ACCEPT": "b", "X-Other": "o"], overriding: ["accept": "c"])
+    #expect(merged == ["accept": "c", "X-Other": "o"])
+  }
+
+  @Test func testMergeHeadersPicksTheSameWinnerWithinOneLayer() {
+    let layer = ["authorization": "lower", "Authorization": "upper"]
+    for _ in 0..<20 {
+      let merged = BaseApi.mergeHeaders([:], overriding: layer)
+      #expect(merged == ["authorization": "lower"])
+    }
+  }
+
+  /* A per-call authenticator that makes HTTP calls of its own (OAuth2, OIDC)
+   * receives the API's client, as the client-level one does. */
+  @Test func testPerCallHttpAwareAuthenticatorReceivesTheApiClient() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let auth = TransportAwareAuth()
+
+    let pet = Pet(name: "test", photoUrls: [])
+    _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: auth))
+
+    #expect(mockClient.lastHeaders["Authorization"] == "transport injected")
+  }
+
+  /* A 401 for a request that carried a fetched token drops the token, gets a
+   * new one and replays the request once. */
+  @Test func testA401InvalidatesTheTokenAndReplaysOnce() async throws {
+    let client = ScriptedApiClient(statuses: [401, 200])
+    let auth = RotatingAuth()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+    _ = try await api.getPetById(petId: 1)
+
+    #expect(auth.invalidations == 1)
+    #expect(client.seenAuthorization == ["Bearer t1", "Bearer t2"])
+  }
+
+  @Test func testASecond401IsSurfacedWithoutAThirdAttempt() async throws {
+    let client = ScriptedApiClient(statuses: [401, 401, 200])
+    let auth = RotatingAuth()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+    await #expect(throws: UnauthorizedError.self) {
+      _ = try await api.getPetById(petId: 1)
+    }
+    #expect(client.seenAuthorization.count == 2)
+  }
+
   // MARK: - Nil body
 
   @Test func testHandlesNilBody() async throws {
@@ -688,6 +839,20 @@ import Testing
         .server(Servers.server1, variables: ["environment": "invalid"])
         .build()
     }
+  }
+
+  /* The third global server carries quotes, an ampersand, a dollar sign and
+     an interpolation opener in its text; all of it round-trips unchanged. */
+  @Test func testHostileGlobalServerTextRoundTripsUnchanged() throws {
+    let server = Servers.server2
+    #expect(server.urlTemplate == "https://{tenant}.example.com/api")
+    #expect(server.description == "Bob's \"sandbox\" & co: $5 #{x} a*/b")
+    let tenant = try #require(server.variables["tenant"])
+    #expect(tenant.defaultValue == "o'neil")
+    #expect(tenant.description == "Tenant's \"id\"")
+    #expect(tenant.enumValues == ["o'neil", "a&b"])
+    #expect(try server.url() == "https://o'neil.example.com/api")
+    #expect(try server.url(variables: ["tenant": "a&b"]) == "https://a&b.example.com/api")
   }
 
   // MARK: - Query serialization
@@ -1168,7 +1333,7 @@ import Testing
   /// a request through the credentialed proxy is asserted separately, on the
   /// Apple platforms only: URLSession on Linux has no
   /// `connectionProxyDictionary`, so the SDK refuses a proxy there (see
-  /// ``ConfigurationError/proxyUnsupported``).
+  /// ``ConfigurationError/invalidProxy(_:)``).
   @Test func testProxyAuthCredentialsRoundTrip() throws {
     let proxyURL = "http://alice:s3cret@proxy.example.com:3129"
     let opts = try TransportOptionsBuilder().proxy(proxyURL).build()

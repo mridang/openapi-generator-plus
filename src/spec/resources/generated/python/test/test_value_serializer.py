@@ -433,12 +433,11 @@ class TestAllowReserved:
 
     @pytest.mark.parametrize("value", [".", ".."])
     def test_path_dot_segment_is_rejected(self, value: str) -> None:
-        with pytest.raises(
-            ValueError, match=r"Path parameter 'name' must not be '\.' or '\.\.'"
-        ):
+        with pytest.raises(ValueError) as exc_info:
             ValueSerializer.serialize_styled(
                 "name", value, "path", "str", None, "simple", False
             )
+        assert str(exc_info.value) == "Path parameter 'name' must not be '.' or '..'"
 
     def test_path_value_with_inner_dots_is_kept(self) -> None:
         assert (
@@ -657,3 +656,65 @@ class TestEncodeContent:
 
     def test_query_value_is_left_for_the_query_builder(self) -> None:
         assert ValueSerializer.encode_content("q", '{"a":1}', "query") == '{"a":1}'
+
+
+class TestObjectValuedParameters:
+    _FIELDS = {"breed": "lab", "min_age": 3}
+
+    def test_exploded_form_query_is_one_entry_per_property(self) -> None:
+        result = ValueSerializer.serialize_styled(
+            "c", self._FIELDS, "query", "Obj", None, "form", True
+        )
+        assert result == {"breed": "lab", "min_age": "3"}
+
+    def test_unexploded_form_query_is_a_comma_list(self) -> None:
+        result = ValueSerializer.serialize_styled(
+            "c", self._FIELDS, "query", "Obj", None, "form", False
+        )
+        assert result == "breed,lab,min_age,3"
+
+    def test_simple_header_unexploded_is_a_comma_list(self) -> None:
+        result = ValueSerializer.serialize_styled(
+            "c", self._FIELDS, "header", "Obj", None, "simple", False
+        )
+        assert result == "breed,lab,min_age,3"
+
+    def test_simple_exploded_assigns_each_property(self) -> None:
+        result = ValueSerializer.serialize_styled(
+            "c", self._FIELDS, "header", "Obj", None, "simple", True
+        )
+        assert result == "breed=lab,min_age=3"
+
+    def test_matrix_and_label_path_styles(self) -> None:
+        matrix = ValueSerializer.serialize_styled(
+            "c", self._FIELDS, "path", "Obj", None, "matrix", True
+        )
+        label = ValueSerializer.serialize_styled(
+            "c", self._FIELDS, "path", "Obj", None, "label", False
+        )
+        assert matrix == ";breed=lab;min_age=3"
+        assert label == ".breed,lab,min_age,3"
+
+    def test_path_properties_are_percent_encoded(self) -> None:
+        result = ValueSerializer.serialize_styled(
+            "c", {"a b": "x/y"}, "path", "Obj", None, "simple", False
+        )
+        assert result == "a%20b,x%2Fy"
+
+    def test_an_empty_object_query_is_omitted(self) -> None:
+        assert (
+            ValueSerializer.serialize_styled(
+                "c", {}, "query", "Obj", None, "form", True
+            )
+            is None
+        )
+
+    def test_query_entries_expand_an_exploded_object(self) -> None:
+        assert ValueSerializer.query_entries("c", {"a": "1"}) == {"a": "1"}
+        assert ValueSerializer.query_entries("c", "v") == {"c": "v"}
+        assert ValueSerializer.query_entries("c", None) == {}
+
+    def test_allow_reserved_wraps_each_property_of_an_exploded_object(self) -> None:
+        wrapped = ValueSerializer.maybe_allow_reserved({"a": "x/y"}, True)
+        assert isinstance(wrapped, dict)
+        assert isinstance(wrapped["a"], AllowReservedValue)

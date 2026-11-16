@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -161,6 +161,13 @@ class TestSelectHeaders:
             ["application/json"], "application/json", True
         )
         assert headers.get("Content-Type") is None
+
+    @pytest.mark.parametrize("declared", ["multipart/mixed", "multipart/related"])
+    def test_should_keep_a_non_form_data_multipart_subtype_for_the_transport(
+        self, header_selector: Any, declared: str
+    ) -> None:
+        headers = header_selector.select_headers(["application/json"], declared, True)
+        assert headers.get("Content-Type") == declared
 
     def test_should_default_content_type_to_application_json_when_empty(
         self, header_selector: Any

@@ -125,4 +125,16 @@ class ServerConfigurationTest {
     assertEquals("https://eu.cdn.example.com/eu/v1", config.getUrl());
     assertEquals("https://us.cdn.example.com/us/v1", config.getUrl(Map.of("region", "us")));
   }
+
+  @Test
+  void theThirdGlobalServerKeepsItsHostileTextUnchanged() {
+    ServerConfiguration server = Servers.SERVER_2;
+
+    assertEquals("https://{tenant}.example.com/api", server.getUrlTemplate());
+    assertEquals("Bob's \"sandbox\" & co: $5 #{x} a*/b", server.getDescription());
+    ServerVariable tenant = server.getVariables().get("tenant");
+    assertEquals("o'neil", tenant.getDefaultValue());
+    assertEquals("Tenant's \"id\"", tenant.getDescription());
+    assertEquals(List.of("o'neil", "a&b"), tenant.getEnumValues());
+  }
 }

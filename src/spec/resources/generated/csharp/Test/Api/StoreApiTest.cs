@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -391,6 +391,8 @@ public class StoreApiTest
     {
         public Uri? Url { get; private set; }
         public Dictionary<string, string> Headers { get; private set; } = new();
+        public object? SentBody { get; private set; }
+        public string ResponseBody { get; set; } = "{\"id\":1}";
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
             string method,
@@ -401,10 +403,11 @@ public class StoreApiTest
         {
             Url = url;
             Headers = new Dictionary<string, string>(headers);
+            SentBody = body;
             return Task.FromResult(
                 new PetstoreClient.ApiHttpResponse(
                     200,
-                    "{\"id\":1}",
+                    ResponseBody,
                     new Dictionary<string, string> { { "Content-Type", "application/json" } }
                 )
             );
@@ -580,5 +583,76 @@ public class StoreApiTest
         );
 
         Assert.Equal(0, client.CallCount);
+    }
+
+    [Fact]
+    public async Task GetOrderByTrackingIdPutsTheLowercaseUuidInThePath()
+    {
+        var client = new RequestCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetOrderByTrackingIdAsync(Guid.Parse("E621E1F8-C36C-495A-93FC-0C247A3E6E5F"));
+
+        Assert.EndsWith(
+            "/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f",
+            client.Url!.AbsolutePath,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task CreateAccountSendsTheWriteOnlyPasswordAndDecodesTheReadOnlyId()
+    {
+        var client = new RequestCapturingApiClient
+        {
+            ResponseBody = "{\"id\":7,\"username\":\"u\"}",
+        };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var created = await api.CreateAccountAsync(new Account("u") { Password = "p" });
+
+        Assert.Equal(7L, created.Id);
+        Assert.Contains(
+            "\"password\":\"p\"",
+            client.SentBody!.ToString(),
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "\"username\":\"u\"",
+            client.SentBody!.ToString(),
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task TestGetDepartmentDecodesTheMutuallyReferencingModels()
+    {
+        var api = NewStoreApiForMock(
+            200,
+            "application/json",
+            "{\"name\":\"ops\",\"lead\":{\"name\":\"ann\"}}"
+        );
+
+        var department = await api.GetDepartmentAsync();
+
+        Assert.Equal("ops", department.Name);
+        Assert.Equal("ann", department.Lead!.Name);
+    }
+
+    [Fact]
+    public async Task TestGetStockItemDecodesEnumsAndNestedArrays()
+    {
+        var api = NewStoreApiForMock(
+            200,
+            "application/json",
+            "{\"priority\":2,\"availability\":\"on-hold\",\"matrix\":[[1,2],[3]]}"
+        );
+
+        var item = await api.GetStockItemAsync();
+
+        Assert.Equal(Priority.NUMBER_2, item.Priority);
+        Assert.Equal(Availability.OnHold, item.Availability);
+        Assert.Equal(2, item.Matrix!.Count);
+        Assert.Equal(new List<int> { 1, 2 }, item.Matrix[0]);
     }
 }

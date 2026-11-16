@@ -56,12 +56,22 @@ pub struct RequestOptions {
     /// When `true`, the client must NOT follow 307 or 308 redirects and
     /// must return the first such response to the caller as-is.
     pub no_redirect: bool,
+    /// When `true`, the client leaves `TransportOptions::default_headers` out of
+    /// the request. Token and discovery requests set it, so a credential meant
+    /// for the API is never sent to an identity provider.
+    pub skip_default_headers: bool,
 }
 
 impl RequestOptions {
     /// Creates a new `RequestOptions` with all flags defaulted to `false`.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Sets the `skip_default_headers` flag.
+    pub fn skip_default_headers(mut self, value: bool) -> Self {
+        self.skip_default_headers = value;
+        self
     }
 
     /// Sets the `no_redirect` flag.

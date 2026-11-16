@@ -756,10 +756,10 @@ class PetApi extends BaseApi {
       );
     }
     if (options != null && options.filter != null) {
-      serializeDeepObject(
-        'filter',
-        options.filter as Map<String, Object?>?,
-      ).forEach((k, v) {
+      serializeDeepObject('filter', parameterObject(options.filter)).forEach((
+        k,
+        v,
+      ) {
         queryParams[k] = v;
       });
     }
@@ -1794,7 +1794,7 @@ class PetApi extends BaseApi {
     if (options != null && options.criteriaDeep != null) {
       serializeDeepObject(
         'criteriaDeep',
-        options.criteriaDeep as Map<String, Object?>?,
+        parameterObject(options.criteriaDeep),
       ).forEach((k, v) {
         queryParams[k] = v;
       });

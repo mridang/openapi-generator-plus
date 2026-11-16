@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -129,6 +129,71 @@ class BaseApiTest {
         override fun getQueryParams(): Map<String, String> = queryParams
 
         override fun getCookieParams(): Map<String, String> = cookies
+    }
+
+    class UnauthorizedApiClient : CapturingApiClient() {
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean,
+        ): ApiHttpResponse = ApiHttpResponse(401, "{}", mapOf("Content-Type" to "application/json"))
+    }
+
+    class CountingOAuthAuthenticator : com.example.petstore.auth.HttpAwareAuthenticator {
+        var invalidations = 0
+
+        override fun setApiClient(apiClient: ApiClient) {
+            // The counting authenticator never calls back into the client.
+        }
+
+        override fun invalidateAccessToken() {
+            invalidations++
+        }
+
+        override fun getHost(): String = ""
+
+        override suspend fun getAuthHeaders(): Map<String, String> = mapOf("Authorization" to "Bearer t")
+    }
+
+    @Test
+    @DisplayName("F855: a 401 answer invalidates the cached OAuth2 token, other statuses do not")
+    fun unauthorizedAnswerInvalidatesTheCachedToken() {
+        val auth = CountingOAuthAuthenticator()
+        val api = TestableApiWithClient(UnauthorizedApiClient(), "http://localhost")
+        assertThrows(ApiException::class.java) {
+            runBlocking { api.call("GET", "/items", auth = auth) }
+        }
+        assertEquals(1, auth.invalidations)
+
+        val ok = CountingOAuthAuthenticator()
+        runBlocking { TestableApiWithClient(CapturingApiClient(), "http://localhost").call("GET", "/items", auth = ok) }
+        assertEquals(0, ok.invalidations)
+    }
+
+    @Test
+    @DisplayName("F1121: an explicit Accept header parameter beats the configured default and the negotiated Accept")
+    fun headerParamAcceptWinsOverDefaultAndNegotiated() {
+        val client = CapturingApiClient()
+        val config =
+            Configuration
+                .builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("Accept", "text/plain")
+                .build()
+        val api = TestableApiWithConfig(client, config)
+
+        runBlocking {
+            api.call(
+                "GET",
+                "/items",
+                headerParams = mutableMapOf("Accept" to "application/xml"),
+                accepts = arrayOf("application/json"),
+            )
+        }
+
+        assertEquals("application/xml", client.capturedHeaders["Accept"])
     }
 
     private fun api() = TestableApi(ChasmContainer.getBaseUrl())
@@ -358,13 +423,15 @@ class BaseApiTest {
                     emptyMap(),
                     mapOf("session" to "abc123"),
                 )
+            val client = CapturingApiClient()
             runBlocking {
-                api().call(
+                TestableApiWithClient(client, "http://localhost").call(
                     "GET",
                     "/test/echo",
                     auth = auth,
                 )
             }
+            assertEquals("session=abc123", client.capturedHeaders["Cookie"])
         }
 
         @Test

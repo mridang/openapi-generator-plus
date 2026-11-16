@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -97,8 +97,7 @@ public class Account : IEquatable<Account>
         sb.Append("Id=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Id));
         sb.Append(", Username=")
             .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Username));
-        sb.Append(", Password=")
-            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Password));
+        sb.Append(", Password=").Append(this.Password is null ? "null" : "***");
         sb.Append('}');
         return sb.ToString();
     }

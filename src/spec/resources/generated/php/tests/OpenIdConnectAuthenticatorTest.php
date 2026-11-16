@@ -56,6 +56,103 @@ test('builds authorization url from discovery', function (): void {
     expect($url)->toContain('scope=openid%20profile');
 });
 
+test('the authorization url always requests the openid scope once', function (array $scopes, string $expected): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        $scopes
+    );
+    $authenticator->setApiClient($client);
+
+    $query = parse_url($authenticator->buildAuthorizationUrl(), PHP_URL_QUERY);
+    expect($query)->toBeString();
+    parse_str((string) $query, $params);
+
+    expect($params['scope'])->toBe($expected);
+})->with([
+    'no caller scopes' => [[], 'openid'],
+    'caller scope without openid' => [['profile'], 'openid profile'],
+    'openid only' => [['openid'], 'openid'],
+    'openid given twice' => [['openid', 'openid'], 'openid'],
+    'de-duplication is case sensitive' => [['OpenID'], 'openid OpenID'],
+]);
+
+test('discovery rejects a document whose issuer differs from the discovery url', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'issuer' => 'https://evil.example.com',
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(SerializationException::class, "issuer 'https://evil.example.com' does not match 'https://auth.example.com'");
+});
+
+test('discovery accepts an issuer that matches up to a trailing slash', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'issuer' => 'https://auth.example.com/',
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect($authenticator->buildAuthorizationUrl())->toContain('https://auth.example.com/authorize?');
+});
+
+test('discovery rejects a clear text endpoint unless it is loopback', function (string $endpoint, bool $accepted): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => $endpoint,
+    ]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    if ($accepted) {
+        expect($authenticator->buildAuthorizationUrl())->toContain('https://auth.example.com/authorize?');
+    } else {
+        expect(fn () => $authenticator->buildAuthorizationUrl())
+            ->toThrow(SerializationException::class, "'token_endpoint' must be an https URL");
+    }
+})->with([
+    'https' => ['https://auth.example.com/token', true],
+    'clear text host' => ['http://auth.example.com/token', false],
+    'loopback name' => ['http://localhost:8080/token', true],
+    'loopback address' => ['http://127.0.0.1:8080/token', true],
+    'ftp scheme' => ['ftp://auth.example.com/token', false],
+]);
+
 test('empty state is omitted', function (): void {
     $client = makeOpenIdConnectMockClientWithDiscovery();
 
@@ -72,7 +169,9 @@ test('empty state is omitted', function (): void {
     $url = $authenticator->buildAuthorizationUrl('');
 
     expect($url)->not->toContain('state');
-    expect($url)->toBe($authenticator->buildAuthorizationUrl());
+    // Each URL carries its own PKCE challenge, so everything else must match.
+    $withoutChallenge = static fn (string $u): string => (string) preg_replace('/code_challenge=[^&]*/', '', $u);
+    expect($withoutChallenge($url))->toBe($withoutChallenge($authenticator->buildAuthorizationUrl()));
 });
 
 test('obtains token after code exchange', function (): void {
@@ -447,6 +546,31 @@ test('oidc keeps discovery cached while its Cache-Control max-age holds', functi
 
     expect($client->capturedRequests)->toHaveCount(1);
 });
+
+test('oidc clamps a max-age beyond one year to one year', function (string $maxAge): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Cache-Control' => 'public, max-age=' . $maxAge]));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->buildAuthorizationUrl();
+
+    $expiry = new \ReflectionProperty(OpenIdConnectAuthenticator::class, 'discoveryExpiry')
+        ->getValue($authenticator);
+    expect($expiry)->toBeInt();
+    expect($expiry)->toBeLessThanOrEqual(time() + 31536000);
+    expect($expiry)->toBeGreaterThan(time() + 31536000 - 120);
+})->with(['9999999999', '99999999999999999999999999', '31536001']);
 
 test('oidc debug output keeps the non secret fields and masks the secret', function (): void {
     $authenticator = new OpenIdConnectAuthenticator(

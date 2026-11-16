@@ -66,6 +66,34 @@ class TestHttpProxy:
         assert '"method"' in response.body
 
 
+class TestAmbientProxyEnvironmentIsIgnored:
+    # D74: TransportOptions.proxy is the only proxy source. A dead proxy in the
+    # environment must not capture a client that configured none.
+    @pytest.mark.parametrize(
+        "variable",
+        [
+            "HTTP_PROXY",
+            "http_proxy",
+            "HTTPS_PROXY",
+            "https_proxy",
+            "ALL_PROXY",
+            "all_proxy",
+        ],
+    )
+    def test_a_client_without_a_proxy_connects_directly(
+        self, chasm_http_url: Any, monkeypatch: pytest.MonkeyPatch, variable: str
+    ) -> None:
+        monkeypatch.delenv("NO_PROXY", raising=False)
+        monkeypatch.delenv("no_proxy", raising=False)
+        monkeypatch.setenv(variable, "http://127.0.0.1:1")
+        client = DefaultApiClient(TransportOptions.builder().build())
+
+        response = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+
+        assert response.status_code == 200
+        assert not isinstance(client._pool_manager, urllib3.ProxyManager)
+
+
 class TestProxyWithCredentials:
     # The fixture proxy's second port answers 407 unless the request carries
     # Proxy-Authorization, so these two prove the credentials in the proxy URL
@@ -192,6 +220,62 @@ class TestRequestTimeout:
             client.send_request("GET", chasm_http_url + "/test/slow", {}, None)
         assert excinfo.value.status_code == 0
         assert excinfo.value.__cause__ is not None
+
+
+class TestRedirectChainTimeoutIsOneBudget:
+    # Three hops of 500 ms each: one end-to-end budget of 1200 ms must fail
+    # where a per-hop timer would pass; 5000 ms is the positive control.
+    def test_a_chain_longer_than_the_budget_times_out(
+        self, chasm_http_url: Any
+    ) -> None:
+        from petstore_client.errors import NetworkTimeoutException
+
+        client = DefaultApiClient(TransportOptions.builder().timeout(1200).build())
+
+        with pytest.raises(NetworkTimeoutException) as excinfo:
+            client.send_request(
+                "GET", chasm_http_url + "/test/redirect/chain/1", {}, None
+            )
+        assert excinfo.value.status_code == 0
+
+    def test_a_chain_inside_the_budget_completes(self, chasm_http_url: Any) -> None:
+        client = DefaultApiClient(TransportOptions.builder().timeout(5000).build())
+
+        response = client.send_request(
+            "GET", chasm_http_url + "/test/redirect/chain/1", {}, None
+        )
+
+        assert response.status_code == 200
+
+
+class TestMultiValueResponseHeaders:
+    def test_repeated_headers_are_joined_in_order(self, chasm_http_url: Any) -> None:
+        client = DefaultApiClient()
+
+        response = client.send_request(
+            "GET", chasm_http_url + "/test/response-headers", {}, None
+        )
+
+        assert response.headers["x-custom-header"] == "foo"
+        link = response.headers["link"]
+        assert link.index('rel="next"') < link.index('rel="prev"')
+        cookies = response.headers["set-cookie"]
+        assert cookies.index("a=1") < cookies.index("b=2")
+
+
+class TestResponseCookiesAreNotReplayed:
+    def test_a_set_cookie_is_never_sent_back_by_the_same_client(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient()
+
+        first = client.send_request(
+            "GET", chasm_http_url + "/test/set-cookie", {}, None
+        )
+        echoed = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+
+        assert "session-id" in first.headers["set-cookie"]
+        assert "cookie" not in json.loads(echoed.body)["headers"]
 
 
 class TestUserAgentHeader:
@@ -458,6 +542,43 @@ class TestRedirectSecurityGuards:
         # Sensitive headers must be gone on the downgraded follow-up.
         assert not any(k.lower() == "authorization" for k in followup_headers)
         assert not any(k.lower() == "cookie" for k in followup_headers)
+
+    def test_strips_credential_named_headers_on_a_cross_origin_hop(self) -> None:
+        """A default or authenticator header named like a credential
+        (X-Tenant-Token, X-Custom-Auth-Key) is not forwarded to another origin."""
+
+        class _FakeResp:
+            def __init__(self, status: int, headers: dict[str, Any]) -> None:
+                self.status = status
+                self.headers = headers
+
+            def read(self) -> bytes:
+                return b""
+
+            def release_conn(self) -> None:
+                return None
+
+        class _FakePool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(
+                        302, {"location": "https://other.example.org/next"}
+                    )
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _FakePool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        headers = {"X-Tenant-Token": "t", "X-Custom-Auth-Key": "k", "X-Trace": "keep"}
+        client.send_request("GET", "https://example.com/start", headers, None)
+        followup = {k.lower(): v for k, v in pool.calls[1][2].items()}
+        assert "x-tenant-token" not in followup
+        assert "x-custom-auth-key" not in followup
+        assert followup["x-trace"] == "keep"
 
     def test_cross_origin_redirect_leaves_proxy_authorization_on_the_pool_manager(
         self,
@@ -825,7 +946,8 @@ class TestHttpCompression:
         )
 
         assert response.status_code == 200
-        assert response.headers["content-encoding"] == encoding
+        assert "content-encoding" not in response.headers
+        assert "content-length" not in response.headers
         assert json.loads(response.body)["title"] == "compressed fixture body"
 
 

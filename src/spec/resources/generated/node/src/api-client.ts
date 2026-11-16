@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -28,6 +28,12 @@ export interface SendRequestOptions {
   readonly noRedirect?: boolean;
   readonly noDefaultHeaders?: boolean;
   readonly signal?: AbortSignal;
+  /**
+   * Names of headers the SDK attached from an authenticator or from default
+   * headers. They are removed from a request that follows a redirect to
+   * another origin, like the credential headers every transport knows.
+   */
+  readonly credentialHeaderNames?: readonly string[];
 }
 
 /**

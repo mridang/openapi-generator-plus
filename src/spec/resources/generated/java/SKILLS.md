@@ -185,21 +185,25 @@ var client = new Client(fake);
 
 ## Error Handling
 
-All API errors derive from `ApiException`. The error hierarchy is:
+Every error the SDK raises derives from `OpenAPIException` (unchecked). Catch it to handle everything, or catch the more specific branches below. The error hierarchy is:
 
-- `ApiException` (base)
-  - `ClientException` (4xx)
-    - `BadRequestException` (400)
-    - `UnauthorizedException` (401)
-    - `ForbiddenException` (403)
-    - `NotFoundException` (404)
-    - `ConflictException` (409)
-    - `UnprocessableEntityException` (422)
-    - `TooManyRequestsException` (429)
-  - `ServerException` (5xx)
-    - `InternalServerErrorException` (500)
-  - `NetworkException` (no HTTP response, status 0)
-    - `NetworkTimeoutException` (the request timed out, status 0)
+- `OpenAPIException` (root)
+  - `SerializationException` (a request or response body could not be encoded or decoded)
+  - `OAuth2ServerException` (the token endpoint answered with an OAuth2 error response)
+  - `OAuth2TokenException` (the token response was unusable, for example no `access_token`)
+  - `ApiException` (an HTTP response or its absence)
+    - `ClientException` (4xx)
+      - `BadRequestException` (400)
+      - `UnauthorizedException` (401)
+      - `ForbiddenException` (403)
+      - `NotFoundException` (404)
+      - `ConflictException` (409)
+      - `UnprocessableEntityException` (422)
+      - `TooManyRequestsException` (429)
+    - `ServerException` (5xx)
+      - `InternalServerErrorException` (500)
+    - `NetworkException` (no HTTP response, status 0)
+      - `NetworkTimeoutException` (the request timed out, status 0)
 
 ```java
 import com.example.petstore.errors.*;

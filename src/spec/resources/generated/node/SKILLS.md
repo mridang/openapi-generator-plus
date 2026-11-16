@@ -236,21 +236,25 @@ const client = new Client(fake, transport);
 
 ## Error Handling
 
-All API errors derive from `ApiError`. The error hierarchy is:
+Every error the SDK raises derives from `OpenAPIError`. The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-    - `TooManyRequestsError` (429)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
-  - `NetworkError` (no HTTP response, status 0)
-    - `NetworkTimeoutError` (the request timed out, status 0)
+- `OpenAPIError` (root)
+  - `ApiError` (an HTTP response came back, or none did)
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
+  - `SerializationError` (a request could not be encoded or a response could not be decoded)
+  - `OAuth2ServerError` (the token endpoint answered with a non-2xx status)
+  - `OAuth2TokenError` (the token endpoint answered 2xx with an unusable body)
 
 ```typescript
 import {
@@ -258,6 +262,7 @@ import {
   ClientError,
   NotFoundError,
   ServerError,
+  OpenAPIError,
   Pet,
 } from "petstore-client";
 
@@ -272,6 +277,10 @@ try {
     console.log(`Server error: ${error.message}`);
   } else if (error instanceof ApiError) {
     console.log(`API error: ${error.message}`);
+  } else if (error instanceof OpenAPIError) {
+    console.log(`SDK error: ${error.message}`);
+  } else {
+    throw error;
   }
 }
 ```

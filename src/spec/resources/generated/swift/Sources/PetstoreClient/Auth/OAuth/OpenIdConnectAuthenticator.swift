@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -16,7 +16,7 @@ import Foundation
 /// subsequent token exchange requests use the shared ``ApiClient`` with the same
 /// transport configuration (proxy, TLS, timeouts) as regular API calls.
 public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
-  @unchecked Sendable
+  AccessTokenInvalidating, @unchecked Sendable
 {
   private let _host: String
   private let openIDConnectURL: String
@@ -47,6 +47,13 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     /* OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid". */
     self.scopes = ["openid"] + scopes.filter { $0 != "openid" }
     super.init()
+  }
+
+  /// Drops the cached access token so that the next call fetches a fresh one
+  /// (a refresh grant first when a refresh token is held). The SDK calls this
+  /// itself when the API answers 401.
+  public func invalidateAccessToken() {
+    lock.withLock { delegate }?.invalidateAccessToken()
   }
 
   /// Returns the API base URL.
@@ -136,10 +143,12 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
        * guard below reports it as "missing" (matching the other SDKs),
        * rather than JSONDecoder throwing a keyNotFound that would surface
        * as the generic "not a JSON object" message. */
+      let issuer: String?
       let authorizationEndpoint: String?
       let tokenEndpoint: String?
 
       enum CodingKeys: String, CodingKey {
+        case issuer
         case authorizationEndpoint = "authorization_endpoint"
         case tokenEndpoint = "token_endpoint"
       }
@@ -165,6 +174,24 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     else {
       throw SerializationError(message: "OIDC discovery document is missing 'token_endpoint'")
     }
+
+    /* OpenID Connect Discovery 1.0 section 4.3: the issuer must equal the
+     * URL the document was fetched from, minus the well-known suffix, which
+     * is the defence against a document served for another issuer. A
+     * document that carries no issuer is not rejected here. */
+    let wellKnown = "/.well-known/openid-configuration"
+    if let issuer = discovery.issuer, openIDConnectURL.hasSuffix(wellKnown) {
+      let expected = Self.withoutTrailingSlashes(String(openIDConnectURL.dropLast(wellKnown.count)))
+      if Self.withoutTrailingSlashes(issuer) != expected {
+        throw SerializationError(
+          message: "OIDC discovery issuer '\(issuer)' does not match '\(expected)'")
+      }
+    }
+    /* The authorization code and the client secret travel to these
+     * endpoints: refuse clear text unless the host is a loopback address
+     * (RFC 8252 section 8.3). */
+    try Self.requireSecureEndpoint("authorization_endpoint", authorizationEndpoint)
+    try Self.requireSecureEndpoint("token_endpoint", tokenEndpoint)
 
     /* The session (tokens and the exchanged flag) lives in the token manager,
      * which outlives discovery: a document that names the same endpoints keeps
@@ -209,6 +236,31 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     }
     resolved.setApiClient(client)
     return resolved
+  }
+
+  private static func withoutTrailingSlashes(_ value: String) -> String {
+    var result = value
+    while result.hasSuffix("/") {
+      result.removeLast()
+    }
+    return result
+  }
+
+  /// Rejects a discovered endpoint that is not https, unless it is http on a
+  /// loopback host.
+  static func requireSecureEndpoint(_ name: String, _ endpoint: String) throws {
+    let components = URLComponents(string: endpoint)
+    let scheme = components?.scheme?.lowercased() ?? ""
+    let host = (components?.host ?? "").lowercased()
+    if scheme == "https" {
+      return
+    }
+    let loopback = host == "localhost" || host == "::1" || host == "[::1]" || host.hasPrefix("127.")
+    if scheme == "http" && loopback {
+      return
+    }
+    throw SerializationError(
+      message: "OIDC discovery document '\(name)' must be an https URL (got '\(endpoint)')")
   }
 
   /// Longest time a discovery document is cached: one year. A larger

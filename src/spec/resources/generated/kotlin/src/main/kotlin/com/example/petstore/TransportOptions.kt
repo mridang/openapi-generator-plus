@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -209,20 +209,30 @@ class TransportOptions private constructor(
          */
         fun httpClient(httpClient: HttpClient?): Builder = apply { this.httpClient = httpClient }
 
+        /* The proxy URL with any user-info replaced by `***@`, so an error message never carries
+         * the proxy credentials (D79). */
+        private fun maskUserInfo(url: String): String {
+            val schemeEnd = url.indexOf("://")
+            val start = if (schemeEnd == -1) 0 else schemeEnd + 3
+            val authorityEnd = url.indexOfAny(charArrayOf('/', '?', '#'), start).let { if (it == -1) url.length else it }
+            val at = url.lastIndexOf('@', authorityEnd - 1)
+            return if (at <= start) url else url.substring(0, start) + "***@" + url.substring(at + 1)
+        }
+
         private fun canonicalProxy(proxy: String?): String? {
             if (proxy == null) {
                 return null
             }
             val schemeEnd = proxy.indexOf("://")
             if (schemeEnd == -1) {
-                throw IllegalArgumentException("Invalid proxy URL (missing scheme): $proxy")
+                throw IllegalArgumentException("Invalid proxy URL (missing scheme): ${maskUserInfo(proxy)}")
             }
             // RFC 3986 schemes are case-insensitive: accept HTTP:// and
             // keep the lower-case form.
             val scheme = proxy.substring(0, schemeEnd).lowercase()
             if (scheme !in listOf("http", "https")) {
                 throw IllegalArgumentException(
-                    "Invalid proxy URL (must use http or https scheme): $proxy",
+                    "Invalid proxy URL (must use http or https scheme): ${maskUserInfo(proxy)}",
                 )
             }
             /* The host is what follows the optional user-info and precedes the
@@ -234,7 +244,7 @@ class TransportOptions private constructor(
                     // An IPv6 literal must be closed by a bracket.
                     if (!hostAndPort.contains(']')) {
                         throw IllegalArgumentException(
-                            "Invalid proxy URL (unterminated IPv6 literal): $proxy",
+                            "Invalid proxy URL (unterminated IPv6 literal): ${maskUserInfo(proxy)}",
                         )
                     }
                     hostAndPort.substringBefore(']').removePrefix("[")
@@ -242,7 +252,7 @@ class TransportOptions private constructor(
                     hostAndPort.substringBefore(':')
                 }
             if (host.isEmpty()) {
-                throw IllegalArgumentException("Invalid proxy URL (missing host): $proxy")
+                throw IllegalArgumentException("Invalid proxy URL (missing host): ${maskUserInfo(proxy)}")
             }
             return scheme + proxy.substring(schemeEnd)
         }

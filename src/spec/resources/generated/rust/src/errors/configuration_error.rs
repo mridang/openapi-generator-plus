@@ -22,9 +22,11 @@ use std::fmt;
 /// part of the SDK error hierarchy rooted at `OpenAPIError`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfigurationError {
-    /// The proxy URL does not parse, is not http(s), or has no host.
+    /// The proxy URL does not parse, is not http(s), or has no host. Holds the full
+    /// message, with any userinfo shown as `***@`.
     InvalidProxy(String),
-    /// The CA certificate file cannot be read or holds no PEM certificate.
+    /// The CA certificate file cannot be read or holds no PEM certificate. Holds the
+    /// full message.
     InvalidCaCertificate(String),
     /// The request timeout is zero or negative.
     InvalidTimeout(i64),
@@ -42,8 +44,8 @@ pub enum ConfigurationError {
 impl fmt::Display for ConfigurationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidProxy(reason) => write!(f, "invalid proxy URL: {}", reason),
-            Self::InvalidCaCertificate(reason) => write!(f, "invalid CA certificate: {}", reason),
+            Self::InvalidProxy(reason) => f.write_str(reason),
+            Self::InvalidCaCertificate(reason) => f.write_str(reason),
             Self::InvalidTimeout(ms) => write!(
                 f,
                 "Invalid timeout: must be a positive number of milliseconds (got {})",

@@ -7,7 +7,13 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Dict, List, cast
 from urllib.parse import unquote
-from petstore_client.api.pet_api import GetExternalPetInfoServer, PetApi
+from petstore_client.api.pet_api import (
+    GetExternalPetInfoServer,
+    GetMultiServerPetInfoServerChannel,
+    GetMultiServerPetInfoServerMirror,
+    GetMultiServerPetInfoServerMirrorRegion,
+    PetApi,
+)
 from petstore_client.api.options.add_pet_options import AddPetOptions
 from petstore_client.api.options.add_pet_photos_options import AddPetPhotosOptions
 from petstore_client.api.options.delete_pet_options import DeletePetOptions
@@ -15,6 +21,7 @@ from petstore_client.api.options.find_pets_by_status_options import (
     FindPetsByStatusOptions,
 )
 from petstore_client.api.options.get_pet_by_name_options import GetPetByNameOptions
+from petstore_client.api.options.get_pet_summary_options import GetPetSummaryOptions
 from petstore_client.api.options.get_pet_tag_options import GetPetTagOptions
 from petstore_client.api.options.set_pet_preferences_options import (
     SetPetPreferencesOptions,
@@ -35,7 +42,11 @@ from petstore_client.errors.internal_server_error_exception import (
 )
 from petstore_client.errors.not_found_exception import NotFoundException
 from petstore_client.models.api_response import ApiResponse
+from petstore_client.models.medication import Medication
 from petstore_client.models.pet import Pet, PetStatusEnum
+from petstore_client.models.swatch import Swatch
+from petstore_client.models.pet_criteria import PetCriteria
+from petstore_client.models.pet_treatment import PetTreatment
 from petstore_client.models.pet_passport import PetPassport
 from petstore_client.models.photo_metadata import PhotoMetadata
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
@@ -67,7 +78,11 @@ class _RecordingApiClient:
         )
 
 
-async def _capture_get(call: Any) -> Dict[str, Any]:
+async def _capture_get(
+    call: Any,
+    content_type: str = "application/json",
+    reply: bytes = b'{"id":1,"name":"x","photoUrls":[]}',
+) -> Dict[str, Any]:
     """Run ``call(api)`` against a one-shot local listener and return the raw
     request target and headers the server received."""
     captured: Dict[str, Any] = {}
@@ -77,9 +92,14 @@ async def _capture_get(call: Any) -> Dict[str, Any]:
             captured["path"] = self.path
             captured["headers"] = dict(self.headers.items())
             self.send_response(200)
-            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Type", content_type)
             self.end_headers()
-            self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+            self.wfile.write(reply)
+
+        def do_POST(self) -> None:
+            length = int(self.headers.get("Content-Length", 0))
+            captured["body"] = self.rfile.read(length).decode() if length else ""
+            self.do_GET()
 
         def log_message(self, format: str, *args: object) -> None:
             pass
@@ -91,7 +111,7 @@ async def _capture_get(call: Any) -> Dict[str, Any]:
     thread.start()
     config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
     try:
-        await call(PetApi(config=config))
+        captured["result"] = await call(PetApi(config=config))
     finally:
         server.server_close()
     return captured
@@ -445,6 +465,78 @@ class TestPetApi:
         assert b"Content-Disposition" in multipart["body"]
         assert multipart["body"] != file_bytes
 
+    async def test_upload_pet_document_sends_scalar_parts_as_plain_text(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.upload_pet_document(
+                1,
+                UploadPetDocumentOptions(
+                    file=b"doc-data",
+                    is_primary=True,
+                    page_count=3,
+                    taken_at=datetime.datetime(
+                        2024, 1, 15, 10, 30, tzinfo=datetime.timezone.utc
+                    ),
+                    swatch=Swatch.RED,
+                ),
+            ),
+            "application/json",
+            b"{}",
+        )
+        body = captured["body"]
+        for name, text in [
+            ("isPrimary", "true"),
+            ("pageCount", "3"),
+            ("takenAt", "2024-01-15T10:30:00.000+00:00"),
+            ("swatch", "red"),
+        ]:
+            assert f'name="{name}"\r\n\r\n{text}\r\n' in body
+
+    @pytest.mark.parametrize(
+        ("channel", "expected"),
+        [
+            (
+                GetMultiServerPetInfoServerChannel.A_B,
+                "https://eu.mirror.example.com/a&b/v1",
+            ),
+            (
+                GetMultiServerPetInfoServerChannel.IT_S,
+                "https://eu.mirror.example.com/it's/v1",
+            ),
+        ],
+    )
+    def test_the_mirror_operation_server_resolves_raw_reserved_characters(
+        self, channel: GetMultiServerPetInfoServerChannel, expected: str
+    ) -> None:
+        server = GetMultiServerPetInfoServerMirror(
+            GetMultiServerPetInfoServerMirrorRegion.EU, channel
+        )
+        assert server.get_url() == expected
+
+    async def test_get_pet_tag_wires_the_matrix_and_label_path_styles(self) -> None:
+        captured = await _capture_get(lambda api: api.get_pet_tag(7, "cute"))
+        assert captured["path"].startswith("/pet/;petId=7/tag/.cute")
+
+    async def test_find_pets_by_status_sends_a_deep_object_filter_in_key_order(
+        self,
+    ) -> None:
+        captured = await _capture_get(
+            lambda api: api.find_pets_by_status(
+                FindPetsByStatusOptions(filter={"color": "red", "size": "xl"})
+            ),
+            "application/json",
+            b"[]",
+        )
+        assert "filter%5Bcolor%5D=red&filter%5Bsize%5D=xl" in captured["path"]
+
+    async def test_a_digit_leading_query_parameter_keeps_its_wire_name(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.find_pets_by_status(FindPetsByStatusOptions(n2nd_page=3)),
+            "application/json",
+            b"[]",
+        )
+        assert "2ndPage=3" in captured["path"]
+        assert "n2nd" not in captured["path"]
+
     async def test_add_pet_photos(self) -> None:
         metadata = PhotoMetadata(caption="Test photo", isPrimary=True)
 
@@ -559,6 +651,112 @@ class TestPetApi:
             lambda api: api.get_pet_tag(5, "cute", GetPetTagOptions(revision=revision))
         )
         assert expected in captured["path"]
+
+    @pytest.mark.parametrize(
+        ("raw", "query", "header"),
+        [
+            (b"hi", "fingerprint=aGk%3D", "aGk="),
+            (b"\xfb\xff", "fingerprint=%2B%2F8%3D", "+/8="),
+        ],
+    )
+    async def test_get_pet_tag_sends_byte_parameters_as_standard_padded_base64(
+        self, raw: bytes, query: str, header: str
+    ) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_tag(
+                5, "cute", GetPetTagOptions(fingerprint=raw, x_fingerprint=raw)
+            )
+        )
+        assert query in captured["path"]
+        sent = {name.lower(): value for name, value in captured["headers"].items()}
+        assert sent["x-fingerprint"] == header
+
+    async def test_get_pet_summary_sends_matrix_path_date_array_query_and_cookie(
+        self,
+    ) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_summary(
+                7,
+                datetime.date(2024, 1, 5),
+                GetPetSummaryOptions(
+                    session="abc",
+                    days=[datetime.date(2024, 1, 1), datetime.date(2024, 2, 2)],
+                ),
+            ),
+            "text/plain",
+            b"done",
+        )
+        assert "/summary/;asOf=2024-01-05" in captured["path"]
+        assert "days=2024-01-01&days=2024-02-02" in captured["path"]
+        sent = {name.lower(): value for name, value in captured["headers"].items()}
+        assert sent["cookie"] == "session=abc"
+        assert sent["accept"] == "text/plain"
+        assert captured["result"] == "done"
+
+    async def test_get_pet_summary_requires_the_session_cookie(self) -> None:
+        api = PetApi(
+            config=Configuration.builder().base_url("http://localhost").build()
+        )
+        with pytest.raises(
+            ValueError,
+            match="Missing the required parameter 'session' when calling PetApi.get_pet_summary",
+        ):
+            await api.get_pet_summary(
+                7, datetime.date(2024, 1, 5), GetPetSummaryOptions(session="")
+            )
+
+    async def test_get_pet_by_name_requires_the_correlation_header(self) -> None:
+        api = PetApi(
+            config=Configuration.builder().base_url("http://localhost").build()
+        )
+        with pytest.raises(
+            ValueError,
+            match="Missing the required parameter 'x_correlation_id' when calling PetApi.get_pet_by_name",
+        ):
+            await api.get_pet_by_name(
+                "Fido", GetPetByNameOptions(category="c", x_correlation_id="")
+            )
+
+    async def test_get_pet_tag_sends_object_valued_parameters_by_style(self) -> None:
+        criteria = PetCriteria(breed="lab", min_age=3)
+        captured = await _capture_get(
+            lambda api: api.get_pet_tag(
+                5,
+                "cute",
+                GetPetTagOptions(
+                    criteria=criteria,
+                    criteria_csv=criteria,
+                    criteria_deep=criteria,
+                    x_criteria=criteria,
+                ),
+            )
+        )
+        path = captured["path"]
+        assert "breed=lab&min_age=3" in path
+        assert "criteriaCsv=breed%2Clab%2Cmin_age%2C3" in path
+        assert "criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3" in path
+        sent = {name.lower(): value for name, value in captured["headers"].items()}
+        assert sent["x-criteria"] == "breed,lab,min_age,3"
+
+    async def test_add_pet_treatment_sends_the_chosen_variant_as_the_body(self) -> None:
+        import json
+
+        treatment = PetTreatment(Medication(drugName="Amoxicillin", dosage="5mg"))
+        captured = await _capture_get(
+            lambda api: api.add_pet_treatment(7, treatment),
+            "application/json",
+            b'{"drugName":"Amoxicillin"}',
+        )
+        assert captured["path"] == "/pet/7/treatment"
+        assert json.loads(captured["body"]) == {
+            "drugName": "Amoxicillin",
+            "dosage": "5mg",
+        }
+        sent = {name.lower(): value for name, value in captured["headers"].items()}
+        assert sent["content-type"] == "application/json"
+        result = captured["result"]
+        assert isinstance(result, PetTreatment)
+        assert isinstance(result.actual_instance, Medication)
 
     @pytest.mark.parametrize("name", [".", ".."])
     async def test_get_pet_by_name_rejects_a_dot_segment(self, name: str) -> None:

@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -37,6 +37,14 @@ class HeaderSelector:
         if not is_multipart:
             if not content_type:
                 content_type = "application/json"
+            headers["Content-Type"] = content_type
+        elif (
+            content_type
+            and content_type.lower().startswith("multipart/")
+            and (content_type.lower() != "multipart/form-data")
+        ):
+            # The transport adds the boundary; it needs the declared subtype
+            # (multipart/mixed, multipart/related) to write it.
             headers["Content-Type"] = content_type
 
         return headers

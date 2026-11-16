@@ -800,11 +800,9 @@ async fn test_default_api_client_decompresses_gzip_response() {
         "expected decompressed body, got: {}",
         resp.body()
     );
-    assert_eq!(
-        Some(&"gzip".to_string()),
-        resp.headers().get("content-encoding")
-    );
-    assert!(resp.headers().contains_key("content-length"));
+    /* D92: the headers describe the decoded body the caller received. */
+    assert_eq!(None, resp.headers().get("content-encoding"));
+    assert!(!resp.headers().contains_key("content-length"));
 }
 
 #[tokio::test]
@@ -828,6 +826,8 @@ async fn test_default_api_client_decompresses_zstd_response() {
         "expected decompressed body, got: {}",
         resp.body()
     );
+    assert_eq!(None, resp.headers().get("content-encoding"));
+    assert!(!resp.headers().contains_key("content-length"));
 }
 
 // Regression: POST/PUT/PATCH with body == None must emit an explicit

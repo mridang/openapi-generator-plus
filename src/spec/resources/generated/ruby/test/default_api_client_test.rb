@@ -607,7 +607,7 @@ describe Petstore::Client::DefaultApiClient do
 
   describe 'HTTP compression' do
     # The fixture really answers with the requested Content-Encoding, so the
-    # decoded body and the surviving header together show the decoder ran.
+    # decoded body and the dropped encoding header together show the decoder ran.
     def assert_decodes(encoding)
       client = Petstore::Client::DefaultApiClient.new
       response = client.send_request(
@@ -616,7 +616,8 @@ describe Petstore::Client::DefaultApiClient do
       )
 
       _(response.status_code).must_equal(200)
-      _(response.headers['content-encoding']).must_equal(encoding)
+      _(response.headers.key?('content-encoding')).must_equal(false)
+      _(response.headers.key?('content-length')).must_equal(false)
       _(JSON.parse(response.body)['title']).must_equal('compressed fixture body')
     end
 

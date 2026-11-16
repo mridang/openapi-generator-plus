@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -227,6 +227,63 @@ describe("DefaultApiClient", () => {
       expect(error).toBeInstanceOf(NetworkError);
       expect((error as NetworkTimeoutError).statusCode).toBe(0);
       expect((error as NetworkTimeoutError).cause).toBeDefined();
+    });
+  });
+
+  describe("redirect chain timeout is one budget", () => {
+    // Three hops of 500 ms each: one end-to-end budget of 1200 ms fails where
+    // a per-hop timer would pass; 5000 ms is the positive control.
+    test("a chain longer than the budget times out", async () => {
+      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+      const client = new DefaultApiClient(
+        TransportOptions.builder().timeout(1200).build(),
+      );
+
+      const error = await client
+        .sendRequest("GET", `${chasmUrl}/test/redirect/chain/1`, {}, null)
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(NetworkTimeoutError);
+      expect((error as NetworkTimeoutError).statusCode).toBe(0);
+    });
+
+    test("a chain inside the budget completes", async () => {
+      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+      const client = new DefaultApiClient(
+        TransportOptions.builder().timeout(5000).build(),
+      );
+
+      const response = await client.sendRequest(
+        "GET",
+        `${chasmUrl}/test/redirect/chain/1`,
+        {},
+        null,
+      );
+
+      expect(response.statusCode).toBe(200);
+    });
+  });
+
+  describe("multi-value response headers", () => {
+    test("repeated headers are joined in order", async () => {
+      const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+
+      const response = await new DefaultApiClient().sendRequest(
+        "GET",
+        `${chasmUrl}/test/response-headers`,
+        {},
+        null,
+      );
+
+      expect(response.headers["x-custom-header"]).toBe("foo");
+      const link = response.headers["link"]!;
+      expect(link.indexOf('rel="next"')).toBeGreaterThanOrEqual(0);
+      expect(link.indexOf('rel="next"')).toBeLessThan(
+        link.indexOf('rel="prev"'),
+      );
+      const cookies = response.headers["set-cookie"]!;
+      expect(cookies.indexOf("a=1")).toBeGreaterThanOrEqual(0);
+      expect(cookies.indexOf("a=1")).toBeLessThan(cookies.indexOf("b=2"));
     });
   });
 

@@ -190,6 +190,7 @@ function newCapturingStoreApi(): array
 {
     $captured = new \stdClass();
     $captured->url = '';
+    $captured->body = '';
     /** @var array<string, string> $hdrs */
     $hdrs = [];
     $captured->headers = $hdrs;
@@ -207,6 +208,7 @@ function newCapturingStoreApi(): array
         {
             $this->captured->url = $url;
             $this->captured->headers = $headers;
+            $this->captured->body = is_string($body) ? $body : '';
             return new \PetstoreClient\ApiHttpResponse(
                 200,
                 '{"id":1,"name":"sample"}',
@@ -283,4 +285,124 @@ test('named enum query and header params are omitted when absent', function (): 
 
     expect($captured->url)->toBe('http://localhost:9999/store/by-swatch/blue');
     expect($captured->headers)->not->toHaveKey('Preferred-Swatch');
+});
+
+test('a uuid path parameter puts the canonical lowercase uuid in the path', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    $api->getOrderByTrackingId(\Symfony\Component\Uid\Uuid::fromString('123E4567-E89B-12D3-A456-426614174000'));
+
+    expect($captured->url)->toBe('http://localhost:9999/store/order/by-tracking/123e4567-e89b-12d3-a456-426614174000');
+});
+
+test('a malformed uuid is refused before any request is sent', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    expect(fn () => $api->getOrderByTrackingId(\Symfony\Component\Uid\Uuid::fromString('not-a-uuid')))
+        ->toThrow(\InvalidArgumentException::class);
+    expect($captured->url)->toBe('');
+});
+
+test('create account sends the writeOnly password as an unauthenticated json body', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    try {
+        $api->createAccount(new \PetstoreClient\Models\Account('ada', null, 'hunter2'));
+    } catch (\Throwable) {
+        // The canned reply has no username, so decoding it may fail; only the request matters.
+    }
+
+    expect($captured->url)->toBe('http://localhost:9999/store/account');
+    expect($captured->headers['Content-Type'] ?? null)->toBe('application/json');
+    expect($captured->headers)->not->toHaveKey('Authorization');
+    expect($captured->body)->toContain('"username":"ada"');
+    expect($captured->body)->toContain('"password":"hunter2"');
+});
+
+// -- response-shape operations: the generated method picks the return type --
+
+test('get swatch decodes a bare enum', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '"red"');
+
+    expect($api->getSwatch())->toBe(\PetstoreClient\Models\Swatch::RED);
+});
+
+test('get swatch groups decodes a list of string keyed enum maps', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '[{"a":"red","b":"blue"},{"c":"green"}]');
+
+    $groups = $api->getSwatchGroups();
+
+    expect($groups)->toHaveCount(2);
+    $first = $groups->get(0);
+    $second = $groups->get(1);
+    expect($first)->toBeInstanceOf(\Ds\Map::class);
+    expect($second)->toBeInstanceOf(\Ds\Map::class);
+    expect($first->get('a'))->toBe(\PetstoreClient\Models\Swatch::RED);
+    expect($first->get('b'))->toBe(\PetstoreClient\Models\Swatch::BLUE);
+    expect($second->get('c'))->toBe(\PetstoreClient\Models\Swatch::GREEN);
+});
+
+test('get timestamp groups decodes a list of string keyed date-time maps', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '[{"at":"2024-01-15T10:00:00Z"}]');
+
+    $groups = $api->getTimestampGroups();
+
+    expect($groups)->toHaveCount(1);
+    $group = $groups->get(0);
+    expect($group)->toBeInstanceOf(\Ds\Map::class);
+    $at = $group->get('at');
+    expect($at)->toBeInstanceOf(\DateTime::class);
+    expect($at->getTimestamp())->toBe(1705312800);
+});
+
+test('get department decodes the mutually recursive pair', function (): void {
+    $api = newStoreApiForMock(
+        200,
+        'application/json',
+        '{"name":"Research","lead":{"name":"Ada","department":{"name":"Inner"}}}'
+    );
+
+    $department = $api->getDepartment();
+
+    expect($department->name)->toBe('Research');
+    expect($department->lead)->toBeInstanceOf(\PetstoreClient\Models\Employee::class);
+    expect($department->lead?->name)->toBe('Ada');
+    expect($department->lead?->department)->toBeInstanceOf(\PetstoreClient\Models\Department::class);
+    expect($department->lead?->department?->name)->toBe('Inner');
+});
+
+test('get tree decodes the self recursive node', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '{"value":"root","child":{"value":"leaf"}}');
+
+    $tree = $api->getTree();
+
+    expect($tree->value)->toBe('root');
+    expect($tree->child?->value)->toBe('leaf');
+    expect($tree->child?->child)->toBeNull();
+});
+
+test('get defaults keeps the schema defaults for absent fields', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '{"retries":9}');
+
+    $defaults = $api->getDefaults();
+
+    expect($defaults->retries)->toBe(9);
+    expect($defaults->ratio)->toBe(1.5);
+    expect($defaults->ceiling)->toBe(9000000000);
+    expect($defaults->label)->toBe('untitled');
+});
+
+test('get stock item decodes the integer backed enum and the nested arrays', function (): void {
+    $api = newStoreApiForMock(
+        200,
+        'application/json',
+        '{"priority":2,"availability":"on-hold","matrix":[[1,2],[3]]}'
+    );
+
+    $item = $api->getStockItem();
+
+    expect($item->priority)->toBe(\PetstoreClient\Models\Priority::NUMBER_2);
+    expect($item->availability)->toBe(\PetstoreClient\Models\Availability::ON_HOLD);
+    expect($item->matrix?->toArray()[0]->toArray())->toBe([1, 2]);
+    expect($item->matrix?->toArray()[1]->toArray())->toBe([3]);
 });

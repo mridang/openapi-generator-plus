@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -1564,5 +1564,232 @@ public class PetApiTest
         {
             System.Globalization.CultureInfo.CurrentCulture = previous;
         }
+    }
+
+    [Fact]
+    public void DeprecatedOperationsCarryTheObsoleteMarkerOnEveryVariant()
+    {
+        string[] names =
+        [
+            "FindPetsByStatusAsync",
+            "FindPetsByStatusWithHttpInfoAsync",
+            "GetPetByIdAsync",
+            "GetPetByIdWithHttpInfoAsync",
+        ];
+
+        foreach (string name in names)
+        {
+            var variants = typeof(PetApi).GetMethods().Where(m => m.Name == name).ToList();
+
+            Assert.NotEmpty(variants);
+            Assert.All(
+                variants,
+                m => Assert.NotNull(Attribute.GetCustomAttribute(m, typeof(ObsoleteAttribute)))
+            );
+        }
+    }
+
+    [Fact]
+    public void DeprecatedModelCarriesTheObsoleteMarker()
+    {
+        var marker = (ObsoleteAttribute?)
+            Attribute.GetCustomAttribute(typeof(Tag), typeof(ObsoleteAttribute));
+
+        Assert.NotNull(marker);
+        Assert.Contains("deprecated", marker!.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperationsThatAreNotDeprecatedCarryNoObsoleteMarker()
+    {
+        var method = typeof(PetApi).GetMethods().First(m => m.Name == "AddPetAsync");
+
+        Assert.Null(Attribute.GetCustomAttribute(method, typeof(ObsoleteAttribute)));
+    }
+
+    [Fact]
+    public async Task GetPetSummarySendsTheMatrixDateSegmentTheCookieAndTheDateArray()
+    {
+        var client = new DateWireCapturingApiClient { ResponseBody = "\"ok\"" };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetSummaryAsync(
+            7L,
+            new DateOnly(2024, 1, 15),
+            new GetPetSummaryOptions
+            {
+                Session = "s1",
+                Days = [new DateOnly(2024, 1, 2), new DateOnly(2024, 1, 3)],
+            }
+        );
+
+        Assert.Contains(
+            "/pet/7/summary/;asOf=2024-01-15",
+            client.CapturedUrl!.AbsoluteUri,
+            StringComparison.Ordinal
+        );
+        Assert.Equal("session=s1", client.CapturedHeaders["Cookie"]);
+        Assert.Contains("days=2024-01-02", client.CapturedUrl.Query, StringComparison.Ordinal);
+        Assert.Contains("days=2024-01-03", client.CapturedUrl.Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GetPetSummaryWithoutTheRequiredCookieIsRefusedBeforeAnyRequest()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var ex = await Assert.ThrowsAnyAsync<ArgumentException>(() =>
+            api.GetPetSummaryAsync(
+                7L,
+                new DateOnly(2024, 1, 15),
+                new GetPetSummaryOptions { Session = "" }
+            )
+        );
+
+        Assert.StartsWith(
+            "Missing the required parameter 'session' when calling PetApi.GetPetSummary",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task GetPetByNameWithoutTheRequiredHeaderIsRefusedBeforeAnyRequest()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var ex = await Assert.ThrowsAnyAsync<ArgumentException>(() =>
+            api.GetPetByNameAsync(
+                "Rex",
+                new GetPetByNameOptions { Category = "c", XCorrelationId = "" }
+            )
+        );
+
+        Assert.StartsWith(
+            "Missing the required parameter 'xCorrelationId' when calling PetApi.GetPetByName",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task FindPetsByStatusSendsTheDeepObjectFilterOneKeyPerEntry()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.FindPetsByStatusAsync(
+            new FindPetsByStatusOptions
+            {
+                Filter = new Dictionary<string, string> { ["color"] = "blue", ["size"] = "large" },
+            }
+        );
+
+        Assert.Contains(
+            "filter%5Bcolor%5D=blue&filter%5Bsize%5D=large",
+            client.CapturedUrl!.Query,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task GetPetTagWiresTheObjectValuedParameters()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        var criteria = new PetCriteria { Breed = "lab", MinAge = 3 };
+
+        await api.GetPetTagAsync(
+            5L,
+            "x",
+            new GetPetTagOptions
+            {
+                Criteria = criteria,
+                CriteriaCsv = criteria,
+                CriteriaDeep = criteria,
+                XCriteria = criteria,
+            }
+        );
+
+        string query = Uri.UnescapeDataString(client.CapturedUrl!.Query);
+        Assert.Contains("breed=lab", query, StringComparison.Ordinal);
+        Assert.Contains("min_age=3", query, StringComparison.Ordinal);
+        Assert.Contains("criteriaCsv=breed,lab,min_age,3", query, StringComparison.Ordinal);
+        Assert.Contains("criteriaDeep[breed]=lab", query, StringComparison.Ordinal);
+        Assert.Contains("criteriaDeep[min_age]=3", query, StringComparison.Ordinal);
+        Assert.Equal("breed,lab,min_age,3", client.CapturedHeaders["X-Criteria"]);
+    }
+
+    [Fact]
+    public async Task AddPetTreatmentSendsExactlyTheChosenVariantAsTheBody()
+    {
+        var client = new DateWireCapturingApiClient { ResponseBody = "{\"drugName\":\"aspirin\"}" };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        var medication = new Medication("aspirin") { Dosage = "10mg" };
+
+        var result = await api.AddPetTreatmentAsync(9L, new PetTreatment(medication));
+
+        Assert.Contains(
+            "/pet/9/treatment",
+            client.CapturedUrl!.AbsolutePath,
+            StringComparison.Ordinal
+        );
+        string body = client.CapturedBody!.ToString()!;
+        Assert.Contains("\"drugName\":\"aspirin\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"dosage\":\"10mg\"", body, StringComparison.Ordinal);
+        Assert.IsType<Medication>(result.ActualInstance);
+    }
+
+    [Fact]
+    public async Task UploadPetDocumentSendsEachScalarPartAsText()
+    {
+        var client = new HeaderAndBodyCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.UploadPetDocumentWithHttpInfoAsync(
+            1L,
+            new UploadPetDocumentOptions
+            {
+                File = new MemoryStream(new byte[] { 1, 2, 3 }),
+                IsPrimary = true,
+                PageCount = 3,
+                TakenAt = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero),
+                Swatch = Swatch.Red,
+            }
+        );
+
+        var parts = Assert.IsType<Dictionary<string, object>>(client.CapturedBody);
+        Assert.Equal("true", ObjectSerializer.Stringify(parts["isPrimary"]));
+        Assert.Equal("3", ObjectSerializer.Stringify(parts["pageCount"]));
+        Assert.Equal("2024-01-15T10:30:00.000+00:00", ObjectSerializer.Stringify(parts["takenAt"]));
+        Assert.Equal("red", ObjectSerializer.Stringify(parts["swatch"]));
+    }
+
+    [Theory]
+    [InlineData(400, typeof(BadRequestException))]
+    [InlineData(401, typeof(UnauthorizedException))]
+    [InlineData(403, typeof(ForbiddenException))]
+    [InlineData(409, typeof(ConflictException))]
+    [InlineData(418, typeof(ClientException))]
+    [InlineData(422, typeof(UnprocessableEntityException))]
+    [InlineData(502, typeof(ServerException))]
+    public async Task GetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes(
+        int status,
+        Type expected
+    )
+    {
+        var routed = new PetApi(
+            new DefaultApiClient(),
+            Configuration.Builder().BaseUrl(_baseUrl + "/test/status/" + status).Build()
+        );
+
+        await Assert.ThrowsAsync(expected, () => routed.GetPetByIdAsync(1L));
     }
 }

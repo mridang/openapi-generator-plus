@@ -114,6 +114,31 @@ test('AK: proxy url with userinfo carries credentials', function (): void {
 
 // -- HTTP proxy with TLS --
 
+test('ignores ambient proxy environment variables when no proxy is configured', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $names = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'];
+    $saved = [];
+    foreach ($names as $name) {
+        $saved[$name] = $_SERVER[$name] ?? null;
+        $_SERVER[$name] = 'http://127.0.0.1:1';
+    }
+
+    try {
+        $client = new DefaultApiClient(TransportOptions::builder()->build());
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    } finally {
+        foreach ($saved as $name => $value) {
+            if ($value === null) {
+                unset($_SERVER[$name]);
+            } else {
+                $_SERVER[$name] = $value;
+            }
+        }
+    }
+
+    expect($response->statusCode)->toBe(200);
+});
+
 test('makes https request through proxy with verify ssl false', function (): void {
     $chasmUrl = getenv('CHASM_INTERNAL_HTTPS_URL') ?: '';
     $proxyUrl = getenv('PROXY_URL') ?: null;
@@ -133,6 +158,23 @@ test('makes https request through proxy with verify ssl false', function (): voi
 });
 
 // -- Request timeout --
+
+test('the timeout is one budget for every redirect hop', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->timeout(1200)->followRedirects(true)->build());
+
+    expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/redirect/chain/1', [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkTimeoutException::class);
+});
+
+test('a redirect chain inside the budget completes', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->timeout(5000)->followRedirects(true)->build());
+
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/chain/1', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
 
 test('times out on slow endpoint', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';

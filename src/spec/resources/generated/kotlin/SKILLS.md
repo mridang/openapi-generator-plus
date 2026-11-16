@@ -133,7 +133,7 @@ When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a
 
 #### Token caching
 
-The token manager caches the access token in memory and refreshes it `30` seconds before its declared expiry. This single safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed and is not applied twice: a token valid for 60 seconds is reused for 30. A token valid for 30 seconds or less is fetched again on every call; tune your authorization server's `expires_in` if it is too short.
+The token manager caches the access token in memory and refreshes it up to `60` seconds before its declared expiry (never more than half of the token's lifetime). This single safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed and is not applied twice: a token valid for 60 seconds is reused for 30. A token valid for 1 second or less is fetched again on every call; tune your authorization server's `expires_in` if it is too short.
 
 #### Client authentication method
 
@@ -181,9 +181,13 @@ val client = Client(fake)
 
 ## Error Handling
 
-All API errors derive from `ApiException`. The error hierarchy is:
+Every error the SDK raises derives from `OpenAPIException`. Besides the HTTP errors under `ApiException` it has three siblings: `SerializationException` (a body or value that could not be encoded or decoded), `OAuth2ServerException` (the token endpoint answered with an OAuth2 error, with `code`, `description` and `uri`) and `OAuth2TokenException` (a token response that is unusable). The error hierarchy is:
 
-- `ApiException` (base)
+- `OpenAPIException` (root)
+  - `SerializationException`
+  - `OAuth2ServerException`
+  - `OAuth2TokenException`
+- `ApiException` (base of the HTTP errors, below `OpenAPIException`)
   - `ClientException` (4xx)
     - `BadRequestException` (400)
     - `UnauthorizedException` (401)

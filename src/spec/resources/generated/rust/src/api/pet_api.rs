@@ -385,7 +385,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/photos".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -524,7 +526,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/treatment".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -614,7 +618,9 @@ impl PetApi {
         let mut path = "/pet/{petId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -755,7 +761,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/documents/{documentId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -771,7 +779,11 @@ impl PetApi {
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "documentId",
-            Some(&object_serializer::to_path_value(&document_id)),
+            Some(&object_serializer::stringify_param(
+                &document_id,
+                "simple",
+                false,
+            )?),
             None,
             "path",
             "i64",
@@ -861,7 +873,9 @@ impl PetApi {
         let mut path = "/pet/born-on/{bornOn}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "bornOn",
-            Some(&object_serializer::to_path_value(&born_on)),
+            Some(&object_serializer::stringify_param(
+                &born_on, "simple", false,
+            )?),
             None,
             "path",
             "chrono::NaiveDate",
@@ -972,7 +986,7 @@ impl PetApi {
             if let Some(ref val) = opts.status {
                 if let Some(serialized) = value_serializer::serialize_styled(
                     "status",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
                     "String",
@@ -1005,9 +1019,14 @@ impl PetApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.born_after {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "bornAfter",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
                     "chrono::NaiveDate",
@@ -1030,9 +1049,14 @@ impl PetApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.n2nd_page {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "2ndPage",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
                     "i32",
@@ -1059,7 +1083,7 @@ impl PetApi {
             if let Some(ref val) = opts.report_date {
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "Report-Date",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "simple", false)?),
                     None,
                     "header",
                     "chrono::NaiveDate",
@@ -1147,7 +1171,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/external".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -1248,7 +1274,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/multi".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -1343,7 +1371,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -1434,7 +1464,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar/thumbnail".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -1540,7 +1572,9 @@ impl PetApi {
         let mut path = "/pet/{petId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -1658,7 +1692,7 @@ impl PetApi {
         let mut path = "/pet/byName/{name}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "name",
-            Some(&object_serializer::to_path_value(&name)),
+            Some(&object_serializer::stringify_param(&name, "simple", false)?),
             None,
             "path",
             "String",
@@ -1695,9 +1729,20 @@ impl PetApi {
                 )),
             ));
         }
-        if let Some(serialized) = value_serializer::serialize_styled(
+        /* An object-valued parameter in form style with explode=true becomes one
+         * `name=value` pair per property, in declaration order (D47). */
+        let object_pairs = object_serializer::object_query_pairs(&opts.category, "form", true)?;
+        if let Some(pairs) = object_pairs {
+            for (k, v) in pairs {
+                query_params.push((k, v, false));
+            }
+        } else if let Some(serialized) = value_serializer::serialize_styled(
             "category",
-            Some(&object_serializer::stringify(&opts.category)),
+            Some(&object_serializer::stringify_param(
+                &opts.category,
+                "form",
+                true,
+            )?),
             None,
             "query",
             "String",
@@ -1738,7 +1783,11 @@ impl PetApi {
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "X-Correlation-Id",
-            Some(&object_serializer::stringify(&opts.x_correlation_id)),
+            Some(&object_serializer::stringify_param(
+                &opts.x_correlation_id,
+                "simple",
+                false,
+            )?),
             None,
             "header",
             "String",
@@ -1820,7 +1869,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/passport".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -1913,7 +1964,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/photos/{photoId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -1929,7 +1982,9 @@ impl PetApi {
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "photoId",
-            Some(&object_serializer::to_path_value(&photo_id)),
+            Some(&object_serializer::stringify_param(
+                &photo_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -2031,7 +2086,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/summary/{asOf}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -2047,7 +2104,9 @@ impl PetApi {
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "asOf",
-            Some(&object_serializer::to_path_value(&as_of)),
+            Some(&object_serializer::stringify_param(
+                &as_of, "matrix", false,
+            )?),
             None,
             "path",
             "chrono::NaiveDate",
@@ -2066,7 +2125,12 @@ impl PetApi {
         if let Some(opts) = options {
             if let Some(ref val) = opts.days {
                 let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs: Option<Vec<(String, String)>> = None;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "days",
                     None,
                     Some(&items),
@@ -2253,7 +2317,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/tag/{tagName}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "matrix", false,
+            )?),
             None,
             "path",
             "i64",
@@ -2269,7 +2335,9 @@ impl PetApi {
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "tagName",
-            Some(&object_serializer::to_path_value(&tag_name)),
+            Some(&object_serializer::stringify_param(
+                &tag_name, "label", false,
+            )?),
             None,
             "path",
             "String",
@@ -2288,7 +2356,12 @@ impl PetApi {
         if let Some(opts) = options {
             if let Some(ref val) = opts.colors {
                 let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs: Option<Vec<(String, String)>> = None;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "colors",
                     None,
                     Some(&items),
@@ -2314,7 +2387,12 @@ impl PetApi {
         if let Some(opts) = options {
             if let Some(ref val) = opts.sizes {
                 let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs: Option<Vec<(String, String)>> = None;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "sizes",
                     None,
                     Some(&items),
@@ -2341,7 +2419,7 @@ impl PetApi {
             if let Some(ref val) = opts.filter {
                 if let Some(serialized) = value_serializer::serialize_styled(
                     "filter",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
                     "String",
@@ -2364,9 +2442,14 @@ impl PetApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.revision {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, true));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "revision",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
                     "String",
@@ -2389,9 +2472,14 @@ impl PetApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.criteria {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "criteria",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
                     "PetCriteria",
@@ -2414,9 +2502,14 @@ impl PetApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.criteria_csv {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs = object_serializer::object_query_pairs(val, "form", false)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "criteriaCsv",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", false)?),
                     None,
                     "query",
                     "PetCriteria",
@@ -2449,9 +2542,14 @@ impl PetApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.fingerprint {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "fingerprint",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
                     "Vec<u8>",
@@ -2478,7 +2576,7 @@ impl PetApi {
             if let Some(ref val) = opts.x_criteria {
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "X-Criteria",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "simple", false)?),
                     None,
                     "header",
                     "PetCriteria",
@@ -2494,7 +2592,7 @@ impl PetApi {
             if let Some(ref val) = opts.x_fingerprint {
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "X-Fingerprint",
-                    Some(&object_serializer::stringify(val)),
+                    Some(&object_serializer::stringify_param(val, "simple", false)?),
                     None,
                     "header",
                     "Vec<u8>",
@@ -2582,7 +2680,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/staging".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -2691,7 +2791,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -2784,7 +2886,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar/thumbnail".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -2881,7 +2985,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/preferences".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -3001,7 +3107,9 @@ impl PetApi {
         let mut path = "/pet/{petId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -3097,7 +3205,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/certificate".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -3237,7 +3347,9 @@ impl PetApi {
         let mut path = "/pet/{petId}/documents".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::to_path_value(&pet_id)),
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
             None,
             "path",
             "i64",
@@ -3313,7 +3425,7 @@ impl PetApi {
         if let Some(ref val) = opts.swatch {
             multipart.push((
                 "swatch".to_string(),
-                MultipartValue::Json(object_serializer::serialize(val)?),
+                MultipartValue::Text(object_serializer::stringify(val)),
             ));
         }
         /* multi-content-type-multipart-or-raw: this operation also declares a

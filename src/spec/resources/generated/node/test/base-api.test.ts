@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -31,6 +31,7 @@ import { PetApi } from "../src/api/pet-api.js";
 import { StoreApi } from "../src/api/store-api.js";
 import { BearerAuthenticator } from "../src/auth/bearer-authenticator.js";
 import { ApiKeyAuthenticator } from "../src/auth/api-key-authenticator.js";
+import { OAuth2ClientCredentialsAuthenticator } from "../src/auth/oauth/oauth2-client-credentials-authenticator.js";
 import { ApiKeyLocation } from "../src/auth/api-key-location.js";
 import { Category } from "../src/models/index.js";
 import { ObjectSerializer } from "../src/object-serializer.js";
@@ -635,10 +636,18 @@ describe("BaseApi auth injection", () => {
   });
 
   test("sets Cookie header from auth cookies", async () => {
-    const auth = new TestAuthenticator({}, {}, { session: "abc123" });
-    await api().call(
+    const capturing = new CapturingApiClient();
+    const auth = new TestAuthenticator(
+      {},
+      {},
+      { session: "abc123", theme: "dark" },
+    );
+    await new TestableApi(
+      capturing,
+      new Configuration({ baseUrl: "https://api.example.com" }),
+    ).call(
       "GET",
-      "/test/echo",
+      "/items",
       {},
       {},
       null,
@@ -647,6 +656,84 @@ describe("BaseApi auth injection", () => {
       null,
       auth,
     );
+
+    expect(capturing.capturedHeaders["Cookie"]).toBe(
+      "session=abc123; theme=dark",
+    );
+  });
+
+  test("an explicit per-call Accept header wins over the default Accept and the negotiated Accept", async () => {
+    const capturing = new CapturingApiClient();
+    const config = Configuration.builder()
+      .baseUrl("https://api.example.com")
+      .defaultHeader("Accept", "text/plain")
+      .build();
+
+    await new TestableApi(capturing, config).call(
+      "GET",
+      "/items",
+      {},
+      { Accept: "application/xml" },
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+
+    const accepts = Object.entries(capturing.capturedHeaders).filter(
+      ([name]) => name.toLowerCase() === "accept",
+    );
+    expect(accepts).toEqual([["Accept", "application/xml"]]);
+  });
+
+  test("a per-call OAuth2 authenticator is given the API client of the call", async () => {
+    const seen: Array<{ url: string; headers: Record<string, string> }> = [];
+    const stub: ApiClient = {
+      async sendRequest(_method, url, headers) {
+        seen.push({ url, headers });
+        const body =
+          url === "https://auth.example.com/token"
+            ? JSON.stringify({
+                access_token: "per-call-token",
+                expires_in: 3600,
+              })
+            : "{}";
+        return {
+          statusCode: 200,
+          body,
+          headers: { "content-type": "application/json" },
+        };
+      },
+    };
+    const oauth = new OAuth2ClientCredentialsAuthenticator(
+      "https://api.example.com",
+      "client-id",
+      "client-secret",
+      "https://auth.example.com/token",
+      [],
+    );
+    const testable = new TestableApi(
+      stub,
+      new Configuration({ baseUrl: "https://api.example.com" }),
+    );
+
+    await testable.call(
+      "GET",
+      "/items",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+      oauth,
+    );
+
+    expect(seen.map((request) => request.url)).toEqual([
+      "https://auth.example.com/token",
+      "https://api.example.com/items",
+    ]);
+    expect(seen[1]!.headers["Authorization"]).toBe("Bearer per-call-token");
   });
 
   /*

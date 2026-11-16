@@ -596,6 +596,33 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert headers["x-trace"] == "keep"
   end
 
+  test "3.1: strips any header named like a credential on cross-origin redirect" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      source_url,
+      %{
+        "X-Tenant-Token" => "t",
+        "X-Custom-Auth-Key" => "k",
+        "X-Gateway-Secret" => "s",
+        "X-Trace" => "keep"
+      },
+      nil
+    )
+
+    assert_receive {:source_headers, _src_headers}, 5000
+    assert_receive {:captured_headers, target_headers}, 5000
+    refute Map.has_key?(target_headers, "x-tenant-token")
+    refute Map.has_key?(target_headers, "x-custom-auth-key")
+    refute Map.has_key?(target_headers, "x-gateway-secret")
+    assert target_headers["x-trace"] == "keep"
+  end
+
   # 3.1: spec-declared apiKey-in-header names are merged into the
   # cross-origin sensitive-header allowlist at codegen time, so an API key
   # sent in a custom header (e.g. X-API-Key) is stripped on the hop too.
@@ -741,6 +768,22 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert err.status_code == 302
     assert err.message == "Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd"
     refute PetstoreClient.Errors.NetworkError.network_error?(err)
+  end
+
+  test "a 3xx whose Location is absent or unparseable comes back as the response, never an exception" do
+    client = PetstoreClient.DefaultApiClient.new()
+
+    no_location = start_server(302, "text/plain", "")
+
+    assert PetstoreClient.DefaultApiClient.send_request(client, :get, no_location, %{}, nil).status_code ==
+             302
+
+    for location <- ["http://[bad", "http:///nohost"] do
+      {source_url, _} = start_redirect_server(302, location)
+
+      assert PetstoreClient.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code ==
+               302
+    end
   end
 
   test "redirect refusal messages never carry a query-parameter credential" do
@@ -1103,6 +1146,18 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       end
 
     assert err.status_code == 302
+  end
+
+  test "an identity-encoded body keeps its Content-Encoding and Content-Length headers" do
+    base_url = start_server(200, "text/plain", "plain", [{"Content-Encoding", "identity"}])
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/plain", %{}, nil)
+
+    assert response.body == "plain"
+    assert response.headers["content-encoding"] == "identity"
+    assert response.headers["content-length"] == "5"
   end
 
   # ── Gap AL — Content-Encoding lie (gzip header, non-gzip body) ─────────────

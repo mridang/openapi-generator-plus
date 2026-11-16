@@ -1338,4 +1338,197 @@ class PetApiTest {
                 + " [multipart/form-data, application/octet-stream]");
     assertThat(capturing.capturedUrl).isNull();
   }
+
+  private static final class SummaryRecording implements ApiClient {
+    @javax.annotation.Nullable String capturedUrl;
+    @javax.annotation.Nullable java.util.Map<String, String> capturedHeaders;
+
+    @Override
+    public com.example.petstore.ApiHttpResponse sendRequest(
+        String method,
+        String url,
+        java.util.Map<String, String> headers,
+        @javax.annotation.Nullable Object body) {
+      this.capturedUrl = url;
+      this.capturedHeaders = headers;
+      return new com.example.petstore.ApiHttpResponse(
+          200, "plain summary", java.util.Map.of("Content-Type", "text/plain"));
+    }
+  }
+
+  @Test
+  void getPetSummarySendsTheMatrixPathTheDateArrayAndTheRequiredCookie() throws Exception {
+    SummaryRecording recording = new SummaryRecording();
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    String summary =
+        petApi.getPetSummary(
+            7L,
+            LocalDate.of(2024, 1, 15),
+            new com.example.petstore.api.options.GetPetSummaryOptions("abc")
+                .days(List.of(LocalDate.of(2024, 1, 15), LocalDate.of(2024, 2, 1))));
+
+    assertThat(summary).isEqualTo("plain summary");
+    String url =
+        java.net.URLDecoder.decode(String.valueOf(recording.capturedUrl), StandardCharsets.UTF_8);
+    assertThat(url).startsWith("http://localhost/pet/7/summary/;asOf=2024-01-15");
+    assertThat(url).contains("days=2024-01-15").contains("days=2024-02-01");
+    assertThat(recording.capturedHeaders).containsEntry("Cookie", "session=abc");
+  }
+
+  @Test
+  void getPetSummaryRefusesAnEmptyRequiredCookieBeforeSending() throws Exception {
+    SummaryRecording recording = new SummaryRecording();
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    assertThatThrownBy(
+            () ->
+                petApi.getPetSummary(
+                    7L,
+                    LocalDate.of(2024, 1, 15),
+                    new com.example.petstore.api.options.GetPetSummaryOptions("")))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Missing the required parameter 'session' when calling PetApi.getPetSummary");
+    assertThat(recording.capturedUrl).isNull();
+  }
+
+  @Test
+  void getPetByNameRefusesAnEmptyRequiredHeaderBeforeSending() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    assertThatThrownBy(() -> petApi.getPetByName("rex", new GetPetByNameOptions("cats", "")))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage(
+            "Missing the required parameter 'X-Correlation-Id'"
+                + " when calling PetApi.getPetByName");
+    assertThat(capturing.capturedUrl).isNull();
+  }
+
+  private static final class UrlRecording implements ApiClient {
+    @javax.annotation.Nullable String capturedUrl;
+    @javax.annotation.Nullable String capturedBody;
+    java.util.Map<String, String> capturedHeaders = new HashMap<>();
+    private final String responseBody;
+
+    UrlRecording(String responseBody) {
+      this.responseBody = responseBody;
+    }
+
+    @Override
+    public com.example.petstore.ApiHttpResponse sendRequest(
+        String method,
+        String url,
+        java.util.Map<String, String> headers,
+        @javax.annotation.Nullable Object body) {
+      this.capturedUrl = java.net.URLDecoder.decode(url, StandardCharsets.UTF_8);
+      this.capturedBody = body == null ? null : String.valueOf(body);
+      this.capturedHeaders = headers;
+      return new com.example.petstore.ApiHttpResponse(
+          200, responseBody, java.util.Map.of("Content-Type", "application/json"));
+    }
+  }
+
+  @Test
+  void testFindPetsByStatusSendsTheDigitLeadingQueryNameAndTheDeepObjectFilter() throws Exception {
+    UrlRecording recording = new UrlRecording("[]");
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.findPetsByStatus(
+        new FindPetsByStatusOptions().n2ndPage(2).filter(Map.of("owner", "ann")));
+
+    assertThat(recording.capturedUrl).contains("2ndPage=2").contains("filter[owner]=ann");
+  }
+
+  @Test
+  void testGetPetTagWiresTheMatrixLabelAndObjectValuedParameters() throws Exception {
+    UrlRecording recording = new UrlRecording("{\"name\":\"x\",\"photoUrls\":[]}");
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    com.example.petstore.models.PetCriteria criteria =
+        new com.example.petstore.models.PetCriteria();
+    criteria.breed = "lab";
+    criteria.minAge = 3;
+
+    petApi.getPetTag(
+        5L,
+        "x",
+        new GetPetTagOptions()
+            .criteria(criteria)
+            .criteriaCsv(criteria)
+            .criteriaDeep(criteria)
+            .xCriteria(criteria));
+
+    assertThat(recording.capturedUrl).startsWith("http://localhost/pet/;petId=5/tag/.x?");
+    assertThat(recording.capturedUrl)
+        .contains("breed=lab")
+        .contains("min_age=3")
+        .contains("criteriaCsv=breed,lab,min_age,3")
+        .contains("criteriaDeep[breed]=lab")
+        .contains("criteriaDeep[min_age]=3");
+    assertThat(recording.capturedHeaders).containsEntry("X-Criteria", "breed,lab,min_age,3");
+  }
+
+  @Test
+  void testAddPetTreatmentSendsExactlyTheChosenVariantAsTheBody() throws Exception {
+    UrlRecording recording = new UrlRecording("{\"drugName\":\"aspirin\"}");
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    com.example.petstore.models.Medication medication =
+        new com.example.petstore.models.Medication("aspirin");
+    medication.dosage = "10mg";
+
+    com.example.petstore.models.PetTreatment result =
+        petApi.addPetTreatment(9L, new com.example.petstore.models.PetTreatment(medication));
+
+    assertThat(recording.capturedUrl).contains("/pet/9/");
+    assertThat(recording.capturedBody)
+        .contains("\"drugName\":\"aspirin\"")
+        .contains("\"dosage\":\"10mg\"");
+    assertThat(result.getActualInstance())
+        .isInstanceOf(com.example.petstore.models.Medication.class);
+  }
+
+  @Test
+  void testDeprecationMarkersAreEmitted() throws Exception {
+    assertThat(
+            PetApi.class
+                .getMethod("findPetsByStatus", FindPetsByStatusOptions.class)
+                .isAnnotationPresent(Deprecated.class))
+        .isTrue();
+    assertThat(com.example.petstore.models.Tag.class.isAnnotationPresent(Deprecated.class))
+        .isTrue();
+    assertThat(
+            PetApi.class
+                .getMethod("getPetByName", String.class, GetPetByNameOptions.class)
+                .isAnnotationPresent(Deprecated.class))
+        .isFalse();
+  }
+
+  @Test
+  void testGetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes() throws Exception {
+    Object[][] table = {
+      {400, com.example.petstore.errors.BadRequestException.class},
+      {401, com.example.petstore.errors.UnauthorizedException.class},
+      {403, com.example.petstore.errors.ForbiddenException.class},
+      {409, com.example.petstore.errors.ConflictException.class},
+      {418, com.example.petstore.errors.ClientException.class},
+      {422, com.example.petstore.errors.UnprocessableEntityException.class},
+      {502, com.example.petstore.errors.ServerException.class},
+    };
+    for (Object[] row : table) {
+      PetApi routed =
+          new PetApi(
+              new DefaultApiClient(),
+              Configuration.builder()
+                  .baseUrl(ChasmContainer.getBaseUrl() + "/test/status/" + row[0])
+                  .build());
+      Class<?> expected = (Class<?>) row[1];
+      assertThatThrownBy(() -> routed.getPetById(1L)).isExactlyInstanceOf(expected);
+    }
+  }
 }

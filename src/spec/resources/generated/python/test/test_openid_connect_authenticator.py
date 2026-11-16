@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -254,6 +254,7 @@ class TestDiscoveryCacheLifetime:
             ({"Cache-Control": "max-age=120"}, 120),
             ({"cache-control": "public, MAX-AGE=45"}, 45),
             ({"Cache-Control": "max-age=0"}, 0),
+            ({"Cache-Control": "max-age=9999999999"}, 31536000),
             ({"Cache-Control": "no-store"}, 86400),
             ({"Cache-Control": "max-age=abc"}, 86400),
             ({"content-type": "application/json"}, 86400),

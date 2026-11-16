@@ -114,10 +114,19 @@ module Petstore::Client
       begin
         uri = URI.parse(val)
       rescue URI::InvalidURIError => e
-        raise ArgumentError, "Invalid proxy URL (#{e.message}): #{val}"
+        raise ArgumentError, mask_userinfo("Invalid proxy URL (#{e.message}): #{val}")
       end
-      raise ArgumentError, "Invalid proxy URL (must use http or https scheme): #{val}" unless uri.scheme && %w[http https].include?(uri.scheme.downcase)
-      raise ArgumentError, "Invalid proxy URL (missing host): #{val}" unless uri.host && !uri.host.empty?
+      raise ArgumentError, mask_userinfo("Invalid proxy URL (must use http or https scheme): #{val}") unless uri.scheme && %w[http https].include?(uri.scheme.downcase)
+      raise ArgumentError, mask_userinfo("Invalid proxy URL (missing host): #{val}") unless uri.host && !uri.host.empty?
+    end
+
+    # +text+ with the userinfo of every URL in it replaced by +***@+, so an
+    # error message never carries a proxy user name or password (D79).
+    # @api private
+    # @param text [String] a message that may embed a URL
+    # @return [String]
+    def self.mask_userinfo(text)
+      text.gsub(%r{([A-Za-z][A-Za-z0-9+.-]*://)[^/?#\s"']*@}, '\\1***@')
     end
 
     # Fail fast when a caller-supplied connection is combined with the SDK's own
@@ -152,12 +161,21 @@ module Petstore::Client
     SENSITIVE_HEADER_NAME = /\A(?:authorization|proxy-authorization|cookie)\z|key|token|secret/i
     private_constant :SENSITIVE_HEADER_NAME
 
+    # Whether a header name is one whose value is a credential: the redaction
+    # list above. A cross-origin redirect hop drops these as well.
+    # @api private
+    # @param name [String] a header name
+    # @return [bool]
+    def self.sensitive_header?(name)
+      SENSITIVE_HEADER_NAME.match?(name.to_s)
+    end
+
     # Copy of +headers+ with every sensitive value replaced by +***+.
     # @api private
     # @param headers [Hash{String => String}] header names to values
     # @return [Hash{String => String}]
     def self.redact_headers(headers)
-      headers.to_h { |name, value| [name, SENSITIVE_HEADER_NAME.match?(name.to_s) ? '***' : value] }
+      headers.to_h { |name, value| [name, sensitive_header?(name) ? '***' : value] }
     end
 
     # +url+ with the password in its userinfo replaced by +***+.

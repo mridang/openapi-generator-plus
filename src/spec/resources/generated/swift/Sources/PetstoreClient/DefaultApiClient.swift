@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -90,9 +90,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// rather than silently falling back to the system trust store — if the
   /// caller explicitly asked for SSL pinning we must not pretend it
   /// succeeded. A proxy on a platform that cannot route through one throws
-  /// ``ConfigurationError/proxyUnsupported``, and so does disabling TLS
-  /// verification or pinning a CA where URLSession cannot apply either
-  /// (``ConfigurationError/tlsOptionsUnsupported``).
+  /// ``ConfigurationError/invalidProxy(_:)``, and disabling TLS verification
+  /// or pinning a CA where URLSession cannot apply either throws
+  /// ``ConfigurationError/invalidCACertificate(_:)``.
   public init(transportOptions: TransportOptions?) throws {
     let opts = transportOptions ?? TransportOptions.defaults
     try DefaultApiClient.validateCaCertPath(opts.caCertPath)
@@ -100,7 +100,18 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     self.proxyCredential = DefaultApiClient.buildProxyCredential(opts.proxy)
     if let supplied = opts.session {
       self.session = supplied
-      self.sessionDelegate = nil
+      /* The supplied session carries none of the SDK's redirect rules, so
+       * the SDK's own delegate is attached to every task it sends (see
+       * `performDataTask`): a cross-origin hop still strips credentials,
+       * a non-HTTP(S) Location and an HTTPS to HTTP body replay are still
+       * refused, and the hop cap still applies. */
+      self.sessionDelegate = SessionDelegate(
+        verifySsl: true,
+        caCertPath: nil,
+        followRedirects: true,
+        maxRedirects: nil,
+        proxyCredential: nil
+      )
       self.ownsSession = false
       return
     }
@@ -110,14 +121,26 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     self.ownsSession = true
   }
 
+  /// The message for a proxy on a platform whose URLSession cannot use one.
+  static let proxyUnsupportedMessage = "Proxy configuration is not supported on this platform"
+
+  /// The message for disabling TLS verification or pinning a CA certificate
+  /// on a platform whose URLSession cannot apply either.
+  static let tlsOptionsUnsupportedMessage =
+    "Disabling TLS verification or pinning a CA certificate is not supported on this platform"
+
   /// Validates that a user-supplied CA certificate path can be read and
   /// parsed as a DER/PEM certificate, throwing
   /// ``ConfigurationError/invalidCACertificate(_:)`` when it cannot. A nil
   /// path is a no-op (the system trust store is used).
   static func validateCaCertPath(_ caCertPath: String?) throws {
     guard let path = caCertPath else { return }
-    guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
-      throw ConfigurationError.invalidCACertificate("failed to read \"\(path)\"")
+    let certData: Data
+    do {
+      certData = try Data(contentsOf: URL(fileURLWithPath: path))
+    } catch {
+      throw ConfigurationError.invalidCACertificate(
+        "failed to read CA certificate from \"\(path)\": \(error.localizedDescription)")
     }
     let certificates = parseCaCertificates(certData)
     #if canImport(Security)
@@ -129,7 +152,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     #endif
     guard parsed else {
       throw ConfigurationError.invalidCACertificate(
-        "failed to parse \"\(path)\": no PEM blocks found or unparseable"
+        "failed to parse CA certificate from \"\(path)\": no PEM blocks found"
       )
     }
   }
@@ -282,13 +305,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       throw ConfigurationError.invalidArgument("malformed request URL: \(url)")
     }
 
-    var merged: [String: String] = [:]
-    for (k, v) in transportOptions.defaultHeaders {
-      merged[k] = v
-    }
-    for (k, v) in headers {
-      merged[k] = v
-    }
+    /* The token POST (noRedirect) goes to the identity provider, another
+     * origin: the caller's default headers (an API Authorization or key
+     * header) are not sent there. */
+    var merged = BaseApi.mergeHeaders(
+      noRedirect ? [:] : transportOptions.defaultHeaders, overriding: headers)
     /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
      * header in any case wins and nothing is injected beside it. */
     func hasHeader(_ name: String) -> Bool {
@@ -322,13 +343,16 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
     if let formParts = BaseApi.formFields(body) {
       let boundary = UUID().uuidString
-      merged["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
+      merged = BaseApi.mergeHeaders(
+        merged, overriding: ["Content-Type": "multipart/form-data; boundary=\(boundary)"])
       request.httpBody = try DefaultApiClient.buildMultipartBody(
         ordered: formParts, boundary: boundary)
     } else if let data = body as? Data {
       request.httpBody = data
     } else {
-      merged.removeValue(forKey: "Content-Type")
+      for name in merged.keys where name.caseInsensitiveCompare("Content-Type") == .orderedSame {
+        merged.removeValue(forKey: name)
+      }
       /* Some servers / WAFs treat POST/PUT/PATCH with no body and
          no Content-Length as malformed (411 Length Required) or
          behave inconsistently. Attach an empty Data on body-bearing
@@ -337,7 +361,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       let upperMethod = method.uppercased()
       if upperMethod == "POST" || upperMethod == "PUT" || upperMethod == "PATCH" {
         request.httpBody = Data()
-        merged["Content-Length"] = "0"
+        merged = BaseApi.mergeHeaders(merged, overriding: ["Content-Length": "0"])
       }
     }
 
@@ -368,7 +392,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         ? noRedirectSession()
         : session
       (data, response, task) = try await DefaultApiClient.performDataTask(
-        on: activeSession, for: request)
+        on: activeSession, for: request,
+        taskDelegate: (!ownsSession && !noRedirect) ? sessionDelegate : nil,
+        deadline: transportOptions.timeout.map { TimeInterval($0) / 1000.0 })
     } catch let undecodable as UndecodableBody {
       /* The server answered but its body cannot be decoded: an ApiError
          carrying the real status code, never a NetworkError. */
@@ -859,7 +885,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
   private static func performDataTask(
     on session: URLSession,
-    for request: URLRequest
+    for request: URLRequest,
+    taskDelegate: URLSessionTaskDelegate? = nil,
+    deadline: TimeInterval? = nil
   ) async throws -> (Data, URLResponse, URLSessionTask) {
     /* Box the task so the completion handler, the continuation body and
        the cancellation handler refer to the same instance. The lock and
@@ -871,6 +899,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       private let lock = NSLock()
       private var task: URLSessionTask?
       private var cancelled = false
+      private var expired = false
 
       /// Records the task; returns false when cancellation came first.
       func install(_ newTask: URLSessionTask) -> Bool {
@@ -888,47 +917,83 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         current?.cancel()
       }
 
+      /// The deadline passed: cancel the task and remember why.
+      func expire() {
+        let current: URLSessionTask? = lock.withLock {
+          expired = true
+          cancelled = true
+          return task
+        }
+        current?.cancel()
+      }
+
+      var didExpire: Bool {
+        lock.withLock { expired }
+      }
+
       var current: URLSessionTask? {
         lock.withLock { task }
       }
     }
     let box = TaskBox()
-    return try await withTaskCancellationHandler {
-      try await withCheckedThrowingContinuation {
-        (continuation: CheckedContinuation<(Data, URLResponse, URLSessionTask), Error>) in
-        let task = session.dataTask(with: request) { data, response, error in
-          if let error = error {
-            /* A body URLSession could not decode arrived with a
-               response; keep that response so the caller can
-               report its real status code. */
-            if let urlError = error as? URLError,
-              urlError.code == .cannotDecodeContentData
-                || urlError.code == .cannotDecodeRawData,
-              let http = (response ?? box.current?.response) as? HTTPURLResponse
-            {
-              continuation.resume(throwing: UndecodableBody(response: http, urlError: urlError))
+    /* One end-to-end deadline for the whole call, redirect hops included.
+       Darwin's `timeoutIntervalForResource` already behaves that way, but
+       Foundation on Linux restarts its timers on every redirect hop, so
+       the SDK enforces the budget itself and reports it as a timeout. */
+    let timer: Task<Void, Never>? = deadline.map { seconds in
+      Task {
+        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+        if !Task.isCancelled { box.expire() }
+      }
+    }
+    defer { timer?.cancel() }
+    do {
+      return try await withTaskCancellationHandler {
+        try await withCheckedThrowingContinuation {
+          (continuation: CheckedContinuation<(Data, URLResponse, URLSessionTask), Error>) in
+          let task = session.dataTask(with: request) { data, response, error in
+            if let error = error {
+              /* A body URLSession could not decode arrived with a
+                 response; keep that response so the caller can
+                 report its real status code. */
+              if let urlError = error as? URLError,
+                urlError.code == .cannotDecodeContentData
+                  || urlError.code == .cannotDecodeRawData,
+                let http = (response ?? box.current?.response) as? HTTPURLResponse
+              {
+                continuation.resume(throwing: UndecodableBody(response: http, urlError: urlError))
+                return
+              }
+              continuation.resume(throwing: error)
               return
             }
-            continuation.resume(throwing: error)
+            guard let data = data, let response = response, let task = box.current else {
+              continuation.resume(throwing: URLError(.badServerResponse))
+              return
+            }
+            continuation.resume(returning: (data, response, task))
+          }
+          /* A caller-supplied session has no SDK delegate of its own, so
+             the SDK's redirect rules ride on the task itself. */
+          if let taskDelegate = taskDelegate {
+            task.delegate = taskDelegate
+          }
+          /* A task that is never resumed never calls its completion
+             handler, so resuming the continuation here is the only
+             resume on this path. */
+          guard box.install(task) else {
+            continuation.resume(throwing: CancellationError())
             return
           }
-          guard let data = data, let response = response, let task = box.current else {
-            continuation.resume(throwing: URLError(.badServerResponse))
-            return
-          }
-          continuation.resume(returning: (data, response, task))
+          task.resume()
         }
-        /* A task that is never resumed never calls its completion
-           handler, so resuming the continuation here is the only
-           resume on this path. */
-        guard box.install(task) else {
-          continuation.resume(throwing: CancellationError())
-          return
-        }
-        task.resume()
+      } onCancel: {
+        box.cancel()
       }
-    } onCancel: {
-      box.cancel()
+    } catch let urlError as URLError where urlError.code == .cancelled && box.didExpire {
+      throw URLError(.timedOut, userInfo: [NSUnderlyingErrorKey: urlError])
+    } catch is CancellationError where box.didExpire {
+      throw URLError(.timedOut)
     }
   }
 
@@ -961,13 +1026,13 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
     #if os(Linux)
       if opts.proxy != nil {
-        throw ConfigurationError.proxyUnsupported
+        throw ConfigurationError.invalidProxy(DefaultApiClient.proxyUnsupportedMessage)
       }
       /* swift-corelibs-foundation never surfaces a server-trust challenge, so
        * the delegate cannot disable verification or pin a CA here. Refuse
        * rather than silently use the system trust store. */
       if !opts.verifySsl || opts.caCertPath != nil {
-        throw ConfigurationError.tlsOptionsUnsupported
+        throw ConfigurationError.invalidCACertificate(DefaultApiClient.tlsOptionsUnsupportedMessage)
       }
     #else
       if let proxy = opts.proxy {
@@ -1050,6 +1115,12 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       configuration: session.configuration, delegate: delegate, delegateQueue: nil)
     noRedirectSessionStorage = created
     return created
+  }
+
+  /// Whether the SDK's redirect rules (credential stripping, scheme and
+  /// downgrade refusal, hop cap) are applied to this client's requests.
+  var appliesRedirectRules: Bool {
+    return sessionDelegate != nil
   }
 
   /// Releases the underlying URLSession's connection pool / delegate queue.
@@ -1230,7 +1301,7 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
       redirectErrors.set(
         ApiError(
           statusCode: response.statusCode,
-          message: "Exceeded maximum number of redirects (\(limit))",
+          message: DefaultApiClient.tooManyRedirectsMessage(limit: limit),
           responseHeaders: DefaultApiClient.lowercasedHeaders(of: response)
         ), for: taskKey)
       completionHandler(nil)
@@ -1248,8 +1319,8 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
       redirectErrors.set(
         ApiError(
           statusCode: response.statusCode,
-          message: "Refusing to follow redirect to non-HTTP(S) Location: "
-            + (request.url?.absoluteString ?? "<unknown>"),
+          message: DefaultApiClient.nonHttpRedirectMessage(
+            next: request.url?.absoluteString ?? "<unknown>"),
           responseHeaders: DefaultApiClient.lowercasedHeaders(of: response)
         ), for: taskKey)
       completionHandler(nil)
@@ -1272,8 +1343,11 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
       let nextURL = request.url,
       !DefaultApiClient.sameOrigin(originalURL, nextURL)
     {
-      for sensitive in DefaultApiClient.sensitiveRedirectHeaders {
-        redirectRequest.setValue(nil, forHTTPHeaderField: sensitive)
+      let sensitiveNames = (redirectRequest.allHTTPHeaderFields ?? [:]).keys.filter {
+        DefaultApiClient.isSensitiveRedirectHeader($0)
+      }
+      for name in sensitiveNames {
+        redirectRequest.setValue(nil, forHTTPHeaderField: name)
       }
     }
 
@@ -1313,9 +1387,9 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
       redirectErrors.set(
         ApiError(
           statusCode: response.statusCode,
-          message: "Refusing to replay request body across an HTTPS -> HTTP "
-            + "redirect (TLS downgrade) to "
-            + (request.url?.absoluteString ?? "<unknown>"),
+          message: DefaultApiClient.bodyReplayMessage(
+            current: task.currentRequest?.url?.absoluteString ?? "<unknown>",
+            next: request.url?.absoluteString ?? "<unknown>"),
           responseHeaders: DefaultApiClient.lowercasedHeaders(of: response)
         ), for: taskKey)
       completionHandler(nil)
@@ -1392,6 +1466,35 @@ extension DefaultApiClient {
     "X-API-Key",
     "X-Internal-Key",
   ]
+
+  /// Whether a header must not leave the origin on a redirect: one named in
+  /// ``sensitiveRedirectHeaders``, or any header whose name contains `key`,
+  /// `token` or `secret` (the rule the string forms of `Configuration` and
+  /// `TransportOptions` use to redact a credential). A default header or a
+  /// custom authenticator's header is covered without being listed.
+  static func isSensitiveRedirectHeader(_ name: String) -> Bool {
+    let lower = name.lowercased()
+    if sensitiveRedirectHeaders.contains(where: { $0.lowercased() == lower }) {
+      return true
+    }
+    return lower.contains("key") || lower.contains("token") || lower.contains("secret")
+  }
+
+  /// The message for a redirect chain longer than the hop cap.
+  static func tooManyRedirectsMessage(limit: Int) -> String {
+    return "Too many redirects (exceeded \(limit))"
+  }
+
+  /// The message for a redirect whose Location is not an http or https URL.
+  static func nonHttpRedirectMessage(next: String) -> String {
+    return "Refusing to follow redirect to non-HTTP(S) URL: \(next)"
+  }
+
+  /// The message for a redirect that would replay a request body over a
+  /// downgrade from HTTPS to HTTP.
+  static func bodyReplayMessage(current: String, next: String) -> String {
+    return "Refusing to replay request body across HTTPS->HTTP redirect: \(current) -> \(next)"
+  }
 
   /// The method of the follow-up request for a redirect (RFC 9110 15.4):
   /// 301 and 302 turn only POST into GET, 303 turns everything except HEAD

@@ -125,6 +125,21 @@ pub(crate) fn redact_headers(
         .collect()
 }
 
+/// Replaces the userinfo of a URL string with `***@` so a proxy credential never
+/// reaches an error message. It works on the raw text, so it also masks a string
+/// that does not parse as a URL.
+pub(crate) fn mask_userinfo(raw: &str) -> String {
+    let (head, rest) = match raw.find("://") {
+        Some(i) => (&raw[..i + 3], &raw[i + 3..]),
+        None => return raw.to_string(),
+    };
+    let authority_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+    match rest[..authority_end].rfind('@') {
+        Some(at) => format!("{}***@{}", head, &rest[at + 1..]),
+        None => raw.to_string(),
+    }
+}
+
 /// Masks the password in a proxy URL's userinfo as `***`.
 fn redact_proxy(proxy: &str) -> String {
     match reqwest::Url::parse(proxy) {
@@ -277,23 +292,30 @@ impl TransportOptionsBuilder {
         if val.is_empty() {
             return self;
         }
+        let shown = mask_userinfo(val);
         match reqwest::Url::parse(val) {
-            Err(e) => {
+            Err(e) if e.to_string() == "empty host" => {
                 self.proxy_error = Some(ConfigurationError::InvalidProxy(format!(
-                    "{:?}: {}",
-                    val, e
+                    "Invalid proxy URL (missing host): {}",
+                    shown
+                )));
+            }
+            Err(_) => {
+                self.proxy_error = Some(ConfigurationError::InvalidProxy(format!(
+                    "Invalid proxy URL: {}",
+                    shown
                 )));
             }
             Ok(parsed) if parsed.scheme() != "http" && parsed.scheme() != "https" => {
                 self.proxy_error = Some(ConfigurationError::InvalidProxy(format!(
-                    "{:?}: must use http or https scheme",
-                    val
+                    "Invalid proxy URL (must use http or https scheme): {}",
+                    shown
                 )));
             }
             Ok(parsed) if parsed.host_str().unwrap_or("").is_empty() => {
                 self.proxy_error = Some(ConfigurationError::InvalidProxy(format!(
-                    "{:?}: missing host",
-                    val
+                    "Invalid proxy URL (missing host): {}",
+                    shown
                 )));
             }
             Ok(_) => self.proxy = Some(val.to_string()),
@@ -378,7 +400,7 @@ impl TransportOptionsBuilder {
             Some(path) => {
                 let pem = std::fs::read(path).map_err(|e| {
                     ConfigurationError::InvalidCaCertificate(format!(
-                        "failed to read {:?}: {}",
+                        "failed to read CA certificate from {:?}: {}",
                         path, e
                     ))
                 })?;
@@ -388,13 +410,13 @@ impl TransportOptionsBuilder {
                  * panic when the client is built. */
                 validate_ca_pem(&pem).map_err(|reason| {
                     ConfigurationError::InvalidCaCertificate(format!(
-                        "failed to parse {:?}: {}",
+                        "failed to parse CA certificate from {:?}: {}",
                         path, reason
                     ))
                 })?;
                 let certs = reqwest::Certificate::from_pem_bundle(&pem).map_err(|e| {
                     ConfigurationError::InvalidCaCertificate(format!(
-                        "failed to parse {:?}: {}",
+                        "failed to parse CA certificate from {:?}: {}",
                         path, e
                     ))
                 })?;
@@ -407,7 +429,7 @@ impl TransportOptionsBuilder {
                 }
                 probe.build().map_err(|e| {
                     ConfigurationError::InvalidCaCertificate(format!(
-                        "failed to parse {:?}: {}",
+                        "failed to parse CA certificate from {:?}: {}",
                         path, e
                     ))
                 })?;
@@ -464,7 +486,7 @@ fn validate_ca_pem(pem: &[u8]) -> Result<(), String> {
         rest = &after[end + PEM_CERTIFICATE_END.len()..];
     }
     if blocks == 0 {
-        return Err("the file holds no PEM CERTIFICATE block".to_string());
+        return Err("no PEM blocks found".to_string());
     }
     Ok(())
 }

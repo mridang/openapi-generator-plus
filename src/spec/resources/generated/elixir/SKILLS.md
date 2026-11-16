@@ -164,21 +164,25 @@ client = PetstoreClient.Client.new(%FakeAuthenticator{})
 
 ## Error Handling
 
-All API errors derive from `ApiError`. The error hierarchy is:
+Every failure the SDK raises or returns is one of the exceptions listed by `PetstoreClient.Errors.OpenAPIError.exceptions/0`, and `PetstoreClient.Errors.OpenAPIError.open_api_error?/1` is true for each of them: that is the root to catch last. Every error for an HTTP response or a network failure derives from `ApiError`; encoding and decoding failures are `SerializationError`, and the token flows add `OAuth2ServerError` (the token endpoint answered 4xx or 5xx) and `OAuth2TokenError` (it answered unusably). The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-    - `TooManyRequestsError` (429)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
-  - `NetworkError` (no HTTP response, status 0)
-    - `NetworkTimeoutError` (the request timed out, status 0)
+- `OpenAPIError` (root grouping: `exceptions/0` and `open_api_error?/1`)
+  - `SerializationError` (a body could not be encoded or decoded)
+  - `OAuth2ServerError` (token endpoint answered 4xx or 5xx)
+  - `OAuth2TokenError` (token endpoint answered unusably)
+  - `ApiError` (an HTTP response or a network failure)
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```elixir
 case PetstoreClient.Api.PetApi.add_pet(client.pet, pet) do
@@ -197,6 +201,9 @@ case PetstoreClient.Api.PetApi.add_pet(client.pet, pet) do
 
       PetstoreClient.Errors.ServerError.server_error?(e) ->
         IO.puts("Server error: #{e.message}")
+
+      PetstoreClient.Errors.OpenAPIError.open_api_error?(e) ->
+        IO.puts("SDK error: #{Exception.message(e)}")
 
       true ->
         IO.puts("Error: #{Exception.message(e)}")

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -155,6 +155,43 @@ class MetadataTest {
             match!!.groupValues[1].isNotBlank(),
             "POM description must not be empty",
         )
+    }
+
+    @Test
+    @DisplayName("deprecated operations and schemas carry the Kotlin @Deprecated marker")
+    fun testDeprecationMarkers() {
+        // F1155: reflection, so the test itself does not call a deprecated member.
+        val api = Class.forName("com.example.petstore.api.PetApi")
+        for (name in listOf("findPetsByStatus", "getPetById")) {
+            val methods = api.declaredMethods.filter { it.name == name || it.name.startsWith("$name-") }
+            assertTrue(methods.isNotEmpty(), "PetApi.$name must exist")
+            assertTrue(methods.all { it.isAnnotationPresent(Deprecated::class.java) }, "PetApi.$name must be @Deprecated")
+        }
+        assertTrue(
+            Class.forName("com.example.petstore.models.Tag").isAnnotationPresent(Deprecated::class.java),
+            "the deprecated Tag schema must be @Deprecated",
+        )
+    }
+
+    @Test
+    @DisplayName("file header prints the info description without backslash-escaped quotes")
+    fun testFileHeaderDescriptionIsUnescaped() {
+        // F1156: the header comment of every generated source file renders the
+        // info description; a quote must not reach it as a backslash-quote.
+        val headers =
+            java.io
+                .File("src")
+                .walkTopDown()
+                .filter { it.isFile && it.extension == "kt" }
+                .map { file -> file.useLines { lines -> lines.take(3).toList() } }
+                .filter { it.isNotEmpty() && it[0].startsWith("// ") }
+                .toList()
+        assertTrue(headers.isNotEmpty(), "generated sources must start with the header comment")
+        for (header in headers) {
+            for (line in header) {
+                assertFalse(line.contains("\\\""), "header line must not contain a backslash-escaped quote: $line")
+            }
+        }
     }
 
     @Test

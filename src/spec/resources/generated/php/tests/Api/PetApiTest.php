@@ -214,7 +214,10 @@ test('set pet avatar rejects an unrecognised request content-type', function ():
     $body = new \SplFileObject($tmpFile, 'r');
 
     expect(fn () => $this->api->setPetAvatar(1, $body, 'application/unknown-type'))
-        ->toThrow(\InvalidArgumentException::class);
+        ->toThrow(
+            \InvalidArgumentException::class,
+            "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are"
+        );
     unlink($tmpFile);
 });
 
@@ -434,6 +437,84 @@ test('get pet tag serializes optional array query params as styled values', func
 // — proving the reserved-preserving encoder is applied to allowReserved params
 // only. The URL is built inside BaseApi before the request reaches the
 // ApiClient, so the URL-capturing fake client observes the exact query string.
+
+test('get pet tag uses the matrix and label path styles', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetTag(5, 'cute');
+    } catch (\Throwable) {
+        // Only the captured URL matters here.
+    }
+
+    expect($captured->url)->toBe('http://localhost:9999/pet/;petId=5/tag/.cute');
+});
+
+test('get pet tag sends object valued parameters in their declared styles', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+    $criteria = new \PetstoreClient\Models\PetCriteria('lab', 3);
+
+    try {
+        $api->getPetTag(5, 'cute', new GetPetTagOptions(
+            criteria: $criteria,
+            criteriaCsv: $criteria,
+            criteriaDeep: $criteria,
+            xCriteria: $criteria
+        ));
+    } catch (\Throwable) {
+        // Only the captured request matters here.
+    }
+
+    expect($captured->url)->toContain('breed=lab&min_age=3');
+    expect($captured->url)->toContain('criteriaCsv=breed%2Clab%2Cmin_age%2C3');
+    expect($captured->url)->toContain('criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3');
+    expect($captured->headers['X-Criteria'] ?? null)->toBe('breed,lab,min_age,3');
+});
+
+test('find pets by status sends a deepObject filter and a digit-leading query name', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions(
+            filter: ['color' => 'blue', 'size' => 'large'],
+            n2ndPage: 2
+        ));
+    } catch (\Throwable) {
+        // Only the captured URL matters here.
+    }
+
+    expect($captured->url)->toContain('filter%5Bcolor%5D=blue&filter%5Bsize%5D=large');
+    expect($captured->url)->toContain('2ndPage=2');
+    expect($captured->url)->not->toContain('n2ndPage');
+});
+
+test('get pet summary sends the matrix date segment, the session cookie and the date array', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetSummary(7, new \DateTime('2024-01-15'), new GetPetSummaryOptions(
+            session: 'abc',
+            days: [new \DateTime('2024-02-01'), new \DateTime('2024-02-02')]
+        ));
+    } catch (\Throwable) {
+        // Only the captured request matters here.
+    }
+
+    expect($captured->url)->toContain('/pet/7/summary/;asOf=2024-01-15');
+    expect($captured->url)->toContain('days=2024-02-01&days=2024-02-02');
+    expect($captured->headers['Cookie'] ?? null)->toBe('session=abc');
+});
+
+test('get pet by name refuses a missing required header before sending', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    expect(fn () => $api->getPetByName('Rex', new GetPetByNameOptions(category: 'dogs', xCorrelationId: '')))
+        ->toThrow(
+            \InvalidArgumentException::class,
+            "Missing the required parameter 'X-Correlation-Id' when calling PetApi.getPetByName"
+        );
+    expect($captured->url)->toBe('');
+});
 
 test('get pet tag preserves reserved chars only for allowReserved query param', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
@@ -1355,4 +1436,67 @@ test('a multi server operation uses the chosen server and the configured base ur
         /* The URL is captured during sendRequest, before deserialization. */
     }
     expect($captured->url)->toStartWith('http://localhost:9999/');
+});
+
+// -- fixture servers --
+
+test('the mirror operation server resolves reserved characters raw', function (string $channel, string $expected): void {
+    $server = new \PetstoreClient\Api\GetMultiServerPetInfoServerMirror(
+        \PetstoreClient\Api\GetMultiServerPetInfoServerMirrorRegion::EU,
+        \PetstoreClient\Api\GetMultiServerPetInfoServerChannel::from($channel)
+    );
+
+    expect($server->getUrl())->toBe($expected);
+})->with([
+    'ampersand' => ['a&b', 'https://eu.mirror.example.com/a&b/v1'],
+    'apostrophe' => ["it's", "https://eu.mirror.example.com/it's/v1"],
+]);
+
+test('the third global server round trips its url, description and variable', function (): void {
+    $server = \PetstoreClient\Servers::server2();
+    $tenant = $server->variables['tenant'];
+
+    expect($server->urlTemplate)->toBe('https://{tenant}.example.com/api');
+    expect($server->description)->toBe('Bob\'s "sandbox" & co: $5 #{x} a*/b');
+    expect($tenant->defaultValue)->toBe("o'neil");
+    expect($tenant->description)->toBe('Tenant\'s "id"');
+    expect($tenant->enumValues)->toBe(["o'neil", 'a&b']);
+    expect($server->getUrl())->toBe("https://o'neil.example.com/api");
+    expect($server->getUrl(['tenant' => 'a&b']))->toBe('https://a&b.example.com/api');
+});
+
+test('add pet treatment sends the chosen anyOf variant as the body', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+    $treatment = new \PetstoreClient\Models\PetTreatment([
+        new \PetstoreClient\Models\Medication('aspirin', '5mg'),
+    ]);
+
+    try {
+        $api->addPetTreatment(7, $treatment);
+    } catch (\Throwable) {
+        // The canned reply is not a treatment, so decoding it may fail; only the request matters.
+    }
+
+    expect($captured->url)->toBe('http://localhost:9999/pet/7/treatment');
+    expect($captured->headers['Content-Type'] ?? null)->toBe('application/json');
+    expect($captured->body)->toContain('"drugName":"aspirin"');
+    expect($captured->body)->toContain('"dosage":"5mg"');
+});
+
+test('deprecated operations, parameters and models carry the deprecation marker', function (): void {
+    foreach (['findPetsByStatus', 'findPetsByStatusWithHttpInfo', 'getPetById', 'getPetByIdWithHttpInfo'] as $method) {
+        $doc = new \ReflectionMethod(PetApi::class, $method)->getDocComment();
+        expect($doc)->toBeString();
+        assert(is_string($doc));
+        expect($doc)->toContain('@deprecated This operation is deprecated.');
+    }
+
+    $options = new \ReflectionClass(FindPetsByStatusOptions::class);
+    expect((string) file_get_contents((string) $options->getFileName()))
+        ->toContain('@deprecated This parameter is deprecated.');
+
+    $tag = new \ReflectionClass(\PetstoreClient\Models\Tag::class)->getDocComment();
+    expect($tag)->toBeString();
+    assert(is_string($tag));
+    expect($tag)->toContain('@deprecated This schema is deprecated.');
 });

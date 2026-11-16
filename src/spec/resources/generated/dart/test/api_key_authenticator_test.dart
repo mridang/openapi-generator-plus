@@ -90,18 +90,21 @@ void main() {
 
     for (final location in ApiKeyLocation.values) {
       for (final key in ['', '   ', ' \t\n\r\f\v ']) {
-        test('${location.name} rejects the blank key "$key"', () {
-          expect(
-            () => build(key, location),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                equals("API key value for 'k' must not be empty"),
+        test(
+          '${location.name} rejects the blank key of ${key.length} characters',
+          () {
+            expect(
+              () => build(key, location),
+              throwsA(
+                isA<ArgumentError>().having(
+                  (e) => e.message,
+                  'message',
+                  equals("API key value for 'k' must not be empty"),
+                ),
               ),
-            ),
-          );
-        });
+            );
+          },
+        );
       }
       for (final key in ['a\rb', 'a\nb', 'a\x00b']) {
         test('${location.name} rejects CR, LF and NUL in ${key.codeUnits}', () {

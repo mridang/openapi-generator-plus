@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -56,5 +56,20 @@ public struct Account: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(id, forKey: .id)
     try container.encode(username, forKey: .username)
     try container.encodeIfPresent(password, forKey: .password)
+  }
+}
+
+/* A `format: password` property never reaches a log: reflection, print and
+   dump show it as ***. The wire form is unchanged. */
+extension Account: CustomReflectable {
+  public var customMirror: Mirror {
+    return Mirror(
+      self,
+      children: [
+        (label: "id", value: id as Any),
+        (label: "username", value: username as Any),
+        (label: "password", value: "***" as Any),
+      ],
+      displayStyle: .struct)
   }
 }

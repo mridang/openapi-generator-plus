@@ -193,6 +193,46 @@ async fn test_builds_authorization_url_from_discovery() {
     assert!(url.contains("state=my-state"));
 }
 
+/* D05: the authorization request always carries the `openid` scope (OIDC Core
+ * 3.1.2.1), prepended when the caller left it out and never repeated. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_authorization_url_always_requests_the_openid_scope() {
+    for scopes in [
+        Vec::<String>::new(),
+        vec!["profile".to_string()],
+        vec!["profile".to_string(), "openid".to_string()],
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(
+            r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+            200,
+        );
+        let mut auth = OpenIdConnectAuthenticator::new(
+            "https://api.example.com",
+            "https://auth.example.com/.well-known/openid-configuration",
+            "my-client-id",
+            "my-client-secret",
+            "https://app.example.com/callback",
+            scopes.clone(),
+        );
+        auth.set_api_client(client.clone());
+
+        let url = auth
+            .build_authorization_url("s")
+            .await
+            .expect("should succeed");
+
+        assert!(url.contains("scope=openid"), "scopes {:?}: {}", scopes, url);
+        assert_eq!(
+            1,
+            url.matches("openid").count(),
+            "scopes {:?}: {}",
+            scopes,
+            url
+        );
+    }
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn test_fetches_discovery_document() {
     let client = Arc::new(FakeApiClient::new());
@@ -739,4 +779,82 @@ fn test_openid_connect_authenticator_is_send_and_sync_without_unsafe_impls() {
         !source.contains("unsafe impl"),
         "openid_connect_authenticator.rs must not carry an unsafe impl"
     );
+}
+
+/* OIDC Discovery 1.0 section 4.3: a document whose issuer is not the URL it was
+ * fetched from is refused; one without an issuer, or with a matching one
+ * (trailing slash aside), is accepted. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_discovery_issuer_must_match_the_discovery_url() {
+    for (issuer, accepted) in [
+        (Some("https://auth.example.com"), true),
+        (Some("https://auth.example.com/"), true),
+        (None, true),
+        (Some("https://evil.example.com"), false),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        let mut document = serde_json::json!({
+            "authorization_endpoint": "https://auth.example.com/authorize",
+            "token_endpoint": "https://auth.example.com/token"
+        });
+        if let Some(issuer) = issuer {
+            document["issuer"] = serde_json::json!(issuer);
+        }
+        client.enqueue(&document.to_string(), 200);
+        let mut auth = create_authenticator();
+        auth.set_api_client(client);
+
+        let result = auth.build_authorization_url("").await;
+
+        let outcome = result.as_ref().err().map(|e| e.to_string());
+        assert_eq!(
+            accepted,
+            result.is_ok(),
+            "issuer {:?}: {:?}",
+            issuer,
+            outcome
+        );
+        if !accepted {
+            let err = result.unwrap_err();
+            let serialization = err
+                .downcast_ref::<SerializationError>()
+                .expect("a SerializationError");
+            assert_eq!(
+                "OIDC discovery issuer 'https://evil.example.com' does not match 'https://auth.example.com'",
+                serialization.message()
+            );
+        }
+    }
+}
+
+/* The code and the client secret travel to the discovered endpoints: clear text
+ * is refused unless the host is loopback. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_discovery_refuses_clear_text_endpoints_except_loopback() {
+    for (endpoint, accepted) in [
+        ("https://idp.example.com/token", true),
+        ("http://127.0.0.1:8080/token", true),
+        ("http://localhost:8080/token", true),
+        ("http://idp.example.com/token", false),
+        ("ftp://idp.example.com/token", false),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        let document = serde_json::json!({
+            "authorization_endpoint": "https://auth.example.com/authorize",
+            "token_endpoint": endpoint
+        });
+        client.enqueue(&document.to_string(), 200);
+        let mut auth = create_authenticator();
+        auth.set_api_client(client);
+
+        let result = auth.build_authorization_url("").await;
+
+        assert_eq!(
+            accepted,
+            result.is_ok(),
+            "endpoint {}: {:?}",
+            endpoint,
+            result.err()
+        );
+    }
 }

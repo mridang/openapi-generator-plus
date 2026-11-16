@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -112,6 +112,9 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
         JsonElement root = doc.RootElement;
         Uri authorizationEndpoint = RequireEndpoint(root, "authorization_endpoint");
         Uri tokenEndpoint = RequireEndpoint(root, "token_endpoint");
+        RequireSecureEndpoint(authorizationEndpoint, "authorization_endpoint");
+        RequireSecureEndpoint(tokenEndpoint, "token_endpoint");
+        RequireMatchingIssuer(root);
 
         /* The session (tokens and the exchanged flag) lives in the token manager,
            which outlives discovery: a document that names the same endpoints keeps
@@ -198,6 +201,60 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
             throw new SerializationException($"Discovery document {field} is not an absolute URL");
         }
         return endpoint;
+    }
+
+    /// <summary>
+    /// A discovered endpoint receives the client secret, the authorization code
+    /// and the refresh token, so it must use https; plain http is accepted only
+    /// for a loopback host (RFC 8252 section 8.3).
+    /// </summary>
+    private static void RequireSecureEndpoint(Uri endpoint, string field)
+    {
+        bool secure =
+            endpoint.Scheme == Uri.UriSchemeHttps
+            || (endpoint.Scheme == Uri.UriSchemeHttp && endpoint.IsLoopback);
+        if (!secure)
+        {
+            throw new SerializationException(
+                $"OIDC discovery document {field} must use https unless the host is loopback"
+            );
+        }
+    }
+
+    /// <summary>
+    /// OpenID Connect Discovery 1.0 section 4.3: when the document names an
+    /// issuer it must equal the discovery URL without its well-known suffix,
+    /// ignoring one trailing slash; a mismatch is the mix-up attack.
+    /// </summary>
+    private void RequireMatchingIssuer(JsonElement root)
+    {
+        const string suffix = "/.well-known/openid-configuration";
+        if (
+            !root.TryGetProperty("issuer", out JsonElement issuerElement)
+            || issuerElement.ValueKind != JsonValueKind.String
+        )
+        {
+            return;
+        }
+        string discovery = _openIdConnectUrl.OriginalString;
+        int at = discovery.IndexOf(suffix, StringComparison.Ordinal);
+        if (at < 0)
+        {
+            return;
+        }
+        string issuer = issuerElement.GetString() ?? "";
+        if (
+            !string.Equals(
+                issuer.TrimEnd('/'),
+                discovery[..at].TrimEnd('/'),
+                StringComparison.Ordinal
+            )
+        )
+        {
+            throw new SerializationException(
+                $"OIDC discovery document issuer '{issuer}' does not match the discovery URL"
+            );
+        }
     }
 
     /// <summary>

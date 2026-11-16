@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -118,7 +118,7 @@ import Testing
   @Test func testUsesRefreshTokenOnSubsequentCalls() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
     let auth = createAuthenticator()
@@ -137,7 +137,7 @@ import Testing
   @Test func testRefreshGrantGoesToRefreshUrlAndFirstGrantToTokenUrl() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
     let auth = OAuth2PasswordAuthenticator(
@@ -161,7 +161,7 @@ import Testing
   @Test func testRefreshGrantFallsBackToTokenUrlWithoutRefreshUrl() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
     let auth = createAuthenticator()
@@ -296,7 +296,7 @@ import Testing
   @Test func testRefreshInBodyModeCarriesClientCredentials() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
     let auth = OAuth2PasswordAuthenticator(
@@ -328,7 +328,7 @@ import Testing
   @Test func testRefreshInBasicModeCarriesTheBasicHeaderOnly() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
     let auth = OAuth2PasswordAuthenticator(
@@ -356,7 +356,7 @@ import Testing
   @Test func testRejectedRefreshRerunsThePasswordGrant() async throws {
     let client = MockApiClient()
     client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
 

@@ -367,4 +367,53 @@ class StoreApiTest {
     assertThat(result.get(0).get("a"))
         .isEqualTo(OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC));
   }
+
+  @Test
+  void testSearchStoreSendsTheContentQueryTheHeaderTheSetAndTheTime() throws Exception {
+    String[] capturedUrl = new String[1];
+    Map<String, String> capturedHeaders = new java.util.HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          capturedHeaders.putAll(headers);
+          return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    com.example.petstore.models.PhotoMetadata metadata =
+        new com.example.petstore.models.PhotoMetadata();
+    metadata.caption = "a<b";
+    metadata.takenAt = OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
+
+    mockedApi.searchStore(
+        new com.example.petstore.api.options.SearchStoreOptions()
+            .q(metadata)
+            .labels(java.util.Set.of("one"))
+            .at(java.time.LocalTime.of(10, 30, 0, 123_456_789))
+            .xFilter(Map.of("k", "v")));
+
+    String url = java.net.URLDecoder.decode(capturedUrl[0], StandardCharsets.UTF_8);
+    assertThat(url).contains("\"caption\":\"a<b\"");
+    assertThat(url).contains("\"takenAt\":\"2024-01-02T03:04:05.000+00:00\"");
+    assertThat(url).contains("labels=one").contains("at=10:30:00.123");
+    assertThat(capturedHeaders).containsEntry("X-Filter", "{\"k\":\"v\"}");
+  }
+
+  @Test
+  void testGetOrderByTrackingIdPutsTheLowercaseUuidInThePath() throws Exception {
+    String[] capturedUrl = new String[1];
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          return new ApiHttpResponse(200, "{\"id\":1}", Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    mockedApi.getOrderByTrackingId(
+        java.util.UUID.fromString("0F8FAD5B-D9CB-469F-A165-70867728950E"));
+
+    assertThat(capturedUrl[0])
+        .isEqualTo("http://localhost/store/order/by-tracking/0f8fad5b-d9cb-469f-a165-70867728950e");
+  }
 }

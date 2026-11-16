@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -78,6 +78,96 @@ import Testing
     #expect(url.contains("response_type=code"))
     #expect(url.contains("client_id=my-client-id"))
     #expect(url.contains("state=my-state"))
+  }
+
+  /* D05: openid is always requested, put first, and a case-sensitive
+     duplicate is dropped. */
+  @Test(arguments: [
+    ([String](), "openid"),
+    (["profile", "email"], "openid profile email"),
+    (["profile", "openid"], "openid profile"),
+    (["OpenID", "profile"], "openid OpenID profile"),
+  ])
+  func testOpenidScopeIsAlwaysRequested(scopes: [String], expected: String) async throws {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
+    let auth = OpenIdConnectAuthenticator(
+      host: "https://api.example.com",
+      openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration",
+      clientID: "my-client-id",
+      clientSecret: "my-secret",
+      redirectURI: "https://app.example.com/callback",
+      scopes: scopes)
+    auth.setApiClient(client)
+
+    let url = try await auth.buildAuthorizationURL()
+
+    let scope = URLComponents(string: url)?.queryItems?.first { $0.name == "scope" }?.value
+    #expect(scope == expected)
+  }
+
+  private func discoveryWith(
+    issuer: String? = nil, token: String = "https://auth.example.com/token"
+  ) -> String {
+    let issuerField = issuer.map { "\"issuer\":\"\($0)\"," } ?? ""
+    return
+      "{\(issuerField)\"authorization_endpoint\":\"https://auth.example.com/authorize\",\"token_endpoint\":\"\(token)\"}"
+  }
+
+  /* Discovery 1.0 section 4.3: the issuer must match the discovery URL. */
+  @Test func testDiscoveryRejectsAnIssuerThatDiffersFromTheDiscoveryUrl() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      .success(makeResponse(body: discoveryWith(issuer: "https://evil.example.com"))))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let error = await #expect(throws: SerializationError.self) {
+      _ = try await auth.buildAuthorizationURL()
+    }
+    #expect(
+      error?.message
+        == "OIDC discovery issuer 'https://evil.example.com' does not match 'https://auth.example.com'"
+    )
+  }
+
+  @Test(arguments: ["https://auth.example.com", "https://auth.example.com/"])
+  func testDiscoveryAcceptsAMatchingIssuer(issuer: String) async throws {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: discoveryWith(issuer: issuer))))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let url = try await auth.buildAuthorizationURL()
+    #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+  }
+
+  /* The code and the client secret go to the token endpoint, so it must be
+     https unless it is a loopback host. */
+  @Test(arguments: [
+    ("https://auth.example.com/token", true),
+    ("http://auth.example.com/token", false),
+    ("http://localhost:8080/token", true),
+    ("http://127.0.0.1:8080/token", true),
+    ("ftp://auth.example.com/token", false),
+  ])
+  func testDiscoveryRefusesAClearTextEndpointUnlessLoopback(endpoint: String, accepted: Bool)
+    async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: discoveryWith(token: endpoint))))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    if accepted {
+      let url = try await auth.buildAuthorizationURL()
+      #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+    } else {
+      let error = await #expect(throws: SerializationError.self) {
+        _ = try await auth.buildAuthorizationURL()
+      }
+      #expect(error?.message.contains("'token_endpoint' must be an https URL") == true)
+    }
   }
 
   @Test func testFetchesDiscoveryDocument() async throws {

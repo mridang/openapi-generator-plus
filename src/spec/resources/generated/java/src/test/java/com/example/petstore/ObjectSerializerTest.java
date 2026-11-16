@@ -531,8 +531,8 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("string with accented character serializes without unicode escape")
     void accentedCharacterNotEscaped() throws Exception {
-      String result = serializer.serialize("café");
-      assertTrue(result.contains("é"), "should contain literal é, got: " + result);
+      String result = serializer.serialize("caf\u00e9");
+      assertTrue(result.contains("\u00e9"), "should contain literal \u00e9, got: " + result);
     }
 
     @Test
@@ -1923,6 +1923,233 @@ class ObjectSerializerTest {
       assertEquals(
           "{a=[1]}", ObjectSerializer.structuralToString(java.util.Map.of("a", new byte[] {1})));
       assertEquals("null", ObjectSerializer.structuralToString(null));
+    }
+  }
+
+  @Nested
+  @DisplayName("FixtureWireValueTests")
+  class FixtureWireValueTests {
+
+    @Test
+    @DisplayName("an inline enum with non-identifier wire values round-trips every member")
+    void inlinePhaseEnumRoundTrips() {
+      for (String wire : new String[] {"In-Stock", "on-hold", "OUT_OF_STOCK"}) {
+        String json = "{\"phase\":\"" + wire + "\"}";
+        com.example.petstore.models.EdgeCases edge =
+            java.util.Objects.requireNonNull(
+                serializer.deserialize(json, com.example.petstore.models.EdgeCases.class));
+        assertEquals(wire, java.util.Objects.requireNonNull(edge.phase).getValue());
+        assertEquals(json, serializer.serialize(edge));
+      }
+    }
+
+    @Test
+    @DisplayName("every Availability member, hostile ones included, round-trips its wire value")
+    void availabilityMembersRoundTrip() {
+      for (com.example.petstore.models.Availability member :
+          com.example.petstore.models.Availability.values()) {
+        String json = serializer.serialize(member);
+        assertEquals("\"" + member.getValue().replace("\\", "\\\\") + "\"", json);
+        assertEquals(
+            member, serializer.deserialize(json, com.example.petstore.models.Availability.class));
+      }
+      assertEquals(
+          "\"o'clock\"", serializer.serialize(com.example.petstore.models.Availability.OCLOCK));
+      assertEquals("\"$eq\"", serializer.serialize(com.example.petstore.models.Availability.EQ));
+      assertEquals("\"#{x}\"", serializer.serialize(com.example.petstore.models.Availability.X));
+    }
+
+    @Test
+    @DisplayName("every Separator member decodes to a distinct constant and re-encodes")
+    void separatorMembersRoundTrip() {
+      java.util.Set<com.example.petstore.models.Separator> seen = new java.util.HashSet<>();
+      for (String wire : new String[] {" ", "@@", "a-b", "a_b"}) {
+        String json = "\"" + wire + "\"";
+        com.example.petstore.models.Separator member =
+            java.util.Objects.requireNonNull(
+                serializer.deserialize(json, com.example.petstore.models.Separator.class));
+        assertEquals(wire, member.getValue());
+        assertEquals(json, serializer.serialize(member));
+        seen.add(member);
+      }
+      assertEquals(4, seen.size());
+    }
+
+    @Test
+    @DisplayName("a uuid property is written lowercase and decoded from uppercase")
+    void uuidPropertyIsWrittenLowercaseAndDecodedFromUppercase() {
+      com.example.petstore.models.Order decoded =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"trackingId\":\"E621E1F8-C36C-495A-93FC-0C247A3E6E5F\"}",
+                  com.example.petstore.models.Order.class));
+      assertEquals(
+          "e621e1f8-c36c-495a-93fc-0c247a3e6e5f",
+          java.util.Objects.requireNonNull(decoded.trackingId).toString());
+      assertTrue(
+          serializer
+              .serialize(decoded)
+              .contains("\"trackingId\":\"e621e1f8-c36c-495a-93fc-0c247a3e6e5f\""));
+      assertThrows(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"trackingId\":\"not-a-uuid\"}", com.example.petstore.models.Order.class));
+    }
+
+    @Test
+    @DisplayName("properties named after keywords and literals keep their wire keys")
+    void keywordNamedPropertiesKeepTheirWireKeys() {
+      String json =
+          "{\"and\":true,\"or\":false,\"not\":true,\"class\":\"c\",\"return\":\"r\","
+              + "\"null\":\"n\",\"true\":true,\"false\":false}";
+      com.example.petstore.models.EdgeCases edge =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(json, com.example.petstore.models.EdgeCases.class));
+      assertEquals(true, edge.and);
+      assertEquals(false, edge.or);
+      assertEquals(true, edge.not);
+      assertEquals("c", edge._class);
+      assertEquals("r", edge._return);
+      assertEquals("n", edge._null);
+      assertEquals(true, edge._true);
+      assertEquals(false, edge._false);
+      assertEquals(json, serializer.serialize(edge));
+    }
+
+    @Test
+    @DisplayName("numeric schema defaults are exact typed values")
+    void numericDefaultsAreExactTypedValues() {
+      com.example.petstore.models.Defaults defaults =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize("{}", com.example.petstore.models.Defaults.class));
+      assertEquals(0, new java.math.BigDecimal("1.5").compareTo(defaults.ratio));
+      assertEquals(Float.valueOf(0.25f), defaults.scale);
+      assertEquals(Double.valueOf(2.0), defaults.weight);
+      assertEquals(Long.valueOf(9000000000L), defaults.ceiling);
+    }
+
+    @Test
+    @DisplayName("a contentEncoding base64 property is a byte array on the wire as base64")
+    void contentEncodedPropertyIsBase64() {
+      com.example.petstore.models.PetPassport passport =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"biometricChip\":\"aGk=\"}", com.example.petstore.models.PetPassport.class));
+      assertTrue(Arrays.equals(new byte[] {0x68, 0x69}, passport.biometricChip));
+      assertEquals("{\"biometricChip\":\"aGk=\"}", serializer.serialize(passport));
+      assertThrows(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"biometricChip\":\"!!!!\"}", com.example.petstore.models.PetPassport.class));
+    }
+
+    @Test
+    @DisplayName("a protobuf-JSON duration property round-trips")
+    void durationPropertyRoundTrips() {
+      for (String wire : new String[] {"3600s", "-90s", "3600.500s", "0.000000001s"}) {
+        String json = "{\"retryAfter\":\"" + wire + "\"}";
+        com.example.petstore.models.EdgeCases edge =
+            java.util.Objects.requireNonNull(
+                serializer.deserialize(json, com.example.petstore.models.EdgeCases.class));
+        assertNotNull(edge.retryAfter);
+        assertEquals(json, serializer.serialize(edge));
+      }
+      com.example.petstore.models.EdgeCases hour =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"retryAfter\":\"3600s\"}", com.example.petstore.models.EdgeCases.class));
+      assertEquals(3600L, java.util.Objects.requireNonNull(hour.retryAfter).toSeconds());
+    }
+
+    @Test
+    @DisplayName("a prefixItems tuple is a heterogeneous list that round-trips")
+    void tupleLocationRoundTrips() {
+      com.example.petstore.models.Pet pet =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"name\":\"Rex\",\"photoUrls\":[\"u\"],\"location\":[1.5,2.5,\"north\"]}",
+                  com.example.petstore.models.Pet.class));
+      java.util.List<Object> location = java.util.Objects.requireNonNull(pet.location);
+      assertEquals(3, location.size());
+      assertEquals(Double.valueOf(1.5), location.get(0));
+      assertEquals("north", location.get(2));
+      assertTrue(serializer.serialize(pet).contains("\"location\":[1.5,2.5,\"north\"]"));
+    }
+
+    @Test
+    @DisplayName("a bare type: number is exact and written in plain notation")
+    void decimalIsExactAndPlain() {
+      com.example.petstore.models.Pet pet =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"name\":\"Rex\",\"photoUrls\":[\"u\"],\"weightKg\":12345678901234567890.123456789}",
+                  com.example.petstore.models.Pet.class));
+      assertEquals(new java.math.BigDecimal("12345678901234567890.123456789"), pet.weightKg);
+      assertTrue(serializer.serialize(pet).contains("\"weightKg\":12345678901234567890.123456789"));
+      assertEquals("0.00000001", serializer.serialize(new java.math.BigDecimal("0.00000001")));
+      assertEquals("1000", serializer.serialize(new java.math.BigDecimal("1E+3")));
+      assertEquals(
+          "0.00000001", ObjectSerializer.stringify(new java.math.BigDecimal("0.00000001")));
+    }
+
+    @Test
+    @DisplayName("a date-time without an offset is rejected")
+    void dateTimeWithoutAnOffsetIsRejected() {
+      assertThrows(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"shipDate\":\"2024-01-01T10:00:00\"}",
+                  com.example.petstore.models.Order.class));
+      assertThrows(
+          SerializationException.class,
+          () -> serializer.deserialize("\"2024-01-01T10:00:00\"", OffsetDateTime.class));
+    }
+
+    @Test
+    @DisplayName("a duplicate object key resolves to the last value")
+    void duplicateKeyKeepsTheLastValue() {
+      com.example.petstore.models.EdgeCases edge =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"slug\":\"first\",\"slug\":\"last\"}",
+                  com.example.petstore.models.EdgeCases.class));
+      assertEquals("last", edge.slug);
+    }
+
+    @Test
+    @DisplayName(
+        "request JSON writes U+2028, U+2029 and DEL literally and escapes only quote, backslash and"
+            + " controls")
+    void requestJsonEscapesOnlyWhatItMust() {
+      assertEquals("\"a\u2028b\u2029c\u007fd\"", serializer.serialize("a\u2028b\u2029c\u007fd"));
+      assertEquals("\"/<>&\u00e9\"", serializer.serialize("/<>&\u00e9"));
+      assertEquals("\"q\\\"b\\\\c\\n\\u0001\"", serializer.serialize("q\"b\\c\n\u0001"));
+    }
+
+    @Test
+    @DisplayName(
+        "constraint keywords are not enforced: slug, nickname and quantity decode as given")
+    void constraintKeywordsAreNotEnforced() {
+      com.example.petstore.models.EdgeCases edge =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"slug\":\"12/ab\"}", com.example.petstore.models.EdgeCases.class));
+      assertEquals("12/ab", edge.slug);
+      assertEquals("{\"slug\":\"12/ab\"}", serializer.serialize(edge));
+      com.example.petstore.models.Pet pet =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"name\":\"Rex\",\"photoUrls\":[\"u\"],\"nickname\":\"ZZZZZZZZZZ\"}",
+                  com.example.petstore.models.Pet.class));
+      assertEquals("ZZZZZZZZZZ", pet.nickname);
+      com.example.petstore.models.Order order =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"quantity\":500}", com.example.petstore.models.Order.class));
+      assertEquals(Integer.valueOf(500), order.quantity);
     }
   }
 }

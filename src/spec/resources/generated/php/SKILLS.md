@@ -170,21 +170,25 @@ $client = new Client($fake);
 
 ## Error Handling
 
-All API errors derive from `ApiException`. The error hierarchy is:
+Every failure the SDK raises derives from `OpenAPIException`; catching it handles them all. It has four direct subtypes: `ApiException` (an HTTP response or transport failure), `SerializationException` (a request or response body that cannot be encoded or decoded), `OAuth2ServerException` (the token endpoint answered with an error) and `OAuth2TokenException` (the token response was unusable). The last two are raised from the first authenticated call, so they are siblings of `ApiException`, not subclasses. The error hierarchy is:
 
-- `ApiException` (base)
-  - `ClientException` (4xx)
-    - `BadRequestException` (400)
-    - `UnauthorizedException` (401)
-    - `ForbiddenException` (403)
-    - `NotFoundException` (404)
-    - `ConflictException` (409)
-    - `UnprocessableEntityException` (422)
-    - `TooManyRequestsException` (429)
-  - `ServerException` (5xx)
-    - `InternalServerErrorException` (500)
-  - `NetworkException` (no HTTP response, status 0)
-    - `NetworkTimeoutException` (the request timed out, status 0)
+- `OpenAPIException` (root)
+  - `SerializationException`
+  - `OAuth2ServerException`
+  - `OAuth2TokenException`
+  - `ApiException`
+    - `ClientException` (4xx)
+      - `BadRequestException` (400)
+      - `UnauthorizedException` (401)
+      - `ForbiddenException` (403)
+      - `NotFoundException` (404)
+      - `ConflictException` (409)
+      - `UnprocessableEntityException` (422)
+      - `TooManyRequestsException` (429)
+    - `ServerException` (5xx)
+      - `InternalServerErrorException` (500)
+    - `NetworkException` (no HTTP response, status 0)
+      - `NetworkTimeoutException` (the request timed out, status 0)
 
 ```php
 use PetstoreClient\Client;
@@ -192,6 +196,7 @@ use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ClientException;
 use PetstoreClient\Errors\ServerException;
+use PetstoreClient\Errors\OpenAPIException;
 
 function addPetOrReport(Client $client, \PetstoreClient\Models\Pet $pet): void
 {
@@ -205,6 +210,8 @@ function addPetOrReport(Client $client, \PetstoreClient\Models\Pet $pet): void
         echo "Server error: " . $e->getMessage();
     } catch (ApiException $e) {
         echo "API error: " . $e->getMessage();
+    } catch (OpenAPIException $e) {
+        echo "SDK error: " . $e->getMessage();
     }
 }
 ```
