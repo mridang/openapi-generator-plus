@@ -11,6 +11,8 @@ from pydantic import SecretStr
 from {{packageName}}.api.options.search_store_options import SearchStoreOptions
 from {{packageName}}.api.store_api import StoreApi
 from {{packageName}}.configuration import Configuration
+from {{packageName}}.default_api_client import DefaultApiClient
+from {{packageName}}.transport_options import TransportOptions
 from {{packageName}}.errors import SerializationException
 from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
 from {{packageName}}.errors.not_found_exception import NotFoundException
@@ -123,7 +125,10 @@ def _create_mock_server(status: int, content_type: str, body: str) -> tuple[Stor
     config = Configuration.builder() \
         .base_url(f'http://127.0.0.1:{port}') \
         .build()
-    api = StoreApi(config=config)
+    api = StoreApi(
+        api_client=DefaultApiClient(TransportOptions.builder().max_retries(0).build()),
+        config=config,
+    )
     return api, server
 
 

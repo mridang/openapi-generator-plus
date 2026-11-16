@@ -170,6 +170,7 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
                 self._redirect_uri,
                 self._scopes,
                 token_manager=self._delegate.token_manager,
+                pkce_verifier=self._delegate.pkce_verifier,
             )
         self._discovered_endpoints = endpoints
         self._delegate.set_api_client(self._api_client)
@@ -196,6 +197,16 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             code: The authorization code from the callback.
         """
         self._get_delegate().exchange_code(code)
+
+    def invalidate_access_token(self) -> None:
+        """Drop the cached access token, keeping the refresh token.
+
+        The next request obtains a new token (a refresh grant first). The SDK
+        calls this itself when the API answers ``401``; callers may use it to
+        force a refresh.
+        """
+        if self._delegate is not None:
+            self._delegate.invalidate_access_token()
 
     def get_host(self) -> str:
         """Returns the base URL of the API."""
