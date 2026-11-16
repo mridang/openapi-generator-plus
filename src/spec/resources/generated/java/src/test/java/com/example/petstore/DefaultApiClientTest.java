@@ -324,7 +324,7 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName("a response header reaches the caller lower-cased")
-    void aResponseHeaderReachesTheCaller() {
+    void responseHeaderReachesTheCaller() {
       DefaultApiClient client = new DefaultApiClient();
       ApiHttpResponse response =
           client.sendRequest(

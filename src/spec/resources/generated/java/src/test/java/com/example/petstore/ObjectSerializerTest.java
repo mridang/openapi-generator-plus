@@ -531,8 +531,10 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("string with accented character serializes without unicode escape")
     void accentedCharacterNotEscaped() throws Exception {
-      String result = serializer.serialize("caf\u00e9");
-      assertTrue(result.contains("\u00e9"), "should contain literal \u00e9, got: " + result);
+      String eAcute = Character.toString(0xE9);
+      String result = serializer.serialize("caf" + eAcute);
+      assertTrue(
+          result.contains(eAcute), "should contain the literal accented character, got: " + result);
     }
 
     @Test
@@ -2124,8 +2126,17 @@ class ObjectSerializerTest {
         "request JSON writes U+2028, U+2029 and DEL literally and escapes only quote, backslash and"
             + " controls")
     void requestJsonEscapesOnlyWhatItMust() {
-      assertEquals("\"a\u2028b\u2029c\u007fd\"", serializer.serialize("a\u2028b\u2029c\u007fd"));
-      assertEquals("\"/<>&\u00e9\"", serializer.serialize("/<>&\u00e9"));
+      String raw =
+          "a"
+              + Character.toString(0x2028)
+              + "b"
+              + Character.toString(0x2029)
+              + "c"
+              + Character.toString(0x7f)
+              + "d";
+      assertEquals("\"" + raw + "\"", serializer.serialize(raw));
+      String eAcute = Character.toString(0xE9);
+      assertEquals("\"/<>&" + eAcute + "\"", serializer.serialize("/<>&" + eAcute));
       assertEquals("\"q\\\"b\\\\c\\n\\u0001\"", serializer.serialize("q\"b\\c\n\u0001"));
     }
 

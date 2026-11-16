@@ -864,31 +864,31 @@ public class PetApi extends BaseApi {
     String path = "/pet/findByStatus";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     if (options != null && options.status() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "status",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "status", options.status(), "query", "String", null, "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "status", options.status(), "query", "String", null, "form", true),
+          false);
     }
     if (options != null && options.filter() != null) {
       queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter()));
     }
     if (options != null && options.bornAfter() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "bornAfter",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "bornAfter", options.bornAfter(), "query", "LocalDate", null, "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "bornAfter", options.bornAfter(), "query", "LocalDate", null, "form", true),
+          false);
     }
     if (options != null && options.n2ndPage() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "2ndPage",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "2ndPage", options.n2ndPage(), "query", "Integer", null, "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "2ndPage", options.n2ndPage(), "query", "Integer", null, "form", true),
+          false);
     }
     Map<String, String> headerParams = new HashMap<>();
     if (options != null && options.reportDate() != null) {
@@ -1294,12 +1294,12 @@ public class PetApi extends BaseApi {
                         "name", name, "path", "String", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     if (options.category() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "category",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "category", options.category(), "query", "String", null, "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "category", options.category(), "query", "String", null, "form", true),
+          false);
     }
     Map<String, String> headerParams = new HashMap<>();
     if (options.xCorrelationId() != null) {
@@ -1489,12 +1489,12 @@ public class PetApi extends BaseApi {
                         "asOf", asOf, "path", "LocalDate", null, "matrix", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     if (options.days() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "days",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "days", options.days(), "query", "List<LocalDate>", "multi", "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "days", options.days(), "query", "List<LocalDate>", "multi", "form", true),
+          false);
     }
     Map<String, String> headerParams = new HashMap<>();
     java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
@@ -1607,82 +1607,64 @@ public class PetApi extends BaseApi {
                         "tagName", tagName, "path", "String", null, "label", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     if (options != null && options.colors() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "colors",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "colors",
-                  options.colors(),
-                  "query",
-                  "List<String>",
-                  "pipes",
-                  "pipeDelimited",
-                  false),
-              false));
+          ValueSerializer.serializeStyled(
+              "colors", options.colors(), "query", "List<String>", "pipes", "pipeDelimited", false),
+          false);
     }
     if (options != null && options.sizes() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "sizes",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "sizes",
-                  options.sizes(),
-                  "query",
-                  "List<String>",
-                  "ssv",
-                  "spaceDelimited",
-                  false),
-              false));
+          ValueSerializer.serializeStyled(
+              "sizes", options.sizes(), "query", "List<String>", "ssv", "spaceDelimited", false),
+          false);
     }
     if (options != null && options.filter() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "filter",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "filter", options.filter(), "query", "String", null, "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "filter", options.filter(), "query", "String", null, "form", true),
+          false);
     }
     if (options != null && options.revision() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "revision",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "revision", options.revision(), "query", "String", null, "form", true),
-              true));
+          ValueSerializer.serializeStyled(
+              "revision", options.revision(), "query", "String", null, "form", true),
+          true);
     }
     if (options != null && options.criteria() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "criteria",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "criteria", options.criteria(), "query", "PetCriteria", null, "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "criteria", options.criteria(), "query", "PetCriteria", null, "form", true),
+          false);
     }
     if (options != null && options.criteriaCsv() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "criteriaCsv",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "criteriaCsv",
-                  options.criteriaCsv(),
-                  "query",
-                  "PetCriteria",
-                  null,
-                  "form",
-                  false),
-              false));
+          ValueSerializer.serializeStyled(
+              "criteriaCsv", options.criteriaCsv(), "query", "PetCriteria", null, "form", false),
+          false);
     }
     if (options != null && options.criteriaDeep() != null) {
       queryParams.putAll(
           ValueSerializer.serializeDeepObject("criteriaDeep", options.criteriaDeep()));
     }
     if (options != null && options.fingerprint() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "fingerprint",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "fingerprint", options.fingerprint(), "query", "byte[]", null, "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "fingerprint", options.fingerprint(), "query", "byte[]", null, "form", true),
+          false);
     }
     Map<String, String> headerParams = new HashMap<>();
     if (options != null && options.xCriteria() != null) {

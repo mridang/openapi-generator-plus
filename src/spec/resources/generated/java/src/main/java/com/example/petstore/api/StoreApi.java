@@ -255,12 +255,12 @@ public class StoreApi extends BaseApi {
                         "pathSwatch", pathSwatch, "path", "Swatch", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     if (options != null && options.querySwatch() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "querySwatch",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "querySwatch", options.querySwatch(), "query", "Swatch", null, "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "querySwatch", options.querySwatch(), "query", "Swatch", null, "form", true),
+          false);
     }
     Map<String, String> headerParams = new HashMap<>();
     if (options != null && options.preferredSwatch() != null) {
@@ -592,12 +592,12 @@ public class StoreApi extends BaseApi {
     String path = "/store/stock-item";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     if (options != null && options.asOf() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "asOf",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "asOf", options.asOf(), "query", "OffsetDateTime", null, "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "asOf", options.asOf(), "query", "OffsetDateTime", null, "form", true),
+          false);
     }
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -831,20 +831,20 @@ public class StoreApi extends BaseApi {
       queryParams.put("q", objectSerializer.serialize(options.q()));
     }
     if (options != null && options.labels() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "labels",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "labels", options.labels(), "query", "Set<String>", "multi", "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "labels", options.labels(), "query", "Set<String>", "multi", "form", true),
+          false);
     }
     if (options != null && options.at() != null) {
-      queryParams.put(
+      ValueSerializer.putQuery(
+          queryParams,
           "at",
-          ValueSerializer.maybeAllowReserved(
-              ValueSerializer.serializeStyled(
-                  "at", options.at(), "query", "LocalTime", null, "form", true),
-              false));
+          ValueSerializer.serializeStyled(
+              "at", options.at(), "query", "LocalTime", null, "form", true),
+          false);
     }
     Map<String, String> headerParams = new HashMap<>();
     if (options != null && options.xFilter() != null) {

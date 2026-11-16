@@ -28,6 +28,8 @@ import javax.annotation.Nullable;
  */
 final class ValueSerializer {
 
+  private static final ObjectSerializer SERIALIZER = new ObjectSerializer();
+
   private ValueSerializer() {}
 
   /**
@@ -258,6 +260,11 @@ final class ValueSerializer {
       return serialize(value, location, schemaType, collectionFormat);
     }
 
+    Map<String, String> fields = SERIALIZER.toWireMap(value);
+    if (fields != null) {
+      return serializeFields(paramName, fields, location, style, explode);
+    }
+
     List<String> items = toStringList(value);
 
     if ("path".equals(location)) {
@@ -305,6 +312,102 @@ final class ValueSerializer {
       }
       default -> serialize(value, location, schemaType, collectionFormat);
     };
+  }
+
+  /**
+   * Expands the wire-keyed fields of an object-valued parameter per its style and explode flag (OAS
+   * 3 style table). A path value has each key and value segment-encoded before the structural
+   * separators are applied. A query value whose style explodes into separate parameters comes back
+   * as a {@link Map} of one entry per field, which {@link #putQuery} spreads into the query.
+   */
+  private static Object serializeFields(
+      String paramName,
+      Map<String, String> fields,
+      String location,
+      String style,
+      boolean explode) {
+    boolean path = "path".equals(location);
+    List<String> keys = new ArrayList<>();
+    List<String> values = new ArrayList<>();
+    for (Map.Entry<String, String> field : fields.entrySet()) {
+      keys.add(path ? encodePathSegment(field.getKey()) : field.getKey());
+      values.add(path ? encodePathSegment(field.getValue()) : field.getValue());
+    }
+    return switch (style) {
+      case "matrix" -> {
+        if (explode) {
+          StringBuilder matrix = new StringBuilder();
+          for (int i = 0; i < keys.size(); i++) {
+            matrix.append(';').append(keys.get(i)).append('=').append(values.get(i));
+          }
+          yield matrix.toString();
+        }
+        yield ";" + paramName + "=" + joinFlat(keys, values, ",");
+      }
+      case "label" ->
+          explode ? "." + joinKeyed(keys, values, ".") : "." + joinFlat(keys, values, ",");
+      case "simple" -> explode ? joinKeyed(keys, values, ",") : joinFlat(keys, values, ",");
+      case "form" -> {
+        if (!explode) {
+          yield joinFlat(keys, values, ",");
+        }
+        if ("query".equals(location)) {
+          yield new LinkedHashMap<>(fields);
+        }
+        yield joinKeyed(keys, values, "&");
+      }
+      case "spaceDelimited" ->
+          explode && "query".equals(location)
+              ? new LinkedHashMap<>(fields)
+              : joinFlat(keys, values, " ");
+      case "pipeDelimited" ->
+          explode && "query".equals(location)
+              ? new LinkedHashMap<>(fields)
+              : joinFlat(keys, values, "|");
+      default -> joinFlat(keys, values, ",");
+    };
+  }
+
+  private static String joinFlat(List<String> keys, List<String> values, String separator) {
+    List<String> parts = new ArrayList<>();
+    for (int i = 0; i < keys.size(); i++) {
+      parts.add(keys.get(i));
+      parts.add(values.get(i));
+    }
+    return String.join(separator, parts);
+  }
+
+  private static String joinKeyed(List<String> keys, List<String> values, String separator) {
+    List<String> parts = new ArrayList<>();
+    for (int i = 0; i < keys.size(); i++) {
+      parts.add(keys.get(i) + "=" + values.get(i));
+    }
+    return String.join(separator, parts);
+  }
+
+  /**
+   * Stores a styled query value: a {@link Map} (an object-valued parameter that explodes into
+   * separate parameters) is spread into one entry per key, any other value is stored under {@code
+   * name}, and {@code null} omits the parameter.
+   *
+   * @param queryParams the query parameters being built
+   * @param name the parameter name
+   * @param styled the value returned by {@link #serializeStyled}
+   * @param allowReserved whether the parameter preserves reserved characters
+   */
+  public static void putQuery(
+      Map<String, Object> queryParams,
+      String name,
+      @Nullable Object styled,
+      boolean allowReserved) {
+    if (styled instanceof Map<?, ?> fields) {
+      for (Map.Entry<?, ?> field : fields.entrySet()) {
+        queryParams.put(
+            String.valueOf(field.getKey()), maybeAllowReserved(field.getValue(), allowReserved));
+      }
+    } else if (styled != null) {
+      queryParams.put(name, maybeAllowReserved(styled, allowReserved));
+    }
   }
 
   private static List<String> toStringList(@Nullable Object value) {

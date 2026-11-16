@@ -676,7 +676,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void aResponseCookieIsNeverReplayedOnTheNextRequest() throws Exception {
+  void responseCookieIsNeverReplayedOnTheNextRequest() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     client.sendRequest("GET", baseUrl + "/set-cookie", Map.of(), null);
     ApiHttpResponse echoed = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
@@ -685,7 +685,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void aNoRedirectRequestCarriesNoTransportDefaultHeaders() throws Exception {
+  void noRedirectRequestCarriesNoTransportDefaultHeaders() throws Exception {
     TransportOptions transport =
         TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
     DefaultApiClient client = new DefaultApiClient(transport);
