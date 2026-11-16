@@ -1271,6 +1271,23 @@ class TestIntegerBackedEnum:
         assert restored == original
 
 
+class TestEnumStringFormIsTheWireValue:
+    """F869: a member renders as its wire value when interpolated, whatever
+    the member identifier became after sanitising."""
+
+    def test_a_string_member_renders_as_its_wire_value(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        assert str(Availability('on-hold')) == 'on-hold'
+        assert f'{Availability("Sold")}' == 'Sold'
+
+    def test_an_integer_member_renders_as_its_number(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        assert str(Priority(3)) == '3'
+
+    def test_an_inline_member_renders_as_its_wire_value(self) -> None:
+        assert str(OrderStatusEnum.PLACED) == 'placed'
+
+
 class TestNonLowercaseStringEnum:
     """Scenario 2 — a string enum whose values are NOT all lowercase
     (Availability: "Available"/"Sold"/"on-hold") must round-trip with the

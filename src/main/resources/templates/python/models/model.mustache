@@ -19,6 +19,10 @@ class {{classname}}({{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^i
     {{{name}}} = {{{value}}}
     {{/enumVars}}
     {{/allowableValues}}
+
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)
 {{/isEnum}}
 {{^isEnum}}
 {{#oneOf}}
@@ -341,6 +345,10 @@ class {{classname}}{{enumName}}(str, Enum):
     {{{name}}} = {{{value}}}
     {{/enumVars}}
     {{/allowableValues}}
+
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)
 {{/isEnum}}
 {{/vars}}
 {{/hasEnums}}
