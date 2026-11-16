@@ -17,7 +17,8 @@ import java.nio.charset.StandardCharsets
  * Usage:
  * 1. Call [buildAuthorizationUrl] to get the authorization URL
  * 2. Redirect the user to that URL
- * 3. After the callback, call [exchangeCode] with the auth code
+ * 3. After the callback, call [exchangeCode] with the auth code (the PKCE verifier of the URL
+ *    built in step 1 is sent with it)
  * 4. Use the authenticator normally — tokens are managed automatically
  *
  * @param host API base URL
@@ -68,6 +69,13 @@ open class OAuth2AuthorizationCodeAuthenticator internal constructor(
     private val effectiveRefreshUrl: String = refreshUrl ?: tokenUrl
 
     /**
+     * PKCE code verifier (RFC 7636) of the last authorization URL built, kept until its code has
+     * been exchanged. OIDC rediscovery copies it to the authenticator it rebuilds.
+     */
+    @Volatile
+    internal var pkceVerifier: String? = null
+
+    /**
      * Inject the shared API client used for token exchange requests.
      *
      * @param apiClient the shared API client instance
@@ -103,6 +111,12 @@ open class OAuth2AuthorizationCodeAuthenticator internal constructor(
         if (!state.isNullOrEmpty()) {
             url.append("&state=").append(encode(state))
         }
+        /* RFC 7636 / RFC 9700 section 2.1.1: bind the code to this client with a PKCE S256
+         * challenge. The verifier is kept for exchangeCode(). */
+        val verifier = newPkceVerifier()
+        pkceVerifier = verifier
+        url.append("&code_challenge=").append(pkceChallenge(verifier))
+        url.append("&code_challenge_method=S256")
         return url.toString()
     }
 
@@ -124,10 +138,15 @@ open class OAuth2AuthorizationCodeAuthenticator internal constructor(
             "client_secret" to clientSecret,
             "redirect_uri" to redirectUri
         )
+        val verifier = pkceVerifier
+        if (verifier != null) {
+            params["code_verifier"] = verifier
+        }
         // Always POST the new code: a cached token or a stored refresh token
         // from an earlier exchange must not stand in for this grant.
         tokenManager.exchange(tokenUrl, params)
         tokenManager.markExchanged()
+        pkceVerifier = null
     }
 
     override fun getHost(): String = host
@@ -144,6 +163,22 @@ open class OAuth2AuthorizationCodeAuthenticator internal constructor(
         )
         val token = tokenManager.getAccessToken(effectiveRefreshUrl, params)
         return mapOf("Authorization" to "Bearer $token")
+    }
+
+    internal companion object {
+        /** A new PKCE code verifier: 32 random bytes as 43 unpadded base64url characters. */
+        fun newPkceVerifier(): String {
+            val bytes = ByteArray(32)
+            java.security.SecureRandom().nextBytes(bytes)
+            return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+        }
+
+        /** The S256 code challenge of [verifier]: unpadded base64url of its SHA-256 digest. */
+        fun pkceChallenge(verifier: String): String {
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(verifier.toByteArray(Charsets.US_ASCII))
+            return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
+        }
     }
 
     // RFC 3986 query component: a space is %20, not '+' (URLEncoder's form rule).
