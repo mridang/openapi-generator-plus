@@ -1482,3 +1482,21 @@ test('add pet treatment sends the chosen anyOf variant as the body', function ()
     expect($captured->body)->toContain('"drugName":"aspirin"');
     expect($captured->body)->toContain('"dosage":"5mg"');
 });
+
+test('deprecated operations, parameters and models carry the deprecation marker', function (): void {
+    foreach (['findPetsByStatus', 'findPetsByStatusWithHttpInfo', 'getPetById', 'getPetByIdWithHttpInfo'] as $method) {
+        $doc = (new \ReflectionMethod(PetApi::class, $method))->getDocComment();
+        expect($doc)->toBeString();
+        assert(is_string($doc));
+        expect($doc)->toContain('@deprecated This operation is deprecated.');
+    }
+
+    $options = new \ReflectionClass(FindPetsByStatusOptions::class);
+    expect((string) file_get_contents((string) $options->getFileName()))
+        ->toContain('@deprecated This parameter is deprecated.');
+
+    $tag = (new \ReflectionClass(\{{invokerPackage}}\Models\Tag::class))->getDocComment();
+    expect($tag)->toBeString();
+    assert(is_string($tag));
+    expect($tag)->toContain('@deprecated This schema is deprecated.');
+});
