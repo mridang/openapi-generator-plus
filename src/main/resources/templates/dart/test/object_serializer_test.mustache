@@ -406,6 +406,9 @@ void main() {
           deserialize('{"retryAfter":"soon"}', EdgeCases.fromJson),
       'malformed date-time': () =>
           deserialize('{"expiresAt":"not-a-date"}', EdgeCases.fromJson),
+      'undeclared key on a model declaring unevaluatedProperties false': () =>
+          deserialize(
+              '{"id":1,"name":"x","unexpected":true}', StrictTag.fromJson),
     };
     wireShapeFailures.forEach((failure, decode) {
       test('throws exactly SerializationException, a root exception, for $failure', () {
@@ -416,6 +419,18 @@ void main() {
               .having((e) => e, 'is a root exception', isA<{{errorPrefix}}Exception>())),
         );
       });
+    });
+
+    test('a model declaring unevaluatedProperties false decodes its declared keys', () {
+      final tag = deserialize('{"id":1,"name":"x"}', StrictTag.fromJson);
+      expect(tag!.id, equals(1));
+      expect(tag.name, equals('x'));
+    });
+
+    test('a model without unevaluatedProperties false ignores an undeclared key', () {
+      final category = deserialize(
+          '{"id":1,"name":"x","unexpected":true}', Category.fromJson);
+      expect(category!.name, equals('x'));
     });
 
     test('truncated JSON throws SerializationException not raw parse error', () {
