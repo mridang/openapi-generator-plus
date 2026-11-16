@@ -339,3 +339,22 @@ F1150 is not tested: node never builds a `Proxy-Authorization` header, undici's 
 
 ### Skipped in batch 7
 F1056 and F1121 contradict each other (drop `Accept`, `Content-Type` and `Authorization` header parameters versus a per-call `Accept` winning) and the first needs `AbstractBetterCodegen`; F1062, F1060, F865, F866, F1058, F1100 need shared Java or a spec change; F855, F857, F858, F859 change the auth API shape or add a retry and need an owner decision; F1082 changes the `format: date` type (a `Date` is kept); F1152, F1153, F1174, F1176 are gates outside the template tree.
+
+## Decisions taken in batch 9
+
+Each uses the owner's batch 9 defaults; none was re-opened.
+
+### A 401 renews the OAuth2 token and replays once (F855)
+Rule: `invalidateAccessToken()` is public on the OAuth2 client-credentials, password, authorization-code and OpenID Connect authenticators (it drops the access token and keeps the refresh token, through `OAuth2TokenManager.invalidateAccessToken`). When an authenticator that has it is the effective one and the call answers 401, `BaseApi` invalidates, asks `getAuthHeadersAsync()` again (a refresh grant first) and sends the request once more with the fresh headers; a second 401 is the usual `UnauthorizedError`. A multipart body (a plain object) is not replayed, a failed re-authentication (any `<Prefix>Error`) leaves the 401, and API key, basic, bearer and implicit authenticators have no such method and never replay. node has no stream body type, so every other body is replayable.
+Where: `base_api.mustache`, `auth/oauth/*_authenticator.mustache`. Test: `test/base-api.test.mustache` (`a 401 on an OAuth2 call`), the four `test/oauth2-*`/`openid-connect` authenticator tests.
+
+### PKCE S256 on the authorization code flow (F858)
+Rule: `buildAuthorizationUrl()` makes a 43-character base64url verifier (32 random bytes), keeps it and adds `code_challenge` and `code_challenge_method=S256` (last in the query); `exchangeCode()` sends `code_verifier` and then forgets it. Building the URL again starts a new verifier. The verifier lives in a `PkceState` object the OpenID Connect authenticator shares with every delegate, so rediscovery keeps it; no nonce, since no ID token is validated. SHA-256 is hand-written in `oauth2_auth_code_authenticator.mustache` (the URL builder is synchronous and the portable client runs without `node:crypto`).
+Where: `auth/oauth/oauth2_auth_code_authenticator.mustache`, `openid_connect_authenticator.mustache`. Test: `test/oauth2-auth-code-authenticator.test.mustache` (`PKCE`), `test/openid-connect-authenticator.test.mustache`, `test/client.test.mustache` (the exact authorize URL minus the challenge).
+
+### Automatic retries (F823)
+Rule: `TransportOptions.maxRetries` (builder `maxRetries(n)`, default 2, 0 disables, a non-negative integer or `TypeError`). `AbstractApiClient.sendRequest` loops over `sendOnce`: it retries after a `NetworkError` that happened before a response (not a `NetworkTimeoutError`, not a failure while reading a body that arrived) and after 408, 409, 429 and 5xx except 501. Backoff is 0.5 s doubling to 8 s with up to 25% taken off; `Retry-After` (seconds or HTTP date, capped at 60 s) wins. One `AbortSignal.timeout` made before the first attempt covers every attempt, a wait that would reach the deadline ends the retries and returns the last result, and the caller's signal stops the wait with its own reason. Each attempt rebuilds the headers (new `X-Request-ID`, new multipart boundary) and `SendRequestOptions.refreshAuthHeaders` (set by `BaseApi`) asks the authenticator for its headers again before every retry. The transport owns the retry, so an injected `ApiClient` stub and a token request through the transport behave the same. Tests that expect one failing request use `maxRetries(0)`.
+Where: `abstract_api_client.mustache`, `transport_options.mustache`, `api_client.mustache`, `base_api.mustache`, `readme.mustache`, `skills.mustache`. Test: `test/default-api-client-unit.test.mustache` (`automatic retries`), `test/transport-options.test.mustache`.
+
+### Already conforming
+F1080 (the rendered `ApiError.toString()` cap, escapes and header masks; control characters are `\n`, `\r`, `\t` and `\uNNNN`, the JS idiom). F825 is rust only.
