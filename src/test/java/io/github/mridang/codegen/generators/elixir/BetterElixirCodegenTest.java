@@ -61,4 +61,13 @@ class BetterElixirCodegenTest {
     assertThat(codegen.typeMapping()).containsEntry("string", "String.t()")
         .containsEntry("time", "Time.t()").containsEntry("duration", "Duration.t()");
   }
+
+  @Test
+  void suffixesAParameterNamedLikeABindingTheOperationMakesItself() {
+    final BetterElixirCodegen codegen = new BetterElixirCodegen();
+    for (final String bound : new String[] {"api", "opts", "options", "auth", "path", "server"}) {
+      assertThat(codegen.toParamName(bound)).isEqualTo(bound + "_param");
+    }
+    assertThat(codegen.toParamName("petId")).isEqualTo("pet_id");
+  }
 }

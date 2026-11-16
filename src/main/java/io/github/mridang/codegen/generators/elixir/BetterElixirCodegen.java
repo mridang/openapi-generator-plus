@@ -829,6 +829,28 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Names an operation function binds itself (its receiver, the options
+     * struct, the keyword list and the locals the request is built in). A
+     * path or body parameter that carried one of them would be shadowed or
+     * would shadow the SDK's own binding, so it is suffixed instead.
+     */
+    private static final Set<String> SDK_BOUND_NAMES = Set.of(
+            "api", "opts", "options", "auth", "path", "query_params", "header_params",
+            "request_body", "cookie_parts", "declared_content_types", "server",
+            "server_module", "server_url");
+
+    /**
+     * Converts a parameter name, suffixing it with {@code _param} when it
+     * equals a name the generated operation binds itself. The wire name is
+     * unaffected: it travels in {@code baseName}.
+     */
+    @Override
+    public String toParamName(String name) {
+        final String param = super.toParamName(name);
+        return SDK_BOUND_NAMES.contains(param) ? param + "_param" : param;
+    }
+
+    /**
      * Neutralises the hash-brace interpolation opener as well as the shared
      * comment-closer rule. Text that went through escapeText lands in
      * interpolating double-quoted literals and heredocs (an operation's
