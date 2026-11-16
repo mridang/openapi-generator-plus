@@ -59,13 +59,16 @@ pub struct {{serverTypeName}}{{variantName}} {
 impl {{serverTypeName}} for {{serverTypeName}}{{variantName}} {
     fn get_url(&self) -> String {
 {{#serverVariables}}{{#-first}}
-        let mut url = "{{url}}".to_string();
+        crate::server_configuration::expand_placeholders(
+            "{{url}}",
+            &[
 {{/-first}}{{/serverVariables}}
 {{#serverVariables}}
-        url = url.replace(&("{".to_owned() + "{{name}}" + "}"), {{#hasEnumValues}}self.{{snakeName}}.as_str(){{/hasEnumValues}}{{^hasEnumValues}}&self.{{snakeName}}{{/hasEnumValues}});
+                ("{{name}}", self.{{snakeName}}.as_str()),
 {{/serverVariables}}
 {{#serverVariables}}{{#-last}}
-        url
+            ],
+        )
 {{/-last}}{{/serverVariables}}
 {{^serverVariables}}
         "{{url}}".to_string()
@@ -248,8 +251,9 @@ impl {{classname}} {
         if !DECLARED_CONSUMES.contains(&request_content_type) {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "Unsupported request content-type '{}' for {{operationId}}; declared types are {:?}",
-                    request_content_type, DECLARED_CONSUMES
+                    "Unsupported request content-type '{}' for {{operationId}}; declared types are [{}]",
+                    request_content_type,
+                    DECLARED_CONSUMES.join(", ")
                 )),
             ));
         }
@@ -402,14 +406,14 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
-        for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", &object_serializer::to_deep_object_map(&opts.{{paramName}})?) {
+        for (k, v) in object_serializer::deep_object_pairs("{{baseName}}", &opts.{{paramName}})? {
             query_params.push((k, v, false));
         }
 {{/required}}
 {{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
-                for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", &object_serializer::to_deep_object_map(val)?) {
+                for (k, v) in object_serializer::deep_object_pairs("{{baseName}}", val)? {
                     query_params.push((k, v, false));
                 }
             }

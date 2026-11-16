@@ -6,11 +6,104 @@ Auto-generated Rust SDK client for the {{appName}} API.
 
 - Rust **1.85+** (MSRV; Rust edition 2021)
 - `cargo` (ships with Rust)
-- Optional tooling (install via `rustup component add` / `cargo install`):
-  - `rustfmt` — formatter (`rustup component add rustfmt`)
-  - `clippy` — linter and static analyser (`rustup component add clippy`)
-  - `cargo-deny` — license / advisory / dependency audit
-    (`cargo install --locked cargo-deny`)
+
+### Tooling
+
+| Tool | Component | Invoke |
+| --- | --- | --- |
+| Formatter | `rustfmt` (`rustup component add rustfmt`) | `cargo fmt` (write) / `cargo fmt -- --check` (verify) |
+| Linter and static analyser | `clippy` (`rustup component add clippy`) | `cargo clippy --all-targets --all-features -- -D warnings` |
+| Dependency audit | `cargo-deny` (`cargo install --locked cargo-deny`) | `cargo deny check` |
+| Edition migration | built in | `cargo fix --edition` |
+
+## Installation
+
+Add the dependency to your `Cargo.toml`:
+
+```toml
+[dependencies]
+{{packageName}} = "{{packageVersion}}"
+```
+
+## Usage
+
+```rust
+use {{packageName}}::{{clientClassName}};
+
+let client = {{clientClassName}}::with_token("https://api.example.com", "your-token", None)?;
+```
+
+Every operation is an `async` method on a typed API group, for example
+`client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`; call it with `.await`. Errors are
+`Box<dyn std::error::Error + Send + Sync>` values whose root is an SDK error:
+the `{{errorPrefix}}ErrorExt` trait gives `as_api_error()`, `is_api_error()` and
+`api_error_kind()`. `NetworkError` and `NetworkTimeoutError` mean no HTTP
+response arrived, and `TooManyRequestsError` is HTTP 429. See
+[SKILLS.md](SKILLS.md) for authentication, servers and error handling.
+
+### Raw responses
+
+Every operation has a `..._with_http_info` variant returning an `ApiResult<T>`
+with `status_code()`, `data()`, `raw_body()` and the lower-cased `headers()`.
+It is the way to read a response header.
+
+### Timeouts
+
+`TransportOptions::builder().timeout(Some(5000))` sets one end-to-end budget in
+milliseconds for the whole call, redirects and retries included. A call that
+exceeds it fails with `NetworkTimeoutError`. The default is 10000 ms.
+
+### Automatic retries
+
+
+A failed call is sent again up to `max_retries` times, two by default;
+`TransportOptions::builder().max_retries(0)` turns retries off. The call is
+retried after a network error that happened before a response, and after a
+response with status 408, 409, 429 or 500-599 (not 501). The wait starts at
+0.5 s, doubles up to 8 s, and carries up to 25% jitter. A `Retry-After` header
+(seconds or an HTTP date) replaces the wait, up to 60 s. Every retry is a fresh
+request with its authentication headers applied again, and all of them share
+the one end-to-end `timeout`: a retry that would not fit in what is left is not
+made, and the last failure is returned. A call with a multipart body is never
+retried, and dropping the future cancels the wait between attempts. Retries
+apply to the generated operations; a request sent straight through
+`DefaultApiClient` is not retried.
+
+### Expired tokens
+
+When an OAuth2 or OpenID Connect call is answered with 401, the cached access
+token is dropped (the refresh token is kept) and the request is sent once more
+with fresh headers. A second 401 is reported as `UnauthorizedError`. A multipart
+body is not replayed, and API key, basic and bearer authenticators never replay.
+
+### Request id
+
+`TransportOptions::builder().inject_request_id(true)` adds a unique
+`X-Request-ID` header to every request that does not already carry one (header
+names are matched case-insensitively). Quote it when you report a problem with
+a call.
+
+### Cancellation
+
+The SDK adds no cancellation parameter and no client signal: a call is cancelled
+the way every async Rust call is, by dropping its future, or by wrapping it in
+`tokio::time::timeout` or `tokio::select!`. To bound how long a call can take
+without that, set the request timeout on `TransportOptions`; a call that
+exceeds it fails with `NetworkTimeoutError`. Cancellation is never reported as
+`NetworkTimeoutError`.
+
+### Custom HTTP client
+
+The client's `with_http_client(authenticator, client, transport_options)` constructor sends
+every request through a `reqwest::Client` you built yourself (a custom
+connector, a shared pool, a test double). The SDK defaults (timeout,
+`User-Agent`, request ids, default headers, redirect handling) still apply on
+top. Build the client with `reqwest::redirect::Policy::none()` so the SDK's own
+redirect handling stays in charge. You own the client's lifecycle: the SDK never
+shuts it down. Setting a proxy, a CA certificate or `verify_ssl(false)` on
+`TransportOptions` together with a supplied client fails with
+`ConfigurationError::InvalidArgument`, because those belong to the client you
+built.
 
 ## Build
 
@@ -33,6 +126,7 @@ cargo fmt
 ## Lint / static analysis
 
 ```bash
+cargo fmt -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
@@ -42,39 +136,12 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo deny check
 ```
 
-## Edition migration helper
-
-`cargo fix --edition` is the built-in tool for migrating across Rust
-editions. This crate targets edition 2021; the command is
-listed here for future migrations:
-
-```bash
-cargo fix --edition
-```
-
 ## Crate
 
 - Name: `{{packageName}}`
 - Version: `{{packageVersion}}`
 - Edition: `2021`
 - MSRV: `1.85`
-
-## Configuration
-
-### Automatic retries
-
-A failed call is sent again up to `max_retries` times, two by default;
-`TransportOptions::builder().max_retries(0)` turns retries off. The call is
-retried after a network error that happened before a response, and after a
-response with status 408, 409, 429 or 500-599 (not 501). The wait starts at
-0.5 s, doubles up to 8 s, and carries up to 25% jitter. A `Retry-After` header
-(seconds or an HTTP date) replaces the wait, up to 60 s. Every retry is a fresh
-request with its authentication headers applied again, and all of them share
-the one end-to-end `timeout`: a retry that would not fit in what is left is not
-made, and the last failure is returned. A call with a multipart body is never
-retried, and dropping the future cancels the wait between attempts. Retries
-apply to the generated operations; a request sent straight through
-`DefaultApiClient` is not retried.
 
 ## Caveats
 
@@ -155,28 +222,6 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
-
-### Custom HTTP client
-
-The client's `with_http_client(authenticator, client, transport_options)` constructor sends
-every request through a `reqwest::Client` you built yourself (a custom
-connector, a shared pool, a test double). The SDK defaults (timeout,
-`User-Agent`, request ids, default headers, redirect handling) still apply on
-top. Build the client with `reqwest::redirect::Policy::none()` so the SDK's own
-redirect handling stays in charge. You own the client's lifecycle: the SDK never
-shuts it down. Setting a proxy, a CA certificate or `verify_ssl(false)` on
-`TransportOptions` together with a supplied client fails with
-`ConfigurationError::InvalidArgument`, because those belong to the client you
-built.
-
-### Per-call cancellation
-
-The SDK adds no cancellation parameter and no client signal: a call is cancelled
-the way every async Rust call is, by dropping its future, or by wrapping it in
-`tokio::time::timeout` or `tokio::select!`. To bound how long a call can take
-without that, set the request timeout on `TransportOptions`; a call that
-exceeds it fails with `NetworkTimeoutError`. Cancellation is never reported as
-`NetworkTimeoutError`.
 
 ### `LICENSE` file is not auto-emitted
 

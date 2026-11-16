@@ -18,7 +18,6 @@ struct FakeApiClient {
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
     last_no_redirect: Mutex<Option<bool>>,
-    last_skip_default_headers: Mutex<Option<bool>>,
     last_headers: Mutex<HashMap<String, String>>,
     requests: Mutex<Vec<(String, String)>>,
 }
@@ -30,7 +29,6 @@ impl FakeApiClient {
             last_url: Mutex::new(None),
             last_body: Mutex::new(None),
             last_no_redirect: Mutex::new(None),
-            last_skip_default_headers: Mutex::new(None),
             last_headers: Mutex::new(HashMap::new()),
             requests: Mutex::new(Vec::new()),
         }
@@ -81,7 +79,6 @@ impl ApiClient for FakeApiClient {
             let mut last_no_redirect = self.last_no_redirect.lock().unwrap();
             *last_no_redirect = Some(options.no_redirect);
         }
-        *self.last_skip_default_headers.lock().unwrap() = Some(options.skip_default_headers);
         *self.last_headers.lock().unwrap() = headers.clone();
         let mut sent_body = String::new();
         if let Some(RequestBody::Bytes(b)) = body {
@@ -755,10 +752,86 @@ async fn test_token_response_missing_access_token_throws_typed_error() {
         .get_access_token("https://auth.example.com/token", &params)
         .await
         .expect_err("missing access_token must error");
-    assert!(
-        err.downcast_ref::<OAuth2TokenError>().is_some(),
-        "expected OAuth2TokenError, got: {err}"
+    let token_err = err
+        .downcast_ref::<OAuth2TokenError>()
+        .unwrap_or_else(|| panic!("expected OAuth2TokenError, got: {err}"));
+    assert_eq!(
+        "Token response missing or empty access_token field",
+        token_err.message()
     );
+}
+
+/* F863 (RFC 6749 section 7.1): a token whose type is not Bearer is refused, not
+ * sent as `Authorization: Bearer`; an absent, null or any-case "bearer" type is
+ * accepted. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_a_token_type_other_than_bearer_is_refused() {
+    for (token_type, accepted) in [
+        (r#""token_type":"Bearer","#, true),
+        (r#""token_type":"bEaReR","#, true),
+        (r#""token_type":null,"#, true),
+        ("", true),
+        (r#""token_type":"DPoP","#, false),
+        (r#""token_type":"mac","#, false),
+        (r#""token_type":"N_A","#, false),
+        (r#""token_type":"","#, false),
+        (r#""token_type":7,"#, false),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        let body = ["{", token_type, r#""access_token":"tok","expires_in":3600}"#].concat();
+        client.enqueue(&body, 200);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client);
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+        let result = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await;
+
+        if accepted {
+            assert_eq!("tok", result.expect("a bearer token is accepted"), "{token_type}");
+        } else {
+            let err = result.expect_err("a non-bearer token type must be refused");
+            let token_err = err
+                .downcast_ref::<OAuth2TokenError>()
+                .unwrap_or_else(|| panic!("expected OAuth2TokenError for {token_type}, got: {err}"));
+            assert_eq!("Unsupported token_type in token response", token_err.message(), "{token_type}");
+        }
+    }
+}
+
+/* D07 (F926, F1105): a 2xx token body the SDK cannot use is an
+ * OAuth2TokenError with the canonical text, no parser detail and no cause. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_unusable_token_response_bodies_use_the_canonical_messages() {
+    for (body, expected) in [
+        ("not json", "Token response is not valid JSON"),
+        ("", "Token response is not valid JSON"),
+        ("[1, 2]", "Token response is not a JSON object"),
+        ("\"tok\"", "Token response is not a JSON object"),
+        ("{}", "Token response missing or empty access_token field"),
+        (r#"{"access_token":""}"#, "Token response missing or empty access_token field"),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(body, 200);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client);
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+        let err = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .expect_err("an unusable token response must error");
+
+        let token_err = err
+            .downcast_ref::<OAuth2TokenError>()
+            .unwrap_or_else(|| panic!("expected OAuth2TokenError for {body:?}, got: {err}"));
+        assert_eq!(expected, token_err.message(), "body {body:?}");
+        assert_eq!(expected, token_err.to_string(), "body {body:?}");
+        assert!(std::error::Error::source(token_err).is_none(), "body {body:?}");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -1146,8 +1219,9 @@ async fn test_failed_exchange_restores_the_previous_session() {
     assert_eq!(2, client.requests().len());
 }
 
-/* F1075, F860: a token request is a form post that accepts JSON, and it asks the
- * transport to leave the API's default headers out of it. */
+/* F1075, F860: a token request is a form post that accepts JSON, and it is a
+ * no-redirect request, which the transport sends without the API's default
+ * headers. */
 #[tokio::test(flavor = "multi_thread")]
 async fn test_token_request_headers_and_default_header_opt_out() {
     let client = Arc::new(FakeApiClient::new());
@@ -1168,7 +1242,7 @@ async fn test_token_request_headers_and_default_header_opt_out() {
         headers.get("Content-Type")
     );
     assert_eq!(Some(&"application/json".to_string()), headers.get("Accept"));
-    assert_eq!(Some(true), *client.last_skip_default_headers.lock().unwrap());
+    assert_eq!(Some(true), *client.last_no_redirect.lock().unwrap());
 }
 
 /* F855: invalidating drops the cached token and keeps the refresh token, so

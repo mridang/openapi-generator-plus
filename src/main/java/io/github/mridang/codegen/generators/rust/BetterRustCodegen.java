@@ -873,6 +873,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         for (final ModelMap modelMap : result.getModels()) {
             final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
             modelMap.put("hasDefaultedOptionalVars", hasDefaultedOptionalVars(model));
+            /* A `format: password` property is masked in `Debug` (F867), which
+             * needs a hand-written impl instead of the derive. */
+            modelMap.put(
+                    "hasPasswordVars",
+                    !model.isEnum
+                            && model.vars != null
+                            && model.vars.stream().anyMatch(v -> v.isPassword));
         }
         /* `use super::*;` only earns its place when the file names another
          * generated model unqualified. The import list also carries collection
@@ -1486,6 +1493,42 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         } catch (IOException e) {
             LOGGER.warn("Failed to write mod.rs in {}: {}", dir, e.getMessage());
         }
+    }
+
+    /**
+     * The names an operation signature or body already uses: the injected arguments ({@code
+     * options}, {@code server}, {@code request_content_type}) and the locals of the operation
+     * body. A parameter named like one is renamed so it cannot be shadowed or collide (F1055).
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "options",
+                "server",
+                "request_content_type",
+                "path",
+                "query_params",
+                "header_params",
+                "cookie_parts",
+                "form_pairs",
+                "headers",
+                "auth",
+                "params",
+                "result",
+                "status_code",
+                "raw_body",
+                "server_url",
+                "opts",
+                "items",
+                "multipart",
+                "request_body",
+                "object_pairs");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getInjectedArgumentSuffix() {
+        return "_param";
     }
 
     /**

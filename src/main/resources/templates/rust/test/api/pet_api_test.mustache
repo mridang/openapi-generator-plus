@@ -285,7 +285,7 @@ async fn test_pet_api_set_pet_avatar_rejects_unknown_content_type() {
         err.downcast_ref::<ConfigurationError>(),
         Some(&ConfigurationError::InvalidArgument(
             "Unsupported request content-type 'application/unknown-type' for set_pet_avatar; \
-declared types are [\"image/jpeg\", \"image/png\", \"application/json\"]"
+declared types are [image/jpeg, image/png, application/json]"
                 .to_string()
         ))
     );
@@ -304,7 +304,7 @@ async fn test_pet_api_upload_pet_document_rejects_unknown_content_type() {
         err.downcast_ref::<ConfigurationError>(),
         Some(&ConfigurationError::InvalidArgument(
             "Unsupported request content-type 'application/unknown-type' for upload_pet_document; \
-declared types are [\"multipart/form-data\", \"application/octet-stream\"]"
+declared types are [multipart/form-data, application/octet-stream]"
                 .to_string()
         ))
     );
@@ -1447,6 +1447,23 @@ fn test_pet_api_operation_server_variants_resolve_the_spec_urls() {
         GetMultiServerPetInfoServerRegional { region: GetMultiServerPetInfoServerRegionalRegion::EU }.get_url(),
         "https://eu.example.com/v1"
     );
+    /* F1147: the Mirror variant has two variables; a channel value holding `&`
+     * or an apostrophe is written into the URL as is. */
+    for (region, channel, expected) in [
+        (
+            GetMultiServerPetInfoServerMirrorRegion::US,
+            GetMultiServerPetInfoServerChannel::AB,
+            "https://us.mirror.example.com/a&b/v1",
+        ),
+        (
+            GetMultiServerPetInfoServerMirrorRegion::EU,
+            GetMultiServerPetInfoServerChannel::ITS,
+            "https://eu.mirror.example.com/it's/v1",
+        ),
+    ] {
+        let server = GetMultiServerPetInfoServerMirror { region, channel };
+        assert_eq!(server.get_url(), expected);
+    }
     for (environment, version, expected) in [
         (GetStagingPetInfoServerEnvironment::STAGING, GetStagingPetInfoServerVersion::V2, "https://staging.example.com/api/v2"),
         (GetStagingPetInfoServerEnvironment::SANDBOX, GetStagingPetInfoServerVersion::V3, "https://sandbox.example.com/api/v3"),
@@ -1454,6 +1471,67 @@ fn test_pet_api_operation_server_variants_resolve_the_spec_urls() {
         let server = GetStagingPetInfoServerStagingServer { environment, version };
         assert_eq!(server.get_url(), expected);
     }
+}
+
+/* F1147: a Mirror server reaches the request as its host and path prefix. */
+#[tokio::test]
+async fn test_pet_api_mirror_operation_server_is_the_host_of_the_request() {
+    let (api, client) = new_pet_api_recording_urls();
+    let mirror = GetMultiServerPetInfoServerMirror {
+        region: GetMultiServerPetInfoServerMirrorRegion::EU,
+        channel: GetMultiServerPetInfoServerChannel::ITS,
+    };
+    let _ = api.get_multi_server_pet_info(7, Some(&mirror)).await;
+
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(urls[0].starts_with("https://eu.mirror.example.com/it's/v1/"), "{}", urls[0]);
+}
+
+/* F1068: the summary call that succeeds. The matrix date segment, the required
+ * cookie and the date array reach the wire, and the text/plain answer comes
+ * back as the text. */
+#[tokio::test]
+async fn test_pet_api_get_pet_summary_succeeds_with_a_text_plain_answer() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+            let body = "all good";
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).expect("a valid date");
+    let days = vec![
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 1).expect("a valid date"),
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 2).expect("a valid date"),
+    ];
+    let opts = GetPetSummaryOptions::new("sess".to_string()).days(days);
+
+    let summary = api
+        .get_pet_summary(1, as_of, Some(&opts))
+        .await
+        .expect("a text/plain answer is the text");
+
+    assert_eq!("all good", summary);
+    let head = rx.recv().expect("expected a captured request");
+    let request_line = head.lines().next().unwrap_or_default().to_string();
+    assert!(request_line.contains("/pet/1/summary/;asOf=2024-01-31"), "{}", request_line);
+    assert!(request_line.contains("days=2024-02-01&days=2024-02-02"), "{}", request_line);
+    assert!(head.to_lowercase().contains("cookie: session=sess"), "{}", head);
 }
 
 #[tokio::test]

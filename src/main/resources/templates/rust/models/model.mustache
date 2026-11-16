@@ -150,10 +150,10 @@ fn default_{{name}}() -> Option<{{{dataType}}}> {
     a `Default` impl below that mirrors `new()`. Structs without defaulted
     optional fields keep the cheap derive. }}
 {{#hasDefaultedOptionalVars}}
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive({{^hasPasswordVars}}Debug, {{/hasPasswordVars}}Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 {{/hasDefaultedOptionalVars}}
 {{^hasDefaultedOptionalVars}}
-#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[derive({{^hasPasswordVars}}Debug, {{/hasPasswordVars}}Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 {{/hasDefaultedOptionalVars}}
 {{#isUnevaluatedPropertiesFalse}}
 /* OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
@@ -246,6 +246,24 @@ fn serialize_additional_properties<S: serde::Serializer>(
     crate::object_serializer::serialize_extras(value, DECLARED, serializer)
 }
 {{/isAdditionalPropertiesTrue}}
+
+{{#hasPasswordVars}}
+
+/* A `format: password` property never reaches a log: `{:?}` shows it as
+ * `***`. The wire form is unchanged. */
+impl std::fmt::Debug for {{classname}} {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("{{classname}}")
+{{#vars}}
+            .field("{{name}}", {{#isPassword}}&"***"{{/isPassword}}{{^isPassword}}&self.{{name}}{{/isPassword}})
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+            .field("additional_properties", &self.additional_properties)
+{{/isAdditionalPropertiesTrue}}
+            .finish()
+    }
+}
+{{/hasPasswordVars}}
 
 {{#hasVars}}
 impl {{classname}} {

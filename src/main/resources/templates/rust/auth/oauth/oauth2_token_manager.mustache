@@ -321,7 +321,7 @@ impl OAuth2TokenManager {
          * those credentials verbatim to an attacker-chosen URL. 301/302/303
          * still drop the body so they remain permitted by the redirect
          * loop. */
-        let request_options = RequestOptions::new().no_redirect(true).skip_default_headers(true);
+        let request_options = RequestOptions::new().no_redirect(true);
         let response = client
             .send_request_with_options(
                 "POST",
@@ -351,12 +351,15 @@ impl OAuth2TokenManager {
 
         /* A 2xx answer the SDK cannot use is an OAuth2TokenError, never a
          * leaked serde_json::Error. */
-        let parsed: serde_json::Value = serde_json::from_str(response.body()).map_err(|e| {
-            Box::new(OAuth2TokenError::new(format!(
-                "failed to parse token response: {}",
-                e
-            ))) as Box<dyn std::error::Error + Send + Sync>
+        let parsed: serde_json::Value = serde_json::from_str(response.body()).map_err(|_| {
+            Box::new(OAuth2TokenError::new("Token response is not valid JSON".to_string()))
+                as Box<dyn std::error::Error + Send + Sync>
         })?;
+        if !parsed.is_object() {
+            return Err(Box::new(OAuth2TokenError::new(
+                "Token response is not a JSON object".to_string(),
+            )) as Box<dyn std::error::Error + Send + Sync>);
+        }
 
         let token = parsed
             .get("access_token")
@@ -364,9 +367,22 @@ impl OAuth2TokenManager {
             .filter(|s| !s.is_empty())
             .ok_or_else(|| {
                 Box::new(OAuth2TokenError::new(
-                    "token response missing or empty access_token field".to_string(),
+                    "Token response missing or empty access_token field".to_string(),
                 )) as Box<dyn std::error::Error + Send + Sync>
             })?;
+        /* RFC 6749 section 7.1: a client must not use an access token whose
+         * type it does not understand. Only "bearer" (any case) or an absent
+         * token_type is sent as a Bearer credential; the value is not echoed. */
+        let supported_type = match parsed.get("token_type") {
+            None | Some(serde_json::Value::Null) => true,
+            Some(serde_json::Value::String(kind)) => kind.eq_ignore_ascii_case("bearer"),
+            Some(_) => false,
+        };
+        if !supported_type {
+            return Err(Box::new(OAuth2TokenError::new(
+                "Unsupported token_type in token response".to_string(),
+            )) as Box<dyn std::error::Error + Send + Sync>);
+        }
         inner.access_token = token.to_string();
         if let Some(refresh) = parsed.get("refresh_token").and_then(|v| v.as_str()) {
             if !refresh.is_empty() {

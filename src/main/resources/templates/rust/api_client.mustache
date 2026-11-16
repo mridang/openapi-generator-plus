@@ -43,16 +43,14 @@ pub enum MultipartValue {
 /// follow redirects, so a malicious or misconfigured server cannot replay the
 /// credentialed body to an attacker-controlled URL. Other 3xx codes
 /// (301/302/303) drop the body per RFC 7231, so they are unaffected by this
-/// flag; only the body-preserving 307/308 are refused.
+/// flag; only the body-preserving 307/308 are refused. Such a request also
+/// leaves `TransportOptions::default_headers` out, so a credential meant for
+/// the API is never sent to an identity provider.
 #[derive(Debug, Clone, Default)]
 pub struct RequestOptions {
     /// When `true`, the client must NOT follow 307 or 308 redirects and
     /// must return the first such response to the caller as-is.
     pub no_redirect: bool,
-    /// When `true`, the client leaves `TransportOptions::default_headers` out of
-    /// the request. Token and discovery requests set it, so a credential meant
-    /// for the API is never sent to an identity provider.
-    pub skip_default_headers: bool,
     /// The instant by which the whole call must have finished. A caller that
     /// sends several requests under one end-to-end timeout (the retry loop of
     /// `BaseApi`) sets it, so the transport gives each request only what is
@@ -64,12 +62,6 @@ impl RequestOptions {
     /// Creates a new `RequestOptions` with all flags defaulted to `false`.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Sets the `skip_default_headers` flag.
-    pub fn skip_default_headers(mut self, value: bool) -> Self {
-        self.skip_default_headers = value;
-        self
     }
 
     /// Sets the end-to-end deadline shared by the requests of one call.
@@ -206,5 +198,34 @@ mod tests {
         remove_header(&mut headers, "Content-Type");
 
         assert!(headers.is_empty());
+    }
+
+    /* A transport that implements only `send_request` is still closable: the
+     * default `close` is a no-op, so calling it (twice, even) is harmless and
+     * the default `is_closed` stays false. */
+    struct MinimalClient;
+
+    impl ApiClient for MinimalClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+            Box::pin(async { Ok(ApiHttpResponse::new(200, String::new(), HashMap::new())) })
+        }
+    }
+
+    #[test]
+    fn test_a_minimal_transport_is_closable_through_the_default_close() {
+        let client = MinimalClient;
+
+        client.close();
+        client.close();
+
+        assert!(!client.is_closed());
+        assert_eq!(0, client.max_retries());
+        assert_eq!(None, client.request_timeout());
     }
 }

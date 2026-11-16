@@ -277,3 +277,52 @@ fn test_read_only_and_write_only_fields_round_trip() {
         serde_json::from_str(r#"{"id":7,"username":"u","password":"p"}"#).unwrap();
     assert_eq!(full.password.as_deref(), Some("p"));
 }
+
+// F1112: byte arrays compare by content, not identity: a bare array, a list of
+// arrays and a map of arrays, each built fresh for the two sides.
+#[test]
+fn test_byte_array_fields_compare_by_content() {
+    use {{packageName}}::models::BinaryVault;
+
+    fn vault() -> BinaryVault {
+        let mut vault = BinaryVault::new();
+        vault.seal = Some(vec![1, 2, 3]);
+        vault.shards = Some(vec![vec![4, 5], vec![6]]);
+        vault.labels = Some(std::collections::HashMap::from([("first".to_string(), vec![7, 8])]));
+        vault
+    }
+
+    assert_eq!(vault(), vault());
+
+    let mut seal = vault();
+    seal.seal = Some(vec![1, 2, 4]);
+    assert_ne!(vault(), seal);
+
+    let mut shard = vault();
+    shard.shards = Some(vec![vec![4, 5], vec![7]]);
+    assert_ne!(vault(), shard);
+
+    let mut label = vault();
+    label.labels = Some(std::collections::HashMap::from([("first".to_string(), vec![7, 9])]));
+    assert_ne!(vault(), label);
+}
+
+// F867: a `format: password` property is shown as `***` in the Debug output,
+// and the wire form still carries the value.
+#[test]
+fn test_password_property_is_masked_in_debug_output() {
+    use {{packageName}}::models::Account;
+
+    let secret = ["tr", "0ub4", "dor-", "9"].concat();
+    let mut account = Account::new("u".to_string());
+    account.password = Some(secret.clone());
+
+    let shown = format!("{:?}", account);
+    assert!(!shown.contains(&secret), "{}", shown);
+    assert!(shown.contains("***"), "{}", shown);
+    assert!(shown.contains("username"), "{}", shown);
+    let pretty = format!("{:#?}", account);
+    assert!(!pretty.contains(&secret), "{}", pretty);
+    let wire = serde_json::to_string(&account).expect("serializes");
+    assert!(wire.contains(&secret), "{}", wire);
+}

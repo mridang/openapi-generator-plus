@@ -106,7 +106,7 @@ fn test_url_rejection_message_names_the_value_the_variable_and_the_allowed_value
     assert_eq!(
         server.url(&overrides),
         Err(ConfigurationError::InvalidServerVariable(
-            "Invalid value 'invalid' for server variable 'env'. Allowed values: [\"api\", \"staging\"]"
+            "Invalid value 'invalid' for server variable 'env'. Allowed values: [api, staging]"
                 .to_string()
         ))
     );
@@ -132,7 +132,7 @@ fn test_default_outside_the_enum_is_rejected() {
     assert_eq!(
         server.url(&HashMap::new()),
         Err(ConfigurationError::InvalidServerVariable(
-            "Invalid value 'dev' for server variable 'env'. Allowed values: [\"api\", \"staging\"]"
+            "Invalid value 'dev' for server variable 'env'. Allowed values: [api, staging]"
                 .to_string()
         ))
     );
@@ -147,6 +147,72 @@ fn test_template_without_variables_is_returned_unchanged() {
     );
 
     assert_eq!(server.url(&HashMap::new()).unwrap(), "https://api.example.com/v1");
+}
+
+/// F1118: a placeholder that a substituted value introduces is not expanded
+/// again, whatever order the variables are held in.
+#[test]
+fn test_url_never_re_expands_a_placeholder_a_value_introduces() {
+    for _ in 0..32 {
+        let mut variables = HashMap::new();
+        variables.insert(
+            "env".to_string(),
+            ServerVariable::new("{version}".to_string(), String::new(), Vec::new()),
+        );
+        variables.insert(
+            "version".to_string(),
+            ServerVariable::new("v2".to_string(), String::new(), Vec::new()),
+        );
+        let server = ServerConfiguration::new(
+            "https://{env}.api.example.com/{version}".to_string(),
+            String::new(),
+            variables,
+        );
+
+        assert_eq!(
+            server.url(&HashMap::new()).unwrap(),
+            "https://{version}.api.example.com/v2"
+        );
+    }
+}
+
+/// Every occurrence of a variable is substituted, an unknown placeholder and a
+/// stray brace stay as written, and a value is taken literally.
+#[test]
+fn test_url_substitutes_every_occurrence_and_keeps_unknown_placeholders() {
+    let mut variables = HashMap::new();
+    variables.insert(
+        "env".to_string(),
+        ServerVariable::new("a$&b".to_string(), String::new(), Vec::new()),
+    );
+    let server = ServerConfiguration::new(
+        "https://{env}.example.com/{env}/{other}/{ x/{".to_string(),
+        String::new(),
+        variables,
+    );
+
+    assert_eq!(
+        server.url(&HashMap::new()).unwrap(),
+        "https://a$&b.example.com/a$&b/{other}/{ x/{"
+    );
+}
+
+/// F1124: the third global server keeps its hostile text unchanged: the
+/// description, the variable default and description, and the enum values.
+#[test]
+fn test_the_third_global_server_keeps_its_hostile_text_unchanged() {
+    let server = {{packageName}}::servers::server_2();
+
+    assert_eq!("https://{tenant}.example.com/api", server.url_template());
+    assert_eq!("Bob's \"sandbox\" & co: $5 #{x} a*/b", server.description());
+    let tenant = server.variables().get("tenant").expect("the tenant variable");
+    assert_eq!("o'neil", tenant.default_value());
+    assert_eq!("Tenant's \"id\"", tenant.description());
+    assert_eq!(vec!["o'neil".to_string(), "a&b".to_string()], tenant.enum_values());
+    assert_eq!("https://o'neil.example.com/api", server.url(&HashMap::new()).unwrap());
+    let mut overrides = HashMap::new();
+    overrides.insert("tenant".to_string(), "a&b".to_string());
+    assert_eq!("https://a&b.example.com/api", server.url(&overrides).unwrap());
 }
 
 /// SKILLS.md documents the `all_servers()` list next to the `server_N()`
