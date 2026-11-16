@@ -358,6 +358,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             throw new InvalidOperationException("ApiClient has been closed");
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!url.IsAbsoluteUri)
         {
             throw new ArgumentException($"Request URL must be absolute: {url}", nameof(url));

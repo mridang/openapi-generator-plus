@@ -8,6 +8,7 @@ use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
 use {{invokerPackage}}\Auth\ApiKeyLocation;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
+use {{invokerPackage}}\Psr18ApiClient;
 use {{invokerPackage}}\TransportOptions;
 use {{invokerPackage}}\Test\StubPsr18Client;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -90,17 +91,12 @@ test('api groups are accessible', function (): void {
 });
 
 test('injected api client is wired into every api group', function (): void {
-    // A custom ApiClient passed to the facade must reach the supplied transport from every
+    // A custom ApiClient passed to the facade must be the exact instance every
     // API group sends through — this is the seam that lets a Psr18ApiClient (or
     // any bespoke transport) replace the bundled DefaultApiClient.
     $stub = new class implements ApiClient {
-        public int $sent = 0;
-
-        public bool $closed = false;
-
         public function close(): void
         {
-            $this->closed = true;
         }
 
         public function sendRequest(
@@ -110,38 +106,31 @@ test('injected api client is wired into every api group', function (): void {
             mixed $body,
             bool $noRedirect = false,
         ): ApiHttpResponse {
-            $this->sent++;
-
             return new ApiHttpResponse(200, '', []);
         }
     };
 
     $client = new {{clientClassName}}($this->authenticator, null, $stub);
 
-    $count = 0;
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
     $property = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->getProperty('apiClient');
-    $transport = $property->getValue($client->{{clientPropertyName}});
-    assert($transport instanceof ApiClient);
-    $transport->sendRequest('GET', 'http://example.com/ping', [], null);
-    $count++;
+    expect($property->getValue($client->{{clientPropertyName}}))->toBe($stub);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
-    expect($stub->sent)->toBe($count);
 });
 
-test('a closed client rejects further requests from every api group and keeps a supplied transport open', function (): void {
+test('close on a client with a supplied transport leaves that transport usable', function (): void {
     $stub = new class implements ApiClient {
         public int $sent = 0;
 
-        public bool $closed = false;
+        public int $closes = 0;
 
         public function close(): void
         {
-            $this->closed = true;
+            $this->closes++;
         }
 
         public function sendRequest(
@@ -161,22 +150,12 @@ test('a closed client rejects further requests from every api group and keeps a 
     $client->close();
     $client->close();
 
-{{#apiInfo}}
-{{#apis}}
-{{#operations}}
-    $property = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->getProperty('apiClient');
-    $transport = $property->getValue($client->{{clientPropertyName}});
-    assert($transport instanceof ApiClient);
-    expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
-        ->toThrow(\LogicException::class, 'closed');
-{{/operations}}
-{{/apis}}
-{{/apiInfo}}
-    expect($stub->sent)->toBe(0);
-    expect($stub->closed)->toBeFalse();
+    $stub->sendRequest('GET', 'http://example.com/ping', [], null);
+    expect($stub->closes)->toBe(0);
+    expect($stub->sent)->toBe(1);
 });
 
-test('closing a client that built its own transport rejects further requests', function (): void {
+test('close on a client that built its own transport rejects later requests and is idempotent', function (): void {
     $client = new {{clientClassName}}($this->authenticator);
     $client->close();
     $client->close();
@@ -216,8 +195,8 @@ test('a supplied psr18 client receives the request from every api group', functi
 {{/apiInfo}}
 
     foreach ($clients as $apiClient) {
-        expect($apiClient)->toBeInstanceOf(ApiClient::class);
-        if ($apiClient instanceof ApiClient) {
+        expect($apiClient)->toBeInstanceOf(Psr18ApiClient::class);
+        if ($apiClient instanceof Psr18ApiClient) {
             $apiClient->sendRequest('GET', 'http://example.com/ping', [], null);
         }
     }

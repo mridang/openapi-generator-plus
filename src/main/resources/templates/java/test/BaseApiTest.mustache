@@ -1048,7 +1048,7 @@ class BaseApiTest {
         @Test
         @DisplayName("encodes a content cookie with only the unreserved set literal")
         void encodesContentCookieBytes() {
-            String encoded = TestableApi.encodeCookie("{\"k\":\"a b~*\u00e9\"}");
+            String encoded = TestableApi.encodeCookie("{\"k\":\"a b~*é\"}");
             assertEquals("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D", encoded);
             assertTrue(TestableApi.cookieValueValid(encoded));
         }

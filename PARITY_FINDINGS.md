@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 597, forced 4, needs-spec 2, open 54, parked 13, partial 5. Severity: critical 3, high 66, medium 561, low 223.
+Status counts: deferred 117, duplicate 88, false-positive 81, fixed 597, forced 4, needs-spec 2, open 147, parked 13, partial 5. Severity: critical 3, high 66, medium 721, low 264.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -859,6 +859,207 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 597, forced 4,
 | F851 | low | open | review | node | Schema constraints are not surfaced in model doc comments |
 | F852 | low | open | review | node | OAS 3.1 prefixItems tuple is typed Array<unknown> |
 | F853 | low | open | review | node | Facade imports and constructs every API group; bundle cannot drop unused operations |
+| F854 | medium | open | auditor-auth | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | OAuth2 token expiry applies two stacked safety margins (30 s when stored, 60 s when read), so any token with expires_in of 90 s or less is never reused and every API call makes a token request |
+| F855 | medium | open | auditor-auth | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | A 401 from the API never invalidates the cached OAuth2 token and callers cannot reach invalidateAccessToken, so a revoked or rotated token (or one issued without expires_in, cached forever) fails ever |
+| F856 | medium | open | auditor-auth | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | A per-call OAuth2 or OIDC authenticator passed in an operation's Options always fails with 'ApiClient has not been injected', because only the client-level authenticator receives the transport |
+| F857 | medium | open | auditor-auth | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | One authenticator per Client is applied to every secured operation whatever that operation's security requirement says: credentials for several schemes cannot be configured, AND requirements cannot be |
+| F858 | medium | open | auditor-auth | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The authorization-code and OIDC flows have no PKCE (code_verifier/code_challenge) and no nonce, which RFC 9700 (OAuth 2.0 Security BCP) requires for public clients and recommends for all |
+| F859 | medium | open | auditor-auth | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | OIDC discovery trusts the document blindly: the issuer is not compared with the discovery URL and token_endpoint/authorization_endpoint may be http or another host, so the client secret and the auth c |
+| F860 | medium | open | auditor-auth | java, python, node, kotlin, csharp, go, rust, swift, dart, php, ruby, elixir | TransportOptions.defaultHeaders are merged into OAuth2 token requests and OIDC discovery, so an Authorization or API-key default header meant for the API is sent to the identity provider's host |
+| F861 | medium | open | auditor-auth | go, python, rust, kotlin, node, elixir | A query-parameter API key is copied into error messages: go, python and rust network errors embed the full request URL, and the kotlin, rust, node and elixir redirect-refusal messages embed the curren |
+| F862 | low | open | auditor-auth | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Credentials are static strings only: no token provider or callback for rotating keys and tokens, and no environment-variable default, unlike OpenAI/Anthropic/Cloudflare (env vars), Azure (TokenCredent |
+| F863 | low | open | auditor-auth | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The token response's token_type is ignored: whatever the server issues (DPoP, MAC, N_A) is sent as 'Authorization: Bearer' |
+| F864 | medium | open | review | java, kotlin | java callers cannot add additionalProperties (setter is package-private, getter unmodifiable) and kotlin copy() silently drops them |
+| F865 | medium | open | review | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Typed additionalProperties (additionalProperties: {type: string}) are surfaced as an untyped any map in all twelve, so the value type is neither declared nor checked |
+| F866 | medium | open | review | java, kotlin, csharp, php, ruby, node, dart, go, rust, swift, elixir | D60 not implemented for a $ref sibling default: StockItem.availability (default on-hold) is applied only by python; the other 11 leave it null on construction and decode |
+| F867 | medium | open | review | java, kotlin, csharp, dart, rust, swift, ruby, elixir, node, php, python, go | format: password model fields: python alone redacts them (and changes the field type to SecretStr); the other SDKs print the plaintext in toString/Debug/inspect |
+| F868 | medium | open | review | dart, csharp, java, kotlin, swift, rust, python, php, go, node, ruby, elixir | Model mutability and modify-a-copy are unharmonised: dart models are all-final with no copyWith, csharp required properties are init-only with no with-expression |
+| F869 | low | open | review | java, kotlin, csharp, python, swift, rust, php | Enum string forms differ: the wire value in dart/go/node/ruby/elixir, the constant name in java/kotlin/csharp/python/swift, nothing usable in rust/php |
+| F870 | low | open | review | python, rust | Models are hashable in seven SDKs but not in python (pydantic models without frozen) or rust (PartialEq only, no Eq/Hash even where every field allows it) |
+| F871 | low | open | review | java, kotlin, dart, go, rust | S6 says scalar uniqueItems sets are never sorted, but java, kotlin and dart still sort them (and java/dart AGENTS say they do not); go and rust sort by design |
+| F872 | low | open | review | swift, ruby, elixir | swift escapes reserved property names with a leading underscore (_class, _return, _true, _false) where backticks work; D44 says escape only when the language cannot use the name |
+| F873 | medium | open | review | go | go model UnmarshalJSON parses every object three or four times (and again at each ancestor), where ogen decodes in one generated jx pass |
+| F874 | medium | open | review | go | go token exchange and refresh ignore the caller's context: Authenticator.AuthHeadersOrError takes no ctx and the auth adapter never sets RequestOptions.Context |
+| F875 | medium | open | review | go | go types format: date parameters and form fields as an unvalidated string, so any text reaches the wire; ogen uses time.Time encoded as YYYY-MM-DD |
+| F876 | low | open | review | go | go types an inline enum query parameter as *string with no constants (FindPetsByStatusOptions.Status), while inline model enums and $ref enum parameters are typed |
+| F877 | low | open | review | go | go operations return pointers to slices, maps, strings and byte slices (*[]Pet, *map[string]int32, *[]byte), which Go callers must dereference for no gain |
+| F878 | low | open | review | go | go oneOf/anyOf constructors take any, so a wrong variant compiles and is marshalled; ogen generates one typed constructor and Is/Get accessor per variant |
+| F879 | low | open | review | go | go exposes API groups only as concrete structs (Client.Pet *PetApi), so callers cannot substitute a fake; ogen generates an Invoker interface of all operations |
+| F880 | low | open | review | go | go has no operation-level tracing or metrics, and the trace propagator is a process-global variable written without synchronisation; ogen takes per-client tracer and meter providers |
+| F881 | low | open | review | go | go enum allowed-value lists are unexported (allPetStatusEnumValues), so callers cannot enumerate or validate a value; ogen exports AllValues() |
+| F882 | low | open | review | go | go operation doc comments list parameters that live in the options struct as if positional and omit the HTTP method and path; ogen docs end with 'GET /pets' |
+| F883 | medium | open | review | j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r | README 'Not supported' omits XML bodies/nodeType, Link Objects and mutual TLS that S11 says the README lists (closed #70 #78 #88 #90) |
+| F884 | medium | open | review | j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r | README section taxonomy differs per SDK: supported features (custom HTTP client, cancellation, schema constraints) are filed under 'Not supported' in some SDKs, 'Caveats' or top level in others, and a |
+| F885 | medium | open | review | j, a, v, a, ,, k, o, t, l, i, n, ,, r, u, s, t, ,, r, u, b, y, ,, d, a, r, t, ,, e, l, i, x, i, r | README 'Per-call cancellation' tells java, kotlin and rust users there is no cancellation, but the code honours the S7 native mechanism (thread interrupt, coroutine cancellation, dropping the future) |
+| F886 | medium | open | review | n, o, d, e, ,, c, s, h, a, r, p | node cancellation sample passes { signal } in the options slot, and README points to Configuration.builder().signal, which no Client accepts; csharp sample uses an undefined clientToken |
+| F887 | medium | open | review | c, s, h, a, r, p, ,, e, l, i, x, i, r, ,, p, y, t, h, o, n, ,, p, h, p, ,, r, u, b, y, ,, k, o, t, l, i, n, ,, d, a, r, t, ,, s, w, i, f, t | SKILLS 'Models' sample builds a model without its required field: fails to compile in csharp and elixir and raises at runtime in python, php and ruby |
+| F888 | medium | open | review | j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r | README has no consumer usage at all: install is the contributor command, there is no quick start, and the only usage guide is SKILLS.md, titled 'AI Agent Reference', never linked, whose Quick Start ne |
+| F889 | medium | open | review | j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r | No README or SKILLS documents raw responses (WithHttpInfo), timeouts, the request id, response compression, logging or versioning; java README and elixir SKILLS claim the SDK applies retries, which it |
+| F890 | low | open | review | j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r | SKILLS covers cancellation and custom transports in only some languages, at different heading levels; java/kotlin/php/go/rust/swift SKILLS never mention injecting an HTTP client |
+| F891 | low | open | review | p, y, t, h, o, n, ,, p, h, p | python README has two contradictory schema-constraint sections; php repeats the constraint text twice |
+| F892 | medium | open | review | j, a, v, a, ,, d, a, r, t | java and dart still sort uniqueItems scalar arrays on the wire and document it, contradicting S6 ('Do not sort') |
+| F893 | low | open | review | j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r | Parameter examples of optional (options-object) parameters are dropped from the API reference in 7 SDKs, and example blocks render seven different ways |
+| F894 | low | open | review | j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r | Package metadata: no manifest carries repository/homepage, so swift and go install instructions are placeholders; ruby authors is the API title; every file header credits openapi-generator.tech; swift |
+| F895 | medium | open | review | java, kotlin, csharp, php | OAuth2 token cache applies two expiry margins (30 s at store, 60 s at check), so any token with expires_in <= 90 s is never served from cache and every API call hits the token endpoint |
+| F896 | medium | open | review | java, csharp, php | java, csharp and php keep the previous (already stale) expiry when a refresh or re-grant response omits expires_in, so every following call refreshes again; F536 fixed only kotlin |
+| F897 | medium | open | review | php | php sends float query, path, header, form and multipart values with only 14 significant digits because stringify uses (string) $float, which honours the precision ini (default 14); JSON bodies are exa |
+| F898 | medium | open | review | csharp | csharp redirect loop compares every hop with the original URL and rebuilds headers from the original set, so a chain A -> other origin -> A re-sends the Authorization, Cookie and API-key headers the c |
+| F899 | low | open | review | php | php skips caCertPath validation when verifySsl is false, contradicting D73/S16 and php/AGENTS.md ('runs before the verifySsl branch') |
+| F900 | medium | open | review | php | php binary request bodies and PSR-18 multipart file parts silently upload an empty body when the file or stream cannot be read (@file_get_contents / stream_get_contents false becomes '') |
+| F901 | low | open | review | java, kotlin | java and kotlin decode proxy userinfo with URLDecoder, which turns a literal '+' into a space, so a proxy password containing '+' is sent wrong and the proxy answers 407 |
+| F902 | low | open | review | java, kotlin, csharp, php | The three redirect refusals still use per-language wording and drop the response headers in csharp, php and kotlin (D13, D16), and java/csharp use-after-close messages differ from D29 |
+| F903 | low | open | review | csharp, php | Token-response JSON errors break D07: csharp appends the parser message and keeps the JsonException as cause; php reports invalid JSON as 'not a JSON object' and accepts a JSON array as an object |
+| F904 | low | open | review | java, kotlin, csharp, php | A final 3xx without a Location after exactly maxRedirects hops (or any 3xx with maxRedirects=0) raises 'too many redirects' instead of being returned (D70 edge), and a negative maxRedirects is accepte |
+| F905 | low | open | review | java, kotlin, csharp, php | The SDK adds its own Accept-Encoding with a case-sensitive presence check, so a caller's lower-case accept-encoding (for example 'identity') is sent alongside 'gzip, deflate' |
+| F906 | low | open | review | kotlin | kotlin finds the response charset with a case-sensitive substringAfter("charset="), so 'Charset=ISO-8859-1' or 'charset = x' falls back to UTF-8 and the body is mojibake |
+| F907 | low | open | review | java | java's stale-connection retry re-sends with the full timeout instead of the remaining budget, so one call can take up to twice the configured end-to-end timeout (D76) |
+| F908 | low | open | review | java, kotlin, csharp, php | Response bodies are buffered and decompressed with no size cap, so a small gzip/br/zstd 'bomb' from a hostile or compromised server exhausts memory (the SDK advertises these codings itself) |
+| F909 | low | open | review | csharp | csharp OAuth2TokenManager reads _accessToken and the 24-byte DateTimeOffset? _tokenExpiry without a lock or volatile on the fast path while FetchTokenAsync writes them outside the lock (unverified tor |
+| F910 | medium | open | review | python, ruby, node, dart | OAuth2 token cache applies two safety margins (30 s at store, 60 s at check), so a token with expires_in <= 90 s is never cached and is re-fetched on every API call |
+| F911 | medium | open | review | python, ruby, node, dart | Residual of F536: python, ruby, node and dart keep the previous (stale) expiry when a refresh or re-grant response omits expires_in, so every following call refreshes again |
+| F912 | medium | open | review | python, ruby | python and ruby timeouts are per socket read, not end to end: a server that trickles the body slower than the timeout per chunk holds the call far past the budget (D76) |
+| F913 | low | open | review | node | node decodes a bare charset=utf-16 body as utf-16be even when it starts with a little-endian BOM, giving U+FFFE plus byte-swapped text (F257 wrongly lists node as fine) |
+| F914 | low | open | review | node | node map decode assigns wire keys with out[k] = ..., so a response key "__proto__" is dropped and re-prototypes the returned map (prototype poisoning of the result object) |
+| F915 | medium | open | review | python, node | A binary request body of a byte type other than the canonical one is silently mangled: python sends bytearray/memoryview as an empty body, node turns a plain Uint8Array into a multipart body with one  |
+| F916 | low | open | review | ruby, node, dart | ruby, node and dart report 'too many redirects' when the budget is used up and the last 3xx has no Location, which D70 says is a legitimate terminal response |
+| F917 | low | open | review | node, dart, python | Redirect refusal errors drop or mis-case the response headers: node (two of three) and dart (all three) pass null, python passes the server's original header casing (D13, FD-5) |
+| F918 | low | open | review | dart | dart ignores a quoted charset parameter (charset="iso-8859-1"), decoding the body as UTF-8 with replacement characters |
+| F919 | low | open | review | dart | dart multipart filename fallback works per UTF-16 code unit, so a non-BMP character (emoji) becomes two underscores (D90 says one per code point) |
+| F920 | low | open | review | python, node | Header merging is case-sensitive in python and node, so a default header written in another case is sent twice (or comma-joined) instead of overriding |
+| F921 | low | open | review | python, ruby, node, dart | Redirect refusal messages do not follow D16 in python, ruby, node or dart (four wordings for the too-many and downgrade errors) |
+| F922 | medium | open | review | java, kotlin, csharp, python, ruby, dart, go, rust, swift, elixir | Test parity: D17 'Response headers: {"a":"b"}' (compact JSON, sorted) is asserted only by node and php; ten languages lock their native map rendering |
+| F923 | medium | open | review | php, python | Test parity: S5/D66 required+nullable: no test in php and python |
+| F924 | medium | open | review | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Test parity: D77 'Invalid timeout: must be a positive number of milliseconds (got N)' is asserted by no language; swift has no timeout-rejection test |
+| F925 | medium | open | review | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Test parity: D29 use-after-close message 'ApiClient has been closed and can no longer send requests' pinned by no language |
+| F926 | medium | open | review | csharp, php, python, dart, swift, elixir | Test parity: D07 token error messages are pinned in at most three languages |
+| F927 | medium | open | review | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Test parity: D16 redirect refusal messages are pinned by no language |
+| F928 | medium | open | review | kotlin, csharp, php, python, ruby, dart, swift | Test parity: D20 'Unsupported request content-type' message not pinned in seven languages |
+| F929 | medium | open | review | java, kotlin, php, python, ruby, swift, elixir | Test parity: D12 sync accessor message tested (and emitted) only in csharp, node, dart |
+| F930 | medium | open | review | go | Test parity: D39 form-urlencoded nested-object rejection missing in go |
+| F931 | medium | open | review | java, kotlin, csharp, php, python, ruby, node, dart, rust, swift, elixir | Test parity: D09 'Authorization code must not be empty' pinned only in go |
+| F932 | medium | open | review | rust, swift | Test parity: D79 proxy URL messages not asserted in rust and swift |
+| F933 | medium | open | review | java, kotlin, csharp, php, python, node, dart, elixir | Test parity: D15 serializer messages rarely pinned |
+| F934 | medium | open | review | csharp | Test parity: D67 uuid: csharp tests never mention uuid |
+| F935 | medium | open | review | python | Test parity: D48 dot-segment path message not pinned in python |
+| F936 | medium | deferred | review | java, kotlin, csharp, php, python, node, dart, rust, swift, elixir | Test parity: Test gap: README tests exist only in ruby and go |
+| F937 | medium | deferred | review | java, kotlin, csharp, php, python, node, dart, rust, swift, elixir | Test parity: Test gap: skills tests exist only in ruby and go |
+| F938 | medium | deferred | review | rust | Test parity: Test gap: api-key-authenticator / nonAsciiHeaderKeyIsRejectedWithTheExactMessage missing in rust |
+| F939 | medium | deferred | review | go | Test parity: Test gap: api/pet-api / getPetByNameEmptyRequiredStringQueryParamThrows missing in go |
+| F940 | medium | deferred | review | python | Test parity: Test gap: api/pet-api / uploadPetDocumentOctetStreamSelectionSendsRawBytesNotMultipart missing in python |
+| F941 | medium | deferred | review | go | Test parity: Test gap: base-api / form-urlencoded body rejects a nested object field missing in go |
+| F942 | medium | deferred | review | java | Test parity: Test gap: basic-authenticator / redactsSecret missing in java |
+| F943 | medium | deferred | review | dart | Test parity: Test gap: bearer-authenticator / lowercaseBearerPrefixIsStripped missing in dart |
+| F944 | medium | deferred | review | dart | Test parity: Test gap: bearer-authenticator / mixedCaseBearerPrefixIsStripped missing in dart |
+| F945 | medium | deferred | review | java | Test parity: Test gap: composed-schema / anyOf with no matching variant throws missing in java |
+| F946 | medium | deferred | review | python | Test parity: Test gap: configuration / invalidEnumValueThrows missing in python |
+| F947 | medium | deferred | review | rust | Test parity: Test gap: default-api-client / multipart_field_name_with_crlf_rejected_on_string_value missing in rust |
+| F948 | medium | deferred | review | swift | Test parity: Test gap: default-api-client / proxy_with_credentials_injects_basic_authorization missing in swift |
+| F949 | medium | deferred | review | swift | Test parity: Test gap: default-api-client / times out on slow endpoint missing in swift |
+| F950 | medium | deferred | review | swift | Test parity: Test gap: default-api-client-unit / connectionClosedAfterTheHeadersRaisesNetworkExceptionKeepingTheCause missing in swift |
+| F951 | medium | deferred | review | python | Test parity: Test gap: default-api-client-unit / contentEncodingLieSurfacesApiException missing in python |
+| F952 | medium | deferred | review | elixir | Test parity: Test gap: default-api-client-unit / fallsBackToUtf8WhenCharsetIsUnknown missing in elixir |
+| F953 | medium | deferred | review | elixir | Test parity: Test gap: default-api-client-unit / multipartFileWithPdfExtensionSetsApplicationPdfContentType missing in elixir |
+| F954 | medium | deferred | review | kotlin | Test parity: Test gap: default-api-client-unit / multipartFilenameCRLFRejected missing in kotlin |
+| F955 | medium | deferred | review | swift | Test parity: Test gap: default-api-client-unit / redirectToNonHttpSchemeThrows missing in swift |
+| F956 | medium | deferred | review | swift | Test parity: Test gap: default-api-client-unit / stalledResponseBodyRaisesNetworkTimeoutException missing in swift |
+| F957 | medium | deferred | review | swift | Test parity: Test gap: oauth2-auth-code-authenticator / keepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl missing in swift |
+| F958 | medium | deferred | review | kotlin | Test parity: Test gap: oauth2-implicit-authenticator / setAccessTokenAcceptsTabAndPrintableAscii missing in kotlin |
+| F959 | medium | deferred | review | kotlin | Test parity: Test gap: oauth2-token-manager / refreshGrantGoesToTheRefreshUrlInTheCanonicalOrder missing in kotlin |
+| F960 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / UTC datetime serializes containing date-time and offset missing in rust |
+| F961 | medium | deferred | review | go | Test parity: Test gap: object-serializer / UUID returns string representation missing in go |
+| F962 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / applies defaults for absent fields but preserves explicit null missing in rust |
+| F963 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / array-of-byte field round-trips through base64 missing in rust |
+| F964 | medium | deferred | review | kotlin | Test parity: Test gap: object-serializer / boolean for a string field throws instead of becoming text missing in kotlin |
+| F965 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / deserializes a self-referential model preserving nesting missing in rust |
+| F966 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / double field deserializes from an integral JSON value missing in rust |
+| F967 | medium | deferred | review | kotlin | Test parity: Test gap: object-serializer / wet subtype defaults discriminator to its mapping name missing in kotlin |
+| F968 | medium | deferred | review | go | Test parity: Test gap: openid-connect-authenticator / throwsWhenDiscoveryReturnsNon2xxStatus missing in go |
+| F969 | medium | deferred | review | csharp | Test parity: Test gap: trace-context-util / empty headers map does not cause an exception missing in csharp |
+| F970 | medium | deferred | review | csharp | Test parity: Test gap: trace-context-util / is a no-op without tracer missing in csharp |
+| F971 | medium | deferred | review | swift | Test parity: Test gap: value-serializer / LocalDate in path returns YYYY-MM-DD missing in swift |
+| F972 | medium | deferred | review | swift | Test parity: Test gap: value-serializer / reserved characters are left literal, other characters still encoded missing in swift |
+| F973 | medium | deferred | review | node, swift | Test parity: Test gap: api-error / isAnUncheckedExceptionWithStatusInItsStringForm missing in node, swift |
+| F974 | medium | deferred | review | java, php | Test parity: Test gap: api-error / typedExceptionsShareTheBrandedRoot missing in java, php |
+| F975 | medium | deferred | review | go, swift | Test parity: Test gap: api-result / carriesDataStatusCodeHeadersAndRawBodyAsConstructed missing in go, swift |
+| F976 | medium | deferred | review | dart, go | Test parity: Test gap: api/pet-api / getPetByNameRejectsADotSegmentBeforeDispatch missing in dart, go |
+| F977 | medium | deferred | review | java | Test parity: Test gap: api/pet-api / optional-array-param: array query params serialize as styled values, not a debug blob missing in java |
+| F978 | medium | deferred | review | php, ruby | Test parity: Test gap: api/pet-api / testAddPetPerCallAuthOverride missing in php, ruby |
+| F979 | medium | deferred | review | python, dart | Test parity: Test gap: api/store-api / testGetBySwatchSendsTheEnumWireValueInPathQueryAndHeader missing in python, dart |
+| F980 | medium | deferred | review | python | Test parity: Test gap: composed-schema / unknown discriminator error names the offending value missing in python |
+| F981 | medium | deferred | review | elixir | Test parity: Test gap: configuration / builderIsFluent missing in elixir |
+| F982 | medium | deferred | review | csharp, swift | Test parity: Test gap: default-api-client-unit / connectDeadlineRaisesNetworkTimeoutException missing in csharp, swift |
+| F983 | medium | deferred | review | dart, elixir | Test parity: Test gap: default-api-client-unit / multipartNonAsciiFieldNamePreservedAsUtf8 missing in dart, elixir |
+| F984 | medium | deferred | review | python, rust | Test parity: Test gap: default-api-client-unit / multipartPrimitivePartsArePlainTextInTheCanonicalForm missing in python, rust |
+| F985 | medium | deferred | review | elixir | Test parity: Test gap: default-api-client-unit / multipartRawBytesPartReusesFieldNameAsFilenameWithOctetStream missing in elixir |
+| F986 | medium | deferred | review | swift, elixir | Test parity: Test gap: default-api-client-unit / useAfterCloseThrowsIllegalStateException missing in swift, elixir |
+| F987 | medium | deferred | review | swift | Test parity: Test gap: header-selector / should not reorder or weight JSON types missing in swift |
+| F988 | medium | deferred | review | python, swift | Test parity: Test gap: oauth2-implicit-authenticator / keepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl missing in python, swift |
+| F989 | medium | deferred | review | php | Test parity: Test gap: oauth2-token-manager / singleFlightRefreshCoalescesConcurrentCallers missing in php |
+| F990 | medium | deferred | review | go | Test parity: Test gap: object-serializer / Duration round-trips through a model body missing in go |
+| F991 | medium | deferred | review | go, elixir | Test parity: Test gap: object-serializer / UUID field round-trips within a model object missing in go, elixir |
+| F992 | medium | deferred | review | swift | Test parity: Test gap: object-serializer / a literal null body deserializes to null missing in swift |
+| F993 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / date-time serialization preserves sub-second precision missing in rust |
+| F994 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / integer-backed enum deserializes from a JSON number to the member missing in rust |
+| F995 | medium | deferred | review | dart, swift | Test parity: Test gap: object-serializer / malformed UUID string fails to deserialize within a model object missing in dart, swift |
+| F996 | medium | deferred | review | kotlin, php | Test parity: Test gap: object-serializer / null element in an array of models throws SerializationException missing in kotlin, php |
+| F997 | medium | deferred | review | kotlin, python | Test parity: Test gap: object-serializer / omits fields that are null from JSON output missing in kotlin, python |
+| F998 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / referenced enum field rejects an unknown wire value missing in rust |
+| F999 | medium | deferred | review | kotlin, python | Test parity: Test gap: object-serializer / required nullable property keeps an explicit null and writes the key missing in kotlin, python |
+| F1000 | medium | deferred | review | node | Test parity: Test gap: object-serializer / returns null for null input missing in node |
+| F1001 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / serialized datetime string ends with a numeric offset, never Z missing in rust |
+| F1002 | medium | deferred | review | dart, rust | Test parity: Test gap: object-serializer / unknown enum value throws SerializationException missing in dart, rust |
+| F1003 | medium | deferred | review | java, rust | Test parity: Test gap: openid-connect-authenticator / discoveryIsCachedWhileItsMaxAgeHasNotElapsed missing in java, rust |
+| F1004 | medium | deferred | review | go | Test parity: Test gap: server-configuration / resolvesUrlTemplateUsingDefaultVariableValues missing in go |
+| F1005 | medium | deferred | review | node | Test parity: Test gap: server-configuration / the enum rejection message names the value, the variable and the allowed values missing in node |
+| F1006 | medium | deferred | review | elixir | Test parity: Test gap: transport-options / an upper-case http or https proxy scheme is accepted missing in elixir |
+| F1007 | medium | deferred | review | rust | Test parity: Test gap: value-serializer / maybeAllowReserved wraps only when allowReserved is true missing in rust |
+| F1008 | medium | deferred | review | go, rust | Test parity: Test gap: api-error / fromResponseRefusesADeeplyNestedBodyButKeepsTheRawBody missing in go, rust |
+| F1009 | medium | deferred | review | rust | Test parity: Test gap: api-error / getTypedErrorBodyRaisesSerializationExceptionForABodyOfTheWrongShape missing in rust |
+| F1010 | medium | deferred | review | go, rust | Test parity: Test gap: api-key-authenticator / crlfInQueryKeyThrowsAtConstruction missing in go, rust |
+| F1011 | medium | deferred | review | node | Test parity: Test gap: api-key-authenticator / nonAsciiQueryAndCookieKeysAreAccepted missing in node |
+| F1012 | medium | deferred | review | java, go | Test parity: Test gap: api/pet-api / each server of a multi-server operation resolves to its own URL missing in java, go |
+| F1013 | medium | deferred | review | python, node, go | Test parity: Test gap: api/pet-api / getPetByNameMissingRequiredQueryParamThrows missing in python, node, go |
+| F1014 | medium | deferred | review | swift | Test parity: Test gap: api/pet-api / getPetTagSendsByteParametersAsStandardPaddedBase64 missing in swift |
+| F1015 | medium | deferred | review | go, rust | Test parity: Test gap: basic-authenticator / rejectsPasswordWithNulAtConstruction missing in go, rust |
+| F1016 | medium | deferred | review | go, rust | Test parity: Test gap: basic-authenticator / rejectsUsernameWithColonAtConstruction missing in go, rust |
+| F1017 | medium | deferred | review | go, rust | Test parity: Test gap: basic-authenticator / rejectsUsernameWithCrlfAtConstruction missing in go, rust |
+| F1018 | medium | deferred | review | swift | Test parity: Test gap: client / bearerRejectsCrlfAndNonAscii missing in swift |
+| F1019 | medium | deferred | review | java, kotlin, csharp | Test parity: Test gap: configuration / %s hides secret default header values missing in java, kotlin, csharp |
+| F1020 | medium | deferred | review | kotlin, node | Test parity: Test gap: default-api-client / concurrent requests do not share redirect budget (Wave E) missing in kotlin, node |
+| F1021 | medium | deferred | review | swift | Test parity: Test gap: default-api-client-unit / crossOriginRedirectStripsSensitiveHeaders missing in swift |
+| F1022 | medium | deferred | review | python, go | Test parity: Test gap: default-api-client-unit / decodes BOM-less utf-16 response body as big-endian (RFC 2781) missing in python, go |
+| F1023 | medium | deferred | review | go | Test parity: Test gap: default-api-client-unit / decodesResponseBodyUsingDeclaredCharset missing in go |
+| F1024 | medium | deferred | review | go, rust, swift | Test parity: Test gap: default-api-client-unit / garbagePemCaCertPathThrowsIllegalArgumentException missing in go, rust, swift |
+| F1025 | medium | deferred | review | swift, elixir | Test parity: Test gap: default-api-client-unit / multipartFileWithPngExtensionSetsImagePngContentType missing in swift, elixir |
+| F1026 | medium | deferred | review | elixir | Test parity: Test gap: default-api-client-unit / multipartFileWithoutExtensionDefaultsToOctetStream missing in elixir |
+| F1027 | medium | deferred | review | kotlin, csharp, php | Test parity: Test gap: default-api-client-unit / multipartFilenameBackslashEscapesQuotes missing in kotlin, csharp, php |
+| F1028 | medium | deferred | review | kotlin, csharp, php | Test parity: Test gap: default-api-client-unit / multipartFilenameNulRejected missing in kotlin, csharp, php |
+| F1029 | medium | deferred | review | go | Test parity: Test gap: default-api-client-unit / unknownContentEncodingSurfacesApiException missing in go |
+| F1030 | medium | deferred | review | node, swift | Test parity: Test gap: default-api-client-unit / zlibWrappedDeflateBodyIsDecompressed missing in node, swift |
+| F1031 | medium | deferred | review | kotlin, csharp, php | Test parity: Test gap: oauth2-token-manager / refreshGrantCarriesTheRefreshTokenAndTheClientCredentialsOnly missing in kotlin, csharp, php |
+| F1032 | medium | deferred | review | java, node | Test parity: Test gap: oauth2-token-manager / token_endpoint_redirect_is_rejected missing in java, node |
+| F1033 | medium | deferred | review | java, rust | Test parity: Test gap: object-serializer / an in-schema enum value still deserializes cleanly missing in java, rust |
+| F1034 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / datetime with -08:00 offset preserves offset in serialized string missing in rust |
+| F1035 | medium | deferred | review | python, rust, swift | Test parity: Test gap: object-serializer / format: byte accepts padded standard base64 missing in python, rust, swift |
+| F1036 | medium | deferred | review | node, rust | Test parity: Test gap: object-serializer / integer-backed enum serializes as a JSON number, not a string missing in node, rust |
+| F1037 | medium | deferred | review | ruby, rust | Test parity: Test gap: object-serializer / non-lowercase string enum preserves wire casing on round-trip missing in ruby, rust |
+| F1038 | medium | deferred | review | ruby, rust | Test parity: Test gap: object-serializer / resolveAnyOf throws when no variant matches missing in ruby, rust |
+| F1039 | medium | deferred | review | python, ruby, rust | Test parity: Test gap: object-serializer / resolveOneOf returns the first matching variant missing in python, ruby, rust |
+| F1040 | medium | deferred | review | python, ruby, rust | Test parity: Test gap: object-serializer / resolveOneOf throws when no variant matches missing in python, ruby, rust |
+| F1041 | medium | deferred | review | rust | Test parity: Test gap: object-serializer / round-trip: serialize then deserialize yields equivalent datetime missing in rust |
+| F1042 | medium | deferred | review | php, node, swift | Test parity: Test gap: server-configuration / appliesOverridesAndFallsBackToDefaultsForUnsetVariables missing in php, node, swift |
+| F1043 | medium | deferred | review | php, go, rust | Test parity: Test gap: server-configuration / exposesRawUrlTemplateAndDescription missing in php, go, rust |
+| F1044 | medium | open | review | go, swift, rust, elixir | Request headers are merged case-sensitively, so two spellings of one header are sent at random (go, swift) or twice (rust), and a caller's lower-case Accept-Encoding does not suppress the SDK's |
+| F1045 | medium | open | review | go, rust, swift, elixir, java | A refresh response without expires_in keeps the old, already lapsed expiry, so every following call runs another refresh grant (go, rust, swift, elixir; java too), while kotlin now gives it no expiry |
+| F1046 | low | open | review | go, rust, swift, elixir, java | Two expiry margins stack (30 s at store, 60 s at check): a token with expires_in <= 90 is never cached and a 120 s token is reused for only 30 s |
+| F1047 | medium | open | review | swift, rust | A caller-supplied URLSession (swift) or reqwest::Client (rust) silently drops the SDK's redirect guard: cross-origin API-key headers, non-HTTP Location, hop cap and HTTPS->HTTP body replay are no long |
+| F1048 | medium | open | review | go, rust, swift, elixir | Response bodies and decompressed bodies are read without any size limit (decompression bomb, unbounded memory) |
+| F1049 | medium | open | review | elixir | elixir token managers and the OIDC discovery cache are unsupervised Agents linked to whichever process built the authenticator and never stopped |
+| F1050 | low | open | review | swift | swift redirect refusals and the undecodable-body error carry nil responseHeaders although a response arrived (D13, F099 marked fixed) |
+| F1051 | low | open | review | rust | rust raises 'too many redirects' for a 3xx with no usable Location once the hop budget is spent (always with max_redirects(Some(0))) |
+| F1052 | low | open | review | go, elixir | OIDC: once discovery max-age lapses, a failed rediscovery fails every API call even though the cached delegate and its tokens are still valid |
+| F1053 | low | open | review | go, swift | Call cancellation does not reach the token fetch: go's ctx is not passed to AuthHeadersOrError and swift callers await an unstructured refresh Task |
+| F1054 | low | open | review | swift, elixir | swift and elixir measure token and discovery expiry with the wall clock, so a clock step makes tokens look valid too long or expire at once |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -9114,3 +9315,2082 @@ Client statically imports and instantiates every tag class, operations are class
 - `src/spec/resources/generated/node/src/client.ts:115` — this.pet = new PetApi(apiClient, config, authenticator);
 - `src/spec/resources/generated/node/src/object-serializer.ts:8` — import "reflect-metadata";
 - `src/spec/resources/generated/node/src/index.ts:23` — export * from "./api/index.js";
+
+## F854 [medium] OAuth2 token expiry applies two stacked safety margins (30 s when stored, 60 s when read), so any token with expires_in of 90 s or less is never reused and every API call makes a token request
+- Status: **open** | Lens: auditor-auth | Category: auth | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+When a token is stored, every token manager sets expiry = now + expires_in - min(expires_in, 30). When it is read, the cache check is now < expiry - 60. The effective margin is therefore 90 s. With expires_in=60 (common for short-lived machine tokens, STS-style tokens and some test IdPs) the token is stale the moment it arrives, so each API call POSTs the grant again. With expires_in=120 a token is reused for only 30 s. The tests only cover the expires_in==30 edge ('Gap CM: expires_in == 30 collapses expiry to now'), which hides this because the comment assumes the margin is 30 s. Reference: Azure Identity refreshes 5 minutes early but always uses an unexpired token; google-auth uses one 3-4 minute margin; none stacks two. Proposed canonical behaviour: store the real expiry (now + expires_in) and apply one margin when reading it, capped at half the lifetime, e.g. min(60, expires_in/2), so a 60 s token is reused for 30 s. Add the 31-90 s cases to each OAuth2TokenManager test table.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2TokenManager.java:126` — Instant.now().isBefore(tokenExpiry.minusSeconds(EXPIRY_SAFETY_MARGIN_SECONDS))
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2TokenManager.java:310` — long bufferSecs = Math.min(expiresIn, 30L); this.tokenExpiry = Instant.now().plusSeconds(expiresIn - bufferSecs);
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_token_manager.py:92` — or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_token_manager.py:283` — buffer_secs = min(expires_in, 30)
+- `src/spec/resources/generated/rust/src/auth/oauth/oauth2_token_manager.rs:163` — if let Some(deadline) = expiry.checked_sub(EXPIRY_SAFETY_MARGIN) {
+- `src/spec/resources/generated/rust/src/auth/oauth/oauth2_token_manager.rs:357` — let buffer_secs = expires_in.min(30);
+- `src/spec/resources/generated/go/pkg/auth/oauth/oauth2_token_manager.go:128` — time.Now().Before(m.tokenExpiry.Add(-expirySafetyMargin))
+- `src/spec/resources/generated/node/src/auth/oauth/oauth2-token-manager.ts:307` — const bufferSecs = Math.min(expiresIn, 30);
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Auth/OAuth/OAuth2TokenManager.swift:271` — let bufferSecs = min(expiresIn, 30)
+- `src/spec/resources/generated/go/test/oauth2_token_manager_test.go:498` — // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+
+## F855 [medium] A 401 from the API never invalidates the cached OAuth2 token and callers cannot reach invalidateAccessToken, so a revoked or rotated token (or one issued without expires_in, cached forever) fails ever
+- Status: **open** | Lens: auditor-auth | Category: auth | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+Every OAuth2TokenManager has invalidateAccessToken (java :218, go :195, python :177, node :189 ...), but no generated code calls it: BaseApi maps a 401 to UnauthorizedError and returns. The manager is private to each authenticator (java tokenManager() is package-private, python _token_manager is a private field), so a caller who catches UnauthorizedError cannot drop the token either. A token issued without expires_in has tokenExpiry null and is returned from the cache forever (java :124-127), so a server-side revocation or key rotation leaves the client failing permanently. Reference: Azure SDK BearerTokenAuthenticationPolicy and the AWS SDK credential providers re-acquire on a 401 or expired-token challenge and retry once; google-auth's AuthorizedSession refreshes and retries on 401. Proposed canonical behaviour: on a 401 from a request authenticated by a token-flow authenticator, invalidate the cached access token, get a new one (refresh grant first) and replay the request once. Bodies that cannot be replayed (streams) are not retried. Also expose a public invalidate/clearToken on the OAuth authenticators. This is additive to the F823 retry work.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2TokenManager.java:218` — public synchronized void invalidateAccessToken() {
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2TokenManager.java:124` — if (accessToken != null && (tokenExpiry == null || ...
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2AuthorizationCodeAuthenticator.java:173` — OAuth2TokenManager tokenManager() {
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_client_credentials_authenticator.py:53` — _token_manager: OAuth2TokenManager = field(
+- `src/spec/resources/generated/go/pkg/auth/oauth/oauth2_token_manager.go:195` — func (m *OAuth2TokenManager) InvalidateAccessToken() {
+- `src/spec/resources/generated/node/src/auth/oauth/oauth2-token-manager.ts:189` — invalidateAccessToken(): void {
+
+## F856 [medium] A per-call OAuth2 or OIDC authenticator passed in an operation's Options always fails with 'ApiClient has not been injected', because only the client-level authenticator receives the transport
+- Status: **open** | Lens: auditor-auth | Category: auth | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+Every operation's Options carries an optional per-call authenticator (java options.auth(), node options.auth, python options.auth, go options.Auth), and BaseApi uses it in place of the client's. But setApiClient is called only once, in the Client constructor, on the client-level authenticator. BaseApi never injects into a per-call authenticator. A per-call OAuth2ClientCredentialsAuthenticator, password, authorization-code or OpenIdConnect authenticator therefore throws the token manager's 'ApiClient has not been injected. Ensure the Client constructor calls setApiClient()...' on its first call. The message blames the Client, which did nothing wrong. Only static authenticators (api key, basic, bearer) work per call. No test passes an HttpAware authenticator per call. The workaround is to build a second DefaultApiClient by hand and inject it, which loses the client's transport (proxy, TLS, pool). Proposed canonical behaviour: when the effective authenticator is HttpAware and has no client yet, BaseApi injects its own ApiClient (idempotently) before asking for headers. Add a BaseApi test row in each language that uses a per-call client-credentials authenticator.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/Client.java:80` — if (authenticator instanceof HttpAwareAuthenticator httpAware) { httpAware.setApiClient(apiClient);
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/api/BaseApi.java:166` — } else if (auth != null) { effectiveAuth = auth;
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2TokenManager.java:244` — if (apiClient == null) { throw new IllegalStateException("ApiClient has not been injected. "
+- `src/spec/resources/generated/node/src/client.ts:108` — authenticator.setApiClient(apiClient);
+- `src/spec/resources/generated/node/src/api/base-api.ts:119` — const effectiveAuth = isNoAuth(auth) ? null : (auth ?? this.authenticator);
+- `src/spec/resources/generated/node/src/api/options/add-pet-options.ts:7` — readonly auth?: Authenticator;
+- `src/spec/resources/generated/python/petstore_client/client.py:73` — if isinstance(authenticator, HttpAwareAuthenticator): authenticator.set_api_client(api_client)
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_token_manager.py:219` — "ApiClient has not been injected. "
+- `src/spec/resources/generated/go/pkg/options/add_pet_options.go:8` — Auth Authenticator
+- `src/spec/resources/generated/go/pkg/client.go:81` — httpAware.SetApiClient(&authApiClientAdapter{inner: apiClient})
+
+## F857 [medium] One authenticator per Client is applied to every secured operation whatever that operation's security requirement says: credentials for several schemes cannot be configured, AND requirements cannot be
+- Status: **open** | Lens: auditor-auth | Category: auth | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+The petstore declares different requirements per operation: addPet is apiKeyHeader OR petStoreBearer, the operation at openapi.yaml:260 is adminBasic OR machineAuth, and the root is petStoreBasic OR petStoreBearer. The generator passes only null or NO_AUTH to BaseApi (api.mustache:427), and BaseApi applies the single client authenticator to every operation that is not security: []. A Client built with an ApiKeyQueryAuthenticator therefore puts ?api_key=<secret> into the URL of every secured operation, including ones that accept only Basic or Bearer, where it ends up in access logs. An operation that needs a scheme other than the configured one gets the wrong credential and a 401. A requirement that needs two schemes together (for example an api key plus a bearer token, or Cloudflare's X-Auth-Email plus X-Auth-Key) cannot be expressed without a hand-written composite authenticator. D04 only says per-operation scopes stay unused; schemes are not settled. Reference: the Stainless Cloudflare SDK takes apiToken, apiKey plus apiEmail, and userServiceKey together on one client and applies them per security requirement; Fern and Speakeasy SDKs take a per-scheme security object and choose per operation. Proposed canonical behaviour, additive: the Client accepts credentials keyed by scheme (one authenticator per scheme name). Each operation's generated metadata lists its requirement alternatives, and BaseApi applies the first alternative whose schemes are all configured, so AND requirements work too. The single-authenticator constructor stays as the fallback for every scheme. Fix the public shape now, because the per-scheme wrappers already exist and changing Client later is breaking.
+- `src/spec/resources/specs/petstore/openapi.yaml:57` — security: - apiKeyHeader: [] - petStoreBearer: []
+- `src/spec/resources/specs/petstore/openapi.yaml:260` — security: - adminBasic: [] - machineAuth: - pets:write
+- `src/main/resources/templates/java/api/api.mustache:427` — {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NO_AUTH...
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/Client.java:84` — Configuration config = Configuration.builder().baseUrl(authenticator.getHost()).build(); this.pet = new PetApi(apiClient, config, authenticator);
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/api/BaseApi.java:171` — for (Map.Entry<String, String> entry : effectiveAuth.getQueryParams().entrySet()) { queryParams.put(...)
+- `src/spec/resources/generated/node/src/api/base-api.ts:121` — const authQueryParams = effectiveAuth.getQueryParams();
+- `src/spec/resources/generated/rust/src/api/base_api.rs:177` — for (k, v) in auth.query_params() {
+
+## F858 [medium] The authorization-code and OIDC flows have no PKCE (code_verifier/code_challenge) and no nonce, which RFC 9700 (OAuth 2.0 Security BCP) requires for public clients and recommends for all
+- Status: **open** | Lens: auditor-auth | Category: auth | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+buildAuthorizationUrl(state) emits response_type, client_id, redirect_uri, scope and state only, and exchangeCode(code) posts the code with no code_verifier. No generated file in any language contains code_verifier, code_challenge or PKCE. The OIDC authenticator reuses the same flow, so it sends no nonce and never looks at id_token. state is optional and the SDK neither generates nor checks it. RFC 9700 s2.1.1 says clients MUST use PKCE unless they rely on the OIDC nonce, and OAuth 2.1 makes PKCE mandatory. Many IdPs (Okta and Auth0 for SPA and native apps, X/Twitter) refuse a code flow without it, so the generated flow cannot be used with them at all. Proposed canonical behaviour, additive: buildAuthorizationUrl generates a 32-byte random code_verifier and sends code_challenge=BASE64URL(SHA256(verifier)) with code_challenge_method=S256. It also generates state when none is given, and a nonce for OIDC. It returns or stores them, and exchangeCode(code, state?) checks the returned state and sends code_verifier. Give the authorize-URL result a shape that can carry these values now (for example an AuthorizationRequest value with url, state and codeVerifier), because returning a bare String fixes the API shape.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2AuthorizationCodeAuthenticator.java:188` — public String buildAuthorizationUrl(@Nullable String state) {
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2AuthorizationCodeAuthenticator.java:213` — public void exchangeCode(String code) {
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_authorization_code_authenticator.py:82` — def build_authorization_url(self, state: Optional[str] = None) -> str:
+- `src/spec/resources/generated/go/pkg/auth/oauth/oauth2_authorization_code_authenticator.go:101` — func (a *OAuth2AuthorizationCodeAuthenticator) BuildAuthorizationURL(state string) string {
+- `src/spec/resources/generated/node/src/auth/oauth/oauth2-authorization-code-authenticator.ts:88` — buildAuthorizationUrl(state?: string): string {
+
+## F859 [medium] OIDC discovery trusts the document blindly: the issuer is not compared with the discovery URL and token_endpoint/authorization_endpoint may be http or another host, so the client secret and the auth c
+- Status: **open** | Lens: auditor-auth | Category: auth | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+The OpenIdConnectAuthenticator fetches openIdConnectUrl and only checks that authorization_endpoint and token_endpoint are non-empty strings (java requireEndpoint, python :151-154, go :224). It never reads issuer. OpenID Connect Discovery 1.0 s4.3 requires the issuer value to be identical to the URL prefix used for discovery, and RFC 8414 s3.3 says the same; this is the mix-up defence. Nothing requires https on the discovered endpoints either. A document that names http://... makes the SDK POST client_secret, the auth code and the refresh token in clear text (the token POST refuses redirects, but nothing stops a plain-http endpoint). The same holds for tokenUrl, refreshUrl and authorizationUrl given to the base OAuth2 constructors: no scheme check. The python test fixture already serves an issuer field (test_openid_connect_authenticator.py:48) that nothing checks. Proposed canonical behaviour: reject a discovery document whose issuer, with any trailing slash removed, does not equal the discovery URL minus '/.well-known/openid-configuration'. Reject a non-https token, refresh, authorization or discovery URL unless the host is a loopback address (RFC 8252 s8.3). Both are caller or configuration errors, raised as the language's argument error, or as SerializationError for the document.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OpenIdConnectAuthenticator.java:127` — String authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint"); String tokenEndpoint = requireEndpoint(discovery, "token_endpoint");
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/openid_connect_authenticator.py:151` — token_endpoint = discovery.get("token_endpoint")
+- `src/spec/resources/generated/go/pkg/auth/oauth/openid_connect_authenticator.go:210` — TokenEndpoint         string `json:"token_endpoint"`
+- `src/spec/resources/generated/python/test/test_openid_connect_authenticator.py:48` — "issuer": "https://auth.example.com",
+
+## F860 [medium] TransportOptions.defaultHeaders are merged into OAuth2 token requests and OIDC discovery, so an Authorization or API-key default header meant for the API is sent to the identity provider's host
+- Status: **open** | Lens: auditor-auth | Category: auth | Unit-testable (reviewer's view): None
+- SDKs: java, python, node, kotlin, csharp, go, rust, swift, dart, php, ruby, elixir
+
+The token manager and the OIDC discovery GET go through the shared ApiClient.sendRequest, and sendRequest starts from transportOptions.defaultHeaders and lays the call's headers over them (java DefaultApiClient :409-410, python :569-570, node abstract-api-client.ts :261-264). S15 already expects callers to put Authorization, Cookie or *key*/*token*/*secret* headers in defaultHeaders, since it redacts them. Those headers therefore also go to auth.example.com (a different origin) on every token and discovery request. A client-credentials setup that uses Basic client auth gets its own Authorization header. But the merge is case-sensitive in java, python and node, so a default 'authorization' and the SDK's 'Authorization' are both sent, as two different headers. The same case-sensitive merge applies in BaseApi between config default headers, header params and auth headers (java BaseApi :184-189). Only the evidence languages were read line by line; the rest share the 'transport defaults < caller headers' merge in their DefaultApiClient. Proposed canonical behaviour: token and discovery requests carry only the SDK's own headers (Content-Type, Accept, User-Agent, X-Request-ID, the client-auth Authorization) and not caller default headers. Every merge is case-insensitive, so the later layer replaces the earlier one.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/DefaultApiClient.java:409` — Map<String, String> mergedHeaders = new HashMap<>(transportOptions.getDefaultHeaders()); mergedHeaders.putAll(headers);
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2TokenManager.java:268` — apiClient.sendRequest("POST", tokenUrl, headers, body.toString(), true);
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:569` — merged_headers: Dict[str, str] = dict(self._transport_options.default_headers)
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_token_manager.py:241` — response = self._api_client.send_request(
+- `src/spec/resources/generated/node/src/abstract-api-client.ts:261` — const mergedHeaders: Record<string, string> = { ...this.transportOptions.defaultHeaders, ...headers, };
+- `src/spec/resources/generated/node/src/auth/oauth/oauth2-token-manager.ts:248` — const response = await this.apiClient.sendRequest(
+
+## F861 [medium] A query-parameter API key is copied into error messages: go, python and rust network errors embed the full request URL, and the kotlin, rust, node and elixir redirect-refusal messages embed the curren
+- Status: **open** | Lens: auditor-auth | Category: auth | Unit-testable (reviewer's view): None
+- SDKs: go, python, rust, kotlin, node, elixir
+
+BaseApi appends the authenticator's query params (apiKeyQuery: api_key) to the URL before the transport sees it. Several error paths then print that URL. go wraps the net/http error as 'request failed: %s'. A *url.Error renders as 'Get "https://h/pet?api_key=SECRET": dial tcp ...', and Go redacts only userinfo passwords, not the query. python builds NetworkException(message=str(error)) from urllib3's MaxRetryError, which renders '... Max retries exceeded with url: /pet?api_key=SECRET (Caused by ...)'. rust uses e.to_string() of reqwest::Error, which includes 'for url (https://h/pet?api_key=SECRET)'. The HTTPS->HTTP replay refusal also prints the current URL in rust (:405-409), kotlin (:258), node (:465-466) and elixir (:921-922), and on the first hop that is the original URL with the key. These messages go to logs and error trackers. Every authenticator's string form redacts its secret (F108-F111, F225), so this is the remaining leak. The library message contents were checked from library behaviour, not by running code. Proposed canonical behaviour: before a URL goes into any message, replace the values of the authenticator's query params with *** (or drop the query), and build transport-error messages from the redacted URL (reqwest: e.without_url(); go: copy url.Error with a redacted URL; python: rebuild the message from the reason).
+- `src/spec/resources/generated/go/pkg/default_api_client.go:273` — return nil, newTransportError(fmt.Sprintf("request failed: %s", err.Error()), err)
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:159` — return NetworkException(message=str(error))
+- `src/spec/resources/generated/rust/src/default_api_client.rs:621` — let message = e.to_string();
+- `src/spec/resources/generated/rust/src/default_api_client.rs:405` — "Refusing to replay request body across HTTPS->HTTP redirect: {} -> {}", current_url
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/DefaultApiClient.kt:258` — "Refusing to replay request body across HTTPS->HTTP redirect: $currentUrl -> $redirectUri"
+- `src/spec/resources/generated/node/src/abstract-api-client.ts:466` — `(from ${currentUrl} to ${nextUrl})`
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/api/BaseApi.java:172` — queryParams.put(entry.getKey(), entry.getValue());
+
+## F862 [low] Credentials are static strings only: no token provider or callback for rotating keys and tokens, and no environment-variable default, unlike OpenAI/Anthropic/Cloudflare (env vars), Azure (TokenCredent
+- Status: **open** | Lens: auditor-auth | Category: auth | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+BearerAuthenticator, ApiKeyAuthenticator and BasicAuthenticator hold a final or readonly string set at construction (java BearerAuthenticator :17-18, node bearer-authenticator.ts :14-15, python dataclass fields), and Client requires an authenticator argument (java Client :62, python client.py :44). Rotating a key or a short-lived token (Vault, a workload-identity JWT, a token minted elsewhere) means writing a custom Authenticator or rebuilding the Client. No SDK reads a credential from the environment. Reference: openai-node and anthropic-sdk default apiKey to OPENAI_API_KEY / ANTHROPIC_API_KEY, and openai-node also accepts an async apiKey function; the Cloudflare SDK reads CLOUDFLARE_API_TOKEN, CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL; Azure passes a TokenCredential with getToken(scopes); AWS resolves a refreshing credential provider chain. Stripe is the counter-example (explicit key only). Proposed canonical behaviour, additive: each static authenticator also accepts a provider (a sync/async function or a Supplier returning the current secret), called on every request. Optionally, an x-env-var style vendor extension on a security scheme names the environment variable a credential defaults to. Decide now whether the provider form exists, because adding it later changes constructor overloads in languages without union parameters (go, rust, swift).
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/BearerAuthenticator.java:18` — private final String token;
+- `src/spec/resources/generated/node/src/auth/bearer-authenticator.ts:15` — private readonly token: string;
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/Client.java:62` — public Client(Authenticator authenticator) {
+- `src/spec/resources/generated/python/petstore_client/client.py:44` — def __init__( self, authenticator: Authenticator,
+
+## F863 [low] The token response's token_type is ignored: whatever the server issues (DPoP, MAC, N_A) is sent as 'Authorization: Bearer'
+- Status: **open** | Lens: auditor-auth | Category: auth | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+No token manager reads token_type (grep finds it only in model files). Every OAuth authenticator returns 'Bearer ' + token. RFC 6749 s7.1 says the client MUST NOT use an access token whose type it does not understand. For a DPoP-bound token (RFC 9449) the server rejects the Bearer form with 401 and no hint. Proposed canonical behaviour: accept a token_type of 'bearer' (case-insensitive) or a missing one. Anything else is an OAuth2TokenError with one fixed message, 'Unsupported token_type in token response', with no echo of the value (D07 style).
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2TokenManager.java:284` — JsonNode accessTokenNode = json.get("access_token");
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2ClientCredentialsAuthenticator.java:123` — return Collections.singletonMap("Authorization", "Bearer " + token);
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_token_manager.py:241` — response = self._api_client.send_request(
+
+## F864 [medium] java callers cannot add additionalProperties (setter is package-private, getter unmodifiable) and kotlin copy() silently drops them
+- Status: **open** | Lens: review | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin
+
+Metadata declares additionalProperties: {type: string}. In java the only way to put an extra key into the bucket is setAdditionalProperty, which is package-private (it exists for Jackson's @JsonAnySetter), and getAdditionalProperties returns an unmodifiable copy. Code outside com.example.petstore.models cannot send an extra property. The generated MetadataTest only compiles because it is in the same package. In kotlin the bucket is a @Transient body property, not a constructor parameter. It cannot be passed to the constructor, and the data-class copy() rebuilds the object from the primary constructor, so meta.copy(createdAt = t) returns an object with an empty bucket. Because equals includes the bucket (RF-5), m.copy() != m whenever m carries extras. The other ten let the caller set the bucket through the constructor or a public mutable field: csharp Dictionary { get; set; }, php public Ds\Map, python field, ruby attribute, dart constructor parameter, go field, rust pub field, swift init parameter, elixir struct key, node own properties. Proposed canonical: the bucket can be supplied at construction and changed through a public API in all twelve. For java, a public putAdditionalProperty/setAdditionalProperties or a builder entry. For kotlin, make additionalProperties a constructor parameter (default emptyMap()) so copy() carries it, still excluded from the serializer.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/models/Metadata.java:39` — void setAdditionalProperty(String key, Object value) {
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/models/Metadata.java:56` — return java.util.Collections.unmodifiableMap(extras);
+- `src/main/resources/templates/java/models/model.mustache:772` — void setAdditionalProperty(String key, ...
+- `src/spec/resources/generated/java/src/test/java/com/example/petstore/models/MetadataTest.java:62` — metadata.setAdditionalProperty("customField", "hello");  (same package only)
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/models/Metadata.kt:30` — @kotlinx.serialization.Transient     val additionalProperties: MutableMap<String, @Contextual Any?> = mutableMapOf()  (class body, not a constructor parameter)
+- `src/spec/resources/generated/csharp/src/PetstoreClient/Models/Metadata.cs:19` — public Dictionary<string, object> AdditionalProperties { get; set; } = new();
+- `src/spec/resources/generated/dart/lib/src/models/metadata.dart:19` — const Metadata({this.createdAt, this.additionalProperties = const {}});
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Models/Metadata.swift:22` — public init(createdAt: Date? = nil, additionalProperties: [String: AnyCodable] = [:]) {
+
+## F865 [medium] Typed additionalProperties (additionalProperties: {type: string}) are surfaced as an untyped any map in all twelve, so the value type is neither declared nor checked
+- Status: **open** | Lens: review | Category: models | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+Metadata declares additionalProperties: {type: string}, but every SDK types the bucket as a map of any: Map<String, Object>, MutableMap<String, Any?>, Dictionary<string, object>, Dict[str, Any], Map<String, dynamic>, map[string]any, HashMap<String, JsonValue>, [String: AnyCodable], %{String.t() => any()}. A caller reading meta.additionalProperties["k"] has to cast. A response carrying {"k": 42} decodes without error, although the schema says every extra value is a string. Integer, boolean and model values are also accepted on encode. The java template already has an {{additionalPropertiesType}} slot (model.mustache:763), but it renders Object for this model, so the codegen never fills the slot. Stainless and Speakeasy type the map value from the schema (Map<String, String> / dict[str, str]). Proposed canonical: when additionalProperties is a schema, the bucket's value type is that schema's type in every language, and decode applies the same element checks as a declared map property (S1/D54). additionalProperties: true stays any. Related open items: F779 (spec fixture, now present as Metadata) and F782 (node index-signature typing).
+- `src/spec/resources/specs/petstore/openapi.yaml:2154` — additionalProperties:         type: string
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/models/Metadata.java:30` — private java.util.Map<String, Object> additionalProperties = new java.util.LinkedHashMap<>();
+- `src/main/resources/templates/java/models/model.mustache:763` — {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}
+- `src/spec/resources/generated/python/petstore_client/models/metadata.py:27` — additional_properties: Dict[str, Any] = Field(default_factory=dict)
+- `src/spec/resources/generated/go/pkg/models/metadata.go:20` — AdditionalProperties map[string]any `json:"-"`
+- `src/spec/resources/generated/rust/src/models/metadata.rs:19` — pub additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>,
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Models/Metadata.swift:15` — public var additionalProperties: [String: AnyCodable]
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/models/Metadata.kt:31` — val additionalProperties: MutableMap<String, @Contextual Any?> = mutableMapOf()
+
+## F866 [medium] D60 not implemented for a $ref sibling default: StockItem.availability (default on-hold) is applied only by python; the other 11 leave it null on construction and decode
+- Status: **open** | Lens: review | Category: models | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, ruby, node, dart, go, rust, swift, elixir
+
+D60 says a default on a $ref'd enum (sibling or component) becomes the typed enum member, and it names the fixture StockItem.availability (an OAS 3.1 sibling 'default: on-hold' next to $ref Availability). Only python honours it (default_factory=lambda: Availability("on-hold")). In the other eleven the field has no initializer. java has public Availability availability; with no initializer. kotlin and swift default to null/nil, and rust new() sets availability: None. php, go, dart, ruby, elixir, csharp and node carry no default either. A StockItem built by the caller or decoded without the key therefore has availability null, not ON_HOLD. The component-default case (Defaults.swatch) does work, for example go seeds SwatchGreen, so the sibling form is probably lost before it reaches the codegen, perhaps because the parser drops $ref siblings, while python reads it some other way. Not verified at the codegen level. Related rust trap: every rust enum derives Default with #[default] on the first variant, so Swatch::default() is Red although the component declares default: green, and Color::default() invents Red for an enum that has no default. Proposed canonical: implement D60 for sibling defaults in all twelve, and add a construction-and-decode assertion on StockItem.availability to every ObjectSerializer/model test. rust enum Default should follow the component default, or not be derived when there is none.
+- `src/spec/resources/specs/petstore/openapi.yaml:2460` — availability:           $ref: '#/components/schemas/Availability'           default: on-hold
+- `src/main/java/io/github/mridang/codegen/generators/AGENTS.md:242` — D60 | A default on a `$ref`d enum (sibling or component) becomes the typed enum member ... Fixtures `Defaults.swatch`, `StockItem.availability`.
+- `src/spec/resources/generated/python/petstore_client/models/stock_item.py:22` — default_factory=lambda: Availability("on-hold"), alias="availability"
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/models/StockItem.java:25` — public Availability availability;
+- `src/spec/resources/generated/rust/src/models/stock_item.rs:29` — availability: None,
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Models/StockItem.swift:24` — public init(priority: Priority, availability: Availability? = nil, matrix: [[Int]]? = nil) {
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/models/StockItem.kt:30` — val availability: Availability? = null,
+- `src/spec/resources/generated/rust/src/models/swatch.rs:14` — #[default]     #[serde(rename = "red")]     Red,   (component default is green)
+
+## F867 [medium] format: password model fields: python alone redacts them (and changes the field type to SecretStr); the other SDKs print the plaintext in toString/Debug/inspect
+- Status: **open** | Lens: review | Category: models | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, dart, rust, swift, ruby, elixir, node, php, python, go
+
+Account.password is format: password, writeOnly. After F046, python types it as PasswordStr = Annotated[SecretStr, PlainSerializer(...)]. The wire carries the real value, but repr/str print '**********', and reading account.password returns a SecretStr that needs .get_secret_value(). The other eleven type it as a plain string, and every field-dumping string form (D23) prints it verbatim. That covers java toString, csharp ToString, dart toString, the kotlin data-class toString, rust #[derive(Debug)], the swift default Mirror description, ruby Dry::Struct#inspect, elixir inspect and node console.log. go prints a pointer address only by accident (D23 limitation), and php has no __toString but var_dump/print_r show it. Logging a request model therefore leaks the password in eleven SDKs. In python the getter shape also differs from the other eleven. The repository already redacts secrets in authenticator, Configuration and TransportOptions string forms (F225, G-rules) but not in model string forms, and D23 says string forms dump every field. Proposed canonical: keep the field type a plain string everywhere (python included, with a str-typed field and a custom __repr_args__ or Field(repr=False)), and render format: password fields as *** in every model string form (java/csharp/dart toString, kotlin toString override, rust manual Debug, swift CustomStringConvertible/CustomDebugStringConvertible + customMirror, ruby inspect, elixir @derive {Inspect, except: [...]}, go String/GoString, node toJSON-free inspect hook). Alternatively, settle it explicitly as no redaction and drop SecretStr in python.
+- `src/spec/resources/specs/petstore/openapi.yaml:2489` — password:           type: string           format: password           writeOnly: true
+- `src/spec/resources/generated/python/petstore_client/_types.py:286` — PasswordStr = Annotated[     SecretStr,
+- `src/spec/resources/generated/python/petstore_client/models/account.py:27` — password: Optional[PasswordStr] = Field(
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/models/Account.java:98` — sb.append(", password=").append(password);
+- `src/spec/resources/generated/csharp/src/PetstoreClient/Models/Account.cs:101` — sb.Append(", Password=")             .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Password));
+- `src/spec/resources/generated/dart/lib/src/models/account.dart:88` — 'Account(id: $id, username: $username, password: $password)';
+- `src/spec/resources/generated/rust/src/models/account.rs:12` — #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/models/Account.kt:24` — data class Account(   (synthesized toString includes password)
+
+## F868 [medium] Model mutability and modify-a-copy are unharmonised: dart models are all-final with no copyWith, csharp required properties are init-only with no with-expression
+- Status: **open** | Lens: review | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: dart, csharp, java, kotlin, swift, rust, python, php, go, node, ruby, elixir
+
+The usual flow is to fetch a Pet, change one field, then updatePet. How each SDK lets you do that: java uses public mutable fields; kotlin an immutable data class with copy(); swift a mutable struct with value semantics; rust pub fields and struct-update syntax; python pydantic with validate_assignment plus model_copy(update=); php public properties; go public fields; node public properties; ruby Dry::Struct#new(changes); elixir %{s | f: v}. dart has no path: every field is final, the constructor is const, and no copyWith is generated, so changing one field of a 13-field Pet means re-listing every field by hand (Freezed and built_value, the dart conventions, always provide copyWith). csharp mixes the two styles. Optional properties are { get; set; } but required ones are init-only (Pet.Name, Pet.PhotoUrls), and models are classes, not records, so there is no `with`. A decoded Pet cannot be renamed, and the caller must rebuild it. Hashing also differs: java/csharp/dart/kotlin/swift hash over fields that are mutable in java and csharp, so a model mutated while in a HashSet is lost. Reference: Stainless Java/Kotlin SDKs expose toBuilder() on every model, and the OpenAI .NET SDK uses settable properties. Proposed canonical: every SDK offers one documented way to derive a changed copy of a model: dart copyWith, csharp settable required properties (keeping `required` for construction) or record/with, java toBuilder or setters as today. Each language AGENTS.md should state the model mutability choice in its idiom table.
+- `src/spec/resources/generated/dart/lib/src/models/pet.dart:50` — final String name;
+- `src/spec/resources/generated/dart/lib/src/models/pet.dart:87` — const Pet({
+- `src/spec/resources/generated/csharp/src/PetstoreClient/Models/Pet.cs:111` — public required string Name     {         get => _name;         init =>
+- `src/spec/resources/generated/csharp/src/PetstoreClient/Models/Pet.cs:106` — public long? Id { get; set; }
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/models/Account.kt:24` — data class Account(  (copy() available)
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/models/Account.java:34` — public String username;
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Models/Account.swift:17` — public var password: String?
+
+## F869 [low] Enum string forms differ: the wire value in dart/go/node/ruby/elixir, the constant name in java/kotlin/csharp/python/swift, nothing usable in rust/php
+- Status: **open** | Lens: review | Category: models | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, python, swift, rust, php
+
+Interpolating an enum into a log line or a hand-built URL gives different text per SDK. Color.RED renders as 'red' in dart (toString => value), go (String() returns the value), node (TS string enum), ruby (string constant) and elixir (:red). It renders as 'RED' in java and kotlin (Enum.toString is the constant name, getValue/value holds the wire value), 'Red' in csharp (enum ToString) and 'Color.RED' in python (class Color(str, Enum), whose str/format on 3.12+ is the qualified member name). swift renders the case name, which differs from the wire value as soon as sanitising happens: Separator.ab prints 'ab' for wire 'a-b' and value00400040 for '@@'. rust derives only Debug, so there is no Display, and php backed enums cannot be interpolated at all. Stainless SDKs render enums as their wire value (Java enum classes' toString returns the value; Python uses Literal strings). Proposed canonical: the string form of an enum member is its wire value in all twelve: java/kotlin override toString, csharp emits a ToWireValue/ToString extension or documents it, python uses StrEnum (3.11+) or overrides __str__/__format__, swift conforms to CustomStringConvertible returning rawValue, rust implements Display, and php documents ->value as the idiom (forced).
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/models/Color.java:12` — public enum Color {   (no toString override; getValue() holds "red")
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/models/Color.kt:20` — enum class Color(     val value: String,
+- `src/spec/resources/generated/csharp/src/PetstoreClient/Models/Color.cs:18` — public enum Color
+- `src/spec/resources/generated/python/petstore_client/models/color.py:11` — class Color(str, Enum):
+- `src/spec/resources/generated/dart/lib/src/models/color.dart:33` — String toString() => value;
+- `src/spec/resources/generated/go/pkg/models/color.go:44` — func (v Color) String() string {
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Models/Separator.swift:14` — case ab = "a-b"
+- `src/spec/resources/generated/rust/src/models/color.rs:11` — #[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+
+## F870 [low] Models are hashable in seven SDKs but not in python (pydantic models without frozen) or rust (PartialEq only, no Eq/Hash even where every field allows it)
+- Status: **open** | Lens: review | Category: models | Unit-testable (reviewer's view): None
+- SDKs: python, rust
+
+D24 talks of model value equality and hash. java, kotlin, csharp and dart override hashCode/GetHashCode, swift models are Hashable, ruby Dry::Struct and elixir structs hash structurally. python models are pydantic BaseModel with __eq__ and no frozen=True, so __hash__ is None and set([account]) or {account: ...} raises TypeError. rust models derive only PartialEq, so Account (i64, String, String), which could derive Eq + Hash, cannot be a HashSet member or HashMap key. Only the enum types derive Eq. node and php have no value-hash protocol (forced), and go cannot use models as map keys when they hold slices or maps (forced). Proposed canonical: derive Eq + Hash in rust when every field type allows it (no f32/f64, HashMap or HashSet fields, or with a manual impl). For python, either document models as unhashable (pydantic idiom, since they are mutable) or generate __hash__ over the dumped JSON like go's Equal. Record the decision in the idiom matrix.
+- `src/spec/resources/generated/rust/src/models/account.rs:12` — #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+- `src/spec/resources/generated/python/petstore_client/models/account.py:35` — model_config = ConfigDict(         populate_by_name=True,         validate_assignment=True,
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Models/Account.swift:12` — public struct Account: Codable, Sendable, Equatable, Hashable {
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/models/Account.java:88` — public int hashCode() {
+
+## F871 [low] S6 says scalar uniqueItems sets are never sorted, but java, kotlin and dart still sort them (and java/dart AGENTS say they do not); go and rust sort by design
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, dart, go, rust
+
+S6 (owner decision 2026-11-16): sets go out in the language's natural order, do not sort, D69 is not implemented. The committed goldens disagree. java registers sortedScalarSetModule on its mapper, and java/AGENTS.md:105 says 'do not sort'. dart routes every Set field through wireList, which sorts scalar members, while dart/AGENTS.md:114 says the sort exists only in object_serializer and must not be added to models, though pet.dart already calls it. kotlin/AGENTS.md:102 marks its sort as 'pending removal'. go (set.go MarshalJSON) and rust (sorted_set adapter) sort, and their AGENTS files document that as the D69 rule, against S6's 'do not sort'. So five SDKs sort and seven do not, and three AGENTS files describe code that does not exist. This is a residual of F319 (parked), not a new wire decision. Either remove the sorts, or amend S6 to say 'hash-ordered sets sort, insertion-ordered sets keep insertion order' and fix the java and dart AGENTS text. Possibly batch-5 scope.
+- `src/main/java/io/github/mridang/codegen/generators/AGENTS.md:119` — Rule: left unspecified; sets go out in the language's natural collection order, documented in the READMEs. Do not sort.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/ObjectSerializer.java:456` — .addModule(sortedScalarSetModule())
+- `src/main/java/io/github/mridang/codegen/generators/java/AGENTS.md:105` — a `Set` is sent in the collection's natural order (`LinkedHashSet`, insertion order); do not sort.
+- `src/spec/resources/generated/dart/lib/src/models/pet.dart:177` — json['photoUrls'] = wireList(photoUrls, photoUrls);
+- `src/spec/resources/generated/dart/lib/src/object_serializer.dart:230` — values are all strings, all numbers or all booleans, the list is sorted in
+- `src/spec/resources/generated/go/pkg/models/set.go:29` — sortScalarMembers(items)
+- `src/main/java/io/github/mridang/codegen/generators/kotlin/AGENTS.md:102` — uniqueItems order is unspecified; do not sort (S6, F319, 2026-11-16) - pending removal of the sort
+
+## F872 [low] swift escapes reserved property names with a leading underscore (_class, _return, _true, _false) where backticks work; D44 says escape only when the language cannot use the name
+- Status: **open** | Lens: review | Category: naming | Unit-testable (reviewer's view): None
+- SDKs: swift, ruby, elixir
+
+EdgeCases has properties named class, return, true, false, null, and, not. swift renames class, return, true and false to _class, _return, _true and _false. Swift accepts all of them as member names when declared with backticks (public var `class`: String?), and member access needs no backticks for most of them (edge.class is not allowed, edge.`class` is). Apple's own APIs and swift-openapi-generator use backticks, not a prefix. D44 says to escape a reserved word only when the language cannot use it as that kind of name. The escape spelling also differs across SDKs: python and dart append an underscore (class_, return_, true_), while swift and ruby (_class, _true) and elixir (_and, _not, _true) prepend one. A leading underscore reads as private in swift and as an unused binding in elixir. Not verified: whether elixir struct keys and:, not:, true: and false: are legal. They appear to be legal atoms in keyword syntax, which would make that escaping unnecessary as well. Proposed canonical: swift uses backtick-escaped identifiers. Where an escape is unavoidable, use one spelling family-wide (trailing underscore, PEP 8 / Effective Dart style).
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Models/EdgeCases.swift:26` — public var _class: String?
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Models/EdgeCases.swift:35` — public var _true: Bool?
+- `src/spec/resources/generated/python/petstore_client/models/edge_cases.py:40` — class_: Optional[StrictStr] = Field(default=None, alias="class")
+- `src/spec/resources/generated/dart/lib/src/models/edge_cases.dart:129` — class_: json['class'] as String?,
+- `src/spec/resources/generated/elixir/lib/petstore_client/models/edge_cases.ex:107` — _and: "and",
+- `src/main/java/io/github/mridang/codegen/generators/AGENTS.md:213` — D44 | Escape a reserved word only when the language cannot use it as that kind of name
+
+## F873 [medium] go model UnmarshalJSON parses every object three or four times (and again at each ancestor), where ogen decodes in one generated jx pass
+- Status: **open** | Lens: review | Category: performance | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Pet.UnmarshalJSON runs checkAbsoluteURIField (a full map[string]json.RawMessage parse), dropMiscasedKeys (another full parse, and a re-marshal when a key is dropped), the reflective struct decode, then a fourth map parse for the required-key checks. Nested models repeat this on their own bytes, so cost grows with depth times size and a 1000-element []Pet allocates four RawMessage maps per element plus the nested ones. ogen generates a single streaming Decode(d *jx.Decoder) per type that checks required fields with a bitmask during the one pass. Proposed: fold the URI, mis-cased key and required-key checks into one map[string]json.RawMessage parse per object (or decode once into the RawMessage map and derive the struct from it), keeping encoding/json; add a benchmark to the model test template.
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/models/pet.go:140` — if err := checkAbsoluteURIField(data, "homepageUrl"); err != nil {
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/models/pet.go:143` — if err := json.Unmarshal(dropMiscasedKeys(data, "id", "name", ...
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/models/pet.go:147` — if err := json.Unmarshal(data, &raw); err != nil {
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/models/json_marshal.go:74` — var raw map[string]json.RawMessage
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_petstore_expanded/oas_json_gen.go:39` — func (s *Error) Decode(d *jx.Decoder) error {
+
+## F874 [medium] go token exchange and refresh ignore the caller's context: Authenticator.AuthHeadersOrError takes no ctx and the auth adapter never sets RequestOptions.Context
+- Status: **open** | Lens: review | Category: cancellation | Unit-testable (reviewer's view): None
+- SDKs: go
+
+baseApi calls AuthHeadersOrError() with no context, and authApiClientAdapter.SendRequestWithOptions copies only NoRedirect into RequestOptions, so the OAuth2 token POST and OIDC discovery run under context.Background() merged with the base context. A caller whose ctx is cancelled or past its deadline still blocks on a slow token endpoint until the transport timeout. ogen's SecuritySource methods take (ctx, operationName), so credential fetching honours the call's ctx and can vary per operation. Proposed: add an optional context-aware method (for example AuthHeadersContext(ctx) checked by type assertion like AuthHeadersOrError) and pass ctx through the adapter's RequestOptions.Context; test with a cancelled ctx against a delayed token endpoint.
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/base_api.go:202` — AuthHeadersOrError() (map[string]string, error)
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/base_api.go:204` — h, aerr := p.AuthHeadersOrError()
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/client.go:138` — inner = &RequestOptions{NoRedirect: opts.NoRedirect}
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_oauth2/oas_security_gen.go:93` — OAuth2(ctx context.Context, operationName OperationName) (OAuth2, error)
+
+## F875 [medium] go types format: date parameters and form fields as an unvalidated string, so any text reaches the wire; ogen uses time.Time encoded as YYYY-MM-DD
+- Status: **open** | Lens: review | Category: types | Unit-testable (reviewer's view): None
+- SDKs: go
+
+findPetsBornOn takes bornOn string, FindPetsByStatusOptions has BornAfter/ReportDate *string, GetPetSummaryOptions.Days is *[]string. stringifyDate passes a string through verbatim, so "2024-1-5" or a full date-time is sent unchanged, while the date-time path is a typed DateTime. ogen maps format: date to time.Time and encodes it date-only. Proposed: a models.Date type (or time.Time) for format: date parameters and fields, formatted with 2006-01-02 and parsed strictly on decode, mirroring DateTime.
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/pet_api.go:766` — func (a *PetApi) FindPetsBornOn(ctx context.Context, bornOn string) (*[]Pet, error) {
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/options/find_pets_by_status_options.go:14` — BornAfter *string
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/options/get_pet_summary_options.go:10` — Days *[]string
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/object_serializer.go:46` — case string:
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_test_format/oas_parameters_gen.go:77` — StringDate              time.Time
+
+## F876 [low] go types an inline enum query parameter as *string with no constants (FindPetsByStatusOptions.Status), while inline model enums and $ref enum parameters are typed
+- Status: **open** | Lens: review | Category: types | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Pet.Status gets PetStatusEnum with constants and validating MarshalJSON, and the $ref enum params of getBySwatch are *Swatch, but the inline enum on findPetsByStatus.status is a bare *string, so callers get no completion and any value is sent. ogen generates a named enum per inline parameter enum (ReposListForOrgDirection with constants, wrapped in OptReposListForOrgDirection). Proposed: emit an <Op><Param> enum type for inline parameter enums, as already done for inline property enums.
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/options/find_pets_by_status_options.go:10` — Status *string
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/models/pet.go:20` — type PetStatusEnum string
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/options/get_by_swatch_options.go:11` — QuerySwatch     *Swatch
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_github/oas_schemas_gen.go:84799` — type ReposListForOrgDirection string
+
+## F877 [low] go operations return pointers to slices, maps, strings and byte slices (*[]Pet, *map[string]int32, *[]byte), which Go callers must dereference for no gain
+- Status: **open** | Lens: review | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: go
+
+FindPetsByStatus returns (*[]Pet, error), GetInventory (*map[string]int32, error), GetPetAvatar (*[]byte, error). A slice or map is already a reference with a usable nil zero value, so the pointer only adds a nil check and *res indexing. ogen returns []Pet directly (FindPets(ctx, params) ([]Pet, error)). Proposed: return the value for slice, map and []byte results (models can stay pointers); ApiResult.Data can keep its pointer for the empty-body signal.
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/pet_api.go:886` — func (a *PetApi) FindPetsByStatus(ctx context.Context, options *opts.FindPetsByStatusOptions) (*[]Pet, error) {
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/store_api.go:638` — func (a *StoreApi) GetInventory(ctx context.Context) (*map[string]int32, error) {
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/pet_api.go:1257` — func (a *PetApi) GetPetAvatar(ctx context.Context, petId int64) (*[]byte, error) {
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_petstore_expanded/oas_client_gen.go:71` — FindPets(ctx context.Context, params FindPetsParams) ([]Pet, error)
+
+## F878 [low] go oneOf/anyOf constructors take any, so a wrong variant compiles and is marshalled; ogen generates one typed constructor and Is/Get accessor per variant
+- Status: **open** | Lens: review | Category: unions | Unit-testable (reviewer's view): None
+- SDKs: go
+
+NewPetFood(actualInstance any) accepts NewPetFood("oops") and MarshalJSON writes whatever it holds; reading requires a type switch on ActualInstance(). ogen's sum types have NewFileCitationBodyAnnotation(v FileCitationBody), IsFileCitationBody(), GetFileCitationBody() (v, ok) and a Type discriminator enum. Proposed: keep the AS-D41 wrapper and ActualInstance, and add typed New<Variant><Union>(v Variant) constructors plus As<Variant>() (Variant, bool) accessors; MarshalJSON rejects a value that is not a declared variant with a SerializationError.
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/models/pet_food.go:23` — func NewPetFood(actualInstance any) PetFood {
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/models/pet_food.go:42` — return marshalJSON(o.value)
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_openai_v2/oas_schemas_gen.go:65` — func NewFileCitationBodyAnnotation(v FileCitationBody) Annotation {
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_openai_v2/oas_schemas_gen.go:57` — func (s Annotation) GetFileCitationBody() (v FileCitationBody, ok bool) {
+
+## F879 [low] go exposes API groups only as concrete structs (Client.Pet *PetApi), so callers cannot substitute a fake; ogen generates an Invoker interface of all operations
+- Status: **open** | Lens: review | Category: testability | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Client holds Pet *PetApi and Store *StoreApi, and PetApi embeds an unexported *baseApi, so application code that wants to unit-test against the SDK must define its own interface or run an HTTP fake. SKILLS.md only suggests a fake Authenticator, which still sends real requests. ogen emits type Invoker interface listing every operation, implemented by *Client. Proposed: generate a PetApiService (and StoreApiService) interface with the operation methods, assert *PetApi implements it, and document it in SKILLS.md Testing.
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/client.go:49` — Pet *PetApi
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/pet_api.go:188` — type PetApi struct {
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/SKILLS.md:154` — The `Authenticator` interface is the seam for tests
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_petstore_expanded/oas_client_gen.go:30` — type Invoker interface {
+
+## F880 [low] go has no operation-level tracing or metrics, and the trace propagator is a process-global variable written without synchronisation; ogen takes per-client tracer and meter providers
+- Status: **open** | Lens: review | Category: observability | Unit-testable (reviewer's view): None
+- SDKs: go
+
+The only hook is the package-level traceContextPropagator set by SetTraceContextPropagator, shared by every client and read on every request goroutine without a lock or atomic (a race if set after requests start). Beyond F021 (the hook gets context.Background()), there is no span per operation and no request/duration/error metrics. ogen wraps each call in a client span named after the operation with operation id, method and URL template attributes, and records request count, duration and errors, configured per client with WithTracerProvider/WithMeterProvider. Because the transport keeps the caller's ctx values, an otelhttp RoundTripper already yields HTTP spans, but the README does not say so. Proposed: store the propagator on Configuration/TransportOptions (or an atomic.Pointer), document the otelhttp RoundTripper route in the README, and consider an optional per-operation hook carrying the operation id and URL template.
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/trace_context_util.go:48` — var traceContextPropagator TraceContextPropagatorFunc
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/trace_context_util.go:66` — traceContextPropagator = fn
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/base_api.go:242` — InjectTraceContext(headers)
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_petstore_expanded/oas_client_gen.go:143` — ctx, span := c.cfg.Tracer.Start(ctx, AddPetOperation,
+
+## F881 [low] go enum allowed-value lists are unexported (allPetStatusEnumValues), so callers cannot enumerate or validate a value; ogen exports AllValues()
+- Status: **open** | Lens: review | Category: types | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Every typed enum carries an allowed-values slice used by MarshalJSON and UnmarshalJSON, but it is a lower-case package function, so a caller building a dropdown or validating input has to copy the constants by hand. ogen generates an exported AllValues() method on each enum. Proposed: export the list as a method (Values() or AllValues()) and add an IsValid() bool.
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/models/pet.go:29` — func allPetStatusEnumValues() []PetStatusEnum {
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_github/oas_schemas_gen.go:436` — func (ActionsCreateOrUpdateOrgSecretReqVisibility) AllValues() []ActionsCreateOrUpdateOrgSecretReqVisibility {
+
+## F882 [low] go operation doc comments list parameters that live in the options struct as if positional and omit the HTTP method and path; ogen docs end with 'GET /pets'
+- Status: **open** | Lens: review | Category: documentation | Unit-testable (reviewer's view): None
+- SDKs: go
+
+FindPetsByStatus documents 'param status', 'param filter', 'param bornAfter' and 'param reportDate', none of which is a parameter of the function (they are fields of opts.FindPetsByStatusOptions), and the 'param x:' lines have no blank lines so godoc renders them as one run-on paragraph. ogen ends each operation comment with the method and path line ('POST /pets'). Proposed: document Options fields on the Options struct only, add a paragraph break, and add the method and path line.
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/pet_api.go:877` — // param status: Status values that need to be considered for filter
+- `/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35/src/spec/resources/generated/go/pkg/pet_api.go:886` — func (a *PetApi) FindPetsByStatus(ctx context.Context, options *opts.FindPetsByStatusOptions) (*[]Pet, error) {
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/ogen/src/ogen/examples/ex_petstore_expanded/oas_client_gen.go:35` — // POST /pets
+
+## F883 [medium] README 'Not supported' omits XML bodies/nodeType, Link Objects and mutual TLS that S11 says the README lists (closed #70 #78 #88 #90)
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r
+
+S11 and the shared Known limitations say the README states that callbacks/webhooks (#53), XML bodies and nodeType (#70, #88), Link Objects (#78) and mutualTLS security schemes (#90) are out of scope. All twelve READMEs list only 'Webhooks and callbacks' (plus dependentRequired, SOCKS, cancellation, LICENSE); none mentions XML, Link Objects or mutual TLS anywhere in README or SKILLS (grep -i 'xml|mutual|mtls|link object' over */README.md and */SKILLS.md finds only tooling files). A developer whose spec has an application/xml-only operation or a mutualTLS scheme gets no warning of what the generator silently does. Canonical: one identical 'Not supported' list in all twelve, in the same order: webhooks and callbacks (#53); XML request/response bodies and XML nodeType (#70, #88); Link Objects (#78); mutualTLS security schemes, with the reason and workaround (#90); automatic retries until F823 lands; then the language-specific items. Fix in the twelve readme.mustache files.
+- `src/spec/resources/generated/java/README.md:99` — ## Not supported
+- `src/spec/resources/generated/java/README.md:101` — ### Webhooks and callbacks
+- `src/spec/resources/generated/go/README.md:59` — ## Not supported
+- `src/main/java/io/github/mridang/codegen/generators/AGENTS.md:134` — Rule: callbacks and webhooks, XML bodies and XML nodeType, Link Objects, mutual TLS (closed issues #53, #70, #78, #88, #90). The README says so.
+- `src/main/java/io/github/mridang/codegen/generators/AGENTS.md:374` — Out of scope (S11): ... the READMEs say so.
+
+## F884 [medium] README section taxonomy differs per SDK: supported features (custom HTTP client, cancellation, schema constraints) are filed under 'Not supported' in some SDKs, 'Caveats' or top level in others, and a
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r
+
+The README headings are not the same topics in the same order. 'Custom HTTP client' (S9, a supported feature) sits under '## Caveats' in java (README.md:90), kotlin (:72) and csharp (:122), at top level in php (:52), under '## Not supported' in python (:144), node (:141), dart (:138), go (:112), rust (:124) and swift (:134), and is missing entirely from the ruby and elixir READMEs (only their SKILLS cover it). Cancellation (S7) is a supported feature in csharp/node/go/python/swift but is filed under 'Not supported' in node (:122), go (:103), python (:164), swift (:126); csharp files it under Caveats (:107). 'Schema constraints' (S3) is under Caveats in java (:75) and csharp (:97), top level in php (:90), under Not supported elsewhere. The section is also named three ways ('Per-call cancellation', 'Cancellation', inside 'Your own pool manager and cancellation'). Canonical: one README skeleton for all twelve in this order: title and one-line description; Requirements; Installation (consumer install from the registry); Usage / quick start; Authentication; Configuration (transport options, timeouts, redirects, proxy, TLS, default headers, request id); Errors; Retries and timeouts; Cancellation; Custom HTTP client; Raw responses (WithHttpInfo); Servers; Models (required/optional/nullable, unknown enum values); Caveats (decimal precision, schema constraints, uniqueItems order, language-specific); Not supported (only genuinely unsupported things, same order, see the S11 finding); Development (build, test, lint, package). Headings identical across languages except for the idiom words.
+- `src/spec/resources/generated/go/README.md:59` — ## Not supported
+- `src/spec/resources/generated/go/README.md:103` — ### Cancellation
+- `src/spec/resources/generated/go/README.md:112` — ### Bringing your own HTTP client
+- `src/spec/resources/generated/node/README.md:80` — ## Not supported
+- `src/spec/resources/generated/node/README.md:141` — ### Custom `fetch`
+- `src/spec/resources/generated/java/README.md:52` — ## Caveats
+- `src/spec/resources/generated/java/README.md:90` — ### Custom HTTP client
+- `src/spec/resources/generated/php/README.md:52` — ## Custom HTTP client (PSR-18)
+- `src/spec/resources/generated/php/README.md:90` — ## Schema constraints
+- `src/spec/resources/generated/csharp/README.md:107` — ### Cancellation
+
+## F885 [medium] README 'Per-call cancellation' tells java, kotlin and rust users there is no cancellation, but the code honours the S7 native mechanism (thread interrupt, coroutine cancellation, dropping the future)
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: j, a, v, a, ,, k, o, t, l, i, n, ,, r, u, s, t, ,, r, u, b, y, ,, d, a, r, t, ,, e, l, i, x, i, r
+
+The S7 matrix (shared AGENTS.md:37) settles cancellation as: java 'interrupt becomes CancellationException', kotlin 'coroutine cancellation', rust 'native (drop the future)', ruby/dart/elixir 'native'. The java code implements it (DefaultApiClient.java:689-695 converts InterruptedException into java.util.concurrent.CancellationException) and kotlin rethrows coroutine CancellationException untouched so withTimeout and scope cancellation work (DefaultApiClient.kt:402-416). Yet java/README.md:128, kotlin/README.md:125, rust/README.md:137 (and ruby :141, dart :157, elixir :104) all say 'The SDK has no cancellation API of its own. To bound how long a call can take, set the request timeout'. swift/README.md:126 shows the right pattern (cancel the Task, CancellationError). SKILLS.md for these languages never mentions cancellation. Canonical: each README states the native mechanism and the error it raises, mirroring swift: java 'interrupt the calling thread; the call throws CancellationException', kotlin 'cancel the coroutine/withTimeout; CancellationException', rust 'drop the future or use tokio::time::timeout/select!', ruby/dart/elixir as verified; and SKILLS gets the same paragraph. ruby/dart/elixir behaviour not verified by running code.
+- `src/spec/resources/generated/java/README.md:130` — The SDK has no cancellation API of its own. To bound how long a call can
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/DefaultApiClient.java:694` — java.util.concurrent.CancellationException cancelled =
+- `src/spec/resources/generated/kotlin/README.md:127` — The SDK has no cancellation API of its own.
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/DefaultApiClient.kt:402` — Coroutine cancellation is rethrown untouched, so `withTimeout` and
+- `src/spec/resources/generated/rust/README.md:139` — The SDK has no cancellation API of its own.
+- `src/spec/resources/generated/swift/README.md:128` — cancel the Swift `Task` that made
+- `src/main/java/io/github/mridang/codegen/generators/AGENTS.md:37` — | Cancellation (S7) | interrupt becomes CancellationException | coroutine cancellation | ... | native (drop the future) |
+
+## F886 [medium] node cancellation sample passes { signal } in the options slot, and README points to Configuration.builder().signal, which no Client accepts; csharp sample uses an undefined clientToken
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: n, o, d, e, ,, c, s, h, a, r, p
+
+node/README.md:129 and SKILLS.md:305 show `api.someOperation(requiredArg, { signal: controller.signal })`. Per S8 and the generated code the per-call RequestOptions is the LAST parameter after the operation's options object (pet-api.ts:492-496 `deletePet(petId, options?: DeletePetOptions, requestOptions?: RequestOptions)`), so for any operation that has optional parameters the sample is a TypeScript excess-property error (signal is not a DeletePetOptions field) and, untyped, is silently ignored; the right call is `api.deletePet(petId, undefined, { signal })`. The placeholder `someOperation`/`requiredArg` is also the only cancellation sample (Stainless and Stripe show a real call). README.md:135-136 adds 'or with `Configuration.builder().signal(signal)` to cancel every call made through the client', but Client builds its own Configuration from clientOptions (client.ts:111-114) and no Client constructor or factory takes a Configuration (F828), so that route does nothing for a Client user. csharp/README.md:118 builds `TransportOptions.Builder().CancellationToken(clientToken)` with an undeclared `clientToken` and never passes `transport` to a client, then calls `client.Store...` on an undeclared client. Canonical: a concrete, compilable sample per language using a real operation with optional parameters, e.g. node `await client.pet.findPetsByStatus(undefined, { signal: AbortSignal.timeout(2000) })`, csharp `using var cts = ...; await client.Pet.FindPetsByStatusAsync(cancellationToken: cts.Token);`, and drop the Configuration route from the node README.
+- `src/spec/resources/generated/node/README.md:129` — const pending = api.someOperation(requiredArg, { signal: controller.signal });
+- `src/spec/resources/generated/node/SKILLS.md:305` — const perCall = api.someOperation(requiredArg, { signal: controller.signal });
+- `src/spec/resources/generated/node/src/api/pet-api.ts:492` — async deletePet(petId: number, options?: DeletePetOptions, requestOptions?: RequestOptions)
+- `src/spec/resources/generated/node/README.md:136` — `Configuration.builder().signal(signal)` to cancel every call made through
+- `src/spec/resources/generated/node/src/client.ts:111` — const config = Configuration.builder().baseUrl(authenticator.getHost()).signal(clientOptions?.signal).build();
+- `src/spec/resources/generated/csharp/README.md:118` — var transport = TransportOptions.Builder().CancellationToken(clientToken).Build();
+
+## F887 [medium] SKILLS 'Models' sample builds a model without its required field: fails to compile in csharp and elixir and raises at runtime in python, php and ruby
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: c, s, h, a, r, p, ,, e, l, i, x, i, r, ,, p, y, t, h, o, n, ,, p, h, p, ,, r, u, b, y, ,, k, o, t, l, i, n, ,, d, a, r, t, ,, s, w, i, f, t
+
+Every SKILLS.md 'Models' section builds `Account` with no arguments, but Account.username is required. csharp `var model = new Account();` (SKILLS.md:253) is error CS9035 because Username is `public required string` (Account.cs:47) and the parameterless ctor has no [SetsRequiredMembers]; elixir `%PetstoreClient.Models.Account{}` (SKILLS.md:238) fails to compile against `@enforce_keys [:username]` (account.ex:26); python `Account()` (SKILLS.md:246) raises pydantic ValidationError (username: StrictStr, account.py:26); php `new Account()` (SKILLS.md:237) is an ArgumentCountError (`__construct(string $username, ...)`, Account.php:36-37); ruby `Account.new` (SKILLS.md:215) raises Dry::Struct::Error (`attribute :username, Types::Required`, account.rb:71). kotlin/dart/swift show `Account(/* properties */)`, which is not code. Only java, node, go and rust compile and run. Canonical: one sample in all twelve that sets the required field and one optional field, e.g. `Account(username = "alice", id = 1)` in each idiom, and show reading a field back; FixtureVocabularyLeakTest permitting, use the spec's first required property name via the template.
+- `src/spec/resources/generated/csharp/SKILLS.md:253` — var model = new Account();
+- `src/spec/resources/generated/csharp/src/PetstoreClient/Models/Account.cs:47` — public required string Username
+- `src/spec/resources/generated/elixir/SKILLS.md:238` — model = %PetstoreClient.Models.Account{}
+- `src/spec/resources/generated/elixir/lib/petstore_client/models/account.ex:26` — @enforce_keys [
+- `src/spec/resources/generated/python/SKILLS.md:246` — model = Account()
+- `src/spec/resources/generated/php/SKILLS.md:237` — $model = new Account();
+- `src/spec/resources/generated/php/lib/Models/Account.php:37` — string $username,
+- `src/spec/resources/generated/ruby/SKILLS.md:215` — model = Petstore::Client::Models::Account.new
+- `src/spec/resources/generated/kotlin/SKILLS.md:248` — val model = Account(/* properties */)
+
+## F888 [medium] README has no consumer usage at all: install is the contributor command, there is no quick start, and the only usage guide is SKILLS.md, titled 'AI Agent Reference', never linked, whose Quick Start ne
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r
+
+A first-time developer opening the README (what GitHub, npm, PyPI, crates.io, pub.dev, hex and NuGet render) finds Requirements, tooling, Build/Test/Package and caveats, but no line of client code. The 'Install' section is the contributor command (node `npm install` README.md:32-36, python `pip install -e .`, php `composer install`, ruby `bundle install`), not `npm install petstore-client`. All consumer content (install from registry, client creation, auth, errors, transport) lives in SKILLS.md, whose title is '... - AI Agent Reference' (java/SKILLS.md:1), which no README links, and which ends with a contributor rule 'Comment Style' (java/SKILLS.md:253) that is noise for a consumer. Even there, no Quick Start in the twelve makes a call (an awk over every '## Quick Start' finds no operation call): it stops at creating the client, so the reader never sees that python/rust/swift/kotlin calls must be awaited, that go needs ctx first, or what a call returns; python's error sample defines `async def main()` and never runs it. By contrast the Stainless-generated openai-node/openai-python/anthropic-sdk-* READMEs and stripe-node open with Installation then a Usage block that makes a real call and prints a field, followed by Handling errors, Retries, Timeouts, Auto-pagination, Advanced (raw response, logging, custom HTTP client), Semantic versioning, Requirements (https://github.com/openai/openai-node#readme, https://github.com/anthropics/anthropic-sdk-python#readme, https://github.com/stripe/stripe-node#readme). Canonical: README opens with consumer Installation and a runnable Usage block (create client, call one GET operation, print a field, close/dispose), links SKILLS.md, moves build/test/lint to a final 'Development' section; SKILLS keeps the agent-specific rules but its Quick Start also makes one call.
+- `src/spec/resources/generated/node/README.md:32` — ## Install  npm install
+- `src/spec/resources/generated/python/README.md:34` — ## Install
+- `src/spec/resources/generated/java/SKILLS.md:1` — # Swagger Petstore - OpenAPI 3.0 SDK - AI Agent Reference
+- `src/spec/resources/generated/java/SKILLS.md:21` — ## Quick Start ... Client client = Client.withToken("https://api.example.com", "your-token");
+- `src/spec/resources/generated/java/SKILLS.md:253` — ## Comment Style
+- `src/spec/resources/generated/python/SKILLS.md:9` — ## Quick Start ... client = Client.with_token(...)
+
+## F889 [medium] No README or SKILLS documents raw responses (WithHttpInfo), timeouts, the request id, response compression, logging or versioning; java README and elixir SKILLS claim the SDK applies retries, which it
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r
+
+grep over the 24 files: 'withHttpInfo|with_http_info|WithHTTPInfo' 0 hits, so no developer learns that every operation has a variant returning status, headers and body (the only way to read a response header); 'timeout' appears only inside transport samples, never explaining the unit (ms), default, or that it is one end-to-end budget across redirects (D76/S16) and raises NetworkTimeout*; X-Request-ID injection is mentioned only in php/python/rust/swift; nothing on gzip/br/zstd negotiation except dart/node/php; nothing on logging, deprecation markers or semantic versioning. Meanwhile java/README.md:94 says a custom client keeps 'its request timeout, retries, user agent and redirect handling' and elixir/SKILLS.md:221 says 'The SDK's own settings (timeouts, retries, ...)', but no SDK retries (F823; elixir passes `retry: false`, default_api_client.ex:673). Stainless READMEs have fixed sections 'Accessing raw Response data (e.g. headers)', 'Retries', 'Timeouts', 'Request IDs', 'Logging', 'Semantic versioning'. Canonical: add the same 'Raw responses', 'Timeouts' and 'Request id' sections to all twelve READMEs and SKILLS (with each language's WithHttpInfo name and ApiResult accessors), remove the word 'retries' from java and elixir and list 'automatic retries' under Not supported until F823 is decided.
+- `src/spec/resources/generated/java/README.md:94` — timeout, retries, user agent and redirect handling on top and never closes the
+- `src/spec/resources/generated/elixir/SKILLS.md:221` — The SDK's own settings (timeouts, retries, redirect policy, proxy, TLS, user agent) are applied on top
+- `src/spec/resources/generated/elixir/lib/petstore_client/default_api_client.ex:673` — retry: false
+- `src/spec/resources/generated/go/SKILLS.md:230` — ## API Methods (no mention of GetInventoryWithHTTPInfo / ApiResult)
+- `src/spec/resources/generated/node/SKILLS.md:283` — ## API Methods
+
+## F890 [low] SKILLS covers cancellation and custom transports in only some languages, at different heading levels; java/kotlin/php/go/rust/swift SKILLS never mention injecting an HTTP client
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r
+
+SKILLS.md sections: cancellation exists in csharp (### Cancellation :232), python (### Your own pool manager and cancellation :221), node (## Cancellation :299, top level) and go (one sentence in API Methods :232); none in java, kotlin, php, ruby, dart, rust, swift, elixir. Custom transport: csharp :236, python :221, ruby (### Custom Faraday Connection :195), node (## Custom fetch :311, top level), dart (### Custom HTTP Client :239), elixir (### Custom HTTP Transport :219); none in java, kotlin, php, go, rust, swift although their READMEs document it. Canonical: SKILLS Configuration gets the same three subsections in all twelve, in the same order and level: '### Custom Transport Options', '### Custom HTTP client', '### Cancellation', each with a compilable sample.
+- `src/spec/resources/generated/node/SKILLS.md:299` — ## Cancellation
+- `src/spec/resources/generated/node/SKILLS.md:311` — ## Custom fetch
+- `src/spec/resources/generated/csharp/SKILLS.md:232` — ### Cancellation
+- `src/spec/resources/generated/python/SKILLS.md:221` — ### Your own pool manager and cancellation
+- `src/spec/resources/generated/java/SKILLS.md:220` — ## Configuration (only ### Custom Transport Options)
+
+## F891 [low] python README has two contradictory schema-constraint sections; php repeats the constraint text twice
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: p, y, t, h, o, n, ,, p, h, p
+
+python/README.md:121 '### Numeric / string constraint validation' says exclusiveMinimum/exclusiveMaximum/uniqueItems ARE enforced and violations surface 'as a SerializationException'; python/README.md:134 '### Schema constraints' (the S3 section) lists a different keyword set, says a violation raises pydantic.ValidationError and that uniqueItems is only an ordering matter. php has '## Schema constraints' (:90) and again '### Numeric / string constraint validation' under Not supported (:141). The other ten have only the S3 section. Canonical: delete the older 'Numeric / string constraint validation' sections; keep the single S3 'Schema constraints' section, stating for python which exception the caller actually sees (construction-time ValidationError vs decode-time serializer error).
+- `src/spec/resources/generated/python/README.md:121` — ### Numeric / string constraint validation
+- `src/spec/resources/generated/python/README.md:129` — which the `ObjectSerializer` surfaces as a `SerializationException` to
+- `src/spec/resources/generated/python/README.md:134` — ### Schema constraints
+- `src/spec/resources/generated/python/README.md:139` — (`Field(...)` constraints), and a violation raises `pydantic.ValidationError`.
+- `src/spec/resources/generated/php/README.md:141` — ### Numeric / string constraint validation
+
+## F892 [medium] java and dart still sort uniqueItems scalar arrays on the wire and document it, contradicting S6 ('Do not sort')
+- Status: **open** | Lens: review | Category: wire | Unit-testable (reviewer's view): None
+- SDKs: j, a, v, a, ,, d, a, r, t
+
+S6 (shared AGENTS.md:119) settles uniqueItems order: 'sets go out in the language's natural collection order, documented in the READMEs. Do not sort.' java registers a sortedScalarSetModule (ObjectSerializer.java:454-456, 576-602) and its README says 'Arrays of scalars are written in ascending order' (README.md:86-88); dart sorts strings, numbers and booleans (object_serializer.dart:230-242) and its README says the same (README.md:133-134). The other ten READMEs say natural order, not sorted. The ledger's F319 is parked; this is the residual after S6. Canonical: remove the sort in java and dart, write the Set's iteration order (LinkedHashSet insertion order), and change both README paragraphs to the shared S6 wording; a table row in the ObjectSerializer tests locks insertion order.
+- `src/main/java/io/github/mridang/codegen/generators/AGENTS.md:119` — Rule: left unspecified; sets go out in the language's natural collection order, documented in the READMEs. Do not sort.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/ObjectSerializer.java:454` — /* A uniqueItems array of scalars goes on the wire sorted, so the
+- `src/spec/resources/generated/java/README.md:86` — `uniqueItems` arrays are held in a `java.util.Set`. Arrays of scalars are written in ascending order
+- `src/spec/resources/generated/dart/lib/src/object_serializer.dart:238` — list.sort((a, b) => _compareCodePoints(a as String, b as String));
+- `src/spec/resources/generated/dart/README.md:133` — `uniqueItems` arrays are held in a `Set`. A `Set` of strings, of numbers or of
+
+## F893 [low] Parameter examples of optional (options-object) parameters are dropped from the API reference in 7 SDKs, and example blocks render seven different ways
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r
+
+findPetsByStatus.status declares two named examples ('Available only', 'Sold pets'). They appear in the operation docs of rust (pet_api.rs:912-921), swift (PetApi.swift:505-513), node (@example, pet-api.ts:746-747), go (pet_api.go:882-883) and dart (pet_api.dart:698), and nowhere in java, kotlin, csharp, php, python, ruby or elixir (grep 'Sold pets' finds no non-test hit; java's FindPetsByStatusOptions.java:21-23 carries only the description). Required-parameter examples (getPetById 'Small breed ID') do appear in all twelve, but in seven shapes: java inline in @param with {@code}, kotlin a KDoc line, csharp <example>, php '@example 1 Small breed ID', python and ruby as '# ...' lines inside the docstring/comment, rust/swift/dart as a ```json fence whose content is not JSON ('available' unquoted, pet_api.rs:914-916). Canonical: examples of every parameter, required or optional, are rendered on the operation doc (and on the options setter) in all twelve, in one shape per language's doc tool; a string example in a json fence is quoted, or the fence is untagged.
+- `src/spec/resources/generated/rust/src/api/pet_api.rs:914` — /// ```json /// available /// ```
+- `src/spec/resources/generated/node/src/api/pet-api.ts:746` — * @example Available only - available
+- `src/spec/resources/generated/go/pkg/pet_api.go:882` — // Example for `status` — Available only: available
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/api/options/FindPetsByStatusOptions.java:21` — <p>Status values that need to be considered for filter.
+- `src/spec/resources/generated/python/petstore_client/api/pet_api.py:1088` — # Small breed ID
+- `src/spec/resources/generated/csharp/src/PetstoreClient/Api/PetApi.cs:1466` — /// <example>Small breed ID: 1</example>
+
+## F894 [low] Package metadata: no manifest carries repository/homepage, so swift and go install instructions are placeholders; ruby authors is the API title; every file header credits openapi-generator.tech; swift
+- Status: **open** | Lens: review | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: j, a, v, a, ,, k, o, t, l, i, n, ,, c, s, h, a, r, p, ,, p, h, p, ,, p, y, t, h, o, n, ,, r, u, b, y, ,, n, o, d, e, ,, d, a, r, t, ,, g, o, ,, r, u, s, t, ,, s, w, i, f, t, ,, e, l, i, x, i, r
+
+No manifest has a repository or homepage field: pom.xml (no <url>/<scm>), build.gradle.kts pom, csproj (no RepositoryUrl/PackageProjectUrl/Authors), composer.json (homepage/support null), package.json (repository/homepage/author null), pyproject (no [project.urls]), gemspec (no homepage/metadata source_code_uri), pubspec (no repository), mix.exs package (no links), Cargo.toml (no repository). Consequences: swift/SKILLS.md:9 tells users `.package(url: "https://github.com/your-org/PetstoreClient", ...)` and go/SKILLS.md:6 `go get petstore` (module path go.mod:2 'module petstore' is not fetchable); hex.pm requires package links; npm/PyPI/crates.io pages show no source link. ruby gemspec:18 sets `s.authors = ['Swagger Petstore - OpenAPI 3.0']` (the API title). All twelve SDKs' file headers say 'Generated by: https://openapi-generator.tech' (e.g. ruby gemspec:8, java Client.java:7) while go's first line says openapi-generator-plus, so a developer reporting a generator bug is pointed at the upstream project. swift/README.md:145 and go/README.md:125 say 'The package manifest declares MIT', but Package.swift and go.mod have only an SPDX comment and no licence field. Canonical: one generator option (e.g. repositoryUrl, with homepage defaulting to it) rendered into every manifest, the swift/go install lines and the README; authors from info.contact or omitted; the header names openapi-generator-plus; the LICENSE caveat for swift/go says 'the SPDX header declares'. Licence-id defaulting itself is the open owner question and is not re-reported here.
+- `src/spec/resources/generated/swift/SKILLS.md:9` — .package(url: "https://github.com/your-org/PetstoreClient", from: "1.0.0")
+- `src/spec/resources/generated/go/SKILLS.md:6` — go get petstore
+- `src/spec/resources/generated/ruby/petstore_client.gemspec:18` — s.authors     = ['Swagger Petstore - OpenAPI 3.0']
+- `src/spec/resources/generated/ruby/petstore_client.gemspec:8` — # Generated by: https://openapi-generator.tech
+- `src/spec/resources/generated/go/pkg/client.go:1` — // Code generated by openapi-generator-plus. DO NOT EDIT.
+- `src/spec/resources/generated/swift/README.md:145` — The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file
+- `src/spec/resources/generated/node/package.json:1` — no repository/homepage/author keys
+
+## F895 [medium] OAuth2 token cache applies two expiry margins (30 s at store, 60 s at check), so any token with expires_in <= 90 s is never served from cache and every API call hits the token endpoint
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php
+
+fetchToken stores expiry = now + expires_in - min(expires_in, 30), and getAccessToken then treats the token as fresh only while now < expiry - 60 s. The two margins add up to 90 s. Failing scenario: the token endpoint returns expires_in=60 (common for short-lived STS / workload-identity tokens). Stored expiry = now+30 s; the freshness check compares now < now+30-60 = now-30, which is false at once, so every API call (and every concurrent caller, serialized by the lock) POSTs a new grant. expires_in=90 gives expiry-60 = now, also never fresh; expires_in=300 is cached for only 210 s instead of ~240-270 s. Verified end to end in all four token managers (store and check paths). Proposed: apply one margin, e.g. store the real expiry and check with a margin of min(60 s, expires_in/2), or keep the 30 s store buffer and drop the 60 s check margin. Lock with a test: expires_in=60, two calls, exactly one token POST.
+- `src/main/resources/templates/java/auth/oauth/oauth2_token_manager.mustache:36` — private static final long EXPIRY_SAFETY_MARGIN_SECONDS = 60L;
+- `src/main/resources/templates/java/auth/oauth/oauth2_token_manager.mustache:119` — || Instant.now().isBefore(tokenExpiry.minusSeconds(EXPIRY_SAFETY_MARGIN_SECONDS)))) {
+- `src/main/resources/templates/java/auth/oauth/oauth2_token_manager.mustache:303` — long bufferSecs = Math.min(expiresIn, 30L);
+- `src/main/resources/templates/kotlin/auth/oauth/oauth2_token_manager.mustache:36` — private const val EXPIRY_SAFETY_MARGIN_MS: Long = 60_000L
+- `src/main/resources/templates/kotlin/auth/oauth/oauth2_token_manager.mustache:315` — val bufferSecs = minOf(expiresIn, 30L)
+- `src/main/resources/templates/csharp/auth/oauth/oauth2_token_manager.mustache:22` — private const int ExpirySafetyMarginSeconds = 60;
+- `src/main/resources/templates/csharp/auth/oauth/oauth2_token_manager.mustache:385` — long bufferSecs = Math.Min(seconds, 30L);
+- `src/main/resources/templates/php/auth/oauth/oauth2_token_manager.mustache:38` — private const int EXPIRY_SAFETY_MARGIN_S = 60;
+- `src/main/resources/templates/php/auth/oauth/oauth2_token_manager.mustache:292` — $bufferSecs = min($expiresIn, 30);
+
+## F896 [medium] java, csharp and php keep the previous (already stale) expiry when a refresh or re-grant response omits expires_in, so every following call refreshes again; F536 fixed only kotlin
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: java, csharp, php
+
+F536 fixed kotlin (a response without expires_in now sets tokenExpiryMs = null) with the note 'as in the other SDKs', and the php report F556 was closed as its duplicate. But java fetchToken, csharp FetchTokenAsync and php fetchToken only assign the expiry inside the expires_in branch and have no else, and getAccessToken does not clear the expiry before the refresh/re-grant. Scenario: first grant returns expires_in=3600; an hour later the cached token is stale, the refresh grant returns {access_token, token_type} with no expires_in; the new token is stored but tokenExpiry still holds the old past instant, so the very next call sees it as expired and refreshes again, on every call, for the life of the client. (exchange() clears the expiry first, so only the getAccessToken path is affected.) Proposed: mirror kotlin: set the expiry to null when expires_in is absent or null.
+- `src/main/resources/templates/java/auth/oauth/oauth2_token_manager.mustache:294` — if (json.has("expires_in") && !json.get("expires_in").isNull()) {
+- `src/main/resources/templates/csharp/auth/oauth/oauth2_token_manager.mustache:372` — root.TryGetProperty("expires_in", out JsonElement expiresIn)
+- `src/main/resources/templates/php/auth/oauth/oauth2_token_manager.mustache:283` — if (array_key_exists('expires_in', $responseBody) && $responseBody['expires_in'] !== null) {
+- `src/main/resources/templates/kotlin/auth/oauth/oauth2_token_manager.mustache:205` — this.tokenExpiryMs = null
+
+## F897 [medium] php sends float query, path, header, form and multipart values with only 14 significant digits because stringify uses (string) $float, which honours the precision ini (default 14); JSON bodies are exa
+- Status: **open** | Lens: review | Category: wire | Unit-testable (reviewer's view): None
+- SDKs: php
+
+ObjectSerializer::stringify formats floats with (string) $value. PHP's string cast uses the `precision` ini setting (default 14), not serialize_precision (-1, shortest round-trip) that json_encode uses. Verified in php 8 (docker): (string)0.1234567890123456 is '0.12345678901235', (string)(0.1+0.2) is '0.3', ini precision=14, while json_encode gives 0.1234567890123456. Scenario: a double query parameter lat=52.520008123456789 is sent as 52.520008123457, so the same value differs between a JSON body and a query string, and differs from java/kotlin/csharp, which print the shortest round-trip form. stringify is the shared path for ValueSerializer (query/path/header, value_serializer.mustache:86), form bodies (base_api buildQuery) and multipart text parts. Not covered by F240 (that fixed only the missing '.0'). Proposed: format with var_export-like round-trip (e.g. json_encode($value) for finite floats, then add the '.0' guard), or ini-independent sprintf('%.17g') trimmed to shortest round-trip.
+- `src/main/resources/templates/php/object_serializer.mustache:588` — $text = (string) $value;
+- `src/main/resources/templates/php/value_serializer.mustache:86` — $str = ObjectSerializer::stringify($value);
+
+## F898 [medium] csharp redirect loop compares every hop with the original URL and rebuilds headers from the original set, so a chain A -> other origin -> A re-sends the Authorization, Cookie and API-key headers the c
+- Status: **open** | Lens: review | Category: security | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+In csharp SendRequestAsync, originalUrl is never updated inside the loop, crossOrigin = !SameOrigin(originalUrl, nextUrl), and each hop's headers are copied from mergedHeaders (the original request's headers), filtering sensitive ones only when that hop is cross-origin relative to the ORIGINAL URL. Scenario: GET https://api.example.com/x with Authorization -> 302 to https://files.other.net/y (stripped, correct) -> files.other.net answers 307 Location: https://api.example.com/admin/delete. The third hop is same-origin with the original, so Authorization (and Cookie, API-key headers) are re-attached and the request is sent with credentials to a path chosen by the third-party host; with 307 the original method and body are kept. java and kotlin carry the stripped map forward (currentHeaders = redirectHeaders) and compare with the previous hop; php carries the stripped map forward too. The Fetch standard also removes Authorization permanently once a cross-origin hop happens. Proposed: carry the filtered header map forward hop to hop (as java) and compare with currentUrl.
+- `src/main/resources/templates/csharp/default_api_client.mustache:542` — bool crossOrigin = !SameOrigin(originalUrl, nextUrl);
+- `src/main/resources/templates/csharp/default_api_client.mustache:603` — foreach (KeyValuePair<string, string> header in mergedHeaders)
+- `src/main/resources/templates/csharp/default_api_client.mustache:614` — if (crossOrigin && SensitiveHeaderNames.Contains(header.Key))
+- `src/main/resources/templates/java/default_api_client.mustache:624` — currentHeaders = redirectHeaders;
+
+## F899 [low] php skips caCertPath validation when verifySsl is false, contradicting D73/S16 and php/AGENTS.md ('runs before the verifySsl branch')
+- Status: **open** | Lens: review | Category: error-contract | Unit-testable (reviewer's view): None
+- SDKs: php
+
+createHttpClient reads and parses caCertPath only in the elseif branch after `if (!verifySsl)`. Scenario: TransportOptions::builder()->verifySsl(false)->caCertPath('/missing.pem')->build() and new DefaultApiClient($opts) succeed silently, whereas java (buildPinnedSslContext before the verifySsl check), csharp (ImportFromPemFile before the VerifySsl branch) and kotlin fail with the D79 CA message. php/AGENTS.md 'CA validation and message grammar' states file_get_contents and openssl_x509_read run before the verifySsl branch, and D73 is not in php's 'pending in the golden' list, so the rule is documented as done but is not implemented; no php test covers the verifySsl=false case. Proposed: move the read/parse above the branch and set cafile/capath only when verifying; add a test row.
+- `src/main/resources/templates/php/default_api_client.mustache:66` — if (!$this->transportOptions->verifySsl) {
+- `src/main/resources/templates/php/default_api_client.mustache:69` — } elseif ($this->transportOptions->caCertPath !== null) {
+
+## F900 [medium] php binary request bodies and PSR-18 multipart file parts silently upload an empty body when the file or stream cannot be read (@file_get_contents / stream_get_contents false becomes '')
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: php
+
+BaseApi::serializeBody reads an SplFileObject with @file_get_contents and returns '' on false, and a stream with stream_get_contents, returning '' on false; Psr18ApiClient::encodeMultipart does the same for file and stream parts, and DefaultApiClient casts (string) stream_get_contents(...). Scenario: uploadPetPhoto with new \SplFileObject('/tmp/photo.jpg') whose file was deleted or made unreadable after the handle was opened (or a non-blocking/closed stream): the request is sent with Content-Length: 0 and the call returns success, overwriting the server-side photo with nothing. java throws IllegalArgumentException('Failed to read request body file'), kotlin/csharp propagate the IO error. F815 was closed as invalid because it looked at default_api_client's DataPart::fromPath, not these sites. Proposed: throw \InvalidArgumentException (or a SerializationException) naming the path when the read returns false, without '@'.
+- `src/main/resources/templates/php/base_api.mustache:480` — $contents = @file_get_contents($path !== false ? $path : $body->getPathname());
+- `src/main/resources/templates/php/base_api.mustache:484` — $contents = stream_get_contents($body);
+- `src/main/resources/templates/php/psr18_api_client.mustache:177` — $content = @file_get_contents($path !== false ? $path : $v->getPathname());
+- `src/main/resources/templates/php/psr18_api_client.mustache:187` — $content = is_resource($v) ? stream_get_contents($v) : (string) $v;
+- `src/main/resources/templates/php/default_api_client.mustache:302` — is_resource($v) ? (string) stream_get_contents($v) : (string) $v,
+
+## F901 [low] java and kotlin decode proxy userinfo with URLDecoder, which turns a literal '+' into a space, so a proxy password containing '+' is sent wrong and the proxy answers 407
+- Status: **open** | Lens: review | Category: encoding | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin
+
+computeProxyAuthHeader (java) and buildProxyAuthHeader (kotlin) build Proxy-Authorization from URLDecoder.decode(rawUserInfo, UTF-8). URLDecoder implements application/x-www-form-urlencoded and maps '+' to ' '; in a URI userinfo '+' is a literal sub-delim (RFC 3986 3.2.1). Scenario: proxy http://svc:pa+ss@proxy:3128 -> header Basic base64('svc:pa ss') -> 407 on every request. csharp uses Uri.UnescapeDataString (keeps '+'), php hands the URL to Symfony/curl (keeps '+'). Proposed: percent-decode without '+' handling (e.g. URI#getUserInfo, or replace '+' with '%2B' before URLDecoder).
+- `src/main/resources/templates/java/default_api_client.mustache:363` — java.net.URLDecoder.decode(userInfo, StandardCharsets.UTF_8)
+- `src/main/resources/templates/kotlin/default_api_client.mustache:680` — val decoded = java.net.URLDecoder.decode(rawUserInfo, Charsets.UTF_8)
+- `src/main/resources/templates/csharp/default_api_client.mustache:118` — string pass = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+
+## F902 [low] The three redirect refusals still use per-language wording and drop the response headers in csharp, php and kotlin (D13, D16), and java/csharp use-after-close messages differ from D29
+- Status: **open** | Lens: review | Category: error-contract | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php
+
+D16 fixes `Refusing to follow redirect to non-HTTP(S) URL: <next-url>`, `Refusing to replay request body across HTTPS->HTTP redirect: <current-url> -> <next-url>`, `Too many redirects (exceeded <N>)`, and D13 says these errors carry the real lower-cased response headers. Current templates: csharp 'non-http(s) URL', 'HTTPS->HTTP downgrade redirect to: <url>', 'Exceeded maximum number of redirects (N)', and the first two pass no headers; php 'Redirect to unsupported scheme ... in Location: ...', '... downgrade redirect to <url>', and none of the three pass headers although php/AGENTS.md states they do; kotlin passes null headers on the downgrade refusal and prints 'exceeded maxRedirects=N'; java prints 'Too many redirects (exceeded maxRedirects) following <url>' with no N. Scenario: a caller matching on the message or reading e.getResponseHeaders() for the Location gets different text in each SDK and null headers in csharp/php although a response arrived (D13 says null means no response). D29: java and csharp throw 'ApiClient has been closed' while kotlin/php use the canonical '... and can no longer send requests'. F260 (closed false-positive) predates D16.
+- `src/main/resources/templates/csharp/default_api_client.mustache:540` — $"Refusing to follow redirect to non-http(s) URL: {nextUrl}");
+- `src/main/resources/templates/csharp/default_api_client.mustache:573` — $"Refusing to replay request body across HTTPS->HTTP downgrade redirect to: {nextUrl}");
+- `src/main/resources/templates/csharp/default_api_client.mustache:662` — $"Exceeded maximum number of redirects ({maxRedirects})",
+- `src/main/resources/templates/php/abstract_api_client.mustache:225` — "Redirect to unsupported scheme '$scheme' in Location: $nextUrl"
+- `src/main/resources/templates/php/abstract_api_client.mustache:269` — "Refusing to replay request body across HTTPS->HTTP downgrade redirect to $nextUrl"
+- `src/main/resources/templates/php/abstract_api_client.mustache:313` — "Too many redirects (exceeded maxRedirects=$maxRedirects)"
+- `src/main/resources/templates/kotlin/default_api_client.mustache:249` — "Refusing to replay request body across HTTPS->HTTP redirect: $currentUrl -> $redirectUri",
+- `src/main/resources/templates/java/default_api_client.mustache:637` — "Too many redirects (exceeded maxRedirects) following " + url,
+- `src/main/resources/templates/java/default_api_client.mustache:413` — throw new IllegalStateException("ApiClient has been closed");
+- `src/main/resources/templates/csharp/default_api_client.mustache:358` — throw new InvalidOperationException("ApiClient has been closed");
+
+## F903 [low] Token-response JSON errors break D07: csharp appends the parser message and keeps the JsonException as cause; php reports invalid JSON as 'not a JSON object' and accepts a JSON array as an object
+- Status: **open** | Lens: review | Category: error-contract | Unit-testable (reviewer's view): None
+- SDKs: csharp, php
+
+D07: token errors are byte-identical with no cause or parser detail: 'Token response is not valid JSON', 'Token response is not a JSON object', 'Token response missing or empty access_token field' (secrets must not leak through parser detail). csharp ParseTokenResponse throws $"Token response is not valid JSON: {ex.Message}" with the JsonException as cause (System.Text.Json messages quote the offending character and position). php json_decode($body, true) returns null for invalid JSON, which becomes 'Token response is not a JSON object', and a JSON list such as ["tok"] passes is_array() and then reports 'missing or empty access_token' instead of 'not a JSON object'. java and kotlin follow D07. Scenario: a form-encoded 200 answer access_token=abc&... gives three different messages across these SDKs.
+- `src/main/resources/templates/csharp/auth/oauth/oauth2_token_manager.mustache:407` — throw new OAuth2TokenException($"Token response is not valid JSON: {ex.Message}", ex);
+- `src/main/resources/templates/php/auth/oauth/oauth2_token_manager.mustache:269` — $responseBody = json_decode($response->body, true);
+- `src/main/resources/templates/php/auth/oauth/oauth2_token_manager.mustache:271` — throw new OAuth2TokenException('Token response is not a JSON object');
+
+## F904 [low] A final 3xx without a Location after exactly maxRedirects hops (or any 3xx with maxRedirects=0) raises 'too many redirects' instead of being returned (D70 edge), and a negative maxRedirects is accepte
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php
+
+D70: 'too many redirects' only when the budget is exhausted with a Location present; a 3xx without a usable Location is returned unchanged. All four loops test the budget before looking at Location and the post-loop check only looks at the status. Scenario A: maxRedirects=1, GET -> 302 Location:/a -> GET /a answers 302 with no Location: the loop exits on budget and the check throws 'too many redirects' although no further hop was possible. Scenario B: followRedirects=true, maxRedirects=0: any 3xx, even without Location, throws. Scenario C: maxRedirects=-1 (a common 'unlimited' convention) is not validated by any builder (unlike timeout, D77): java (redirectsRemaining <= 0), csharp and php (hops >= max) throw on the first 3xx, kotlin (redirectsRemaining == 0) returns the 3xx silently. Proposed: in the post-loop check also require a usable Location, and reject maxRedirects < 0 at configuration with a D77-style message.
+- `src/main/resources/templates/java/default_api_client.mustache:634` — if (redirectsRemaining <= 0 && isRedirect(response.statusCode())) {
+- `src/main/resources/templates/kotlin/default_api_client.mustache:314` — if (isRedirectStatus(response.status.value) && redirectsRemaining == 0) {
+- `src/main/resources/templates/csharp/default_api_client.mustache:655` — if (hops >= maxRedirects && IsRedirectStatus((int)response.StatusCode))
+- `src/main/resources/templates/php/abstract_api_client.mustache:310` — if ($hops >= $maxRedirects && self::isRedirectStatus($response->statusCode)) {
+- `src/main/resources/templates/php/transport_options_builder.mustache:118` — $this->maxRedirects = $maxRedirects;
+
+## F905 [low] The SDK adds its own Accept-Encoding with a case-sensitive presence check, so a caller's lower-case accept-encoding (for example 'identity') is sent alongside 'gzip, deflate'
+- Status: **open** | Lens: review | Category: wire | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php
+
+User-Agent and X-Request-ID injection were made case-insensitive (RFC 9110 5.1, D21), but Accept-Encoding still uses an exact-key check: java mergedHeaders.putIfAbsent('Accept-Encoding'), kotlin '"Accept-Encoding" !in mergedHeaders', csharp ContainsKey on a default (ordinal) Dictionary copy, php $mergedHeaders['Accept-Encoding'] ??=. Scenario: TransportOptions.defaultHeaders {"accept-encoding": "identity"} to disable compression: the request carries both header lines (JDK HttpClient builder.header appends, HttpRequestMessage.TryAddWithoutValidation adds a second value, Symfony sends both), which the server combines as 'identity, gzip, deflate' and compresses anyway. Proposed: reuse the case-insensitive hasHeader helper for Accept-Encoding (and for the php body==null Content-Type unset).
+- `src/main/resources/templates/java/default_api_client.mustache:492` — mergedHeaders.putIfAbsent("Accept-Encoding", getSupportedEncodings());
+- `src/main/resources/templates/kotlin/default_api_client.mustache:147` — if ("Accept-Encoding" !in mergedHeaders) {
+- `src/main/resources/templates/csharp/default_api_client.mustache:384` — if (!mergedHeaders.ContainsKey("Accept-Encoding"))
+- `src/main/resources/templates/php/abstract_api_client.mustache:173` — $mergedHeaders['Accept-Encoding'] ??= $this->getSupportedEncodings();
+
+## F906 [low] kotlin finds the response charset with a case-sensitive substringAfter("charset="), so 'Charset=ISO-8859-1' or 'charset = x' falls back to UTF-8 and the body is mojibake
+- Status: **open** | Lens: review | Category: encoding | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+charsetFor uses contentType.substringAfter("charset=", ""). Media-type parameter names are case-insensitive and may have whitespace around '=' (RFC 9110 5.6.6, 8.3.1). Scenario: text/plain; Charset=ISO-8859-1 with body 'caf\xe9' decodes as UTF-8 'caf\ufffd' in kotlin, while java (regex (?i)charset\s*=), php (strcasecmp on trimmed name) and csharp (MediaTypeHeaderValue.CharSet) decode 'cafe' with the accent. It also matches inside another parameter name (xcharset=). Proposed: parse parameters by ';', trim, compare the name ignoring case, as php does.
+- `src/main/resources/templates/kotlin/default_api_client.mustache:803` — val afterEquals = contentType.substringAfter("charset=", "")
+- `src/main/resources/templates/java/default_api_client.mustache:893` — Pattern.compile("(?i)charset\\s*=\\s*\"?([^\";\\s]+)\"?");
+
+## F907 [low] java's stale-connection retry re-sends with the full timeout instead of the remaining budget, so one call can take up to twice the configured end-to-end timeout (D76)
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: java
+
+The first hop is built with builder.timeout(full timeout) and sendWithRetry calls sendBounded(request) a second time with the same HttpRequest after 'header parser received no bytes' (idempotent methods). sendBounded waits request.timeout(), i.e. the full budget again, and the remaining-deadline computation only exists for redirect hops. Scenario: timeout=10000 ms, a GET whose server holds the connection 9.9 s and then closes it without a byte: the retry gets another 10 s, so the caller waits ~20 s before NetworkTimeoutException. D76 says one end-to-end budget. Proposed: rebuild the retry request with the remaining nanos (as the redirect path does) or refuse the retry when the budget is spent.
+- `src/main/resources/templates/java/default_api_client.mustache:489` — builder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
+- `src/main/resources/templates/java/default_api_client.mustache:730` — return sendBounded(request);
+
+## F908 [low] Response bodies are buffered and decompressed with no size cap, so a small gzip/br/zstd 'bomb' from a hostile or compromised server exhausts memory (the SDK advertises these codings itself)
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php
+
+Every transport reads the full body into memory and then fully inflates it: java GZIPInputStream.readAllBytes, kotlin readBytes, csharp ReadAsByteArrayAsync then DecodeContentEncoding, php getContent(false) then gzdecode. Scenario: a server (or a MITM when verifySsl=false) answers Content-Encoding: gzip with a 10 MB body of compressed zeros that inflates to ~10 GB: OutOfMemoryError in java/kotlin, OutOfMemoryException in csharp, a fatal 'Allowed memory size exhausted' in php, none mapped to an SDK error. The SDK already defends hostile input elsewhere (JSON depth pre-scan, D15; expires_in ceiling, D08). Related to but not the same as F837 (streaming contract). Best-in-class clients mostly do not cap either, hence low. Proposed: an optional maxResponseBytes in TransportOptions enforced on the decoded size, raising an ApiException for an unusable response.
+- `src/main/resources/templates/java/default_api_client.mustache:976` — yield gis.readAllBytes();
+- `src/main/resources/templates/kotlin/default_api_client.mustache:630` — java.util.zip.GZIPInputStream(data.inputStream()).use { it.readBytes() }
+- `src/main/resources/templates/csharp/default_api_client.mustache:687` — responseBytes = await response.Content.ReadAsByteArrayAsync(timeoutToken).ConfigureAwait(false);
+- `src/main/resources/templates/php/abstract_api_client.mustache:663` — 'gzip', 'x-gzip' => self::decoded(@gzdecode($body), 'gzip'),
+- `src/main/resources/templates/php/default_api_client.mustache:350` — $responseBody = $response->getContent(false);
+
+## F909 [low] csharp OAuth2TokenManager reads _accessToken and the 24-byte DateTimeOffset? _tokenExpiry without a lock or volatile on the fast path while FetchTokenAsync writes them outside the lock (unverified tor
+- Status: **open** | Lens: review | Category: thread-safety | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+GetAccessTokenAsync checks _accessToken and _tokenExpiry before taking _stateLock, and FetchTokenAsync/SetAccessToken write both fields from the refresh task without the lock. Nullable<DateTimeOffset> is larger than a machine word, so .NET does not guarantee an atomic read; a concurrent reader can see a torn value or a new token paired with the old expiry. Plausible effect: an expired token served once (401) or an extra refresh. java (synchronized) and kotlin (@Volatile Long? boxed reference, re-check under Mutex) do not have this. Unverified: not reproduced. Proposed: store expiry as a long of UTC ticks with Volatile/Interlocked, or keep an immutable (token, expiry) record in one volatile reference.
+- `src/main/resources/templates/csharp/auth/oauth/oauth2_token_manager.mustache:34` — private DateTimeOffset? _tokenExpiry;
+- `src/main/resources/templates/csharp/auth/oauth/oauth2_token_manager.mustache:80` — || DateTimeOffset.UtcNow
+
+## F910 [medium] OAuth2 token cache applies two safety margins (30 s at store, 60 s at check), so a token with expires_in <= 90 s is never cached and is re-fetched on every API call
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: python, ruby, node, dart
+
+On store every token manager subtracts min(expires_in, 30) s from the lifetime; on read it again requires now < expiry - 60 s. The effective cache window is therefore expires_in - 90 s. Scenario: an IdP issuing expires_in=60 (common for short-lived machine tokens): store sets expiry = now+30 s; the very next get_access_token sees now < now+30-60 is false and POSTs to the token endpoint again, so every API call performs a token request (or a refresh grant), doubling latency and hitting IdP rate limits; with expires_in=120 the token is reused only for 30 s. Traced end to end in python (_fetch_token -> get_access_token), ruby (apply_token_response -> token_still_valid?), node (fetchToken -> getAccessToken) and dart (_fetchToken -> getAccessToken). The same pattern is in java (OAuth2TokenManager.java:310 plus EXPIRY_SAFETY_MARGIN_SECONDS), kotlin, swift and elixir, so it is likely all twelve. Canonical behaviour: one margin, capped at a fraction of the lifetime (for example min(60 s, expires_in/2)), applied once.
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_token_manager.py:283` — buffer_secs = min(expires_in, 30)
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_token_manager.py:92` — or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)
+- `src/spec/resources/generated/ruby/lib/petstore/client/auth/oauth/oauth2_token_manager.rb:282` — Time.now.to_f + expires_in - buffer_secs
+- `src/spec/resources/generated/ruby/lib/petstore/client/auth/oauth/oauth2_token_manager.rb:155` — Time.now.to_f < (@token_expiry - EXPIRY_SAFETY_MARGIN_S)
+- `src/spec/resources/generated/node/src/auth/oauth/oauth2-token-manager.ts:307` — const bufferSecs = Math.min(expiresIn, 30);
+- `src/spec/resources/generated/node/src/auth/oauth/oauth2-token-manager.ts:72` — this.tokenExpiry - OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_MS)
+- `src/spec/resources/generated/dart/lib/src/auth/oauth/oauth2_token_manager.dart:279` — final bufferSecs = expiresIn < 30 ? expiresIn : 30;
+- `src/spec/resources/generated/dart/lib/src/auth/oauth/oauth2_token_manager.dart:79` — _tokenExpiry!.subtract(_expirySafetyMargin),
+
+## F911 [medium] Residual of F536: python, ruby, node and dart keep the previous (stale) expiry when a refresh or re-grant response omits expires_in, so every following call refreshes again
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: python, ruby, node, dart
+
+F536 was fixed in kotlin by clearing the expiry when expires_in is absent, with the note 'as in the other SDKs', but these four only touch the expiry inside the `if expires_in present` branch and never reset it in get_access_token before re-fetching. Scenario: the first grant returns expires_in=3600; after about an hour the token is stale; the refresh grant returns a new access_token without expires_in (optional per RFC 6749 s5.1). The new token is stored but _token_expiry still holds the old, past instant, so token_still_valid is false on the next call and the SDK refreshes again, on every call for the life of the session (and with rotating refresh tokens, every call rotates). exchange() does reset the expiry, so only the get_access_token path is affected. Note RF-13 in the shared AGENTS.md says swift 'keeps the prior expiry'; kotlin's F536 fix and this defect show that rule needs restating as 'no expires_in means no expiry'.
+- `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_token_manager.py:274` — if "expires_in" in token_data and token_data["expires_in"] is not None:
+- `src/spec/resources/generated/ruby/lib/petstore/client/auth/oauth/oauth2_token_manager.rb:266` — return unless parsed.key?('expires_in')
+- `src/spec/resources/generated/node/src/auth/oauth/oauth2-token-manager.ts:298` — if (json.expires_in !== undefined && json.expires_in !== null) {
+- `src/spec/resources/generated/dart/lib/src/auth/oauth/oauth2_token_manager.dart:270` — if (parsed.containsKey('expires_in') && parsed['expires_in'] != null) {
+
+## F912 [medium] python and ruby timeouts are per socket read, not end to end: a server that trickles the body slower than the timeout per chunk holds the call far past the budget (D76)
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: python, ruby
+
+D76 requires one end-to-end budget covering connect, TLS, hops and body. python passes urllib3.Timeout(total=t) and then calls response.read() with no deadline check; urllib3 turns total into a per-recv socket timeout, so each read may wait up to the remaining budget and the clock is not enforced across reads. Verified by running urllib3 2.6.3: a local server sending headers and then one byte every 0.6 s, with Timeout(total=1.0) and preload_content=False, returned all 6 bytes after 3.64 s instead of raising. ruby sets Faraday timeout/open/write to the remaining budget per hop; Faraday's net_http adapter maps it to Net::HTTP#read_timeout, which is documented as the wait for one read(2) call, so the same trickle keeps the call alive indefinitely (ruby not run, unverified by execution). F009 listed python 'urllib3 read timeout' and ruby 'read_timeout' as bounding body reads; they bound a stall, not a trickle. node (AbortSignal over arrayBuffer) and dart (_readWithin timer) are fine. Fix: enforce the deadline while reading (python read in chunks checking time.monotonic() against the deadline; ruby wrap the hop in a deadline or read the body with a monotonic check).
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:614` — request_kwargs["timeout"] = urllib3.Timeout(total=timeout_seconds)
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:679` — raw_data = response.read()
+- `src/spec/resources/generated/ruby/lib/petstore/client/default_api_client.rb:357` — request.options.timeout = remaining
+- `src/spec/resources/generated/ruby/lib/petstore/client/default_api_client.rb:535` — f.options.timeout = timeout_secs
+
+## F913 [low] node decodes a bare charset=utf-16 body as utf-16be even when it starts with a little-endian BOM, giving U+FFFE plus byte-swapped text (F257 wrongly lists node as fine)
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: node
+
+decodeBody rewrites a bare 'utf-16'/'utf16' label to 'utf-16be' unconditionally and hands the bytes to TextDecoder. TextDecoder('utf-16be') does not sniff a BOM of the other byte order. Verified with node: bytes FF FE 41 00 42 00 decode to U+FFFE U+4100 U+4200. A .NET or Windows server writing Encoding.Unicode (LE with BOM) and Content-Type text/plain; charset=utf-16 therefore yields garbage. python (_resolve_utf16_charset), ruby (utf16_bom?) and dart (_decodeUtf16) check the BOM first. D91 requires utf-16 to be BOM-aware.
+- `src/spec/resources/generated/node/src/abstract-api-client.ts:821` — cs = "utf-16be";
+
+## F914 [low] node map decode assigns wire keys with out[k] = ..., so a response key "__proto__" is dropped and re-prototypes the returned map (prototype poisoning of the result object)
+- Status: **open** | Lens: review | Category: security | Unit-testable (reviewer's view): None
+- SDKs: node
+
+deserializeMap builds the result with a plain object literal and bracket assignment. JSON.parse keeps "__proto__" as an own key, Object.entries yields it, and out["__proto__"] = value calls the Object.prototype setter: the key vanishes from the map and, for an object value, the map inherits the attacker's properties (out.polluted reads through). Verified with node: {"a":"1","__proto__":{"polluted":"yes"}} gives keys ['a'] and out.polluted === 'yes'. It is not global pollution, but a server or proxy can hide or inject map entries that a caller reads with a property lookup or `in`. The same [[Set]] pattern is in model constructors (Object.assign(this, ...) in e.g. models/metadata.ts), where caller data carrying an own __proto__ replaces the instance prototype and equals() disappears (verified with a minimal class). The additionalProperties re-attach path already uses Object.defineProperty and is safe. Fix: build maps with Object.create(null) or defineProperty, or reject the key.
+- `src/spec/resources/generated/node/src/object-serializer.ts:1092` — const out: Record<string, T> = {};
+- `src/spec/resources/generated/node/src/object-serializer.ts:1103` — out[k] = deserialized as T;
+
+## F915 [medium] A binary request body of a byte type other than the canonical one is silently mangled: python sends bytearray/memoryview as an empty body, node turns a plain Uint8Array into a multipart body with one 
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: python, node
+
+python: BaseApi passes a format: binary body through unchanged (raw_body=True) and even accepts bytearray when picking a part, but DefaultApiClient._send only recognises dict, bytes and str; anything else becomes encoded_body = None, Content-Type is removed and Content-Length: 0 is added for PUT/POST, so set_pet_avatar(1, bytearray(img)) succeeds on the client and uploads nothing (mypy with promotion disabled is the only guard). node: BaseApi.serializeBody explicitly returns a Uint8Array for a raw body, but AbstractApiClient.sendRequest treats every non-Buffer object as multipart form parts, so a Uint8Array (from TextEncoder, fetch arrayBuffer, a JS caller or a cast) is sent as multipart/form-data with parts named '0', '1', ... and the declared image/* Content-Type is replaced. Fix: accept every byte-like type in the transport (python bytes(...) for bytearray/memoryview; node Buffer.from for ArrayBufferView) or reject it loudly.
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:591` — elif isinstance(body, bytes):
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:596` — encoded_body = None
+- `src/spec/resources/generated/node/src/api/base-api.ts:373` — body instanceof Uint8Array ||
+- `src/spec/resources/generated/node/src/abstract-api-client.ts:284` — if (body != null && typeof body === "object" && !Buffer.isBuffer(body)) {
+
+## F916 [low] ruby, node and dart report 'too many redirects' when the budget is used up and the last 3xx has no Location, which D70 says is a legitimate terminal response
+- Status: **open** | Lens: review | Category: error-contract | Unit-testable (reviewer's view): None
+- SDKs: ruby, node, dart
+
+The post-loop check is hops >= max && isRedirect(status) with no Location test. Scenario: max_redirects=1, A answers 302 -> B, B answers 302 with no Location. The loop stops on the budget, and the check raises the too-many-redirects ApiError although the 3xx is terminal and should reach status mapping with its body. With max_redirects=0 every 3xx (even without Location) raises. python gates the same check on unusable_location and response.headers.get('location'). F088 fixed only the pure no-Location case, not the exhausted-budget one.
+- `src/spec/resources/generated/ruby/lib/petstore/client/default_api_client.rb:266` — if hops >= max_redirects && redirect_status?(response.status)
+- `src/spec/resources/generated/node/src/abstract-api-client.ts:506` — hops >= maxRedirects &&
+- `src/spec/resources/generated/dart/lib/src/abstract_api_client.dart:404` — if (hops >= maxRedirects &&
+
+## F917 [low] Redirect refusal errors drop or mis-case the response headers: node (two of three) and dart (all three) pass null, python passes the server's original header casing (D13, FD-5)
+- Status: **open** | Lens: review | Category: error-contract | Unit-testable (reviewer's view): None
+- SDKs: node, dart, python
+
+D13 requires the three redirect refusals to carry the real status and the real lower-cased response headers; FD-5 says null means no response arrived. node throws the non-HTTP(S) and HTTPS->HTTP refusals with responseHeaders null (only the too-many-redirects one uses collectHeaders). dart builds all three ApiException(statusCode, message) with no responseHeaders, so they are null. python passes dict(response.headers) from urllib3's HTTPHeaderDict, which keeps the server's casing ('Location', 'Content-Type') and is not lower-cased like ApiHttpResponse headers (read, not run). A caller testing headers is None to mean 'no response' gets the wrong answer, and x-request-id is unavailable on these errors.
+- `src/spec/resources/generated/node/src/abstract-api-client.ts:406` — throw new ApiError(
+- `src/spec/resources/generated/node/src/abstract-api-client.ts:409` — null,
+- `src/spec/resources/generated/dart/lib/src/abstract_api_client.dart:289` — throw ApiException(
+- `src/spec/resources/generated/dart/lib/src/abstract_api_client.dart:409` — message: 'Exceeded maximum number of redirects ($maxRedirects)',
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:832` — response_headers=dict(response.headers),
+
+## F918 [low] dart ignores a quoted charset parameter (charset="iso-8859-1"), decoding the body as UTF-8 with replacement characters
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: dart
+
+_charsetOf takes the match of charset=([^;]+), trims and lower-cases it, but does not strip the quotes RFC 9110 allows for a parameter value. '"iso-8859-1"', '"utf-16"' and '"windows-1252"' hit the default branch and are decoded as UTF-8 with allowMalformed, corrupting every non-ASCII byte. python and ruby regexes skip the quotes and node strips them.
+- `src/spec/resources/generated/dart/lib/src/abstract_api_client.dart:798` — return match?.group(1)?.trim().toLowerCase() ?? '';
+
+## F919 [low] dart multipart filename fallback works per UTF-16 code unit, so a non-BMP character (emoji) becomes two underscores (D90 says one per code point)
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: dart
+
+buildFilenameDirective iterates filename.codeUnits, so 'a😀.png' gives filename="a__.png" while python, ruby and node (for...of over code points) give 'a_.png'. D90 fixes the per-code-point fallback.
+- `src/spec/resources/generated/dart/lib/src/abstract_api_client.dart:957` — for (final c in filename.codeUnits) {
+
+## F920 [low] Header merging is case-sensitive in python and node, so a default header written in another case is sent twice (or comma-joined) instead of overriding
+- Status: **open** | Lens: review | Category: behavior | Unit-testable (reviewer's view): None
+- SDKs: python, node
+
+BaseApi merges the HeaderSelector's 'Accept'/'Content-Type' with Configuration.default_headers and operation headers by plain dict update / Object.assign, and later removes 'Content-Type' by exact key. Scenario: default_headers {'accept': 'application/vnd.x+json'}. python hands urllib3 both keys and two Accept lines go on the wire; node's fetch Headers combines them into 'Accept: application/json, application/vnd.x+json'. A lower-case 'content-type' default survives the body-less removal and is sent on a GET. The transport's setdefault('Accept-Encoding') in python has the same blind spot. ruby (Net::HTTP downcases, last wins) and dart (package:http case-insensitive headers) end up with one value.
+- `src/spec/resources/generated/python/petstore_client/api/base_api.py:238` — headers.update(self._config.default_headers)
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:597` — merged_headers.pop("Content-Type", None)
+- `src/spec/resources/generated/node/src/api/base-api.ts:164` — Object.assign(headers, this.config.defaultHeaders);
+- `src/spec/resources/generated/node/src/api/base-api.ts:198` — delete headers["Content-Type"];
+
+## F921 [low] Redirect refusal messages do not follow D16 in python, ruby, node or dart (four wordings for the too-many and downgrade errors)
+- Status: **open** | Lens: review | Category: error-contract | Unit-testable (reviewer's view): None
+- SDKs: python, ruby, node, dart
+
+D16 fixes 'Refusing to replay request body across HTTPS->HTTP redirect: <current-url> -> <next-url>' and 'Too many redirects (exceeded <N>)'. python says 'Refusing to replay request body across HTTPS -> HTTP downgrade redirect (307) to <url>' and 'Too many redirects (exceeded max_redirects=20)'; ruby 'Refusing to replay body across HTTPS -> HTTP redirect (TLS downgrade): <url>' and 'Exceeded maximum number of redirects (20)'; node '... redirect downgrade (from A to B)' and 'exceeded maxRedirects=20'; dart '... downgrade redirect to: <url>' and 'Exceeded maximum number of redirects (20)'. The non-HTTP(S) message also differs in case (non-http(s) in ruby and dart). Not a crash, but D14 table tests cannot be byte-identical. Check whether this is already a tracked D16 residual before adding.
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:944` — message=f"Too many redirects (exceeded max_redirects={max_redirects})",
+- `src/spec/resources/generated/ruby/lib/petstore/client/default_api_client.rb:266` — "Exceeded maximum number of redirects (#{max_redirects})"
+- `src/spec/resources/generated/node/src/abstract-api-client.ts:512` — `Too many redirects (exceeded maxRedirects=${maxRedirects})`,
+- `src/spec/resources/generated/dart/lib/src/abstract_api_client.dart:341` — 'Refusing to replay request body across HTTPS->HTTP '
+
+## F922 [medium] Test parity: D17 'Response headers: {"a":"b"}' (compact JSON, sorted) is asserted only by node and php; ten languages lock their native map rendering
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, python, ruby, dart, go, rust, swift, elixir
+
+The tests are wrong, not missing: they pin the source divergence (e.g. java/api_error.mustache:306 appends the Map, go/api_error.mustache:174 %v). Fixing source and tests together is a cross-language item. Canonical test name: renders the headers and body sections when they carry content (assert `Response headers: {"x-request-id":"abc"}`). Template paths: src/main/resources/templates/java/test/ApiExceptionTest.mustache, src/main/resources/templates/kotlin/test/ApiExceptionTest.mustache, src/main/resources/templates/csharp/test/ApiExceptionTest.mustache, src/main/resources/templates/python/test/test_api_error.mustache, src/main/resources/templates/ruby/test/api_error_test.mustache, src/main/resources/templates/dart/test/api_error_test.mustache, src/main/resources/templates/go/test/api_error_test.mustache, src/main/resources/templates/rust/test/api_error_test.mustache, src/main/resources/templates/swift/test/ApiErrorTests.mustache, src/main/resources/templates/elixir/test/api_error_test.mustache.
+- `src/main/resources/templates/node/test/api-error.test.mustache:296 and src/main/resources/templates/php/tests/ApiExceptionTest.mustache:51 assert the settled form`
+- `src/main/resources/templates/java/test/ApiExceptionTest.mustache:66, kotlin:67, csharp:57 assert `{x-request-id=abc}` (Map.toString)`
+- `src/main/resources/templates/dart/test/api_error_test.mustache:320 `{x-request-id: abc}`; python/test/test_api_error.mustache:319 `{'x-id': '7'}`; rust/test/api_error_test.mustache:78 `{"x-trace": "ab`
+- `src/main/resources/templates/go/test/api_error_test.mustache:512 `map[retry-after:5]`; swift/test/ApiErrorTests.mustache:124 `["a": "b"]`; elixir/test/api_error_test.mustache:66 inspect; ruby/test/api`
+
+## F923 [medium] Test parity: S5/D66 required+nullable: no test in php and python
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: php, python
+
+kotlin merges both into one test (kotlin/test/ObjectSerializerTest.mustache:1069): structure drift. Canonical test name: required nullable property keeps an explicit null and writes the key; required nullable property rejects a missing key. Template paths: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache, src/main/resources/templates/python/test/test_object_serializer.mustache.
+- `src/main/resources/templates/java/test/ObjectSerializerTest.mustache:583,593`
+- `src/main/resources/templates/dart/test/object_serializer_test.mustache:22,29`
+- `src/main/resources/templates/ruby/test/object_serializer_test.mustache:925`
+- `src/main/resources/templates/elixir/test/object_serializer_test.mustache:868`
+
+## F924 [medium] Test parity: D77 'Invalid timeout: must be a positive number of milliseconds (got N)' is asserted by no language; swift has no timeout-rejection test
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+Source wording drift survives because no test pins the message. Canonical test name: rejects a negative timeout with the canonical message. Template paths: src/main/resources/templates/java/test/TransportOptionsTest.mustache, src/main/resources/templates/kotlin/test/TransportOptionsTest.mustache, src/main/resources/templates/csharp/test/TransportOptionsTest.mustache, src/main/resources/templates/php/tests/TransportOptionsTest.mustache, src/main/resources/templates/python/test/test_transport_options.mustache, src/main/resources/templates/ruby/test/transport_options_test.mustache, src/main/resources/templates/node/test/transport-options.test.mustache, src/main/resources/templates/dart/test/transport_options_test.mustache, src/main/resources/templates/go/test/transport_options_test.mustache, src/main/resources/templates/rust/test/transport_options_test.mustache, src/main/resources/templates/swift/test/TransportOptionsTests.mustache, src/main/resources/templates/elixir/test/transport_options_test.mustache.
+- `src/main/resources/templates/csharp/transport_options.mustache:229 emits `Invalid timeout (must not be negative)``
+- `src/main/resources/templates/dart/transport_options.mustache:181, src/main/resources/templates/elixir/transport_options.mustache:165, src/main/resources/templates/ruby/transport_options.mustache:245 s`
+- `no test template line in any language contains `Invalid timeout` or `positive number of milliseconds``
+
+## F925 [medium] Test parity: D29 use-after-close message 'ApiClient has been closed and can no longer send requests' pinned by no language
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+Use-after-close tests exist (all 12 mention closed) but none asserts the message, so java/csharp/dart drifted. Canonical test name: use after close raises the language state error with the canonical message. Template paths: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache, src/main/resources/templates/python/test/test_default_api_client_unit.mustache, src/main/resources/templates/ruby/test/default_api_client_unit_test.mustache, src/main/resources/templates/node/test/default-api-client-unit.test.mustache, src/main/resources/templates/dart/test/default_api_client_unit_test.mustache, src/main/resources/templates/go/test/default_api_client_unit_test.mustache, src/main/resources/templates/rust/test/default_api_client_unit_test.mustache, src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache, src/main/resources/templates/elixir/test/default_api_client_unit_test.mustache.
+- `src/main/resources/templates/java/default_api_client.mustache:413 `ApiClient has been closed` (truncated)`
+- `src/main/resources/templates/csharp/default_api_client.mustache:358 same`
+- `src/main/resources/templates/dart/abstract_api_client.mustache:135 `Cannot send request: the API client has been closed``
+- `no test template contains `can no longer send requests``
+
+## F926 [medium] Test parity: D07 token error messages are pinned in at most three languages
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: csharp, php, python, dart, swift, elixir
+
+languagesMissing lists those with none of the three; java, kotlin, ruby, node, go and rust still miss at least one row each. Canonical test name: Token response is not valid JSON / is not a JSON object / missing or empty access_token field (three table rows). Template paths: src/main/resources/templates/csharp/test/OAuth2TokenManagerTest.mustache, src/main/resources/templates/php/tests/OAuth2TokenManagerTest.mustache, src/main/resources/templates/python/test/test_oauth2_token_manager.mustache, src/main/resources/templates/dart/test/oauth2_token_manager_test.mustache, src/main/resources/templates/swift/test/OAuth2TokenManagerTests.mustache, src/main/resources/templates/elixir/test/oauth2_token_manager_test.mustache.
+- `src/main/resources/templates/java/test/OAuth2TokenManagerTest.mustache:409 (not valid JSON; also ruby:300, node:336)`
+- `src/main/resources/templates/kotlin/test/OAuth2TokenManagerTest.mustache:520 (not a JSON object: kotlin only)`
+- `src/main/resources/templates/go/test/oauth2_token_manager_test.mustache:709 (missing access_token: go only)`
+- `src/main/resources/templates/rust/test/api_error_test.mustache:530 (rust, 2 lines)`
+
+## F927 [medium] Test parity: D16 redirect refusal messages are pinned by no language
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+dart also never asserts `Too many redirects` (0 lines), while the other 11 do. Canonical test name: refuses a redirect to a non-HTTP(S) URL with the canonical message; refuses to replay a body across HTTPS->HTTP. Template paths: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache, src/main/resources/templates/python/test/test_default_api_client_unit.mustache, src/main/resources/templates/ruby/test/default_api_client_unit_test.mustache, src/main/resources/templates/node/test/default-api-client-unit.test.mustache, src/main/resources/templates/dart/test/default_api_client_unit_test.mustache, src/main/resources/templates/go/test/default_api_client_unit_test.mustache, src/main/resources/templates/rust/test/default_api_client_unit_test.mustache, src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache, src/main/resources/templates/elixir/test/default_api_client_unit_test.mustache.
+- `src/main/resources/templates/rust/test/default_api_client_test.mustache:396 mentions it only in a comment`
+- `src/main/resources/templates/rust/default_api_client.mustache:367 (source; rust lower-cases non-http(s))`
+- `11 languages emit `Refusing to follow redirect` in source (php does not) but no test asserts it`
+
+## F928 [medium] Test parity: D20 'Unsupported request content-type' message not pinned in seven languages
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin, csharp, php, python, ruby, dart, swift
+
+Canonical test name: rejects an unrecognised request content-type with the canonical message. Template paths: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache, src/main/resources/templates/csharp/test/Api/PetApiTest.mustache, src/main/resources/templates/php/tests/Api/PetApiTest.mustache, src/main/resources/templates/python/test/api/test_pet_api.mustache, src/main/resources/templates/ruby/test/api/pet_api_test.mustache, src/main/resources/templates/dart/test/api/pet_api_test.mustache, src/main/resources/templates/swift/test/api/PetApiTests.mustache.
+- `src/main/resources/templates/java/test/api/PetApiTest.mustache:1256`
+- `src/main/resources/templates/node/test/api/pet-api.test.mustache:1222`
+- `src/main/resources/templates/go/test/api/pet_api_test.mustache:383`
+- `src/main/resources/templates/rust/test/api/pet_api_test.mustache:287`
+- `src/main/resources/templates/elixir/test/api/pet_api_test.mustache:920`
+
+## F929 [medium] Test parity: D12 sync accessor message tested (and emitted) only in csharp, node, dart
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, php, python, ruby, swift, elixir
+
+go and rust are exempt (infallible by interface, D12). Possibly a source gap too; verify each language's sync accessor. Canonical test name: sync auth accessor raises 'OAuth2 authenticators require async token exchange; use <asyncMethod>() instead.'. Template paths: src/main/resources/templates/java/test/OpenIdConnectAuthenticatorTest.mustache, src/main/resources/templates/kotlin/test/OpenIdConnectAuthenticatorTest.mustache, src/main/resources/templates/php/tests/OpenIdConnectAuthenticatorTest.mustache, src/main/resources/templates/python/test/test_openid_connect_authenticator.mustache, src/main/resources/templates/ruby/test/openid_connect_authenticator_test.mustache, src/main/resources/templates/swift/test/OpenIdConnectAuthenticatorTests.mustache, src/main/resources/templates/elixir/test/openid_connect_authenticator_test.mustache.
+- `src/main/resources/templates/csharp/test/OpenIdConnectAuthenticatorTest.mustache:64`
+- `node 4 lines, dart 4 lines`
+- `source emits it only in csharp/dart/node auth/oauth/*.mustache`
+
+## F930 [medium] Test parity: D39 form-urlencoded nested-object rejection missing in go
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Canonical test name: form-urlencoded body rejects a nested object field. Template paths: src/main/resources/templates/go/test/base_api_test.mustache.
+- `src/main/resources/templates/java/test/BaseApiTest.mustache:979`
+- `src/main/resources/templates/csharp/test/BaseApiTest.mustache:605`
+- `src/main/resources/templates/python/test/test_base_api.mustache:597`
+
+## F931 [medium] Test parity: D09 'Authorization code must not be empty' pinned only in go
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, rust, swift, elixir
+
+Canonical test name: exchangeCode rejects an empty authorization code with the canonical message. Template paths: src/main/resources/templates/java/test/OAuth2AuthCodeAuthenticatorTest.mustache, src/main/resources/templates/kotlin/test/OAuth2AuthCodeAuthenticatorTest.mustache, src/main/resources/templates/csharp/test/OAuth2AuthCodeAuthenticatorTest.mustache, src/main/resources/templates/php/tests/OAuth2AuthCodeAuthenticatorTest.mustache, src/main/resources/templates/python/test/test_oauth2_auth_code_authenticator.mustache, src/main/resources/templates/ruby/test/oauth2_auth_code_authenticator_test.mustache, src/main/resources/templates/node/test/oauth2-auth-code-authenticator.test.mustache, src/main/resources/templates/dart/test/oauth2_auth_code_authenticator_test.mustache, src/main/resources/templates/rust/test/oauth2_auth_code_authenticator_test.mustache, src/main/resources/templates/swift/test/OAuth2AuthCodeAuthenticatorTests.mustache, src/main/resources/templates/elixir/test/oauth2_auth_code_authenticator_test.mustache.
+- `src/main/resources/templates/go/test/oauth2_auth_code_authenticator_test.mustache:159`
+
+## F932 [medium] Test parity: D79 proxy URL messages not asserted in rust and swift
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust, swift
+
+Canonical test name: rejects a proxy URL with a non-http scheme / missing host with the canonical message. Template paths: src/main/resources/templates/rust/test/transport_options_test.mustache, src/main/resources/templates/swift/test/TransportOptionsTests.mustache.
+- `src/main/resources/templates/java/test/*: 9 lines contain `Invalid proxy URL`; rust 0, swift 0`
+
+## F933 [medium] Test parity: D15 serializer messages rarely pinned
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, node, dart, elixir
+
+ruby pins `Failed to deserialize JSON` (object_serializer_test.mustache:1387) but not the depth message. Canonical test name: JSON nesting depth 1001 exceeds limit 1000; Failed to deserialize JSON: <detail>. Template paths: src/main/resources/templates/java/test/ObjectSerializerTest.mustache, src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache, src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache, src/main/resources/templates/php/tests/ObjectSerializerTest.mustache, src/main/resources/templates/python/test/test_object_serializer.mustache, src/main/resources/templates/node/test/object-serializer.test.mustache, src/main/resources/templates/dart/test/object_serializer_test.mustache, src/main/resources/templates/elixir/test/object_serializer_test.mustache.
+- `src/main/resources/templates/go/test/api_error_test.mustache:245`
+- `src/main/resources/templates/swift/test/ObjectSerializerTests.mustache:1368`
+- `rust 3 lines`
+
+## F934 [medium] Test parity: D67 uuid: csharp tests never mention uuid
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+Canonical test name: UUID is written lowercase hyphenated; malformed UUID fails to deserialize. Template paths: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache.
+- `csharp test templates: 0 lines match /uuid/i; java 27, node 39`
+
+## F935 [medium] Test parity: D48 dot-segment path message not pinned in python
+- Status: **open** | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python
+
+Canonical test name: path parameter '.' or '..' is rejected with `Path parameter '<name>' must not be '.' or '..'`. Template paths: src/main/resources/templates/python/test/test_value_serializer.mustache.
+- `src/main/resources/templates/python/test/test_value_serializer.mustache:274 parametrises '.', '..' without the message`
+- `src/main/resources/templates/java/test/ValueSerializerTest.mustache:49`
+
+## F936 [medium] Test parity: Test gap: README tests exist only in ruby and go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, node, dart, rust, swift, elixir
+
+Canonical test name: readme. Template paths: (no mirror file; AGENTS.md forbids new test files, so the owner must decide where these belong).
+- `src/main/resources/templates/ruby/test/readme_test.mustache`
+- `src/main/resources/templates/go/test/readme_test.mustache`
+
+## F937 [medium] Test parity: Test gap: skills tests exist only in ruby and go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, node, dart, rust, swift, elixir
+
+Canonical test name: skills. Template paths: (no mirror file; AGENTS.md forbids new test files, so the owner must decide where these belong).
+- `src/main/resources/templates/ruby/test/skills_test.mustache`
+- `src/main/resources/templates/go/test/skills_test.mustache`
+
+## F938 [medium] Test parity: Test gap: api-key-authenticator / nonAsciiHeaderKeyIsRejectedWithTheExactMessage missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: nonAsciiHeaderKeyIsRejectedWithTheExactMessage. Template paths: src/main/resources/templates/rust/test/api_key_authenticator_test.mustache.
+- `java: src/main/resources/templates/java/test/ApiKeyAuthenticatorTest.mustache:57`
+- `kotlin: src/main/resources/templates/kotlin/test/ApiKeyAuthenticatorTest.mustache:134`
+- `csharp: src/main/resources/templates/csharp/test/ApiKeyAuthenticatorTest.mustache:39`
+- `php: src/main/resources/templates/php/tests/ApiKeyAuthenticatorTest.mustache:83`
+
+## F939 [medium] Test parity: Test gap: api/pet-api / getPetByNameEmptyRequiredStringQueryParamThrows missing in go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Canonical test name: getPetByNameEmptyRequiredStringQueryParamThrows. Template paths: src/main/resources/templates/go/test/api/pet_api_test.mustache.
+- `java: src/main/resources/templates/java/test/api/PetApiTest.mustache:673`
+- `kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:999`
+- `csharp: src/main/resources/templates/csharp/test/Api/PetApiTest.mustache:215`
+- `php: src/main/resources/templates/php/tests/Api/PetApiTest.mustache:1124`
+
+## F940 [medium] Test parity: Test gap: api/pet-api / uploadPetDocumentOctetStreamSelectionSendsRawBytesNotMultipart missing in python
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python
+
+Canonical test name: uploadPetDocumentOctetStreamSelectionSendsRawBytesNotMultipart. Template paths: src/main/resources/templates/python/test/api/test_pet_api.mustache.
+- `java: src/main/resources/templates/java/test/api/PetApiTest.mustache:905`
+- `kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:516`
+- `csharp: src/main/resources/templates/csharp/test/Api/PetApiTest.mustache:1057`
+- `php: src/main/resources/templates/php/tests/Api/PetApiTest.mustache:813`
+
+## F941 [medium] Test parity: Test gap: base-api / form-urlencoded body rejects a nested object field missing in go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Canonical test name: form-urlencoded body rejects a nested object field. Template paths: src/main/resources/templates/go/test/base_api_test.mustache.
+- `java: src/main/resources/templates/java/test/BaseApiTest.mustache:979`
+- `kotlin: src/main/resources/templates/kotlin/test/BaseApiTest.mustache:643`
+- `csharp: src/main/resources/templates/csharp/test/BaseApiTest.mustache:605`
+- `php: src/main/resources/templates/php/tests/BaseApiTest.mustache:767`
+
+## F942 [medium] Test parity: Test gap: basic-authenticator / redactsSecret missing in java
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java
+
+Canonical test name: redactsSecret. Template paths: src/main/resources/templates/java/test/BasicAuthenticatorTest.mustache.
+- `kotlin: src/main/resources/templates/kotlin/test/BasicAuthenticatorTest.mustache:47`
+- `csharp: src/main/resources/templates/csharp/test/BasicAuthenticatorTest.mustache:55`
+- `php: src/main/resources/templates/php/tests/BasicAuthenticatorTest.mustache:53`
+- `python: src/main/resources/templates/python/test/test_basic_authenticator.mustache:36`
+
+## F943 [medium] Test parity: Test gap: bearer-authenticator / lowercaseBearerPrefixIsStripped missing in dart
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: dart
+
+Canonical test name: lowercaseBearerPrefixIsStripped. Template paths: src/main/resources/templates/dart/test/bearer_authenticator_test.mustache.
+- `java: src/main/resources/templates/java/test/BearerAuthenticatorTest.mustache:30`
+- `kotlin: src/main/resources/templates/kotlin/test/BearerAuthenticatorTest.mustache:28`
+- `csharp: src/main/resources/templates/csharp/test/BearerAuthenticatorTest.mustache:26`
+- `php: src/main/resources/templates/php/tests/BearerAuthenticatorTest.mustache:21`
+
+## F944 [medium] Test parity: Test gap: bearer-authenticator / mixedCaseBearerPrefixIsStripped missing in dart
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: dart
+
+Canonical test name: mixedCaseBearerPrefixIsStripped. Template paths: src/main/resources/templates/dart/test/bearer_authenticator_test.mustache.
+- `java: src/main/resources/templates/java/test/BearerAuthenticatorTest.mustache:37`
+- `kotlin: src/main/resources/templates/kotlin/test/BearerAuthenticatorTest.mustache:36`
+- `csharp: src/main/resources/templates/csharp/test/BearerAuthenticatorTest.mustache:34`
+- `php: src/main/resources/templates/php/tests/BearerAuthenticatorTest.mustache:27`
+
+## F945 [medium] Test parity: Test gap: composed-schema / anyOf with no matching variant throws missing in java
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java
+
+Canonical test name: anyOf with no matching variant throws. Template paths: src/main/resources/templates/java/test/ComposedSchemaTest.mustache.
+- `kotlin: src/main/resources/templates/kotlin/test/ComposedSchemaTest.mustache:219`
+- `csharp: src/main/resources/templates/csharp/test/ComposedSchemaTest.mustache:194`
+- `php: src/main/resources/templates/php/tests/ComposedSchemaTest.mustache:89`
+- `python: src/main/resources/templates/python/test/test_composed_schema.mustache:83`
+
+## F946 [medium] Test parity: Test gap: configuration / invalidEnumValueThrows missing in python
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python
+
+Canonical test name: invalidEnumValueThrows. Template paths: src/main/resources/templates/python/test/test_configuration.mustache.
+- `java: src/main/resources/templates/java/test/ConfigurationTest.mustache:122`
+- `kotlin: src/main/resources/templates/kotlin/test/ConfigurationTest.mustache:172`
+- `csharp: src/main/resources/templates/csharp/test/ConfigurationTest.mustache:148`
+- `php: src/main/resources/templates/php/tests/ConfigurationTest.mustache:132`
+
+## F947 [medium] Test parity: Test gap: default-api-client / multipart_field_name_with_crlf_rejected_on_string_value missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: multipart_field_name_with_crlf_rejected_on_string_value. Template paths: src/main/resources/templates/rust/test/default_api_client_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientTest.mustache:759`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientTest.mustache:929`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientTest.mustache:723`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientTest.mustache:528`
+
+## F948 [medium] Test parity: Test gap: default-api-client / proxy_with_credentials_injects_basic_authorization missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: proxy_with_credentials_injects_basic_authorization. Template paths: src/main/resources/templates/swift/test/DefaultApiClientTests.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientTest.mustache:209`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientTest.mustache:219`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientTest.mustache:184`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientTest.mustache:72`
+
+## F949 [medium] Test parity: Test gap: default-api-client / times out on slow endpoint missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: times out on slow endpoint. Template paths: src/main/resources/templates/swift/test/DefaultApiClientTests.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientTest.mustache:279`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientTest.mustache:274`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientTest.mustache:236`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientTest.mustache:137`
+
+## F950 [medium] Test parity: Test gap: default-api-client-unit / connectionClosedAfterTheHeadersRaisesNetworkExceptionKeepingTheCause missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: connectionClosedAfterTheHeadersRaisesNetworkExceptionKeepingTheCause. Template paths: src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1580`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:1457`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:1481`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1170`
+
+## F951 [medium] Test parity: Test gap: default-api-client-unit / contentEncodingLieSurfacesApiException missing in python
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python
+
+Canonical test name: contentEncodingLieSurfacesApiException. Template paths: src/main/resources/templates/python/test/test_default_api_client_unit.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1453`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:1255`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:1246`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1316`
+
+## F952 [medium] Test parity: Test gap: default-api-client-unit / fallsBackToUtf8WhenCharsetIsUnknown missing in elixir
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Canonical test name: fallsBackToUtf8WhenCharsetIsUnknown. Template paths: src/main/resources/templates/elixir/test/default_api_client_unit_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1422`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:653`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:677`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:401`
+
+## F953 [medium] Test parity: Test gap: default-api-client-unit / multipartFileWithPdfExtensionSetsApplicationPdfContentType missing in elixir
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Canonical test name: multipartFileWithPdfExtensionSetsApplicationPdfContentType. Template paths: src/main/resources/templates/elixir/test/default_api_client_unit_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:959`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:238`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:459`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:496`
+
+## F954 [medium] Test parity: Test gap: default-api-client-unit / multipartFilenameCRLFRejected missing in kotlin
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+Canonical test name: multipartFilenameCRLFRejected. Template paths: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1224`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:627`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:731`
+- `python: src/main/resources/templates/python/test/test_default_api_client_unit.mustache:389`
+
+## F955 [medium] Test parity: Test gap: default-api-client-unit / redirectToNonHttpSchemeThrows missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: redirectToNonHttpSchemeThrows. Template paths: src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1354`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:1025`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:1129`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1074`
+
+## F956 [medium] Test parity: Test gap: default-api-client-unit / stalledResponseBodyRaisesNetworkTimeoutException missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: stalledResponseBodyRaisesNetworkTimeoutException. Template paths: src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:842`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:1475`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:1497`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1188`
+
+## F957 [medium] Test parity: Test gap: oauth2-auth-code-authenticator / keepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: keepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl. Template paths: src/main/resources/templates/swift/test/OAuth2AuthCodeAuthenticatorTests.mustache.
+- `java: src/main/resources/templates/java/test/OAuth2AuthCodeAuthenticatorTest.mustache:66`
+- `kotlin: src/main/resources/templates/kotlin/test/OAuth2AuthCodeAuthenticatorTest.mustache:309`
+- `csharp: src/main/resources/templates/csharp/test/OAuth2AuthCodeAuthenticatorTest.mustache:313`
+- `php: src/main/resources/templates/php/tests/OAuth2AuthCodeAuthenticatorTest.mustache:338`
+
+## F958 [medium] Test parity: Test gap: oauth2-implicit-authenticator / setAccessTokenAcceptsTabAndPrintableAscii missing in kotlin
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+Canonical test name: setAccessTokenAcceptsTabAndPrintableAscii. Template paths: src/main/resources/templates/kotlin/test/OAuth2ImplicitAuthenticatorTest.mustache.
+- `java: src/main/resources/templates/java/test/OAuth2ImplicitAuthenticatorTest.mustache:99`
+- `csharp: src/main/resources/templates/csharp/test/OAuth2ImplicitAuthenticatorTest.mustache:197`
+- `php: src/main/resources/templates/php/tests/OAuth2ImplicitAuthenticatorTest.mustache:104`
+- `python: src/main/resources/templates/python/test/test_oauth2_implicit_authenticator.mustache:110`
+
+## F959 [medium] Test parity: Test gap: oauth2-token-manager / refreshGrantGoesToTheRefreshUrlInTheCanonicalOrder missing in kotlin
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+Canonical test name: refreshGrantGoesToTheRefreshUrlInTheCanonicalOrder. Template paths: src/main/resources/templates/kotlin/test/OAuth2TokenManagerTest.mustache.
+- `java: src/main/resources/templates/java/test/OAuth2TokenManagerTest.mustache:637`
+- `csharp: src/main/resources/templates/csharp/test/OAuth2TokenManagerTest.mustache:776`
+- `php: src/main/resources/templates/php/tests/OAuth2TokenManagerTest.mustache:480`
+- `python: src/main/resources/templates/python/test/test_oauth2_token_manager.mustache:674`
+
+## F960 [medium] Test parity: Test gap: object-serializer / UTC datetime serializes containing date-time and offset missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: UTC datetime serializes containing date-time and offset. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:314`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:54`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:289`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:253`
+
+## F961 [medium] Test parity: Test gap: object-serializer / UUID returns string representation missing in go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Canonical test name: UUID returns string representation. Template paths: src/main/resources/templates/go/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:95`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:714`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:82`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:127`
+
+## F962 [medium] Test parity: Test gap: object-serializer / applies defaults for absent fields but preserves explicit null missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: applies defaults for absent fields but preserves explicit null. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1071`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:454`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:796`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:595`
+
+## F963 [medium] Test parity: Test gap: object-serializer / array-of-byte field round-trips through base64 missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: array-of-byte field round-trips through base64. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1544`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:1202`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1429`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1261`
+
+## F964 [medium] Test parity: Test gap: object-serializer / boolean for a string field throws instead of becoming text missing in kotlin
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+Canonical test name: boolean for a string field throws instead of becoming text. Template paths: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:838`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:671`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:952`
+- `python: src/main/resources/templates/python/test/test_object_serializer.mustache:732`
+
+## F965 [medium] Test parity: Test gap: object-serializer / deserializes a self-referential model preserving nesting missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: deserializes a self-referential model preserving nesting. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1012`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:425`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:596`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:534`
+
+## F966 [medium] Test parity: Test gap: object-serializer / double field deserializes from an integral JSON value missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: double field deserializes from an integral JSON value. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1618`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:1257`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1460`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1316`
+
+## F967 [medium] Test parity: Test gap: object-serializer / wet subtype defaults discriminator to its mapping name missing in kotlin
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+Canonical test name: wet subtype defaults discriminator to its mapping name. Template paths: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1272`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1175`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1017`
+- `python: src/main/resources/templates/python/test/test_object_serializer.mustache:1001`
+
+## F968 [medium] Test parity: Test gap: openid-connect-authenticator / throwsWhenDiscoveryReturnsNon2xxStatus missing in go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Canonical test name: throwsWhenDiscoveryReturnsNon2xxStatus. Template paths: src/main/resources/templates/go/test/openid_connect_authenticator_test.mustache.
+- `java: src/main/resources/templates/java/test/OpenIdConnectAuthenticatorTest.mustache:156`
+- `kotlin: src/main/resources/templates/kotlin/test/OpenIdConnectAuthenticatorTest.mustache:152`
+- `csharp: src/main/resources/templates/csharp/test/OpenIdConnectAuthenticatorTest.mustache:251`
+- `php: src/main/resources/templates/php/tests/OpenIdConnectAuthenticatorTest.mustache:176`
+
+## F969 [medium] Test parity: Test gap: trace-context-util / empty headers map does not cause an exception missing in csharp
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+Canonical test name: empty headers map does not cause an exception. Template paths: src/main/resources/templates/csharp/test/TraceContextUtilTest.mustache.
+- `java: src/main/resources/templates/java/test/TraceContextUtilTest.mustache:47`
+- `kotlin: src/main/resources/templates/kotlin/test/TraceContextUtilTest.mustache:37`
+- `php: src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:24`
+- `python: src/main/resources/templates/python/test/test_trace_context_util.mustache:23`
+
+## F970 [medium] Test parity: Test gap: trace-context-util / is a no-op without tracer missing in csharp
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+Canonical test name: is a no-op without tracer. Template paths: src/main/resources/templates/csharp/test/TraceContextUtilTest.mustache.
+- `java: src/main/resources/templates/java/test/TraceContextUtilTest.mustache:35`
+- `kotlin: src/main/resources/templates/kotlin/test/TraceContextUtilTest.mustache:29`
+- `php: src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:18`
+- `python: src/main/resources/templates/python/test/test_trace_context_util.mustache:19`
+
+## F971 [medium] Test parity: Test gap: value-serializer / LocalDate in path returns YYYY-MM-DD missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: LocalDate in path returns YYYY-MM-DD. Template paths: src/main/resources/templates/swift/test/ValueSerializerTests.mustache.
+- `java: src/main/resources/templates/java/test/ValueSerializerTest.mustache:704`
+- `kotlin: src/main/resources/templates/kotlin/test/ValueSerializerTest.mustache:52`
+- `csharp: src/main/resources/templates/csharp/test/ValueSerializerTest.mustache:700`
+- `php: src/main/resources/templates/php/tests/ValueSerializerTest.mustache:37`
+
+## F972 [medium] Test parity: Test gap: value-serializer / reserved characters are left literal, other characters still encoded missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: reserved characters are left literal, other characters still encoded. Template paths: src/main/resources/templates/swift/test/ValueSerializerTests.mustache.
+- `java: src/main/resources/templates/java/test/ValueSerializerTest.mustache:557`
+- `kotlin: src/main/resources/templates/kotlin/test/ValueSerializerTest.mustache:704`
+- `csharp: src/main/resources/templates/csharp/test/ValueSerializerTest.mustache:728`
+- `php: src/main/resources/templates/php/tests/ValueSerializerTest.mustache:535`
+
+## F973 [medium] Test parity: Test gap: api-error / isAnUncheckedExceptionWithStatusInItsStringForm missing in node, swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: node, swift
+
+Canonical test name: isAnUncheckedExceptionWithStatusInItsStringForm. Template paths: src/main/resources/templates/node/test/api-error.test.mustache, src/main/resources/templates/swift/test/ApiErrorTests.mustache.
+- `java: src/main/resources/templates/java/test/ApiExceptionTest.mustache:49`
+- `kotlin: src/main/resources/templates/kotlin/test/ApiExceptionTest.mustache:49`
+- `csharp: src/main/resources/templates/csharp/test/ApiExceptionTest.mustache:41`
+- `php: src/main/resources/templates/php/tests/ApiExceptionTest.mustache:41`
+
+## F974 [medium] Test parity: Test gap: api-error / typedExceptionsShareTheBrandedRoot missing in java, php
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, php
+
+Canonical test name: typedExceptionsShareTheBrandedRoot. Template paths: src/main/resources/templates/java/test/ApiExceptionTest.mustache, src/main/resources/templates/php/tests/ApiExceptionTest.mustache.
+- `kotlin: src/main/resources/templates/kotlin/test/ApiExceptionTest.mustache:73`
+- `csharp: src/main/resources/templates/csharp/test/ApiExceptionTest.mustache:201`
+- `python: src/main/resources/templates/python/test/test_api_error.mustache:102`
+- `ruby: src/main/resources/templates/ruby/test/api_error_test.mustache:91`
+
+## F975 [medium] Test parity: Test gap: api-result / carriesDataStatusCodeHeadersAndRawBodyAsConstructed missing in go, swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go, swift
+
+Canonical test name: carriesDataStatusCodeHeadersAndRawBodyAsConstructed. Template paths: src/main/resources/templates/go/test/api_result_test.mustache, src/main/resources/templates/swift/test/ApiResultTests.mustache.
+- `java: src/main/resources/templates/java/test/ApiResultTest.mustache:14`
+- `kotlin: src/main/resources/templates/kotlin/test/ApiResultTest.mustache:11`
+- `csharp: src/main/resources/templates/csharp/test/ApiResultTest.mustache:10`
+- `php: src/main/resources/templates/php/tests/ApiResultTest.mustache:7`
+
+## F976 [medium] Test parity: Test gap: api/pet-api / getPetByNameRejectsADotSegmentBeforeDispatch missing in dart, go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: dart, go
+
+Canonical test name: getPetByNameRejectsADotSegmentBeforeDispatch. Template paths: src/main/resources/templates/dart/test/api/pet_api_test.mustache, src/main/resources/templates/go/test/api/pet_api_test.mustache.
+- `java: src/main/resources/templates/java/test/api/PetApiTest.mustache:543`
+- `kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:868`
+- `csharp: src/main/resources/templates/csharp/test/Api/PetApiTest.mustache:904`
+- `php: src/main/resources/templates/php/tests/Api/PetApiTest.mustache:1141`
+
+## F977 [medium] Test parity: Test gap: api/pet-api / optional-array-param: array query params serialize as styled values, not a debug blob missing in java
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java
+
+Canonical test name: optional-array-param: array query params serialize as styled values, not a debug blob. Template paths: src/main/resources/templates/java/test/api/PetApiTest.mustache.
+- `kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:902`
+- `csharp: src/main/resources/templates/csharp/test/Api/PetApiTest.mustache:836`
+- `php: src/main/resources/templates/php/tests/Api/PetApiTest.mustache:392`
+- `python: src/main/resources/templates/python/test/api/test_pet_api.mustache:443`
+
+## F978 [medium] Test parity: Test gap: api/pet-api / testAddPetPerCallAuthOverride missing in php, ruby
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: php, ruby
+
+Canonical test name: testAddPetPerCallAuthOverride. Template paths: src/main/resources/templates/php/tests/Api/PetApiTest.mustache, src/main/resources/templates/ruby/test/api/pet_api_test.mustache.
+- `java: src/main/resources/templates/java/test/api/PetApiTest.mustache:422`
+- `kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:1028`
+- `csharp: src/main/resources/templates/csharp/test/Api/PetApiTest.mustache:724`
+- `python: src/main/resources/templates/python/test/api/test_pet_api.mustache:650`
+
+## F979 [medium] Test parity: Test gap: api/store-api / testGetBySwatchSendsTheEnumWireValueInPathQueryAndHeader missing in python, dart
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python, dart
+
+Canonical test name: testGetBySwatchSendsTheEnumWireValueInPathQueryAndHeader. Template paths: src/main/resources/templates/python/test/api/test_store_api.mustache, src/main/resources/templates/dart/test/api/store_api_test.mustache.
+- `java: src/main/resources/templates/java/test/api/StoreApiTest.mustache:197`
+- `kotlin: src/main/resources/templates/kotlin/test/api/StoreApiTest.mustache:243`
+- `csharp: src/main/resources/templates/csharp/test/Api/StoreApiTest.mustache:248`
+- `php: src/main/resources/templates/php/tests/Api/StoreApiTest.mustache:264`
+
+## F980 [medium] Test parity: Test gap: composed-schema / unknown discriminator error names the offending value missing in python
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python
+
+Canonical test name: unknown discriminator error names the offending value. Template paths: src/main/resources/templates/python/test/test_composed_schema.mustache.
+- `java: src/main/resources/templates/java/test/ComposedSchemaTest.mustache:96`
+- `kotlin: src/main/resources/templates/kotlin/test/ComposedSchemaTest.mustache:78`
+- `csharp: src/main/resources/templates/csharp/test/ComposedSchemaTest.mustache:84`
+- `ruby: src/main/resources/templates/ruby/test/composed_schema_test.mustache:47`
+
+## F981 [medium] Test parity: Test gap: configuration / builderIsFluent missing in elixir
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Canonical test name: builderIsFluent. Template paths: src/main/resources/templates/elixir/test/configuration_test.mustache.
+- `java: src/main/resources/templates/java/test/ConfigurationTest.mustache:190`
+- `kotlin: src/main/resources/templates/kotlin/test/ConfigurationTest.mustache:247`
+- `csharp: src/main/resources/templates/csharp/test/ConfigurationTest.mustache:229`
+- `php: src/main/resources/templates/php/tests/ConfigurationTest.mustache:217`
+
+## F982 [medium] Test parity: Test gap: default-api-client-unit / connectDeadlineRaisesNetworkTimeoutException missing in csharp, swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: csharp, swift
+
+Canonical test name: connectDeadlineRaisesNetworkTimeoutException. Template paths: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:823`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:1496`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1201`
+- `python: src/main/resources/templates/python/test/test_default_api_client_unit.mustache:1240`
+
+## F983 [medium] Test parity: Test gap: default-api-client-unit / multipartNonAsciiFieldNamePreservedAsUtf8 missing in dart, elixir
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: dart, elixir
+
+Canonical test name: multipartNonAsciiFieldNamePreservedAsUtf8. Template paths: src/main/resources/templates/dart/test/default_api_client_unit_test.mustache, src/main/resources/templates/elixir/test/default_api_client_unit_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1119`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:264`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:513`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:612`
+
+## F984 [medium] Test parity: Test gap: default-api-client-unit / multipartPrimitivePartsArePlainTextInTheCanonicalForm missing in python, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python, rust
+
+Canonical test name: multipartPrimitivePartsArePlainTextInTheCanonicalForm. Template paths: src/main/resources/templates/python/test/test_default_api_client_unit.mustache, src/main/resources/templates/rust/test/default_api_client_unit_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1062`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:376`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:1790`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1542`
+
+## F985 [medium] Test parity: Test gap: default-api-client-unit / multipartRawBytesPartReusesFieldNameAsFilenameWithOctetStream missing in elixir
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Canonical test name: multipartRawBytesPartReusesFieldNameAsFilenameWithOctetStream. Template paths: src/main/resources/templates/elixir/test/default_api_client_unit_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1035`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:295`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:428`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:551`
+
+## F986 [medium] Test parity: Test gap: default-api-client-unit / useAfterCloseThrowsIllegalStateException missing in swift, elixir
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift, elixir
+
+Canonical test name: useAfterCloseThrowsIllegalStateException. Template paths: src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache, src/main/resources/templates/elixir/test/default_api_client_unit_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1394`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:1414`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:1406`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1095`
+
+## F987 [medium] Test parity: Test gap: header-selector / should not reorder or weight JSON types missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: should not reorder or weight JSON types. Template paths: src/main/resources/templates/swift/test/HeaderSelectorTests.mustache.
+- `java: src/main/resources/templates/java/test/HeaderSelectorTest.mustache:196`
+- `kotlin: src/main/resources/templates/kotlin/test/HeaderSelectorTest.mustache:135`
+- `csharp: src/main/resources/templates/csharp/test/HeaderSelectorTest.mustache:159`
+- `php: src/main/resources/templates/php/tests/HeaderSelectorTest.mustache:123`
+
+## F988 [medium] Test parity: Test gap: oauth2-implicit-authenticator / keepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl missing in python, swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python, swift
+
+Canonical test name: keepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl. Template paths: src/main/resources/templates/python/test/test_oauth2_implicit_authenticator.mustache, src/main/resources/templates/swift/test/OAuth2ImplicitAuthenticatorTests.mustache.
+- `java: src/main/resources/templates/java/test/OAuth2ImplicitAuthenticatorTest.mustache:65`
+- `kotlin: src/main/resources/templates/kotlin/test/OAuth2ImplicitAuthenticatorTest.mustache:149`
+- `csharp: src/main/resources/templates/csharp/test/OAuth2ImplicitAuthenticatorTest.mustache:165`
+- `php: src/main/resources/templates/php/tests/OAuth2ImplicitAuthenticatorTest.mustache:121`
+
+## F989 [medium] Test parity: Test gap: oauth2-token-manager / singleFlightRefreshCoalescesConcurrentCallers missing in php
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Canonical test name: singleFlightRefreshCoalescesConcurrentCallers. Template paths: src/main/resources/templates/php/tests/OAuth2TokenManagerTest.mustache.
+- `java: src/main/resources/templates/java/test/OAuth2TokenManagerTest.mustache:171`
+- `kotlin: src/main/resources/templates/kotlin/test/OAuth2TokenManagerTest.mustache:297`
+- `python: src/main/resources/templates/python/test/test_oauth2_token_manager.mustache:170`
+- `ruby: src/main/resources/templates/ruby/test/oauth2_token_manager_test.mustache:245`
+
+## F990 [medium] Test parity: Test gap: object-serializer / Duration round-trips through a model body missing in go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Canonical test name: Duration round-trips through a model body. Template paths: src/main/resources/templates/go/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1196`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1137`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:899`
+- `python: src/main/resources/templates/python/test/test_object_serializer.mustache:971`
+
+## F991 [medium] Test parity: Test gap: object-serializer / UUID field round-trips within a model object missing in go, elixir
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go, elixir
+
+Canonical test name: UUID field round-trips within a model object. Template paths: src/main/resources/templates/go/test/object_serializer_test.mustache, src/main/resources/templates/elixir/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1385`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:968`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1223`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1207`
+
+## F992 [medium] Test parity: Test gap: object-serializer / a literal null body deserializes to null missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: a literal null body deserializes to null. Template paths: src/main/resources/templates/swift/test/ObjectSerializerTests.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1749`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:1698`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1723`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1437`
+
+## F993 [medium] Test parity: Test gap: object-serializer / date-time serialization preserves sub-second precision missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: date-time serialization preserves sub-second precision. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:338`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:78`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:357`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:273`
+
+## F994 [medium] Test parity: Test gap: object-serializer / integer-backed enum deserializes from a JSON number to the member missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: integer-backed enum deserializes from a JSON number to the member. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1487`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1301`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1155`
+- `python: src/main/resources/templates/python/test/test_object_serializer.mustache:1058`
+
+## F995 [medium] Test parity: Test gap: object-serializer / malformed UUID string fails to deserialize within a model object missing in dart, swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: dart, swift
+
+Canonical test name: malformed UUID string fails to deserialize within a model object. Template paths: src/main/resources/templates/dart/test/object_serializer_test.mustache, src/main/resources/templates/swift/test/ObjectSerializerTests.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1400`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:982`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1238`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1520`
+
+## F996 [medium] Test parity: Test gap: object-serializer / null element in an array of models throws SerializationException missing in kotlin, php
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin, php
+
+Canonical test name: null element in an array of models throws SerializationException. Template paths: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache, src/main/resources/templates/php/tests/ObjectSerializerTest.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:553`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:440`
+- `python: src/main/resources/templates/python/test/test_object_serializer.mustache:184`
+- `ruby: src/main/resources/templates/ruby/test/object_serializer_test.mustache:229`
+
+## F997 [medium] Test parity: Test gap: object-serializer / omits fields that are null from JSON output missing in kotlin, python
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin, python
+
+Canonical test name: omits fields that are null from JSON output. Template paths: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache, src/main/resources/templates/python/test/test_object_serializer.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:961`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:839`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1073`
+- `ruby: src/main/resources/templates/ruby/test/object_serializer_test.mustache:658`
+
+## F998 [medium] Test parity: Test gap: object-serializer / referenced enum field rejects an unknown wire value missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: referenced enum field rejects an unknown wire value. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1523`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:1186`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:759`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:674`
+
+## F999 [medium] Test parity: Test gap: object-serializer / required nullable property keeps an explicit null and writes the key missing in kotlin, python
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin, python
+
+Canonical test name: required nullable property keeps an explicit null and writes the key. Template paths: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache, src/main/resources/templates/python/test/test_object_serializer.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:582`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:476`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:612`
+- `ruby: src/main/resources/templates/ruby/test/object_serializer_test.mustache:924`
+
+## F1000 [medium] Test parity: Test gap: object-serializer / returns null for null input missing in node
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Canonical test name: returns null for null input. Template paths: src/main/resources/templates/node/test/object-serializer.test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1043`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:311`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:576`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:564`
+
+## F1001 [medium] Test parity: Test gap: object-serializer / serialized datetime string ends with a numeric offset, never Z missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: serialized datetime string ends with a numeric offset, never Z. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:362`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:101`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:330`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:294`
+
+## F1002 [medium] Test parity: Test gap: object-serializer / unknown enum value throws SerializationException missing in dart, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: dart, rust
+
+Canonical test name: unknown enum value throws SerializationException. Template paths: src/main/resources/templates/dart/test/object_serializer_test.mustache, src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:640`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:174`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:637`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:413`
+
+## F1003 [medium] Test parity: Test gap: openid-connect-authenticator / discoveryIsCachedWhileItsMaxAgeHasNotElapsed missing in java, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, rust
+
+Canonical test name: discoveryIsCachedWhileItsMaxAgeHasNotElapsed. Template paths: src/main/resources/templates/java/test/OpenIdConnectAuthenticatorTest.mustache, src/main/resources/templates/rust/test/openid_connect_authenticator_test.mustache.
+- `kotlin: src/main/resources/templates/kotlin/test/OpenIdConnectAuthenticatorTest.mustache:330`
+- `csharp: src/main/resources/templates/csharp/test/OpenIdConnectAuthenticatorTest.mustache:310`
+- `php: src/main/resources/templates/php/tests/OpenIdConnectAuthenticatorTest.mustache:417`
+- `python: src/main/resources/templates/python/test/test_openid_connect_authenticator.mustache:237`
+
+## F1004 [medium] Test parity: Test gap: server-configuration / resolvesUrlTemplateUsingDefaultVariableValues missing in go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Canonical test name: resolvesUrlTemplateUsingDefaultVariableValues. Template paths: src/main/resources/templates/go/test/server_configuration_test.mustache.
+- `java: src/main/resources/templates/java/test/ServerConfigurationTest.mustache:16`
+- `kotlin: src/main/resources/templates/kotlin/test/ServerConfigurationTest.mustache:12`
+- `csharp: src/main/resources/templates/csharp/test/ServerConfigurationTest.mustache:11`
+- `php: src/main/resources/templates/php/tests/ServerConfigurationTest.mustache:14`
+
+## F1005 [medium] Test parity: Test gap: server-configuration / the enum rejection message names the value, the variable and the allowed values missing in node
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Canonical test name: the enum rejection message names the value, the variable and the allowed values. Template paths: src/main/resources/templates/node/test/server-configuration.test.mustache.
+- `kotlin: src/main/resources/templates/kotlin/test/ServerConfigurationTest.mustache:94`
+- `csharp: src/main/resources/templates/csharp/test/ServerConfigurationTest.mustache:86`
+- `php: src/main/resources/templates/php/tests/ServerConfigurationTest.mustache:93`
+- `python: src/main/resources/templates/python/test/test_server_configuration.mustache:123`
+
+## F1006 [medium] Test parity: Test gap: transport-options / an upper-case http or https proxy scheme is accepted missing in elixir
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Canonical test name: an upper-case http or https proxy scheme is accepted. Template paths: src/main/resources/templates/elixir/test/transport_options_test.mustache.
+- `java: src/main/resources/templates/java/test/TransportOptionsTest.mustache:205`
+- `kotlin: src/main/resources/templates/kotlin/test/TransportOptionsTest.mustache:167`
+- `csharp: src/main/resources/templates/csharp/test/TransportOptionsTest.mustache:159`
+- `php: src/main/resources/templates/php/tests/TransportOptionsTest.mustache:220`
+
+## F1007 [medium] Test parity: Test gap: value-serializer / maybeAllowReserved wraps only when allowReserved is true missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: maybeAllowReserved wraps only when allowReserved is true. Template paths: src/main/resources/templates/rust/value_serializer.mustache.
+- `java: src/main/resources/templates/java/test/ValueSerializerTest.mustache:575`
+- `kotlin: src/main/resources/templates/kotlin/test/ValueSerializerTest.mustache:722`
+- `csharp: src/main/resources/templates/csharp/test/ValueSerializerTest.mustache:774`
+- `python: src/main/resources/templates/python/test/test_value_serializer.mustache:282`
+
+## F1008 [medium] Test parity: Test gap: api-error / fromResponseRefusesADeeplyNestedBodyButKeepsTheRawBody missing in go, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go, rust
+
+Canonical test name: fromResponseRefusesADeeplyNestedBodyButKeepsTheRawBody. Template paths: src/main/resources/templates/go/test/api_error_test.mustache, src/main/resources/templates/rust/test/api_error_test.mustache.
+- `java: src/main/resources/templates/java/test/ApiExceptionTest.mustache:243`
+- `kotlin: src/main/resources/templates/kotlin/test/ApiExceptionTest.mustache:272`
+- `csharp: src/main/resources/templates/csharp/test/ApiExceptionTest.mustache:92`
+- `python: src/main/resources/templates/python/test/test_api_error.mustache:241`
+
+## F1009 [medium] Test parity: Test gap: api-error / getTypedErrorBodyRaisesSerializationExceptionForABodyOfTheWrongShape missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: getTypedErrorBodyRaisesSerializationExceptionForABodyOfTheWrongShape. Template paths: src/main/resources/templates/rust/test/api_error_test.mustache.
+- `java: src/main/resources/templates/java/test/ApiExceptionTest.mustache:265`
+- `csharp: src/main/resources/templates/csharp/test/ApiExceptionTest.mustache:157`
+- `php: src/main/resources/templates/php/tests/ApiExceptionTest.mustache:277`
+- `python: src/main/resources/templates/python/test/test_api_error.mustache:354`
+
+## F1010 [medium] Test parity: Test gap: api-key-authenticator / crlfInQueryKeyThrowsAtConstruction missing in go, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go, rust
+
+Canonical test name: crlfInQueryKeyThrowsAtConstruction. Template paths: src/main/resources/templates/go/test/api_key_authenticator_test.mustache, src/main/resources/templates/rust/test/api_key_authenticator_test.mustache.
+- `java: src/main/resources/templates/java/test/ApiKeyAuthenticatorTest.mustache:195`
+- `kotlin: src/main/resources/templates/kotlin/test/ApiKeyAuthenticatorTest.mustache:103`
+- `csharp: src/main/resources/templates/csharp/test/ApiKeyAuthenticatorTest.mustache:101`
+- `php: src/main/resources/templates/php/tests/ApiKeyAuthenticatorTest.mustache:66`
+
+## F1011 [medium] Test parity: Test gap: api-key-authenticator / nonAsciiQueryAndCookieKeysAreAccepted missing in node
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Canonical test name: nonAsciiQueryAndCookieKeysAreAccepted. Template paths: src/main/resources/templates/node/test/api-key-authenticator.test.mustache.
+- `java: src/main/resources/templates/java/test/ApiKeyAuthenticatorTest.mustache:68`
+- `kotlin: src/main/resources/templates/kotlin/test/ApiKeyAuthenticatorTest.mustache:146`
+- `csharp: src/main/resources/templates/csharp/test/ApiKeyAuthenticatorTest.mustache:28`
+- `php: src/main/resources/templates/php/tests/ApiKeyAuthenticatorTest.mustache:20`
+
+## F1012 [medium] Test parity: Test gap: api/pet-api / each server of a multi-server operation resolves to its own URL missing in java, go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, go
+
+Canonical test name: each server of a multi-server operation resolves to its own URL. Template paths: src/main/resources/templates/java/test/api/PetApiTest.mustache, src/main/resources/templates/go/test/api/pet_api_test.mustache.
+- `kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:1330`
+- `csharp: src/main/resources/templates/csharp/test/Api/PetApiTest.mustache:572`
+- `php: src/main/resources/templates/php/tests/Api/PetApiTest.mustache:1330`
+- `ruby: src/main/resources/templates/ruby/test/api/pet_api_test.mustache:1336`
+
+## F1013 [medium] Test parity: Test gap: api/pet-api / getPetByNameMissingRequiredQueryParamThrows missing in python, node, go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python, node, go
+
+Canonical test name: getPetByNameMissingRequiredQueryParamThrows. Template paths: src/main/resources/templates/python/test/api/test_pet_api.mustache, src/main/resources/templates/node/test/api/pet-api.test.mustache, src/main/resources/templates/go/test/api/pet_api_test.mustache.
+- `java: src/main/resources/templates/java/test/api/PetApiTest.mustache:608`
+- `kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:776`
+- `csharp: src/main/resources/templates/csharp/test/Api/PetApiTest.mustache:159`
+- `php: src/main/resources/templates/php/tests/Api/PetApiTest.mustache:1161`
+
+## F1014 [medium] Test parity: Test gap: api/pet-api / getPetTagSendsByteParametersAsStandardPaddedBase64 missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: getPetTagSendsByteParametersAsStandardPaddedBase64. Template paths: src/main/resources/templates/swift/test/api/PetApiTests.mustache.
+- `java: src/main/resources/templates/java/test/api/PetApiTest.mustache:562`
+- `kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:833`
+- `csharp: src/main/resources/templates/csharp/test/Api/PetApiTest.mustache:878`
+- `php: src/main/resources/templates/php/tests/Api/PetApiTest.mustache:467`
+
+## F1015 [medium] Test parity: Test gap: basic-authenticator / rejectsPasswordWithNulAtConstruction missing in go, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go, rust
+
+Canonical test name: rejectsPasswordWithNulAtConstruction. Template paths: src/main/resources/templates/go/test/basic_authenticator_test.mustache, src/main/resources/templates/rust/test/basic_authenticator_test.mustache.
+- `java: src/main/resources/templates/java/test/BasicAuthenticatorTest.mustache:64`
+- `kotlin: src/main/resources/templates/kotlin/test/BasicAuthenticatorTest.mustache:25`
+- `csharp: src/main/resources/templates/csharp/test/BasicAuthenticatorTest.mustache:28`
+- `php: src/main/resources/templates/php/tests/BasicAuthenticatorTest.mustache:18`
+
+## F1016 [medium] Test parity: Test gap: basic-authenticator / rejectsUsernameWithColonAtConstruction missing in go, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go, rust
+
+Canonical test name: rejectsUsernameWithColonAtConstruction. Template paths: src/main/resources/templates/go/test/basic_authenticator_test.mustache, src/main/resources/templates/rust/test/basic_authenticator_test.mustache.
+- `java: src/main/resources/templates/java/test/BasicAuthenticatorTest.mustache:70`
+- `kotlin: src/main/resources/templates/kotlin/test/BasicAuthenticatorTest.mustache:32`
+- `csharp: src/main/resources/templates/csharp/test/BasicAuthenticatorTest.mustache:35`
+- `php: src/main/resources/templates/php/tests/BasicAuthenticatorTest.mustache:23`
+
+## F1017 [medium] Test parity: Test gap: basic-authenticator / rejectsUsernameWithCrlfAtConstruction missing in go, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go, rust
+
+Canonical test name: rejectsUsernameWithCrlfAtConstruction. Template paths: src/main/resources/templates/go/test/basic_authenticator_test.mustache, src/main/resources/templates/rust/test/basic_authenticator_test.mustache.
+- `java: src/main/resources/templates/java/test/BasicAuthenticatorTest.mustache:58`
+- `kotlin: src/main/resources/templates/kotlin/test/BasicAuthenticatorTest.mustache:18`
+- `csharp: src/main/resources/templates/csharp/test/BasicAuthenticatorTest.mustache:18`
+- `php: src/main/resources/templates/php/tests/BasicAuthenticatorTest.mustache:13`
+
+## F1018 [medium] Test parity: Test gap: client / bearerRejectsCrlfAndNonAscii missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: bearerRejectsCrlfAndNonAscii. Template paths: src/main/resources/templates/swift/test/ClientTests.mustache.
+- `java: src/main/resources/templates/java/test/ClientTest.mustache:59`
+- `kotlin: src/main/resources/templates/kotlin/test/ClientTest.mustache:42`
+- `csharp: src/main/resources/templates/csharp/test/ClientTest.mustache:104`
+- `php: src/main/resources/templates/php/tests/ClientTest.mustache:46`
+
+## F1019 [medium] Test parity: Test gap: configuration / %s hides secret default header values missing in java, kotlin, csharp
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp
+
+Canonical test name: %s hides secret default header values. Template paths: src/main/resources/templates/java/test/ConfigurationTest.mustache, src/main/resources/templates/kotlin/test/ConfigurationTest.mustache, src/main/resources/templates/csharp/test/ConfigurationTest.mustache.
+- `php: src/main/resources/templates/php/tests/ConfigurationTest.mustache:199`
+- `python: src/main/resources/templates/python/test/test_configuration.mustache:211`
+- `ruby: src/main/resources/templates/ruby/test/configuration_test.mustache:204`
+- `node: src/main/resources/templates/node/test/configuration.test.mustache:183`
+
+## F1020 [medium] Test parity: Test gap: default-api-client / concurrent requests do not share redirect budget (Wave E) missing in kotlin, node
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin, node
+
+Canonical test name: concurrent requests do not share redirect budget (Wave E). Template paths: src/main/resources/templates/kotlin/test/DefaultApiClientTest.mustache, src/main/resources/templates/node/test/default-api-client.test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientTest.mustache:549`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientTest.mustache:645`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientTest.mustache:379`
+- `python: src/main/resources/templates/python/test/test_default_api_client.mustache:618`
+
+## F1021 [medium] Test parity: Test gap: default-api-client-unit / crossOriginRedirectStripsSensitiveHeaders missing in swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Canonical test name: crossOriginRedirectStripsSensitiveHeaders. Template paths: src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1664`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:834`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:770`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:821`
+
+## F1022 [medium] Test parity: Test gap: default-api-client-unit / decodes BOM-less utf-16 response body as big-endian (RFC 2781) missing in python, go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python, go
+
+Canonical test name: decodes BOM-less utf-16 response body as big-endian (RFC 2781). Template paths: src/main/resources/templates/python/test/test_default_api_client_unit.mustache, src/main/resources/templates/go/test/default_api_client_unit_test.mustache.
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:602`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:735`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:367`
+- `ruby: src/main/resources/templates/ruby/test/default_api_client_unit_test.mustache:684`
+
+## F1023 [medium] Test parity: Test gap: default-api-client-unit / decodesResponseBodyUsingDeclaredCharset missing in go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Canonical test name: decodesResponseBodyUsingDeclaredCharset. Template paths: src/main/resources/templates/go/test/default_api_client_unit_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1408`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:584`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:644`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:353`
+
+## F1024 [medium] Test parity: Test gap: default-api-client-unit / garbagePemCaCertPathThrowsIllegalArgumentException missing in go, rust, swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go, rust, swift
+
+Canonical test name: garbagePemCaCertPathThrowsIllegalArgumentException. Template paths: src/main/resources/templates/go/test/default_api_client_unit_test.mustache, src/main/resources/templates/rust/test/default_api_client_unit_test.mustache, src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:898`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:215`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:1448`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1462`
+
+## F1025 [medium] Test parity: Test gap: default-api-client-unit / multipartFileWithPngExtensionSetsImagePngContentType missing in swift, elixir
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: swift, elixir
+
+Canonical test name: multipartFileWithPngExtensionSetsImagePngContentType. Template paths: src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache, src/main/resources/templates/elixir/test/default_api_client_unit_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:954`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:250`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:374`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:415`
+
+## F1026 [medium] Test parity: Test gap: default-api-client-unit / multipartFileWithoutExtensionDefaultsToOctetStream missing in elixir
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Canonical test name: multipartFileWithoutExtensionDefaultsToOctetStream. Template paths: src/main/resources/templates/elixir/test/default_api_client_unit_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:964`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:244`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:403`
+- `python: src/main/resources/templates/python/test/test_default_api_client_unit.mustache:508`
+
+## F1027 [medium] Test parity: Test gap: default-api-client-unit / multipartFilenameBackslashEscapesQuotes missing in kotlin, csharp, php
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin, csharp, php
+
+Canonical test name: multipartFilenameBackslashEscapesQuotes. Template paths: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1153`
+- `python: src/main/resources/templates/python/test/test_default_api_client_unit.mustache:426`
+- `ruby: src/main/resources/templates/ruby/test/default_api_client_unit_test.mustache:379`
+- `node: src/main/resources/templates/node/test/default-api-client-unit.test.mustache:512`
+
+## F1028 [medium] Test parity: Test gap: default-api-client-unit / multipartFilenameNulRejected missing in kotlin, csharp, php
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin, csharp, php
+
+Canonical test name: multipartFilenameNulRejected. Template paths: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache, src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1236`
+- `python: src/main/resources/templates/python/test/test_default_api_client_unit.mustache:393`
+- `ruby: src/main/resources/templates/ruby/test/default_api_client_unit_test.mustache:369`
+- `node: src/main/resources/templates/node/test/default-api-client-unit.test.mustache:506`
+
+## F1029 [medium] Test parity: Test gap: default-api-client-unit / unknownContentEncodingSurfacesApiException missing in go
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Canonical test name: unknownContentEncodingSurfacesApiException. Template paths: src/main/resources/templates/go/test/default_api_client_unit_test.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1475`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:1226`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:1280`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1277`
+
+## F1030 [medium] Test parity: Test gap: default-api-client-unit / zlibWrappedDeflateBodyIsDecompressed missing in node, swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: node, swift
+
+Canonical test name: zlibWrappedDeflateBodyIsDecompressed. Template paths: src/main/resources/templates/node/test/default-api-client-unit.test.mustache, src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache.
+- `java: src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache:1552`
+- `kotlin: src/main/resources/templates/kotlin/test/DefaultApiClientUnitTest.mustache:1351`
+- `csharp: src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache:1331`
+- `php: src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1391`
+
+## F1031 [medium] Test parity: Test gap: oauth2-token-manager / refreshGrantCarriesTheRefreshTokenAndTheClientCredentialsOnly missing in kotlin, csharp, php
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: kotlin, csharp, php
+
+Canonical test name: refreshGrantCarriesTheRefreshTokenAndTheClientCredentialsOnly. Template paths: src/main/resources/templates/kotlin/test/OAuth2TokenManagerTest.mustache, src/main/resources/templates/csharp/test/OAuth2TokenManagerTest.mustache, src/main/resources/templates/php/tests/OAuth2TokenManagerTest.mustache.
+- `java: src/main/resources/templates/java/test/OAuth2TokenManagerTest.mustache:601`
+- `python: src/main/resources/templates/python/test/test_oauth2_token_manager.mustache:610`
+- `ruby: src/main/resources/templates/ruby/test/oauth2_token_manager_test.mustache:577`
+- `node: src/main/resources/templates/node/test/oauth2-token-manager.test.mustache:439`
+
+## F1032 [medium] Test parity: Test gap: oauth2-token-manager / token_endpoint_redirect_is_rejected missing in java, node
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, node
+
+Canonical test name: token_endpoint_redirect_is_rejected. Template paths: src/main/resources/templates/java/test/OAuth2TokenManagerTest.mustache, src/main/resources/templates/node/test/oauth2-token-manager.test.mustache.
+- `kotlin: src/main/resources/templates/kotlin/test/OAuth2TokenManagerTest.mustache:69`
+- `csharp: src/main/resources/templates/csharp/test/OAuth2TokenManagerTest.mustache:702`
+- `php: src/main/resources/templates/php/tests/OAuth2TokenManagerTest.mustache:392`
+- `python: src/main/resources/templates/python/test/test_oauth2_token_manager.mustache:502`
+
+## F1033 [medium] Test parity: Test gap: object-serializer / an in-schema enum value still deserializes cleanly missing in java, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: java, rust
+
+Canonical test name: an in-schema enum value still deserializes cleanly. Template paths: src/main/resources/templates/java/test/ObjectSerializerTest.mustache, src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:767`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:665`
+- `python: src/main/resources/templates/python/test/test_object_serializer.mustache:1175`
+- `ruby: src/main/resources/templates/ruby/test/object_serializer_test.mustache:713`
+
+## F1034 [medium] Test parity: Test gap: object-serializer / datetime with -08:00 offset preserves offset in serialized string missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: datetime with -08:00 offset preserves offset in serialized string. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:330`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:70`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:306`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:267`
+
+## F1035 [medium] Test parity: Test gap: object-serializer / format: byte accepts padded standard base64 missing in python, rust, swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python, rust, swift
+
+Canonical test name: format: byte accepts padded standard base64. Template paths: src/main/resources/templates/python/test/test_object_serializer.mustache, src/main/resources/templates/rust/test/object_serializer_test.mustache, src/main/resources/templates/swift/test/ObjectSerializerTests.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:704`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:1716`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1809`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1608`
+
+## F1036 [medium] Test parity: Test gap: object-serializer / integer-backed enum serializes as a JSON number, not a string missing in node, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: node, rust
+
+Canonical test name: integer-backed enum serializes as a JSON number, not a string. Template paths: src/main/resources/templates/node/test/object-serializer.test.mustache, src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1475`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:1097`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1291`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1143`
+
+## F1037 [medium] Test parity: Test gap: object-serializer / non-lowercase string enum preserves wire casing on round-trip missing in ruby, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: ruby, rust
+
+Canonical test name: non-lowercase string enum preserves wire casing on round-trip. Template paths: src/main/resources/templates/ruby/test/object_serializer_test.mustache, src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1501`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:1143`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:774`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1172`
+
+## F1038 [medium] Test parity: Test gap: object-serializer / resolveAnyOf throws when no variant matches missing in ruby, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: ruby, rust
+
+Canonical test name: resolveAnyOf throws when no variant matches. Template paths: src/main/resources/templates/ruby/test/object_serializer_test.mustache, src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1458`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:1023`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1270`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1107`
+
+## F1039 [medium] Test parity: Test gap: object-serializer / resolveOneOf returns the first matching variant missing in python, ruby, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python, ruby, rust
+
+Canonical test name: resolveOneOf returns the first matching variant. Template paths: src/main/resources/templates/python/test/test_object_serializer.mustache, src/main/resources/templates/ruby/test/object_serializer_test.mustache, src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1428`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:1012`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1248`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1088`
+
+## F1040 [medium] Test parity: Test gap: object-serializer / resolveOneOf throws when no variant matches missing in python, ruby, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: python, ruby, rust
+
+Canonical test name: resolveOneOf throws when no variant matches. Template paths: src/main/resources/templates/python/test/test_object_serializer.mustache, src/main/resources/templates/ruby/test/object_serializer_test.mustache, src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:1440`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:996`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:1259`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:1096`
+
+## F1041 [medium] Test parity: Test gap: object-serializer / round-trip: serialize then deserialize yields equivalent datetime missing in rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Canonical test name: round-trip: serialize then deserialize yields equivalent datetime. Template paths: src/main/resources/templates/rust/test/object_serializer_test.mustache.
+- `java: src/main/resources/templates/java/test/ObjectSerializerTest.mustache:489`
+- `kotlin: src/main/resources/templates/kotlin/test/ObjectSerializerTest.mustache:110`
+- `csharp: src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache:342`
+- `php: src/main/resources/templates/php/tests/ObjectSerializerTest.mustache:300`
+
+## F1042 [medium] Test parity: Test gap: server-configuration / appliesOverridesAndFallsBackToDefaultsForUnsetVariables missing in php, node, swift
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: php, node, swift
+
+Canonical test name: appliesOverridesAndFallsBackToDefaultsForUnsetVariables. Template paths: src/main/resources/templates/php/tests/ServerConfigurationTest.mustache, src/main/resources/templates/node/test/server-configuration.test.mustache, src/main/resources/templates/swift/test/ServerConfigurationTests.mustache.
+- `java: src/main/resources/templates/java/test/ServerConfigurationTest.mustache:29`
+- `kotlin: src/main/resources/templates/kotlin/test/ServerConfigurationTest.mustache:26`
+- `csharp: src/main/resources/templates/csharp/test/ServerConfigurationTest.mustache:27`
+- `python: src/main/resources/templates/python/test/test_server_configuration.mustache:21`
+
+## F1043 [medium] Test parity: Test gap: server-configuration / exposesRawUrlTemplateAndDescription missing in php, go, rust
+- Status: **deferred** (name-matched lead from the test parity audit; verify that the test really is missing before working on it) | Lens: review | Category: test-parity | Unit-testable (reviewer's view): None
+- SDKs: php, go, rust
+
+Canonical test name: exposesRawUrlTemplateAndDescription. Template paths: src/main/resources/templates/php/tests/ServerConfigurationTest.mustache, src/main/resources/templates/go/test/server_configuration_test.mustache, src/main/resources/templates/rust/test/server_configuration_test.mustache.
+- `java: src/main/resources/templates/java/test/ServerConfigurationTest.mustache:46`
+- `kotlin: src/main/resources/templates/kotlin/test/ServerConfigurationTest.mustache:145`
+- `csharp: src/main/resources/templates/csharp/test/ServerConfigurationTest.mustache:180`
+- `python: src/main/resources/templates/python/test/test_server_configuration.mustache:34`
+
+## F1044 [medium] Request headers are merged case-sensitively, so two spellings of one header are sent at random (go, swift) or twice (rust), and a caller's lower-case Accept-Encoding does not suppress the SDK's
+- Status: **open** | Lens: review | Category: bug | Unit-testable (reviewer's view): None
+- SDKs: go, swift, rust, elixir
+
+Every layer (TransportOptions default headers, Configuration default headers, header selector, operation header params, auth headers, injected Accept-Encoding/Content-Length) writes into a plain string-keyed map, and only User-Agent and X-Request-ID use a case-insensitive check (F299). go: default_api_client copies the merged map with req.Header.Set(k, v), which canonicalises the key; with both "accept" (a default header) and "Accept" (header selector) in the map, Go's randomised map iteration decides which value is sent, per request. swift: the merged [String: String] is applied with URLRequest.setValue(_:forHTTPHeaderField:), which replaces case-insensitively; Swift Dictionary order is randomised per process, so the winner changes between runs. rust: reqwest RequestBuilder::header appends, so both spellings go on the wire as two header lines (two Authorization or two Content-Type lines are rejected by many servers). In all three the Accept-Encoding injection checks the exact key "Accept-Encoding", so a caller header accept-encoding: identity is sent alongside the SDK's gzip, deflate, br, zstd. delete/remove of "Content-Type" on a bodyless request is also case-sensitive. Failing scenario (go): TransportOptions default header {"authorization": "Bearer A"} plus a client authenticator adding "Authorization: Bearer B": about half the requests carry A and half B. elixir: Map.merge plus a case-sensitive Accept-Encoding check has the same shape; how Req folds the two keys was not verified. Related but distinct from F860 (default headers leaking into token requests). Canonical: merge with case-insensitive replacement (later layer wins, keeping the later spelling) in one helper, and use it for every injected header.
+- `src/main/resources/templates/go/default_api_client.mustache:175` — merged[k] = v
+- `src/main/resources/templates/go/default_api_client.mustache:186` — if _, ok := merged["Accept-Encoding"]; !ok {
+- `src/main/resources/templates/go/default_api_client.mustache:242` — req.Header.Set(k, v)
+- `src/main/resources/templates/go/base_api.mustache:177` — for k, v := range b.config.DefaultHeaders() {
+- `src/main/resources/templates/swift/default_api_client.mustache:276` — merged[k] = v
+- `src/main/resources/templates/swift/default_api_client.mustache:330` — request.setValue(v, forHTTPHeaderField: k)
+- `src/main/resources/templates/rust/default_api_client.mustache:209` — merged.insert(k.clone(), v.clone());
+- `src/main/resources/templates/rust/default_api_client.mustache:223` — if !merged.contains_key("Accept-Encoding") {
+- `src/main/resources/templates/rust/default_api_client.mustache:292` — request_builder = request_builder.header(k.as_str(), v.as_str());
+- `src/main/resources/templates/elixir/default_api_client.mustache:195` — merged = Map.merge(opts.default_headers, headers)
+- `src/main/resources/templates/elixir/default_api_client.mustache:212` — if Map.has_key?(merged, "Accept-Encoding") do
+
+## F1045 [medium] A refresh response without expires_in keeps the old, already lapsed expiry, so every following call runs another refresh grant (go, rust, swift, elixir; java too), while kotlin now gives it no expiry
+- Status: **open** | Lens: review | Category: bug | Unit-testable (reviewer's view): None
+- SDKs: go, rust, swift, elixir, java
+
+The token managers only write the expiry when the response has expires_in. A refresh is attempted only because the stored expiry has lapsed, and nothing clears it first, so a refresh response that omits expires_in (RFC 6749 s5.1 makes it RECOMMENDED, not required) leaves the stale expiry in place. Failing scenario: token 1 has expires_in 3600; after about 58.5 minutes the next call refreshes and the IdP answers {access_token, refresh_token} without expires_in; the new token is used once, and every later call sees expiry-60s in the past and POSTs another refresh_token grant, i.e. one token request per API call for the life of the process (and refresh-token rotation churn). swift documents this as intended ("a stale token is refetched instead of cached forever") and RF-13 says swift keeps the prior expiry, but F536 was fixed for kotlin the other way ("a refresh response without expires_in gives the token no expiry, as in the other SDKs"), and Exchange in the same managers already treats an absent expires_in as no expiry. The two rules contradict each other and the current one in go/rust/swift/elixir/java makes a refresh loop. Canonical: a successful grant response without expires_in sets the expiry to none (cache until 401/invalidate), exactly as exchange and the first fetch do; add the refresh-without-expires_in call-count test F353 asked for.
+- `src/main/resources/templates/go/auth/oauth/oauth2_token_manager.mustache:261` — if len(parsed.ExpiresIn) > 0 && string(parsed.ExpiresIn) != "null" {
+- `src/main/resources/templates/go/auth/oauth/oauth2_token_manager.mustache:120` — if m.accessToken != "" && (m.tokenExpiry.IsZero() || time.Now().Before(m.tokenExpiry.Add(-expirySafetyMargin))) {
+- `src/main/resources/templates/rust/auth/oauth/oauth2_token_manager.mustache:338` — if let Some(expires_in_value) = parsed.get("expires_in") {
+- `src/main/resources/templates/swift/auth/oauth/oauth2_token_manager.mustache:246` — if result.hasExpiresIn {
+- `src/main/resources/templates/elixir/auth/oauth/oauth2_token_manager.mustache:312` — not Map.has_key?(parsed, "expires_in") ->
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/auth/oauth/OAuth2TokenManager.java:301` — if (json.has("expires_in") && !json.get("expires_in").isNull()) {
+
+## F1046 [low] Two expiry margins stack (30 s at store, 60 s at check): a token with expires_in <= 90 is never cached and a 120 s token is reused for only 30 s
+- Status: **open** | Lens: review | Category: bug | Unit-testable (reviewer's view): None
+- SDKs: go, rust, swift, elixir, java
+
+When a token is stored, expiry = now + expires_in - min(expires_in, 30). When it is read, it is reused only while now < expiry - 60. The effective lifetime is expires_in - 90 s. Failing scenario: an IdP issuing 60 s tokens (common for short-lived machine tokens and in test IdPs): expiry = now+30 s, check needs now < now-30 s, so every API call fetches a new token (client_credentials) or redeems the refresh token. expires_in 90 behaves the same; 120 is reused for 30 s. Verified in go, rust, swift, elixir and java with identical constants; the other seven are likely the same (unverified). Canonical: apply one margin, and cap it relative to the lifetime (for example min(60, expires_in/2)) so a short token is cached for part of its life.
+- `src/main/resources/templates/go/auth/oauth/oauth2_token_manager.mustache:264` — bufferSecs := expiresIn
+- `src/main/resources/templates/go/auth/oauth/oauth2_token_manager.mustache:120` — time.Now().Before(m.tokenExpiry.Add(-expirySafetyMargin))
+- `src/main/resources/templates/rust/auth/oauth/oauth2_token_manager.mustache:349` — let buffer_secs = expires_in.min(30);
+- `src/main/resources/templates/rust/auth/oauth/oauth2_token_manager.mustache:155` — if let Some(deadline) = expiry.checked_sub(EXPIRY_SAFETY_MARGIN) {
+- `src/main/resources/templates/swift/auth/oauth/oauth2_token_manager.mustache:263` — let bufferSecs = min(expiresIn, 30)
+- `src/main/resources/templates/swift/auth/oauth/oauth2_token_manager.mustache:96` — if Date() < expiry.addingTimeInterval(-Self.expirySafetyMargin) {
+- `src/main/resources/templates/elixir/auth/oauth/oauth2_token_manager.mustache:327` — buffer_secs = min(expires_in, 30)
+- `src/main/resources/templates/elixir/auth/oauth/oauth2_token_manager.mustache:121` — now < state.token_expiry - @expiry_safety_margin_s) ->
+
+## F1047 [medium] A caller-supplied URLSession (swift) or reqwest::Client (rust) silently drops the SDK's redirect guard: cross-origin API-key headers, non-HTTP Location, hop cap and HTTPS->HTTP body replay are no long
+- Status: **open** | Lens: review | Category: security | Unit-testable (reviewer's view): None
+- SDKs: swift, rust
+
+S9 says a supplied client keeps the SDK defaults applied. go honours it by wrapping the caller's RoundTripper in its own policy client. swift: with TransportOptions.session(_:) set, DefaultApiClient stores the session with sessionDelegate = nil. The SDK's SessionDelegate is the only place that strips Authorization/Cookie/Proxy-Authorization and the spec's api-key headers on a cross-origin hop, refuses non-HTTP(S) Locations, caps hops at 20 and refuses an HTTPS->HTTP body replay; with no delegate, URLSession follows redirects with its own rules and takeRedirectError never runs. The builder rejects followRedirects(false)/maxRedirects with a session but says nothing about the security checks being lost. rust: with_client accepts any reqwest::Client and only documents that it should use Policy::none(); a default reqwest::Client::new() follows up to 10 redirects itself before the SDK's manual loop sees a 3xx. Failing scenario: an API key in X-API-Key (an apiKey-in-header scheme) and an API that answers 302 Location: https://other-host/...: the key is sent to other-host. reqwest strips only its own fixed sensitive set across hosts, and URLSession keeps custom headers (both library details unverified by running). Canonical: keep the guard when a client is injected (swift: a per-task URLSessionTaskDelegate, iOS 15+/macOS 12+, or a 3xx-returning wrapper; rust: detect or require a non-following client, or wrap its redirect policy), or fail fast in build()/with_client.
+- `src/main/resources/templates/swift/default_api_client.mustache:94` — if let supplied = opts.session {
+- `src/main/resources/templates/swift/default_api_client.mustache:387` — if let refusal = sessionDelegate?.takeRedirectError(for: task) {
+- `src/main/resources/templates/swift/transport_options.mustache:251` — public func session(_ val: URLSession?) -> TransportOptionsBuilder {
+- `src/main/resources/templates/rust/default_api_client.mustache:79` — /// should be built with `reqwest::redirect::Policy::none()`, otherwise
+- `src/main/resources/templates/rust/default_api_client.mustache:92` — pub fn with_client(
+- `src/main/resources/templates/rust/default_api_client.mustache:683` — builder = builder.redirect(reqwest::redirect::Policy::none());
+- `src/main/resources/templates/go/default_api_client.mustache:94` — supplied := transportOptions.roundTripper
+
+## F1048 [medium] Response bodies and decompressed bodies are read without any size limit (decompression bomb, unbounded memory)
+- Status: **open** | Lens: review | Category: bug | Unit-testable (reviewer's view): None
+- SDKs: go, rust, swift, elixir
+
+go reads io.ReadAll(resp.Body) and then io.ReadAll of the gzip/zlib/brotli/zstd reader; rust response.bytes() then read_to_end/decode_all; swift's manual gunzip appends 64 KiB chunks to one Data until Z_STREAM_END; elixir decompresses the whole Req body with :zlib/brotli/:zstd. None caps the compressed or the decoded size. Failing scenario: a server (or a man in the middle on a verify_ssl=false or plain-HTTP setup, or a redirect target) answers Content-Encoding: gzip with about 10 MB of compressed zeros; the client allocates about 10 GB and the process is OOM-killed before any error surfaces. The SDK advertises gzip, deflate, br and zstd itself, so it invites this. Not covered by F837 (which is about streaming, not limits). Canonical: a maxResponseBytes transport option with a safe default applied to both the wire read (LimitReader / take) and the decoder output, failing with an ApiError carrying the status and headers.
+- `src/main/resources/templates/go/default_api_client.mustache:272` — rawBody, err := io.ReadAll(resp.Body)
+- `src/main/resources/templates/go/default_api_client.mustache:634` — return io.ReadAll(reader)
+- `src/main/resources/templates/rust/default_api_client.mustache:513` — let raw_bytes = response.bytes().await.map_err(transport_error)?;
+- `src/main/resources/templates/rust/default_api_client.mustache:563` — flate2::read::MultiGzDecoder::new(raw).read_to_end(&mut decoded)?;
+- `src/main/resources/templates/swift/default_api_client.mustache:797` — output.append(outBase, count: produced)
+- `src/spec/resources/generated/elixir/lib/petstore_client/default_api_client.ex:304` — decompress_body(response.body || "", content_encoding, response.status)
+
+## F1049 [medium] elixir token managers and the OIDC discovery cache are unsupervised Agents linked to whichever process built the authenticator and never stopped
+- Status: **open** | Lens: review | Category: bug | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Every OAuth2 authenticator new/6 calls OAuth2TokenManager.start_link() and OIDC new/6 calls Agent.start_link for its discovery cache. They are linked to the calling process, not to a supervisor, and nothing stops them: Client has no close that reaches the authenticator and no authenticator exposes stop (only OIDC rediscovery stops a replaced delegate's manager, F477). Failing scenario 1 (leak): a long-lived GenServer or Oban worker that builds a client per job (per tenant credentials) starts one Agent per job; they live as long as that worker, so the process count and memory grow without bound. Failing scenario 2 (fate sharing): the authenticator is built inside a short-lived process that later crashes (abnormal exit), and the struct was stored elsewhere (application env, another GenServer's state); the linked Agent dies with it and every later API call exits with :noproc instead of raising an SDK error. Conversely an exit inside the Agent (anything not caught by the closure's rescue, e.g. a throw/exit from the adapter) kills the linked creator. The HTTP token request also runs inside the Agent process with :infinity, so all callers queue behind it (single-flight is intended). Canonical: start the manager under a DynamicSupervisor/Registry owned by the SDK application (or let the caller pass a name/supervisor), expose a stop/close that Client.close uses, and convert :noproc into a typed error. Leak and link semantics follow from start_link and the absence of any stop; crash propagation from the adapter was not run.
+- `src/main/resources/templates/elixir/auth/oauth/oauth2_token_manager.mustache:34` — Agent.start_link(
+- `src/main/resources/templates/elixir/auth/oauth/oauth2_client_credentials_authenticator.mustache:52` — {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+- `src/main/resources/templates/elixir/auth/oauth/openid_connect_authenticator.mustache:77` — {:ok, discovery_cache} = Agent.start_link(fn -> %{api_client: nil, discovery: nil} end)
+
+## F1050 [low] swift redirect refusals and the undecodable-body error carry nil responseHeaders although a response arrived (D13, F099 marked fixed)
+- Status: **open** | Lens: review | Category: bug | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+D13 and FD-5: an ApiError for a response that arrived but was unusable carries the real lower-cased headers; nil means no response arrived. F099 records swift as fixed. In swift the three redirect refusals are built in SessionDelegate with only statusCode and message, and the cannotDecodeContentData path builds ApiError(statusCode:message:underlyingError:) although UndecodableBody holds the HTTPURLResponse. Failing scenario: a server answers 21 consecutive 302s; the caller catches ApiError with statusCode 302 and responseHeaders == nil, and by the documented rule concludes no response arrived; x-request-id for support is unavailable. rust and elixir have the same gap but their AGENTS.md mark it 'intended, not landed' (rust ApiError::new(..., None, None) on all three refusals; elixir raises with status_code only), so they are listed in the report, not here.
+- `src/main/resources/templates/swift/default_api_client.mustache:1204` — message: "Exceeded maximum number of redirects (\(limit))"
+- `src/main/resources/templates/swift/default_api_client.mustache:1220` — message: "Refusing to follow redirect to non-HTTP(S) Location: "
+- `src/main/resources/templates/swift/default_api_client.mustache:1281` — message: "Refusing to replay request body across an HTTPS -> HTTP "
+- `src/main/resources/templates/swift/default_api_client.mustache:361` — message: "Failed to decode response body: \(undecodable.urlError.localizedDescription)",
+
+## F1051 [low] rust raises 'too many redirects' for a 3xx with no usable Location once the hop budget is spent (always with max_redirects(Some(0)))
+- Status: **open** | Lens: review | Category: bug | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+D70: a 3xx without a usable Location is returned unchanged; 'too many redirects' only when the budget is exhausted with a Location present. rust's loop exits on hops < max before looking at Location, and the post-loop check tests only is_redirect_status && hops >= max. Failing scenario: max_redirects(Some(0)) with follow_redirects on, and the server answers 302 with no Location (the testRedirectNoLocation fixture): rust returns Err(ApiError 'too many redirects (exceeded 0)') instead of the 302. Same at the end of a chain that ends in a Location-less 3xx exactly at hop 20. go only consults CheckRedirect when Location exists and elixir checks Location first, so both return the 3xx. Canonical: in the post-loop check also require a Location that resolves against the current URL.
+- `src/main/resources/templates/rust/default_api_client.mustache:350` — None => break,
+- `src/main/resources/templates/rust/default_api_client.mustache:473` — format!("too many redirects (exceeded {})", max),
+- `src/spec/resources/generated/rust/src/default_api_client.rs:356` — while is_redirect_status(response.status().as_u16()) && hops < max {
+- `src/spec/resources/generated/rust/src/default_api_client.rs:484` — if is_redirect_status(response.status().as_u16()) && hops >= max {
+
+## F1052 [low] OIDC: once discovery max-age lapses, a failed rediscovery fails every API call even though the cached delegate and its tokens are still valid
+- Status: **open** | Lens: review | Category: bug | Unit-testable (reviewer's view): None
+- SDKs: go, elixir
+
+resolveDelegate returns the cached delegate only while now < discoveryExpiry; after that it re-fetches the discovery document and returns the fetch error, discarding nothing but also not falling back to the still-usable delegate. Failing scenario: discovery served with max-age=3600 (or the 86400 default); an hour later the IdP's /.well-known endpoint has a 30 s outage or a 503; for those 30 s every API call fails with NetworkError/ServerError although the access token in the delegate's token manager is valid and the API is up. A discovery document sent with Cache-Control: max-age=0 triggers a discovery GET before every API call. Verified in go and elixir; the other ten were not read (unverified). Canonical: on rediscovery failure keep using the previous delegate (stale-if-error) and retry discovery later; treat max-age=0 as a short floor.
+- `src/main/resources/templates/go/auth/oauth/openid_connect_authenticator.mustache:172` — if a.delegate != nil && time.Now().Before(a.discoveryExpiry) {
+- `src/main/resources/templates/go/auth/oauth/openid_connect_authenticator.mustache:188` — resp, err := client.SendRequest("GET", a.openIDConnectURL, headers, nil)
+- `src/main/resources/templates/elixir/auth/oauth/openid_connect_authenticator.mustache:143` — cache_discovery(fetch_discovery(self, delegate))
+
+## F1053 [low] Call cancellation does not reach the token fetch: go's ctx is not passed to AuthHeadersOrError and swift callers await an unstructured refresh Task
+- Status: **open** | Lens: review | Category: bug | Unit-testable (reviewer's view): None
+- SDKs: go, swift
+
+S7 says cancelling a call aborts it. go: invokeApiForResult calls effectiveAuth.AuthHeadersOrError() with no context; the token manager sends the token POST with RequestOptions{NoRedirect: true} and no Context, while holding m.mu, and other goroutines block on m.mu.Lock(), which is not interruptible. A caller whose ctx is cancelled (or whose deadline is shorter than the transport timeout) waits for the whole token request (up to the 10 s default per attempt, and up to two attempts on the refresh fallback) before its own request can even start. swift: getAccessToken starts Task<String, Error> { ... } (unstructured) and the caller does try await task.value; cancelling the caller's task does not cancel or abandon the await, so the cancelled call stays suspended until the refresh finishes. rust (future drop) and elixir (process exit) are fine. Canonical: thread the call context into the authenticator (go: an AuthHeadersContext(ctx) variant, a select on ctx.Done() around the single-flight), swift: withTaskCancellationHandler or a continuation that resumes on cancellation while the shared refresh continues.
+- `src/main/resources/templates/go/base_api.mustache:196` — h, aerr := p.AuthHeadersOrError()
+- `src/main/resources/templates/go/auth/oauth/oauth2_token_manager.mustache:220` — &auth.RequestOptions{NoRedirect: true})
+- `src/main/resources/templates/go/auth/oauth/oauth2_token_manager.mustache:117` — m.mu.Lock()
+- `src/main/resources/templates/swift/auth/oauth/oauth2_token_manager.mustache:107` — let task = Task<String, Error> { [self] in
+- `src/main/resources/templates/swift/auth/oauth/oauth2_token_manager.mustache:127` — return try await task.value
+
+## F1054 [low] swift and elixir measure token and discovery expiry with the wall clock, so a clock step makes tokens look valid too long or expire at once
+- Status: **open** | Lens: review | Category: bug | Unit-testable (reviewer's view): None
+- SDKs: swift, elixir
+
+elixir stores token_expiry and discovery_expiry as System.system_time(:second) and compares with the same clock; swift uses Date(). Both follow NTP steps and manual clock changes. go (time.Now carries a monotonic reading) and rust (Instant) do not have this problem. Failing scenario: a VM resumes from suspend or a container's clock is stepped back one hour by NTP right after a fetch; elixir/swift keep serving the cached access token for an extra hour after the IdP expired it, so every call gets 401 (the SDK has no 401-triggered refresh). Stepping forward makes every token look expired at once (one extra fetch, harmless). Canonical: System.monotonic_time / ContinuousClock (or ProcessInfo.systemUptime) for expiry arithmetic.
+- `src/main/resources/templates/elixir/auth/oauth/oauth2_token_manager.mustache:116` — now = System.system_time(:second)
+- `src/main/resources/templates/elixir/auth/oauth/oauth2_token_manager.mustache:328` — expiry = System.system_time(:second) + expires_in - buffer_secs
+- `src/main/resources/templates/swift/auth/oauth/oauth2_token_manager.mustache:96` — if Date() < expiry.addingTimeInterval(-Self.expirySafetyMargin) {

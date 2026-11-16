@@ -86,8 +86,8 @@ public abstract class BaseApi
         Type? returnType,
         IAuthenticator? auth = null,
         bool rawBody = false,
-        CancellationToken cancellationToken = default,
-        string? operationName = null
+        string? operationName = null,
+        CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(queryParams);

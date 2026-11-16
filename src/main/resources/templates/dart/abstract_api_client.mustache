@@ -296,7 +296,8 @@ abstract class AbstractApiClient implements ApiClient {
 
           /* Pick follow-up method+body per RFC 9110 section 15.4.
            *   307 + 308: preserve original method and body.
-           *   303:       every method except HEAD becomes GET, body dropped.
+           *   303:       every method except HEAD becomes GET (HEAD stays HEAD); the
+           *              body is dropped for every method.
            *   301 + 302: only POST becomes GET (body dropped); every other
            *              method keeps its method and body. */
           final statusCode = streamedResponse.statusCode;
@@ -304,13 +305,9 @@ abstract class AbstractApiClient implements ApiClient {
           String nextMethod;
           Object? nextBody;
           if (statusCode == 303) {
-            if (methodUpper == 'HEAD') {
-              nextMethod = currentMethod;
-              nextBody = currentBody;
-            } else {
-              nextMethod = 'GET';
-              nextBody = null;
-            }
+            /* The body is never replayed on a 303, HEAD included. */
+            nextMethod = methodUpper == 'HEAD' ? currentMethod : 'GET';
+            nextBody = null;
           } else if ((statusCode == 301 || statusCode == 302) &&
               methodUpper == 'POST') {
             nextMethod = 'GET';

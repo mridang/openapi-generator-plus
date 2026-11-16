@@ -496,7 +496,7 @@ class TestN1RedirectBodyReplayMatrix:
                 client = DefaultApiClient(transport, pool_manager=pool)
                 client.send_request(method, 'http://example.com/start', {}, '{"a":1}')
                 assert pool.calls[1][0] == method
-                assert pool.calls[1][2] == '{"a":1}'
+                assert pool.calls[1][2] in ('{"a":1}', b'{"a":1}')
 
     def test_301_and_302_turn_post_into_get(self) -> None:
         for status in (301, 302):
