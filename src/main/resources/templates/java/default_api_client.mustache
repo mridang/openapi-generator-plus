@@ -413,7 +413,12 @@ public final class DefaultApiClient implements ApiClient {
             throw new IllegalStateException(
                     "ApiClient has been closed and can no longer send requests");
         }
-        Map<String, String> mergedHeaders = new HashMap<>(transportOptions.getDefaultHeaders());
+        /* A no-redirect request is an OAuth2 token request, which goes to the
+         * identity provider, a different origin: it carries only the SDK's own
+         * headers, never the caller's default headers (which may hold the API
+         * credentials). */
+        Map<String, String> mergedHeaders =
+                noRedirect ? new HashMap<>() : new HashMap<>(transportOptions.getDefaultHeaders());
         mergedHeaders.putAll(headers);
 
         /* RFC 9110 section 5.1: field names are case-insensitive, so a caller

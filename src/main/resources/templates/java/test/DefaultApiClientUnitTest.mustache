@@ -654,6 +654,18 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void aNoRedirectRequestCarriesNoTransportDefaultHeaders() throws Exception {
+    TransportOptions transport =
+        TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/echo-headers", Map.of("X-Own", "own"), null, true);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"x-own\":\"own\""));
+    assertFalse(response.body().contains("x-custom"));
+  }
+
+  @Test
   void extractsProxyAuthHeaderFromProxyUrlUserInfo() throws Exception {
     /* Gap AK: java.net.http.HttpClient silently drops userinfo embedded in
      * the proxy URL. DefaultApiClient must extract `user:pass`, base64-encode

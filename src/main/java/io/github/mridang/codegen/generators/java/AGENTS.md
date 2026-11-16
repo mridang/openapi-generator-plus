@@ -312,3 +312,4 @@ Already conforming: F803 (server before options), F054 (content parameters in ev
 ## Decisions taken in batch 7
 
 - F1086 (D79): proxy URL validation messages replace any `user:password@` userinfo with `***@` (`TransportOptions.Builder.redactUserInfo`). Test: `TransportOptionsTest` (`unusableProxyUrlIsRejectedWithTheExactMessage` rows).
+- F860: a no-redirect request (the OAuth2 token POST) carries no `TransportOptions.defaultHeaders`; OIDC discovery still merges them (not changed). Test: `DefaultApiClientUnitTest`.
