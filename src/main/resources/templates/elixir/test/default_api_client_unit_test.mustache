@@ -145,6 +145,28 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert request.options.redirect == false
   end
 
+  test "a deadline handed to send_request replaces the transport timeout for that call" do
+    adapter = fn request ->
+      Process.sleep(500)
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter], timeout: 60_000)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    deadline = System.monotonic_time(:millisecond) + 100
+
+    assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(
+        client,
+        :get,
+        "http://custom.invalid/echo",
+        %{},
+        nil,
+        deadline: deadline
+      )
+    end
+  end
+
   test "sends POST with JSON body" do
     base_url = start_server(200, "application/json", ~s({"method":"POST","body":"key"}))
     client = {{moduleName}}.DefaultApiClient.new()

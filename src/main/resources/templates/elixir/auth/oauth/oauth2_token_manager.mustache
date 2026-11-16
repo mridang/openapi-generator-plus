@@ -29,7 +29,8 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
           access_token: String.t() | nil,
           refresh_token: String.t() | nil,
           token_expiry: integer() | nil,
-          token_exchanged: boolean()
+          token_exchanged: boolean(),
+          code_verifier: String.t() | nil
         }
 
   @doc """
@@ -44,7 +45,8 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
           access_token: nil,
           refresh_token: nil,
           token_expiry: nil,
-          token_exchanged: false
+          token_exchanged: false,
+          code_verifier: nil
         }
       end,
       opts
@@ -88,6 +90,33 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
   @spec exchanged?(pid()) :: boolean()
   def exchanged?(manager) do
     Agent.get(manager, & &1.token_exchanged)
+  end
+
+  @doc """
+  Start a PKCE (RFC 7636) challenge for the authorization-code flow.
+
+  Draws a fresh 43-character `code_verifier` (32 random bytes, base64url
+  without padding), keeps it in the session for `code_verifier/1`, and returns
+  its S256 `code_challenge`. A later call replaces the verifier, so each
+  authorization URL has its own pair. The verifier lives here, not in the
+  authenticator struct, so every copy of the authenticator and every
+  OpenID Connect rediscovery sees it.
+  """
+  @spec begin_pkce(pid()) :: String.t()
+  def begin_pkce(manager) do
+    verifier = Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
+    challenge = Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
+    Agent.update(manager, &Map.put(&1, :code_verifier, verifier))
+    challenge
+  end
+
+  @doc """
+  The `code_verifier` of the last `begin_pkce/1`, or `nil` when no
+  authorization URL was built.
+  """
+  @spec code_verifier(pid()) :: String.t() | nil
+  def code_verifier(manager) do
+    Agent.get(manager, & &1.code_verifier)
   end
 
   @doc """
