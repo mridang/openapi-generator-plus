@@ -223,6 +223,23 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void ThirdGeneratedServerKeepsItsHostileTextVerbatim()
+    {
+        ServerConfiguration server = Servers.All[2];
+
+        Assert.Equal("https://{tenant}.example.com/api", server.UrlTemplate);
+        Assert.Equal("Bob's \"sandbox\" & co: $5 #{x} a*/b", server.Description);
+        ServerVariable tenant = server.Variables["tenant"];
+        Assert.Equal("o'neil", tenant.DefaultValue);
+        Assert.Equal("Tenant's \"id\"", tenant.Description);
+        Assert.Equal(new[] { "o'neil", "a&b" }, tenant.EnumValues);
+        Assert.Equal("https://o'neil.example.com/api", server.GetUrl());
+        Assert.Equal(
+            "https://a&b.example.com/api",
+            server.GetUrl(new Dictionary<string, string> { ["tenant"] = "a&b" }));
+    }
+
+    [Fact]
     public void ExposesRawTemplateAndDescription()
     {
         var server = new ServerConfiguration(

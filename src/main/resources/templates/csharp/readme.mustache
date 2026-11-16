@@ -180,6 +180,13 @@ Supporting AOT would require regenerating the serialization layer with
 the System.Text.Json source generator. Use the (default, interpreted or
 trimmed) JIT/IL runtime instead.
 
+### Enum string forms
+
+A generated enum is a native C# `enum`, so `ToString()` and string interpolation give
+the member name (`Color.Red` prints `Red`), not the value on the wire (`red`). The
+wire value is written and read only by the enum's JSON converter; do not build
+URLs or log lines from `ToString()` when you need the wire value.
+
 ### Schema constraints
 
 The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
