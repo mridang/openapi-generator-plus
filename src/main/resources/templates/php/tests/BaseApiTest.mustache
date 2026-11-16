@@ -229,7 +229,7 @@ test('forwards auth headers', function (): void {
 
 test('sets cookie header', function (): void {
     $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
-    makeBaseApiTestableApi()->call(
+    $result = makeBaseApiTestableApi()->call(
         'GET',
         '/test/echo',
         [],
@@ -237,10 +237,12 @@ test('sets cookie header', function (): void {
         null,
         ['application/json'],
         'application/json',
-        null,
+        'object',
         $auth
     );
-    expect(true)->toBeTrue();
+    expect($result)->toBeArray();
+    /** @var array{headers: array<string, string>} $result */
+    expect($result['headers']['cookie'])->toBe('session=abc123');
 });
 
 test('a binary body is sent as raw bytes whether given as string, stream resource or PSR-7 stream', function (
