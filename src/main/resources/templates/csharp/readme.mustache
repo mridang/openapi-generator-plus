@@ -133,6 +133,14 @@ make analyze
 dotnet build --no-restore /warnaserror
 ```
 
+## Dependency audit
+
+```bash
+make audit
+```
+
+Fails when a direct or transitive NuGet package has a known vulnerability (`dotnet list package --vulnerable --include-transitive`).
+
 ## Package
 
 - Name: `{{packageName}}`

@@ -208,6 +208,15 @@ public class MetadataTest
     }
 
     [Fact]
+    public void MakefileCarriesADependencyAuditTarget()
+    {
+        var makefile = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "Makefile"));
+
+        Assert.Contains("\naudit:\n", makefile, StringComparison.Ordinal);
+        Assert.Contains("dotnet list package --vulnerable --include-transitive", makefile, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ModelWithoutAnExampleDoesNotDocumentALiteralNull()
     {
         /* A property that declares no example leaves the codegen example as the
