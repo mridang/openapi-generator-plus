@@ -596,3 +596,32 @@ func TestOpenIdConnect_ReprShowsTheNonSecretFields(t *testing.T) {
 		}
 	}
 }
+
+// F855: InvalidateAccessToken reaches the delegate that holds the session, keeps
+// its refresh token, and makes no discovery request of its own.
+func TestOpenIdConnect_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse(""),
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	authObj.InvalidateAccessToken()
+	if client.requestCount() != 0 {
+		t.Fatalf("expected no request before the first discovery, got %d", client.requestCount())
+	}
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	authObj.InvalidateAccessToken()
+	headers, err := authObj.AuthHeadersOrError()
+	if err != nil || headers["Authorization"] != "Bearer tok2" {
+		t.Fatalf("expected Bearer tok2 after the invalidation, got %v, %v", headers, err)
+	}
+	if body := client.requests[2].body; !strings.Contains(body, "grant_type=refresh_token") || !strings.Contains(body, "refresh_token=ref1") {
+		t.Errorf("expected a refresh grant with the kept refresh token, got %q", body)
+	}
+}

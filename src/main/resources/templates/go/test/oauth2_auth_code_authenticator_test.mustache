@@ -711,3 +711,27 @@ func TestOAuth2AuthCode_FailedExchangeKeepsThePreviousSession(t *testing.T) {
 		t.Errorf("expected the previous token to survive, got %q", got)
 	}
 }
+
+// F855: InvalidateAccessToken keeps the refresh token and the exchanged state,
+// so the next call is a refresh grant rather than ErrAuthCodeNotExchanged.
+func TestOAuth2AuthCode_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	authObj.InvalidateAccessToken()
+	headers, err := authObj.AuthHeadersOrError()
+	if err != nil || headers["Authorization"] != "Bearer tok2" {
+		t.Fatalf("expected Bearer tok2 after the invalidation, got %v, %v", headers, err)
+	}
+	if body := client.requests[1].body; !strings.Contains(body, "grant_type=refresh_token") || !strings.Contains(body, "refresh_token=ref1") {
+		t.Errorf("expected a refresh grant with the kept refresh token, got %q", body)
+	}
+}

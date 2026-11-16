@@ -114,6 +114,18 @@ func (a *OpenIdConnectAuthenticator) SetApiClient(client auth.ApiClient) {
 	a.apiClient = client
 }
 
+// InvalidateAccessToken drops the cached access token of the current session
+// and keeps the refresh token. It makes no discovery request: before the first
+// discovery there is no token to drop.
+func (a *OpenIdConnectAuthenticator) InvalidateAccessToken() {
+	a.mu.Lock()
+	delegate := a.delegate
+	a.mu.Unlock()
+	if delegate != nil {
+		delegate.InvalidateAccessToken()
+	}
+}
+
 // BuildAuthorizationURL builds the authorization URL using the discovered
 // authorization endpoint.
 func (a *OpenIdConnectAuthenticator) BuildAuthorizationURL(state string) (string, error) {

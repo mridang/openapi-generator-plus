@@ -80,3 +80,18 @@ type HttpAwareAuthenticator interface {
 	 * discovery, etc.). The client argument is the shared API client instance. */
 	SetApiClient(client ApiClient)
 }
+
+// AccessTokenInvalidator is implemented by the authenticators that cache an
+// OAuth2 access token: the client credentials, password, authorization code and
+// OpenID Connect authenticators.
+//
+// When an API call is answered with 401 the client calls InvalidateAccessToken
+// and replays the request once with fresh headers; a second 401 is reported as
+// the usual *UnauthorizedError. API key, basic and bearer authenticators do not
+// implement it, so their requests are never replayed.
+type AccessTokenInvalidator interface {
+	/* InvalidateAccessToken drops the cached access token and keeps the refresh
+	 * token, so the next call fetches a new token, with a refresh grant first
+	 * when a refresh token is held. */
+	InvalidateAccessToken()
+}

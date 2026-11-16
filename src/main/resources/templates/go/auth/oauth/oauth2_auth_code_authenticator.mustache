@@ -137,6 +137,13 @@ func (a *OAuth2AuthorizationCodeAuthenticator) SetApiClient(client auth.ApiClien
 	a.tokenManager.SetApiClient(client)
 }
 
+// InvalidateAccessToken drops the cached access token and keeps the refresh
+// token, so the next request fetches a new token. The client calls it when an
+// API call is answered with 401, then replays the request once.
+func (a *OAuth2AuthorizationCodeAuthenticator) InvalidateAccessToken() {
+	a.tokenManager.InvalidateAccessToken()
+}
+
 // BuildAuthorizationURL builds the authorization URL to redirect the user to.
 //
 // The state parameter is optional and used for CSRF protection. The URL carries
