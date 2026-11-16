@@ -725,18 +725,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /**
      * Names of the arguments the SDK itself adds to every operation. A parameter
-     * named like one would produce two parameters of the same name (TS2300).
-     */
-    private static final Set<String> INJECTED_ARGUMENT_NAMES = Set.of("options", "requestOptions", "server");
-
-    /**
-     * Suffixes a parameter that is named like an SDK-injected argument with
-     * {@code Param}, so {@code options} becomes {@code optionsParam} (F1055).
+     * named like one would produce two parameters of the same name (TS2300), so
+     * the shared {@code toParamName} suffixes it with {@code Param} (F1055).
      */
     @Override
-    public String toParamName(String name) {
-        final String param = super.toParamName(name);
-        return INJECTED_ARGUMENT_NAMES.contains(param) ? param + "Param" : param;
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of("options", "requestOptions", "server");
     }
 
     /** {@inheritDoc} */

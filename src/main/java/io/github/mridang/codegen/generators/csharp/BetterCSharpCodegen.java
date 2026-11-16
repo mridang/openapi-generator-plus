@@ -222,30 +222,10 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return NamingConvention.CAMEL_CASE;
     }
 
-    /** The argument names the generated operations add themselves (F1055). */
-    private static final Set<String> INJECTED_ARGUMENT_NAMES =
-            Set.of("options", "server", "cancellationToken", "requestContentType");
-
-    /**
-     * Returns the parameter name, with {@code Param} appended when it equals an
-     * argument the generated operation injects itself ({@code options},
-     * {@code server}, {@code cancellationToken}, {@code requestContentType}), so
-     * a path or body parameter of that name cannot produce a duplicate
-     * parameter.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String toParamName(final String name) {
-        return disambiguateInjectedName(super.toParamName(name));
-    }
-
-    /**
-     * Appends {@code Param} to a parameter name that equals an injected argument.
-     *
-     * @param paramName the camelCase parameter name
-     * @return the name, made distinct from the injected arguments
-     */
-    static String disambiguateInjectedName(final String paramName) {
-        return INJECTED_ARGUMENT_NAMES.contains(paramName) ? paramName + "Param" : paramName;
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of("options", "server", "cancellationToken", "requestContentType");
     }
 
     /** {@inheritDoc} */
