@@ -887,6 +887,13 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             if (p.description != null && !p.description.isBlank()) {
                 param.put("description", p.description);
             }
+            // The named examples of the parameter go into the same KDoc, as they
+            // do for a required parameter on the operation (F893).
+            final List<Map<String, Object>> examples = kdocExamples(p);
+            if (!examples.isEmpty()) {
+                param.put("pluralExamples", examples);
+                param.put("hasPluralExamples", true);
+            }
             params.add(param);
             if (p.required) {
                 requiredParams.add(param);
@@ -970,6 +977,30 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         injectAuthFieldContext(op, context);
         context.put("authImport", invokerPackage + ".auth." + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /**
+     * The named examples of a parameter as KDoc-safe single-line entries: a
+     * comment terminator or a line break inside a summary or value would end or
+     * break the comment.
+     */
+    private static List<Map<String, Object>> kdocExamples(CodegenParameter p) {
+        final List<Map<String, Object>> result = new ArrayList<>();
+        if (p.examples == null || p.examples.isEmpty()) {
+            return result;
+        }
+        for (final Map<String, Object> example : buildPluralExamplesList(p.examples)) {
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("summary", kdocLine(String.valueOf(example.get("summary"))));
+            entry.put("value", kdocLine(String.valueOf(example.get("value"))));
+            result.add(entry);
+        }
+        return result;
+    }
+
+    private static String kdocLine(String text) {
+        final String safe = text.replace("*/", "* /").replace("/*", "/ *");
+        return safe.replaceAll("\\s*[\\r\\n]+\\s*", " ");
     }
 
     /**

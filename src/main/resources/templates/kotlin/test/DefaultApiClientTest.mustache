@@ -61,6 +61,25 @@ class DefaultApiClientTest {
     }
 
     @Nested
+    @DisplayName("response headers")
+    inner class ResponseHeaders {
+
+        @Test
+        @DisplayName("a repeated response header is joined and its name is lowercased")
+        fun repeatedResponseHeadersAreJoined() {
+            val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
+            val response = runBlocking {
+                client.sendRequest("GET", "${ChasmContainer.getBaseUrl()}/test/response-headers", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertEquals("foo", response.headers["x-custom-header"])
+            val link = response.headers["link"]!!
+            assertTrue(link.contains("rel=\"next\""), link)
+            assertTrue(link.contains("rel=\"prev\""), link)
+        }
+    }
+
+    @Nested
     @DisplayName("TLS verification disabled")
     inner class TlsVerificationDisabled {
 

@@ -63,4 +63,16 @@ public class KotlinFormattingSpec extends AbstractFormattingSpec implements Kotl
                                 + "     * Example — Small breed ID: `1`\n"
                                 + "     * Example — Large breed ID: `42`\n");
     }
+
+    @Test
+    void optionalParameterExamplesShouldBeDocumentedOnTheOptionsClass() throws java.io.IOException {
+        Path options =
+                tempOutputDir.resolve(
+                        "src/main/kotlin/com/example/petstore/api/options/FindPetsByStatusOptions.kt");
+        String src = java.nio.file.Files.readString(options);
+        assertThat(src)
+                .as("kotlin options class should carry the examples of an optional parameter")
+                .contains("* Example — Available only: `available`")
+                .contains("* Example — Sold pets: `sold`");
+    }
 }
