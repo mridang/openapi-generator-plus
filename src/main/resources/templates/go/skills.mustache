@@ -187,21 +187,25 @@ client := {{packageName}}.New{{clientClassName}}(fakeAuth{}, nil)
 
 ## Error Handling
 
-All API errors derive from `ApiError`. The error hierarchy is:
+Every failure the SDK produces satisfies the `{{errorPrefix}}Error` interface, so one `errors.As` against it catches all of them. It has four direct kinds: `ApiError` (an HTTP response or a transport failure), `SerializationError` (a request or response body that cannot be encoded or decoded), `OAuth2ServerError` (the token endpoint answered with an error) and `OAuth2TokenError` (the token response was unusable). The last two surface from the first authenticated call, so they are siblings of `ApiError`, not subtypes of it: an `ApiError` branch alone lets them escape. The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-    - `TooManyRequestsError` (429)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
-  - `NetworkError` (no HTTP response, status 0)
-    - `NetworkTimeoutError` (the request timed out, status 0)
+- `{{errorPrefix}}Error` (root interface)
+  - `SerializationError`
+  - `OAuth2ServerError`
+  - `OAuth2TokenError`
+  - `ApiError`
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```go
 import (
@@ -218,6 +222,7 @@ if err != nil {
     var clientErr *{{packageName}}.ClientError
     var serverErr *{{packageName}}.ServerError
     var apiErr *{{packageName}}.ApiError
+    var root {{packageName}}.{{errorPrefix}}Error
     if errors.As(err, &notFound) {
         fmt.Printf("Not found: %s\n", notFound.Error())
     } else if errors.As(err, &clientErr) {
@@ -226,6 +231,8 @@ if err != nil {
         fmt.Printf("Server error: %s\n", serverErr.Error())
     } else if errors.As(err, &apiErr) {
         fmt.Printf("API error %d: %s\n", apiErr.StatusCode(), apiErr.Error())
+    } else if errors.As(err, &root) {
+        fmt.Printf("SDK error: %s\n", root.Error())
     }
 }
 ```

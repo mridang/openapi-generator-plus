@@ -1,4 +1,4 @@
-.PHONY: all build test lint format fmt gofumpt vet staticcheck docs clean
+.PHONY: all build test lint format format-check fmt gofumpt vet staticcheck docs clean
 
 all: build
 
@@ -10,8 +10,12 @@ test:
 	go run gotest.tools/gotestsum --junitfile .out/reports/junit.xml -- -v -race -coverprofile=.out/coverage.out ./...
 	go run github.com/boumenot/gocover-cobertura < .out/coverage.out > .out/coverage.xml
 
-lint:
+lint: format-check vet staticcheck
 	golangci-lint run ./...
+
+format-check:
+	@test -z "$$(gofmt -s -l .)" || { echo "gofmt -s: these files need formatting:"; gofmt -s -l .; exit 1; }
+	@test -z "$$(go tool gofumpt -l .)" || { echo "gofumpt: these files need formatting:"; go tool gofumpt -l .; exit 1; }
 
 format: fmt gofumpt
 
