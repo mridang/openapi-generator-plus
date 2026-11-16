@@ -76,12 +76,15 @@ import Testing
         }
     }
 
-    /* Each rejection branch reports its own exact message. */
+    /* Each rejection branch reports its own exact message. A token of Unicode
+     * spaces only is blank to a reader but not to the empty guard, so it is
+     * refused by the printable ASCII rule. */
     @Test(arguments: [
         ("", "Bearer token must not be empty"),
         ("  \n", "Bearer token must not be empty"),
         ("tok\r\nInjected: yes", "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
         ("ñoño", "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
+        ("\u{2003}\u{3000}", "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
     ])
     func rejectionMessagesNameTheBranch(token: String, message: String) {
         #expect(throws: ConfigurationError.invalidArgument(message)) {

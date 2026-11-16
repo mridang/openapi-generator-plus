@@ -108,6 +108,27 @@ import Testing
         #expect(ServerConfiguration(urlTemplate: "https://api.example.com").description == "")
     }
 
+    /* A value that contains another variable's placeholder is inserted as
+     * written: the template is read once. */
+    @Test func urlDoesNotExpandAPlaceholderIntroducedByAValue() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/{version}",
+            variables: [
+                "env": ServerVariable(defaultValue: "{version}"),
+                "version": ServerVariable(defaultValue: "v2"),
+            ]
+        )
+        #expect(try server.url() == "https://{version}.api.example.com/v2")
+    }
+
+    @Test func urlSubstitutesEveryOccurrenceAndKeepsUnknownBraces() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/{env}/{other}/{",
+            variables: ["env": ServerVariable(defaultValue: "prod")]
+        )
+        #expect(try server.url() == "https://prod.api.example.com/prod/{other}/{")
+    }
+
     @Test func urlRejectsDefaultNotInEnumValues() throws {
         // When no override is supplied, the default value is still validated
         // against the enum constraint.
