@@ -2176,6 +2176,92 @@
     "dart"
    ],
    "reason": "F823: dart's BaseApi owns the retry loop and reads the transport's policy through the RetryingApiClient interface (maxRetries, timeoutMillis); an ApiClient that does not implement it is never retried, so existing fakes keep working"
+  },
+  {
+   "element": [
+    "error",
+    "modelerror"
+   ],
+   "aspect": "type",
+   "languages": [
+    "kotlin",
+    "dart"
+   ],
+   "reason": "a model named Error would shadow kotlin.Error (the typealias for java.lang.Error that kotlin imports implicitly) and dart:core Error, which every throw and catch in the generated code uses, so both keep ModelError"
+  },
+  {
+   "element": [
+    "result",
+    "modelresult"
+   ],
+   "aspect": "type",
+   "languages": [
+    "kotlin"
+   ],
+   "reason": "a model named Result would shadow kotlin.Result, which kotlin imports implicitly and the generated code itself uses, so kotlin keeps ModelResult"
+  },
+  {
+   "element": "requirednullable.note",
+   "aspect": "prop-optional",
+   "languages": [
+    "java",
+    "php",
+    "ruby",
+    "node",
+    "elixir"
+   ],
+   "reason": "required plus nullable: the property is a nullable type that must still be supplied (java boxed with required validation, php nullable typed property, ruby dry-struct required key, node `T | null` without `?`, elixir enforce_keys); the surface check reads the nullable spelling as optional, as already allowed for kotlin, csharp, dart, go, rust and swift"
+  },
+  {
+   "element": [
+    "availability",
+    "color",
+    "defaultsmodeenum",
+    "edgecasesphaseenum",
+    "orderstatusenum",
+    "petstatusenum",
+    "petwithownerstatusenum",
+    "priority",
+    "separator",
+    "swatch",
+    "getmultiserverpetinfoserverregionalregion",
+    "getmultiserverpetinfoservermirrorregion",
+    "getmultiserverpetinfoserverchannel",
+    "getstagingpetinfoserverenvironment",
+    "getstagingpetinfoserverversion"
+   ],
+   "aspect": "kind",
+   "languages": [
+    "node"
+   ],
+   "reason": "TypeScript has no nominal enum type in the generated style: an enum is a const object plus a string-literal union type alias, which the surface check reads as a type, not an enum"
+  },
+  {
+   "element": "toomanyrequestserror.retryafter",
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "reason": "node-only convenience getter that parses the Retry-After header into seconds; the other SDKs expose the raw responseHeaders and leave parsing to the caller, and adding it to eleven languages is not a small safe change"
+  },
+  {
+   "element": "reservestockresponse",
+   "aspect": "kind",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust models oneOf as a sum type (enum with payloads), its only tagged union"
+  },
+  {
+   "element": "reservestockresponse.actualinstance",
+   "aspect": "member",
+   "languages": [
+    "ruby",
+    "node",
+    "rust",
+    "elixir"
+   ],
+   "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
   }
  ]
 }
