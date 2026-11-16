@@ -223,7 +223,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
-            "go install golang.org/x/tools/cmd/goimports@v0.45.0",
+            // goimports is built once and kept on the shared cache volume.
+            "export GOBIN=/cache/go-bin GOCACHE=/cache/go-build PATH=\"$PATH:/cache/go-bin\"",
+            "[ -x /cache/go-bin/goimports ] || go install golang.org/x/tools/cmd/goimports@v0.45.0",
             "go mod tidy",
             "goimports -w ."
         };

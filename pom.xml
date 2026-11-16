@@ -153,6 +153,18 @@
               <name>loggerPath</name>
               <value>conf/log4j.properties</value>
             </property>
+            <!-- The twelve generator tests are CPU- and Docker-formatter-bound and share a
+                 bounded formatter pool (DockerFormatter), so the unit-test phase runs more of
+                 them at once than the integration specs, which stay at the limit set in
+                 src/spec/resources/junit-platform.properties. -->
+            <property>
+              <name>junit.jupiter.execution.parallel.config.fixed.parallelism</name>
+              <value>6</value>
+            </property>
+            <property>
+              <name>junit.jupiter.execution.parallel.config.fixed.max-pool-size</name>
+              <value>6</value>
+            </property>
           </systemPropertyVariables>
           <!-- JDK 24+ noise from transitive deps:
                enable-native-access=ALL-UNNAMED silences the

@@ -313,7 +313,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
-            "pip install --quiet \"ruff>=0.15,<0.16\"",
+            "PIP_CACHE_DIR=/cache/pip pip install --quiet \"ruff>=0.15,<0.16\"",
             "ruff check --select F401,F811 --fix --exit-zero --quiet .",
             "ruff format ."
         };

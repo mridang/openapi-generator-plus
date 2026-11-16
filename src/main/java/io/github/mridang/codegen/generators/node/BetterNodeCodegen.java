@@ -199,7 +199,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
-            "npm install --ignore-scripts", "npx prettier --write .", "rm -rf node_modules"
+            // node_modules holds thousands of small files, which are slow to write onto the
+            // bind-mounted output directory; install into the container's own disk and link it.
+            "mkdir -p /opt/np && cp package.json /opt/np/",
+            "( [ ! -f package-lock.json ] || cp package-lock.json /opt/np/ )",
+            "npm install --ignore-scripts --prefix /opt/np",
+            "ln -s /opt/np/node_modules node_modules",
+            "npx prettier --write .",
+            "rm -rf node_modules"
         };
     }
 

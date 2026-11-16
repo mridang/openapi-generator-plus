@@ -289,8 +289,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             /* -f fails on an HTTP error rather than saving the error page as
              * /tmp/gjf.jar (which would later fail as a corrupt jar); --retry
              * rides out transient GitHub-release hiccups; -S shows the error. */
-            "curl -fSL --retry 5 --retry-delay 2 --retry-all-errors -o /tmp/gjf.jar"
-                + " https://github.com/google/google-java-format/releases/download/v1.28.0/google-java-format-1.28.0-all-deps.jar",
+            "[ -f /cache/gjf-1.28.0.jar ] || { curl -fSL --retry 5 --retry-delay 2"
+                + " --retry-all-errors -o /cache/gjf-1.28.0.jar.part"
+                + " https://github.com/google/google-java-format/releases/download/v1.28.0/google-java-format-1.28.0-all-deps.jar"
+                + " && mv /cache/gjf-1.28.0.jar.part /cache/gjf-1.28.0.jar; }",
+            "cp /cache/gjf-1.28.0.jar /tmp/gjf.jar",
             GJF_REPLACE,
             /* A second pass: removing an unused import in the first pass can
              * leave two blank lines behind, which only a second pass collapses.

@@ -10,12 +10,14 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Semaphore;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Runs a language's source formatter inside a Docker container, serialized
- * across the whole JVM and failing loudly on any error.
+ * Runs a language's source formatter inside a Docker container, limited to a
+ * few concurrent containers per JVM and failing loudly on any error.
  *
  * <p>Every language formatter installs its tooling from the network at run
  * time — {@code npm install}, {@code composer install}, {@code cargo}/{@code
@@ -28,8 +30,8 @@ import org.slf4j.LoggerFactory;
  * the race varied from run to run, the committed output drifted
  * non-deterministically.
  *
- * <p>This helper removes both causes. {@link #run} holds {@link #LOCK} so only
- * one formatter container is ever active (no contention), and it throws on a
+ * <p>This helper removes both causes. {@link #run} holds one of {@link #PARALLELISM}
+ * slots so only a bounded number of formatter containers is ever active, and it throws on a
  * non-zero exit or any execution failure so a formatting failure can never be
  * silently swallowed. Generation therefore either produces fully formatted,
  * reproducible output or fails with the captured container log.
@@ -38,8 +40,15 @@ final class DockerFormatter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerFormatter.class);
 
-    /** Serializes formatter containers across all languages in this JVM. */
-    private static final Object LOCK = new Object();
+    /**
+     * How many formatter containers may run at once in this JVM. Formatters share a
+     * cache volume for their downloads, so a few can run side by side; the cap keeps a
+     * cold cache from turning into a dozen simultaneous downloads. Override with
+     * {@code -Dformatter.parallelism=N}; {@code 1} restores strict serialization.
+     */
+    static final int PARALLELISM = Math.max(1, Integer.getInteger("formatter.parallelism", 4));
+
+    private static final Semaphore SLOTS = new Semaphore(PARALLELISM);
 
     /** Number of trailing log lines included in a failure message. */
     private static final int TAIL_LINES = 40;
@@ -57,8 +66,8 @@ final class DockerFormatter {
 
     /**
      * Runs {@code dockerCmd} (a fully built {@code docker run …} invocation)
-     * with {@code workDir} as the working directory, serialized on
-     * {@link #LOCK} and retried up to {@link #MAX_ATTEMPTS} times. Throws if the
+     * with {@code workDir} as the working directory, limited to
+     * {@link #PARALLELISM} concurrent containers and retried up to {@link #MAX_ATTEMPTS} times. Throws if the
      * container still exits non-zero, or cannot be run, after the final attempt.
      *
      * @param dockerImage the formatter image, for diagnostics
@@ -76,7 +85,25 @@ final class DockerFormatter {
                     workDir);
             return;
         }
-        synchronized (LOCK) {
+        inSlot(
+                () -> {
+                    runWithRetries(dockerImage, workDir, dockerCmd);
+                    return null;
+                });
+    }
+
+    /** Runs {@code action} once one of the {@link #PARALLELISM} formatter slots is free. */
+    static <T> T inSlot(Supplier<T> action) {
+        SLOTS.acquireUninterruptibly();
+        try {
+            return action.get();
+        } finally {
+            SLOTS.release();
+        }
+    }
+
+    private static void runWithRetries(String dockerImage, String workDir, List<String> dockerCmd) {
+        {
             RuntimeException last = null;
             for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
                 try {
