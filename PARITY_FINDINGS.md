@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4, needs-spec 2, open 40, parked 17, partial 5. Severity: critical 3, high 60, medium 547, low 212.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 597, forced 4, needs-spec 2, open 54, parked 13, partial 5. Severity: critical 3, high 66, medium 561, low 223.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -99,7 +99,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F091 | medium | fixed | L04-transport | java, kotlin, python, swift, dart | Proxy credentials are stripped on cross-origin redirect hops in java/kotlin/python (and swift/dart), so authenticated-proxy requests 407 after a redirect |
 | F092 | medium | fixed | L04-transport | java, kotlin, python, php | Relative Location resolution is not RFC 3986 in java/kotlin/python/php (query-only refs); python/php also skip dot-segment removal |
 | F093 | medium | fixed | L04-transport | go, ruby, swift, elixir | The HTTPS->HTTP body-replay guard fires on different requests: go refuses bodyless GETs; ruby/swift/elixir refuse bodyless POST/PUT/PATCH |
-| F094 | medium | open | L04-transport | go, node, swift, java, kotlin, csharp, php, python, ruby, dart, rust, elixir | Timeout scope differs: go/node/swift apply one deadline to the whole redirect chain; the others reset it per hop |
+| F094 | medium | fixed | L04-transport | go, node, swift, java, kotlin, csharp, php, python, ruby, dart, rust, elixir | Timeout scope differs: go/node/swift apply one deadline to the whole redirect chain; the others reset it per hop |
 | F095 | medium | fixed | L04-transport | go | go follows maxRedirects-1 redirects (off-by-one); the other 11 follow exactly maxRedirects |
 | F096 | medium | fixed | L04-transport | java, python | java (4x) and python (16x) cap zstd output when the frame has no content size; java then mislabels every zstd failure as 'library is unavailable' |
 | F097 | medium | fixed | L04-transport | java, kotlin | java/kotlin return a still-encoded br/zstd body when the optional codec library is absent, contradicting the 'unsupported Content-Encoding raises' contract |
@@ -137,14 +137,14 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F129 | medium | parked | L09-models-scalars | java, kotlin, csharp, php, python, ruby, node, elixir, dart, go, rust, swift | A required discriminator property that is absent (DryFood/WetFood.foodType) is accepted by 8 SDKs and rejected by 4; elixir's and go's comments contradict their code |
 | F130 | medium | fixed | L09-models-scalars | java, node | Integer fields: java silently truncates 1.5 to 1 and accepts 42 for a string field; node accepts non-integers for int32/int64 |
 | F131 | medium | parked | L09-models-scalars | kotlin, python, node, go, ruby, swift, java, csharp, php, rust, dart, elixir | Untracked: a default on a $ref-enum property is honoured only by dart/elixir; petstore leaves it out on purpose |
-| F132 | medium | parked | L09-models-scalars | python, java, kotlin, csharp, php, node, dart, go, rust, swift, ruby, elixir | `format: uri` is a validated type in 6 SDKs and a plain string in 6; python's validator accepts only absolute http(s) URLs |
+| F132 | medium | fixed | L09-models-scalars | python, java, kotlin, csharp, php, node, dart, go, rust, swift, ruby, elixir | `format: uri` is a validated type in 6 SDKs and a plain string in 6; python's validator accepts only absolute http(s) URLs |
 | F133 | medium | parked | L09-models-scalars | python, node | `type: number` (weightKg): python and node are lossy on decode (python on encode too) and accept quoted strings, contradicting AGENTS' 'FIVE preserve full textual precision' |
 | F134 | medium | fixed | L09-models-scalars | kotlin | kotlin accepts a payload missing a REQUIRED array/set property (Pet.photoUrls) because the field defaults to an empty container |
 | F135 | medium | fixed | L09-models-scalars | node | node's global Decimal-field registry turns string values in free-form objects into JSON numbers when their key matches any model's decimal field name |
 | F136 | medium | deferred | L09-models-scalars | php | php `format: byte` model fields hold the base64 TEXT, not bytes, and accept malformed base64 on decode, contradicting AGENTS |
 | F137 | medium | duplicate | L09-models-scalars | python, java, kotlin, csharp, php, ruby, node, dart, go, rust, swift, elixir | python alone enforces minLength/maxLength/pattern/minimum/maximum/multipleOf/minItems/maxItems on models; the other 11 accept any value |
 | F138 | medium | fixed | L10-models-composed | java, kotlin, csharp, php, python, ruby, go, rust, swift, dart, elixir, node | An additionalProperties entry whose key collides with a declared property is written three different ways: declared wins, extra wins, or duplicate JSON keys |
-| F139 | medium | parked | L10-models-composed | java, kotlin, csharp, node, go, swift, elixir, python, php, ruby, rust, dart | Non-discriminated oneOf/anyOf variants are tried in alphabetical (TreeSet) order in 7 SDKs but in declaration order in 5, so ambiguous payloads resolve differently |
+| F139 | medium | fixed | L10-models-composed | java, kotlin, csharp, node, go, swift, elixir, python, php, ruby, rust, dart | Non-discriminated oneOf/anyOf variants are tried in alphabetical (TreeSet) order in 7 SDKs but in declaration order in 5, so ambiguous payloads resolve differently |
 | F140 | medium | fixed | L10-models-composed | kotlin, node, php | additionalProperties are lost on nested models (and in kotlin, on list elements): only a top-level model captures and re-emits extras |
 | F141 | medium | fixed | L10-models-composed | csharp | csharp: a non-string discriminator value leaks a raw System.InvalidOperationException instead of SerializationException |
 | F142 | medium | fixed | L10-models-composed | go | go matches JSON object keys case-insensitively: it accepts mis-cased keys the other 11 ignore, and double-captures them as additionalProperties |
@@ -222,7 +222,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F214 | medium | fixed | L19-spec-coverage | java, kotlin, python, ruby, go, csharp, php, node, dart, rust, swift, elixir | Non-string scalar multipart parts (boolean, date-time, date, $ref enum, uuid) are encoded differently in every SDK. Petstore's multipart scalars are all plain strings |
 | F215 | medium | open | L19-spec-coverage | node, elixir, kotlin, rust, swift, python, dart, go, java, csharp, php, ruby | Required + nullable properties: node/elixir accept an explicit null, kotlin/rust/swift/python/dart reject it, go silently zero-values it, java accepts it; all 12 drop the key when serializing a null. Not exercised |
 | F216 | medium | fixed | L19-spec-coverage | ruby, java, kotlin, python, node, go, csharp, php, dart, rust, swift, elixir | form-urlencoded bodies: ruby skips ObjectSerializer.stringify and nested objects fall back to each language's own string repr. Masked because petstore's form fields are only string/array-of-string/date |
-| F217 | medium | open | L19-spec-coverage | swift, ruby, elixir, node, java, kotlin, csharp, php, python, dart, go, rust | format: uuid: swift sends UPPERCASE UUIDs, 8 SDKs lowercase, ruby/elixir/node send the caller's string verbatim; petstore has no uuid field |
+| F217 | medium | fixed | L19-spec-coverage | swift, ruby, elixir, node, java, kotlin, csharp, php, python, dart, go, rust | format: uuid: swift sends UPPERCASE UUIDs, 8 SDKs lowercase, ruby/elixir/node send the caller's string verbatim; petstore has no uuid field |
 | F218 | medium | fixed | L19-spec-coverage | php | php has no required-COOKIE guard, contradicting AGENTS Round 7, which says php guards query/header/form/cookie |
 | F219 | medium | duplicate | L20-doc-truth | php, kotlin | R7-1 php claims are wrong: no cookie guard, and kotlin does not use baseName (golden emits '_file') |
 | F220 | medium | fixed | L20-doc-truth | swift | Swift sends an empty required date path param (bornOn: String), contradicting 'required string must not be empty in any of the 12' |
@@ -230,7 +230,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F222 | medium | fixed | L20-doc-truth | go | The go empty-path message is called FORCED for lacking operation context, but go's operation layer already appends it |
 | F223 | medium | fixed | L20-doc-truth | java, kotlin | java and kotlin return a still-encoded br/zstd body when the optional codec is absent; the docs say this case raises |
 | F224 | medium | fixed | L21-api-surface | python, node | AGENTS says node and python keep full precision for format:number; python loses it both ways, node on decode |
-| F225 | medium | open | L21-api-surface | python, rust, ruby, elixir, node, php, go | Configuration and TransportOptions print secrets (proxy password, Authorization default header) in 7 SDKs; every authenticator redacts |
+| F225 | medium | fixed | L21-api-surface | python, rust, ruby, elixir, node, php, go | Configuration and TransportOptions print secrets (proxy password, Authorization default header) in 7 SDKs; every authenticator redacts |
 | F226 | medium | fixed | L21-api-surface | php, python, ruby, node | TransportOptions has a public constructor that skips the builder's proxy validation in php, python, ruby and node |
 | F227 | medium | deferred | L21-api-surface | java, node, rust | java, node and rust let callers build a model that is missing required properties; the other 8 non-go SDKs reject it |
 | F228 | medium | open | L22-lifecycle | go, csharp, node, python, dart, java, kotlin, swift, rust, elixir | Cancellation is impossible in go, csharp and node, which accept no context.Context, CancellationToken or AbortSignal; python's asyncio cancellation leaves the request running. AGENTS' C# cancellation claim is unreachable |
@@ -266,7 +266,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F258 | low | partial | L04-transport | dart, elixir, go, swift | Declared-charset coverage differs: windows-1252 / shift_jis / iso-8859-x bodies decode correctly in some SDKs and as mojibake in others |
 | F259 | low | fixed | L04-transport | go, python, rust | Follow-up request headers after a 301/302 POST->GET demotion differ: go keeps Content-Type; python/rust send Content-Length: 0 on the GET |
 | F260 | low | false-positive | L04-transport | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Redirect-refusal error messages were never harmonized: three messages with up to six wordings each |
-| F261 | low | open | L04-transport | rust, csharp, swift | Response headers drop content-encoding/content-length after decoding in rust and csharp but keep them in the other SDKs |
+| F261 | low | fixed | L04-transport | rust, csharp, swift | Response headers drop content-encoding/content-length after decoding in rust and csharp but keep them in the other SDKs |
 | F262 | low | forced | L04-transport | csharp | csharp alone enables online certificate-revocation checking |
 | F263 | low | fixed | L04-transport | dart | dart AbstractApiClient drops a Map (multipart) body on a 307/308 replay (latent: BaseApi pre-serializes) |
 | F264 | low | fixed | L04-transport | kotlin | kotlin treats every 300-399 status as a redirect; the other 11 follow only 301/302/303/307/308 |
@@ -279,7 +279,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F271 | low | fixed | L05-errors | ruby | ruby has no accessor for the bare detail message: #message returns the full multi-line rendering |
 | F272 | low | fixed | L05-errors | rust | rust's per-status error wrappers render a different, context-free string from ApiError and from the other SDKs |
 | F273 | low | fixed | L05-errors | swift | swift OAuth2TokenError does not conform to LocalizedError: localizedDescription is the generic Foundation text |
-| F274 | low | open | L06-simple-auth | java, kotlin, csharp, php, python, ruby, node, go, dart, rust, swift, elixir | 'Whitespace-only' detection uses each language's native trim, so the 12 SDKs accept and reject different API-key values |
+| F274 | low | fixed | L06-simple-auth | java, kotlin, csharp, php, python, ruby, node, go, dart, rust, swift, elixir | 'Whitespace-only' detection uses each language's native trim, so the 12 SDKs accept and reject different API-key values |
 | F275 | low | duplicate | L06-simple-auth | java, kotlin, csharp, php, python, ruby, node, go, dart, rust, swift, elixir | In all 12 SDKs, a token that is only the 'Bearer ' prefix passes the empty-token guard and sends a credential-less Authorization header |
 | F276 | low | fixed | L06-simple-auth | rust | PARITY_TODO T2-8 is still listed as open/DEFERRED, but rust now declares the per-scheme authenticator modules |
 | F277 | low | false-positive | L06-simple-auth | java, rust, node, go, elixir | Per-scheme wrapper authenticators print differently across languages: java falls back to Object.toString, rust has no Debug, node/go/elixir print the base class name |
@@ -300,7 +300,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F292 | low | fixed | L07-oauth-oidc | java, go, elixir, rust, swift | Token-request body and authorize-URL parameter order differ (java hash order, go/elixir sorted, rust/swift random per process) |
 | F293 | low | fixed | L07-oauth-oidc | java, kotlin, csharp, php, ruby, elixir, python, node, go, rust, swift, dart | buildAuthorizationUrl with an empty state: 6 SDKs emit '&state=', 6 omit it |
 | F294 | low | fixed | L07-oauth-oidc | ruby, node, swift, java | expires_in string grammar differs (hex, type suffixes, newline trimming) |
-| F295 | low | open | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | An unreadable caCertPath with verifySsl=false is rejected by 7 SDKs and accepted by 5 |
+| F295 | low | fixed | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | An unreadable caCertPath with verifySsl=false is rejected by 7 SDKs and accepted by 5 |
 | F296 | low | fixed | L08-config | go, rust, dart, swift | PARITY_TODO R8-F3 says only dart and swift treat an empty proxy as 'no proxy'; go and rust do too |
 | F297 | low | false-positive | L08-config | swift, go, rust, ruby, node, kotlin, java, csharp, php, python, dart, elixir | Proxy validation messages differ per failure, and swift drops the reason entirely |
 | F298 | low | false-positive | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Server-variable error message renders the allowed-values list 5 different ways, contradicting R8-7 |
@@ -327,7 +327,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F319 | low | parked | L09-models-scalars | rust, swift, python, elixir, csharp, java, kotlin, php, ruby, node, dart, go | uniqueItems arrays (Pet.photoUrls) go on the wire in insertion order in 6 SDKs and in hash or sorted order in the others |
 | F320 | low | duplicate | L10-models-composed | go, dart, swift, rust, java, kotlin, csharp, php, python, ruby, node, elixir | A discriminated variant decoded on its own enforces the required discriminator property in some SDKs and silently defaults it to the mapping value in others |
 | F321 | low | parked | L10-models-composed | dart, java, csharp, kotlin | Model toString/repr does not dump fields consistently: dart has none (contradicting AGENTS), java/kotlin print memory addresses for byte collections, csharp prints collection type names, kotlin omits additionalProperties |
-| F322 | low | parked | L10-models-composed | java, kotlin, csharp, node, go, swift, dart | oneOf/anyOf wrappers have value equality in some SDKs and identity-only (or no) equality in others |
+| F322 | low | fixed | L10-models-composed | java, kotlin, csharp, node, go, swift, dart | oneOf/anyOf wrappers have value equality in some SDKs and identity-only (or no) equality in others |
 | F323 | low | fixed | L11-api-shape | java, rust, csharp | A null required Options object fails differently: java throws a bare NullPointerException, rust names 'options' instead of the missing field, and the others use the canonical message |
 | F324 | low | partial | L11-api-shape | java, csharp, swift | An optional request body (placeOrder) can be omitted in kotlin/python/ruby/node/php/elixir but must be passed explicitly as null in java (no overload), csharp (default explicitly suppressed) and swift (no `= nil`) |
 | F325 | low | open | L11-api-shape | python, dart, go, kotlin, ruby | ApiResult.headers immutability differs: copied and read-only in java/csharp/rust/node; mutable and uncopied in python/dart/go/kotlin; ruby freezes the transport's own hash in place |
@@ -392,7 +392,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F384 | low | fixed | L17-gates | ruby, elixir | ruby (brotli, zstd) and elixir (brotli) codec tests are always skipped in CI because of build-config choices, not a runtime limit |
 | F385 | low | fixed | L18a-wire-request | csharp, dart, kotlin | Multipart JSON part headers differ: csharp and dart add `; charset=utf-8` and change header order; kotlin adds a per-part Content-Length |
 | F386 | low | duplicate | L18a-wire-request | java, go, swift, ruby, elixir, rust, python, dart | Query, form and multipart parameter order is not the declared order in 7 languages: hash order, random or sorted |
-| F387 | low | open | L18a-wire-request | node, rust, swift, php | allowReserved characters are re-escaped by the HTTP client in node and rust (') and swift ([ ]) |
+| F387 | low | fixed | L18a-wire-request | node, rust, swift, php | allowReserved characters are re-escaped by the HTTP client in node and rust (') and swift ([ ]) |
 | F388 | low | fixed | L18a-wire-request | elixir | elixir omits an empty array for a non-exploded delimited query parameter; the other 11 send `colors=` |
 | F389 | low | fixed | L18b-wire-response | swift, rust | Duplicate JSON keys: swift keeps the FIRST value, rust rejects, the rest keep the LAST |
 | F390 | low | parked | L18b-wire-response | java, kotlin, python, node, ruby, php, dart | Overflowing double literal (1e400) decodes to Infinity in 7 SDKs but is rejected in go/rust/swift/csharp, contradicting the stated no-non-finite decode contract |
@@ -406,12 +406,12 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F398 | low | duplicate | L21-api-surface | csharp, ruby, dart, rust, swift, node, go, python, kotlin | ApiResult equality and header mutability differ across the 12 |
 | F399 | low | fixed | L21-api-surface | java, kotlin, node | Model equality on format:number fields depends on scale in java, kotlin and node, but not in csharp, python or the 7 float SDKs |
 | F400 | low | fixed | L21-api-surface | java, rust, go, node | Per-scheme authenticator wrappers differ in type hierarchy and printed form: java delegates, rust has no Debug, go and node print the base name |
-| F401 | low | open | L21-api-surface | node, dart, python, csharp, php, ruby, go, rust, swift, elixir | Per-scheme authenticators cannot be imported from the node or dart package; only java and kotlin test them |
+| F401 | low | fixed | L21-api-surface | node, dart, python, csharp, php, ruby, go, rust, swift, elixir | Per-scheme authenticators cannot be imported from the node or dart package; only java and kotlin test them |
 | F402 | low | fixed | L21-api-surface | dart | dart names the result variant `WithHTTPInfo`, against Dart naming style and its own `ApiHttpResponse` |
 | F403 | low | fixed | L21-api-surface | dart | dart's barrel exports the no-auth sentinel (`noAuth`, `NoAuthAuthenticator`) as public API; the other SDKs hide it |
 | F404 | low | fixed | L21-api-surface | swift | swift Client has `withAuthenticator` but no `withToken`; the other 11 have both |
 | F405 | low | open | L22-lifecycle | php, java, kotlin, csharp, python, ruby, node, dart, go, rust, swift, elixir | Only php's Client facade accepts an injected transport (plus a php-only Psr18ApiClient); the other 11 hard-wire a private DefaultApiClient per Client |
-| F406 | low | open | L22-lifecycle | go, java, python, ruby, php, csharp | SDKs disagree on whether they close a caller-supplied upload stream or file handle |
+| F406 | low | fixed | L22-lifecycle | go, java, python, ruby, php, csharp | SDKs disagree on whether they close a caller-supplied upload stream or file handle |
 | F407 | low | duplicate | L22-lifecycle | go, node, swift, java, kotlin, csharp, python, ruby, php, rust, dart, elixir | Timeout budget across a redirect chain: whole chain in go/node/swift, per hop in the other 9 |
 | F408 | low | fixed | L22-lifecycle | java, go, swift, csharp | Unsynchronized mutable auth state in the implicit and authorization-code authenticators (java/go/swift/csharp); kotlin uses @Volatile and rust a Mutex |
 | F409 | low | false-positive | L22-lifecycle | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Use-after-close: six different messages, and several doc comments still promise an SDK ApiException/ApiError |
@@ -454,7 +454,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F446 | medium | duplicate | batch1-discovered | node | Node's operation-server variant description is interpolated raw into a block comment, so a description containing '*/' would break the generated file |
 | F447 | medium | fixed | batch1-discovered | python | Models with additionalProperties: true (the _capture_additional_properties before-validator in model.mustache) treat a wire key spelled as a snake_case attribute name as a known field |
 | F448 | medium | fixed | batch1-discovered | python | model.mustache emits the format: pattern re.match validator as re.match(r"{{{pattern}}}", value), including the /.../ delimiters |
-| F449 | medium | open | batch1-discovered | python | Python accepts format: ipv4/ipv6/email values through validating types (IPv4Address, IPv6Address, EmailStr) that the other 11 SDKs do not enforce |
+| F449 | medium | fixed | batch1-discovered | python | Python accepts format: ipv4/ipv6/email values through validating types (IPv4Address, IPv6Address, EmailStr) that the other 11 SDKs do not enforce |
 | F450 | medium | duplicate | batch1-discovered | python | BetterPythonCodegen still maps format: password to SecretStr, so a model request body sends '**********' (F046 is not fixed here) |
 | F451 | medium | fixed | batch1-discovered | elixir | OIDC fetch_discovery builds a new delegate with a new token manager each time the discovery cache expires (default 86400s), so tokens and the exchanged flag are lost after expiry and auth_headers rais |
 | F452 | medium | forced | batch1-discovered | elixir | The inspect(auth, structs: false) bypass of the Inspect protocol still prints raw credentials in all elixir authenticators; it cannot be closed without removing the secret from the struct |
@@ -489,7 +489,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F481 | medium | false-positive | batch2-discovered | go | go OpenIdConnectAuthenticator embeds a sync.Mutex by value, so its String and GoString must keep pointer receivers and a dereferenced OIDC value still reflects its secret fields on %v |
 | F482 | medium | false-positive | batch2-discovered | go | The per-scheme wrapper String slices the base String by the length of the base type name, so it silently assumes every base String starts with its own type name |
 | F483 | medium | false-positive | batch2-discovered | swift | DefaultApiClientTests.testTimesOutOnSlowEndpoint (Apple-only) fails deterministically on macOS: it uses timeout(1), a 1 ms deadline, with an instant stub |
-| F484 | medium | open | batch2-discovered | swift | On Apple, DefaultApiClient.sendRequest still sends the Proxy-Authorization header to the origin (the API host and the OAuth token endpoint) on every request, because connectionProxyDictionary has no c |
+| F484 | medium | fixed | batch2-discovered | swift | On Apple, DefaultApiClient.sendRequest still sends the Proxy-Authorization header to the origin (the API host and the OAuth token endpoint) on every request, because connectionProxyDictionary has no c |
 | F485 | medium | forced | batch2-discovered | swift | BaseApi and DefaultApiClient still carry two separate multipart builders |
 | F486 | medium | fixed | batch2-discovered | swift | swift.txt reserved words escape the legal property name `type` to `_type` (F309) |
 | F487 | medium | false-positive | batch2-discovered | rust | reqwest::Certificate::from_pem in build_http_client may only add the first certificate of a multi-certificate CA bundle, while other SDKs trust every certificate in the file; not verified, and from_pe |
@@ -533,7 +533,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F525 | medium | open | batch3-discovered | swift | Swift test templates compare non-optional values to nil (about 100 distinct sites, from `#expect(x != nil)`), so the generated tests cannot be compiled with warnings-as-errors until those are cleaned  |
 | F526 | medium | fixed | batch3-discovered | swift | DefaultApiClientTests.testTimesOutOnSlowEndpoint never exercises a timeout |
 | F527 | medium | fixed | batch3-discovered | rust | Deprecated operations with several request content-types may be missing #[deprecated] on the generated _with_content_type variant: the api.mustache block for that variant has no isDeprecated guard (no |
-| F528 | medium | open | batch3-discovered | rust | NetworkError::from(ApiError) and ClientError::from(ApiError) / ServerError::from(ApiError) in rust still accept any status, so a ClientError can wrap a 500 and a NetworkError a 200 |
+| F528 | medium | fixed | batch3-discovered | rust | NetworkError::from(ApiError) and ClientError::from(ApiError) / ServerError::from(ApiError) in rust still accept any status, so a ClientError can wrap a 500 and a NetworkError a 200 |
 | F529 | medium | false-positive | batch3-discovered | rust | The rust SKILLS.md error hierarchy lists NetworkTimeoutError but the example no longer catches it, so a caller sees no pattern for telling a timeout from other network failures |
 | F530 | medium | fixed | batch3-discovered | rust | rust test fixtures do not exercise a multi-certificate CA bundle, so nothing locks that every certificate in a bundle is trusted |
 | F531 | medium | false-positive | batch4-discovered | kotlin | Branch name deviation: parity/b2-kotlin is already checked out by another worktree (wf_4a554f2f-32a-2, an earlier batch), so git checkout -B was refused and the work is on parity/b2-kotlin-tests creat |
@@ -586,7 +586,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F578 | medium | false-positive | batch4-discovered | rust | Url normalisation makes the same_origin default-port comparison a no-op to mutate (port() and port_or_known_default() are equivalent), so the new default-port test locks behaviour but cannot catch tha |
 | F579 | medium | false-positive | batch4-discovered | rust | The rust golden suite has no chasm brotli integration test; brotli is covered only by the new in-process test |
 | F580 | medium | open | batch4-discovered | rust | test_custom_ca_cert_replaces_the_system_trust_store silently skips (returns) when example.com:443 is unreachable, so CA sole-anchor coverage is network dependent |
-| F581 | medium | parked | batch4-discovered | go | Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into th |
+| F581 | medium | fixed | batch4-discovered | go | Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into th |
 | F582 | medium | fixed | batch4-discovered | go | TransportOptionsBuilder.Timeout doc says a value of 0 means a 0ms timeout, but http.Client treats Timeout 0 as no timeout and a negative value as an already-expired deadline; there is no validation of |
 | F583 | medium | fixed | batch4-discovered | go | OAuth2AuthorizationCodeAuthenticator.AuthHeadersOrError builds its refresh params with only grant_type and refresh_token, so the refresh grant does not carry client_id or client_secret (unlike the pas |
 | F584 | medium | fixed | batch4-discovered | go | OIDC rediscovery dropped the exchanged tokens and tokenExchanged flag (F016/F230) |
@@ -757,7 +757,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F749 | low | open | review | node | node base-api.test status 400 exception test is flaky on a cold start (NetworkError on the first request) |
 | F750 | medium | fixed | review | java, kotlin, csharp, php, python, ruby, node, dart, go, elixir | Negative transport timeout is rejected only in rust and swift; the other ten accept it silently |
 | F751 | medium | fixed | review | php | php TraceContextUtilTest hard-codes trace flags 01 and fails with current open-telemetry/sdk |
-| F752 | low | open | review | csharp, swift, java, kotlin, python, ruby, node, dart, php, elixir | Status-specific error constructors accept a cause in some SDKs only |
+| F752 | low | fixed | review | csharp, swift, java, kotlin, python, ruby, node, dart, php, elixir | Status-specific error constructors accept a cause in some SDKs only |
 | F753 | medium | fixed | review | kotlin | The worktree was created at an older commit without kotlin templates; I ran git checkout -b parity/error-api-kotlin 8731130e first. |
 | F754 | medium | fixed | review | kotlin | Root exception (message, cause) previously required non-null Throwable; widened to Throwable? as a side effect of the six-arg ApiException constructor, which is a minor public signature widening. |
 | F755 | medium | fixed | review | csharp | The agent file .claude/agents/sdk-csharp.md exists only in the pr35 worktree, not in this worktree's base commit (read it from there). |
@@ -773,7 +773,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F765 | medium | fixed | review | php | php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpC |
 | F766 | medium | fixed | review | node, kotlin | Language agents edit the shared etc/ API-surface tooling without a shared task |
 | F767 | low | open | review | elixir | elixir prepare_body/2 now routes every model request body through Model.serialize/1 |
-| F768 | medium | open | review | php | The php byte doc line 'Raw bytes (base64 on the wire).' is added only to properties that have a spec description. Byte properties with no description get no doc line, because the template's no-descrip |
+| F768 | medium | fixed | review | php | The php byte doc line 'Raw bytes (base64 on the wire).' is added only to properties that have a spec description. Byte properties with no description get no doc line, because the template's no-descrip |
 | F769 | medium | fixed | review | php | The php golden's spec/ directory and README may still mention the removed AsBytes helpers; I grepped the templates and found none, but did not check the generated README text. |
 | F770 | medium | fixed | review | ruby | Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no |
 | F771 | medium | fixed | review | swift | The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/ |
@@ -790,10 +790,10 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F782 | medium | open | review | node | node: the get additionalProperties() accessor sits in the same class as an index signature of a different type |
 | F783 | low | fixed | review | php | php: byte-property docblocks contradict the property, and the byteProperties reflection walker is duplicated in ObjectSerializer and the model base |
 | F784 | low | fixed | review | java | java: MetadataTest mixes a fully-qualified JUnit assertThrows into a file that uses AssertJ exclusively |
-| F785 | medium | open | review | kotlin, csharp, dart, swift | Proxy validation timing differs: kotlin, csharp, dart and swift still validate in the builder proxy() setter |
+| F785 | medium | fixed | review | kotlin, csharp, dart, swift | Proxy validation timing differs: kotlin, csharp, dart and swift still validate in the builder proxy() setter |
 | F786 | low | fixed | review | java | Java hasOnlyOptionalBody is a vendorExtensions flag read by a template |
 | F787 | low | fixed | review | java | Java TransportOptions constants declared after the instance fields |
-| F788 | low | open | review | rust | Rust setPetAvatar/uploadPetDocument have no requestContentType argument |
+| F788 | low | fixed | review | rust | Rust setPetAvatar/uploadPetDocument have no requestContentType argument |
 | F789 | low | fixed | review | java | java: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first |
 | F790 | low | fixed | review | php | php: The README snippet builds the Configuration with the builder chain, which is the awkward call site: src/main/resources/templates/php/readme.mustache:208 (and the golden src/spec/resources/generat |
 | F791 | low | fixed | review | php | php: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \ReflectionMethod(Client::class, '__construct') |
@@ -816,7 +816,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F808 | low | fixed | review | java | java: src/spec/resources/generated/java/src/test/java/com/example/petstore/api/PetApiTest.java:83-100 (and its source template src/main/resources/templates/java/test/api/PetApiTest.mustache) tests Jav |
 | F809 | low | fixed | review | kotlin | kotlin: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the |
 | F810 | low | fixed | review | kotlin | kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:374 (and generated src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/api/PetApiTest.kt:388) calls `getEx |
-| F811 | low | open | review | node | node: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node develo |
+| F811 | low | fixed | review | node | node: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node develo |
 | F812 | low | fixed | review | swift | swift: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accept |
 | F813 | low | fixed | review | swift | swift: Not a rejection, for the parity-guard: the anyOf wrapper takes untyped [Any] at DeprecatedTreatment.swift:25, while the oneOf wrappers (DeprecatedFood.swift:17, PetFood.swift:16) take one typed |
 | F814 | low | fixed | review | php | php: Generated php/lib/DefaultApiClient.php:214 declares filePart as a non-static `private function` and the call sites at :330 and :342 use `$this->filePart(`, but the template declares `private stat |
@@ -828,6 +828,37 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 576, forced 4,
 | F820 | low | fixed | review | python | python: The generated anyof_merged_dump comment in deprecated_treatment.py line 106 and treatment_record.py line 103 is one line of about 140 characters. The template (model.mustache lines 285-286) an |
 | F821 | medium | fixed | review | python | Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive f |
 | F822 | medium | fixed | review | python | The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec. |
+| F823 | high | open | auditor-run1 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | No SDK offers automatic retries with backoff: every transport disables retries and no maxRetries setting or Retry-After handling exists |
+| F824 | high | open | auditor-run1 | java, kotlin, php, python, ruby, node, dart, go, swift, elixir | The Client facade has no close/dispose in 10 SDKs although it privately creates a transport that must be closed (only csharp's Client is IDisposable) |
+| F825 | high | open | auditor-run1 | rust | rust operations return Result<T, Box<dyn std::error::Error + Send + Sync>>, so callers cannot match on SDK errors and SKILLS has to ship a source-chain walking helper |
+| F826 | medium | open | auditor-run1 | go, php, java, kotlin | Binary request bodies and upload fields are typed as a file handle in go (*os.File) and php (\SplFileObject), so in-memory bytes or a stream cannot be sent without a temp file |
+| F827 | medium | open | auditor-run1 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | No per-call request options: no SDK can override the timeout or add headers for one call, and operations without optional params have no slot to add them later |
+| F828 | medium | open | auditor-run1 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Two overlapping configuration objects: Configuration (baseUrl, defaultHeaders, server) is unreachable from Client, which only takes the host from the authenticator, while TransportOptions also has def |
+| F829 | medium | open | auditor-run1 | python | python exposes only async operations (asyncio.to_thread over urllib3); there is no synchronous client, unlike OpenAI/Anthropic python SDKs |
+| F830 | medium | open | auditor-run1 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | API errors carry no request context: the message is only 'API returned status code N', with no method, URL, operation or the X-Request-ID the SDK itself sent |
+| F831 | low | open | auditor-run1 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The error hierarchy has no 429 Too Many Requests (rate limit) type, the status every best-in-class SDK names, nor 502/503/504 |
+| F832 | low | open | auditor-run1 | java, kotlin, csharp, python, ruby, dart | The 'Unexpected response Content-Type' SerializationError names the HTTP verb (java, ruby, dart: 'PetApi.get'), a literal 'invokeApiForResult' (kotlin) or the model (csharp, python) instead of the ope |
+| F833 | high | open | auditor-run2 | java, ruby, dart, go, swift | Batch-4 residual (S2): content: cookie parameters are percent-encoded with five different character sets, and go sends the raw JSON so every string or object value is refused |
+| F834 | high | open | auditor-run2 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Optional nullable fields cannot carry an explicit null: absent and null are conflated on encode in all twelve, so a decoded null is re-sent as absent and the server default replaces it |
+| F835 | high | open | auditor-run2 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Enums and discriminated unions are closed: an enum value or discriminator the server adds later fails the whole response in all twelve, and rust enums are not #[non_exhaustive] |
+| F836 | medium | open | auditor-run2 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Response and error headers are a single-valued Map<String,String> in all twelve, so repeated Set-Cookie and Link headers are lost, and typed response headers (#77) have no non-breaking landing |
+| F837 | medium | open | auditor-run2 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The public transport contract (ApiClient.sendRequest returning ApiHttpResponse with a String body) buffers every response and cannot carry a stream, so SSE, JSON Lines and large downloads (#71, #72) n |
+| F838 | medium | open | auditor-run2 | ruby, java, csharp, go, kotlin, python, swift, php, rust, elixir, node, dart | HTTP method handling is hard-coded per transport and ruby's Faraday run_request accepts only its eight fixed verbs, so QUERY (#60) and additionalOperations (#61) cannot be sent by ruby |
+| F839 | low | open | auditor-run2 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, elixir, swift | A 301 or 302 rewrites every non-GET/HEAD method (PUT, PATCH, DELETE, later QUERY) to a bodyless GET in all twelve, and a 303 turns HEAD into GET; RFC 9110 and Fetch allow the rewrite only for POST |
+| F840 | medium | open | auditor-run2 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Cookie parameters declared with the default style form are sent unencoded and values outside cookie-octet are refused, which is OAS 3.2 style: cookie; implementing #65 later changes the bytes of every |
+| F841 | medium | open | auditor-run2 | php | Batch-4 residual (S8): php's operation signature still puts the Options object before the per-operation server, contradicting php/AGENTS.md |
+| F842 | medium | open | auditor-run2 | go | go spends its only variadic slot on requestContentType, so a per-call ...RequestOption (F827) cannot be added later to multi-consumes operations without breaking them |
+| F843 | low | open | auditor-run2 | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | OpenAPI 3.1 constructs the generator degrades today (prefixItems to a list of any) become public field types that the real support (#85, #98) would have to change |
+| F844 | low | open | auditor-run2 | go | go has no scoped AGENTS.md while the shared file says every language has one |
+| F845 | medium | open | review | node | Request bodies typed DeepInput<T> lose required-field checking at compile time |
+| F846 | medium | open | review | node | String enums are TypeScript `enum`, so string literals are not assignable |
+| F847 | medium | open | review | node | File uploads are typed Buffer only though the transport accepts Blob/File |
+| F848 | low | open | review | node | Error bodies are untyped parsed JSON, not decoded against the operation's declared error schema |
+| F849 | low | open | review | node | Testing docs show only a fake Authenticator; no way to stub responses is documented or generated |
+| F850 | low | open | review | node | README has no usage, authentication or error-handling section |
+| F851 | low | open | review | node | Schema constraints are not surfaced in model doc comments |
+| F852 | low | open | review | node | OAS 3.1 prefixItems tuple is typed Array<unknown> |
+| F853 | low | open | review | node | Facade imports and constructs every API group; bundle cannot drop unused operations |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -2104,7 +2135,7 @@ Reviewer suspected this is forced: None. Gate on a non-empty body (go: req.GetBo
 - `src/main/resources/templates/elixir/default_api_client.mustache:810`
 
 ## F094 [medium] Timeout scope differs: go/node/swift apply one deadline to the whole redirect chain; the others reset it per hop
-- Status: **open** | Lens: L04-transport | Category: behavior | Unit-testable (reviewer's view): False
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L04-transport | Category: behavior | Unit-testable (reviewer's view): False
 - SDKs: go, node, swift, java, kotlin, csharp, php, python, ruby, dart, rust, elixir
 
 go's http.Client.Timeout covers all redirects plus the body. node creates one AbortSignal.timeout and spreads the same signal into every redirect fetch and the arrayBuffer() read. swift's timeoutIntervalForResource is per task, including redirects. java (HttpRequest.timeout per redirectBuilder), kotlin (HttpTimeout per request), csharp (HttpClient.Timeout per SendAsync), php (max_duration per request), python (Timeout per pool request), ruby, dart, rust (reqwest timeout per request in the manual loop) and elixir (a fresh Task.yield(total) per recursion) restart the budget on each hop. With timeout=1000 and three 400 ms hops, go/node/swift raise NetworkTimeoutError and the other 9 succeed (up to N*timeout).
@@ -2523,7 +2554,7 @@ The petstore spec's own comment (openapi.yaml:2016-2025) says a declared default
 - `src/main/java/io/github/mridang/codegen/generators/kotlin/BetterKotlinCodegen.java:539`
 
 ## F132 [medium] `format: uri` is a validated type in 6 SDKs and a plain string in 6; python's validator accepts only absolute http(s) URLs
-- Status: **parked** (shared step failed in serializers-and-models) | Lens: L09-models-scalars | Category: behavior | Unit-testable (reviewer's view): True
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L09-models-scalars | Category: behavior | Unit-testable (reviewer's view): True
 - SDKs: python, java, kotlin, csharp, php, node, dart, go, rust, swift, ruby, elixir
 
 Type mapping for URI: java java.net.URI, kotlin io.ktor.http.Url, csharp System.Uri, php \Uri\Rfc3986\Uri, python UrlStr, node branded URI (only a typeof check), and String in dart/go/rust/swift/ruby/elixir. AGENTS does not record this as forced, and swift (Foundation URL is Codable), dart (core Uri), ruby (URI) and elixir (URI) all have a stdlib URI type. The visible behavioural effect is in python: UrlStr validates through `TypeAdapter(HttpUrl)` (_types.py:25,62), which rejects valid RFC 3986 URIs. In pydantic 2.12, `urn:isbn:0451450523`, `mailto:a@b.com`, `ftp://x.org/f` and `/relative` are all rejected, so a Pet whose homepageUrl uses any non-http scheme fails to deserialize only in python. java URI.create rejects strings with spaces, while the string-typed SDKs accept anything. kotlin's `Url(String)` (KtorUrlSerializer, ObjectSerializer.kt:803) goes through URLBuilder.takeFrom, which normalizes relative or default-port inputs, so a re-encoded value may not be byte-identical. That last point is plausible but unverified here.
@@ -2594,7 +2625,7 @@ Reviewer suspected this is forced: None
 - `src/spec/resources/generated/rust/src/models/metadata.rs:15` — #[serde(flatten)]
 
 ## F139 [medium] Non-discriminated oneOf/anyOf variants are tried in alphabetical (TreeSet) order in 7 SDKs but in declaration order in 5, so ambiguous payloads resolve differently
-- Status: **parked** (shared step failed in serializers-and-models) | Lens: L10-models-composed | Category: behavior | Unit-testable (reviewer's view): False
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L10-models-composed | Category: behavior | Unit-testable (reviewer's view): False
 - SDKs: java, kotlin, csharp, node, go, swift, elixir, python, php, ruby, rust, dart
 
 openapi-generator's CodegenModel.oneOf/anyOf is a java.util.TreeSet (confirmed by disassembling openapi-generator-7.22.0 CodegenModel.<init>), so `{{#oneOf}}`/`{{#anyOf}}` iterate alphabetically. java (model.mustache:219, 325), csharp, kotlin, node (model.mustache:68/145), go (model.mustache `{{#oneOf}}` trial loop), swift (model.mustache:398) and elixir build their trial lists from that set. python, php, ruby, rust and dart iterate `composedSchemas.oneOf/anyOf`, which keeps declaration order. The petstore already shows the split: SetPetAvatarThumbnailRequest is declared [byte, array-of-byte], yet java tries `List<byte[]>` first, csharp `List<byte[]>`, go `[][]byte`, elixir `[binary()]`. python/rust/dart/ruby/php try the scalar first. It goes unseen only because those two variants are disjoint, and Medication<Surgery happens to be alphabetical. With overlapping variants declared out of alphabetical order, the 12 SDKs pick different first-match oneOf variants, put a different `actualInstance` first for anyOf, and pick different winners on an anyOf merge key collision. The python template comment ('the other 11 SDKs all resolve it to the first declared variant') is false. Expand the petstore with a non-discriminated oneOf declared [Surgery, Medication] (non-alphabetical) and an op returning it. Then add a test decoding `{"drugName":"a","procedureName":"b"}` that asserts the first declared variant wins in all 12. Fix by driving every template from composedSchemas.
@@ -3645,7 +3676,7 @@ Reviewer suspected this is forced: none
 - `src/main/resources/templates/python/object_serializer.mustache:561` — return str(value)
 
 ## F217 [medium] format: uuid: swift sends UPPERCASE UUIDs, 8 SDKs lowercase, ruby/elixir/node send the caller's string verbatim; petstore has no uuid field
-- Status: **open** | Lens: L19-spec-coverage | Category: spec-coverage | Unit-testable (reviewer's view): True
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L19-spec-coverage | Category: spec-coverage | Unit-testable (reviewer's view): True
 - SDKs: swift, ruby, elixir, node, java, kotlin, csharp, php, python, dart, go, rust
 
 Neither spec declares `format: uuid`. swift maps it to Foundation.UUID and its ObjectSerializer has no UUID handling, so JSONEncoder uses `uuidString`, which is uppercase. Checked locally: encoding `UUID(uuidString: "e621e1f8-...")` gives `{"id":"E621E1F8-C36C-495A-93FC-0C247A3E6E5F"}`, and query/path stringification uses the same description. java UUID, kotlin Uuid, csharp Guid, python uuid.UUID, go uuid.UUID, rust uuid::Uuid, php Symfony Uid (toRfc4122) and dart's UuidValue (`source.toLowerCase()`) all emit lowercase. ruby and elixir type it as String and validate only on DECODE: validate_uuid returns the value unchanged, and nothing validates on encode, so a caller's mixed-case or malformed value goes out verbatim. node's branded `UUID` string likewise passes the caller's casing through. Proposed YAML: add to Order `trackingId: {type: string, format: uuid}` and a path param `/store/order/by-tracking/{trackingId}` (format: uuid). Assert lowercase canonical bytes on the wire in all 12, and that a malformed value is rejected before dispatch.
@@ -3742,7 +3773,7 @@ node's README caveat covers int64 only, not Decimal. java, kotlin and csharp rea
 - `src/spec/resources/generated/node/README.md:62` — ### Decimal / `format: number` precision (only discusses int64)
 
 ## F225 [medium] Configuration and TransportOptions print secrets (proxy password, Authorization default header) in 7 SDKs; every authenticator redacts
-- Status: **open** | Lens: L21-api-surface | Category: behavior | Unit-testable (reviewer's view): True
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L21-api-surface | Category: behavior | Unit-testable (reviewer's view): True
 - SDKs: python, rust, ruby, elixir, node, php, go
 
 The SDK has a redaction policy: every authenticator in all 12 masks its secret in toString, repr, Debug or inspect as `***`. The same secrets also sit in two other public value types. First, the proxy URL holds `user:pass@` credentials by design (python, dart and elixir parse the userinfo into Proxy-Authorization, java pre-computes it, and python's comment says this matches the other 11). Second, the default headers of Configuration and TransportOptions hold credentials: the generated docs use `.defaultHeader("Authorization", "Bearer token")` as the example, and java's PetApiTest does exactly that. Those values print in plain text in 7 languages:
@@ -4194,7 +4225,7 @@ Reviewer suspected this is forced: go must be lowercase (ST1005); the wording it
 - `src/spec/resources/generated/go/pkg/default_api_client.go:332` — return fmt.Errorf("stopped after %d redirects", maxRedirects)
 
 ## F261 [low] Response headers drop content-encoding/content-length after decoding in rust and csharp but keep them in the other SDKs
-- Status: **open** | Lens: L04-transport | Category: behavior | Unit-testable (reviewer's view): True
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L04-transport | Category: behavior | Unit-testable (reviewer's view): True
 - SDKs: rust, csharp, swift
 
 rust explicitly removes 'content-encoding' and 'content-length' from the returned header map after manual decompression. csharp's AutomaticDecompression strips both from Content.Headers, and swift on Apple strips Content-Encoding. java, kotlin, python, ruby, php, node, dart, go and elixir return the wire content-encoding and the compressed content-length. ApiHttpResponse.headers / ApiException.responseHeaders for the same gzip response therefore differ, and a caller comparing content-length with body length sees a mismatch only in some SDKs.
@@ -4340,7 +4371,7 @@ Every other swift SDK error conforms to LocalizedError (ApiError, SerializationE
 - `src/spec/resources/generated/swift/Sources/PetstoreClient/Errors/OAuth2ServerError.swift:40` — extension OAuth2ServerError: LocalizedError {
 
 ## F274 [low] 'Whitespace-only' detection uses each language's native trim, so the 12 SDKs accept and reject different API-key values
-- Status: **open** | Lens: L06-simple-auth | Category: behavior | Unit-testable (reviewer's view): True
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L06-simple-auth | Category: behavior | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, go, dart, rust, swift, elixir
 
 Every SDK rejects an empty or whitespace-only key or token, but each uses its own stdlib whitespace set: java Character.isWhitespace, kotlin isBlank, .NET IsNullOrWhiteSpace, php trim (" \t\n\r\0\x0B", which includes NUL and not \f), python str.strip, ruby strip (ASCII plus NUL), JS trim, go TrimSpace, dart trim, rust trim, swift .whitespacesAndNewlines, elixir String.trim. I checked java, kotlin-on-JVM, python, ruby, node, rust and swift locally. For a QUERY or COOKIE API key, where non-ASCII is allowed, the results are: "\f" is accepted only by php (sent as the credential); "\x1f" is rejected as empty by java, kotlin and python and accepted by the other 9; U+00A0 is accepted by java, php and ruby (elixir probably too) and rejected by kotlin, csharp, python, node, go, dart, rust and swift; U+0085 is accepted by java, kotlin, php, ruby and node and rejected by the rest; "\0" gives 'must not be empty' in php and ruby but 'contains forbidden control characters' elsewhere. For Bearer the input is always rejected but the message differs, e.g. "\f" gives 'printable ASCII' in java and php and 'must not be empty' elsewhere. Fix: define one whitespace set, e.g. ASCII SP/HTAB/CR/LF/VT/FF or the Unicode White_Space property, and implement it explicitly per language instead of calling the native trim. Add a shared table test.
@@ -4548,7 +4579,7 @@ Quoted expires_in values are parsed with each runtime's own number grammar. For 
 - `src/spec/resources/generated/ruby/lib/petstore/client/auth/oauth/oauth2_token_manager.rb:241`
 
 ## F295 [low] An unreadable caCertPath with verifySsl=false is rejected by 7 SDKs and accepted by 5
-- Status: **open** | Lens: L08-config | Category: behavior | Unit-testable (reviewer's view): True
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L08-config | Category: behavior | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 java, kotlin, csharp, php and python check the CA only in the `else if (caCertPath != null)` branch after `!verifySsl`, so with verifySsl=false a missing or garbage CA path is ignored. ruby, node, elixir and swift validate at construction regardless of verifySsl, dart calls setTrustedCertificates before checking verifySsl, and go/rust read the file in TransportOptions build(). Those 7 throw a configuration error for the same input. A shared rule is needed (validate whenever the field is set, or never when verification is off).
@@ -4817,7 +4848,7 @@ Reviewer suspected this is forced: Byte formatting style (decimal list vs base64
 - `AGENTS.md:277` — node/dart already had `inspect`/`toString`
 
 ## F322 [low] oneOf/anyOf wrappers have value equality in some SDKs and identity-only (or no) equality in others
-- Status: **parked** (shared step failed in serializers-and-models) | Lens: L10-models-composed | Category: model | Unit-testable (reviewer's view): True
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L10-models-composed | Category: model | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, node, go, swift, dart
 
 Every plain model has value equality in all 12, but the union wrappers do not. PetTreatment and SetPetAvatarThumbnailRequest in java, PetFood/PetTreatment/SetPetAvatarThumbnailRequest in kotlin (plain `class`, not data class), csharp PetTreatment/SetPetAvatarThumbnailRequest, node PetFood/PetTreatment, and dart PetFood/PetTreatment have no equals/==/hashCode, so two wrappers decoded from identical JSON are unequal. swift's union structs are not Equatable at all. go unions have no Equal method, and the built-in `==` panics for a SetPetAvatarThumbnailRequest holding []byte; the model doc comment itself warns about this. rust (derived PartialEq), python (pydantic __eq__), php (structural ==), elixir (terms), ruby (variant/Composite structs) and dart's primitive-union template (DeepCollectionEquality) do compare by value. java/csharp PetFood is abstract, so equality comes from the variant there. Add equals/hashCode (or Equatable/Equal) to every union template, plus an equality row for PetTreatment in each ComposedSchema test.
@@ -5579,7 +5610,7 @@ Reviewer suspected this is forced: none
 - `src/spec/resources/generated/python/petstore_client/api/base_api.py:234` — parts.append("&".join(reserved_parts))
 
 ## F387 [low] allowReserved characters are re-escaped by the HTTP client in node and rust (') and swift ([ ])
-- Status: **open** | Lens: L18a-wire-request | Category: wire | Unit-testable (reviewer's view): False
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L18a-wire-request | Category: wire | Unit-testable (reviewer's view): False
 - SDKs: node, rust, swift, php
 
 The allowReserved encoders all restore the same reserved set `: / ? # [ ] @ ! $ & ' ( ) * + , ; =`, but some HTTP clients re-parse the URL and change those bytes before sending. node passes the URL to fetch, whose WHATWG parser escapes `'` as %27 in an http(s) query (checked: `new URL('http://h/p?k=a'b')` → `k=a%27b`). rust passes it through `reqwest::Url::parse`, which implements the same WHATWG rule. swift's `URL(string:)` escapes `[` and `]` in the query (checked on macOS: `revision=a[b]` → `revision=a%5Bb%5D`). php builds the request through a PSR-7 Uri, and nyholm/psr7 query filtering escapes characters outside unreserved, sub-delims and `:@/?`, so `[` and `]` are likely escaped there too (not executed here). java, kotlin, csharp, python, go, dart and elixir keep their own bytes; ruby re-escapes everything (separate finding). The petstore example `v1.0/beta:rc1` comes through intact everywhere except ruby. Values containing `'`, `[` or `]` do not.
@@ -5752,7 +5783,7 @@ None of this is forced: java's generic authenticators need not be final, rust ca
 - `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/auth/BearerAuthenticator.kt:63` — override fun toString(): String = "${this::class.simpleName}(host=$host, token=***)"
 
 ## F401 [low] Per-scheme authenticators cannot be imported from the node or dart package; only java and kotlin test them
-- Status: **open** | Lens: L21-api-surface | Category: api-shape | Unit-testable (reviewer's view): True
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L21-api-surface | Category: api-shape | Unit-testable (reviewer's view): True
 - SDKs: node, dart, python, csharp, php, ruby, go, rust, swift, elixir
 
 Every SDK generates per-scheme authenticator classes (PetStoreBearerAuthenticator, AdminBasicAuthenticator, ApiKeyHeaderAuthenticator, SessionCookieAuthenticator, MachineAuthClientCredentialsAuthenticator, and others). They are public and importable in java, kotlin, csharp, php, ruby, go, rust (`pub use` in auth/mod.rs), swift and elixir. node's package.json `exports` only has ".", and src/index.ts re-exports only the generic Basic, Bearer and ApiKey authenticators plus OAuth2*. All 11 node per-scheme classes, plus BaseAuthenticator, OAuth2TokenManager and the ApiHttpResponse type (which the exported ApiClient interface returns), are therefore unreachable to consumers. dart's barrel exports base_authenticator and oauth2_token_manager but no per-scheme file, so using one needs a `package:.../src/` import, which the dart analyzer flags. python's `auth/__init__.py` does not re-export them either (they can still be imported by full module path). Coverage differs too: only java and kotlin PetApiTest use PetStoreBearerAuthenticator and AdminBasicAuthenticator, and the other 10 have no test of any per-scheme wrapper. Either export them uniformly with a test in each SDK, or stop generating them where they are unreachable.
@@ -5805,7 +5836,7 @@ php's Client::__construct, withToken and withAuthenticator take `?ApiClient $api
 - `src/spec/resources/generated/dart/lib/src/client.dart:68` — final apiClient = DefaultApiClient(transportOptions: transportOptions);
 
 ## F406 [low] SDKs disagree on whether they close a caller-supplied upload stream or file handle
-- Status: **open** | Lens: L22-lifecycle | Category: behavior | Unit-testable (reviewer's view): True
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: L22-lifecycle | Category: behavior | Unit-testable (reviewer's view): True
 - SDKs: go, java, python, ruby, php, csharp
 
 python (_multipart_part closes any .read()-able value), ruby (multipart_part ensure value.close), php (fclose on resource parts) and csharp (StreamContent disposed with the HttpRequestMessage) close a stream the caller passed in. go never closes an *os.File or io.Reader part, and even Seek(0)s the file first, which changes what is read compared with the others, which read from the current position. java closes an InputStream multipart part (try (stream)) but leaves a raw-body InputStream open (stream.readAllBytes() with no close). The same upload therefore leaves the handle open or closed depending on the language, and reuses or rewinds it differently.
@@ -6097,7 +6128,7 @@ Models with additionalProperties: true (the _capture_additional_properties befor
 model.mustache emits the format: pattern re.match validator as re.match(r"{{{pattern}}}", value), including the /.../ delimiters. This is a second site of the F027 defect and is invalid for any pattern-constrained property.
 
 ## F449 [medium] Python accepts format: ipv4/ipv6/email values through validating types (IPv4Address, IPv6Address, EmailStr) that the other 11 SDKs do not enforce
-- Status: **open** (reported by the python fix agent, unverified) | Lens: batch1-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: batch1-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: python
 
 Python accepts format: ipv4/ipv6/email values through validating types (IPv4Address, IPv6Address, EmailStr) that the other 11 SDKs do not enforce. This is the non-password half of F046 and is still an undecided parity choice.
@@ -6307,7 +6338,7 @@ The per-scheme wrapper String slices the base String by the length of the base t
 DefaultApiClientTests.testTimesOutOnSlowEndpoint (Apple-only) fails deterministically on macOS: it uses timeout(1), a 1 ms deadline, with an instant stub. The cause is probably the 1 ms deadline. I did not check a baseline build, so it may predate this change.
 
 ## F484 [medium] On Apple, DefaultApiClient.sendRequest still sends the Proxy-Authorization header to the origin (the API host and the OAuth token endpoint) on every request, because connectionProxyDictionary has no c
-- Status: **open** (reported by the swift fix agent, unverified) | Lens: batch2-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: batch2-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: swift
 
 On Apple, DefaultApiClient.sendRequest still sends the Proxy-Authorization header to the origin (the API host and the OAuth token endpoint) on every request, because connectionProxyDictionary has no credential key. The proxy credentials are exposed to the target server over TLS.
@@ -6571,7 +6602,7 @@ DefaultApiClientTests.testTimesOutOnSlowEndpoint never exercises a timeout. It u
 Deprecated operations with several request content-types may be missing #[deprecated] on the generated _with_content_type variant: the api.mustache block for that variant has no isDeprecated guard (not verified against a deprecated multi-consumes operation).
 
 ## F528 [medium] NetworkError::from(ApiError) and ClientError::from(ApiError) / ServerError::from(ApiError) in rust still accept any status, so a ClientError can wrap a 500 and a NetworkError a 200
-- Status: **open** (reported by the rust fix agent, unverified) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: rust
 
 NetworkError::from(ApiError) and ClientError::from(ApiError) / ServerError::from(ApiError) in rust still accept any status, so a ClientError can wrap a 500 and a NetworkError a 200.
@@ -6889,7 +6920,7 @@ The rust golden suite has no chasm brotli integration test; brotli is covered on
 test_custom_ca_cert_replaces_the_system_trust_store silently skips (returns) when example.com:443 is unreachable, so CA sole-anchor coverage is network dependent.
 
 ## F581 [medium] Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into th
-- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: go
 
 Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into the enum type because GetUrl never validates, so out-of-enum values are not rejected at runtime in go (F041/F357 rejection cases cannot be locked here).
@@ -8279,7 +8310,7 @@ rust/transport_options.mustache:292-299 rejects a negative timeout in TransportO
 src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds the expected flags as `isSampled() ? '01' : '00'`, and line 144 compares them with the injected traceparent. composer.mustache:35 allows open-telemetry/sdk ^1.0. Newer SDK releases set the W3C Trace Context level-2 random flag (0x02), so the traceparent ends in -03 and the test fails. This was observed in the php error-api agent run (PhpClientSpec, 1 of 1013 failing), in code this change set does not touch. Fix: derive the expected flags from `$span->getContext()->getTraceFlags()` as two hex digits, or assert only the sampled bit.
 
 ## F752 [low] Status-specific error constructors accept a cause in some SDKs only
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: csharp, swift, java, kotlin, python, ruby, node, dart, php, elixir
 
 After this change set, every ApiError base takes a cause. The status subclasses (NotFound, BadRequest and the rest) differ. swift (underlyingError, e.g. swift/errors/not_found_error.mustache:13) and csharp (an innerException overload, NotFoundException.cs:22) accept one. python (python/errors/not_found_exception.mustache:11-16), ruby, dart and node take only (message, headers, body, errorBody). API_SURFACE.md currently files this under 'idiom (allow-list)'. Decide whether status subclasses carry a cause, and apply that decision in all 12.
@@ -8375,7 +8406,7 @@ parity/api-models-node-r1 and parity/api-models-kotlin-r1 each added overlapping
 For F735, the elixir agent routed every isModel request body through the new @doc false ObjectSerializer.prepare_body/2, not only oneOf/anyOf bodies with a byte variant. The agent says non-union bodies pass through unchanged. Once staged, check that the wire bytes of every elixir body match the other eleven SDKs, for example a Pet body with a byte or date field.
 
 ## F768 [medium] The php byte doc line 'Raw bytes (base64 on the wire).' is added only to properties that have a spec description. Byte properties with no description get no doc line, because the template's no-descrip
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: php
 
 The php byte doc line 'Raw bytes (base64 on the wire).' is added only to properties that have a spec description. Byte properties with no description get no doc line, because the template's no-description branches would need a new docblock.
@@ -8477,7 +8508,7 @@ Generated docblocks on byte properties keep the spec description 'Base64-encoded
 Use AssertJ assertThatThrownBy consistently in the generated MetadataTest.
 
 ## F785 [medium] Proxy validation timing differs: kotlin, csharp, dart and swift still validate in the builder proxy() setter
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: kotlin, csharp, dart, swift
 
 This change makes invalid-proxy errors raise at build() in php, ruby and java, as in python, node, go, rust and elixir. Kotlin, csharp, dart and swift still validate and throw inside the builder's proxy() setter. Evidence: kotlin/transport_options.mustache ~110-140, csharp/transport_options.mustache ~180-197, dart/transport_options.mustache ~150-167, swift/transport_options.mustache ~157-170 (`proxy(_:) throws`). The same `.proxy(bad)` call therefore fails at different points across the SDKs. Decide the canonical timing and harmonise the remaining four, or record an allow rule.
@@ -8495,7 +8526,7 @@ BetterJavaCodegen.postProcessOperationsWithModels puts `hasOnlyOptionalBody` in 
 DEFAULT_TIMEOUT_MS and DEFAULT_USER_AGENT sit after the instance fields in templates/java/transport_options.mustache (~lines 40-41) and the golden TransportOptions.java (~46-47). Configuration puts DEFAULT_BASE_URL first. Move the static constants above the first instance field in both.
 
 ## F788 [low] Rust setPetAvatar/uploadPetDocument have no requestContentType argument
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: rust
 
 The surface check shows rust petapi.setpetavatar(petid, body) and uploadpetdocument(petid, options) with extra setpetavatarwithcontenttype and uploadpetdocumentwithcontenttype methods, whereas the canonical F665 shape is an optional requestContentType argument. This difference predates the change and is outside the staged set. Rule on it as an allow rule (no optional arguments in rust) or as a rename.
@@ -8661,7 +8692,7 @@ Idiom review of single-language-defects: src/main/resources/templates/kotlin/tes
 Suggested form: Use the named argument the signature already supports: `externalApi.getExternalPetInfo(1L, server = PetApi.GetExternalPetInfoServer.Server0)`. The defaulted options parameter is then skipped, the call reads naturally, and the line fits in 100 columns. Apply the same change to the generated PetApiTest.kt.
 
 ## F811 [low] node: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node develo
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (implemented in every affected sdk with tests, verified by the per-language specs and the quick gate) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: node
 
 Idiom review of single-language-defects: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node developer gets no editor strikethrough or deprecation hint. Deprecated oneOf, anyOf and object models in the same SDK (deprecated-food.ts:9-13, deprecated-treatment.ts:11-13, tag.ts:13) carry `@deprecated This schema is deprecated.`. The cause is the enum branch of src/main/resources/templates/node/models/model.mustache (lines 10-17, `{{#isEnum}}`), which never reads isDeprecated; this is pre-existing template behaviour that the new fixture schema exposes.
@@ -8751,3 +8782,335 @@ Python golden test path is src/spec/resources/generated/python/test/Api/test_pet
 - SDKs: python
 
 The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec.
+
+## F823 [high] No SDK offers automatic retries with backoff: every transport disables retries and no maxRetries setting or Retry-After handling exists
+- Status: **open** | Lens: auditor-run1 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+None of the twelve SDKs can retry a failed request. Python builds every request with urllib3 Retry(total=0), elixir passes `retry: false` to Req, and java's sendWithRetry only replays an idempotent request once after a stale keep-alive connection (an internal workaround, not a policy). TransportOptions has no maxRetries field in any language (API_SURFACE.md TransportOptions table: verifySsl, caCertPath, proxy, timeout, followRedirects, maxRedirects, userAgent, defaultHeaders, injectRequestId), the README/SKILLS never mention retries, and no error type or accessor exposes Retry-After. Every best-in-class generated SDK retries by default: Stainless (OpenAI, Anthropic, Cloudflare) retries 2 times with exponential backoff and jitter on connection errors, 408, 409, 429 and >=500, honours Retry-After / retry-after-ms, and exposes `maxRetries` on the client and per request; Speakeasy and Fern generate a RetryConfig (backoff, status codes, retryConnectionErrors); Stripe, AWS and Azure SDKs all retry with backoff. Proposed canonical behaviour: TransportOptions gains `maxRetries` (default 2, 0 disables) plus a backoff (initial 500 ms, max 8 s, jitter); retry only connection errors (NetworkError, not NetworkTimeoutError on a non-idempotent method once bytes were sent), 408, 409, 429 and 5xx; honour Retry-After (seconds or HTTP date) capped at a maximum; never retry a non-replayable body (a caller stream); the whole retry sequence stays inside the one end-to-end timeout budget (S16) or each attempt gets the timeout (decide once); send an `X-Retry-Count`-style header only if decided. The API must be fixed now: adding a retry default later changes behaviour for existing callers. The language's own retry facility can carry it where one exists (urllib3 Retry / httpx transport, Req retry, Faraday retry middleware, reqwest-retry or a hand loop elsewhere).
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:52` — Retries are disabled (``Retry(total=0)``), so a failure before the
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:453` — request_kwargs["retries"] = urllib3.Retry(
+- `src/spec/resources/generated/elixir/lib/petstore_client/default_api_client.ex:651` — # `retry: false` disables Req's default retry of transient failures
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/DefaultApiClient.java:701` — private HttpResponse<byte[]> sendWithRetry(HttpRequest request) -- replays once only on 'header parser received no bytes'
+- `API_SURFACE.md:815` — TransportOptions ctor | new(verifySsl, caCertPath, proxy, timeout, followRedirects, maxRedirects, userAgent, defaultHeaders, injectRequestId)
+
+## F824 [high] The Client facade has no close/dispose in 10 SDKs although it privately creates a transport that must be closed (only csharp's Client is IDisposable)
+- Status: **open** | Lens: auditor-run1 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, php, python, ruby, node, dart, go, swift, elixir
+
+Every Client constructor builds its own DefaultApiClient and keeps it in a local variable, passing it only to the api groups and the authenticator. Every DefaultApiClient has a close (java ApiClient extends AutoCloseable, kotlin closes a Ktor HttpClient, go CloseIdleConnections, python/ruby/php/node/dart/swift/elixir close). But Client itself has no close in java, kotlin, php, python, ruby, node, dart, go, swift and elixir, so a caller who follows the README/SKILLS quick start (Client.withToken / new Client(authenticator)) cannot release the transport. Concretely: java's HttpClient keeps its selector thread, kotlin's Ktor engine keeps its dispatcher threads, python's urllib3 PoolManager keeps sockets, node's undici dispatcher keeps sockets open (it can hold the event loop open), and swift creates a URLSession with a delegate that is never invalidated, which Apple documents as a leak (the session holds its delegate strongly until invalidated). csharp is the only one done right: `public sealed class Client : IDisposable` whose Dispose disposes the transport, and its SKILLS says to use `using`. rust is fine through Drop. Best-in-class SDKs all expose it on the client: OpenAI python `client.close()` and context manager, OpenAI node relies on fetch but Anthropic/Stainless java clients implement AutoCloseable `close()`, Azure clients are Closeable. Proposed canonical behaviour: Client gets the language's close idiom (java/kotlin AutoCloseable/Closeable close(), python close() plus context manager (__enter__/__exit__ or __aenter__/__aexit__ to match the async API), ruby close, php close, node close(): Promise<void> (and Symbol.asyncDispose where the target allows), dart close(), go Close() error, swift close() (or deinit invalidation), elixir close/1); it closes the transport it created and never one the caller injected (S9/F405). Add it to every README/SKILLS quick start and test it per language. Related but distinct: F405 (injected transport) defines who owns a caller-supplied client; this item is the SDK-owned one.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/Client.java:47` — public final class Client {   (no close, not AutoCloseable)
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/Client.java:78` — ApiClient apiClient = new DefaultApiClient(transportOptions);
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/ApiClient.java:21` — public interface ApiClient extends AutoCloseable {
+- `src/spec/resources/generated/go/pkg/client.go:56` — func NewClient(authenticator Authenticator, transportOptions *TransportOptions) *Client {  (Client struct has only Pet and Store; no Close)
+- `src/spec/resources/generated/go/pkg/default_api_client.go:276` — func (c *DefaultApiClient) Close() error {
+- `src/spec/resources/generated/python/petstore_client/client.py:61` — api_client = DefaultApiClient(transport_options)   (Client has no close/__exit__)
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Client.swift:51` — let apiClient = try DefaultApiClient(transportOptions: opts)
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/DefaultApiClient.swift:189` — self.session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+- `src/spec/resources/generated/csharp/src/PetstoreClient/Client.cs:36` — public sealed class Client : IDisposable
+- `src/spec/resources/generated/csharp/SKILLS.md:230` — The client implements `IDisposable`. Use `using` statements or call `Dispose()` when done.
+
+## F825 [high] rust operations return Result<T, Box<dyn std::error::Error + Send + Sync>>, so callers cannot match on SDK errors and SKILLS has to ship a source-chain walking helper
+- Status: **open** | Lens: auditor-run1 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Every rust operation (99 signatures in pet_api.rs alone) returns `Result<_, Box<dyn std::error::Error + Send + Sync>>`. The type is not even `Box<dyn OpenAPIError>`, so the compiler does not promise the error came from the SDK, there is no exhaustive match, and `?` into a caller's own typed error needs `map_err`. The SDK already has the pieces for a typed error (`ApiErrorKind` with BadRequest/NotFound/NetworkTimeout/... variants, SerializationError, ConfigurationError, OAuth2ServerError, OAuth2TokenError, OAuth2AuthorizationCodeError), but callers only reach them by downcasting; the generated SKILLS.md error example defines an `is_a::<T>` helper that walks `source()` and calls `is::<T>()`. In the other eleven languages the error type is the language's normal one (exceptions with a hierarchy, go `error` with errors.As, swift throws, elixir {:error, struct}), so rust is the only SDK whose error is worse than its idiom. Best-in-class rust SDKs return a concrete enum: aws-sdk-rust `Result<T, SdkError<E>>` (ServiceError/TimeoutError/DispatchFailure/ResponseError), async-openai `Result<T, OpenAIError>`, stripe-rust `Result<T, StripeError>`. Proposed canonical behaviour: a public `#[non_exhaustive] pub enum Error` in petstore::errors (variants Api(ApiError) carrying ApiErrorKind access, Network/Timeout or folded into Api per the hierarchy, Serialization(SerializationError), Configuration(ConfigurationError), OAuth2Server(OAuth2ServerError), OAuth2Token(OAuth2TokenError), OAuth2AuthorizationCode(...)), `impl std::error::Error + OpenAPIError`, `From` impls for each, and every operation returning `Result<T, petstore::Error>` (a crate `type Result<T> = std::result::Result<T, Error>` alias is common). This changes every rust signature, so it has to be fixed before a 1.0 (backward-compatibility lens): `#[non_exhaustive]` then keeps later additions additive.
+- `src/spec/resources/generated/rust/src/api/pet_api.rs:1495` — ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+- `src/spec/resources/generated/rust/SKILLS.md:212` — fn is_a<T: Error + 'static>(err: &(dyn Error + 'static)) -> bool {
+- `src/spec/resources/generated/rust/src/errors/api_error.rs:400` — pub enum ApiErrorKind {   (exists, but only reachable by converting a downcast ApiError)
+- `src/spec/resources/generated/go/SKILLS.md:196` — var notFound *petstore.NotFoundError   (go uses its native errors.As on a plain error)
+
+## F826 [medium] Binary request bodies and upload fields are typed as a file handle in go (*os.File) and php (\SplFileObject), so in-memory bytes or a stream cannot be sent without a temp file
+- Status: **open** | Lens: auditor-run1 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: go, php, java, kotlin
+
+The same binary body (setPetAvatar body; uploadPetDocument/uploadPetCertificate file; addPetPhotos files) has a different input type in each SDK, and two of them only accept an opened file: go `body *os.File` and `File *os.File` / `Files []*os.File` in the options structs, php `\SplFileObject $body`. A go caller holding a []byte, a bytes.Buffer or an http response body, or a php caller holding a string or a PSR-7 StreamInterface, must create a temp file first. The others take a general type: python bytes, node Buffer, dart Uint8List, swift Data, rust Vec<u8>, java InputStream, kotlin ByteArray, csharp Stream. java and kotlin disagree with each other (stream vs fully buffered bytes) on the same JVM. F184 fixed only the SKILLS wording; the types themselves were never compared. Reference: Stainless SDKs accept a broad 'Uploadable' (python bytes | IO[bytes] | PathLike | tuple(filename, content, type); node File | Blob | Response | ReadStream via toFile), Speakeasy go uses io.Reader, aws-sdk-go-v2 uses io.Reader for bodies. Proposed canonical behaviour: accept the language's general streaming abstraction and keep bytes convenient: go io.Reader (an *os.File still satisfies it, so the change is source-compatible for existing callers; the multipart filename comes from an optional Name() interface or a field), php string|resource|Psr\Http\Message\StreamInterface|\SplFileObject, java InputStream plus a byte[] overload, kotlin ByteArray plus an InputStream/ByteReadChannel overload or the reverse (decide one JVM shape). Filename for multipart parts must stay settable when the input is not a file.
+- `src/spec/resources/generated/go/pkg/pet_api.go:2358` — func (a *PetApi) SetPetAvatar(petId int64, body *os.File, requestContentType ...string) error {
+- `src/spec/resources/generated/go/pkg/options/upload_pet_document_options.go:12` — File         *os.File
+- `src/spec/resources/generated/php/lib/Api/PetApi.php:1808` — public function setPetAvatar(int $petId, \SplFileObject $body, ?string $requestContentType = null): void
+- `src/spec/resources/generated/python/petstore_client/api/pet_api.py:1799` — body: bytes,
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/api/PetApi.java:1793` — public void setPetAvatar(Long petId, InputStream body) {
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/api/PetApi.kt:1325` — body: ByteArray,
+
+## F827 [medium] No per-call request options: no SDK can override the timeout or add headers for one call, and operations without optional params have no slot to add them later
+- Status: **open** | Lens: auditor-run1 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+Timeout, default headers, user agent and request-id injection live only on the client-wide TransportOptions. No operation in any SDK accepts a per-call timeout, extra headers, extra query parameters or an idempotency key (grep for timeout in every PetApi finds nothing). The generated per-operation Options objects carry spec parameters and, for secured operations, a per-call authenticator (java AddPetOptions has only `auth`), and operations with neither (getPetById, findPetsBornOn, getPetPhoto, ...) have no options parameter at all. S7 gives node a trailing RequestOptions with only `signal`, and the other languages get only their cancellation handle. Best-in-class SDKs all have a per-request options object: Stainless `RequestOptions` (timeout, maxRetries, headers/extra_headers, extra_query, extra_body, idempotencyKey, signal) on every method in every language, Stripe RequestOptions (idempotency key, stripe account, api key), Azure RequestContext/RequestOptions, Speakeasy per-call `operations.WithRetries/WithServerURL` options in go. Backward-compatibility lens: adding this later appends a parameter to every operation; that is additive where the language has defaults/overloads/variadics (java overload, kotlin/csharp/python/swift/dart defaults, go `...RequestOption`, elixir keyword opts, ruby kwargs, node optional object) but breaking in rust, so the slot has to exist now. Proposed canonical behaviour: keep S7's native cancellation handle, and add one per-call RequestOptions (name it RequestOptions everywhere) with at least `timeout` and `headers` (extra headers merged last, overriding defaults; never able to drop auth silently), placed per S8 after the optional-parameters object; in node it is the same object S7 already introduces (add timeout/headers next to signal); in go a variadic `...RequestOption` after ctx/params; in rust an `Option<&RequestOptions>` last argument or a builder-style call. Owner decision needed on whether the per-call authenticator moves into it.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/api/options/AddPetOptions.java:7` — @Nullable private Authenticator auth;   (the only field)
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/api/PetApi.java:1192` — public Pet getPetById(Long petId, @Nullable GetPetByIdServer server) {   (no options slot at all)
+- `src/spec/resources/generated/python/petstore_client/api/pet_api.py:1054` — async def get_pet_by_id(self, pet_id: StrictInt, server: Optional["GetPetByIdServer"] = None) -> Pet:
+- `src/spec/resources/generated/rust/src/api/pet_api.rs:1491` — pub async fn get_pet_by_id(&self, pet_id: i64, server: Option<&dyn GetPetByIdServer>)
+- `src/spec/resources/generated/go/pkg/transport_options.go:219` — func (b *TransportOptionsBuilder) Timeout(val *int) *TransportOptionsBuilder {   (client-wide only)
+
+## F828 [medium] Two overlapping configuration objects: Configuration (baseUrl, defaultHeaders, server) is unreachable from Client, which only takes the host from the authenticator, while TransportOptions also has def
+- Status: **open** | Lens: auditor-run1 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+Every SDK has a public Configuration with builder setters baseUrl, defaultHeader(s) and server(serverConfig, variables), and a public TransportOptions that also has defaultHeader(s). The Client facade ignores Configuration completely: each constructor builds `Configuration.builder().baseUrl(authenticator.getHost()).build()` itself and accepts only (authenticator, transportOptions). So Configuration.defaultHeaders and Configuration.server(...) can only be used by bypassing Client and wiring `new PetApi(apiClient, config, authenticator)` by hand, which no README or SKILLS shows, and callers who find Configuration first set headers that a Client never sends. The base URL is a property of the authenticator (getHost), so selecting a templated server with variables means calling Servers.X.getUrl(vars) and passing the string as the authenticator host (java SKILLS 'Servers'). Best-in-class clients have one options object at construction: Stainless `new OpenAI({ baseURL, defaultHeaders, defaultQuery, timeout, maxRetries, fetch })`, Azure `ClientOptions`, Stripe `StripeClient(apiKey, StripeConfig)`. Proposed canonical behaviour (owner decision): either Client accepts a Configuration (baseUrl/server overriding the authenticator host, defaultHeaders) next to TransportOptions, or Configuration stops being public and its defaultHeaders/server move into one client options object; in both cases there is exactly one place for default headers, and its precedence against TransportOptions.defaultHeaders and the authenticator is documented and tested. Fix the shape now: removing or repurposing a public class later is breaking.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/Client.java:84` — Configuration config = Configuration.builder().baseUrl(authenticator.getHost()).build();
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/Configuration.java:112` — public Builder defaultHeader(String name, String value) {
+- `src/spec/resources/generated/go/pkg/client.go:66` — config := NewConfigurationBuilder().BaseURL(authenticator.Host()).Build()
+- `src/spec/resources/generated/go/pkg/configuration.go:87` — func (b *ConfigurationBuilder) DefaultHeader(name, value string) *ConfigurationBuilder {
+- `src/spec/resources/generated/python/petstore_client/client.py:66` — config = Configuration.builder().base_url(authenticator.get_host()).build()
+- `API_SURFACE.md:834` — TransportOptionsBuilder.defaultHeader | defaultHeader(name, value) (a second default-header knob)
+
+## F829 [medium] python exposes only async operations (asyncio.to_thread over urllib3); there is no synchronous client, unlike OpenAI/Anthropic python SDKs
+- Status: **open** | Lens: auditor-run1 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: python
+
+All 48 python operation methods in pet_api.py are `async def`, and the transport is the synchronous urllib3 run on worker threads through asyncio.to_thread (the comment in default_api_client.py says so). Python is a two-idiom ecosystem: most scripts, notebooks, Django/Flask apps and CLIs are synchronous, and the leading generated SDKs ship both shapes from one generator: Stainless `OpenAI` and `AsyncOpenAI`, `Anthropic` and `AsyncAnthropic` (httpx.Client and httpx.AsyncClient); Speakeasy generates `sdk.pets.get(...)` and `sdk.pets.get_async(...)`. Here a sync caller must write `asyncio.run(...)` per call or manage a loop, and the async path still pays a thread hop per request because the I/O itself is blocking. The other synchronous-first ecosystems (java, php, ruby, go, elixir) give sync calls; python gives none. It also interacts with F228 (python cancellation through a thread cannot really abort the socket) and F405/S9 (the injected transport is planned as an httpx client 'for sync and async'). Proposed canonical behaviour: generate `Client` (sync, httpx.Client) and `AsyncClient` (async, httpx.AsyncClient) with identical method names and signatures, sharing models, errors and serializers; the async variant then does real non-blocking I/O and real cancellation.
+- `src/spec/resources/generated/python/petstore_client/api/pet_api.py:1054` — async def get_pet_by_id(
+- `src/spec/resources/generated/python/petstore_client/default_api_client.py:267` — # but the async facade runs requests concurrently through `asyncio.to_thread`
+- `src/spec/resources/generated/python/SKILLS.md:191` — async def main():
+- `src/spec/resources/generated/ruby/lib/petstore/client/api/pet_api.rb:1240` — def set_pet_avatar(pet_id, body, request_content_type: nil)   (synchronous, as in java/php/go/elixir)
+
+## F830 [medium] API errors carry no request context: the message is only 'API returned status code N', with no method, URL, operation or the X-Request-ID the SDK itself sent
+- Status: **open** | Lens: auditor-run1 | Category: error-contract | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+ApiError.fromResponse builds the message `API returned status code <n>` in every SDK, and the ApiError fields are statusCode, message, responseHeaders, responseBody, errorBody and cause (D26). There is no HTTP method, URL/path, operation name, or request id on the error, although the transport generates an X-Request-ID for every request when injectRequestId is on (java DefaultApiClient puts UUID.randomUUID() into the headers) and then discards it. A caller who logs `e.getMessage()` from a service making many calls cannot tell which call failed. Best-in-class: Stainless errors expose `request` (method and URL) and `request_id` (read from the response's request-id header) and the message includes the status and the error body's message; Stripe errors expose requestId and the request log URL; AWS errors carry RequestID and the operation name; Azure RequestFailedException includes the method, URL and client request id. Proposed canonical behaviour: ApiError gains read-only `requestMethod`, `requestUrl` (with query secrets redacted, S15 rules) and `requestId` (the X-Request-ID sent, or the server's echoed request id header), set for every error raised by an operation, including NetworkError/NetworkTimeoutError; the message becomes `<METHOD> <path> returned status code <n>` (keep the existing wording as the suffix so tests change minimally). The fields are additive, but the constructor shape (D26) should get the slot now.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/errors/ApiException.java:182` — String message = "API returned status code " + statusCode;
+- `src/spec/resources/generated/node/src/errors/api-error.ts:93` — const message = `API returned status code ${statusCode}`;
+- `src/spec/resources/generated/go/pkg/errors/api_error.go:238` — msg:             fmt.Sprintf("API returned status code %d", statusCode),
+- `src/spec/resources/generated/rust/src/errors/api_error.rs:187` — format!("API returned status code {}", status_code),
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/DefaultApiClient.java:410` — mergedHeaders.put("X-Request-ID", UUID.randomUUID().toString());   (never surfaced on the error)
+
+## F831 [low] The error hierarchy has no 429 Too Many Requests (rate limit) type, the status every best-in-class SDK names, nor 502/503/504
+- Status: **open** | Lens: auditor-run1 | Category: error-contract | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+fromResponse maps 400, 401, 403, 404, 409, 422 and 500 to named types and everything else to ClientError/ServerError (java ApiException.fromResponse switch; the same table in all twelve per the AGENTS error contract). 429 is the status callers most often need to branch on (to back off), and with no retry support (see the retry finding) every caller has to test `statusCode == 429` themselves. Stainless SDKs name it RateLimitError (and also have APIConnectionError/APITimeoutError like this SDK's NetworkError/NetworkTimeoutError); Stripe has RateLimitError; Azure and AWS expose throttling classification. Proposed canonical behaviour: add TooManyRequests (429) under ClientError in all twelve, with a `retryAfter` accessor parsed from Retry-After (seconds or HTTP date; null when absent or unparseable); optionally ServiceUnavailable (503). Adding a subclass is additive in class-hierarchy languages but changes which type a 429 surfaces as in rust's ApiErrorKind and elixir's struct match, so settle it now.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/errors/ApiException.java:194` — if (statusCode >= 400 && statusCode < 500) { return switch (statusCode) { case 400 ... case 422 ... default -> new ClientException(...)
+- `src/spec/resources/generated/rust/src/errors/api_error.rs:400` — pub enum ApiErrorKind { BadRequest, Unauthorized, Forbidden, NotFound, Conflict, UnprocessableEntity, InternalServerError, ClientError, ServerError, Network, NetworkTimeout, Other }
+- `src/spec/resources/generated/java/SKILLS.md:190` — ClientException (4xx) BadRequestException (400) ... UnprocessableEntityException (422)
+
+## F832 [low] The 'Unexpected response Content-Type' SerializationError names the HTTP verb (java, ruby, dart: 'PetApi.get'), a literal 'invokeApiForResult' (kotlin) or the model (csharp, python) instead of the ope
+- Status: **open** | Lens: auditor-run1 | Category: error-contract | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, python, ruby, dart
+
+This is wrong information rather than wording drift. When a JSON-typed operation receives a non-JSON Content-Type, go, node and swift name the operation (`for PetApi.GetPetById`, `PetApi.getPetById`), but java and ruby and dart interpolate the HTTP method parameter of invokeApi as though it were an operation name, producing `for PetApi.get: expected a JSON body`. kotlin interpolates the return type plus the literal string `.invokeApiForResult` (`for Pet.invokeApiForResult`), csharp prints only the return type (`for Pet`) and python `for return type <class ...>`. The text tells the caller about a method that does not exist. Proposed canonical behaviour: pass the operation id into the base invoke (go/node/swift already have it) and render `Unexpected response Content-Type '<type>' for <Api>.<operation>: expected a JSON body` in all twelve, with a test per language asserting the operation name.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/api/BaseApi.java:355` — + getClass().getSimpleName() + "." + method.toLowerCase(java.util.Locale.ROOT)   (method is the HTTP verb, BaseApi.java:144)
+- `src/spec/resources/generated/ruby/lib/petstore/client/api/base_api.rb:176` — "#{self.class.name.to_s.split('::').last}.#{method.downcase}: expected a JSON body"
+- `src/spec/resources/generated/dart/lib/src/api/base_api.dart:323` — '$runtimeType.${method.toLowerCase()}: expected a JSON body',
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/api/BaseApi.kt:351` — "' for " + T::class.simpleName + ".invokeApiForResult: expected a JSON body",
+- `src/spec/resources/generated/go/pkg/pet_api.go:1561` — unexpected response Content-Type '%s' for PetApi.GetPetById: expected a JSON body
+- `src/spec/resources/generated/node/src/api/base-api.ts:241` — for ${this.constructor.name}${operationName ? "." + operationName : ""}: expected a JSON body
+
+## F833 [high] Batch-4 residual (S2): content: cookie parameters are percent-encoded with five different character sets, and go sends the raw JSON so every string or object value is refused
+- Status: **open** | Lens: auditor-run2 | Category: wire | Unit-testable (reviewer's view): None
+- SDKs: java, ruby, dart, go, swift
+
+S2 requires identical bytes for content: parameters in every location. In the current templates the JSON text of a content cookie is encoded differently per language: kotlin, csharp (Uri.EscapeDataString), php (rawurlencode), python (quote safe=''), node (encodeURIComponent plus !'()*), rust (urlencoding::encode) and elixir (URI.char_unreserved?) keep exactly A-Za-z0-9-._~ (D52); java uses URLEncoder plus '+'->%20, which leaves '*' literal and encodes '~' as %7E (kotlin fixed both, java did not); ruby uses URI.encode_www_form_component plus '+'->%20, same two differences as java; dart uses Uri.encodeComponent, which leaves ! ' ( ) * ~ literal; swift allows CharacterSet.alphanumerics, which is Unicode-wide, so non-ASCII letters stay raw and then fail the RFC 6265 cookie-octet check; go assigns `string(contentBytes)` (no encoding) and then runs isValidCookieValue, which rejects the double quote, so any JSON string or object content cookie returns ErrInvalidCookie instead of being sent. No fixture declares a content cookie (S2's test is searchStore.q and the content header), so nothing catches this. Proposed canonical behaviour: the content cookie value is the SDK serializer's JSON percent-encoded with the D52 set (only A-Za-z0-9-._~ literal, UTF-8 bytes), identical in all twelve; add a content cookie to searchStore or a sibling fixture and a ValueSerializer/ObjectSerializer table row per language with '*', '~', '!', a quote, a space and a non-ASCII letter. Check this before closing F054.
+- `src/main/resources/templates/java/api/api.mustache:360` — java.net.URLEncoder.encode(objectSerializer.serialize(options.{{paramName}}()), java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20")
+- `src/main/resources/templates/kotlin/value_serializer.mustache:313` — "cookie" -> URLEncoder.encode(json, StandardCharsets.UTF_8).replace("+", "%20").replace("*", "%2A").replace("%7E", "~")
+- `src/main/resources/templates/go/api/api.mustache:376` — cookieValue = string(contentBytes)
+- `src/main/resources/templates/go/api/api.mustache:382` — if !isValidCookieValue(cookieValue) {
+- `src/main/resources/templates/dart/api/api.mustache:377` — Uri.encodeComponent(serialize(options.{{paramName}}))
+- `src/main/resources/templates/ruby/api/api.mustache:313` — URI.encode_www_form_component(...ObjectSerializer.serialize(options.<%paramName%>)).gsub('+', '%20')
+- `src/main/resources/templates/swift/value_serializer.mustache:67` — var allowed = CharacterSet.alphanumerics
+- `src/main/resources/templates/php/api/api.mustache:359` — $cookieValue = rawurlencode(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
+- `src/main/resources/templates/node/api/apis.mustache:294` — ValueSerializer.encodeQueryComponent(ObjectSerializer.serialize(options.{{paramName}}))
+
+## F834 [high] Optional nullable fields cannot carry an explicit null: absent and null are conflated on encode in all twelve, so a decoded null is re-sent as absent and the server default replaces it
+- Status: **open** | Lens: auditor-run2 | Category: model | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+S5 fixed required+nullable. For an OPTIONAL nullable property (fixture Defaults.label: type [string, 'null'], default 'untitled', commented 'absent -> default, explicit null -> null') every SDK models the field as a plain optional (`@Nullable String`, `*string` omitempty, `Option<String>` skip_serializing_if, `String?`, `Optional[StrictStr]`) and drops null on encode (java NON_NULL, csharp WhenWritingNull, python exclude_none, kotlin strips JsonNull after encoding, dart `if (label != null)`, swift encodeIfPresent, go omitempty, elixir rejects nil entries). So a caller cannot send `"label": null` (no JSON Merge Patch / clear-a-field), and a client that decodes `{"label":null}` and sends the model back sends `{}`, which the server fills with 'untitled': a silent data change. node also types the field `label?: string` without `| null`. Backward-compatibility lens: 3.1 spells nullability as a type (`type: [T, 'null']`), so tri-state fields become common; changing a field from `T?` to a tri-state type later changes every affected public field type, so the shape has to be chosen now. Best-in-class: Stainless TS `field?: T | null` (undefined omitted, null sent), Stainless Python `NotGiven` sentinel vs None, Stainless Java/Kotlin `JsonField<T>` (missing / null / known), Stainless Go `param.Opt[T]` plus `param.Null[T]()`, Speakeasy Go `optionalnullable.OptionalNullable[T]`, openapi-generator java `JsonNullable<T>` (the java golden already registers JsonNullableModule). Proposed canonical behaviour: only for optional AND nullable properties, a three-state representation in each language's idiom (java/kotlin JsonNullable or a small Optional-like wrapper, csharp a wrapper struct, python a sentinel default, node `T | null` with undefined meaning absent, go a generic Nullable[T], rust Option<Option<T>> with serde_with double_option, swift a small enum, dart a wrapper, php/ruby/elixir a sentinel constant), where set-to-null writes `null` and unset writes nothing; non-nullable optional fields keep today's omission. Add Defaults.label rows to each ObjectSerializer test: decode null then encode keeps null; unset stays absent.
+- `src/spec/resources/specs/petstore/openapi.yaml:2371` — # nullable field with a default: absent -> default, explicit null -> null.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/models/Defaults.java:76` — public String label = "untitled";   (annotated @Nullable)
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/ObjectSerializer.java:388` — JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS))
+- `src/spec/resources/generated/go/pkg/models/defaults.go:73` — Label    *string           `json:"label,omitempty"`
+- `src/spec/resources/generated/rust/src/models/defaults.rs:128` — skip_serializing_if = "Option::is_none"
+- `src/spec/resources/generated/dart/lib/src/models/defaults.dart:163` — if (label != null) {
+- `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/ObjectSerializer.kt:506` — 2. A null optional field MUST be omitted (not emitted as `"field":null`)
+- `src/spec/resources/generated/csharp/src/PetstoreClient/ObjectSerializer.cs:439` — DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+- `src/spec/resources/generated/node/src/models/defaults.ts:39` — label?: string = "untitled";
+
+## F835 [high] Enums and discriminated unions are closed: an enum value or discriminator the server adds later fails the whole response in all twelve, and rust enums are not #[non_exhaustive]
+- Status: **open** | Lens: auditor-run2 | Category: model | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+Every string enum rejects a value outside the declared set on decode: java `fromValue` throws IllegalArgumentException, csharp throws JsonException('Unknown value'), dart throws ArgumentError, go UnmarshalJSON returns an error even though the go type is a plain string, node uses a TypeScript `enum` and ObjectSerializer throws 'Unknown enum value', swift `enum Color: String, Codable` fails decoding, php backed enums and python Enum reject; discriminated unions reject an unknown discriminator (rust PetFood's Deserialize returns Err, java FAIL_ON_INVALID_SUBTYPE, csharp and elixir raise, per F372). The failure surfaces as a SerializationError for the whole operation, so a server adding one enum member or one oneOf variant breaks every deployed client: the most common forward-compatibility break in generated SDKs. It also blocks OpenAPI 3.2 discriminator defaultMapping (#87) and open enums written as `anyOf: [enum, string]` in 3.1. Separately, rust `pub enum Color` and `pub enum PetFood` are exhaustive, so adding a member (a new spec value, or an Unknown fallback later) is a semver-breaking change for every caller who matches on them; swift and kotlin enums have the same exhaustive-switch property. Best-in-class: Stainless Java/Kotlin enums expose `known()` and `value()` with an `_UNKNOWN` member and keep the raw string, Stainless TS/Python keep the string, Fern Java visitors have `visitUnknown`, Speakeasy offers open enums, AWS SDK for Rust enums are `#[non_exhaustive]` with `Unknown(UnknownVariantValue)`. Proposed canonical behaviour (owner decision): response decoding keeps an unknown enum value and an unknown discriminator as an explicit Unknown/raw case that round-trips its JSON, request encoding stays strict; rust enums and unions get `#[non_exhaustive]` and an `Unknown` variant now, swift and kotlin an `unknown(String)` case now, so later additions are additive. Test: ObjectSerializer rows decoding Color 'purple' and a PetFood with foodType 'raw'.
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/models/Color.java:50` — throw new IllegalArgumentException("Unexpected value '" + value + "'");
+- `src/spec/resources/generated/go/pkg/models/color.go:63` — return fmt.Errorf("unexpected value %v for enum Color", raw)
+- `src/spec/resources/generated/rust/src/models/color.rs:11` — #[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)] pub enum Color {   (no #[non_exhaustive])
+- `src/spec/resources/generated/rust/src/models/pet_food.rs:25` — match against the spec's declared mapping, and return an `Err` on unknown values.
+- `src/spec/resources/generated/csharp/src/PetstoreClient/Models/Color.cs:55` — _ => throw new JsonException($"Unknown value '{value}' for enum Color."),
+- `src/spec/resources/generated/swift/Sources/PetstoreClient/Models/Color.swift:11` — public enum Color: String, Codable, Sendable, CaseIterable {
+- `src/spec/resources/generated/node/src/object-serializer.ts:1016` — `Unknown enum value: ${JSON.stringify(value)}. `
+- `src/spec/resources/generated/dart/lib/src/models/color.dart:26` — orElse: () => throw ArgumentError('Unknown Color value: $value'),
+
+## F836 [medium] Response and error headers are a single-valued Map<String,String> in all twelve, so repeated Set-Cookie and Link headers are lost, and typed response headers (#77) have no non-breaking landing
+- Status: **open** | Lens: auditor-run2 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+ApiResult.headers, ApiHttpResponse.headers and ApiError.responseHeaders are typed as a string-to-string map in every SDK (java record `Map<String,String> headers`, go `map[string]string`, rust `HashMap<String,String>`). Every transport folds repeated header lines with ", " (java, kotlin, csharp, python, ruby, rust, elixir, go, swift via allHeaderFields), and each transport's own comment admits the joined form is not parseable for Set-Cookie (an Expires attribute contains a comma) and tells callers to read the underlying library's raw headers, which ApiResult does not expose. Issue #77 asks for typed response headers and names Link and Set-Cookie explicitly. Changing the map's value type to a list later is breaking in every language, and ApiResult is a final record/struct, so per-operation typed header fields cannot be added by subclassing. Best-in-class: Stainless returns the platform Headers object (fetch Headers with getSetCookie, httpx.Headers.get_list, okhttp Headers.values), Speakeasy and AWS return per-operation response objects whose declared headers are typed members. Proposed canonical behaviour (decide now): keep `headers` as the case-insensitive first/joined view but add a multi-value accessor (`headerValues(name)`/`get_all`) on ApiResult, ApiHttpResponse and ApiError, fed by the transport without joining; and record that #77 will add per-operation header views built from ApiResult (for example `GetPetByIdHeaders.from(result)`), which is additive, rather than changing the WithHttpInfo return type.
+- `src/main/resources/templates/java/api_result.mustache:21` — public record ApiResult<T>( int statusCode, @Nullable T data, String rawBody, Map<String, String> headers)
+- `src/main/resources/templates/java/default_api_client.mustache:655` — Set-Cookie headers) are joined with ", " ... The joined form is not directly parseable for Set-Cookie
+- `src/main/resources/templates/go/default_api_client.mustache:317` — directly parseable for Set-Cookie; callers needing structured cookie access should use resp.Cookies() on the underlying *http.Response.
+- `src/main/resources/templates/rust/default_api_client.mustache:486` — parseable for Set-Cookie; callers needing structured cookie access should iterate `response.headers().get_all("set-cookie")`
+- `src/main/resources/templates/csharp/default_api_client.mustache:789` — responseHeaders[AsciiLower(header.Key)] = string.Join(", ", header.Value);
+- `src/main/resources/templates/elixir/default_api_client.mustache:1225` — list when is_list(list) -> Enum.join(list, ", ")
+- `src/spec/resources/generated/go/pkg/api_result.go:33` — func NewApiResult[T any](statusCode int, data *T, rawBody string, headers map[string]string) *ApiResult[T] {
+
+## F837 [medium] The public transport contract (ApiClient.sendRequest returning ApiHttpResponse with a String body) buffers every response and cannot carry a stream, so SSE, JSON Lines and large downloads (#71, #72) n
+- Status: **open** | Lens: auditor-run2 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+ApiClient is public in all twelve (API_SURFACE rows ApiClient.sendRequest and ApiHttpResponse, D16, D60) and its only response type has `body: String` (binary bodies travel base64-encoded inside that string, D30), read fully before returning (java BodyHandlers.ofByteArray, go io.ReadAll, rust response.bytes()). D76 makes the timeout one end-to-end budget that includes the body read (java sendBounded). An operation whose 2xx is text/event-stream today is generated as an ordinary String-returning call (D32: text-class content gives the text verbatim; the Accept header lists it), so it waits for the whole stream and then times out. When #72 (SSE) or #71 (sequential media types) land, three public shapes must change: the operation's return type (String to a stream of events), the ApiClient/ApiHttpResponse contract (a body stream instead of a String), and the D76 budget (a stream needs a time-to-headers or idle timeout, not an end-to-end one). Best-in-class: Stainless generates a separate streaming method or a `stream: true` overload returning `Stream<Event>`/`AsyncIterable`, with a timeout that covers connection and headers; OpenAI's raw response exposes iter_bytes; Speakeasy emits EventStream types. Proposed canonical behaviour (owner decision, now): (1) the transport contract gains a streaming send path additively (a second method with a default that buffers, or a body type that is a byte stream with a `text()` helper) before 1.0, and go, whose interfaces cannot grow without breaking implementers, gets it now; (2) streaming media types are generated as a distinct method (`<op>Stream`) so the buffered method keeps its signature; (3) D76 records that streaming calls use a headers deadline plus idle timeout. Until then, the generator should warn when an operation's only 2xx is text/event-stream or application/jsonl.
+- `src/main/resources/templates/java/api_client.mustache:28` — ApiHttpResponse sendRequest(String method, String url, Map<String, String> headers, @Nullable Object body);
+- `src/spec/resources/generated/java/src/main/java/com/example/petstore/ApiHttpResponse.java:16` — public record ApiHttpResponse(int statusCode, String body, Map<String, String> headers) {
+- `src/spec/resources/generated/go/pkg/api_http_response.go:18` — Body string
+- `src/main/resources/templates/java/default_api_client.mustache:744` — Send one request and wait for the whole response, body included, within the request's timeout.
+- `src/main/resources/templates/go/default_api_client.mustache:272` — rawBody, err := io.ReadAll(resp.Body)
+- `src/main/resources/templates/rust/default_api_client.mustache:511` — let raw_bytes = response.bytes().await.map_err(transport_error)?;
+- `src/main/resources/templates/go/header_selector.mustache:78` — return strings.HasPrefix(mediaType, "text/") ||
+
+## F838 [medium] HTTP method handling is hard-coded per transport and ruby's Faraday run_request accepts only its eight fixed verbs, so QUERY (#60) and additionalOperations (#61) cannot be sent by ruby
+- Status: **open** | Lens: auditor-run2 | Category: wire | Unit-testable (reviewer's view): None
+- SDKs: ruby, java, csharp, go, kotlin, python, swift, php, rust, elixir, node, dart
+
+The method is a free string in the ApiClient contract of eleven SDKs (good: adding QUERY needs no signature change), but ruby dispatches through `connection.run_request(method, ...)`, and Faraday's run_request raises ArgumentError 'unknown http method' for anything outside get/post/put/delete/head/patch/options/trace (Faraday 2 Connection::METHODS; confirm with a test), so ruby cannot send QUERY or a custom method at all. Elsewhere the verb sets are hard-coded: an empty body gets `Content-Length: 0` only for POST/PUT/PATCH in nine transports (csharp, go, kotlin, python, swift, php, php psr18, rust, elixir), java's stale-connection replay treats only GET/HEAD/OPTIONS/PUT/DELETE/TRACE as idempotent, and the redirect method rewrite treats only GET/HEAD as safe (see the redirect finding). node's fetch and dart-web forbid TRACE (a platform limit to document for #59). Proposed canonical behaviour: one shared classification in AbstractBetterCodegen (safe: GET HEAD OPTIONS TRACE QUERY; idempotent: those plus PUT DELETE; body-bearing: anything with a declared request body) passed to templates or emitted as one constant per SDK; ruby builds the request below run_request (build_request plus builder.build_response, or adapter-level) so any token works; README notes TRACE is unavailable on node and dart-web. Test: a DefaultApiClient row sending method 'QUERY' with a body to chasm (or the unit transport) in all twelve.
+- `src/main/resources/templates/ruby/default_api_client.mustache:339` — return connection.run_request(method, url, body, headers) unless @transport_options.connection
+- `src/main/resources/templates/java/default_api_client.mustache:787` — case "GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE" -> true;
+- `src/main/resources/templates/python/default_api_client.mustache:584` — if encoded_body is None and method.upper() in ('POST', 'PUT', 'PATCH'):
+- `src/main/resources/templates/go/default_api_client.mustache:215` — if upper == "POST" || upper == "PUT" || upper == "PATCH" {
+- `src/main/resources/templates/csharp/default_api_client.mustache:443` — string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase)
+
+## F839 [low] A 301 or 302 rewrites every non-GET/HEAD method (PUT, PATCH, DELETE, later QUERY) to a bodyless GET in all twelve, and a 303 turns HEAD into GET; RFC 9110 and Fetch allow the rewrite only for POST
+- Status: **open** | Lens: auditor-run2 | Category: wire | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, elixir, swift
+
+The manual redirect loops (java, kotlin, csharp, php, python, ruby, node, dart, rust, elixir) all implement '301 + 302: switch to GET for non-GET/HEAD requests, drop the body', and go's net/http does the same; swift delegates to URLSession (unverified). RFC 9110 sections 15.4.2 and 15.4.3 permit changing only POST to GET, and the Fetch standard rewrites only POST on 301/302; a PUT or DELETE that hits a 301 is today silently re-sent as a GET, and the call returns that GET's response as if the write succeeded. For 303 the follow-up is GET except when the original method was HEAD (RFC 9110 15.4.4, Fetch), but java, kotlin, csharp, php, python, ruby, node, dart, rust and elixir test 303 before the GET/HEAD branch, so HEAD becomes GET, while go keeps HEAD. When QUERY (#60) lands, a 301/302 on a QUERY would drop its body and become GET. D70 and D16 settle Location and refusals, not the method rule. Proposed canonical behaviour: 307/308 preserve; 303 becomes GET unless the method is HEAD; 301/302 change only POST to GET and preserve every other method and its body (same as Fetch). Test: BaseApi or DefaultApiClient redirect table rows for PUT+301 and HEAD+303 via the testRedirect fixtures.
+- `src/main/resources/templates/java/default_api_client.mustache:582` — } else if (statusCode == 303) { nextMethod = "GET"; ... } else if ("GET".equalsIgnoreCase(currentMethod) || "HEAD"... ) { ... } else { nextMethod = "GET";
+- `src/main/resources/templates/python/default_api_client.mustache:848` — elif current_method.upper() in ('GET', 'HEAD'):   (else next_method = 'GET')
+- `src/main/resources/templates/elixir/default_api_client.mustache:894` — response.status == 303 -> {:get, nil}
+- `src/main/resources/templates/node/abstract_api_client.mustache:387` — } else if (methodUpper === 'GET' || methodUpper === 'HEAD') {
+- `src/main/resources/templates/ruby/default_api_client.mustache:204` — if preserve_method && status_code != 303
+
+## F840 [medium] Cookie parameters declared with the default style form are sent unencoded and values outside cookie-octet are refused, which is OAS 3.2 style: cookie; implementing #65 later changes the bytes of every
+- Status: **open** | Lens: auditor-run2 | Category: wire | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+For a schema cookie parameter (fixture getPetSummary `session`, style defaults to form) all twelve call serializeStyled(..., 'cookie', ..., 'form', true), place the result raw into the Cookie header and throw the caller-mistake error ('Cookie value for ... contains characters forbidden by RFC 6265') for a space, comma, semicolon, quote or backslash. OAS 3.2 defines the new `style: cookie` as exactly that (no percent-encoding, values must arrive pre-escaped) and keeps `form` as the default for cookies, where form-style values are percent-encoded. Issue #65 assumes today's behaviour is form; it is already cookie. Within each SDK the batch-4 content: cookie path percent-encodes while the schema path does not, so two cookie parameters of one operation are encoded by different rules. If #65 is implemented as written, every existing default-style cookie with a '%', '=' or space changes on the wire. Proposed canonical behaviour (owner decision, before 1.0): either form-style cookies percent-encode with the D52 set (and `style: cookie` stays raw plus validated), matching the 3.2 text, or the generator documents that form-style cookies follow RFC 6265 and treats form and cookie identically; record the decision as an S-row so #65 is additive. Verify against the 3.2.0 Style Values table before deciding.
+- `src/spec/resources/specs/petstore/openapi.yaml:768` — - name: session   in: cookie   required: true   schema: type: string
+- `src/spec/resources/generated/go/pkg/pet_api.go:2039` — cookieValue = fmt.Sprintf("%v", serializeStyled("session", options.Session, "cookie", "string", "", "form", true))
+- `src/spec/resources/generated/node/src/api/pet-api.ts:1685` — !/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(sessionCookieValue)
+- `src/main/resources/templates/rust/api/api.mustache:594` — raw into the Cookie request header (RFC 6265 forbids percent- encoding it)
+- `src/main/resources/templates/php/api/api.mustache:359` — $cookieValue = rawurlencode(...ObjectSerializer::serialize($options->{{paramName}}));   (content path, percent-encoded)
+
+## F841 [medium] Batch-4 residual (S8): php's operation signature still puts the Options object before the per-operation server, contradicting php/AGENTS.md
+- Status: **open** | Lens: auditor-run2 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: php
+
+S8 fixes the order as required parameters, then server, then options. java, kotlin, csharp, dart, go and swift reorder in their codegen (`serverBeforeOptions`), node in BetterNodeCodegen, python and rust in the template, ruby and elixir take server as a keyword. php's api.mustache iterates the shared signatureArgs, which AbstractBetterCodegen.computeSignatureArgs builds as path, body, options, server, and BetterPhpCodegen does not reorder, so php emits `getPetById(int $petId, ?GetPetByIdOptions $options = null, ?GetPetByIdServer $server = null)` once global security mints the options argument (getPetById, getExternalPetInfo, getStagingPetInfo and getMultiServerPetInfo all inherit petStoreBasic/petStoreBearer). php/AGENTS.md says 'required parameters, then server, then the per-operation Options object'. The rule is also implemented seven times instead of once: moving the order into computeSignatureArgs (with csharp's required-options exception) would remove the per-language copies. Proposed: reorder in AbstractBetterCodegen or BetterPhpCodegen; the api-surface check plus a PetApiTest row calling with a positional server catches it.
+- `src/main/resources/templates/php/api/api.mustache:89` — {{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}
+- `src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java:3703` — args.add(signatureArg("options", "options", optionsClassName, nullable, false)); } if (includeServer && op.servers != null ...) { args.add(signatureArg("server", ...
+- `src/main/java/io/github/mridang/codegen/generators/php/AGENTS.md:96` — Rule: required parameters, then server, then the per-operation `Options` object; adding security never moves an argument.
+- `src/main/java/io/github/mridang/codegen/generators/java/BetterJavaCodegen.java:269` — static List<Map<String, Object>> serverBeforeOptions(...)   (also in csharp, kotlin, dart, go, swift codegens)
+
+## F842 [medium] go spends its only variadic slot on requestContentType, so a per-call ...RequestOption (F827) cannot be added later to multi-consumes operations without breaking them
+- Status: **open** | Lens: auditor-run2 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Multi-consumes go operations end in `requestContentType ...string` (setPetAvatar, uploadPetDocument). Go allows one variadic and it must be last, and every best-in-class go SDK reserves that slot for per-call options: Stainless openai-go and anthropic-sdk-go `opts ...option.RequestOption`, Speakeasy `opts ...operations.Option`, Azure `options *XOptions`. F827 proposes exactly that for go. With the slot taken, adding per-call options later means changing every multi-consumes signature (breaking), or giving them a different shape from the other operations. In the other eleven the selector is a trailing optional argument or keyword, which leaves room. Proposed canonical behaviour for go (decide before 1.0): move the content-type selector into a RequestOption (`WithRequestContentType("image/png")`) or into the operation's Options struct, and reserve `opts ...RequestOption` as the last parameter of every go operation now (even if it only carries the content type today), which also gives F827 its go home.
+- `src/main/resources/templates/go/api/api.mustache:129` — {{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
+- `API_SURFACE.md:212` — SetPetAvatar(petId, body, requestContentType)   (go column)
+- `src/main/resources/templates/python/api/api.mustache:123` — request_content_type: Optional[str] = None,   (a defaulted trailing argument elsewhere)
+
+## F843 [low] OpenAPI 3.1 constructs the generator degrades today (prefixItems to a list of any) become public field types that the real support (#85, #98) would have to change
+- Status: **open** | Lens: auditor-run2 | Category: api-shape | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
+
+NormalizePrefixItemsRule runs unconditionally (AbstractBetterCodegen line 657) and rewrites a prefixItems tuple to `type: array, items: {}`, so a tuple field is generated as List<Object>/[]any/Vec<serde_json::Value>; #85 plans typed tuples, which changes that public field type. Multi-type arrays (`type: [string, integer]`, #98) and other partially supported 3.1 keywords fall back the same way. Each fallback ships as public API the day a real spec uses it. Proposed (owner decision): for constructs the generator knowingly degrades, emit a named, opaque wrapper type now (for example `GeoPoint` holding the raw JSON array with a `raw()`/`toList()` accessor, like rust's existing JsonValue) so typed accessors can be added later without changing the field type, or log a warning that the fallback type is not stable. Low because no fixture schema produces such a field in the goldens today (GeoPoint produces no model, per #85).
+- `src/main/java/io/github/mridang/codegen/rules/NormalizePrefixItemsRule.java:38` — heterogeneous fixed-arity tuple, so this rule degrades the schema to a plain array of {@code Object}/{@code Any}/{@code interface{}}
+- `src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java:657` — new NormalizePrefixItemsRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+
+## F844 [low] go has no scoped AGENTS.md while the shared file says every language has one
+- Status: **open** | Lens: auditor-run2 | Category: docs | Unit-testable (reviewer's view): None
+- SDKs: go
+
+The shared generators/AGENTS.md says per-language canonical files are `<lang>/AGENTS.md` in that folder, and the root AGENTS.md says there is one per language. Eleven exist; src/main/java/io/github/mridang/codegen/generators/go/ holds only BetterGoCodegen.java, so go's realisation of S1-S16 (ctx first, requestContentType variadic, the sentinel errors, the go forced divergences) is recorded nowhere a reviewer is told to read. Add go/AGENTS.md in the standard format.
+- `src/main/java/io/github/mridang/codegen/generators/AGENTS.md:10` — Per-language canonical files: `<lang>/AGENTS.md` in this folder
+- `src/main/java/io/github/mridang/codegen/generators/go/BetterGoCodegen.java:1` — (the only file in generators/go/)
+
+## F845 [medium] Request bodies typed DeepInput<T> lose required-field checking at compile time
+- Status: **open** | Lens: review | Category: typing | Unit-testable (reviewer's view): None
+- SDKs: node
+
+DeepInput<T> makes every model property optional, so addPet({}) or addPet(new Pet()) type-checks even though Pet.name and Pet.photoUrls are required; the mistake only surfaces at runtime through validateRequired(). Orval types the body as the model interface (addPet(pet: Pet)), so a missing required field is a compile error. Proposed: keep plain-literal input but preserve required keys (map required properties without '?', optional ones with '?'), so DeepInput only relaxes class-ness, not required-ness.
+- `src/spec/resources/generated/node/src/deep-input.ts:50` — ]?: DeepInput<T[K]>;
+- `src/spec/resources/generated/node/src/deep-input.ts:24` — every remaining property optional and recursively plain.
+- `src/spec/resources/generated/node/src/api/pet-api.ts:233` — pet: DeepInput<Pet>,
+- `src/spec/resources/generated/node/SKILLS.md:250` — const result = await client.pet.addPet(new Pet());
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/orval/work/out/fetch/petstore.ts:157` — export const addPet = async (pet: Pet, options?: RequestInit): Promise<addPetResponse> => {
+
+## F846 [medium] String enums are TypeScript `enum`, so string literals are not assignable
+- Status: **open** | Lens: review | Category: enums | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Model enums are emitted as `export enum PetStatusEnum { Available = "available" }`. TS string enums are nominal: a caller cannot pass the literal 'available' (from JSON, a form, or another library) without a cast, and `enum` is not erasable syntax (Node type stripping, `erasableSyntaxOnly`, isolatedDeclarations tooling). Orval emits a const object plus a literal union (`export const PetStatus = {...} as const; export type PetStatus = typeof PetStatus[keyof typeof PetStatus]`), which keeps `PetStatus.available` member access and also accepts 'available'. Proposed: emit the const-object-plus-union form (member names unchanged) or at least accept the literal union in DeepInput request types.
+- `src/spec/resources/generated/node/src/models/pet.ts:423` — export enum PetStatusEnum {
+- `src/spec/resources/generated/node/src/models/availability.ts:11` — export enum Availability {
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/orval/work/out/fetch/model/petStatus.ts:13` — export type PetStatus = typeof PetStatus[keyof typeof PetStatus];
+
+## F847 [medium] File uploads are typed Buffer only though the transport accepts Blob/File
+- Status: **open** | Lens: review | Category: typing | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Multipart file fields are typed Array<Buffer> (and SKILLS.md says uploads are Buffer), yet the transport already handles Blob values and reads a File's name for the part filename. On the fetch-only runtimes the SDK advertises (Deno, Workers, browsers) callers hold a Blob or File and must cast. Orval types the same field as (Blob | File)[]. Proposed: type binary upload inputs as Buffer | Blob (File is a Blob) so the declared type matches what the runtime sends.
+- `src/spec/resources/generated/node/src/api/options/add-pet-photos-options.ts:7` — readonly files: Array<Buffer>;
+- `src/spec/resources/generated/node/src/abstract-api-client.ts:741` — const filename = (value as Blob & { name?: string }).name ?? name;
+- `src/spec/resources/generated/node/SKILLS.md:317` — File upload parameters are typed as `Buffer`.
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/orval/work/out/fetch/model/addPetPhotosBody.ts:11` — files: (Blob | File)[];
+
+## F848 [low] Error bodies are untyped parsed JSON, not decoded against the operation's declared error schema
+- Status: **open** | Lens: review | Category: errors | Unit-testable (reviewer's view): None
+- SDKs: node
+
+ApiError.fromResponse stores ObjectSerializer.parseJson(responseBody) as errorBody, so error responses with a declared schema arrive as unknown JSON with wire names and string dates. Orval types each status's body per operation (testStatus400PetResponse400.data: TestStatus400Pet400). Proposed: when an operation declares a schema for a non-2xx status, decode errorBody with that model and type the operation's error (for example ApiError<ModelError>). The petstore only declares error schemas on x-internal operations, so a fixture operation with a declared 4xx schema is needed to lock it.
+- `src/spec/resources/generated/node/src/errors/api-error.ts:99` — errorBody = ObjectSerializer.parseJson(responseBody);
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/orval/work/out/fetch/petstore.ts:2950` — data: TestStatus400Pet400
+
+## F849 [low] Testing docs show only a fake Authenticator; no way to stub responses is documented or generated
+- Status: **open** | Lens: review | Category: testability | Unit-testable (reviewer's view): None
+- SDKs: node
+
+SKILLS.md's Testing section says the Authenticator is the test seam, but a fake authenticator cannot stub responses; the real seam is TransportOptions.builder().fetch(...), which the Testing section does not mention. Orval generates per-operation MSW handlers and faker response factories (getAddPetMockHandler, getAddPetResponseMock) with overrides. Proposed: at minimum, show a stub fetch returning a canned Response in the Testing section of SKILLS.md and README; optionally emit typed per-operation sample-response factories built from the spec examples.
+- `src/spec/resources/generated/node/SKILLS.md:197` — The `Authenticator` interface is the seam for tests
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/orval/work/out/fetch/petstore.msw.ts:169` — export const getAddPetMockHandler = (overrideResponse?: Pet | ((info: Parameters<HttpResponseResolver<PathParams, Pet>>[0]) => Promise<Pet> | Pet), options?: RequestHandlerOptions) => {
+
+## F850 [low] README has no usage, authentication or error-handling section
+- Status: **open** | Lens: review | Category: documentation | Unit-testable (reviewer's view): None
+- SDKs: node
+
+The README (the npm landing page) covers requirements, runtime support, tooling and caveats, but never shows creating a Client, calling an operation, authenticating or catching ApiError; those live only in SKILLS.md. Its Install section is `npm install` (installing the package's own dev dependencies) rather than `npm install petstore-client`. Proposed: add a short Quick start (install by name, construct, one call, one catch) to the README, mirroring SKILLS.md.
+- `src/spec/resources/generated/node/README.md:32` — ## Install
+- `src/spec/resources/generated/node/README.md:56` — ## Package
+- `src/spec/resources/generated/node/SKILLS.md:13` — ## Quick Start
+
+## F851 [low] Schema constraints are not surfaced in model doc comments
+- Status: **open** | Lens: review | Category: documentation | Unit-testable (reviewer's view): None
+- SDKs: node
+
+S3 settles that constraints are not enforced, but the models also drop them from the docs: Pet.nickname shows only `@example rex`, not its pattern or length bounds. Orval writes them as JSDoc (`@minLength 2 @maxLength 8 @pattern ...`), so IDE hover tells the caller what the server will reject. Proposed: render pattern, minLength, maxLength, minimum, maximum, multipleOf, minItems and maxItems as doc-comment tags (documentation only; no enforcement, so S3 stands).
+- `src/spec/resources/generated/node/src/models/pet.ts:128` — /** @example rex */
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/orval/work/out/fetch/model/pet.ts:38` — @pattern ^(?!admin)[a-z']+$
+
+## F852 [low] OAS 3.1 prefixItems tuple is typed Array<unknown>
+- Status: **open** | Lens: review | Category: typing | Unit-testable (reviewer's view): None
+- SDKs: node
+
+GeoPoint is `type: array` with prefixItems [number, number, string]; the node model types Pet.location as Array<unknown>, losing all element types. Orval emits the tuple `[number, number, string]`. Belongs under the 3.1 epic #96.
+- `src/spec/resources/generated/node/src/models/pet.ts:92` — location?: Array<unknown>;
+- `/private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad/orval/work/out/fetch/model/geoPoint.ts:9` — export type GeoPoint = [number, number, string];
+
+## F853 [low] Facade imports and constructs every API group; bundle cannot drop unused operations
+- Status: **open** | Lens: review | Category: bundle | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Client statically imports and instantiates every tag class, operations are class methods, the root barrel re-exports everything, and object-serializer.ts has a global `import "reflect-metadata"` side effect with no `sideEffects` field in package.json. A bundler therefore keeps every operation and model for a one-call consumer. Orval's fetch mode emits each operation as a standalone export that tree-shakes. Proposed: declare `sideEffects` (listing the reflect-metadata entry) and document importing a single tag class (new PetApi(...)) for size-sensitive edge bundles; standalone functions would be an API-surface change and needs owner decision.
+- `src/spec/resources/generated/node/src/client.ts:115` — this.pet = new PetApi(apiClient, config, authenticator);
+- `src/spec/resources/generated/node/src/object-serializer.ts:8` — import "reflect-metadata";
+- `src/spec/resources/generated/node/src/index.ts:23` — export * from "./api/index.js";
