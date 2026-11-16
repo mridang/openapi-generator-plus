@@ -881,6 +881,32 @@ import Testing
         #expect(error?.errorDescription == message)
     }
 
+    /* F1053: a cancelled caller stops waiting for a shared refresh at once;
+       the refresh goes on for the others and its token is cached. */
+    @Test func testCancelledCallerDoesNotWaitForTheTokenEndpoint() async throws {
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"slow\",\"expires_in\":3600}",
+            delayNanos: 600_000_000)
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let params = ["grant_type": "client_credentials"]
+
+        let started = Date()
+        let waiter = Task {
+            try await manager.getAccessToken(tokenURL: "https://auth.example.com/token", params: params)
+        }
+        try await Task.sleep(nanoseconds: 100_000_000)
+        waiter.cancel()
+        let outcome = await waiter.result
+        #expect(throws: CancellationError.self) { try outcome.get() }
+        #expect(Date().timeIntervalSince(started) < 0.5)
+
+        let token = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token", params: params)
+        #expect(token == "slow")
+        #expect(client.callCount == 1)
+    }
+
     /* F863: a token_type other than Bearer (any case) is refused; an absent or
        null one is accepted. */
     @Test(arguments: ["DPoP", "mac", "N_A", "\"\"", "7"])
