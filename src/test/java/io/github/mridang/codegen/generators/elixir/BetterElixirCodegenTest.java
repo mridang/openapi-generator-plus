@@ -2,7 +2,11 @@ package io.github.mridang.codegen.generators.elixir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.openapitools.codegen.CodegenParameter;
 
 class BetterElixirCodegenTest {
 
@@ -69,5 +73,19 @@ class BetterElixirCodegenTest {
       assertThat(codegen.toParamName(bound)).isEqualTo(bound + "_param");
     }
     assertThat(codegen.toParamName("petId")).isEqualTo("pet_id");
+  }
+
+  @Test
+  void carriesTheNamedExamplesOfAnOptionalParameterIntoItsOptionsDocs() {
+    final CodegenParameter parameter = new CodegenParameter();
+    parameter.vendorExtensions = new HashMap<>();
+    final Map<String, Object> example = new HashMap<>();
+    example.put("summary", "Only #{open} ones");
+    example.put("value", "open");
+    parameter.vendorExtensions.put("pluralExamples", List.of(example));
+
+    assertThat(BetterElixirCodegen.toExampleDocs(parameter))
+        .containsExactly(Map.of("summary", "Only \\#{open} ones", "value", "open"));
+    assertThat(BetterElixirCodegen.toExampleDocs(new CodegenParameter())).isEmpty();
   }
 }

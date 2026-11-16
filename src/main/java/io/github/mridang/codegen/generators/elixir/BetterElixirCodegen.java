@@ -572,6 +572,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             // can carry an @deprecated marker, mirroring how operations and
             // model properties already surface deprecation.
             param.put("deprecated", p.isDeprecated);
+            param.put("examples", toExampleDocs(p));
             if (p.description != null && !p.description.isEmpty()) {
                 param.put("description", p.description);
             }
@@ -589,6 +590,31 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         // overrides the API instance's configured authenticator for one call.
         injectAuthFieldContext(op, context);
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /**
+     * Returns the named examples of an optional parameter as heredoc-safe
+     * summary and value pairs, so the options module documents them the way
+     * the operation function documents the examples of a required parameter.
+     */
+    static List<Map<String, Object>> toExampleDocs(CodegenParameter p) {
+        final List<Map<String, Object>> docs = new ArrayList<>();
+        if (p.vendorExtensions == null) {
+            return docs;
+        }
+        final Object plural = p.vendorExtensions.get("pluralExamples");
+        if (!(plural instanceof List<?> entries)) {
+            return docs;
+        }
+        for (final Object entry : entries) {
+            if (entry instanceof Map<?, ?> example) {
+                final Map<String, Object> doc = new HashMap<>();
+                doc.put("summary", toHeredocText(Objects.toString(example.get("summary"), "")));
+                doc.put("value", toHeredocText(Objects.toString(example.get("value"), "")));
+                docs.add(doc);
+            }
+        }
+        return docs;
     }
 
     /** {@inheritDoc} */

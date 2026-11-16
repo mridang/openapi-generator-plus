@@ -253,7 +253,16 @@ transport = {{moduleName}}.TransportOptions.new(
 client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
 ```
 
-### Custom HTTP Transport
+### Retries
+
+`max_retries` on `TransportOptions` is how many times a failed call is tried again (default `2`; `0` turns retries off). A call is retried after a network error that happened before any response, and after a response with status 408, 409, 429 or 500 to 599 other than 501 (a timeout, 400, 401, 403, 404, 422 and 501 are not retried). The wait starts at 0.5 s and doubles up to 8 s, less up to 25% jitter; a `Retry-After` header (seconds or an HTTP date) replaces it, capped at 60 s. Every retry is a fresh request: headers, authentication included, are rebuilt. Retries share the single end-to-end `timeout` and never extend it.
+
+```elixir
+transport = {{moduleName}}.TransportOptions.new(max_retries: 0)
+client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+```
+
+### Custom HTTP client
 
 Pass Req options such as an `:adapter` function or a `:plug` through `req_options`. The SDK's own settings (timeouts, redirect policy, proxy, TLS, user agent) are applied on top, and the SDK never closes anything you supply. Combining `:connect_options` or `:finch` with `proxy`, `ca_cert_path` or `verify_ssl: false` raises `ArgumentError`.
 
@@ -263,6 +272,10 @@ transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: &MyApp.Ht
 client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
 ```
 
+### Cancellation
+
+There is no cancellation argument. The SDK uses the platform's own mechanism: stop the process that is making the call, or set `timeout` on `TransportOptions`, which ends the call with `NetworkTimeoutError`.
+
 ### Closing the client
 
 `{{moduleName}}.{{clientClassName}}.close/1` releases the transport the client created and stops the processes its authenticator started (OAuth2 token managers, OpenID Connect discovery). It is idempotent, and a call through a closed client raises. A transport you supply through `req_options` is never closed by the SDK.
@@ -271,20 +284,9 @@ client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
 :ok = {{moduleName}}.{{clientClassName}}.close(client)
 ```
 
-### Cancellation
+### Raw responses, timeouts and the request id
 
-There is no cancellation argument. The SDK uses the platform's own mechanism: stop the process that is making the call, or set `timeout` on `TransportOptions`, which ends the call with `NetworkTimeoutError`.
-
-### Timeouts and retries
-
-`timeout` on `TransportOptions` is one end-to-end budget in milliseconds. Retries share that budget: none runs past it.
-
-`max_retries` on `TransportOptions` is how many times a failed call is tried again (default `2`; `0` turns retries off). A call is retried after a network error that happened before any response, and after a response with status 408, 409, 429 or 500 to 599 other than 501 (a timeout, 400, 401, 403, 404, 422 and 501 are not retried). The wait starts at 0.5 s and doubles up to 8 s, less up to 25% jitter; a `Retry-After` header (seconds or an HTTP date) replaces it, capped at 60 s. Every retry is a fresh request: headers, authentication included, are rebuilt.
-
-```elixir
-transport = {{moduleName}}.TransportOptions.new(max_retries: 0)
-client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
-```
+Each operation has a `_with_http_info` variant returning an `ApiResult` (`status_code`, `data`, `raw_body`, `headers`). `timeout` on `TransportOptions` is one end-to-end budget in positive milliseconds; a call that exceeds it ends with `NetworkTimeoutError`. With `inject_request_id: true` an `X-Request-ID` header is added to each request unless you set one.
 
 ## API Methods
 

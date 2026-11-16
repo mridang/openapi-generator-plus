@@ -3,6 +3,14 @@
 defmodule {{moduleName}}.Api.Options.{{className}} do
   @moduledoc """
   Options for the `{{operationId}}` operation.
+{{#params}}
+{{#examples}}
+
+  ### `{{name}}` example — {{{summary}}}
+
+      {{{value}}}
+{{/examples}}
+{{/params}}
   """
 
   @type t :: %__MODULE__{
