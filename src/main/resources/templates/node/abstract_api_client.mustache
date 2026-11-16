@@ -271,7 +271,14 @@ export abstract class AbstractApiClient implements ApiClient {
 
     if (body != null && typeof body === 'object' && !Buffer.isBuffer(body)) {
       const boundary = globalThis.crypto.randomUUID();
-      mergedHeaders['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
+      /* The declared multipart subtype (form-data, mixed, related, ...) is
+       * kept; only the boundary is the SDK's own. */
+      const declaredType = Object.entries(mergedHeaders).find(([key]) => key.toLowerCase() === 'content-type')?.[1];
+      const subtype = /^multipart\/([\w!#$&.+\-^_]+)\s*(;|$)/i.exec(declaredType ?? '')?.[1] ?? 'form-data';
+      for (const key of Object.keys(mergedHeaders)) {
+        if (key.toLowerCase() === 'content-type') delete mergedHeaders[key];
+      }
+      mergedHeaders['Content-Type'] = `multipart/${subtype}; boundary=${boundary}`;
       body = await this.buildMultipartBody(body as Record<string, unknown>, boundary);
     } else if (body == null) {
       for (const key of Object.keys(mergedHeaders)) {

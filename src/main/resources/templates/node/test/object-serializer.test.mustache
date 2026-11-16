@@ -8,7 +8,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { Category, EdgeCases, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag, RequiredNullable } from '../src/models/index{{importFileExtension}}';
+import { Account, Category, EdgeCases, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag, RequiredNullable } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -2063,5 +2063,111 @@ describe('toBinary', () => {
     const buffer = Buffer.from([1, 2, 3]);
 
     expect(ObjectSerializer.toBinary(buffer)).toBe(buffer);
+  });
+  describe('fixture round trips', () => {
+    test('a contentEncoding base64 property travels as base64 and decodes back to the same bytes', () => {
+      const chip = Buffer.from([0x00, 0xfb, 0xff, 0x10]);
+      const wire = JSON.parse(
+        ObjectSerializer.serialize(new PetPassport({ biometricChip: chip as unknown as PetPassport['biometricChip'] })),
+      ) as Record<string, unknown>;
+
+      expect(wire['biometricChip']).toBe('APv/EA==');
+      const decoded = ObjectSerializer.deserialize({ biometricChip: 'APv/EA==' }, PetPassport)!;
+      expect(Buffer.from(decoded.biometricChip as unknown as Buffer).equals(chip)).toBe(true);
+    });
+
+    test('properties named after keywords and literals keep their wire keys', () => {
+      const keys = new EdgeCases({
+        and: true,
+        or: false,
+        not: true,
+        class: 'c',
+        return: 'r',
+        null: 'n',
+        true: true,
+        false: false,
+        n2fa: true,
+      });
+      const expected = {
+        and: true,
+        or: false,
+        not: true,
+        class: 'c',
+        return: 'r',
+        null: 'n',
+        true: true,
+        false: false,
+        '2fa': true,
+      };
+
+      expect(JSON.parse(ObjectSerializer.serialize(keys))).toMatchObject(expected);
+      const decoded = ObjectSerializer.deserialize(expected, EdgeCases)!;
+      expect(decoded.and).toBe(true);
+      expect(decoded.or).toBe(false);
+      expect(decoded.class).toBe('c');
+      expect(decoded.return).toBe('r');
+      expect(decoded.null).toBe('n');
+      expect(decoded.true).toBe(true);
+      expect(decoded.false).toBe(false);
+      expect(decoded.n2fa).toBe(true);
+    });
+
+    test('a readOnly property is decoded and a writeOnly property is written and decoded', () => {
+      const decoded = ObjectSerializer.deserialize({ id: 7, username: 'u', password: 'p' }, Account)!;
+
+      expect(decoded.id).toBe(7);
+      expect(decoded.password).toBe('p');
+      expect(JSON.parse(ObjectSerializer.serialize(new Account({ username: 'u', password: 'p' })))).toEqual({
+        username: 'u',
+        password: 'p',
+      });
+    });
+
+    test.each(['In-Stock', 'on-hold', 'OUT_OF_STOCK'])('the inline enum value %s round-trips', (phase) => {
+      const decoded = ObjectSerializer.deserialize({ phase }, EdgeCases)!;
+
+      expect(decoded.phase).toBe(phase);
+      expect(JSON.parse(ObjectSerializer.serialize(decoded))).toMatchObject({ phase });
+    });
+
+    test('an unknown inline enum value is rejected', () => {
+      expect(() => ObjectSerializer.deserialize({ phase: 'banana' }, EdgeCases)).toThrow(SerializationError);
+    });
+
+    test.each([
+      ["o'clock"],
+      ['a\\b'],
+      ['$eq'],
+      ['#{x}'],
+    ])('the availability value %s round-trips through its member', (wire) => {
+      const member = Object.values(Availability).find((value) => value === wire);
+
+      expect(member).toBe(wire);
+      const decoded = ObjectSerializer.deserialize({ priority: 1, availability: wire }, StockItem)!;
+      expect(decoded.availability).toBe(wire);
+      expect(JSON.parse(ObjectSerializer.serialize(decoded)).availability).toBe(wire);
+    });
+
+    test('a duplicate object key resolves to the last value', () => {
+      expect(ObjectSerializer.parseJson('{"id":1,"id":2}')).toEqual({ id: 2 });
+    });
+
+    test('request JSON writes U+2028, U+2029 and DEL literally and escapes only quote, backslash and controls', () => {
+      const text = 'a\u2028b\u2029c\u007fd\u00e9/<>&"\\\u0001';
+
+      expect(ObjectSerializer.serialize({ text })).toBe(
+        '{"text":"a\u2028b\u2029c\u007fd\u00e9/<>&\\"\\\\\\u0001"}',
+      );
+    });
+
+    test('a protobuf-JSON duration decodes, encodes back and keeps its sign', () => {
+      const decoded = ObjectSerializer.deserialize({ retryAfter: '-90s' }, EdgeCases)!;
+
+      expect(durationToProtoJson(decoded.retryAfter!)).toBe('-90s');
+      expect(JSON.parse(ObjectSerializer.serialize(decoded))).toMatchObject({ retryAfter: '-90s' });
+      expect(
+        JSON.parse(ObjectSerializer.serialize(ObjectSerializer.deserialize({ retryAfter: '3600.500s' }, EdgeCases))),
+      ).toMatchObject({ retryAfter: '3600.500s' });
+    });
   });
 });

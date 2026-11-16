@@ -643,6 +643,36 @@ describe('DefaultApiClient multipart wire form (canonical behaviors #4, #5)', ()
     }
   });
 
+  it.each([
+    ['multipart/mixed', 'multipart/mixed; boundary='],
+    ['multipart/related', 'multipart/related; boundary='],
+    ['Multipart/Related; type="application/json"', 'multipart/Related; boundary='],
+  ])('a declared %s content type keeps its subtype with the SDK boundary', async (declared, expectedPrefix) => {
+    let contentType: string | undefined;
+    const srv = http.createServer((req, res) => {
+      contentType = req.headers['content-type'];
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{"ok":true}');
+      });
+    });
+    await new Promise<void>((resolve) => srv.listen(0, '127.0.0.1', resolve));
+    try {
+      const port = (srv.address() as { port: number }).port;
+      await new DefaultApiClient().sendRequest(
+        'POST',
+        `http://127.0.0.1:${port}/upload`,
+        { 'Content-Type': declared },
+        { note: 'hello' },
+      );
+      expect(contentType!.startsWith(expectedPrefix)).toBe(true);
+      expect(contentType).not.toContain('form-data');
+    } finally {
+      srv.close();
+    }
+  });
+
   it('#4 unknown file extension falls back to application/octet-stream', async () => {
     const { url, getBody, close } = await captureRawBody();
     try {

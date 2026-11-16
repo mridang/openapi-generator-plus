@@ -4,6 +4,7 @@ import type { ApiClient, RequestOptions } from '../api-client{{importFileExtensi
 import type { ApiResult } from '../api-result{{importFileExtension}}';
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
 import { isNoAuth } from '../auth/authenticator{{importFileExtension}}';
+import { isHttpAwareAuthenticator } from '../auth/http-aware-authenticator{{importFileExtension}}';
 /* Imported through the errors barrel, which loads every status-specific
  * error, so ApiError.fromResponse knows them all. */
 import { ApiError, SerializationError } from '../errors/index{{importFileExtension}}';
@@ -105,6 +106,12 @@ export abstract class BaseApi {
      *     back to the configured client authenticator (secured op).
      *   - auth is a real authenticator  -> per-call override; use it. */
     const effectiveAuth = isNoAuth(auth) ? null : (auth ?? this.authenticator);
+    /* The client injects its transport into the authenticator it was built
+     * with. A per-call OAuth2 or OpenID Connect authenticator was never given
+     * one, so hand it this API's own client before it fetches a token. */
+    if (auth != null && effectiveAuth === auth && isHttpAwareAuthenticator(auth)) {
+      auth.setApiClient(this.apiClient);
+    }
     if (effectiveAuth) {
       const authQueryParams = effectiveAuth.getQueryParams();
       for (const [k, v] of Object.entries(authQueryParams)) {
@@ -355,7 +362,10 @@ export abstract class BaseApi {
     if (rawBody && (Buffer.isBuffer(body) || body instanceof Uint8Array || body instanceof Blob)) {
       return body as Buffer;
     }
-    if (contentType === 'multipart/form-data') {
+    if (/^multipart\//i.test(contentType)) {
+      /* Any multipart subtype (form-data, mixed, related) is assembled by the
+       * transport from the form parts object; the subtype comes from the
+       * Content-Type header. */
       return body as Record<string, unknown>;
     }
     if (contentType.startsWith('image/') || contentType === 'application/octet-stream') {
