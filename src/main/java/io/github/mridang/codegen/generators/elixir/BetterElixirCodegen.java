@@ -603,11 +603,13 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             return docs;
         }
         final Object plural = p.vendorExtensions.get("pluralExamples");
-        if (!(plural instanceof List<?> entries)) {
+        if (!(plural instanceof List)) {
             return docs;
         }
+        final List<?> entries = (List<?>) plural;
         for (final Object entry : entries) {
-            if (entry instanceof Map<?, ?> example) {
+            if (entry instanceof Map) {
+                final Map<?, ?> example = (Map<?, ?>) entry;
                 final Map<String, Object> doc = new HashMap<>();
                 doc.put("summary", toHeredocText(Objects.toString(example.get("summary"), "")));
                 doc.put("value", toHeredocText(Objects.toString(example.get("value"), "")));

@@ -1148,12 +1148,15 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
      */
     static List<String> exampleDocLines(CodegenParameter p) {
         final List<String> lines = new ArrayList<>();
-        if (p.vendorExtensions == null
-                || !(p.vendorExtensions.get("pluralExamples") instanceof List<?> examples)) {
+        final Object pluralExamples =
+                p.vendorExtensions == null ? null : p.vendorExtensions.get("pluralExamples");
+        if (!(pluralExamples instanceof List)) {
             return lines;
         }
+        final List<?> examples = (List<?>) pluralExamples;
         for (final Object example : examples) {
-            if (example instanceof Map<?, ?> entry) {
+            if (example instanceof Map) {
+                final Map<?, ?> entry = (Map<?, ?>) example;
                 final Object value = entry.get("value");
                 final Object summary = entry.get("summary");
                 lines.add(escapeForPhpdoc(value + " " + summary));

@@ -1229,10 +1229,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             param.put("isByteArrayParam", "byte[]".equals(p.dataType));
             // Named examples of an optional parameter belong on its setter, as the
             // required ones belong on the operation (F893).
-            if (p.vendorExtensions != null
-                    && p.vendorExtensions.get("pluralExamples") instanceof List<?> examples
-                    && !examples.isEmpty()) {
-                param.put("pluralExamples", examples);
+            final Object pluralExamples =
+                    p.vendorExtensions == null ? null : p.vendorExtensions.get("pluralExamples");
+            if (pluralExamples instanceof List && !((List<?>) pluralExamples).isEmpty()) {
+                param.put("pluralExamples", pluralExamples);
             }
             if (copyFactory != null) {
                 param.put("copyFactory", copyFactory);
