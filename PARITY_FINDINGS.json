@@ -16594,10 +16594,11 @@
    "unit_testable": false,
    "lens": "L01-value-serializer",
    "id": "F241",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "dart, swift and python docs corrected to match the code",
    "priority_triage": "low",
-   "plain": "A Dart comment says a date parameter is a String but it is a date object."
+   "plain": "A Dart comment says a date parameter is a String but it is a date object.",
+   "commit": "be9303193"
   },
   {
    "title": "Duplicate JSON keys resolve differently (rust rejects, swift keeps the first, the rest keep the last)",
@@ -21829,10 +21830,11 @@
    "unit_testable": false,
    "lens": "L11-api-shape",
    "id": "F338",
-   "status": "open",
-   "note": "template/README text, not a rule document: still open",
+   "status": "fixed",
+   "note": "dart, swift and python docs corrected to match the code",
    "priority_triage": "low",
-   "plain": "The Swift doc says an unknown content type falls back to the first declared one, but the code throws."
+   "plain": "The Swift doc says an unknown content type falls back to the first declared one, but the code throws.",
+   "commit": "be9303193"
   },
   {
    "title": "Form-urlencoded and multipart field order on the wire differs (hash order, sorted, or random per process)",
@@ -25456,10 +25458,11 @@
    "suspected_forced_reason": "The web-only loss is forced (JS numbers); the native claim is not.",
    "lens": "L16-docs-packaging",
    "id": "F379",
-   "status": "open",
-   "note": "template/README text, not a rule document: still open",
+   "status": "fixed",
+   "note": "dart, swift and python docs corrected to match the code",
    "priority_triage": "low",
-   "plain": "The Dart README says large integers become doubles, which is false on the Dart VM."
+   "plain": "The Dart README says large integers become doubles, which is false on the Dart VM.",
+   "commit": "be9303193"
   },
   {
    "title": "java pom hardcodes the MIT licence URL instead of using `{{licenseUrl}}`",
@@ -25539,10 +25542,11 @@
    "suspected_forced_reason": "None.",
    "lens": "L16-docs-packaging",
    "id": "F381",
-   "status": "open",
-   "note": "template/README text, not a rule document: still open",
+   "status": "fixed",
+   "note": "dart, swift and python docs corrected to match the code",
    "priority_triage": "low",
-   "plain": "The Python README type table says bare number maps to StrictFloat; it maps to a Decimal type."
+   "plain": "The Python README type table says bare number maps to StrictFloat; it maps to a Decimal type.",
+   "commit": "be9303193"
   },
   {
    "title": "Spec comments claim the gates match the generated Makefile, but the elixir, php and swift Makefiles disagree",
@@ -34044,9 +34048,10 @@
    "description": "src/spec/resources/generated/php/lib/Servers.php:78 renders the server description in a docblock as `$5 #{x} a*_/b`. The other SDKs' doc comments show `a*/b`: dart and rust with ///, swift ///, csharp CDATA, ruby #. In a /** */ block the `*_/` rewrite is needed, so this may be an accepted idiom difference. The literal on line 84 is exact. Confirm it is recorded as idiom; if not, decide on one comment-safe form for every SDK that writes the description inside a block comment.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "accepted idiom: a php block comment needs the *_/ rewrite so the description cannot end the comment",
+   "batch": null,
+   "commit": "be9303193"
   },
   {
    "id": "F763",
@@ -34876,9 +34881,10 @@
    "description": "Idiom review of single-language-defects: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accepted, then actualInstance() and the private _value getter index _values[0] and trap at runtime. A Swift developer gets a crash from a public initialiser with no compile-time or error-level signal.\n\nSuggested form: Make the initialiser failable so the empty case is an ordinary nil: `public init?(_ values: [Any]) { guard !values.isEmpty else { return nil }; self._values = values }` in model.mustache (line 487) and the regenerated DeprecatedTreatment.swift:25. The capability is unchanged, so harmonisation holds. Add a unit test that DeprecatedTreatment([]) is nil.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "swift anyOf wrapper init is failable, with a test",
+   "batch": null,
+   "commit": "be9303193"
   },
   {
    "id": "F813",
@@ -34972,9 +34978,10 @@
    "description": "Idiom review of single-language-defects: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \\ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.mustache:1601 has `(new \\ReflectionClass(DeprecatedColor::class))->getDocComment()`. The generated copy has drifted from its template, the same drift as the filePart case above. Line 1598 in the generated file (pre-existing) has the same unparenthesised form, so the generated output drops parentheses consistently. That form needs PHP 8.4 or later to parse.\n\nSuggested form: Regenerate so the generated test matches the template, and use the parenthesised form `(new \\ReflectionClass(DeprecatedColor::class))->getDocComment()`, which parses on every PHP 8 version. Apply the same fix to the pre-existing line 1598.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "not a defect: composer requires php ^8.5, where new X()->method() is valid and the formatter drops the parentheses",
+   "batch": null,
+   "commit": "be9303193"
   },
   {
    "id": "F819",

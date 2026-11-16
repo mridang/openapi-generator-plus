@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 506, forced 4, needs-spec 2, open 93, parked 34, partial 5. Severity: critical 3, high 60, medium 547, low 212.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 513, forced 4, needs-spec 2, open 87, parked 33, partial 5. Severity: critical 3, high 60, medium 547, low 212.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -246,7 +246,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 506, forced 4,
 | F238 | low | duplicate | L01-value-serializer | java, go, swift, ruby, elixir, python, rust, kotlin | Query and form parameter order on the wire varies: insertion, hash, random, or sorted |
 | F239 | low | fixed | L01-value-serializer | java, node, ruby | Unreserved/safe sets differ between SDKs: java and node in query values, and java, ruby and node in form bodies |
 | F240 | low | fixed | L01-value-serializer | php, go | Whole-valued float params: php sends "1" where the other non-JS SDKs send "1.0", and go's comment wrongly claims parity |
-| F241 | low | parked | L01-value-serializer | dart | dart findPetsBornOn comment says the date param is a String, but it is a DateTime passed through stringifyDate |
+| F241 | low | fixed | L01-value-serializer | dart | dart findPetsBornOn comment says the date param is a String, but it is a DateTime passed through stringifyDate |
 | F242 | low | fixed | L02-object-serializer | rust, swift | Duplicate JSON keys resolve differently (rust rejects, swift keeps the first, the rest keep the last) |
 | F243 | low | fixed | L02-object-serializer | php, swift, csharp, go | JSON string escaping differs: php escapes '/' and all non-ASCII, swift escapes '/', csharp escapes U+2028/DEL |
 | F244 | low | fixed | L02-object-serializer | swift, elixir | Request-body key order: swift is random per process, elixir alphabetical (hash order above 32 keys); others use schema declaration order |
@@ -343,7 +343,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 506, forced 4,
 | F335 | low | false-positive | L11-api-shape | rust | rust: operations and Options fields use a bare `#[deprecated]` with no note, although AGENTS R8-13 says rust emits `#[deprecated(note=…)]` (models do; ops and options do not) |
 | F336 | low | fixed | L11-api-shape | rust | rust: request content-type selection exists only as `*_with_content_type`, which returns ApiResult. There is no data-returning variant, and every op carries an empty content-type comment that T3-11 says was removed |
 | F337 | low | fixed | L11-api-shape | swift | swift: everything after `@available(*, deprecated)` is dropped from a deprecated data method's documentation (externalDocs, Parameters, examples), and blank lines split doc blocks |
-| F338 | low | open | L11-api-shape | swift | swift: the requestContentType doc says an unrecognized value falls back to the first declared type, but the code throws |
+| F338 | low | fixed | L11-api-shape | swift | swift: the requestContentType doc says an unrecognized value falls back to the first declared type, but the code throws |
 | F339 | low | duplicate | L12-api-bodies | java, go, swift, elixir, rust | Form-urlencoded and multipart field order on the wire differs (hash order, sorted, or random per process) |
 | F340 | low | false-positive | L12-api-bodies | php, python, ruby, go, rust, swift, elixir | Multi-consumes rejection message renders the declared-types list in 5 formats (contradicts R8-7) |
 | F341 | low | fixed | L12-api-bodies | java, ruby, node | Operation form-urlencoded body: java/ruby/node keep '*' literal and escape '~'; the majority do the opposite (R8-10 fixed only the OAuth paths) |
@@ -384,9 +384,9 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 506, forced 4,
 | F376 | low | fixed | L16-docs-packaging | csharp, php, go, elixir, ruby, python, node, dart, rust, swift, kotlin, java | README 'SOCKS proxies' names the Java accessor `TransportOptions.proxy()` in all 12 READMEs |
 | F377 | low | fixed | L16-docs-packaging | python, node, dart, ruby, go, rust | SKILLS 'Error Handling' examples are not runnable in python/node/dart/ruby and the catch arms differ across languages |
 | F378 | low | fixed | L16-docs-packaging | rust, elixir, java, python | SKILLS 'Servers' and 'Testing' prose diverges: rust/elixir omit the all-servers list, java has a typo, python calls its ABC a 'protocol' |
-| F379 | low | open | L16-docs-packaging | dart | dart README claims jsonDecode turns integers above 2^53 into double; on the Dart VM they stay exact 64-bit ints |
+| F379 | low | fixed | L16-docs-packaging | dart | dart README claims jsonDecode turns integers above 2^53 into double; on the Dart VM they stay exact 64-bit ints |
 | F380 | low | fixed | L16-docs-packaging | java | java pom hardcodes the MIT licence URL instead of using `{{licenseUrl}}` |
-| F381 | low | open | L16-docs-packaging | python | python README type-mapping table says bare `number` maps to `pydantic.StrictFloat`; the code maps it to the Decimal-based `JsonNumber` |
+| F381 | low | fixed | L16-docs-packaging | python | python README type-mapping table says bare `number` maps to `pydantic.StrictFloat`; the code maps it to the Decimal-based `JsonNumber` |
 | F382 | low | fixed | L17-gates | elixir, php, swift | Spec comments claim the gates match the generated Makefile, but the elixir, php and swift Makefiles disagree |
 | F383 | low | open | L17-gates | swift | SwiftFormattingSpec runs swift-format lint without --strict, so it exits 0 on any formatting finding |
 | F384 | low | fixed | L17-gates | ruby, elixir | ruby (brotli, zstd) and elixir (brotli) codec tests are always skipped in CI because of build-config choices, not a runtime limit |
@@ -767,7 +767,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 506, forced 4,
 | F759 | medium | fixed | review | rust | Several earlier scripted edits silently failed to apply (api.mustache and the redirect-cap call in default_api_client.mustache). Caught only by compiling the regenerated golden; always compile after b |
 | F760 | medium | fixed | review | php | php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or f |
 | F761 | medium | fixed | review | php | php TraceContextUtilTest hardcodes traceparent flags 01/00 and fails when the span carries the W3C random flag (03) |
-| F762 | low | open | review | php | php server description doc comment still uses the comment escaper (`a*_/b`) |
+| F762 | low | fixed | review | php | php server description doc comment still uses the comment escaper (`a*_/b`) |
 | F763 | medium | fixed | review | csharp | The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself. |
 | F764 | medium | fixed | review | csharp | Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed. |
 | F765 | medium | fixed | review | php | php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpC |
@@ -817,13 +817,13 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 506, forced 4,
 | F809 | low | open | review | kotlin | kotlin: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the |
 | F810 | low | open | review | kotlin | kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:374 (and generated src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/api/PetApiTest.kt:388) calls `getEx |
 | F811 | low | open | review | node | node: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node develo |
-| F812 | low | open | review | swift | swift: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accept |
+| F812 | low | fixed | review | swift | swift: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accept |
 | F813 | low | open | review | swift | swift: Not a rejection, for the parity-guard: the anyOf wrapper takes untyped [Any] at DeprecatedTreatment.swift:25, while the oneOf wrappers (DeprecatedFood.swift:17, PetFood.swift:16) take one typed |
 | F814 | low | open | review | php | php: Generated php/lib/DefaultApiClient.php:214 declares filePart as a non-static `private function` and the call sites at :330 and :342 use `$this->filePart(`, but the template declares `private stat |
 | F815 | low | open | review | php | php: default_api_client.mustache:317 (generated DefaultApiClient.php:329) and :334 (generated :341) wrap the read in `@file_get_contents(...)` and `stream_get_contents($v)` and fall back to `''` on fa |
 | F816 | low | open | review | php | php: default_api_client.mustache:207-222 (the anonymous DataPart subclass returned by filePart) declares `private string $rawBytes;`, `private string $rawContentType;` and `private ?string $encodedFil |
 | F817 | low | open | review | php | php: The call site at templates php/tests/Api/PetApiTest.mustache:367 (generated php/tests/Api/PetApiTest.php:367) is `$api->getExternalPetInfo(1, null, new \...GetExternalPetInfoServerServer0())`. Pa |
-| F818 | low | open | review | php | php: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.musta |
+| F818 | low | fixed | review | php | php: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.musta |
 | F819 | low | open | review | python | python: The template test calls get_external_pet_info with a positional None for the new options parameter just to reach server. The call site is awkward, and the change is unnecessary: options defaul |
 | F820 | low | open | review | python | python: The generated anyof_merged_dump comment in deprecated_treatment.py line 106 and treatment_record.py line 103 is one line of about 140 characters. The template (model.mustache lines 285-286) an |
 | F821 | medium | fixed | review | python | Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive f |
@@ -3968,7 +3968,7 @@ Reviewer suspected this is forced: node only: a JS number cannot tell 1 from 1.0
 - `src/spec/resources/generated/csharp/src/PetstoreClient/ObjectSerializer.cs:187` — /// Keeps a ".0" on a whole-number float so it stringifies like the other
 
 ## F241 [low] dart findPetsBornOn comment says the date param is a String, but it is a DateTime passed through stringifyDate
-- Status: **parked** (shared step failed in serializers-and-models) | Lens: L01-value-serializer | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (dart, swift and python docs corrected to match the code) | Lens: L01-value-serializer | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: dart
 
 R5-1 changed dart's `format: date` params to `DateTime`. The generated comment still says a `format: date` param 'is mapped to `String` (already in YYYY-MM-DD form), so it flows through serializeStyled ... with no special casing'. The code directly below takes `DateTime bornOn` and calls `stringifyDate(bornOn)`, which is special casing.
@@ -5008,7 +5008,7 @@ Reviewer suspected this is forced: None. Attribute placement is free, and the te
 - `src/main/resources/templates/swift/api/api.mustache:91` — {{#allParams}}{{#vendorExtensions.pluralExamples}}
 
 ## F338 [low] swift: the requestContentType doc says an unrecognized value falls back to the first declared type, but the code throws
-- Status: **open** (template/README text, not a rule document: still open) | Lens: L11-api-shape | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (dart, swift and python docs corrected to match the code) | Lens: L11-api-shape | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: swift
 
 The AGENTS resolved-fix list says swift no longer silently falls back on an unrecognised request content type, and the generated body does throw `ConfigurationError.invalidArgument("Unsupported request content-type '…'")`. The public doc comment the template still emits says "Defaults to the first declared type (image/jpeg) when nil or unrecognized." This is the old fallback contract. The other 11 document only the nil default.
@@ -5479,7 +5479,7 @@ Reviewer suspected this is forced: None.
 - `src/spec/resources/generated/python/petstore_client/auth/authenticator.py:12` — class Authenticator(ABC):
 
 ## F379 [low] dart README claims jsonDecode turns integers above 2^53 into double; on the Dart VM they stay exact 64-bit ints
-- Status: **open** (template/README text, not a rule document: still open) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (dart, swift and python docs corrected to match the code) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: dart
 
 The dart caveat says 'For JSON numbers above 2^53 the parser silently picks `double`, so `format: int64` values larger than 9 007 199 254 740 991 ... lose precision'. On the Dart VM (Flutter mobile/desktop, server, the README's 'Native' platform), jsonDecode returns an exact 64-bit `int` for any integer literal that fits in int64. Only dart2js/web, where every number is a JS double, loses precision. The caveat warns native users about a loss that does not happen, and it does not scope the real loss to the web target. go/rust/swift/java etc. correctly state that int64 is unaffected.
@@ -5500,7 +5500,7 @@ Reviewer suspected this is forced: None.
 - `src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java:550` — getPropertyOrDefault("licenseUrl", "https://opensource.org/licenses/" + licenseId);
 
 ## F381 [low] python README type-mapping table says bare `number` maps to `pydantic.StrictFloat`; the code maps it to the Decimal-based `JsonNumber`
-- Status: **open** (template/README text, not a rule document: still open) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (dart, swift and python docs corrected to match the code) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: python
 
 The python README 'OpenAPI type mapping' table lists `number` → `pydantic.StrictFloat`. Its own caveat 25 lines later says a bare `type: number` maps to `decimal.Decimal`, and the generated model uses `weight_kg: Optional[JsonNumber]` (the Decimal alias in _types.py). The table contradicts both the caveat and the code. The `format: date-time` row (`pydantic.AwareDatetime`) is also stale for model fields, which use the `OffsetDateTime` alias per R8-2.
@@ -8339,7 +8339,7 @@ php TraceContextUtilTest 'injects traceparent when a span is active' fails with 
 src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds the expected flags as `$span->getContext()->isSampled() ? '01' : '00'`. The injected traceparent carried flags '03' (sampled plus random-trace-id, W3C Trace Context level 2), so PhpClientSpec.shouldRunClientTests fails 'injects traceparent when a span is active' at tests/TraceContextUtilTest.php:143. The php agent's log at /tmp/php-string-default-literals-php.txt shows it. Fix: derive the expected flags from the span context's actual trace flags, e.g. sprintf('%02x', $span->getContext()->getTraceFlags()), not from isSampled(). Then check that the other eleven SDKs either propagate the random bit the same way or all mask it, so the wire bytes stay harmonised.
 
 ## F762 [low] php server description doc comment still uses the comment escaper (`a*_/b`)
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (accepted idiom: a php block comment needs the *_/ rewrite so the description cannot end the comment) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: php
 
 src/spec/resources/generated/php/lib/Servers.php:78 renders the server description in a docblock as `$5 #{x} a*_/b`. The other SDKs' doc comments show `a*/b`: dart and rust with ///, swift ///, csharp CDATA, ruby #. In a /** */ block the `*_/` rewrite is needed, so this may be an accepted idiom difference. The literal on line 84 is exact. Confirm it is recorded as idiom; if not, decide on one comment-safe form for every SDK that writes the description inside a block comment.
@@ -8669,7 +8669,7 @@ Idiom review of single-language-defects: src/spec/resources/generated/node/src/m
 Suggested form: In templates/node/models/model.mustache, inside the {{#isEnum}} branch, emit the same block the other branches use before `export enum {{classname}}`: `{{#isDeprecated}}` then a `/**` comment with the description, ` *` separator, ` * @deprecated This schema is deprecated.` and ` */` then `{{/isDeprecated}}`, with the plain description comment kept for `{{^isDeprecated}}`. Regenerate so deprecated-color.ts reads `/**\n * Colours are deprecated, use Swatch instead\n *\n * @deprecated This schema is deprecated.\n */` above `export enum DeprecatedColor`, and cover it with a node test in the existing model test file for enums rather than a new test file.
 
 ## F812 [low] swift: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accept
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (swift anyOf wrapper init is failable, with a test) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: swift
 
 Idiom review of single-language-defects: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accepted, then actualInstance() and the private _value getter index _values[0] and trap at runtime. A Swift developer gets a crash from a public initialiser with no compile-time or error-level signal.
@@ -8717,7 +8717,7 @@ Idiom review of single-language-defects: The call site at templates php/tests/Ap
 Suggested form: Use a named argument: `$result = $api->getExternalPetInfo(1, server: new \{{invokerPackage}}\Api\GetExternalPetInfoServerServer0());` (generated: `$api->getExternalPetInfo(1, server: new \PetstoreClient\Api\GetExternalPetInfoServerServer0());`).
 
 ## F818 [low] php: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.musta
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (not a defect: composer requires php ^8.5, where new X()->method() is valid and the formatter drops the parentheses) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: php
 
 Idiom review of single-language-defects: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.mustache:1601 has `(new \ReflectionClass(DeprecatedColor::class))->getDocComment()`. The generated copy has drifted from its template, the same drift as the filePart case above. Line 1598 in the generated file (pre-existing) has the same unparenthesised form, so the generated output drops parentheses consistently. That form needs PHP 8.4 or later to parse.
