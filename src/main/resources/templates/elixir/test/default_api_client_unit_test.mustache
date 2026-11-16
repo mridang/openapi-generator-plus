@@ -635,6 +635,18 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     refute {{moduleName}}.Errors.NetworkError.network_error?(err)
   end
 
+  test "a 3xx whose Location is absent or unparseable comes back as the response, never an exception" do
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    no_location = start_server(302, "text/plain", "")
+    assert {{moduleName}}.DefaultApiClient.send_request(client, :get, no_location, %{}, nil).status_code == 302
+
+    for location <- ["http://[bad", "http:///nohost"] do
+      {source_url, _} = start_redirect_server(302, location)
+      assert {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code == 302
+    end
+  end
+
   test "redirect refusal messages never carry a query-parameter credential" do
     {source_url, _} = start_redirect_server(302, "file:///etc/passwd?api_key=SECRET")
 

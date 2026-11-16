@@ -163,6 +163,20 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     end
   end
 
+  test "the redirect chain of three 500 ms hops fails under timeout 1200 and completes under 5000" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+    chain = "#{chasm_url}/test/redirect/chain/1"
+
+    tight = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(timeout: 1200))
+
+    assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(tight, :get, chain, %{}, nil)
+    end
+
+    roomy = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(timeout: 5000))
+    assert {{moduleName}}.DefaultApiClient.send_request(roomy, :get, chain, %{}, nil).status_code == 200
+  end
+
   test "injects custom User-Agent header" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 

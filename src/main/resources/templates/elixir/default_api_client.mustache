@@ -963,13 +963,31 @@ defmodule {{moduleName}}.DefaultApiClient do
     end
   end
 
+  # A Location that cannot be resolved, or that names an http(s) URL the
+  # transport could not send (`http://[bad`), resolves to nil: the 3xx comes
+  # back as the response, never as an exception (D71).
   defp resolve_url(base, location) do
-    case URI.parse(location) do
-      %URI{scheme: s} when not is_nil(s) -> location
-      _ -> base |> URI.merge(location) |> URI.to_string()
-    end
+    resolved =
+      case URI.parse(location) do
+        %URI{scheme: s} when not is_nil(s) -> location
+        _ -> base |> URI.merge(location) |> URI.to_string()
+      end
+
+    if sendable_url?(resolved), do: resolved, else: nil
   rescue
     _ -> nil
+  end
+
+  # Only an http(s) URL is checked here: any other scheme is refused by name
+  # in the caller.
+  defp sendable_url?(url) do
+    case URI.parse(url) do
+      %URI{scheme: scheme} when scheme in ["http", "https"] ->
+        match?({:ok, %URI{host: host}} when is_binary(host) and host != "", URI.new(url))
+
+      _ ->
+        true
+    end
   end
 
   @doc false
