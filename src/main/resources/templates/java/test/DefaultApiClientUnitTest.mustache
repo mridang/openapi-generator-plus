@@ -96,6 +96,17 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/set-cookie",
+        exchange -> {
+          exchange.getResponseHeaders().add("Set-Cookie", "sid=abc; Path=/");
+          byte[] response = "{}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
+    server.createContext(
         "/redirect-307",
         exchange -> {
           // Self-loop 307: replays method + body
@@ -651,6 +662,15 @@ class DefaultApiClientUnitTest {
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"x-custom\":\"custom-value\""));
+  }
+
+  @Test
+  void aResponseCookieIsNeverReplayedOnTheNextRequest() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    client.sendRequest("GET", baseUrl + "/set-cookie", Map.of(), null);
+    ApiHttpResponse echoed = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, echoed.statusCode());
+    assertFalse(echoed.body().contains("\"cookie\""), "echoed: " + echoed.body());
   }
 
   @Test
