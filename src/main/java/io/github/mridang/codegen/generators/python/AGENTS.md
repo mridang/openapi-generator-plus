@@ -60,7 +60,7 @@ Test: `test_default_api_client_unit.mustache`, `test_client.mustache`.
 Rule: no new parameter. Cancelling the awaiting asyncio task aborts the call and `close()` cancels in-flight requests; cancellation raises `asyncio.CancelledError`, never `NetworkTimeoutException`.
 Why: a wrapper or options object is less natural than the handle Python callers already use.
 Where: `base_api.mustache`, `default_api_client.mustache`, `readme.mustache` (section "Per-call cancellation").
-Test: `test_base_api.mustache`, `test_default_api_client_unit.mustache`. The current README still says there is no cancellation API (F228 is open), so the code and README must change together.
+Test: `test_base_api.mustache`, `test_default_api_client_unit.mustache`. The README section "Per-call cancellation" now states the behaviour.
 
 ### Parameter order (S8, 2026-11-16, owner confirmation pending)
 Rule: required parameters, then `server`, then the optional-parameters object, with no cancellation handle in Python; the same whether or not the operation has security.
@@ -101,7 +101,7 @@ Test: `test_composed_schema.mustache`.
 ### Schema constraints (S3, F056, 2026-11-16)
 Rule: the client does not promise to enforce `pattern`, length, range, `multipleOf` or item-count keywords; the server owns validation. Python is the one language that enforces them, because pydantic does so natively and cheaply: `Field(min_length, max_length, ge/gt, le/lt, multiple_of)`, and `pattern` through a `re` validator (never `Field(pattern=)`, because pydantic-core has no look-around). A violation raises `SerializationException`.
 Why: this supersedes the D55 Python line, which deleted the Field constraints; the owner chose to keep native pydantic enforcement.
-Where: `models/model.mustache` (lines with `min_length`, the `re.match` validator), `readme.mustache`. The README section still carries the older title "Numeric / string constraint validation" and must be renamed to "Schema constraints" with the not-promised wording.
+Where: `models/model.mustache` (lines with `min_length`, the `re.match` validator), `readme.mustache`.  The README has the single section "Schema constraints" (the older "Numeric / string constraint validation" section is gone, F891) and names both exceptions: `pydantic.ValidationError` when a model is constructed, `SerializationException` when a response is decoded.
 Test: golden model tests (petstore declares no constraint, so the pattern validator is covered only by F448, which needs a spec property).
 
 ### Strict containers (S1, F006, 2026-11-16)
@@ -241,9 +241,9 @@ Test: `test_composed_schema.mustache`.
 Not decided or not done, each with its reason.
 
 - The session decision S9 names httpx as the Python client object; the SDK uses urllib3 and the dependencies, the injection argument and the api-surface rule all say `pool_manager`. Decide whether the SDK keeps urllib3 (current code) or moves to httpx before editing; until then `Client` does not forward a transport (F405 open) and only `DefaultApiClient` accepts one.
-- Cancellation (S7, F228): the README still says there is no cancellation API, and a call running in `asyncio.to_thread` cannot be interrupted mid-socket-read; whether `close()` cancels in-flight requests is not yet pinned by a test.
+- Cancellation (S7, F228): a call running in `asyncio.to_thread` cannot be interrupted mid-socket-read; whether `close()` cancels in-flight requests is not yet pinned by a test.
 - uniqueItems order (S6): `_sanitize_for_serialization` sorts comparable sets, which conflicts with "do not sort"; the code, the README and the D69 line need to agree.
-- Schema constraints (S3): the README section still has the old title; `pattern` has no golden coverage until a petstore property exists (F448, needs a spec).
+- Schema constraints (S3): `pattern` has no golden coverage until a petstore property exists (F448, needs a spec).
 - Python-specific API-surface rule: `apierror` constructors are listed as not taking a cause, but `errors.mustache` has a `cause` argument; reconcile the allow rule with S14.
 - `format: password` is `PasswordStr`; F450 and F046 need a petstore `secret` property to test that the real value reaches the wire.
 - `format: ipv4`, `ipv6` and `email` use validating pydantic types (F449); whether to drop them is an owner decision, not made.
@@ -255,6 +255,35 @@ Not decided or not done, each with its reason.
 - The codegen class javadoc says "Python 3.10+"; the manifest floor is 3.13. The manifest is the truth.
 - OpenAPI 3.1 and 3.2 features: epics #96 and #49; closed out of scope: #53, #70, #78, #88, #90.
 - ruff runs its default ruleset with no extra `select` and mypy is non-strict, so a missing annotation is not flagged.
+
+## Decisions taken in batch 6
+
+The audit's own proposal was used as the default where no owner decision existed.
+
+### OAuth token expiry (F910, F911)
+Rule: one safety margin, applied once when a token is stored: `min(60 s, expires_in / 2)`. A token whose response omits `expires_in` has no expiry (the previous token's instant is cleared on every store, not only on `exchange`). A zero or negative `expires_in` is stale at once. Token errors carry no parser detail: `Token response is not valid JSON`, `... is not a JSON object`, `... missing or empty access_token field` (D07).
+Where: `auth/oauth/oauth2_token_manager.mustache`.
+Test: `test_oauth2_token_manager.mustache` (`test_a_sixty_second_token_is_cached_for_half_its_lifetime`, `test_a_refresh_response_without_expires_in_clears_the_expiry`, `test_token_error_messages_are_the_canonical_text`).
+
+### Transport headers, byte bodies and redirects (F915, F917, F920, F921, F861)
+Rule: header names merge case-insensitively everywhere (`_merge_headers`, `_remove_header` in `default_api_client`, used by `base_api` too), so a lower-case default `accept` replaces the selector's `Accept`; `bytearray` and `memoryview` bodies are sent as `bytes`; the three redirect refusals use the D16 wording and carry lower-cased response headers (`_lower_headers`); a transport error message is built from the underlying cause, never from `MaxRetryError`, and a URL quoted in a redirect refusal has its query replaced with `***`, so a query-parameter API key never reaches a log.
+Where: `default_api_client.mustache`, `base_api.mustache`.
+Test: `test_default_api_client_unit.mustache` (`TestRedirectRefusals`, `TestHeaderMergeIsCaseInsensitive`, `TestRedirectMessagesKeepTheQueryOut`, `TestNetworkErrorMessageKeepsTheQueryOut`), `test_base_api.mustache`.
+
+### Messages now matching the shared contract (D15, D17, D20, D29, D77)
+Rule: `Failed to deserialize JSON: <detail>` for every decode failure (the `to <type>` and the `Failed to parse JSON` variants are gone); `Response headers:` is compact sorted JSON; the unsupported content-type error lists `[a, b, c]`; use-after-close says `ApiClient has been closed and can no longer send requests`; `timeout` must be `None` or at least 1 ms, checked in `__post_init__` and the builder with `Invalid timeout: must be a positive number of milliseconds (got N)` (this makes S16 true in the code, it was only written down).
+Where: `object_serializer.mustache`, `errors.mustache`, `api/api.mustache`, `default_api_client.mustache`, `transport_options.mustache`.
+Test: `test_object_serializer.mustache`, `test_api_error.mustache`, `test_pet_api.mustache`, `test_default_api_client_unit.mustache`, `test_transport_options.mustache`, `test_oauth2_auth_code_authenticator.mustache` (D09).
+
+### README taxonomy (F884, F891)
+Rule: schema constraints, the custom transport and cancellation are supported features, filed under `## Caveats`; only genuinely unsupported things stay under `## Not supported`.
+Where: `readme.mustache`.
+
+### Not done in batch 6 (python)
+- F541 needs a change to `PythonClientSpec.java` (spec Java, outside the batch).
+- F829 (a synchronous client) and F405 (httpx) are the S9 transport decision and a design change; urllib3 stays.
+- F215, F923, F834 (required plus nullable, S5): the petstore `RequiredNullable.note` is declared with an OAS 3.1 type array, and the golden still renders `note: StrictStr`, so the python model does not yet honour S5; fixing it needs the shared normaliser and a regenerated golden to verify.
+- F929: python's `get_auth_headers` is the blocking path that really performs the token exchange (the async layer runs it in `asyncio.to_thread`), so the D12 "use the async method" message does not apply; the matrix row saying python raises is wrong and is left for the owner.
 
 ## Build-breaking rules
 
