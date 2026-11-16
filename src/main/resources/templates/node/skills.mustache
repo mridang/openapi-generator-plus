@@ -209,24 +209,28 @@ const client = new {{clientClassName}}(fake, transport);
 
 ## Error Handling
 
-All API errors derive from `ApiError`. The error hierarchy is:
+Every error the SDK raises derives from `{{errorPrefix}}Error`. The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-    - `TooManyRequestsError` (429)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
-  - `NetworkError` (no HTTP response, status 0)
-    - `NetworkTimeoutError` (the request timed out, status 0)
+- `{{errorPrefix}}Error` (root)
+  - `ApiError` (an HTTP response came back, or none did)
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
+  - `SerializationError` (a request could not be encoded or a response could not be decoded)
+  - `OAuth2ServerError` (the token endpoint answered with a non-2xx status)
+  - `OAuth2TokenError` (the token endpoint answered 2xx with an unusable body)
 
 ```typescript
-import { ApiError, ClientError, NotFoundError, ServerError{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}, {{{dataType}}}{{/isModel}}{{/bodyParam}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} } from '{{npmName}}';
+import { ApiError, ClientError, NotFoundError, ServerError, {{errorPrefix}}Error{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}, {{{dataType}}}{{/isModel}}{{/bodyParam}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} } from '{{npmName}}';
 
 try {
   const result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
@@ -239,6 +243,10 @@ try {
     console.log(`Server error: ${error.message}`);
   } else if (error instanceof ApiError) {
     console.log(`API error: ${error.message}`);
+  } else if (error instanceof {{errorPrefix}}Error) {
+    console.log(`SDK error: ${error.message}`);
+  } else {
+    throw error;
   }
 }
 ```
