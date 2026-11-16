@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 418, forced 4, needs-spec 2, open 162, parked 53, partial 5. Severity: critical 3, high 60, medium 547, low 212.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 436, forced 4, needs-spec 2, open 145, parked 52, partial 5. Severity: critical 3, high 60, medium 547, low 212.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -668,14 +668,14 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 418, forced 4,
 | F660 | medium | false-positive | batch5-discovered | node | The hostname-verification TLS test in default-api-client.test.ts fails when jest runs directly on macOS (the request resolves) but passes inside the Docker NodeClientSpec |
 | F661 | medium | parked | api-surface | dart, elixir, ruby, rust | API surface: harmonise api `baseapi` (9 differences) |
 | F662 | medium | fixed | api-surface | dart, php, python, ruby | API surface: harmonise api `getmultiserverpetinfoservermirror` (2 differences) |
-| F663 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getmultiserverpetinfoserverregional` (1 differences) |
-| F664 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getstagingpetinfoserverstagingserver` (2 differences) |
+| F663 | medium | fixed | api-surface | dart, php, python, ruby | API surface: harmonise api `getmultiserverpetinfoserverregional` (1 differences) |
+| F664 | medium | fixed | api-surface | dart, php, python, ruby | API surface: harmonise api `getstagingpetinfoserverstagingserver` (2 differences) |
 | F665 | medium | parked | api-surface | dart, node, php, ruby | API surface: harmonise api `petapi` (6 differences) |
 | F666 | medium | parked | api-surface | dart, java, ruby | API surface: harmonise api `storeapi` (4 differences) |
-| F667 | medium | open | api-surface | python | API surface: harmonise auth `apikeyauthenticator` (3 differences) |
+| F667 | medium | fixed | api-surface | python | API surface: harmonise auth `apikeyauthenticator` (3 differences) |
 | F668 | medium | open | api-surface | dart, node | API surface: harmonise auth `authenticator` (2 differences) |
-| F669 | medium | open | api-surface | python | API surface: harmonise auth `basicauthenticator` (2 differences) |
-| F670 | medium | open | api-surface | python | API surface: harmonise auth `bearerauthenticator` (1 differences) |
+| F669 | medium | fixed | api-surface | python | API surface: harmonise auth `basicauthenticator` (2 differences) |
+| F670 | medium | fixed | api-surface | python | API surface: harmonise auth `bearerauthenticator` (1 differences) |
 | F671 | medium | open | api-surface | dart, elixir, go, node, ruby, rust, swift | API surface: harmonise auth `httpawareauthenticator` (2 differences) |
 | F672 | medium | open | api-surface | dart, elixir, go, java, node, ruby, rust, swift | API surface: harmonise auth `oauth2authorizationcodeauthenticator` (6 differences) |
 | F673 | medium | open | api-surface | dart, elixir, go, python, ruby, rust, swift | API surface: harmonise auth `oauth2clientcredentialsauthenticator` (7 differences) |
@@ -690,12 +690,12 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 418, forced 4,
 | F682 | medium | parked | api-surface | elixir, ruby | API surface: harmonise core `configuration` (2 differences) |
 | F683 | medium | open | api-surface | dart, go, ruby, rust, swift | API surface: harmonise core `configurationbuilder` (2 differences) |
 | F684 | medium | open | api-surface | csharp, dart, elixir, kotlin, node, python, ruby, rust | API surface: harmonise core `defaultapiclient` (25 differences) |
-| F685 | medium | open | api-surface | csharp, go, java, kotlin, ruby, swift | API surface: harmonise core `headerselector` (2 differences) |
+| F685 | medium | fixed | api-surface | csharp, go, java, kotlin, ruby, swift | API surface: harmonise core `headerselector` (2 differences) |
 | F686 | medium | parked | api-surface | swift | API surface: harmonise core `iso8601duration` (2 differences) |
 | F687 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise core `objectserializer` (78 differences) |
 | F688 | medium | parked | api-surface | ruby | API surface: harmonise core `petstore` (1 differences) |
 | F689 | medium | open | api-surface | csharp, java, kotlin, node | API surface: harmonise core `serverconfiguration` (1 differences) |
-| F690 | medium | open | api-surface | dart, go, ruby, rust | API surface: harmonise core `servers` (2 differences) |
+| F690 | medium | fixed | api-surface | dart, go, ruby, rust | API surface: harmonise core `servers` (2 differences) |
 | F691 | medium | open | api-surface | csharp, java, kotlin, node | API surface: harmonise core `servervariable` (1 differences) |
 | F692 | medium | parked | api-surface | php, ruby | API surface: harmonise core `transportoptions` (3 differences) |
 | F693 | medium | open | api-surface | dart, go, ruby, rust, swift | API surface: harmonise core `transportoptionsbuilder` (9 differences) |
@@ -711,13 +711,13 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 418, forced 4,
 | F703 | medium | parked | api-surface | dart, go, python, ruby | API surface: harmonise error `networkerror` (1 differences) |
 | F704 | medium | parked | api-surface | dart, go | API surface: harmonise error `networktimeouterror` (1 differences) |
 | F705 | medium | fixed | api-surface | java, kotlin, node | API surface: harmonise error `notfounderror` (1 differences) |
-| F706 | medium | parked | api-surface | kotlin | API surface: harmonise error `oauth2servererror` (1 differences) |
+| F706 | medium | fixed | api-surface | kotlin | API surface: harmonise error `oauth2servererror` (1 differences) |
 | F707 | medium | parked | api-surface | java, kotlin, swift | API surface: harmonise error `oauth2tokenerror` (2 differences) |
 | F708 | medium | parked | api-surface | dart | API surface: harmonise error `openapierror` (1 differences) |
 | F709 | medium | fixed | api-surface | kotlin, node | API surface: harmonise error `servererror` (1 differences) |
 | F710 | medium | fixed | api-surface | java, kotlin, node | API surface: harmonise error `unauthorizederror` (1 differences) |
 | F711 | medium | fixed | api-surface | java, kotlin, node | API surface: harmonise error `unprocessableentityerror` (1 differences) |
-| F712 | medium | open | api-surface | php | API surface: harmonise model `binaryvault` (6 differences) |
+| F712 | medium | fixed | api-surface | php | API surface: harmonise model `binaryvault` (6 differences) |
 | F713 | medium | fixed | api-surface | go, rust | API surface: harmonise model `datetime` (2 differences) |
 | F714 | medium | fixed | api-surface | go | API surface: harmonise model `defaults` (1 differences) |
 | F715 | medium | fixed | api-surface | elixir, ruby | API surface: harmonise model `defaultsmodeenum` (1 differences) |
@@ -743,15 +743,15 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 418, forced 4,
 | F735 | medium | fixed | api-surface | csharp, dart, elixir, go, java, kotlin, php, python, swift | API surface: harmonise model `setpetavatarthumbnailrequest` (10 differences) |
 | F736 | medium | fixed | api-surface | csharp, elixir, java, kotlin, node, php, ruby | API surface: harmonise model `stricttag` (7 differences) |
 | F737 | medium | fixed | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise model `treatmentrecord` (9 differences) |
-| F738 | medium | open | api-surface | elixir | API surface: harmonise model `wetfood` (1 differences) |
-| F739 | medium | open | api-surface | go | API surface: harmonise options `addpetoptions` (1 differences) |
-| F740 | medium | open | api-surface | elixir | API surface: harmonise options `addpetphotosoptions` (2 differences) |
-| F741 | medium | open | api-surface | go | API surface: harmonise options `addpettreatmentoptions` (1 differences) |
-| F742 | medium | open | api-surface | go | API surface: harmonise options `deletepetoptions` (1 differences) |
-| F743 | medium | open | api-surface | elixir | API surface: harmonise options `getpetbynameoptions` (2 differences) |
-| F744 | medium | open | api-surface | elixir | API surface: harmonise options `getpetsummaryoptions` (1 differences) |
-| F745 | medium | open | api-surface | elixir | API surface: harmonise options `setpetpreferencesoptions` (1 differences) |
-| F746 | medium | open | api-surface | elixir, go | API surface: harmonise options `uploadpetcertificateoptions` (1 differences) |
+| F738 | medium | fixed | api-surface | elixir | API surface: harmonise model `wetfood` (1 differences) |
+| F739 | medium | fixed | api-surface | go | API surface: harmonise options `addpetoptions` (1 differences) |
+| F740 | medium | fixed | api-surface | elixir | API surface: harmonise options `addpetphotosoptions` (2 differences) |
+| F741 | medium | fixed | api-surface | go | API surface: harmonise options `addpettreatmentoptions` (1 differences) |
+| F742 | medium | fixed | api-surface | go | API surface: harmonise options `deletepetoptions` (1 differences) |
+| F743 | medium | fixed | api-surface | elixir | API surface: harmonise options `getpetbynameoptions` (2 differences) |
+| F744 | medium | fixed | api-surface | elixir | API surface: harmonise options `getpetsummaryoptions` (1 differences) |
+| F745 | medium | fixed | api-surface | elixir | API surface: harmonise options `setpetpreferencesoptions` (1 differences) |
+| F746 | medium | fixed | api-surface | elixir, go | API surface: harmonise options `uploadpetcertificateoptions` (1 differences) |
 | F747 | medium | open | api-surface | elixir, go, rust | API surface: harmonise options `uploadpetdocumentoptions` (3 differences) |
 | F748 | medium | open | review | php | php status-leaf ctor defaults responseHeaders to [] instead of null |
 | F749 | low | open | review | node | node base-api.test status 400 exception test is flaky on a cold start (NetworkError on the first request) |
@@ -7384,7 +7384,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - baseapi.buildcollectionparam [member] majority absent (11 SDKs); differs: elixir=extra
 
 ## F662 [medium] API surface: harmonise api `getmultiserverpetinfoservermirror` (2 differences)
-- Status: **fixed** (F664) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, php, python, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `getmultiserverpetinfoservermirror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7392,14 +7392,14 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - getmultiserverpetinfoservermirror.channel [member] majority present (8 SDKs); differs: dart=missing; php=missing; python=missing; ruby=missing
 
 ## F663 [medium] API surface: harmonise api `getmultiserverpetinfoserverregional` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, php, python, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `getmultiserverpetinfoserverregional`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - getmultiserverpetinfoserverregional.region [member] majority present (8 SDKs); differs: dart=missing; php=missing; python=missing; ruby=missing
 
 ## F664 [medium] API surface: harmonise api `getstagingpetinfoserverstagingserver` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, php, python, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `getstagingpetinfoserverstagingserver`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7429,7 +7429,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - storeapi.apiclient [member] majority absent (10 SDKs); differs: dart=extra
 
 ## F667 [medium] API surface: harmonise auth `apikeyauthenticator` (3 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: python
 
 `etc/api-surface.py check` reports these public-API differences for `apikeyauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7446,7 +7446,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - authenticator.isnoauth [params] majority (auth) (1 SDKs); differs: dart=()
 
 ## F669 [medium] API surface: harmonise auth `basicauthenticator` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: python
 
 `etc/api-surface.py check` reports these public-API differences for `basicauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7454,7 +7454,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - basicauthenticator.password [member] majority absent (10 SDKs); differs: python=extra
 
 ## F670 [medium] API surface: harmonise auth `bearerauthenticator` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: python
 
 `etc/api-surface.py check` reports these public-API differences for `bearerauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7643,7 +7643,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - defaultapiclient.<ctor> [ctor] majority (transportoptions) (9 SDKs); differs: python=(transportoptions, poolmanager)
 
 ## F685 [medium] API surface: harmonise core `headerselector` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, go, java, kotlin, ruby, swift
 
 `etc/api-surface.py check` reports these public-API differences for `headerselector`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7757,7 +7757,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - serverconfiguration.<ctor> [ctor-optional] majority (urltemplate, description?, variables?) (5 SDKs); differs: csharp=(urltemplate, description, variables); java=(urltemplate, description, variables); kotlin=(urltemplate, description, variables); node=(urltemplate, description, variables)
 
 ## F690 [medium] API surface: harmonise core `servers` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, go, ruby, rust
 
 `etc/api-surface.py check` reports these public-API differences for `servers`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7907,7 +7907,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - notfounderror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
 
 ## F706 [medium] API surface: harmonise error `oauth2servererror` (1 differences)
-- Status: **parked** (parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: kotlin
 
 `etc/api-surface.py check` reports these public-API differences for `oauth2servererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7950,7 +7950,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - unprocessableentityerror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
 
 ## F712 [medium] API surface: harmonise model `binaryvault` (6 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: php
 
 `etc/api-surface.py check` reports these public-API differences for `binaryvault`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8181,21 +8181,21 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - treatmentrecord.surgery [member] majority absent (10 SDKs); differs: go=extra; rust=extra
 
 ## F738 [medium] API surface: harmonise model `wetfood` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir
 
 `etc/api-surface.py check` reports these public-API differences for `wetfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - wetfood.foodtype [prop-optional] majority required (11 SDKs); differs: elixir=optional
 
 ## F739 [medium] API surface: harmonise options `addpetoptions` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `addpetoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - addpetoptions.auth [prop-optional] majority optional (9 SDKs); differs: go=required
 
 ## F740 [medium] API surface: harmonise options `addpetphotosoptions` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir
 
 `etc/api-surface.py check` reports these public-API differences for `addpetphotosoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8203,21 +8203,21 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - addpetphotosoptions.metadata [prop-optional] majority required (9 SDKs); differs: elixir=optional
 
 ## F741 [medium] API surface: harmonise options `addpettreatmentoptions` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `addpettreatmentoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - addpettreatmentoptions.auth [prop-optional] majority optional (9 SDKs); differs: go=required
 
 ## F742 [medium] API surface: harmonise options `deletepetoptions` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `deletepetoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - deletepetoptions.auth [prop-optional] majority optional (9 SDKs); differs: go=required
 
 ## F743 [medium] API surface: harmonise options `getpetbynameoptions` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir
 
 `etc/api-surface.py check` reports these public-API differences for `getpetbynameoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8225,21 +8225,21 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - getpetbynameoptions.xcorrelationid [prop-optional] majority required (9 SDKs); differs: elixir=optional
 
 ## F744 [medium] API surface: harmonise options `getpetsummaryoptions` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir
 
 `etc/api-surface.py check` reports these public-API differences for `getpetsummaryoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - getpetsummaryoptions.session [prop-optional] majority required (9 SDKs); differs: elixir=optional
 
 ## F745 [medium] API surface: harmonise options `setpetpreferencesoptions` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir
 
 `etc/api-surface.py check` reports these public-API differences for `setpetpreferencesoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - setpetpreferencesoptions.nickname [prop-optional] majority required (9 SDKs); differs: elixir=optional
 
 ## F746 [medium] API surface: harmonise options `uploadpetcertificateoptions` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batches 1-3: server variable options, constructor order, visibility fixes and surface-check idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, go
 
 `etc/api-surface.py check` reports these public-API differences for `uploadpetcertificateoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
