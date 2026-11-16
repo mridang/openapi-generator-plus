@@ -671,6 +671,74 @@ class TestUnevaluatedPropertiesFalseRejectsExtraKeys:
         assert isinstance(category, Category)
 
 
+class TestFixtureModelsOnTheWire:
+    """Fixture rows every SDK asserts: the uuid property, the Error and Result
+    schemas, the hostile Availability members and the inline enum with
+    non-identifier wire values."""
+
+    _TRACKING_ID = 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F'
+
+    def test_a_uuid_property_is_written_in_lowercase(self) -> None:
+        import json
+        from {{packageName}}.models.order import Order
+
+        wire = json.loads(ObjectSerializer().serialize(Order(trackingId=self._TRACKING_ID)))
+        assert wire['trackingId'] == self._TRACKING_ID.lower()
+
+    def test_an_upper_case_uuid_decodes_and_comes_back_lowercase(self) -> None:
+        import json
+        from {{packageName}}.models.order import Order
+
+        order = ObjectSerializer().deserialize(
+            json.dumps({'trackingId': self._TRACKING_ID}), 'Order'
+        )
+        assert isinstance(order, Order)
+        assert str(order.tracking_id) == self._TRACKING_ID.lower()
+
+    def test_a_malformed_uuid_is_rejected_on_decode(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"trackingId":"not-a-uuid"}', 'Order')
+
+    def test_schemas_named_error_and_result_round_trip(self) -> None:
+        import json
+        from {{packageName}}.models.edge_cases import EdgeCases
+        from {{packageName}}.models.error import Error
+        from {{packageName}}.models.result import Result
+
+        wire = {'lastError': {'code': 1, 'message': 'm'}, 'outcome': {'ok': True}}
+        decoded = ObjectSerializer().deserialize(json.dumps(wire), 'EdgeCases')
+        assert isinstance(decoded, EdgeCases)
+        assert isinstance(decoded.last_error, Error)
+        assert isinstance(decoded.outcome, Result)
+        assert (decoded.last_error.code, decoded.last_error.message) == (1, 'm')
+        assert decoded.outcome.ok is True
+        assert json.loads(ObjectSerializer().serialize(decoded)) == wire
+
+    @pytest.mark.parametrize('wire', ["o'clock", 'a\\b', '$eq', '#{x}'])
+    def test_hostile_availability_members_map_to_their_wire_strings(self, wire: str) -> None:
+        import json
+        from {{packageName}}.models.availability import Availability
+
+        member = ObjectSerializer().deserialize(json.dumps(wire), 'Availability')
+        assert isinstance(member, Availability)
+        assert member.value == wire
+        assert ObjectSerializer().serialize(member) == json.dumps(wire, ensure_ascii=False)
+
+    @pytest.mark.parametrize('wire', ['In-Stock', 'on-hold', 'OUT_OF_STOCK'])
+    def test_inline_enum_values_round_trip_to_the_exact_string(self, wire: str) -> None:
+        import json
+        from {{packageName}}.models.edge_cases import EdgeCases, EdgeCasesPhaseEnum
+
+        decoded = ObjectSerializer().deserialize(json.dumps({'phase': wire}), 'EdgeCases')
+        assert isinstance(decoded, EdgeCases)
+        assert decoded.phase == EdgeCasesPhaseEnum(wire)
+        assert json.loads(ObjectSerializer().serialize(decoded)) == {'phase': wire}
+
+    def test_an_unknown_inline_enum_value_is_rejected(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"phase":"in-stock"}', 'EdgeCases')
+
+
 class TestExcludeNoneOnSerialize:
     def test_none_values_are_omitted(self) -> None:
         import json
