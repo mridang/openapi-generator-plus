@@ -1,6 +1,21 @@
 {{>api_info}}
 import Foundation
 
+/// A clock that a change of the wall clock does not move, so a token or a
+/// discovery document is not kept too long, or dropped at once, when the system
+/// time is set. Seconds from an arbitrary start: only differences mean
+/// anything. On Apple platforms it is `CLOCK_MONOTONIC`, which keeps counting
+/// while the machine sleeps; elsewhere `systemUptime`.
+enum MonotonicClock {
+    static func now() -> TimeInterval {
+        #if canImport(Darwin)
+        return TimeInterval(clock_gettime_nsec_np(CLOCK_MONOTONIC)) / 1_000_000_000
+        #else
+        return ProcessInfo.processInfo.systemUptime
+        #endif
+    }
+}
+
 /// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and refreshing.
 ///
 /// Uses the shared ``ApiClient`` instance so that token exchange requests honour
@@ -22,13 +37,13 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     private var apiClient: ApiClient?
     private var accessToken: String = ""
     private var _refreshToken: String = ""
-    /// Cached token expiry instant, or `nil` when the token response omitted
+    /// Cached token expiry on the ``MonotonicClock``, or `nil` when the token response omitted
     /// `expires_in`. A `nil` expiry means "cache indefinitely" (valid until
     /// explicitly invalidated), matching the other SDKs (Java treats a null
     /// expiry as never-expiring; Go treats a zero Date the same way). The
     /// previous `.distantPast` sentinel made every no-expiry token look stale,
     /// so it was refetched on every request.
-    private var tokenExpiry: Date?
+    private var tokenExpiry: TimeInterval?
     /// Set once an explicit ``exchange(tokenURL:params:extraHeaders:)`` succeeds.
     private var _exchanged: Bool = false
     /// In-flight refresh task, if any. While non-nil, concurrent callers await
@@ -95,7 +110,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
              * already taken off when the expiry was stored. */
             if !accessToken.isEmpty {
                 if let expiry = tokenExpiry {
-                    if Date() < expiry {
+                    if MonotonicClock.now() < expiry {
                         return .cached(accessToken)
                     }
                 } else {
@@ -126,7 +141,72 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         case .cached(let token):
             return token
         case .existing(let task), .start(let task):
-            return try await task.value
+            return try await Self.wait(for: task)
+        }
+    }
+
+    /// Waits for a shared refresh without tying the caller to it: when the
+    /// caller is cancelled it stops waiting at once with `CancellationError`,
+    /// while the refresh itself keeps running for the other callers and still
+    /// caches its token. Awaiting `task.value` directly would hold a cancelled
+    /// caller until the token endpoint answered.
+    private static func wait(for task: Task<String, Error>) async throws -> String {
+        let gate = CancellableWait()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+                gate.install(continuation)
+                Task {
+                    do {
+                        gate.finish(.success(try await task.value))
+                    } catch {
+                        gate.finish(.failure(error))
+                    }
+                }
+            }
+        } onCancel: {
+            gate.cancel()
+        }
+    }
+
+    /// Resumes a continuation exactly once, with the refresh result or with
+    /// `CancellationError`, whichever comes first.
+    private final class CancellableWait: @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuation: CheckedContinuation<String, Error>?
+        private var cancelled = false
+        private var finished = false
+
+        func install(_ continuation: CheckedContinuation<String, Error>) {
+            let cancelNow: Bool = lock.withLock {
+                if cancelled && !finished {
+                    finished = true
+                    return true
+                }
+                self.continuation = continuation
+                return false
+            }
+            if cancelNow {
+                continuation.resume(throwing: CancellationError())
+            }
+        }
+
+        func finish(_ result: Result<String, Error>) {
+            let pending: CheckedContinuation<String, Error>? = lock.withLock {
+                guard !finished else { return nil }
+                finished = true
+                return continuation
+            }
+            pending?.resume(with: result)
+        }
+
+        func cancel() {
+            let pending: CheckedContinuation<String, Error>? = lock.withLock {
+                cancelled = true
+                guard !finished, let pending = continuation else { return nil }
+                finished = true
+                return pending
+            }
+            pending?.resume(throwing: CancellationError())
         }
     }
 
@@ -262,11 +342,11 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     /// (preferable to caching forever). One safety margin of
     /// `min(60, expires_in / 2)` seconds is taken off the real lifetime here
     /// and nowhere else, so a 60 second token is reused for 30 seconds.
-    static func expiry(for expiresIn: Int, now: Date = Date()) -> Date {
+    static func expiry(for expiresIn: Int, now: TimeInterval = MonotonicClock.now()) -> TimeInterval {
         if expiresIn > 0 {
             let lifetime = TimeInterval(expiresIn)
             let margin = min(maxExpirySafetyMargin, lifetime / 2)
-            return now.addingTimeInterval(lifetime - margin)
+            return now + (lifetime - margin)
         }
         return now
     }
@@ -371,6 +451,14 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             throw OAuth2TokenError.missingAccessToken(
                 "Token response missing or empty access_token field"
             )
+        }
+        /* Only a Bearer credential can be sent as `Authorization: Bearer`: a
+         * DPoP, MAC or N_A token would be replayed as the wrong scheme. An
+         * absent or null token_type is accepted. */
+        if let tokenType = rawJson["token_type"], !(tokenType is NSNull),
+            (tokenType as? String)?.lowercased() != "bearer"
+        {
+            throw OAuth2TokenError.invalidResponse("Unsupported token_type in token response")
         }
         let rawExpiresIn = rawJson["expires_in"]
         let hasExpiresIn = rawExpiresIn != nil && !(rawExpiresIn is NSNull)

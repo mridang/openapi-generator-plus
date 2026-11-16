@@ -8,7 +8,7 @@ import Testing
  * caller mistake that is not part of the SDK error hierarchy. */
 @Suite final class BasicAuthenticatorTests {
 
-    @Test func validCredentialsProduceBasicHeader() async throws {
+    @Test func testValidCredentialsProduceBasicHeader() async throws {
         let auth = try BasicAuthenticator(
             host: "https://api.example.com",
             username: "alice",
@@ -19,7 +19,7 @@ import Testing
     }
 
     /* Non-ASCII credentials are sent as their UTF-8 bytes. */
-    @Test func nonAsciiCredentialsAreEncodedAsUtf8() async throws {
+    @Test func testNonAsciiCredentialsAreEncodedAsUtf8() async throws {
         let auth = try BasicAuthenticator(
             host: "https://api.example.com",
             username: "\u{FC}n\u{EF}c\u{F8}d\u{E9}",
@@ -31,7 +31,7 @@ import Testing
 
     /* A password may contain ':' (only the user-id may not) and an empty
      * password is still a valid credential. */
-    @Test func passwordMayContainColonAndMayBeEmpty() async throws {
+    @Test func testPasswordMayContainColonAndMayBeEmpty() async throws {
         let withColon = try BasicAuthenticator(
             host: "https://api.example.com", username: "alice", password: "a:b")
         #expect(try await withColon.authHeaders()["Authorization"] == "Basic YWxpY2U6YTpi")
@@ -47,7 +47,7 @@ import Testing
         ("alice", "s3c\nret", "Basic auth password must not contain CR, LF, or NUL characters"),
         ("ali:ce", "s3cret", "Basic auth username must not contain ':' (RFC 7617 \u{A7}2)"),
     ])
-    func rejectionMessagesNameTheOffendingField(username: String, password: String, message: String) {
+    func testRejectionMessagesNameTheOffendingField(username: String, password: String, message: String) {
         #expect(throws: ConfigurationError.invalidArgument(message)) {
             _ = try BasicAuthenticator(
                 host: "https://api.example.com", username: username, password: password)
@@ -56,7 +56,7 @@ import Testing
 
     /* authenticator-secret-in-default-string-repr: the default string
      * representation must never expose the stored password. */
-    @Test func passwordIsNotLeakedInDefaultStringRepr() async throws {
+    @Test func testPasswordIsNotLeakedInDefaultStringRepr() async throws {
         let auth = try BasicAuthenticator(
             host: "https://api.example.com",
             username: "alice",
@@ -65,7 +65,7 @@ import Testing
         #expect(!String(describing: auth).contains("s3cret"))
     }
 
-    @Test func redactsSecret() async throws {
+    @Test func testRedactsSecret() async throws {
         let auth = try BasicAuthenticator(
             host: "https://api.example.com",
             username: "alice",
@@ -82,7 +82,7 @@ import Testing
     /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
      * included, so the redacted description is not enough: the reflection
      * must hide the secret too. */
-    @Test func dumpDoesNotLeakSecret() async throws {
+    @Test func testDumpDoesNotLeakSecret() async throws {
         let auth = try BasicAuthenticator(host: "https://api.example.com", username: "alice", password: "dump-secret-pass")
         var dumped = ""
         dump(auth, to: &dumped)
@@ -98,7 +98,7 @@ import Testing
         ("alice", "s3c\u{0}ret"),
         ("ali:ce", "s3cret"),
     ])
-    func rejectsMalformedCredentialsAtConstruction(username: String, password: String) {
+    func testRejectsMalformedCredentialsAtConstruction(username: String, password: String) {
         let error = #expect(throws: ConfigurationError.self) {
             _ = try BasicAuthenticator(
                 host: "https://api.example.com",
@@ -117,7 +117,7 @@ import Testing
     /* Each HTTP basic securityScheme generates a wrapper that sends the same
      * Basic header, validates eagerly and masks the password in its repr. */
     @Test(arguments: ["AdminBasic", "PetStoreBasic"])
-    func schemeWrapperSendsBasicHeaderAndMasksThePassword(scheme: String) async throws {
+    func testSchemeWrapperSendsBasicHeaderAndMasksThePassword(scheme: String) async throws {
         let auth = try Self.schemeWrapper(scheme, username: "alice", password: "s3cret")
         #expect(try await auth.authHeaders() == ["Authorization": "Basic YWxpY2U6czNjcmV0"])
         #expect(auth.queryParams().isEmpty)

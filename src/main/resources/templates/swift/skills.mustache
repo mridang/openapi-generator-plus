@@ -241,9 +241,21 @@ let transport = try TransportOptions.builder()
 let client = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
 ```
 
-Failed calls are retried automatically: `TransportOptions.builder().maxRetries(n)` sets the count (default 2, `0` disables). The SDK retries network errors that happened before a response and statuses 408, 409, 429 and 500 to 599 except 501, waiting 0.5 s doubling to 8 s with 25% jitter or the server's `Retry-After` (seconds or HTTP date, capped at 60 s). The `timeout` stays the one end-to-end budget, a stream body is never retried, and each retry re-applies the authentication headers.
+### Custom HTTP client
 
 To send requests through your own `URLSession`, pass it to `TransportOptions.builder().session(mySession)`. The SDK keeps its timeout, user agent and headers on top and never invalidates the session; combining it with `proxy`, `caCertPath`, `verifySsl(false)`, `followRedirects(false)` or `maxRedirects` throws a `ConfigurationError`.
+
+### Retries
+
+Failed calls are retried automatically: `TransportOptions.builder().maxRetries(n)` sets the count (default 2, `0` disables). The SDK retries network errors that happened before a response and statuses 408, 409, 429 and 500 to 599 except 501, waiting 0.5 s doubling to 8 s with 25% jitter or the server's `Retry-After` (seconds or HTTP date, capped at 60 s). The `timeout` stays the one end-to-end budget, a stream body is never retried, and each retry re-applies the authentication headers.
+
+### Cancellation
+
+Cancel the Swift `Task` that made the call and the call throws `CancellationError`; the SDK has no cancellation API of its own. `NetworkTimeoutError` is only for the SDK's own `TransportOptions` timeout.
+
+### Raw responses, timeouts and request ids
+
+Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult` with the status code, the response headers, the raw body and the decoded data. `TransportOptions.builder().timeout(_:)` is in milliseconds (default 10000) and covers the whole call. Unless `injectRequestID(false)` is set, every request carries a generated `X-Request-ID` header; one you supply always wins.
 
 ## API Methods
 
@@ -256,7 +268,7 @@ All API methods are asynchronous; call them with `try await`.
 Models are generated as Swift structs in the `Models` directory.
 
 ```swift
-{{#models}}{{#model}}{{#-first}}let model = {{classname}}(/* properties */){{/-first}}{{/model}}{{/models}}
+{{#models}}{{#model}}{{#-first}}let model = {{classname}}({{#requiredVars}}{{name}}: {{#isString}}{{^isEnum}}"example"{{/isEnum}}{{/isString}}{{#isInteger}}0{{/isInteger}}{{#isLong}}0{{/isLong}}{{#isNumber}}0{{/isNumber}}{{#isBoolean}}false{{/isBoolean}}{{^-last}}, {{/-last}}{{/requiredVars}}){{/-first}}{{/model}}{{/models}}
 ```
 
 ## Binary / File Uploads

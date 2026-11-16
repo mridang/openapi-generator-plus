@@ -361,13 +361,23 @@ import Testing
      * for 30 s and a 3600 s token for 3540 s. */
     @Test(arguments: [(1, 0.5), (30, 15.0), (60, 30.0), (90, 45.0), (120, 60.0), (3600, 3540.0)])
     func testExpiryTakesOneMarginOfAtMostSixtySeconds(expiresIn: Int, reusableFor: Double) {
-        let now = Date(timeIntervalSince1970: 1_000_000)
+        let now: TimeInterval = 1_000_000
         let expiry = OAuth2TokenManager.expiry(for: expiresIn, now: now)
-        #expect(expiry.timeIntervalSince(now) == reusableFor)
+        #expect(expiry - now == reusableFor)
+    }
+
+    /* F1054: expiry is read off a clock that a wall-clock change does not
+     * move: it never runs backwards and it ticks in real time. */
+    @Test func testExpiryClockIsMonotonic() async throws {
+        let first = MonotonicClock.now()
+        try await Task.sleep(nanoseconds: 20_000_000)
+        let second = MonotonicClock.now()
+        #expect(second > first)
+        #expect(second - first < 5)
     }
 
     @Test func testNonPositiveExpiresInIsStaleImmediately() {
-        let now = Date(timeIntervalSince1970: 1_000_000)
+        let now: TimeInterval = 1_000_000
         #expect(OAuth2TokenManager.expiry(for: 0, now: now) == now)
         #expect(OAuth2TokenManager.expiry(for: -5, now: now) == now)
     }
@@ -869,6 +879,63 @@ import Testing
                 params: ["grant_type": "client_credentials"])
         }
         #expect(error?.errorDescription == message)
+    }
+
+    /* F1053: a cancelled caller stops waiting for a shared refresh at once;
+       the refresh goes on for the others and its token is cached. */
+    @Test func testCancelledCallerDoesNotWaitForTheTokenEndpoint() async throws {
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"slow\",\"expires_in\":3600}",
+            delayNanos: 600_000_000)
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let params = ["grant_type": "client_credentials"]
+
+        let started = Date()
+        let waiter = Task {
+            try await manager.getAccessToken(tokenURL: "https://auth.example.com/token", params: params)
+        }
+        try await Task.sleep(nanoseconds: 100_000_000)
+        waiter.cancel()
+        let outcome = await waiter.result
+        #expect(throws: CancellationError.self) { try outcome.get() }
+        #expect(Date().timeIntervalSince(started) < 0.5)
+
+        let token = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token", params: params)
+        #expect(token == "slow")
+        #expect(client.callCount == 1)
+    }
+
+    /* F863: a token_type other than Bearer (any case) is refused; an absent or
+       null one is accepted. */
+    @Test(arguments: ["DPoP", "mac", "N_A", "\"\"", "7"])
+    func testTokenTypeOtherThanBearerIsRejected(tokenType: String) async {
+        let client = MockApiClient()
+        let quoted = tokenType.hasPrefix("\"") || Int(tokenType) != nil ? tokenType : "\"\(tokenType)\""
+        client.responses.append(makeResponse(body: "{\"access_token\":\"t\",\"token_type\":\(quoted)}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let error = await #expect(throws: OAuth2TokenError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"])
+        }
+        #expect(error?.errorDescription == "Unsupported token_type in token response")
+    }
+
+    @Test(arguments: ["\"token_type\":\"bearer\"", "\"token_type\":\"BEARER\"", "\"token_type\":null", "\"x\":1"])
+    func testBearerOrAbsentTokenTypeIsAccepted(field: String) async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"t\",\(field)}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let token = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: ["grant_type": "client_credentials"])
+        #expect(token == "t")
     }
 
     /// RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a

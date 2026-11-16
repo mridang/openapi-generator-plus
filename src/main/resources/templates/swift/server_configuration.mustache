@@ -78,7 +78,7 @@ public struct ServerConfiguration: Sendable {
     /// - Throws: ``ConfigurationError/invalidServerVariable(variable:value:allowed:)``
     ///   if an override value is not in the variable's enum.
     public func url(variables overrides: [String: String]? = nil) throws -> String {
-        var result = urlTemplate
+        var resolved: [String: String] = [:]
         for (varName, variable) in variables {
             var value = variable.defaultValue
             if let override = overrides?[varName] {
@@ -93,8 +93,27 @@ public struct ServerConfiguration: Sendable {
                 }
             }
 
-            result = result.replacingOccurrences(of: "{\(varName)}", with: value)
+            resolved[varName] = value
         }
+
+        /* One pass over the template, so a placeholder that a substituted
+         * value introduces is never expanded again. */
+        var result = ""
+        var rest = urlTemplate[...]
+        while let open = rest.firstIndex(of: "{") {
+            result += rest[..<open]
+            let afterOpen = rest.index(after: open)
+            if let close = rest[afterOpen...].firstIndex(of: "}"),
+                let value = resolved[String(rest[afterOpen..<close])]
+            {
+                result += value
+                rest = rest[rest.index(after: close)...]
+            } else {
+                result += "{"
+                rest = rest[afterOpen...]
+            }
+        }
+        result += rest
         return result
     }
 }

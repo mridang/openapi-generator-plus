@@ -13,6 +13,31 @@ Auto-generated Swift SDK client for the {{appName}} API.
 - The Swift 6 compiler is invoked with `-warnings-as-errors` (see the
   `analyse` target) to provide static-analysis coverage on every build
 
+## Installation
+
+Add the package to your `Package.swift`, using the Git URL it is published at:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/your-org/{{packageName}}", from: "1.0.0")
+]
+```
+
+Then add `{{packageName}}` as a dependency of your target.
+
+## Usage
+
+Create a client from an authenticator and call the operations with `try await`
+(every operation is an `async throws` function). `SKILLS.md` has the full
+reference: every authentication scheme, transport options, error handling and
+models.
+
+```swift
+import {{packageName}}
+
+let client = try {{clientClassName}}(host: "https://api.example.com", accessToken: "your-token")
+```
+
 ## Build
 
 ```bash
@@ -62,6 +87,55 @@ reason for each is recorded here.
 - Name: `{{packageName}}`
 - Version: managed via git tags (SwiftPM)
 
+## Cancellation
+
+The SDK has no cancellation API of its own: cancel the Swift `Task` that made
+the call and the in-flight `URLSession` task is cancelled with it, the call
+throwing `CancellationError`. To bound how long a call can take, set the
+request timeout on `TransportOptions`; a call that exceeds it fails with
+`NetworkTimeoutError`. A call that is waiting for an OAuth2 token another call
+is already fetching stops waiting at once; the fetch finishes for the others.
+
+```swift
+let task = Task { try await client.someApi.someOperation() }
+task.cancel()
+```
+
+## Custom HTTP client
+
+`TransportOptionsBuilder.session(_:)` sends every request through your own `URLSession`
+you supply. The timeout, `User-Agent`, default headers and request id still
+apply on top. You own the session: `close()` never invalidates it. A session
+cannot be combined with the SDK's own `proxy`, `caCertPath`, `verifySsl(false)`,
+`followRedirects(false)` or `maxRedirects`, because those are properties of the
+session itself; `build()` throws a `ConfigurationError` naming the conflict.
+
+## Raw responses, timeouts and request ids
+
+Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult`
+holding the status code, the response headers, the raw body and the decoded
+data; use it when you need to read a header.
+
+`TransportOptionsBuilder.timeout(_:)` is in milliseconds (default 10000) and is
+one end-to-end budget for the whole call: connection, every redirect hop and
+the response body. When it elapses the call throws `NetworkTimeoutError`.
+Unless `injectRequestID(false)` is set, the SDK sends a generated
+`X-Request-ID` header on every request, and a header of the same name that you
+supply always wins.
+
+## Retries
+
+`TransportOptionsBuilder.maxRetries(_:)` sets how many times a failed call is
+retried (default 2; 0 disables retries). A call is retried after a network
+error that happened before any response, and after a response with status 408,
+409, 429 or 500 to 599 except 501. The wait starts at 0.5 s, doubles up to 8 s
+and loses up to 25% to jitter; a `Retry-After` header (seconds or an HTTP date,
+capped at 60 s) is used instead when the server sends one. The request timeout
+is the single end-to-end budget: retries never extend it, and a wait that does
+not fit in what is left is skipped. Every retry is a fresh request that asks the
+authenticator for its headers again. A stream body and the OAuth2 token request
+are never retried, and a request that timed out is not retried.
+
 ## Caveats
 
 ### Decimal / `format: number` precision
@@ -90,6 +164,22 @@ per-operation `callbacks` — are intentionally skipped during code
 generation. If you need to receive webhook deliveries, write the
 handler yourself and use this SDK only to deserialize the incoming
 payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType` (#70, #88)
+
+Only JSON, form, multipart and binary bodies are generated. An operation that
+offers only `application/xml` has no usable request or response body; encode
+and decode the XML yourself.
+
+### Link Objects (#78)
+
+Response `links` are ignored; build the follow-up call yourself.
+
+### Mutual TLS security schemes (#90)
+
+A `mutualTLS` security scheme is not generated. Configure the client
+certificate on the `URLSession` you pass to
+`TransportOptionsBuilder.session(_:)`.
 
 ### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
 
@@ -122,36 +212,6 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
-
-### Per-call cancellation
-
-The SDK has no cancellation API of its own: cancel the Swift `Task` that made
-the call and the in-flight `URLSession` task is cancelled with it, the call
-throwing `CancellationError`. To bound how long a call can take, set the
-request timeout on `TransportOptions`; a call that exceeds it fails with
-`NetworkTimeoutError`.
-
-### Automatic retries
-
-`TransportOptionsBuilder.maxRetries(_:)` sets how many times a failed call is
-retried (default 2; 0 disables retries). A call is retried after a network
-error that happened before any response, and after a response with status 408,
-409, 429 or 500 to 599 except 501. The wait starts at 0.5 s, doubles up to 8 s
-and loses up to 25% to jitter; a `Retry-After` header (seconds or an HTTP date,
-capped at 60 s) is used instead when the server sends one. The request timeout
-is the single end-to-end budget: retries never extend it, and a wait that does
-not fit in what is left is skipped. Every retry is a fresh request that asks the
-authenticator for its headers again. A stream body and the OAuth2 token request
-are never retried, and a request that timed out is not retried.
-
-### Bringing your own `URLSession`
-
-`TransportOptionsBuilder.session(_:)` sends every request through a `URLSession`
-you supply. The timeout, `User-Agent`, default headers and request id still
-apply on top. You own the session: `close()` never invalidates it. A session
-cannot be combined with the SDK's own `proxy`, `caCertPath`, `verifySsl(false)`,
-`followRedirects(false)` or `maxRedirects`, because those are properties of the
-session itself; `build()` throws a `ConfigurationError` naming the conflict.
 
 ### `LICENSE` file is not auto-emitted
 

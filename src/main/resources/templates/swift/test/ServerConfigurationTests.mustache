@@ -5,12 +5,12 @@ import Testing
 
 @Suite final class ServerConfigurationTests {
 
-    @Test func urlWithoutVariablesReturnsTemplateVerbatim() throws {
+    @Test func testUrlWithoutVariablesReturnsTemplateVerbatim() throws {
         let server = ServerConfiguration(urlTemplate: "https://api.example.com/v1")
         #expect(try server.url() == "https://api.example.com/v1")
     }
 
-    @Test func urlUsesDefaultVariableValues() throws {
+    @Test func testUrlUsesDefaultVariableValues() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com/v{version}",
             variables: [
@@ -21,7 +21,7 @@ import Testing
         #expect(try server.url() == "https://prod.api.example.com/v1")
     }
 
-    @Test func urlSubstitutesOverrides() throws {
+    @Test func testUrlSubstitutesOverrides() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com/v{version}",
             variables: [
@@ -33,7 +33,7 @@ import Testing
         #expect(resolved == "https://staging.api.example.com/v1")
     }
 
-    @Test func urlAcceptsOverrideInEnumValues() throws {
+    @Test func testUrlAcceptsOverrideInEnumValues() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com",
             variables: [
@@ -43,7 +43,7 @@ import Testing
         #expect(try server.url(variables: ["env": "staging"]) == "https://staging.api.example.com")
     }
 
-    @Test func urlRejectsOverrideNotInEnumValues() throws {
+    @Test func testUrlRejectsOverrideNotInEnumValues() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com",
             variables: [
@@ -58,7 +58,7 @@ import Testing
         }
     }
 
-    @Test func rejectionMessageNamesTheValueTheVariableAndTheAllowedValues() {
+    @Test func testRejectionMessageNamesTheValueTheVariableAndTheAllowedValues() {
         let error = ConfigurationError.invalidServerVariable(
             variable: "env", value: "dev", allowed: ["prod", "staging"])
         #expect(
@@ -66,7 +66,7 @@ import Testing
                 == "Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]")
     }
 
-    @Test func variableWithoutEnumAcceptsAnyOverride() throws {
+    @Test func testVariableWithoutEnumAcceptsAnyOverride() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com",
             variables: ["env": ServerVariable(defaultValue: "prod")]
@@ -74,7 +74,7 @@ import Testing
         #expect(try server.url(variables: ["env": "anything-goes"]) == "https://anything-goes.api.example.com")
     }
 
-    @Test func partialOverrideKeepsTheOtherDefaults() throws {
+    @Test func testPartialOverrideKeepsTheOtherDefaults() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com/v{version}",
             variables: [
@@ -85,7 +85,7 @@ import Testing
         #expect(try server.url(variables: ["version": "2"]) == "https://prod.api.example.com/v2")
     }
 
-    @Test func unknownOverrideIsIgnored() throws {
+    @Test func testUnknownOverrideIsIgnored() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com",
             variables: ["env": ServerVariable(defaultValue: "prod")]
@@ -93,7 +93,7 @@ import Testing
         #expect(try server.url(variables: ["nope": "x"]) == "https://prod.api.example.com")
     }
 
-    @Test func exposesTheRawTemplateAndDescription() {
+    @Test func testExposesTheRawTemplateAndDescription() {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com",
             description: "Main server",
@@ -104,11 +104,32 @@ import Testing
         #expect(server.variables["env"]?.defaultValue == "prod")
     }
 
-    @Test func descriptionDefaultsToEmpty() {
+    @Test func testDescriptionDefaultsToEmpty() {
         #expect(ServerConfiguration(urlTemplate: "https://api.example.com").description == "")
     }
 
-    @Test func urlRejectsDefaultNotInEnumValues() throws {
+    /* A value that contains another variable's placeholder is inserted as
+     * written: the template is read once. */
+    @Test func testUrlDoesNotExpandAPlaceholderIntroducedByAValue() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/{version}",
+            variables: [
+                "env": ServerVariable(defaultValue: "{version}"),
+                "version": ServerVariable(defaultValue: "v2"),
+            ]
+        )
+        #expect(try server.url() == "https://{version}.api.example.com/v2")
+    }
+
+    @Test func testUrlSubstitutesEveryOccurrenceAndKeepsUnknownBraces() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/{env}/{other}/{",
+            variables: ["env": ServerVariable(defaultValue: "prod")]
+        )
+        #expect(try server.url() == "https://prod.api.example.com/prod/{other}/{")
+    }
+
+    @Test func testUrlRejectsDefaultNotInEnumValues() throws {
         // When no override is supplied, the default value is still validated
         // against the enum constraint.
         let server = ServerConfiguration(
