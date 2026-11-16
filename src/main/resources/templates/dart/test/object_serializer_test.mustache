@@ -491,6 +491,34 @@ void main() {
       }
     });
 
+    test('request JSON writes slash, angle brackets, ampersand, non-ASCII, U+2028, U+2029 and DEL literally', () {
+      final out = serialize({'k': 'a\u2028b\u2029c\u007fd/<>&\u00e9'});
+      expect(out, equals('{"k":"a\u2028b\u2029c\u007fd/<>&\u00e9"}'));
+    });
+
+    test('request JSON escapes only the quote, the backslash and controls', () {
+      expect(serialize({'k': 'q"b\\n\n'}), equals(r'{"k":"q\"b\\n\n"}'));
+    });
+
+    test('a format time property passes through as the string it was given', () {
+      for (final wire in ['10:30:00', '10:30:00.123']) {
+        final decoded =
+            deserialize<EdgeCases>('{"cutoff":"$wire"}', EdgeCases.fromJson)!;
+        expect(decoded.cutoff, equals(wire));
+        expect(jsonDecode(serialize(decoded)),
+            equals(<String, Object?>{'cutoff': wire}));
+      }
+    });
+
+    test('a prefixItems tuple degrades to an open list that round trips', () {
+      final pet = deserialize<Pet>(
+          '{"name":"n","photoUrls":[],"location":[1.5,2.5,"label"]}',
+          Pet.fromJson)!;
+      expect(pet.location, equals([1.5, 2.5, 'label']));
+      final written = jsonDecode(serialize(pet)) as Map<String, dynamic>;
+      expect(written['location'], equals([1.5, 2.5, 'label']));
+    });
+
     // DeserializationErrorWrappingTests
 
     // The error contract: every wire-shape failure throws exactly
