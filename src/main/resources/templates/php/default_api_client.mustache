@@ -112,6 +112,12 @@ class DefaultApiClient extends AbstractApiClient
 
         if ($this->transportOptions->proxy !== null) {
             $options['proxy'] = $this->transportOptions->proxy;
+        } else {
+            /* D74: TransportOptions::proxy is the only proxy source. Symfony
+             * falls back to the http_proxy, https_proxy, all_proxy and
+             * no_proxy environment variables when no proxy option is given,
+             * so a wildcard no_proxy keeps an ambient proxy out of the way. */
+            $options['no_proxy'] = '*';
         }
 
         if ($this->transportOptions->timeout !== null) {

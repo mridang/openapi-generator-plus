@@ -289,3 +289,12 @@ test('phpunit.xml runs the hand written spec directory as well as tests', functi
     expect($directories)->toContain('tests');
     expect($directories)->toContain('spec');
 });
+
+test('SKILLS documents the whole error tree under the root exception', function (): void {
+    $skills = (string) file_get_contents(dirname(__DIR__) . '/SKILLS.md');
+
+    foreach (['SerializationException', 'OAuth2ServerException', 'OAuth2TokenException'] as $name) {
+        expect($skills)->toContain('`' . $name . '`');
+    }
+    expect($skills)->toContain('Every failure the SDK raises derives from');
+});

@@ -1591,6 +1591,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             }
             modelMap.put("hasByteVars", model.vars.stream().anyMatch(
                     BetterPHPCodegen::holdsBytes));
+            modelMap.put("hasPasswordVars", model.vars.stream().anyMatch(
+                    var -> var.isPassword));
             for (final CodegenProperty var : model.vars) {
                 if (!var.isEnum || var.allowableValues == null) {
                     continue;

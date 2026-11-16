@@ -53,6 +53,32 @@ test('is an Exception subclass with status in its string form', function (): voi
     );
 });
 
+test('the string form caps the body, escapes control characters and redacts secret headers', function (): void {
+    $ex = new ApiException(
+        502,
+        'bad gateway',
+        ['x-request-id' => 'abc', 'set-cookie' => 'session=1', 'X-Api-Key' => 'k', 'authorization' => 'Bearer t'],
+        str_repeat('a', 1024) . "tail\nforged: line"
+    );
+
+    $text = (string) $ex;
+
+    expect($text)->toContain('"x-request-id":"abc"');
+    expect($text)->toContain('"set-cookie":"***"');
+    expect($text)->toContain('"X-Api-Key":"***"');
+    expect($text)->toContain('"authorization":"***"');
+    expect($text)->not->toContain('Bearer t');
+    expect($text)->toContain(str_repeat('a', 1024) . '... (17 more bytes)');
+    expect($text)->not->toContain('forged');
+    expect($ex->getResponseBody())->toContain("tail\nforged: line");
+});
+
+test('a newline in the body is shown escaped, never as a line break', function (): void {
+    $ex = new ApiException(500, 'boom', null, "one\r\ntwo");
+
+    expect((string) $ex)->toContain('Response body: one\x0D\x0Atwo');
+});
+
 test('ApiException extends the SDK root {{errorPrefix}}Exception', function (): void {
     /* One SDK root: ApiException extends {{errorPrefix}}Exception, so a single
      * catch on {{errorPrefix}}Exception covers every API/HTTP error. */

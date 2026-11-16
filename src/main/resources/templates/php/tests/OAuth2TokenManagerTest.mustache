@@ -146,11 +146,10 @@ test('expires in long lived token applies full buffer', function (): void {
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
-test('expires in exactly buffer returns zero buffer', function (): void {
-    // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+test('expires in of thirty is reused for half its lifetime', function (): void {
+    // One margin of min(60 s, expires_in / 2): a 30 s token is cached.
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('edge1', 30));
-    $client->enqueueResponse(makeOAuth2TokenManagerResponse('edge2', 30));
 
     $manager = new OAuth2TokenManager();
     $manager->setApiClient($client);
@@ -159,8 +158,76 @@ test('expires in exactly buffer returns zero buffer', function (): void {
     $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
 
     expect($first)->toBe('edge1');
-    expect($second)->toBe('edge2');
+    expect($second)->toBe('edge1');
+    expect($client->capturedRequests)->toHaveCount(1);
+});
+
+test('expires in of zero is stale at once', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('zero1', 0));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('zero2', 0));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('zero1');
+    expect($second)->toBe('zero2');
     expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('an expires_in beyond one year is clamped to one year', function (mixed $expiresIn): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(
+        200,
+        (string) json_encode(['access_token' => 'huge', 'expires_in' => $expiresIn]),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    $expiry = (new \ReflectionProperty(OAuth2TokenManager::class, 'tokenExpiry'))->getValue($manager);
+    expect($expiry)->toBeFloat();
+    expect($expiry)->toBeLessThanOrEqual(microtime(true) + 31536000.0);
+    expect($expiry)->toBeGreaterThan(microtime(true) + 31536000.0 - 120.0);
+})->with([9999999999, 1.0e20, '9999999999', '99999999999999999999999999']);
+
+test('a string expires_in outside the decimal grammar is stale', function (string $expiresIn): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(
+        200,
+        (string) json_encode(['access_token' => 'odd1', 'expires_in' => $expiresIn]),
+        ['Content-Type' => 'application/json']
+    ));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('odd2', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('odd1');
+    expect($second)->toBe('odd2');
+    expect($client->capturedRequests)->toHaveCount(2);
+})->with(['1e3', '0x10', '3_600', '5.', '+5', '-5', 'abc', '']);
+
+test('the token request is a form post that accepts json', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('hdr', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    $request = $client->capturedRequests[0];
+    expect($request['method'])->toBe('POST');
+    expect($request['headers']['Content-Type'])->toBe('application/x-www-form-urlencoded');
+    expect($request['headers']['Accept'])->toBe('application/json');
 });
 
 test('refresh token empty string preserves existing', function (): void {
@@ -169,7 +236,7 @@ test('refresh token empty string preserves existing', function (): void {
     $client = new MockTokenApiClient();
     // Seed: initial token grant returns refresh_token "old_refresh" with a
     // short-lived access token so the next call triggers a refresh.
-    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 1, 'old_refresh'));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 0, 'old_refresh'));
     // Refresh response: explicit empty refresh_token must not overwrite cache.
     $client->enqueueResponse(new ApiHttpResponse(
         200,
@@ -303,7 +370,7 @@ test('rejected refresh token falls back to the original grant', function (): voi
     // OAuth2ServerException extends the SDK root: the refresh fallback must
     // catch it and re-run the original grant instead of letting it escape.
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 1, 'old_refresh'));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 0, 'old_refresh'));
     $client->enqueueResponse(new ApiHttpResponse(
         400,
         (string) json_encode(['error' => 'invalid_grant']),
@@ -442,7 +509,7 @@ test('a token with expires_in of 60 is reused once and not refetched on every ca
 
 test('a refresh response without expires_in clears the previous expiry', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old', 1, 'refresh-token'));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old', 0, 'refresh-token'));
     $client->enqueueResponse(new ApiHttpResponse(
         200,
         (string) json_encode(['access_token' => 'new']),
@@ -535,7 +602,7 @@ test('token error response message follows the status, code and description', fu
 
 test('internal refresh goes to the refresh url with the client credentials', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 1, 'old_refresh'));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 0, 'old_refresh'));
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('fresh_access', 3600));
 
     $manager = new OAuth2TokenManager();
@@ -555,7 +622,7 @@ test('internal refresh goes to the refresh url with the client credentials', fun
 
 test('a refresh grant is posted once and its failure propagates', function (): void {
     $client = new MockTokenApiClient();
-    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 1, 'old_refresh'));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 0, 'old_refresh'));
     $client->enqueueResponse(new ApiHttpResponse(
         400,
         (string) json_encode(['error' => 'invalid_grant']),

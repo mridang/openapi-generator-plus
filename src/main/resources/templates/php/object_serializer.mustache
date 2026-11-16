@@ -679,6 +679,9 @@ class ObjectSerializer
             return null;
         }
         try {
+            if (is_string($data)) {
+                self::assertJsonDepth($data);
+            }
             return self::deserializeInternal($data, $class, $httpHeaders);
         } catch (SerializationException $e) {
             throw $e;
@@ -690,10 +693,54 @@ class ObjectSerializer
             | \DateException $e
         ) {
             throw new SerializationException(
-                'Failed to deserialize JSON to ' . $class . ': ' . $e->getMessage(),
+                'Failed to deserialize JSON: ' . $e->getMessage(),
                 0,
                 $e
             );
+        }
+    }
+
+    /**
+     * Refuses a JSON text nested deeper than {@see MAX_JSON_DEPTH} with the
+     * canonical message, whatever the parser would say. Brackets inside string
+     * literals do not count. A text with no more openers than the cap cannot
+     * be too deep, so only a payload with many of them is scanned.
+     *
+     * @throws SerializationException when the nesting exceeds the cap
+     */
+    private static function assertJsonDepth(string $json): void
+    {
+        if (substr_count($json, '[') + substr_count($json, '{') <= self::MAX_JSON_DEPTH) {
+            return;
+        }
+        $depth = 0;
+        $inString = false;
+        $escaped = false;
+        $length = strlen($json);
+        for ($i = 0; $i < $length; $i++) {
+            $char = $json[$i];
+            if ($inString) {
+                if ($escaped) {
+                    $escaped = false;
+                } elseif ($char === '\\') {
+                    $escaped = true;
+                } elseif ($char === '"') {
+                    $inString = false;
+                }
+                continue;
+            }
+            if ($char === '"') {
+                $inString = true;
+            } elseif ($char === '[' || $char === '{') {
+                $depth++;
+                if ($depth > self::MAX_JSON_DEPTH) {
+                    throw new SerializationException(
+                        'JSON nesting depth ' . $depth . ' exceeds limit ' . self::MAX_JSON_DEPTH
+                    );
+                }
+            } elseif ($char === ']' || $char === '}') {
+                $depth--;
+            }
         }
     }
 
