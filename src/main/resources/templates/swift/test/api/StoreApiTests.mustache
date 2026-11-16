@@ -247,6 +247,21 @@ import Testing
         #expect(result[0]["t"] == Date(timeIntervalSince1970: 1_704_164_645))
     }
 
+    /* A uuid path parameter is written in lowercase whatever the caller's case. */
+    @Test func testGetOrderByTrackingIdPutsTheLowercaseUuidInThePath() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+        let id = try #require(UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"))
+
+        _ = try await api.getOrderByTrackingId(trackingId: id)
+
+        #expect(
+            mockClient.lastURL
+                == "https://example.com/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
+    }
+
     @Test func testDeleteOrderNotFound() async throws {
         let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
         let error = await #expect(throws: NotFoundError.self) {

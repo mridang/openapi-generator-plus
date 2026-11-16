@@ -25,6 +25,19 @@ import Testing
         override func cookieParams() -> [String: String] { return _cookies }
     }
 
+    /// An authenticator that needs the transport, reporting whether it got one.
+    private final class TransportAwareAuth: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
+        var injected: ApiClient?
+
+        func setApiClient(_ client: ApiClient) { injected = client }
+        override func host() -> String { return "" }
+        override func authHeaders() async -> [String: String] {
+            return ["Authorization": injected == nil ? "no transport" : "transport injected"]
+        }
+        override func queryParams() -> [String: String] { return [:] }
+        override func cookieParams() -> [String: String] { return [:] }
+    }
+
     // MARK: - Mock ApiClient
 
     private final class MockApiClient: ApiClient, @unchecked Sendable {
@@ -395,6 +408,20 @@ import Testing
             let merged = BaseApi.mergeHeaders([:], overriding: layer)
             #expect(merged == ["authorization": "lower"])
         }
+    }
+
+    /* A per-call authenticator that makes HTTP calls of its own (OAuth2, OIDC)
+     * receives the API's client, as the client-level one does. */
+    @Test func testPerCallHttpAwareAuthenticatorReceivesTheApiClient() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let auth = TransportAwareAuth()
+
+        let pet = Pet(name: "test", photoUrls: [])
+        _ = try? await api.addPet(pet: pet, options: AddPetOptions(auth: auth))
+
+        #expect(mockClient.lastHeaders["Authorization"] == "transport injected")
     }
 
     // MARK: - Nil body
