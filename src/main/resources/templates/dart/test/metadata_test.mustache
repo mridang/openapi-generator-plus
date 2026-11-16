@@ -33,6 +33,43 @@ void main() {
     });
   });
 
+  group('dev dependencies', () {
+    test('every package the generator declares for the tests is in the pubspec', () {
+      /* .openapi-generator/DEV-DEPENDENCIES is generator-owned and pubspec.yaml
+       * is not, so a client that keep-lists its own manifest can drift from it
+       * until the suite dies on an unresolved import. This names the gap. */
+      final declared = File(
+              '${Directory.current.path}/.openapi-generator/DEV-DEPENDENCIES')
+          .readAsLinesSync()
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty && !line.startsWith('#'))
+          .map((line) => line.split(RegExp(r'\s+')).first)
+          .toList();
+      expect(declared, isNotEmpty);
+
+      final inDevSection = <String>{};
+      var inSection = false;
+      for (final line in File('${Directory.current.path}/pubspec.yaml')
+          .readAsLinesSync()) {
+        if (line.startsWith('dev_dependencies:')) {
+          inSection = true;
+        } else if (inSection && line.isNotEmpty && !line.startsWith(' ')) {
+          inSection = false;
+        } else if (inSection) {
+          final match = RegExp(r'^\s+([A-Za-z0-9_]+):').firstMatch(line);
+          if (match != null) {
+            inDevSection.add(match.group(1)!);
+          }
+        }
+      }
+
+      final missing = declared.where((name) => !inDevSection.contains(name));
+      expect(missing, isEmpty,
+          reason: 'DEV-DEPENDENCIES names packages missing from the pubspec '
+              'dev_dependencies');
+    });
+  });
+
   group('package barrel', () {
     test('hides the internal no-auth sentinel from the public API', () {
       final barrel =
