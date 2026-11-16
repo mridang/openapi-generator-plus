@@ -1159,6 +1159,29 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
   }
 
+{{#hasPasswordField}}
+  /**
+   * String form for `util.inspect` and `console.log`: every `format: password`
+   * field prints as `***`. The field and the JSON sent on the wire keep the
+   * real value.
+   */
+  [Symbol.for('nodejs.util.inspect.custom')](
+    _depth: number,
+    options: Record<string, unknown>,
+    inspect: (value: unknown, options?: Record<string, unknown>) => string
+  ): string {
+    const masked: Record<string, unknown> = { ...(this as unknown as Record<string, unknown>) };
+{{#vars}}
+{{#vendorExtensions.isPasswordFormat}}
+    if (masked['{{name}}'] != null) {
+      masked['{{name}}'] = '***';
+    }
+{{/vendorExtensions.isPasswordFormat}}
+{{/vars}}
+    return `{{classname}} ${inspect(masked, options)}`;
+  }
+
+{{/hasPasswordField}}
   /**
    * Value-equality across all declared fields{{#isAdditionalPropertiesTrue}} (including the
    * additionalProperties index keys){{/isAdditionalPropertiesTrue}}. Two instances are equal when

@@ -52,4 +52,13 @@ class BetterNodeCodegenTest {
         assertEquals("ModelResult", codegen.toModelName("Result"));
         assertEquals("Category", codegen.toModelName("Category"));
     }
+
+    @Test
+    void parametersNamedLikeInjectedArgumentsGetASuffix() {
+        final BetterNodeCodegen codegen = new BetterNodeCodegen();
+        assertEquals("optionsParam", codegen.toParamName("options"));
+        assertEquals("requestOptionsParam", codegen.toParamName("requestOptions"));
+        assertEquals("serverParam", codegen.toParamName("server"));
+        assertEquals("petId", codegen.toParamName("petId"));
+    }
 }

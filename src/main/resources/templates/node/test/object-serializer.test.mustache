@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import * as util from 'node:util';
 import { Expose, Transform, Type } from 'class-transformer';
 import {
   ObjectSerializer,
@@ -2121,6 +2122,16 @@ describe('toBinary', () => {
         username: 'u',
         password: 'p',
       });
+    });
+
+    test('a format: password field is masked in the string form and kept on the wire', () => {
+      const account = new Account({ username: 'u', password: 'hunter2' });
+
+      expect(util.inspect(account)).not.toContain('hunter2');
+      expect(util.inspect(account)).toContain('password: \'***\'');
+      expect(util.inspect(account)).toContain('Account');
+      expect(account.password).toBe('hunter2');
+      expect(JSON.parse(ObjectSerializer.serialize(account))).toMatchObject({ password: 'hunter2' });
     });
 
     test.each(['In-Stock', 'on-hold', 'OUT_OF_STOCK'])('the inline enum value %s round-trips', (phase) => {
