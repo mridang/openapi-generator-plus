@@ -1100,6 +1100,78 @@
    "languages": ["dart"],
    "value": "extra*",
    "reason": "dart has no protected visibility across libraries: the generated api classes live in other files than BaseApi, so these fields are public"
+  },
+  {
+   "element": ["oauth2authorizationcodeauthenticator.<ctor>","oauth2clientcredentialsauthenticator.<ctor>"],
+   "aspect": "ctor-optional",
+   "languages": ["elixir"],
+   "reason": "elixir folds the optional constructor arguments into one trailing opts keyword list, which is how its constructors take options"
+  },
+  {
+   "element": ["apierror.<ctor>","networkerror.<ctor>","networktimeouterror.<ctor>","openapierror.<ctor>"],
+   "aspect": "ctor-optional",
+   "languages": ["node"],
+   "reason": "node error constructors take the standard ES2022 options bag ({ cause }) as their last argument, which is what Error itself takes"
+  },
+  {
+   "element": ["apierror.<ctor>","networkerror.<ctor>","networktimeouterror.<ctor>"],
+   "aspect": "ctor",
+   "languages": ["python","ruby"],
+   "reason": "python records the cause with raise ... from and ruby with the built-in Exception#cause, so neither takes it as a constructor argument"
+  },
+  {
+   "element": "oauth2tokenmanager.exchanged",
+   "aspect": "member",
+   "languages": ["dart","csharp","go","kotlin"],
+   "reason": "the exchanged flag is internal session state: dart, csharp and go keep it on the authorization code authenticator and kotlin keeps it internal to the token manager; a missing exchangeCode() fails the same way in every SDK"
+  },
+  {
+   "element": "oauth2tokenmanager.setapiclient",
+   "aspect": "member",
+   "languages": ["kotlin"],
+   "reason": "kotlin sets the token manager API client through an internal property, since the token manager is internal support code"
+  },
+  {
+   "element": "requirednullable.note",
+   "aspect": "prop-optional",
+   "languages": ["kotlin"],
+   "reason": "a required nullable property is String? with no default in kotlin: the caller must still pass it, which the surface check reads as optional because of the question mark"
+  },
+  {
+   "element": ["objectserializer.*","valueserializer.*","headerselector.*"],
+   "aspect": "params",
+   "languages": ["*"],
+   "reason": "internal support helper called only by the generated code, never by users: its parameter names and optional arguments follow each language, and the wire bytes it produces are checked by the shared petstore tests"
+  },
+  {
+   "element": ["objectserializer.*","valueserializer.*","headerselector.*"],
+   "aspect": "optional",
+   "languages": ["*"],
+   "reason": "internal support helper called only by the generated code, never by users: its parameter names and optional arguments follow each language, and the wire bytes it produces are checked by the shared petstore tests"
+  },
+  {
+   "element": ["configurationbuilder.*","transportoptionsbuilder.*"],
+   "aspect": "params",
+   "languages": ["swift","ruby","rust","dart","go"],
+   "reason": "builder setters take the value positionally and these languages name that parameter val; the call site is the same"
+  },
+  {
+   "element": ["apiclient.sendrequest","defaultapiclient.sendrequest","abstractapiclient.sendrequest"],
+   "aspect": "optional",
+   "languages": ["python","node","elixir","kotlin"],
+   "reason": "each language passes the per-request redirect option in its own way: python with a defaulted body, node with an options object, elixir with a keyword list, kotlin by inheriting the interface default; the behaviour is the same"
+  },
+  {
+   "element": ["apiclient.sendrequest","defaultapiclient.sendrequest","abstractapiclient.sendrequest"],
+   "aspect": "params",
+   "languages": ["python","node","elixir","kotlin"],
+   "reason": "each language passes the per-request redirect option in its own way: python with a defaulted body, node with an options object, elixir with a keyword list, kotlin by inheriting the interface default; the behaviour is the same"
+  },
+  {
+   "element": ["baseapi.invokeapi","baseapi.invokeapiforresult"],
+   "aspect": "params",
+   "languages": ["elixir","rust","dart"],
+   "reason": "internal helper that the generated api classes call; elixir passes the trailing arguments as options and rust as a parameter struct"
   }
  ]
 }

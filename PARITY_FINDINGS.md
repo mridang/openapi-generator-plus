@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 436, forced 4, needs-spec 2, open 145, parked 52, partial 5. Severity: critical 3, high 60, medium 547, low 212.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 440, forced 4, needs-spec 2, open 141, parked 52, partial 5. Severity: critical 3, high 60, medium 547, low 212.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -685,21 +685,21 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 436, forced 4,
 | F677 | medium | open | api-surface | dart, go, java, ruby, rust, swift | API surface: harmonise auth `openidconnectauthenticator` (5 differences) |
 | F678 | medium | open | api-surface | dart, node, php | API surface: harmonise core `abstractapiclient` (17 differences) |
 | F679 | medium | parked | api-surface | dart, node, python | API surface: harmonise core `allowreservedvalue` (1 differences) |
-| F680 | medium | open | api-surface | dart, elixir, node, python | API surface: harmonise core `apiclient` (4 differences) |
+| F680 | medium | fixed | api-surface | dart, elixir, node, python | API surface: harmonise core `apiclient` (4 differences) |
 | F681 | medium | parked | api-surface | php, ruby | API surface: harmonise core `client` (4 differences) |
 | F682 | medium | parked | api-surface | elixir, ruby | API surface: harmonise core `configuration` (2 differences) |
-| F683 | medium | open | api-surface | dart, go, ruby, rust, swift | API surface: harmonise core `configurationbuilder` (2 differences) |
+| F683 | medium | fixed | api-surface | dart, go, ruby, rust, swift | API surface: harmonise core `configurationbuilder` (2 differences) |
 | F684 | medium | open | api-surface | csharp, dart, elixir, kotlin, node, python, ruby, rust | API surface: harmonise core `defaultapiclient` (25 differences) |
 | F685 | medium | fixed | api-surface | csharp, go, java, kotlin, ruby, swift | API surface: harmonise core `headerselector` (2 differences) |
 | F686 | medium | parked | api-surface | swift | API surface: harmonise core `iso8601duration` (2 differences) |
-| F687 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise core `objectserializer` (78 differences) |
+| F687 | medium | fixed | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise core `objectserializer` (78 differences) |
 | F688 | medium | parked | api-surface | ruby | API surface: harmonise core `petstore` (1 differences) |
 | F689 | medium | open | api-surface | csharp, java, kotlin, node | API surface: harmonise core `serverconfiguration` (1 differences) |
 | F690 | medium | fixed | api-surface | dart, go, ruby, rust | API surface: harmonise core `servers` (2 differences) |
 | F691 | medium | open | api-surface | csharp, java, kotlin, node | API surface: harmonise core `servervariable` (1 differences) |
 | F692 | medium | parked | api-surface | php, ruby | API surface: harmonise core `transportoptions` (3 differences) |
 | F693 | medium | open | api-surface | dart, go, ruby, rust, swift | API surface: harmonise core `transportoptionsbuilder` (9 differences) |
-| F694 | medium | open | api-surface | csharp, dart, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise core `valueserializer` (22 differences) |
+| F694 | medium | fixed | api-surface | csharp, dart, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise core `valueserializer` (22 differences) |
 | F695 | medium | parked | api-surface | ruby | API surface: harmonise core `valueserializerallowreservedvalue` (1 differences) |
 | F696 | medium | parked | api-surface | dart, elixir, go, node, python, ruby, rust, swift | API surface: harmonise error `apierror` (7 differences) |
 | F697 | medium | fixed | api-surface | java, kotlin, node | API surface: harmonise error `badrequesterror` (1 differences) |
@@ -7576,7 +7576,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - allowreservedvalue [type] majority absent (9 SDKs); differs: dart=AllowReservedValue; node=AllowReservedValue; python=AllowReservedValue
 
 ## F680 [medium] API surface: harmonise core `apiclient` (4 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batch 4: error causes, argument order and internal-helper idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, elixir, node, python
 
 `etc/api-surface.py check` reports these public-API differences for `apiclient`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7604,7 +7604,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - configuration.<ctor> [ctor-optional] majority (baseurl?, defaultheaders?) (3 SDKs); differs: ruby=(baseurl, defaultheaders)
 
 ## F683 [medium] API surface: harmonise core `configurationbuilder` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batch 4: error causes, argument order and internal-helper idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, go, ruby, rust, swift
 
 `etc/api-surface.py check` reports these public-API differences for `configurationbuilder`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7659,7 +7659,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - iso8601duration.validatepartialtime [member] majority present (1 SDKs); differs: swift=missing
 
 ## F687 [medium] API surface: harmonise core `objectserializer` (78 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batch 4: error causes, argument order and internal-helper idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift
 
 `etc/api-surface.py check` reports these public-API differences for `objectserializer`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7796,7 +7796,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - transportoptionsbuilder.useragentopt [member] majority absent (10 SDKs); differs: rust=extra
 
 ## F694 [medium] API surface: harmonise core `valueserializer` (22 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (closed by direct batch 4: error causes, argument order and internal-helper idiom rules) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, dart, go, java, kotlin, node, php, python, ruby, rust, swift
 
 `etc/api-surface.py check` reports these public-API differences for `valueserializer`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.

@@ -57,8 +57,15 @@ ALLOW_PATH = os.path.join(ROOT, "etc", "api-surface-allow.json")
 LANGS = ["java", "kotlin", "csharp", "php", "python", "ruby", "node", "dart", "go",
          "rust", "swift", "elixir"]
 
-# Languages whose call syntax has no named arguments: only the argument count matters.
+# Languages whose call syntax has no named arguments: parameter names are not part of the call.
 POSITIONAL_ONLY = {"java", "go", "rust", "node", "elixir"}
+
+
+def renamed_only(mine, canon):
+    """True when a positional-only language has the canonical arity and its names are not a
+    reordering of the canonical ones: a pure rename does not change a call, a reorder does."""
+    return (canon is not None and len(mine) == len(canon) and mine != canon
+            and set(mine) != set(canon))
 
 # Source roots (non-test) and file extensions per language.
 SOURCES = {
@@ -2365,7 +2372,7 @@ def compare(surfaces):
                                         if not opts_tail(l, sigs[l])} or names)
             # a call that cannot name its arguments does not depend on parameter names
             for l in POSITIONAL_ONLY:
-                if l in names and len(names[l]) == len(nv):
+                if l in names and renamed_only(names[l], nv):
                     names[l] = nv
             canon_sig = next(sigs[l] for l in LANGS if l in names and names[l] == nv)
             oddn = {l: "(" + ", ".join(v) + ")" for l, v in names.items()
@@ -2417,6 +2424,9 @@ def compare(surfaces):
         if len(ctors) >= 2:
             full = {l: tuple(p["key"] for p in v) for l, v in ctors.items()}
             fv, fc = majority({l: v for l, v in full.items() if l in DEFAULT_ARG_LANGS} or full)
+            for l in POSITIONAL_ONLY:
+                if l in full and renamed_only(full[l], fv):
+                    full[l] = fv
             canon = next(ctors[l] for l in LANGS if l in ctors and full[l] == fv) if fv is not None else []
             required = tuple(p["key"] for p in canon if not p["optional"])
             oddf = {}
