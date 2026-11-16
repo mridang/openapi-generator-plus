@@ -1093,6 +1093,27 @@ test('a final 3xx without a Location after the redirect budget is returned, not 
     expect($response->statusCode)->toBe(302);
 });
 
+test('a 3xx whose Location is absent or unparseable comes back as the redirect response', function (array $headers): void {
+    $calls = 0;
+    $mockClient = new MockHttpClient(
+        function () use (&$calls, $headers): MockResponse {
+            $calls++;
+            return new MockResponse('{"redirect":"none"}', ['http_code' => 302, 'response_headers' => $headers]);
+        }
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe(302);
+    expect($response->body)->toBe('{"redirect":"none"}');
+    expect($calls)->toBe(1);
+})->with([
+    'no location' => [[]],
+    'malformed location' => [['Location' => 'http://[bad']],
+]);
+
 test('a caller accept-encoding in any casing is not duplicated', function (): void {
     $seen = [];
     $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
