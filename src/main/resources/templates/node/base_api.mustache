@@ -166,8 +166,11 @@ export abstract class BaseApi {
     };
     overlay(this.config.defaultHeaders);
     overlay(headerParams);
+    const credentialHeaderNames: string[] = Object.keys(this.config.defaultHeaders);
     if (effectiveAuth) {
-      overlay(await effectiveAuth.getAuthHeadersAsync());
+      const authHeaders = await effectiveAuth.getAuthHeadersAsync();
+      credentialHeaderNames.push(...Object.keys(authHeaders));
+      overlay(authHeaders);
       const cookies = effectiveAuth.getCookieParams();
       const cookieEntries = Object.entries(cookies);
       if (cookieEntries.length > 0) {
@@ -209,9 +212,10 @@ export abstract class BaseApi {
       (s): s is AbortSignal => s != null
     );
     const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
-    const response = signal
-      ? await this.apiClient.sendRequest(method, url, headers, serializedBody, { signal })
-      : await this.apiClient.sendRequest(method, url, headers, serializedBody);
+    const response = await this.apiClient.sendRequest(method, url, headers, serializedBody, {
+      ...(signal ? { signal } : {}),
+      credentialHeaderNames
+    });
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       this.throwApiError(response);

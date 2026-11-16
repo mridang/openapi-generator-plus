@@ -348,6 +348,15 @@ export abstract class AbstractApiClient implements ApiClient {
     const originalUrl = url;
     try {
       response = await doFetch(url, fetchOptions as Parameters<typeof fetch>[1]);
+      /* A secret can ride in a header the fixed list does not know: one the
+       * SDK attached from an authenticator or from default headers. Those
+       * names are tracked by origin and are never sent to another origin. */
+      const attachedCredentialNames = new Set<string>(
+        [
+          ...Object.keys(this.transportOptions.defaultHeaders),
+          ...(options?.credentialHeaderNames ?? [])
+        ].map((name) => name.toLowerCase())
+      );
       const noRedirect = options?.noRedirect === true;
       if (this.transportOptions.followRedirects && !noRedirect) {
         const maxRedirects = this.transportOptions.maxRedirects ?? 20;
@@ -452,7 +461,9 @@ export abstract class AbstractApiClient implements ApiClient {
 
           const redirectHeaders: Record<string, string> = {};
           for (const [k, v] of Object.entries(currentHeaders)) {
-            if (crossOrigin && SENSITIVE_HEADER_NAMES.has(k.toLowerCase())) continue;
+            if (crossOrigin && (SENSITIVE_HEADER_NAMES.has(k.toLowerCase()) || attachedCredentialNames.has(k.toLowerCase()))) {
+              continue;
+            }
             if (nextBody === undefined
                 && (k.toLowerCase() === 'content-type'
                     || k.toLowerCase() === 'content-length')) {

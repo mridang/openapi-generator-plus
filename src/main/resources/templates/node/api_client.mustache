@@ -23,6 +23,12 @@ export interface SendRequestOptions {
   readonly noRedirect?: boolean;
   readonly noDefaultHeaders?: boolean;
   readonly signal?: AbortSignal;
+  /**
+   * Names of headers the SDK attached from an authenticator or from default
+   * headers. They are removed from a request that follows a redirect to
+   * another origin, like the credential headers every transport knows.
+   */
+  readonly credentialHeaderNames?: readonly string[];
 }
 
 /**

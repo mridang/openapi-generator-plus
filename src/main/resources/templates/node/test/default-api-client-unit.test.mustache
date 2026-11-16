@@ -868,6 +868,24 @@ describe('cross-origin redirect strips API-key headers', () => {
     expect(lastReceivedHeaders['accept']).toBe('application/json');
   });
 
+  it('strips a default header and an authenticator header the fixed list does not know on cross-origin 302', async () => {
+    const transport = TransportOptions.builder()
+      .followRedirects(true)
+      .defaultHeaders({ 'X-Tenant-Token': 'tenant-secret' })
+      .build();
+    const client = new DefaultApiClient(transport);
+    await client.sendRequest(
+      'GET',
+      `${srcUrl}/start`,
+      { 'X-Custom-Auth': 'custom-secret', 'X-Correlation-Id': 'corr-1' },
+      null,
+      { credentialHeaderNames: ['X-Custom-Auth'] },
+    );
+    expect(lastReceivedHeaders['x-tenant-token']).toBeUndefined();
+    expect(lastReceivedHeaders['x-custom-auth']).toBeUndefined();
+    expect(lastReceivedHeaders['x-correlation-id']).toBe('corr-1');
+  });
+
   it('keeps Authorization and Cookie on a same-origin redirect', async () => {
     let landed: Record<string, string | string[] | undefined> = {};
     const same = http.createServer((req, res) => {
