@@ -214,6 +214,24 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    void tokenRequestCarriesTheFormContentTypeAndTheJsonAccept() {
+        Map<String, String> captured = new HashMap<>();
+        ApiClient client = (method, url, headers, body) -> {
+            captured.putAll(headers);
+            return new ApiHttpResponse(200, "{\"access_token\":\"t\",\"expires_in\":3600}", Map.of());
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        manager.getAccessToken("https://auth.example.com/token", params);
+
+        assertEquals("application/x-www-form-urlencoded", captured.get("Content-Type"));
+        assertEquals("application/json", captured.get("Accept"));
+    }
+
+    @Test
     void expiresInShortLivedTokenDoesNotStorm() {
         // Gap CM: short-lived tokens (expires_in < safety buffer) must not
         // trigger a refresh storm — a single getAccessToken call must
