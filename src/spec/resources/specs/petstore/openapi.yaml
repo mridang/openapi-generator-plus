@@ -1343,6 +1343,30 @@ paths:
         '400':
           description: Invalid Order
 
+  /store/reservation:
+    post:
+      tags:
+        - store
+      summary: Reserve stock, answering with the existing or a new reservation
+      description: Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+      operationId: reserveStock
+      security: []
+      responses:
+        '200':
+          description: An existing reservation was returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '201':
+          description: A new reservation was created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationReceipt'
+        '400':
+          description: Invalid reservation
+
   /store/order/{orderId}:
     get:
       tags:
@@ -1818,6 +1842,31 @@ components:
       openIdConnectUrl: https://auth.example.com/.well-known/openid-configuration
 
   schemas:
+
+    Reservation:
+      type: object
+      required: [reservationId, quantity]
+      properties:
+        reservationId:
+          type: integer
+          format: int64
+          example: 31
+        quantity:
+          type: integer
+          format: int32
+          example: 4
+
+    ReservationReceipt:
+      type: object
+      required: [receiptCode, expiresAt]
+      properties:
+        receiptCode:
+          type: string
+          example: rcpt-77
+        expiresAt:
+          type: string
+          format: date-time
+          example: '2030-01-01T00:00:00Z'
 
     Order:
       type: object
