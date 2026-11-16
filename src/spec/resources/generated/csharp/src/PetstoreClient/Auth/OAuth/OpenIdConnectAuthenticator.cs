@@ -23,7 +23,10 @@ namespace PetstoreClient.Auth.OAuth;
 /// <see cref="IApiClient"/> with the same transport configuration (proxy, TLS,
 /// timeouts) as regular API calls.
 /// </summary>
-public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
+public partial class OpenIdConnectAuthenticator
+    : BaseAuthenticator,
+        IHttpAwareAuthenticator,
+        IInvalidatableAuthenticator
 {
     private readonly string _host;
     private readonly Uri _openIdConnectUrl;
@@ -146,7 +149,8 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
                 _scopes,
                 null,
                 _delegate.TokenManager,
-                _delegate.TokenExchanged
+                _delegate.TokenExchanged,
+                _delegate.PkceVerifier
             );
         }
         _discoveredEndpoints = endpoints;
@@ -312,6 +316,16 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
     {
         OAuth2AuthorizationCodeAuthenticator d = await GetDelegateAsync().ConfigureAwait(false);
         await d.ExchangeCodeAsync(code).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Drops the cached access token so that the next request fetches a fresh
+    /// one (a refresh grant first when a refresh token is held, which is kept).
+    /// A no-op before the first discovery, when no token can be held.
+    /// </summary>
+    public void InvalidateAccessToken()
+    {
+        _delegate?.InvalidateAccessToken();
     }
 
     /// <inheritdoc/>

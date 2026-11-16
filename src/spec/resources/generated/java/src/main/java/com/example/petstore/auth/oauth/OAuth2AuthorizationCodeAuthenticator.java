@@ -12,10 +12,15 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.auth.HttpAwareAuthenticator;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
 /**
@@ -28,9 +33,11 @@ import javax.annotation.Nullable;
  * <p>Usage:
  *
  * <ol>
- *   <li>Call {@link #buildAuthorizationUrl(String)} to get the authorization URL
+ *   <li>Call {@link #buildAuthorizationUrl(String)} to get the authorization URL; it carries a
+ *       fresh PKCE S256 challenge (RFC 7636) and the matching verifier is kept here
  *   <li>Redirect the user to that URL
- *   <li>After the callback, call {@link #exchangeCode(String)} with the auth code
+ *   <li>After the callback, call {@link #exchangeCode(String)} with the auth code; it sends the
+ *       verifier as {@code code_verifier}
  *   <li>Use the authenticator normally — tokens are managed automatically
  * </ol>
  */
@@ -45,6 +52,11 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
   private final String redirectUri;
   private final List<String> scopes;
   private final OAuth2TokenManager tokenManager;
+
+  /** The PKCE verifier of the last authorization URL built, until the code exchange uses it. */
+  private final AtomicReference<String> pkceVerifier = new AtomicReference<>();
+
+  private static final SecureRandom RANDOM = new SecureRandom();
 
   /**
    * Create a new authorization code authenticator.
@@ -174,6 +186,16 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     return tokenManager;
   }
 
+  /**
+   * Take over the pending PKCE verifier of the authenticator this one replaces, so an OpenID
+   * Connect rediscovery between the authorization URL and the code exchange does not lose it.
+   *
+   * @param previous the authenticator being replaced
+   */
+  void adoptPkceVerifierFrom(OAuth2AuthorizationCodeAuthenticator previous) {
+    pkceVerifier.set(previous.pkceVerifier.get());
+  }
+
   @Override
   public void setApiClient(ApiClient apiClient) {
     tokenManager.setApiClient(apiClient);
@@ -202,6 +224,12 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     if (state != null && !state.isEmpty()) {
       url.append("&state=").append(encode(state));
     }
+    /* RFC 7636 / RFC 9700 section 2.1.1: bind the code to this client with a
+     * PKCE S256 challenge; the verifier is kept for exchangeCode. */
+    String verifier = newPkceVerifier();
+    pkceVerifier.set(verifier);
+    url.append("&code_challenge=").append(pkceChallenge(verifier));
+    url.append("&code_challenge_method=S256");
     return url.toString();
   }
 
@@ -224,10 +252,25 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     params.put("client_id", clientId);
     params.put("client_secret", clientSecret);
     params.put("redirect_uri", redirectUri);
+    /* RFC 7636 section 4.5: prove the challenge sent with the authorization
+     * request. The verifier is single use. */
+    String verifier = pkceVerifier.getAndSet(null);
+    if (verifier != null) {
+      params.put("code_verifier", verifier);
+    }
     /* RFC 6749 section 4.1.3: every exchange sends its code. exchange()
      * bypasses the token cache and the refresh grant, replaces the session
      * on success and keeps the previous one on failure. */
     tokenManager.exchange(tokenUrl, params, Collections.emptyMap());
+  }
+
+  /**
+   * Drop the cached access token so the next request fetches a new one. The refresh token is kept,
+   * so the new token comes from the refresh grant when the server issued one.
+   */
+  @Override
+  public void invalidateAccessToken() {
+    tokenManager.invalidateAccessToken();
   }
 
   @Override
@@ -252,6 +295,30 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     params.put("client_secret", clientSecret);
     String token = tokenManager.getAccessToken(refreshUrl, params);
     return Collections.singletonMap("Authorization", "Bearer " + token);
+  }
+
+  /**
+   * A fresh PKCE code verifier (RFC 7636 section 4.1): 32 random bytes as unpadded base64url, 43
+   * characters.
+   */
+  static String newPkceVerifier() {
+    byte[] bytes = new byte[32];
+    RANDOM.nextBytes(bytes);
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+  }
+
+  /**
+   * The S256 code challenge of a verifier: {@code BASE64URL(SHA256(verifier))} (RFC 7636 section
+   * 4.2).
+   */
+  static String pkceChallenge(String verifier) {
+    try {
+      byte[] digest =
+          MessageDigest.getInstance("SHA-256").digest(verifier.getBytes(StandardCharsets.US_ASCII));
+      return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 is not available", e);
+    }
   }
 
   private static String encode(String value) {

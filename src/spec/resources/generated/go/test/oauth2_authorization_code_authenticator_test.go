@@ -10,8 +10,11 @@
 package petstore_test
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	neturl "net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -517,16 +520,93 @@ func TestOAuth2AuthCode_ExchangeBodyAndAuthorizeUrlUseTheSharedOrder(t *testing.
 
 	wantURL := "https://auth.example.com/authorize?response_type=code&client_id=my-client-id" +
 		"&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=s"
-	if got := authObj.BuildAuthorizationURL("s"); got != wantURL {
-		t.Errorf("expected authorize URL %q, got %q", wantURL, got)
+	built := authObj.BuildAuthorizationURL("s")
+	if !strings.HasPrefix(built, wantURL+"&code_challenge=") || !strings.HasSuffix(built, "&code_challenge_method=S256") {
+		t.Errorf("expected authorize URL %q followed by the PKCE parameters, got %q", wantURL, built)
 	}
 	if err := authObj.ExchangeCode("C"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	wantBody := "grant_type=authorization_code&code=C&client_id=my-client-id" +
-		"&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
-	if got := client.requests[0].body; got != wantBody {
-		t.Errorf("expected exchange body %q, got %q", wantBody, got)
+		"&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback" +
+		"&code_verifier="
+	if got := client.requests[0].body; !strings.HasPrefix(got, wantBody) || len(got) != len(wantBody)+43 {
+		t.Errorf("expected exchange body %q followed by the 43-character verifier, got %q", wantBody, got)
+	}
+}
+
+// pkceParams reads the PKCE parameters off an authorize URL.
+func pkceParams(t *testing.T, authorizeURL string) (challenge, method string) {
+	t.Helper()
+	parsed, err := neturl.Parse(authorizeURL)
+	if err != nil {
+		t.Fatalf("authorize URL does not parse: %v", err)
+	}
+	query := parsed.Query()
+	return query.Get("code_challenge"), query.Get("code_challenge_method")
+}
+
+// F858: the authorize URL carries an S256 challenge and the code exchange
+// proves it with the matching 43-character verifier (RFC 7636).
+func TestOAuth2AuthCode_AuthorizeUrlCarriesAPkceChallengeThatTheExchangeProves(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	challenge, method := pkceParams(t, authObj.BuildAuthorizationURL("s"))
+	if method != "S256" {
+		t.Errorf("expected code_challenge_method=S256, got %q", method)
+	}
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	form, err := neturl.ParseQuery(client.requests[0].body)
+	if err != nil {
+		t.Fatalf("exchange body does not parse: %v", err)
+	}
+	verifier := form.Get("code_verifier")
+	if len(verifier) != 43 {
+		t.Errorf("expected a 43-character verifier, got %d: %q", len(verifier), verifier)
+	}
+	digest := sha256.Sum256([]byte(verifier))
+	if want := base64.RawURLEncoding.EncodeToString(digest[:]); challenge != want {
+		t.Errorf("expected the challenge %q to be the S256 of the verifier, got %q", want, challenge)
+	}
+	if strings.Contains(client.requests[0].body, "nonce") {
+		t.Error("an OAuth2 exchange must not send a nonce")
+	}
+}
+
+// Each authorize URL starts a new challenge, and the verifier is single-use: a
+// second exchange without a new URL sends none.
+func TestOAuth2AuthCode_EachAuthorizeUrlStartsANewChallengeAndTheVerifierIsSingleUse(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	first, _ := pkceParams(t, authObj.BuildAuthorizationURL(""))
+	second, _ := pkceParams(t, authObj.BuildAuthorizationURL(""))
+	if first == "" || first == second {
+		t.Errorf("expected a new challenge per URL, got %q then %q", first, second)
+	}
+	if err := authObj.ExchangeCode("C1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := authObj.ExchangeCode("C2"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(client.requests[0].body, "code_verifier=") {
+		t.Errorf("expected the first exchange to prove the challenge, got %q", client.requests[0].body)
+	}
+	if strings.Contains(client.requests[1].body, "code_verifier") {
+		t.Errorf("expected no verifier on the second exchange, got %q", client.requests[1].body)
 	}
 }
 
@@ -637,5 +717,29 @@ func TestOAuth2AuthCode_FailedExchangeKeepsThePreviousSession(t *testing.T) {
 	}
 	if got := authObj.AuthHeaders()["Authorization"]; got != "Bearer tok1" {
 		t.Errorf("expected the previous token to survive, got %q", got)
+	}
+}
+
+// F855: InvalidateAccessToken keeps the refresh token and the exchanged state,
+// so the next call is a refresh grant rather than ErrAuthCodeNotExchanged.
+func TestOAuth2AuthCode_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	authObj.InvalidateAccessToken()
+	headers, err := authObj.AuthHeadersOrError()
+	if err != nil || headers["Authorization"] != "Bearer tok2" {
+		t.Fatalf("expected Bearer tok2 after the invalidation, got %v, %v", headers, err)
+	}
+	if body := client.requests[1].body; !strings.Contains(body, "grant_type=refresh_token") || !strings.Contains(body, "refresh_token=ref1") {
+		t.Errorf("expected a refresh grant with the kept refresh token, got %q", body)
 	}
 }

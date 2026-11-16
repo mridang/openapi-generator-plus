@@ -243,6 +243,14 @@ let transport = TransportOptions::builder()
 let client = Client::new(Box::new(authenticator), Some(transport));
 ```
 
+### Retries
+
+A call is retried up to `max_retries` times (default 2; `.max_retries(0)` disables it) after a network error before a response, and after a status of 408, 409, 429 or 500-599 except 501. The wait is 0.5 s doubling to 8 s with 25% jitter, or the `Retry-After` header (at most 60 s). Each retry is a fresh request with its authentication headers rebuilt, all inside the one `timeout`; a multipart body is never retried.
+
+```rust
+let transport = TransportOptions::builder().max_retries(0).build()?;
+```
+
 ### Cancellation
 
 The SDK adds no cancellation parameter: drop the future to cancel a call, or wrap it in `tokio::time::timeout` or `tokio::select!`. `TransportOptions::timeout` bounds a call and fails with `NetworkTimeoutError`; cancellation is never reported as one.

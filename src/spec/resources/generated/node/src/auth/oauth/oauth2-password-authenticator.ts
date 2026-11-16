@@ -152,6 +152,15 @@ export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
   }
 
   /**
+   * Drop the cached access token so the next request obtains a fresh one
+   * (through the refresh token when one is held). The refresh token is kept.
+   * The client calls this when the API answers 401.
+   */
+  invalidateAccessToken(): void {
+    this.tokenManager.invalidateAccessToken();
+  }
+
+  /**
    * Returns query parameters to include for authentication.
    *
    * @returns empty record (not used for OAuth2)

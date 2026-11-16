@@ -77,6 +77,22 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
+    public async Task InvalidatingTheAccessTokenFetchesANewOneOnTheNextCall()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        Assert.Equal("Bearer tok1", (await auth.GetAuthHeadersAsync())["Authorization"]);
+        Assert.Equal("Bearer tok1", (await auth.GetAuthHeadersAsync())["Authorization"]);
+
+        auth.InvalidateAccessToken();
+
+        Assert.Equal("Bearer tok2", (await auth.GetAuthHeadersAsync())["Authorization"]);
+    }
+
+    [Fact]
     public async Task SendsClientIdAndSecret()
     {
         var client = new FakeApiClient();

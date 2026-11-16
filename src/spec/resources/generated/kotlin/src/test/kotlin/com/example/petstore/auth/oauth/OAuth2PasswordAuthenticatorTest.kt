@@ -58,6 +58,24 @@ class OAuth2PasswordAuthenticatorTest {
         )
 
     @Test
+    fun invalidateAccessTokenKeepsTheRefreshTokenForTheNextCall() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val first = runBlocking { auth.getAuthHeaders() }["Authorization"]
+        auth.invalidateAccessToken()
+        val second = runBlocking { auth.getAuthHeaders() }["Authorization"]
+
+        assertEquals("Bearer tok1", first)
+        assertEquals("Bearer tok2", second)
+        assertTrue(client.lastBody!!.contains("grant_type=refresh_token"), client.lastBody)
+        assertTrue(client.lastBody!!.contains("refresh_token=ref1"), client.lastBody)
+    }
+
+    @Test
     fun refreshUrlIsATrailingOptionalArgument() {
         // refreshUrl comes after scopes and defaults to null (like the
         // authorization-code authenticator and the other SDKs), so the required

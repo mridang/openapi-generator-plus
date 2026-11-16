@@ -301,6 +301,74 @@ class ApiExceptionTest {
     }
 
     @Test
+    fun renderedFormMasksCredentialHeadersButKeepsThemOnTheException() {
+        val ex =
+            ApiException(
+                401,
+                "no",
+                mapOf(
+                    "Set-Cookie" to "sid=abc",
+                    "WWW-Authenticate" to "Bearer realm=x",
+                    "Proxy-Authenticate" to "Basic",
+                    "Authorization" to "Bearer t",
+                    "X-Api-Key" to "k",
+                    "X-Session-Token" to "s",
+                    "X-Client-Secret" to "c",
+                    "Retry-After" to "5",
+                ),
+                null,
+            )
+
+        assertEquals(
+            "no\nHTTP status code: 401\nResponse headers: " +
+                "{\"Authorization\":\"***\",\"Proxy-Authenticate\":\"***\",\"Retry-After\":\"5\"," +
+                "\"Set-Cookie\":\"***\",\"WWW-Authenticate\":\"***\",\"X-Api-Key\":\"***\"," +
+                "\"X-Client-Secret\":\"***\",\"X-Session-Token\":\"***\"}",
+            ex.toString(),
+        )
+        assertEquals("sid=abc", ex.responseHeaders!!["Set-Cookie"])
+    }
+
+    @Test
+    fun renderedBodyIsCappedAtOneKibibyteAndKeepsTheFullBodyOnTheException() {
+        val body = "x".repeat(1030)
+
+        val ex = ApiException(500, "boom", emptyMap(), body)
+
+        assertEquals(
+            "boom\nHTTP status code: 500\nResponse body: " + "x".repeat(1024) + "... (6 more bytes)",
+            ex.toString(),
+        )
+        assertEquals(body, ex.responseBody)
+        assertEquals(
+            "boom\nHTTP status code: 500\nResponse body: " + "x".repeat(1024),
+            ApiException(500, "boom", emptyMap(), "x".repeat(1024)).toString(),
+        )
+    }
+
+    @Test
+    fun renderedBodyNeverCutsAMultiByteCharacterInHalf() {
+        val body = "x".repeat(1023) + "\u00e9" + "tail"
+
+        val rendered = ApiException(500, "boom", null, body).toString()
+
+        assertEquals(
+            "boom\nHTTP status code: 500\nResponse body: " + "x".repeat(1023) + "... (6 more bytes)",
+            rendered,
+        )
+    }
+
+    @Test
+    fun renderedBodyEscapesControlCharactersSoNothingCanForgeALogLine() {
+        val ex = ApiException(500, "boom", null, "a\r\nHTTP status code: 200\u0001\u007f")
+
+        assertEquals(
+            "boom\nHTTP status code: 500\nResponse body: a\\x0D\\x0AHTTP status code: 200\\x01\\x7F",
+            ex.toString(),
+        )
+    }
+
+    @Test
     fun fromResponseRefusesADeeplyNestedErrorBodyButKeepsTheRawBody() {
         val nested = "[".repeat(5000) + "]".repeat(5000)
 

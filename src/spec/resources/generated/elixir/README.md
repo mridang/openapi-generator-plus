@@ -57,6 +57,14 @@ client = PetstoreClient.Client.with_token("https://api.example.com", "your-token
 
 Pass Req options such as an `:adapter` or a `:plug` through `TransportOptions.new(req_options: [...])`. The SDK's own settings win and the SDK never closes a transport you supply.
 
+### Retries
+
+A failed call is retried up to `max_retries` times (default `2`; `0` turns retries off): after a network error that happened before any response, and after a response with status 408, 409, 429 or 500 to 599 other than 501. The wait starts at 0.5 s and doubles up to 8 s, less up to 25% jitter, and a `Retry-After` header (seconds or an HTTP date, capped at 60 s) replaces it. Every retry is a fresh request with its authentication headers rebuilt, and no retry runs past the end-to-end `timeout`. A 401 on a call authenticated by OAuth2 or OpenID Connect drops the cached access token (the refresh token is kept) and replays the request once, rebuilt; a second 401 is the usual `UnauthorizedError`.
+
+```elixir
+transport = PetstoreClient.TransportOptions.new(max_retries: 0)
+```
+
 ### Cancellation
 
 There is no cancellation argument. A caller stops a call by terminating the process that made it (a process exit signal, the idiom here), and `timeout` on `TransportOptions` ends a call with `NetworkTimeoutError`.
@@ -126,10 +134,6 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
-
-### Automatic retries
-
-The SDK does not retry a failed request.
 
 ### XML bodies, Link Objects and mutual TLS
 

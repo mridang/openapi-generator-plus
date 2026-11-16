@@ -46,6 +46,16 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     )
   end
 
+  # Every authorization URL ends in its own PKCE challenge, so a comparison of two
+  # URLs drops it first.
+  defp strip_pkce(url) do
+    Regex.replace(~r/&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256\z/, url, "")
+  end
+
+  defp query_params(url) do
+    url |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query()
+  end
+
   describe "OAuth2AuthorizationCodeAuthenticator" do
     # The authenticator generated for the spec's authorization code scheme
     # passes its endpoints to the flow in the right places.
@@ -148,9 +158,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
 
       refute String.contains?(url, "state")
 
-      assert url ==
-               PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
-                 auth
+      assert strip_pkce(url) ==
+               strip_pkce(
+                 PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+                   auth
+                 )
                )
     end
 
@@ -506,10 +518,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
           fake_client
         )
 
-      assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
-               auth,
-               "s"
-             ) ==
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          auth,
+          "s"
+        )
+
+      assert strip_pkce(url) ==
                "https://auth.example.com/authorize?response_type=code&client_id=my-client-id" <>
                  "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=s"
 
@@ -520,12 +535,162 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
 
       assert [{_, exchange}, {_, refresh}] = FakeApiClient.requests(fake_client)
 
+      verifier = PetstoreClient.Auth.OAuth.OAuth2TokenManager.code_verifier(auth.token_manager)
+
       assert exchange ==
                "grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret" <>
-                 "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+                 "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&code_verifier=#{verifier}"
 
       assert refresh ==
                "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
+    end
+
+    test "the authorization URL carries a PKCE S256 challenge that the code exchange proves" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      params =
+        auth
+        |> PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          "s"
+        )
+        |> query_params()
+
+      assert params["code_challenge_method"] == "S256"
+      refute Map.has_key?(params, "nonce")
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+        auth,
+        "the-code"
+      )
+
+      form = FakeApiClient.last_body(fake_client) |> URI.decode_query()
+      verifier = form["code_verifier"]
+
+      assert byte_size(verifier) == 43
+      assert verifier =~ ~r/\A[A-Za-z0-9_-]+\z/
+
+      assert params["code_challenge"] ==
+               Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
+    end
+
+    test "each authorization URL has its own challenge and the exchange proves the last one" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          auth
+        )
+        |> query_params()
+
+      second =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          auth
+        )
+        |> query_params()
+
+      assert first["code_challenge"] != second["code_challenge"]
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+        auth,
+        "the-code"
+      )
+
+      verifier =
+        FakeApiClient.last_body(fake_client) |> URI.decode_query() |> Map.fetch!("code_verifier")
+
+      assert second["code_challenge"] ==
+               Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
+    end
+
+    test "a code exchange without a built authorization URL sends no code verifier" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+        auth,
+        "the-code"
+      )
+
+      refute String.contains?(FakeApiClient.last_body(fake_client), "code_verifier")
+    end
+
+    test "the refresh request carries no code verifier" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 0
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth)
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "C")
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)
+
+      assert [{_, exchange}, {_, refresh}] = FakeApiClient.requests(fake_client)
+      assert exchange =~ "code_verifier="
+      refute refresh =~ "code_verifier"
     end
 
     # The exchange is recorded in the shared token manager, not in the struct, so
@@ -639,6 +804,54 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert String.contains?(url, "audience=api")
       assert String.contains?(url, "response_type=code")
       assert length(String.split(url, "?")) - 1 == 1
+    end
+
+    test "invalidate_access_token drops the access token and keeps the refresh token" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 3600
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "C")
+
+      assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.invalidate_access_token(
+               auth
+             ) == :ok
+
+      assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok2"
+
+      assert [{_, _exchange}, {_, refresh}] = FakeApiClient.requests(fake_client)
+      assert refresh =~ "grant_type=refresh_token"
+      assert refresh =~ "refresh_token=ref1"
     end
 
     test "redacts the secret" do

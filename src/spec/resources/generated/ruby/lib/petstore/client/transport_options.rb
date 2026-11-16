@@ -70,6 +70,15 @@ module Petstore::Client
     # @return [Boolean]
     attr_reader :inject_request_id
 
+    # How many times a failed request is sent again: after a network error
+    # that happened before any response, and after a 408, 409, 429 or 5xx
+    # (not 501) response. +0+ turns retries off. Waits grow from 0.5 s to a
+    # cap of 8 s, with jitter, and a +Retry-After+ header (capped at 60 s) is
+    # honoured. The {#timeout} budget is never extended, and a multipart or
+    # stream body is never sent twice.
+    # @return [Integer]
+    attr_reader :max_retries
+
     # A caller-supplied Faraday connection used instead of a self-built one,
     # or +nil+ when the SDK builds its own. The caller owns its lifecycle: the
     # SDK never closes it. Timeouts, retries, the user agent, the redirect
@@ -80,7 +89,7 @@ module Petstore::Client
     # @api private
     def initialize(verify_ssl:, ca_cert_path:, proxy:, timeout:,
                    follow_redirects:, max_redirects:, user_agent:,
-                   default_headers:, inject_request_id:, connection: nil)
+                   default_headers:, inject_request_id:, max_retries: 2, connection: nil)
       self.class.validate_proxy!(proxy)
       self.class.validate_connection!(connection, verify_ssl, ca_cert_path, proxy)
       @verify_ssl = verify_ssl
@@ -92,6 +101,7 @@ module Petstore::Client
       @user_agent = user_agent
       @default_headers = default_headers.freeze
       @inject_request_id = inject_request_id
+      @max_retries = self.class.validate_max_retries!(max_retries)
       @connection = connection
       freeze
     end
@@ -118,6 +128,18 @@ module Petstore::Client
       end
       raise ArgumentError, mask_userinfo("Invalid proxy URL (must use http or https scheme): #{val}") unless uri.scheme && %w[http https].include?(uri.scheme.downcase)
       raise ArgumentError, mask_userinfo("Invalid proxy URL (missing host): #{val}") unless uri.host && !uri.host.empty?
+    end
+
+    # Validate a retry count, so the check holds for direct construction as
+    # well as for the builder.
+    # @api private
+    # @param val [Integer] the retry count
+    # @return [Integer] +val+
+    # @raise [ArgumentError] if it is not a non-negative integer
+    def self.validate_max_retries!(val)
+      raise ArgumentError, "Invalid max_retries: must be a non-negative integer (got #{val.inspect})" unless val.is_a?(Integer) && val >= 0
+
+      val
     end
 
     # +text+ with the userinfo of every URL in it replaced by +***@+, so an
@@ -194,7 +216,7 @@ module Petstore::Client
         "proxy=#{self.class.redact_url(@proxy).inspect} timeout=#{@timeout.inspect} " \
         "follow_redirects=#{@follow_redirects.inspect} max_redirects=#{@max_redirects.inspect} " \
         "user_agent=#{@user_agent.inspect} default_headers=#{self.class.redact_headers(@default_headers).inspect} " \
-        "inject_request_id=#{@inject_request_id.inspect}>"
+        "inject_request_id=#{@inject_request_id.inspect} max_retries=#{@max_retries.inspect}>"
     end
     alias to_s inspect
 
@@ -205,6 +227,7 @@ module Petstore::Client
     # - +follow_redirects+ -- +true+
     # - +inject_request_id+ -- +false+
     # - +timeout+ -- +10_000+ (10 seconds)
+    # - +max_retries+ -- +2+
     # - +user_agent+ -- a package-specific default string
     # - All other fields -- +nil+ or empty
     class Builder
@@ -218,6 +241,7 @@ module Petstore::Client
         @user_agent = 'petstore_client/1.0.0 (ruby)'
         @default_headers = {} # : Hash[String, String]
         @inject_request_id = false
+        @max_retries = 2
         @connection = nil
       end
 
@@ -318,6 +342,16 @@ module Petstore::Client
         self
       end
 
+      # Set how many times a failed request is sent again (see
+      # {TransportOptions#max_retries}).
+      # @param val [Integer] the retry count; +0+ disables retries (default +2+)
+      # @return [self]
+      # @raise [ArgumentError] if it is not a non-negative integer
+      def max_retries(val)
+        @max_retries = TransportOptions.validate_max_retries!(val)
+        self
+      end
+
       # Build and return an immutable {TransportOptions} instance.
       # @return [TransportOptions]
       def build
@@ -331,6 +365,7 @@ module Petstore::Client
           user_agent: @user_agent,
           default_headers: @default_headers.dup,
           inject_request_id: @inject_request_id,
+          max_retries: @max_retries,
           connection: @connection
         )
       end

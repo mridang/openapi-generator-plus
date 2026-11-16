@@ -105,6 +105,17 @@ public final class TransportOptions: Sendable {
   /// ``TransportOptionsBuilder/build()`` rejects that combination.
   public let session: URLSession?
 
+  /// Maximum number of automatic retries after the first attempt.
+  ///
+  /// Defaults to 2; 0 disables retries. A request is retried after a network
+  /// error that happened before any response arrived, and after a response
+  /// with status 408, 409, 429 or 500 to 599 (not 501), waiting 0.5 s
+  /// doubling up to 8 s with 25% jitter, or the server's `Retry-After`
+  /// (capped at 60 s). The ``timeout`` stays the single end-to-end budget:
+  /// retries never extend it. A body that cannot be replayed is never
+  /// retried.
+  public let maxRetries: Int
+
   fileprivate init(
     verifySsl: Bool,
     caCertPath: String?,
@@ -115,7 +126,8 @@ public final class TransportOptions: Sendable {
     userAgent: String?,
     defaultHeaders: [String: String],
     injectRequestID: Bool,
-    session: URLSession?
+    session: URLSession?,
+    maxRetries: Int
   ) {
     self.verifySsl = verifySsl
     self.caCertPath = caCertPath
@@ -127,6 +139,7 @@ public final class TransportOptions: Sendable {
     self._defaultHeaders = defaultHeaders
     self.injectRequestID = injectRequestID
     self.session = session
+    self.maxRetries = maxRetries
   }
 
   /// Create a new builder for constructing ``TransportOptions`` instances.
@@ -150,6 +163,7 @@ public final class TransportOptions: Sendable {
 /// - `followRedirects`: `true`
 /// - `injectRequestID`: `false`
 /// - `timeout`: `10000` (10 seconds)
+/// - `maxRetries`: `2`
 /// - `userAgent`: a package-specific default string
 /// - All other fields: `nil` or empty
 public final class TransportOptionsBuilder {
@@ -163,6 +177,7 @@ public final class TransportOptionsBuilder {
   private var defaultHeaders: [String: String] = [:]
   private var injectRequestID: Bool = false
   private var session: URLSession? = nil
+  private var maxRetries: Int = 2
 
   public init() {}
 
@@ -261,18 +276,31 @@ public final class TransportOptionsBuilder {
     return self
   }
 
+  /// Set the maximum number of automatic retries (0 disables them).
+  ///
+  /// A negative value is rejected by ``build()``.
+  @discardableResult
+  public func maxRetries(_ val: Int) -> TransportOptionsBuilder {
+    self.maxRetries = val
+    return self
+  }
+
   /// Build and return an immutable ``TransportOptions`` instance.
   ///
   /// - Throws: ``ConfigurationError/invalidProxy(_:)`` if the proxy URL is
   ///   not valid or does not use the http or https scheme,
   ///   ``ConfigurationError/invalidTimeout(_:)`` if the timeout is zero or
-  ///   negative, and
+  ///   negative, ``ConfigurationError/invalidArgument(_:)`` if `maxRetries`
+  ///   is negative, and
   ///   ``ConfigurationError/invalidArgument(_:)`` if a supplied session is
   ///   combined with a proxy, a CA certificate, disabled TLS verification
   ///   or a redirect policy.
   public func build() throws -> TransportOptions {
     if let timeout = timeout, timeout <= 0 {
       throw ConfigurationError.invalidTimeout(timeout)
+    }
+    if maxRetries < 0 {
+      throw ConfigurationError.invalidArgument("maxRetries must not be negative: \(maxRetries)")
     }
     var parsedProxy: URL? = nil
     if let val = proxy {
@@ -319,7 +347,8 @@ public final class TransportOptionsBuilder {
       userAgent: userAgent,
       defaultHeaders: defaultHeaders,
       injectRequestID: injectRequestID,
-      session: session
+      session: session,
+      maxRetries: maxRetries
     )
   }
 }

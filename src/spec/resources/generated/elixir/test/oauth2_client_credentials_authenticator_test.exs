@@ -394,6 +394,47 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       assert Base.decode64!(encoded) == "id~%2A%21%27%28%29:secret~%2A%21%27%28%29"
     end
 
+    test "invalidate_access_token drops the cached token so the next call fetches a new one" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      assert PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.invalidate_access_token(
+               auth
+             ) == :ok
+
+      assert PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok2"
+    end
+
     test "redacts the secret" do
       auth = create_authenticator()
 

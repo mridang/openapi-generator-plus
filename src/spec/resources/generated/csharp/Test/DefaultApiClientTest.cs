@@ -53,7 +53,7 @@ public class DefaultApiClientTest
            trust store does not know. With verification on and no CA supplied the
            connection must be refused as a network failure; a transport that
            ignored VerifySsl would answer 200 here. */
-        var transport = TransportOptions.Builder().VerifySsl(true).Build();
+        var transport = TransportOptions.Builder().VerifySsl(true).MaxRetries(0).Build();
 
         var client = new DefaultApiClient(transport);
         var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
@@ -71,7 +71,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task VerifySslDefaultRejectsAnUntrustedCertificate()
     {
-        var transport = TransportOptions.Builder().Build();
+        var transport = TransportOptions.Builder().MaxRetries(0).Build();
 
         var client = new DefaultApiClient(transport);
         var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
@@ -141,7 +141,12 @@ public class DefaultApiClientTest
                 ? "[" + address + "]"
                 : address.ToString();
 
-        var transport = TransportOptions.Builder().VerifySsl(true).CaCertPath(caCertPath).Build();
+        var transport = TransportOptions
+            .Builder()
+            .VerifySsl(true)
+            .CaCertPath(caCertPath)
+            .MaxRetries(0)
+            .Build();
 
         var client = new DefaultApiClient(transport);
         var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>

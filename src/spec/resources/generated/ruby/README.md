@@ -30,11 +30,15 @@ See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a w
 
 ## Configuration
 
-`TransportOptions.builder` sets `timeout` (milliseconds, one end-to-end budget across redirects; a non-positive value raises `ArgumentError`), `proxy`, `verify_ssl`, `ca_cert_path`, `follow_redirects`, `max_redirects`, `user_agent`, `default_headers` and `inject_request_id`. The proxy is exactly what you configure: `HTTP_PROXY` and `NO_PROXY` are ignored. Every request carries an `X-Request-ID` header unless you send one.
+`TransportOptions.builder` sets `timeout` (milliseconds, one end-to-end budget across redirects; a non-positive value raises `ArgumentError`), `proxy`, `verify_ssl`, `ca_cert_path`, `follow_redirects`, `max_redirects`, `user_agent`, `default_headers`, `inject_request_id` and `max_retries`. The proxy is exactly what you configure: `HTTP_PROXY` and `NO_PROXY` are ignored. Every request carries an `X-Request-ID` header unless you send one.
 
 ### Custom HTTP client
 
 `TransportOptions.builder.connection(faraday_connection)` supplies your own `Faraday::Connection`. The SDK keeps applying its timeout, user agent, redirect policy and query encoding, and never closes a connection you supplied.
+
+### Automatic retries
+
+`TransportOptions.builder.max_retries(n)` sets how many times a failed request is sent again (default `2`; `0` turns retries off). A request is retried after a network error that happened before any response, and after a `408`, `409`, `429` or `5xx` (not `501`) response. The wait starts at 0.5 seconds and doubles up to 8 seconds, with up to 25% jitter; a `Retry-After` header (seconds or an HTTP date, at most 60 seconds) is honoured instead. The `timeout` budget is never extended by retries, a TLS failure is not retried, and a multipart or stream body is never sent twice. Every retry is a new request: its headers, authentication included, are built again.
 
 ### Raw responses
 
@@ -123,10 +127,6 @@ Response Link Objects are ignored; follow links in your own code.
 ### Mutual TLS security schemes
 
 `mutualTLS` security schemes are not generated. Supply a client certificate through your own `Faraday::Connection` (see Custom HTTP client).
-
-### Automatic retries
-
-The SDK never retries a request. Wrap calls in your own retry policy.
 
 ### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
 

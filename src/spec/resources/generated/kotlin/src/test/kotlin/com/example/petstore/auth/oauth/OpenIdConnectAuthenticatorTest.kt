@@ -381,6 +381,45 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    fun rediscoveryKeepsThePkceVerifierOfTheAuthorizationUrl() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("cache-control" to "max-age=0"))
+        client.enqueue(discovery("https://auth.example.com/authorize"))
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val url = runBlocking { auth.buildAuthorizationUrl("st") }
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        assertEquals(2, client.getCount, "the stale document is fetched again before the exchange")
+        val challenge = Regex("code_challenge=([^&]+)").find(url)!!.groupValues[1]
+        assertTrue(url.contains("code_challenge_method=S256"), url)
+        assertFalse(url.contains("nonce"), url)
+        val verifier = Regex("code_verifier=([^&]+)").find(client.lastBody.orEmpty())?.groupValues?.get(1)
+        assertNotNull(verifier, client.lastBody)
+        assertEquals(challenge, OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifier!!))
+    }
+
+    @Test
+    fun invalidateAccessTokenKeepsTheSessionAndTheRefreshToken() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"))
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        runBlocking { auth.exchangeCode("oidc-code") }
+
+        auth.invalidateAccessToken()
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("Bearer tok2", headers["Authorization"])
+        assertTrue(client.lastBody!!.contains("grant_type=refresh_token"), client.lastBody)
+        assertTrue(client.lastBody!!.contains("refresh_token=ref1"), client.lastBody)
+    }
+
+    @Test
     fun discoveryIsCachedWhileItsMaxAgeHasNotElapsed() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=3600"))

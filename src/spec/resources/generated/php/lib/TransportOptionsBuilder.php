@@ -56,6 +56,9 @@ final class TransportOptionsBuilder
     /** @var bool Whether to inject X-Request-ID headers. */
     private bool $injectRequestId = false;
 
+    /** @var int Maximum number of automatic retries (0 disables). */
+    private int $maxRetries = 2;
+
     /**
      * Enable or disable TLS certificate verification.
      *
@@ -181,6 +184,24 @@ final class TransportOptionsBuilder
     }
 
     /**
+     * Set the maximum number of automatic retries.
+     *
+     * A request is retried after a network error that happened before a
+     * response and after a 408, 409, 429 or 5xx (except 501) response, with
+     * exponential backoff from 0.5 s to 8 s and `Retry-After` honoured (capped
+     * at 60 s). The retries never extend the request timeout, and a stream or
+     * multipart body is never retried.
+     *
+     * @param int $maxRetries retries after the first attempt (default 2); 0 disables retrying
+     * @return self this builder
+     */
+    public function maxRetries(int $maxRetries): self
+    {
+        $this->maxRetries = $maxRetries;
+        return $this;
+    }
+
+    /**
      * Build and return an immutable TransportOptions instance.
      *
      * @return TransportOptions the configured transport options
@@ -197,6 +218,7 @@ final class TransportOptionsBuilder
             userAgent: $this->userAgent,
             defaultHeaders: $this->defaultHeaders,
             injectRequestId: $this->injectRequestId,
+            maxRetries: $this->maxRetries,
         );
     }
 }

@@ -57,6 +57,14 @@ defmodule PetstoreClient.TransportOptions do
     unique UUID on every request. Useful for distributed tracing and log
     correlation. The header is only injected if the caller has not already set
     one.
+  * `max_retries` - How many times a failed call is tried again (default `2`; `0`
+    turns retries off). A call is retried after a network error that happened
+    before any response, and after a response with status 408, 409, 429 or
+    500 to 599 other than 501. The wait starts at 0.5 s and doubles up to 8 s,
+    less up to 25% jitter; a `Retry-After` header (seconds or an HTTP date)
+    replaces it, capped at 60 s. Every retry is a fresh request with its
+    headers (authentication included) rebuilt. Retries never extend the
+    end-to-end `timeout` and are skipped for a body that is a stream.
   * `req_options` - Extra options handed to `Req.new/1`, for a custom transport
     such as an `:adapter` function (a test double, an instrumented adapter) or
     a `:plug`. The SDK's own settings (timeouts, redirect policy,
@@ -77,6 +85,7 @@ defmodule PetstoreClient.TransportOptions do
           user_agent: String.t() | nil,
           default_headers: %{optional(String.t()) => String.t()},
           inject_request_id: boolean(),
+          max_retries: non_neg_integer(),
           req_options: keyword()
         }
 
@@ -89,6 +98,7 @@ defmodule PetstoreClient.TransportOptions do
             user_agent: "petstore_client/1.0.0 (elixir)",
             default_headers: %{},
             inject_request_id: false,
+            max_retries: 2,
             req_options: []
 
   # The proxy URL may carry `user:pass@` credentials and the default headers
@@ -147,6 +157,7 @@ defmodule PetstoreClient.TransportOptions do
     * `:follow_redirects` - `true`
     * `:inject_request_id` - `false`
     * `:timeout` - `10_000` (10 seconds)
+    * `:max_retries` - `2`
     * `:user_agent` - a package-specific default string
     * all other fields - `nil` or empty
 
@@ -161,11 +172,12 @@ defmodule PetstoreClient.TransportOptions do
     * `:user_agent` - Custom User-Agent header value, or `nil` to omit.
     * `:default_headers` - Transport-level default headers.
     * `:inject_request_id` - Whether to auto-inject an X-Request-ID header.
+    * `:max_retries` - How many times a failed call is retried (`2` by default, `0` for none).
     * `:req_options` - Extra `Req.new/1` options (a custom `:adapter` or `:plug`); the SDK's own settings win.
 
   ## Raises
 
-    `ArgumentError` if the proxy URL is not a valid URL with an http or https scheme and a host,
+    `ArgumentError` if `:max_retries` is not a non-negative integer, if the proxy URL is not a valid URL with an http or https scheme and a host,
     if `:timeout` is zero or negative, if `:req_options` is not a keyword list, or if it carries
     `:connect_options` or `:finch` while `proxy`, `ca_cert_path` or `verify_ssl: false` is set.
 
@@ -173,6 +185,11 @@ defmodule PetstoreClient.TransportOptions do
   @spec new(keyword()) :: t()
   def new(opts \\ []) do
     result = struct!(__MODULE__, opts)
+
+    unless is_integer(result.max_retries) and result.max_retries >= 0 do
+      raise ArgumentError,
+            "Invalid max_retries: must be a non-negative integer (got #{inspect(result.max_retries)})"
+    end
 
     if is_integer(result.timeout) and result.timeout <= 0 do
       raise ArgumentError,

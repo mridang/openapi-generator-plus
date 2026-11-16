@@ -369,7 +369,14 @@ describe("scheme authenticators the spec declares", () => {
       );
       auth.setApiClient(client);
 
-      expect(auth.buildAuthorizationUrl()).toBe(
+      expect(
+        auth
+          .buildAuthorizationUrl()
+          .replace(
+            /&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256$/,
+            "",
+          ),
+      ).toBe(
         "https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb&scope=pets%3Aread%20pets%3Awrite",
       );
       await auth.exchangeCode("the-code");

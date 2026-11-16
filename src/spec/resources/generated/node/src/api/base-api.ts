@@ -12,7 +12,7 @@ import { isNoAuth } from "../auth/authenticator.js";
 import { isHttpAwareAuthenticator } from "../auth/http-aware-authenticator.js";
 /* Imported through the errors barrel, which loads every status-specific
  * error, so ApiError.fromResponse knows them all. */
-import { ApiError, SerializationError } from "../errors/index.js";
+import { ApiError, SerializationError, OpenAPIError } from "../errors/index.js";
 import { Configuration } from "../configuration.js";
 import { DefaultApiClient } from "#transport";
 import { HeaderSelector } from "../header-selector.js";
@@ -242,16 +242,65 @@ export abstract class BaseApi {
       (s): s is AbortSignal => s != null,
     );
     const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
-    const response = await this.apiClient.sendRequest(
+    const sendOptions = {
+      ...(signal ? { signal } : {}),
+      credentialHeaderNames,
+      ...(effectiveAuth
+        ? { refreshAuthHeaders: () => effectiveAuth.getAuthHeadersAsync() }
+        : {}),
+    };
+    let response = await this.apiClient.sendRequest(
       method,
       url,
       headers,
       serializedBody,
-      {
-        ...(signal ? { signal } : {}),
-        credentialHeaderNames,
-      },
+      sendOptions,
     );
+
+    /* A revoked or rotated token keeps failing while it is cached. An OAuth2
+     * or OpenID Connect authenticator drops it on a 401, obtains a new one (a
+     * refresh grant first) and the request is replayed once with fresh
+     * headers. A multipart body is not replayed, and a failed
+     * re-authentication leaves the 401 as it is. API key, basic and bearer
+     * authenticators have no token to drop and never replay. */
+    const renewable = effectiveAuth as
+      (Authenticator & { invalidateAccessToken?: () => void }) | null;
+    if (
+      response.statusCode === 401 &&
+      effectiveAuth != null &&
+      typeof renewable?.invalidateAccessToken === "function" &&
+      (serializedBody === null ||
+        typeof serializedBody === "string" ||
+        Buffer.isBuffer(serializedBody))
+    ) {
+      renewable.invalidateAccessToken();
+      let freshAuthHeaders: Record<string, string> | null;
+      try {
+        freshAuthHeaders = await effectiveAuth.getAuthHeadersAsync();
+      } catch (error) {
+        if (!(error instanceof OpenAPIError)) {
+          throw error;
+        }
+        freshAuthHeaders = null;
+      }
+      if (freshAuthHeaders !== null) {
+        const names = new Set(
+          Object.keys(freshAuthHeaders).map((key) => key.toLowerCase()),
+        );
+        const replayHeaders: Record<string, string> = {};
+        for (const [key, value] of Object.entries(headers)) {
+          if (!names.has(key.toLowerCase())) replayHeaders[key] = value;
+        }
+        Object.assign(replayHeaders, freshAuthHeaders);
+        response = await this.apiClient.sendRequest(
+          method,
+          url,
+          replayHeaders,
+          serializedBody,
+          sendOptions,
+        );
+      }
+    }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       this.throwApiError(response);

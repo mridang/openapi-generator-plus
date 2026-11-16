@@ -74,6 +74,44 @@ class HttpAwareTestAuthenticator < TestAuthenticator
   end
 end
 
+# Serves a scripted list of statuses for API calls and issues numbered tokens
+# at the token endpoint, recording what each received.
+class ReplayApiClient
+  attr_reader :api_requests, :token_requests
+
+  def initialize(api_statuses, token_statuses: [])
+    @api_statuses = api_statuses
+    @token_statuses = token_statuses
+    @api_requests = []
+    @token_requests = []
+  end
+
+  def send_request(_method, url, headers, body, **_kwargs)
+    return token_response(body) if url.end_with?('/token')
+
+    @api_requests << { headers: headers.dup, body: body }
+    status = @api_statuses[@api_requests.length - 1] || @api_statuses.last
+    Petstore::Client::ApiHttpResponse.new(
+      status_code: status, body: '{}', headers: { 'content-type' => 'application/json' }
+    )
+  end
+
+  private
+
+  def token_response(body)
+    @token_requests << body
+    status = @token_statuses[@token_requests.length - 1] || 200
+    payload = if status == 200
+                { 'access_token' => "tok#{@token_requests.length}", 'refresh_token' => 'ref', 'expires_in' => 3600 }
+              else
+                { 'error' => 'server_error' }
+              end
+    Petstore::Client::ApiHttpResponse.new(
+      status_code: status, body: payload.to_json, headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
 describe Petstore::Client::Api::BaseApi do
   parallelize_me!
 
@@ -81,7 +119,8 @@ describe Petstore::Client::Api::BaseApi do
 
   let(:api) do
     config = Petstore::Client::Configuration.builder.base_url(chasm_url).build
-    TestableApi.new(Petstore::Client::DefaultApiClient.new, config)
+    single_attempt = Petstore::Client::TransportOptions.builder.max_retries(0).build
+    TestableApi.new(Petstore::Client::DefaultApiClient.new(single_attempt), config)
   end
 
   # ── Exception dispatch ──
@@ -896,5 +935,94 @@ describe Petstore::Client::Api::BaseApi do
       response_headers: {}
     )
     assert_nil err.typed_error_body('Category')
+  end
+
+  # ── F855: a 401 drops the cached OAuth2 token and replays the request once ──
+
+  def replay_api(client, auth)
+    auth.api_client = client if auth.respond_to?(:api_client=)
+    config = Petstore::Client::Configuration.builder.base_url('https://api.example.com').build
+    TestableApi.new(client, config, auth)
+  end
+
+  def client_credentials_auth
+    Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+      'https://api.example.com', 'cid', 'csecret', 'https://auth.example.com/token', []
+    )
+  end
+
+  def replay_call(api, content_type: 'application/json', body: nil, auth: nil)
+    api.call('POST', '/items', {}, {}, body, ['application/json'], content_type, nil, auth)
+  end
+
+  it 'replays a request once with a renewed token after a 401' do
+    client = ReplayApiClient.new([401, 200])
+    api = replay_api(client, client_credentials_auth)
+
+    replay_call(api, body: { 'a' => 1 })
+    _(client.api_requests.map { |r| r[:headers]['Authorization'] }).must_equal ['Bearer tok1', 'Bearer tok2']
+    _(client.api_requests.map { |r| r[:body] }.uniq.length).must_equal 1
+  end
+
+  it 'refreshes with the kept refresh token when it renews after a 401' do
+    client = ReplayApiClient.new([401, 200])
+    api = replay_api(client, client_credentials_auth)
+
+    replay_call(api)
+    _(client.token_requests.length).must_equal 2
+    _(client.token_requests.last).must_include 'grant_type=refresh_token'
+    _(client.token_requests.last).must_include 'refresh_token=ref'
+  end
+
+  it 'reports a second 401 as Unauthorized after exactly one replay' do
+    client = ReplayApiClient.new([401, 401, 200])
+    api = replay_api(client, client_credentials_auth)
+
+    assert_raises(Petstore::Client::Errors::UnauthorizedError) { replay_call(api) }
+    _(client.api_requests.length).must_equal 2
+  end
+
+  it 'does not replay a multipart body after a 401' do
+    client = ReplayApiClient.new([401, 200])
+    api = replay_api(client, client_credentials_auth)
+
+    assert_raises(Petstore::Client::Errors::UnauthorizedError) do
+      replay_call(api, content_type: 'multipart/form-data', body: { 'a' => 'b' })
+    end
+    _(client.api_requests.length).must_equal 1
+  end
+
+  it 'leaves the 401 as it is when the token cannot be renewed' do
+    client = ReplayApiClient.new([401, 200], token_statuses: [200, 500, 500])
+    api = replay_api(client, client_credentials_auth)
+
+    assert_raises(Petstore::Client::Errors::UnauthorizedError) { replay_call(api) }
+    _(client.api_requests.length).must_equal 1
+  end
+
+  it 'does not replay for an authenticator without a renewable token' do
+    client = ReplayApiClient.new([401, 200])
+    api = replay_api(client, TestAuthenticator.new(headers: { 'Authorization' => 'Bearer fixed' }))
+
+    assert_raises(Petstore::Client::Errors::UnauthorizedError) { replay_call(api) }
+    _(client.api_requests.length).must_equal 1
+  end
+
+  it 'does not replay an unauthenticated operation' do
+    client = ReplayApiClient.new([401, 200])
+    api = replay_api(client, client_credentials_auth)
+
+    assert_raises(Petstore::Client::Errors::UnauthorizedError) do
+      replay_call(api, auth: Petstore::Client::Api::BaseApi::NO_AUTH)
+    end
+    _(client.api_requests.length).must_equal 1
+  end
+
+  it 'does not replay other statuses' do
+    client = ReplayApiClient.new([403, 200])
+    api = replay_api(client, client_credentials_auth)
+
+    assert_raises(Petstore::Client::Errors::ForbiddenError) { replay_call(api) }
+    _(client.api_requests.length).must_equal 1
   end
 end

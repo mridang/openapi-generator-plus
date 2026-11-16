@@ -168,6 +168,54 @@ defmodule PetstoreClient.Api.BaseApi do
         explicit -> inject_api_client(explicit, Map.get(state, :api_client))
       end
 
+    # The request is rebuilt for every attempt (a replay after a 401, a retry), so
+    # authentication headers are re-applied and never reused from the last try.
+    build_request = fn ->
+      build_request(
+        state,
+        effective_auth,
+        url,
+        query_params,
+        header_params,
+        body,
+        accepts,
+        content_type
+      )
+    end
+
+    result = send_with_retries(state, method, effective_auth, build_request)
+
+    case result do
+      {:error, _} = error ->
+        error
+
+      {:ok, response} ->
+        if response.status_code < 200 or response.status_code >= 300 do
+          {:error,
+           PetstoreClient.Errors.ApiError.from_response(
+             response.status_code,
+             response.headers,
+             response.body
+           )}
+        else
+          decode_success_body(response, return_type)
+        end
+    end
+  end
+
+  # Builds one request: the URL with its query string, the headers (selected,
+  # configured, per-operation, authentication, cookies, trace context) and the
+  # serialized body. Called again for every attempt.
+  defp build_request(
+         state,
+         effective_auth,
+         url,
+         query_params,
+         header_params,
+         body,
+         accepts,
+         content_type
+       ) do
     query_params =
       case auth_credentials(effective_auth, :query_params) do
         nil -> query_params
@@ -251,35 +299,259 @@ defmodule PetstoreClient.Api.BaseApi do
     serialized_body = serialize_body(body, content_type)
     headers = if is_nil(serialized_body), do: Map.delete(headers, "Content-Type"), else: headers
 
-    result =
-      try do
-        {:ok,
-         case state.api_client do
-           %{__struct__: mod} = client ->
-             mod.send_request(client, method, url, headers, serialized_body)
+    {url, headers, serialized_body}
+  end
 
-           mod when is_atom(mod) ->
-             mod.send_request(method, url, headers, serialized_body)
-         end}
-      rescue
-        e -> {:error, e}
-      end
+  # ---------------------------------------------------------------------------
+  # Sending: the 401 replay and the automatic retries
+  # ---------------------------------------------------------------------------
 
-    case result do
-      {:error, _} = error ->
-        error
+  # A retry waits 0.5 s, then doubles up to 8 s, less up to 25% jitter. A
+  # Retry-After from the server replaces the backoff, capped at 60 s.
+  @retry_base_delay_ms 500
+  @retry_max_delay_ms 8_000
+  @retry_jitter 0.25
+  @retry_after_cap_ms 60_000
 
-      {:ok, response} ->
-        if response.status_code < 200 or response.status_code >= 300 do
-          {:error,
-           PetstoreClient.Errors.ApiError.from_response(
-             response.status_code,
-             response.headers,
-             response.body
-           )}
-        else
-          decode_success_body(response, return_type)
+  # What the retry loop carries from one attempt to the next: how many retries
+  # are allowed and used, the transport timeout, the monotonic deadline of the
+  # whole call (:unset until the first request is built, so the time spent
+  # fetching a token is not charged to the call; nil when there is no timeout)
+  # and whether the one 401 replay was spent.
+  @typep attempt_state :: %{
+           max_retries: non_neg_integer(),
+           retries: non_neg_integer(),
+           timeout: integer() | nil,
+           deadline: integer() | nil | :unset,
+           replayed: boolean()
+         }
+
+  @months %{
+    "jan" => 1,
+    "feb" => 2,
+    "mar" => 3,
+    "apr" => 4,
+    "may" => 5,
+    "jun" => 6,
+    "jul" => 7,
+    "aug" => 8,
+    "sep" => 9,
+    "oct" => 10,
+    "nov" => 11,
+    "dec" => 12
+  }
+
+  # Sends the request built by `build_request` and answers with `{:ok, response}`
+  # or `{:error, exception}`.
+  #
+  # A 401 on a call authenticated by an OAuth2 or OpenID Connect authenticator
+  # drops the cached access token (the refresh token stays) and replays the
+  # request once, rebuilt, so it carries a fresh token; a second 401 is
+  # returned as it is. Independently, a network error that happened before any
+  # response, and the statuses 408, 409, 429 and 500 to 599 (not 501), are
+  # retried up to `TransportOptions.max_retries` times with backoff. Neither
+  # happens for a body that cannot be sent twice (a stream), and a retry never
+  # waits past the end-to-end timeout.
+  @spec send_with_retries(map(), atom(), term(), (-> {String.t(), map(), term()})) ::
+          {:ok, term()} | {:error, Exception.t()}
+  defp send_with_retries(state, method, effective_auth, build_request) do
+    transport = transport_options(state.api_client)
+
+    attempt(state, method, effective_auth, build_request, %{
+      max_retries: if(transport, do: transport.max_retries || 0, else: 0),
+      retries: 0,
+      timeout: timeout(transport),
+      deadline: :unset,
+      replayed: false
+    })
+  end
+
+  @spec attempt(map(), atom(), term(), (-> {String.t(), map(), term()}), attempt_state()) ::
+          {:ok, term()} | {:error, Exception.t()}
+  defp attempt(state, method, effective_auth, build_request, ctx) do
+    {url, headers, serialized_body} = build_request.()
+    ctx = if ctx.deadline == :unset, do: %{ctx | deadline: deadline(ctx.timeout)}, else: ctx
+    result = send_once(state.api_client, method, url, headers, serialized_body, ctx.deadline)
+
+    cond do
+      not replayable?(serialized_body) ->
+        result
+
+      not ctx.replayed and unauthorized?(result) and
+          invalidate_access_token(effective_auth) == :ok ->
+        attempt(state, method, effective_auth, build_request, %{ctx | replayed: true})
+
+      true ->
+        case next_delay(result, ctx) do
+          {:ok, delay} ->
+            Process.sleep(delay)
+
+            attempt(state, method, effective_auth, build_request, %{
+              ctx
+              | retries: ctx.retries + 1
+            })
+
+          :none ->
+            result
         end
+    end
+  end
+
+  defp send_once(api_client, method, url, headers, body, deadline) do
+    {:ok,
+     case api_client do
+       %{__struct__: mod} = client ->
+         if deadline != nil and function_exported?(mod, :send_request, 6) do
+           mod.send_request(client, method, url, headers, body, deadline: deadline)
+         else
+           mod.send_request(client, method, url, headers, body)
+         end
+
+       mod when is_atom(mod) ->
+         mod.send_request(method, url, headers, body)
+     end}
+  rescue
+    e -> {:error, e}
+  end
+
+  # The client's transport settings, or nil for a client that has none (a
+  # custom client, a module): such a client is never retried.
+  defp transport_options(%{
+         __struct__: _,
+         transport_options: %PetstoreClient.TransportOptions{} = options
+       }),
+       do: options
+
+  defp transport_options(_api_client), do: nil
+
+  defp timeout(%PetstoreClient.TransportOptions{timeout: timeout}) when is_integer(timeout),
+    do: timeout
+
+  defp timeout(_transport), do: nil
+
+  defp deadline(timeout) when is_integer(timeout),
+    do: System.monotonic_time(:millisecond) + timeout
+
+  defp deadline(nil), do: nil
+
+  # A stream body is consumed by the first send; every other body is bytes.
+  defp replayable?(body) when is_function(body), do: false
+  defp replayable?(%_{}), do: false
+  defp replayable?(_body), do: true
+
+  defp unauthorized?({:ok, %{status_code: 401}}), do: true
+  defp unauthorized?(_result), do: false
+
+  # Drops the cached access token of an OAuth2 or OpenID Connect authenticator
+  # so its next call fetches (or refreshes) a new one. Any other authenticator
+  # (API key, basic, bearer, none) has nothing to refresh: `:unsupported`.
+  defp invalidate_access_token(%{__struct__: mod} = auth) do
+    if Code.ensure_loaded?(mod) and function_exported?(mod, :invalidate_access_token, 1) do
+      _ = mod.invalidate_access_token(auth)
+      :ok
+    else
+      :unsupported
+    end
+  end
+
+  defp invalidate_access_token(_auth), do: :unsupported
+
+  # How long to wait before the next retry, or :none when the result is not
+  # worth retrying, the retries are used up, or the wait would end past the
+  # end-to-end timeout.
+  defp next_delay(_result, %{retries: retries, max_retries: max_retries})
+       when retries >= max_retries, do: :none
+
+  defp next_delay(result, ctx) do
+    case delay_for(result, ctx.retries + 1) do
+      nil -> :none
+      delay -> within_budget(delay, ctx.deadline)
+    end
+  end
+
+  defp delay_for({:ok, %{status_code: status} = response}, retry_number) do
+    if retryable_status?(status) do
+      retry_after_ms(Map.get(response, :headers), DateTime.utc_now()) ||
+        backoff_delay(retry_number, :rand.uniform())
+    end
+  end
+
+  defp delay_for({:error, %PetstoreClient.Errors.NetworkError{}}, retry_number),
+    do: backoff_delay(retry_number, :rand.uniform())
+
+  defp delay_for(_result, _retry_number), do: nil
+
+  defp within_budget(delay, nil), do: {:ok, delay}
+
+  defp within_budget(delay, deadline) when is_integer(deadline) do
+    if System.monotonic_time(:millisecond) + delay < deadline, do: {:ok, delay}, else: :none
+  end
+
+  @doc false
+  # The statuses worth a retry: a request timeout, a conflict, a rate limit and
+  # a server error other than 501 (not implemented).
+  @spec retryable_status?(integer()) :: boolean()
+  def retryable_status?(status),
+    do: status in [408, 409, 429] or (status >= 500 and status <= 599 and status != 501)
+
+  @doc false
+  # The wait before retry number `retry_number` (1 for the first retry): 0.5 s
+  # doubling to 8 s, less up to 25% for a `jitter` between 0 and 1.
+  @spec backoff_delay(pos_integer(), float()) :: non_neg_integer()
+  def backoff_delay(retry_number, jitter) do
+    base =
+      min(@retry_base_delay_ms * Integer.pow(2, min(retry_number - 1, 10)), @retry_max_delay_ms)
+
+    round(base * (1 - @retry_jitter * jitter))
+  end
+
+  @doc false
+  # The wait a `Retry-After` header asks for in milliseconds (a number of
+  # seconds or an HTTP date, never more than 60 s), or nil when the header is
+  # absent or not understood.
+  @spec retry_after_ms(term(), DateTime.t()) :: non_neg_integer() | nil
+  def retry_after_ms(headers, now) when is_map(headers) do
+    value =
+      Enum.find_value(headers, fn {name, value} ->
+        if String.downcase(to_string(name)) == "retry-after", do: value
+      end)
+
+    if is_binary(value), do: parse_retry_after(String.trim(value), now)
+  end
+
+  def retry_after_ms(_headers, _now), do: nil
+
+  defp parse_retry_after(value, now) do
+    if value =~ ~r/\A\d+\z/ do
+      min(String.to_integer(value), div(@retry_after_cap_ms, 1000)) * 1000
+    else
+      case parse_http_date(value) do
+        nil -> nil
+        date -> min(max(DateTime.diff(date, now, :millisecond), 0), @retry_after_cap_ms)
+      end
+    end
+  end
+
+  # IMF-fixdate, the form HTTP servers send: "Sun, 06 Nov 1994 08:49:37 GMT".
+  defp parse_http_date(value) do
+    with [_, day, month, year, hour, minute, second] <-
+           Regex.run(
+             ~r/\A[A-Za-z]{3}, (\d{2}) ([A-Za-z]{3}) (\d{4}) (\d{2}):(\d{2}):(\d{2}) GMT\z/,
+             value
+           ),
+         month when is_integer(month) <- Map.get(@months, String.downcase(month)),
+         {:ok, naive} <-
+           NaiveDateTime.new(
+             String.to_integer(year),
+             month,
+             String.to_integer(day),
+             String.to_integer(hour),
+             String.to_integer(minute),
+             String.to_integer(second)
+           ) do
+      DateTime.from_naive!(naive, "Etc/UTC")
+    else
+      _ -> nil
     end
   end
 

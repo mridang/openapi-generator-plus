@@ -10,8 +10,11 @@
 package petstore_test
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	neturl "net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -488,6 +491,49 @@ func TestOpenIdConnect_ExchangedTokenSurvivesRediscovery(t *testing.T) {
 	}
 }
 
+// F858: rediscovery rebuilds the delegate between the authorize URL and the code
+// exchange; the PKCE verifier of the pending login must survive it, and no
+// nonce is sent.
+func TestOpenIdConnect_PkceVerifierSurvivesRediscovery(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=0"),
+		oidcDiscoveryResponse("max-age=0"),
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	authorizeURL, err := authObj.BuildAuthorizationURL("s")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	parsed, err := neturl.Parse(authorizeURL)
+	if err != nil {
+		t.Fatalf("authorize URL does not parse: %v", err)
+	}
+	if got := parsed.Query().Get("code_challenge_method"); got != "S256" {
+		t.Errorf("expected code_challenge_method=S256, got %q", got)
+	}
+	if strings.Contains(authorizeURL, "nonce") {
+		t.Errorf("expected no nonce, got %q", authorizeURL)
+	}
+	if err := authObj.ExchangeCode("the-code"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if client.requestCount() != 3 {
+		t.Fatalf("expected two discoveries and one token request, got %d", client.requestCount())
+	}
+	form, err := neturl.ParseQuery(client.requests[2].body)
+	if err != nil {
+		t.Fatalf("exchange body does not parse: %v", err)
+	}
+	digest := sha256.Sum256([]byte(form.Get("code_verifier")))
+	if want := base64.RawURLEncoding.EncodeToString(digest[:]); parsed.Query().Get("code_challenge") != want {
+		t.Errorf("expected the verifier sent after rediscovery to match the challenge, got %q", form.Get("code_verifier"))
+	}
+}
+
 // A failed rediscovery keeps the previous delegate: the cached endpoints and the
 // exchanged token still work, so the call succeeds instead of failing with the
 // discovery error. The first discovery has no fallback and fails.
@@ -556,5 +602,34 @@ func TestOpenIdConnect_ReprShowsTheNonSecretFields(t *testing.T) {
 		if !strings.Contains(repr, want) {
 			t.Errorf("expected %q to contain %q", repr, want)
 		}
+	}
+}
+
+// F855: InvalidateAccessToken reaches the delegate that holds the session, keeps
+// its refresh token, and makes no discovery request of its own.
+func TestOpenIdConnect_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse(""),
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	authObj.InvalidateAccessToken()
+	if client.requestCount() != 0 {
+		t.Fatalf("expected no request before the first discovery, got %d", client.requestCount())
+	}
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	authObj.InvalidateAccessToken()
+	headers, err := authObj.AuthHeadersOrError()
+	if err != nil || headers["Authorization"] != "Bearer tok2" {
+		t.Fatalf("expected Bearer tok2 after the invalidation, got %v, %v", headers, err)
+	}
+	if body := client.requests[2].body; !strings.Contains(body, "grant_type=refresh_token") || !strings.Contains(body, "refresh_token=ref1") {
+		t.Errorf("expected a refresh grant with the kept refresh token, got %q", body)
 	}
 }

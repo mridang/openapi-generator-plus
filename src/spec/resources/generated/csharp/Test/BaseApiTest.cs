@@ -193,7 +193,11 @@ public class BaseApiTest
         public Dictionary<string, string> GetCookieParams() => [];
     }
 
-    private TestableApi Api() => new(_fixture.BaseUrl);
+    private TestableApi Api() =>
+        new(
+            new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build()),
+            _fixture.BaseUrl
+        );
 
     public static TheoryData<int, Type> StatusToException =>
         new()
@@ -557,6 +561,137 @@ public class BaseApiTest
         );
 
         Assert.Same(capturing, auth.Injected);
+    }
+
+    private sealed class RefreshableAuthenticator : IInvalidatableAuthenticator
+    {
+        public int Invalidations { get; private set; }
+
+        public string GetHost() => "";
+
+        public Dictionary<string, string> GetAuthHeaders() => [];
+
+        public Task<Dictionary<string, string>> GetAuthHeadersAsync() =>
+            Task.FromResult(
+                new Dictionary<string, string>
+                {
+                    ["Authorization"] = "Bearer t" + (Invalidations + 1),
+                }
+            );
+
+        public void InvalidateAccessToken() => Invalidations++;
+    }
+
+    private sealed class StatusSequenceApiClient(params int[] statuses) : IApiClient
+    {
+        public List<string?> Authorizations { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            Authorizations.Add(headers.GetValueOrDefault("Authorization"));
+            int status = statuses[Math.Min(Authorizations.Count, statuses.Length) - 1];
+            return Task.FromResult(
+                new ApiHttpResponse(
+                    status,
+                    "{}",
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }
+                )
+            );
+        }
+    }
+
+    private static Task<object?> CallWithAuth(
+        StatusSequenceApiClient client,
+        IAuthenticator auth,
+        object? body = null,
+        string contentType = "application/json"
+    )
+    {
+        return new TestableApi(client, "http://localhost").CallAsync<object>(
+            "POST",
+            "/x",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            body,
+            ["application/json"],
+            contentType,
+            auth
+        );
+    }
+
+    [Fact]
+    public async Task A401OnAnOAuthCallInvalidatesTheTokenAndReplaysTheRequestOnceWithFreshHeaders()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        _ = await CallWithAuth(client, auth, "{}");
+
+        Assert.Equal(1, auth.Invalidations);
+        Assert.Equal(2, client.Authorizations.Count);
+        Assert.Equal("Bearer t1", client.Authorizations[0]);
+        Assert.Equal("Bearer t2", client.Authorizations[1]);
+    }
+
+    [Fact]
+    public async Task ASecond401IsReportedAsUnauthorized()
+    {
+        var client = new StatusSequenceApiClient(401);
+        var auth = new RefreshableAuthenticator();
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithAuth(client, auth, "{}"));
+
+        Assert.Equal(1, auth.Invalidations);
+        Assert.Equal(2, client.Authorizations.Count);
+    }
+
+    [Fact]
+    public async Task AnAuthenticatorWithoutATokenCacheNeverReplaysA401()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new TestAuthenticator(new Dictionary<string, string> { ["X-Api-Key"] = "k" });
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithAuth(client, auth, "{}"));
+
+        Assert.Single(client.Authorizations);
+    }
+
+    [Fact]
+    public async Task AStreamBodyIsNotReplayedAfterA401()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() =>
+            CallWithAuth(client, auth, new MemoryStream([1, 2]), "application/octet-stream")
+        );
+
+        Assert.Equal(0, auth.Invalidations);
+        Assert.Single(client.Authorizations);
+    }
+
+    [Fact]
+    public async Task AMultipartBodyIsNotReplayedAfterA401()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() =>
+            CallWithAuth(
+                client,
+                auth,
+                new Dictionary<string, object> { ["a"] = "b" },
+                "multipart/form-data"
+            )
+        );
+
+        Assert.Equal(0, auth.Invalidations);
+        Assert.Single(client.Authorizations);
     }
 
     [Fact]

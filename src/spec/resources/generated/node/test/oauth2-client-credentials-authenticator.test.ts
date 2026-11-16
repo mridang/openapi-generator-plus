@@ -72,6 +72,21 @@ describe("OAuth2ClientCredentialsAuthenticator", () => {
     expect(params.get("grant_type")).toBe("client_credentials");
   });
 
+  test("invalidateAccessToken makes the next call fetch a new token", async () => {
+    const first = await authenticator.getAuthHeadersAsync();
+    mockClient.responseBody = JSON.stringify({
+      access_token: "access-token-456",
+      expires_in: 3600,
+    });
+    expect(await authenticator.getAuthHeadersAsync()).toEqual(first);
+
+    authenticator.invalidateAccessToken();
+    const second = await authenticator.getAuthHeadersAsync();
+
+    expect(first["Authorization"]).toBe("Bearer access-token-123");
+    expect(second["Authorization"]).toBe("Bearer access-token-456");
+  });
+
   test("sends client id and secret", async () => {
     await authenticator.getAuthHeadersAsync();
 

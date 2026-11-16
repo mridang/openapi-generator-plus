@@ -85,6 +85,8 @@ var client = new Client(authenticator);
 authenticator.exchangeCode("authorization-code");
 ```
 
+`buildAuthorizationUrl(state)` adds a PKCE S256 `code_challenge` (RFC 7636) and keeps the matching 43-character verifier, which `exchangeCode` sends as `code_verifier`; call it before `exchangeCode`.
+
 ### OAuth2 Password
 
 ```java
@@ -133,6 +135,10 @@ OAuth2 authenticators resolve the access token by making an HTTP call to the tok
 #### Refresh tokens
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Expired tokens
+
+When the API answers an OAuth2 or OpenID Connect request with `401`, the authenticator drops the cached access token (`invalidateAccessToken()`, the refresh token is kept) and the request is sent once more with fresh headers. A second `401` raises `UnauthorizedException`. Stream and multipart bodies are not replayed; API key, basic and bearer authenticators never replay.
 
 #### Token caching
 
@@ -232,10 +238,15 @@ import com.example.petstore.TransportOptions;
 var transport = TransportOptions.builder()
     .proxy("http://proxy:3128")
     .timeout(5000)
+    .maxRetries(3)
     .build();
 
 var client = new Client(authenticator, transport);
 ```
+
+### Retries
+
+`maxRetries` (default `2`, `0` disables) retries a network error that happened before any response, and HTTP 408, 409, 429 and 500-599 except 501. The wait is 0.5 s doubling to 8 s with 25% jitter, or the `Retry-After` header (seconds or an HTTP date, capped at 60 s). Retries share the single end-to-end `timeout` and never extend it, a thread interrupt cancels the wait, and a stream body is never retried.
 
 ### Custom HTTP client
 

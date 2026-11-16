@@ -59,7 +59,12 @@ fn new_store_api_for_mock(status: u16, content_type: &str, body: &str) -> StoreA
     thread::sleep(std::time::Duration::from_millis(50));
 
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
-    let client = DefaultApiClient::new(None);
+    let client = DefaultApiClient::new(Some(
+        TransportOptions::builder()
+            .max_retries(0)
+            .build()
+            .expect("valid transport options"),
+    ));
     StoreApi::new(Arc::new(client), config, None)
 }
 

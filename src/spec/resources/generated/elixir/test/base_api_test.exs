@@ -19,10 +19,53 @@ defmodule PetstoreClient.Api.BaseApiTest do
     def cookie_params(%__MODULE__{} = self), do: self.cookies || %{}
   end
 
+  # Answers every request itself and records `{url, headers}` of each, so a test
+  # can see which token an attempt carried.
+  defmodule ScriptedApiClient do
+    defstruct [:agent, :answer]
+
+    def new(answer) do
+      {:ok, agent} = Agent.start_link(fn -> [] end)
+      %__MODULE__{agent: agent, answer: answer}
+    end
+
+    def send_request(%__MODULE__{agent: agent, answer: answer}, _method, url, headers, _body) do
+      requests =
+        Agent.get_and_update(agent, fn list ->
+          updated = list ++ [{url, headers}]
+          {updated, updated}
+        end)
+
+      answer.(url, headers, requests)
+    end
+
+    def requests(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1)
+  end
+
+  # Hands out a new header value on every call, so a test can tell whether the
+  # authentication headers were rebuilt for an attempt.
+  defmodule CountingAuthenticator do
+    use PetstoreClient.Auth.BaseAuthenticator
+
+    defstruct [:counter]
+
+    @impl true
+    def host(%__MODULE__{}), do: "http://retry.invalid"
+
+    @impl true
+    def auth_headers(%__MODULE__{counter: counter}) do
+      count = Agent.get_and_update(counter, fn n -> {n + 1, n + 1} end)
+      %{"X-Attempt" => "n#{count}"}
+    end
+  end
+
   setup do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     config = PetstoreClient.Configuration.new(base_url: chasm_url)
-    api_client = PetstoreClient.DefaultApiClient.new()
+    # The status tests below expect one failing request, so retries are off here.
+    api_client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(max_retries: 0))
+
     state = %{config: config, api_client: api_client}
 
     %{state: state, chasm_url: chasm_url}
@@ -2252,5 +2295,323 @@ defmodule PetstoreClient.Api.BaseApiTest do
       )
 
     assert pet.status == :available
+  end
+
+  # ---------------------------------------------------------------------------
+  # A 401 on an OAuth2 call: drop the cached token and replay once
+  # ---------------------------------------------------------------------------
+
+  defp token_answer(authorized_status) do
+    fn url, headers, requests ->
+      if String.ends_with?(url, "/token") do
+        issued =
+          Enum.count(requests, fn {requested, _} -> String.ends_with?(requested, "/token") end)
+
+        %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          headers: %{},
+          body: Jason.encode!(%{"access_token" => "tok#{issued}", "expires_in" => 3600})
+        }
+      else
+        %PetstoreClient.ApiHttpResponse{
+          status_code: authorized_status.(headers["Authorization"]),
+          headers: %{},
+          body: ""
+        }
+      end
+    end
+  end
+
+  defp oauth_state(client) do
+    auth =
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/token",
+        []
+      )
+
+    auth =
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.set_api_client(auth, client)
+
+    %{
+      config: PetstoreClient.Configuration.new(base_url: "https://api.example.com"),
+      api_client: client,
+      authenticator: auth
+    }
+  end
+
+  defp api_requests(client) do
+    client
+    |> ScriptedApiClient.requests()
+    |> Enum.reject(fn {url, _} -> String.ends_with?(url, "/token") end)
+  end
+
+  defp token_requests(client) do
+    client
+    |> ScriptedApiClient.requests()
+    |> Enum.filter(fn {url, _} -> String.ends_with?(url, "/token") end)
+  end
+
+  defp put_thing(state, body, content_type) do
+    PetstoreClient.Api.BaseApi.invoke_api(
+      state,
+      :put,
+      "/things",
+      %{},
+      %{},
+      body,
+      ["application/json"],
+      content_type,
+      nil
+    )
+  end
+
+  test "a 401 drops the OAuth2 access token and replays the request once with a fresh one" do
+    client =
+      ScriptedApiClient.new(
+        token_answer(fn
+          "Bearer tok1" -> 401
+          _ -> 200
+        end)
+      )
+
+    assert {:ok, _} = put_thing(oauth_state(client), nil, "application/json")
+
+    assert Enum.map(api_requests(client), fn {_, headers} -> headers["Authorization"] end) ==
+             ["Bearer tok1", "Bearer tok2"]
+
+    assert length(token_requests(client)) == 2
+  end
+
+  test "a second 401 is the usual UnauthorizedError and is not replayed again" do
+    client = ScriptedApiClient.new(token_answer(fn _ -> 401 end))
+
+    assert {:error, %PetstoreClient.Errors.UnauthorizedError{status_code: 401}} =
+             put_thing(oauth_state(client), nil, "application/json")
+
+    assert length(api_requests(client)) == 2
+    assert length(token_requests(client)) == 2
+  end
+
+  test "a 401 is never replayed for a bearer token or an operation without authentication" do
+    client = ScriptedApiClient.new(token_answer(fn _ -> 401 end))
+
+    bearer = PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "t")
+    state = %{oauth_state(client) | authenticator: bearer}
+
+    assert {:error, %PetstoreClient.Errors.UnauthorizedError{}} =
+             put_thing(state, nil, "application/json")
+
+    assert length(api_requests(client)) == 1
+
+    no_auth = %{oauth_state(client) | authenticator: nil}
+
+    assert {:error, %PetstoreClient.Errors.UnauthorizedError{}} =
+             put_thing(no_auth, nil, "application/json")
+
+    assert length(api_requests(client)) == 2
+    assert token_requests(client) == []
+  end
+
+  test "a body that cannot be sent twice is not replayed after a 401" do
+    client = ScriptedApiClient.new(token_answer(fn _ -> 401 end))
+    body = fn -> "not rewindable" end
+
+    assert {:error, %PetstoreClient.Errors.UnauthorizedError{}} =
+             put_thing(oauth_state(client), body, "application/octet-stream")
+
+    assert length(api_requests(client)) == 1
+    assert length(token_requests(client)) == 1
+  end
+
+  # ---------------------------------------------------------------------------
+  # Automatic retries
+  # ---------------------------------------------------------------------------
+
+  # Builds a state whose client answers from `script` (a status, a
+  # `{status, headers}` pair or `{:transport_error, reason}`; the last entry
+  # repeats) and sends one `{:attempt, request}` message per attempt.
+  defp retry_state(script, transport_options \\ [], authenticator \\ nil) do
+    test_pid = self()
+    {:ok, steps} = Agent.start_link(fn -> script end)
+
+    adapter = fn request ->
+      send(test_pid, {:attempt, request})
+
+      step =
+        Agent.get_and_update(steps, fn
+          [only] -> {only, [only]}
+          [first | rest] -> {first, rest}
+        end)
+
+      {request, adapter_answer(step)}
+    end
+
+    transport =
+      PetstoreClient.TransportOptions.new([req_options: [adapter: adapter]] ++ transport_options)
+
+    %{
+      config: PetstoreClient.Configuration.new(base_url: "http://retry.invalid"),
+      api_client: PetstoreClient.DefaultApiClient.new(transport),
+      authenticator: authenticator
+    }
+  end
+
+  defp adapter_answer({:transport_error, reason}), do: %Req.TransportError{reason: reason}
+
+  defp adapter_answer({status, headers}),
+    do: Req.Response.new(status: status, headers: headers, body: "")
+
+  defp adapter_answer(status), do: Req.Response.new(status: status, body: "")
+
+  defp attempts(acc \\ []) do
+    receive do
+      {:attempt, request} -> attempts(acc ++ [request])
+    after
+      0 -> acc
+    end
+  end
+
+  defp get_thing(state) do
+    PetstoreClient.Api.BaseApi.invoke_api(
+      state,
+      :get,
+      "/things",
+      %{},
+      %{},
+      nil,
+      ["application/json"],
+      "application/json",
+      nil
+    )
+  end
+
+  test "a call is retried on 408, 409, 429 and 5xx other than 501, and then succeeds" do
+    for status <- [408, 409, 429, 500, 502, 503, 504] do
+      state = retry_state([{status, [{"retry-after", "0"}]}, 200])
+
+      assert {:ok, _} = get_thing(state)
+      assert length(attempts()) == 2, "status #{status} must be retried once"
+    end
+  end
+
+  test "a call that keeps failing is tried max_retries + 1 times and reports the last response" do
+    state = retry_state([{500, [{"retry-after", "0"}]}])
+
+    assert {:error, %PetstoreClient.Errors.InternalServerError{status_code: 500}} =
+             get_thing(state)
+
+    assert length(attempts()) == 3
+
+    one_retry = retry_state([{500, [{"retry-after", "0"}]}], max_retries: 1)
+
+    assert {:error, %PetstoreClient.Errors.InternalServerError{}} = get_thing(one_retry)
+    assert length(attempts()) == 2
+  end
+
+  test "max_retries 0 sends the request once" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, 200], max_retries: 0)
+
+    assert {:error, %PetstoreClient.Errors.ServerError{status_code: 503}} = get_thing(state)
+    assert length(attempts()) == 1
+  end
+
+  test "400, 401, 403, 404, 422 and 501 are not retried" do
+    for status <- [400, 401, 403, 404, 422, 501] do
+      state = retry_state([{status, [{"retry-after", "0"}]}, 200])
+
+      assert {:error, _} = get_thing(state)
+      assert length(attempts()) == 1, "status #{status} must not be retried"
+    end
+  end
+
+  test "a network error before any response is retried" do
+    state = retry_state([{:transport_error, :econnrefused}, 200], max_retries: 1)
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
+
+    failing = retry_state([{:transport_error, :econnrefused}], max_retries: 1)
+
+    assert {:error, %PetstoreClient.Errors.NetworkError{}} = get_thing(failing)
+    assert length(attempts()) == 2
+  end
+
+  test "a request that timed out is not retried" do
+    state = retry_state([{:transport_error, :timeout}, 200])
+
+    assert {:error, %PetstoreClient.Errors.NetworkTimeoutError{}} = get_thing(state)
+    assert length(attempts()) == 1
+  end
+
+  test "Retry-After sets the wait before the retry" do
+    state = retry_state([{429, [{"retry-after", "1"}]}, 200])
+    started = System.monotonic_time(:millisecond)
+
+    assert {:ok, _} = get_thing(state)
+    assert System.monotonic_time(:millisecond) - started >= 1_000
+    assert length(attempts()) == 2
+  end
+
+  test "a retry never waits past the end-to-end timeout" do
+    started = System.monotonic_time(:millisecond)
+
+    asked = retry_state([{503, [{"retry-after", "5"}]}, 200], timeout: 300)
+    assert {:error, %PetstoreClient.Errors.ServerError{}} = get_thing(asked)
+    assert length(attempts()) == 1
+
+    backoff = retry_state([503, 200], timeout: 100)
+    assert {:error, %PetstoreClient.Errors.ServerError{}} = get_thing(backoff)
+    assert length(attempts()) == 1
+
+    assert System.monotonic_time(:millisecond) - started < 1_000
+  end
+
+  test "every retry rebuilds the request, authentication headers included" do
+    {:ok, counter} = Agent.start_link(fn -> 0 end)
+    auth = %CountingAuthenticator{counter: counter}
+
+    state =
+      retry_state([{503, [{"retry-after", "0"}]}, {503, [{"retry-after", "0"}]}, 200], [], auth)
+
+    assert {:ok, _} = get_thing(state)
+
+    assert Enum.map(attempts(), &Req.Request.get_header(&1, "x-attempt")) == [
+             ["n1"],
+             ["n2"],
+             ["n3"]
+           ]
+  end
+
+  test "the retry policy: statuses, backoff and Retry-After" do
+    for status <- [408, 409, 429, 500, 502, 503, 599] do
+      assert PetstoreClient.Api.BaseApi.retryable_status?(status)
+    end
+
+    for status <- [200, 301, 400, 401, 404, 422, 501, 600] do
+      refute PetstoreClient.Api.BaseApi.retryable_status?(status)
+    end
+
+    # 0.5 s doubling to 8 s, less up to 25% jitter.
+    assert Enum.map(1..6, &PetstoreClient.Api.BaseApi.backoff_delay(&1, 0.0)) ==
+             [500, 1_000, 2_000, 4_000, 8_000, 8_000]
+
+    assert PetstoreClient.Api.BaseApi.backoff_delay(1, 1.0) == 375
+    assert PetstoreClient.Api.BaseApi.backoff_delay(9, 1.0) == 6_000
+
+    now = ~U[1994-11-06 08:49:00Z]
+    retry_after = &PetstoreClient.Api.BaseApi.retry_after_ms(&1, now)
+
+    assert retry_after.(%{"retry-after" => "5"}) == 5_000
+    assert retry_after.(%{"Retry-After" => " 0 "}) == 0
+    assert retry_after.(%{"retry-after" => "120"}) == 60_000
+    assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 08:49:37 GMT"}) == 37_000
+    assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 08:48:00 GMT"}) == 0
+    assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 18:49:37 GMT"}) == 60_000
+    assert retry_after.(%{"retry-after" => "soon"}) == nil
+    assert retry_after.(%{"x-other" => "1"}) == nil
+    assert retry_after.(nil) == nil
   end
 end

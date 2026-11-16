@@ -43,6 +43,7 @@ public final class TransportOptions {
   private final Map<String, String> defaultHeaders;
   private final boolean injectRequestId;
   @Nullable private final java.net.http.HttpClient httpClient;
+  private final int maxRetries;
 
   TransportOptions(
       boolean verifySsl,
@@ -54,7 +55,8 @@ public final class TransportOptions {
       @Nullable String userAgent,
       Map<String, String> defaultHeaders,
       boolean injectRequestId,
-      @Nullable java.net.http.HttpClient httpClient) {
+      @Nullable java.net.http.HttpClient httpClient,
+      int maxRetries) {
     this.verifySsl = verifySsl;
     this.caCertPath = caCertPath;
     this.proxy = proxy;
@@ -65,6 +67,7 @@ public final class TransportOptions {
     this.defaultHeaders = Collections.unmodifiableMap(new HashMap<>(defaultHeaders));
     this.injectRequestId = injectRequestId;
     this.httpClient = httpClient;
+    this.maxRetries = maxRetries;
   }
 
   /**
@@ -201,6 +204,21 @@ public final class TransportOptions {
   }
 
   /**
+   * How many times a failed request is retried.
+   *
+   * <p>A request is retried after a network error that happened before any response arrived, and
+   * after an HTTP 408, 409, 429 or 5xx status (501 excepted), waiting 0.5 s doubling to 8 s with
+   * 25% jitter, or the {@code Retry-After} the server named (capped at 60 s). The retries share the
+   * single end-to-end {@link #getTimeout() timeout}, and a request with a stream or multipart body
+   * is never retried.
+   *
+   * @return the retry count; {@code 0} disables retries (default {@code 2})
+   */
+  public int getMaxRetries() {
+    return maxRetries;
+  }
+
+  /**
    * Builder for creating immutable {@link TransportOptions} instances.
    *
    * <p>All fields have sensible defaults:
@@ -210,6 +228,7 @@ public final class TransportOptions {
    *   <li>{@code followRedirects} — {@code true}
    *   <li>{@code injectRequestId} — {@code false}
    *   <li>{@code timeout} — {@code 10000} (10 seconds)
+   *   <li>{@code maxRetries} — {@code 2}
    *   <li>{@code userAgent} — a package-specific default string
    *   <li>All other fields — {@code null} or empty
    * </ul>
@@ -226,6 +245,7 @@ public final class TransportOptions {
     private final Map<String, String> defaultHeaders = new HashMap<>();
     private boolean injectRequestId = false;
     @Nullable private java.net.http.HttpClient httpClient = null;
+    private int maxRetries = 2;
 
     Builder() {}
 
@@ -385,6 +405,24 @@ public final class TransportOptions {
     }
 
     /**
+     * Set how many times a failed request is retried.
+     *
+     * <p>See {@link TransportOptions#getMaxRetries()} for what is retried.
+     *
+     * @param maxRetries the retry count (not negative); {@code 0} disables retries
+     * @return this builder
+     * @throws IllegalArgumentException if {@code maxRetries} is negative
+     */
+    public Builder maxRetries(int maxRetries) {
+      if (maxRetries < 0) {
+        throw new IllegalArgumentException(
+            "Invalid maxRetries: must not be negative (got " + maxRetries + ")");
+      }
+      this.maxRetries = maxRetries;
+      return this;
+    }
+
+    /**
      * Enable or disable automatic {@code X-Request-ID} header injection.
      *
      * @param injectRequestId {@code true} to inject, {@code false} to skip (default)
@@ -423,7 +461,8 @@ public final class TransportOptions {
           userAgent,
           new HashMap<>(defaultHeaders),
           injectRequestId,
-          httpClient);
+          httpClient,
+          maxRetries);
     }
   }
 }

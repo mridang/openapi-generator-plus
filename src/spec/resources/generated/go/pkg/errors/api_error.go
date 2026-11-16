@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // errorBodyMaxJSONDepth caps how deeply an error-response JSON body may nest.
@@ -168,9 +169,60 @@ func (e *ApiError) Unwrap() error {
 // OpenAPIError.
 func (e *ApiError) isOpenAPIError() {}
 
+// maxRenderedBodyBytes is the most response-body bytes Error shows; the whole
+// body stays on ResponseBody.
+const maxRenderedBodyBytes = 1024
+
+// renderedBody is the body as Error shows it: at most maxRenderedBodyBytes
+// bytes (cut on a character boundary) followed by "... (N more bytes)", with
+// every control character shown as \xNN so a hostile server can neither fill a
+// log nor forge a line in it.
+func renderedBody(body string) string {
+	end := min(len(body), maxRenderedBodyBytes)
+	for end > 0 && end < len(body) && !utf8.RuneStart(body[end]) {
+		end--
+	}
+	var out strings.Builder
+	for _, r := range body[:end] {
+		if r < 0x20 || r == 0x7f {
+			fmt.Fprintf(&out, "\\x%02X", r)
+		} else {
+			out.WriteRune(r)
+		}
+	}
+	if end < len(body) {
+		fmt.Fprintf(&out, "... (%d more bytes)", len(body)-end)
+	}
+	return out.String()
+}
+
+// isSecretResponseHeader reports whether the value of a response header must
+// not be copied into an error text: the authorization, cookie and challenge
+// headers and any name containing key, token or secret.
+func isSecretResponseHeader(name string) bool {
+	switch lower := strings.ToLower(name); lower {
+	case "authorization", "proxy-authorization", "cookie", "set-cookie",
+		"www-authenticate", "proxy-authenticate":
+		return true
+	default:
+		return strings.Contains(lower, "key") || strings.Contains(lower, "token") ||
+			strings.Contains(lower, "secret")
+	}
+}
+
 // compactHeadersJSON renders headers as compact JSON with sorted keys and no
-// HTML escaping, the form every SDK uses on the "Response headers:" line.
+// HTML escaping, the form every SDK uses on the "Response headers:" line. The
+// value of every credential-bearing header is shown as ***; ResponseHeaders
+// keeps the real values.
 func compactHeadersJSON(headers map[string]string) string {
+	shown := make(map[string]string, len(headers))
+	for name, value := range headers {
+		if isSecretResponseHeader(name) {
+			value = "***"
+		}
+		shown[name] = value
+	}
+	headers = shown
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
@@ -195,7 +247,7 @@ func (e *ApiError) Error() string {
 		msg += "\nResponse headers: " + compactHeadersJSON(e.responseHeaders)
 	}
 	if e.responseBody != "" {
-		msg += fmt.Sprintf("\nResponse body: %s", e.responseBody)
+		msg += "\nResponse body: " + renderedBody(e.responseBody)
 	}
 	return msg
 }

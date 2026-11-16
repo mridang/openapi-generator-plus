@@ -302,3 +302,16 @@ class TestClientCredentialsRedactedRepr:
             "token_url='https://auth.example.com/token', scopes=('read', 'write'), "
             f"client_auth_method={ClientAuthMethod.BODY!r})"
         )
+
+
+class TestInvalidateAccessToken:
+    def test_a_dropped_token_is_fetched_again(self) -> None:
+        auth, mock_client = _create_authenticator_with_mock()
+        auth.get_auth_headers()
+        auth.get_auth_headers()
+        assert mock_client.send_request.call_count == 1
+
+        auth.invalidate_access_token()
+        auth.get_auth_headers()
+
+        assert mock_client.send_request.call_count == 2

@@ -343,6 +343,58 @@ class TestApiErrorRendering:
 
         assert str(err) == "boom"
 
+    def test_cuts_a_long_body_at_1_kib_and_counts_the_bytes_left_out(self) -> None:
+        err = ApiException(
+            status_code=502, message="bad gateway", response_body="a" * 3000
+        )
+
+        assert str(err) == (
+            "bad gateway\nHTTP status code: 502\nResponse body: "
+            + "a" * 1024
+            + "... (1976 more bytes)"
+        )
+        assert err.response_body == "a" * 3000
+
+    def test_keeps_a_body_of_exactly_1_kib_whole(self) -> None:
+        err = ApiException(status_code=500, message="boom", response_body="a" * 1024)
+
+        assert str(err).endswith("a" * 1024)
+        assert "more bytes" not in str(err)
+
+    def test_escapes_control_characters_in_the_rendered_body(self) -> None:
+        err = ApiException(
+            status_code=500, message="boom", response_body="a\r\nb\tc\x01\x7f"
+        )
+
+        assert (
+            str(err)
+            == "boom\nHTTP status code: 500\nResponse body: a\\r\\nb\\tc\\x01\\x7F"
+        )
+        assert err.response_body == "a\r\nb\tc\x01\x7f"
+
+    def test_masks_credential_headers_in_the_rendered_headers(self) -> None:
+        headers = {
+            "Authorization": "Bearer abc",
+            "Proxy-Authorization": "Basic abc",
+            "Cookie": "sid=abc",
+            "Set-Cookie": "sid=abc",
+            "WWW-Authenticate": 'Bearer realm="x"',
+            "Proxy-Authenticate": 'Basic realm="x"',
+            "X-Api-Key": "abc",
+            "X-Session-Token": "abc",
+            "X-Client-Secret": "abc",
+            "X-Id": "7",
+        }
+        err = ApiException(status_code=401, message="no", response_headers=headers)
+
+        rendered = str(err)
+        assert "abc" not in rendered
+        assert "realm" not in rendered
+        assert '"X-Id":"7"' in rendered
+        assert rendered.count("***") == 9
+        assert err.response_headers is not None
+        assert err.response_headers["Authorization"] == "Bearer abc"
+
 
 class TestFromResponseBodyShapes:
     def test_a_scalar_json_body_becomes_the_error_body(self) -> None:

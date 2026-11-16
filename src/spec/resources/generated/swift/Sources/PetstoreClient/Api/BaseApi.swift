@@ -94,6 +94,21 @@ public class BaseApi: @unchecked Sendable {
     var rawBody: Bool = false
   }
 
+  /// Sends one prepared request through the client. The SDK's own transport
+  /// also retries it and re-applies the authentication headers; a transport
+  /// supplied by the caller sees exactly one call.
+  private func send(
+    method: String, url: String, headers: [String: String], body: Data?,
+    refresh: (@Sendable () async throws -> [String: String])?
+  ) async throws -> ApiHttpResponse {
+    if let client = apiClient as? DefaultApiClient {
+      return try await client.sendRequest(
+        method: method, url: url, headers: headers, body: body, noRedirect: false,
+        refreshHeaders: refresh)
+    }
+    return try await apiClient.sendRequest(method: method, url: url, headers: headers, body: body)
+  }
+
   /// Invoke an API operation and return the raw response, handling URL
   /// construction, header selection, body serialization and request dispatch.
   ///
@@ -223,13 +238,16 @@ public class BaseApi: @unchecked Sendable {
       headers.removeValue(forKey: "Content-Type")
     }
 
-    /* Send request */
-    var response = try await apiClient.sendRequest(
-      method: params.method,
-      url: requestURL,
-      headers: headers,
-      body: serializedBody
-    )
+    /* Send request. The SDK transport retries transient failures; each retry
+     * asks the authenticator for its headers again, so a token that expired
+     * while waiting is replaced. */
+    var refresh: (@Sendable () async throws -> [String: String])? = nil
+    if let auth = effectiveAuth {
+      refresh = { try await auth.authHeaders() }
+    }
+    var response = try await send(
+      method: params.method, url: requestURL, headers: headers, body: serializedBody,
+      refresh: refresh)
 
     /* A revoked or rotated token keeps failing while it is cached. On a 401
      * from a request that carried a token this SDK fetched, drop the token,
@@ -239,12 +257,9 @@ public class BaseApi: @unchecked Sendable {
       invalidating.invalidateAccessToken()
       if let fresh = try? await invalidating.authHeaders() {
         headers = Self.mergeHeaders(headers, overriding: fresh)
-        response = try await apiClient.sendRequest(
-          method: params.method,
-          url: requestURL,
-          headers: headers,
-          body: serializedBody
-        )
+        response = try await send(
+          method: params.method, url: requestURL, headers: headers, body: serializedBody,
+          refresh: refresh)
       }
     }
 

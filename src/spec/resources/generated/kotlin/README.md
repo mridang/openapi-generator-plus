@@ -101,6 +101,23 @@ Unless `injectRequestId(false)` is set, the SDK sends a generated
 `X-Request-ID` header on every request, and a header of the same name that you
 supply always wins.
 
+## Retries
+
+A failed request is sent again up to twice (`TransportOptions.maxRetries`,
+default 2; `0` turns retries off). A request is retried after a network error
+that happened before any response arrived, and after a 408, 409, 429 or 5xx
+answer except 501. The wait starts at 0.5 seconds, doubles up to 8 seconds and
+loses up to 25% of its length at random; a `Retry-After` header (seconds or an
+HTTP date) replaces it, capped at 60 seconds. Retries share the one end-to-end
+`timeout`: a wait that does not fit in what is left of it ends the retrying and
+the last answer or error is reported. A timeout is never retried, and
+cancelling the calling coroutine stops the wait. Every retry is a new request:
+its headers are built again (a new `X-Request-ID`), and the body is sent again.
+
+```kotlin
+val transport = TransportOptions.builder().maxRetries(0).build()
+```
+
 ## Caveats
 
 ### Decimal / `format: number` precision
@@ -165,11 +182,6 @@ Response `links` are ignored; build the follow-up call yourself.
 A `mutualTLS` security scheme is not generated. Configure the client
 certificate on the Ktor `HttpClient` you pass to
 `TransportOptions.builder().httpClient(...)`.
-
-### Automatic retries
-
-The SDK never retries a failed request. Retry in your own code, for
-example on `NetworkException` or `TooManyRequestsException`.
 
 ### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
 

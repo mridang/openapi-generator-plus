@@ -153,6 +153,30 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert request.options.redirect == false
   end
 
+  test "a deadline handed to send_request replaces the transport timeout for that call" do
+    adapter = fn request ->
+      Process.sleep(500)
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport =
+      PetstoreClient.TransportOptions.new(req_options: [adapter: adapter], timeout: 60_000)
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    deadline = System.monotonic_time(:millisecond) + 100
+
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "http://custom.invalid/echo",
+        %{},
+        nil,
+        deadline: deadline
+      )
+    end
+  end
+
   test "sends POST with JSON body" do
     base_url = start_server(200, "application/json", ~s({"method":"POST","body":"key"}))
     client = PetstoreClient.DefaultApiClient.new()

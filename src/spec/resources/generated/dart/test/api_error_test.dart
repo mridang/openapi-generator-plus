@@ -367,6 +367,92 @@ void main() {
       expect(err.toString(), contains('Response headers: {"a":"x/y","b":"2"}'));
     });
 
+    test('caps the rendered body and says how much was left out', () {
+      final body = 'x' * 1030;
+      final err = ApiException(
+        statusCode: 502,
+        message: 'bad gateway',
+        responseBody: body,
+      );
+
+      expect(
+        err.toString(),
+        equals(
+          'bad gateway\nHTTP status code: 502\nResponse body: ${'x' * 1024}... (6 more bytes)',
+        ),
+      );
+      expect(err.responseBody, equals(body));
+    });
+
+    test('does not cut a multi-byte character when capping the body', () {
+      final body = '${'x' * 1023}\u00e9tail';
+      final err = ApiException(
+        statusCode: 500,
+        message: 'boom',
+        responseBody: body,
+      );
+
+      expect(
+        err.toString(),
+        endsWith('Response body: ${'x' * 1023}... (6 more bytes)'),
+      );
+    });
+
+    test('escapes control characters in the rendered body', () {
+      const err = ApiException(
+        statusCode: 500,
+        message: 'boom',
+        responseBody: 'a\r\nHTTP status code: 200\u0001\u007f',
+      );
+
+      expect(
+        err.toString(),
+        equals(
+          'boom\nHTTP status code: 500\nResponse body: a\\x0D\\x0AHTTP status code: 200\\x01\\x7F',
+        ),
+      );
+    });
+
+    test('masks credential headers in the rendered text only', () {
+      const err = ApiException(
+        statusCode: 401,
+        message: 'denied',
+        responseHeaders: {
+          'Authorization': 'Bearer s1',
+          'Proxy-Authorization': 'Basic s2',
+          'Cookie': 's3',
+          'Set-Cookie': 's4',
+          'WWW-Authenticate': 'Bearer realm=s5',
+          'Proxy-Authenticate': 's6',
+          'X-Api-Key': 's7',
+          'X-Refresh-Token': 's8',
+          'X-Client-Secret': 's9',
+          'X-Request-Id': 'visible',
+        },
+      );
+
+      final text = err.toString();
+      expect(text, contains('"X-Request-Id":"visible"'));
+      expect(text, contains('"Authorization":"***"'));
+      expect(text, contains('"WWW-Authenticate":"***"'));
+      expect(text, contains('"X-Api-Key":"***"'));
+      for (final leaked in [
+        's1',
+        's2',
+        's3',
+        's4',
+        's5',
+        's6',
+        's7',
+        's8',
+        's9',
+      ]) {
+        expect(text, isNot(contains('"$leaked"')));
+        expect(text, isNot(contains(': $leaked')));
+      }
+      expect(err.responseHeaders!['Authorization'], equals('Bearer s1'));
+    });
+
     test('omits the status for a transport failure', () {
       const err = NetworkException(message: 'connection refused');
 

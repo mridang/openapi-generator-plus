@@ -8,6 +8,7 @@ use PetstoreClient\Api\BaseApi;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\Servers;
+use PetstoreClient\TransportOptions;
 use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
@@ -36,7 +37,7 @@ function makeBaseApiTestableApi(): TestableApi
 {
     $url = getenv('CHASM_HTTP_URL') ?: '';
     $config = new Configuration($url);
-    return new TestableApi(new DefaultApiClient(), $config);
+    return new TestableApi(new DefaultApiClient(TransportOptions::builder()->maxRetries(0)->build()), $config);
 }
 
 test('throws correct exception', function (int $status, string $expectedClass): void {
@@ -1374,4 +1375,81 @@ test('empty json object body includes content type', function (): void {
     );
     expect($client->capturedHeaders)->toHaveKey('Content-Type');
     expect($client->capturedHeaders['Content-Type'])->toBe('application/json');
+});
+
+/**
+ * A transport that answers 503 for the first $failures requests and 200 after,
+ * recording the Authorization header of every request it receives.
+ *
+ * @param \ArrayObject<int, string> $seen
+ */
+function flakyTransportApi(int $failures, \ArrayObject $seen, ?Authenticator $auth): TestableApi
+{
+    $mock = new \Symfony\Component\HttpClient\MockHttpClient(
+        function (string $method, string $url, array $options) use ($failures, $seen): \Symfony\Component\HttpClient\Response\MockResponse {
+            $authorization = '';
+            /** @var array<int, string> $lines */
+            $lines = $options['headers'] ?? [];
+            foreach ($lines as $line) {
+                if (stripos($line, 'authorization:') === 0) {
+                    $authorization = trim(substr($line, strlen('authorization:')));
+                }
+            }
+            $seen[] = $authorization;
+            $status = count($seen) <= $failures ? 503 : 200;
+
+            return new \Symfony\Component\HttpClient\Response\MockResponse(
+                '{"ok":true}',
+                ['http_code' => $status, 'response_headers' => ['Content-Type' => 'application/json']]
+            );
+        }
+    );
+
+    return new TestableApi(new StubbedDefaultApiClient($mock), new Configuration('http://localhost'), $auth);
+}
+
+test('a transient failure is retried and the retry carries freshly built authentication headers', function (): void {
+    $auth = new class implements Authenticator {
+        private int $issued = 0;
+
+        public function getHost(): string
+        {
+            return '';
+        }
+
+        public function getAuthHeaders(): array
+        {
+            $this->issued++;
+
+            return ['Authorization' => 'Bearer t' . $this->issued];
+        }
+
+        public function getQueryParams(): array
+        {
+            return [];
+        }
+
+        public function getCookieParams(): array
+        {
+            return [];
+        }
+    };
+    /** @var \ArrayObject<int, string> $seen */
+    $seen = new \ArrayObject();
+    $api = flakyTransportApi(2, $seen, $auth);
+
+    $result = $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+
+    expect($result)->toBeArray();
+    expect($seen->getArrayCopy())->toBe(['Bearer t1', 'Bearer t2', 'Bearer t3']);
+});
+
+test('an operation that keeps failing with a retryable status is attempted three times, then reported', function (): void {
+    /** @var \ArrayObject<int, string> $seen */
+    $seen = new \ArrayObject();
+    $api = flakyTransportApi(99, $seen, null);
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
+        ->toThrow(ServerException::class);
+    expect(count($seen))->toBe(3);
 });

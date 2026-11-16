@@ -69,6 +69,39 @@ func TestTransportOptions_RejectsANonPositiveTimeoutWithTheCanonicalMessage(t *t
 	}
 }
 
+func TestTransportOptions_MaxRetriesDefaultsToTwoAndZeroDisablesThem(t *testing.T) {
+	t.Parallel()
+	defaults, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := defaults.MaxRetries(); got != 2 {
+		t.Errorf("expected 2 retries by default, got %d", got)
+	}
+	disabled, err := petstore.NewTransportOptionsBuilder().MaxRetries(0).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := disabled.MaxRetries(); got != 0 {
+		t.Errorf("expected MaxRetries(0) to disable retries, got %d", got)
+	}
+	five, err := petstore.NewTransportOptionsBuilder().MaxRetries(5).Build()
+	if err != nil || five.MaxRetries() != 5 {
+		t.Errorf("expected MaxRetries(5) to be kept, got %v, %v", five, err)
+	}
+}
+
+func TestTransportOptions_RejectsANegativeMaxRetries(t *testing.T) {
+	t.Parallel()
+	_, err := petstore.NewTransportOptionsBuilder().MaxRetries(-1).Build()
+	if !errors.Is(err, petstore.ErrInvalidMaxRetries) {
+		t.Fatalf("expected ErrInvalidMaxRetries, got %v", err)
+	}
+	if want := "invalid max retries: must not be negative (got -1)"; err.Error() != want {
+		t.Errorf("expected %q, got %q", want, err.Error())
+	}
+}
+
 func TestTransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T) {
 	t.Parallel()
 	opts, err := petstore.NewTransportOptionsBuilder().Build()

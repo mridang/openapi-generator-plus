@@ -66,6 +66,14 @@ class BaseApi {
   /// serialization, and request dispatch. Throws an [ApiException] when the
   /// response status is not 2xx.
   ///
+  /// A 401 on a call authenticated by an OAuth2 or OpenID Connect
+  /// authenticator drops the cached access token and replays the request once
+  /// with fresh headers. When the transport has [RetryingApiClient.maxRetries]
+  /// above 0, a network error before a response and a response with status 408,
+  /// 409, 429 or 5xx other than 501 are sent again with a growing delay (see
+  /// [TransportOptions.maxRetries]), always within the end-to-end timeout.
+  /// A multipart body is never sent twice.
+  ///
   /// Parameters:
   ///   - [method]: HTTP method (GET, POST, PUT, DELETE, etc.)
   ///   - [path]: URL path (with path params already substituted)
@@ -90,22 +98,17 @@ class BaseApi {
     Authenticator? auth,
     bool rawBody = false,
   }) async {
-    var requestUrl = path;
-    if (!requestUrl.startsWith('http://') &&
-        !requestUrl.startsWith('https://')) {
+    var targetUrl = path;
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
       /* Strip trailing slash from baseUrl when path starts with `/` so
        * baseUrl='https://x/' + path='/y' produces 'https://x/y', not
        * 'https://x//y' which most servers route to 404. */
       final base = path.startsWith('/')
           ? config.baseUrl.replaceAll(RegExp(r'/+$'), '')
           : config.baseUrl;
-      requestUrl = base + path;
+      targetUrl = base + path;
     }
 
-    final allQueryParams = <String, Object?>{};
-    if (queryParams != null) {
-      allQueryParams.addAll(queryParams);
-    }
     /* Three-state auth resolution (the no-auth sentinel is a distinct
      * third state, so `null` is no longer overloaded):
      *   - auth IS the `noAuth` sentinel  -> apply NO credentials; the
@@ -127,97 +130,260 @@ class BaseApi {
         effectiveAuth is HttpAwareAuthenticator) {
       effectiveAuth.setApiClient(apiClient);
     }
-    if (effectiveAuth != null) {
-      allQueryParams.addAll(effectiveAuth.queryParams());
-    }
+    /* One attempt: everything that depends on the credentials (query
+     * parameters, headers, cookies) is built afresh, so a replay or a retry
+     * is a new request that carries current authentication, never a copy of
+     * the previous one. */
+    Future<ApiHttpResponse> sendOnce() async {
+      var requestUrl = targetUrl;
+      final allQueryParams = <String, Object?>{};
+      if (queryParams != null) {
+        allQueryParams.addAll(queryParams);
+      }
+      if (effectiveAuth != null) {
+        allQueryParams.addAll(effectiveAuth.queryParams());
+      }
 
-    final queryString = _buildQueryString(allQueryParams);
-    if (queryString.isNotEmpty) {
-      requestUrl = '$requestUrl?$queryString';
-    }
+      final queryString = _buildQueryString(allQueryParams);
+      if (queryString.isNotEmpty) {
+        requestUrl = '$requestUrl?$queryString';
+      }
 
-    final isMultipart = contentType == 'multipart/form-data';
-    final headers = _headerSelector.selectHeaders(
-      accepts,
-      contentType,
-      isMultipart,
-    );
+      final isMultipart = contentType == 'multipart/form-data';
+      final headers = _headerSelector.selectHeaders(
+        accepts,
+        contentType,
+        isMultipart,
+      );
 
-    headers.addAll(config.defaultHeaders);
+      headers.addAll(config.defaultHeaders);
 
-    if (headerParams != null) {
-      headers.addAll(headerParams);
-    }
+      if (headerParams != null) {
+        headers.addAll(headerParams);
+      }
 
-    if (effectiveAuth != null) {
-      /* Await the async variant so token-exchange OAuth flows (client-
-         credentials, password, authorization-code) perform their token fetch
-         and contribute a real Authorization header; non-token schemes fall
-         through to the synchronous authHeaders via the default implementation. */
-      headers.addAll(await effectiveAuth.authHeadersAsync());
+      if (effectiveAuth != null) {
+        /* Await the async variant so token-exchange OAuth flows (client-
+           credentials, password, authorization-code) perform their token fetch
+           and contribute a real Authorization header; non-token schemes fall
+           through to the synchronous authHeaders via the default implementation. */
+        headers.addAll(await effectiveAuth.authHeadersAsync());
 
-      final cookies = effectiveAuth.cookieParams();
-      if (cookies.isNotEmpty) {
-        /* RFC 6265 — don't URL-encode cookie name/value; most cookie
-           parsers don't URL-decode, so `=` (base64 padding) would
-           arrive as literal `%3D` and break JWT/session cookies.
-           Validate and pass through raw instead. */
-        final cookieNameRe = RegExp(r"^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$");
-        final cookieValueRe = RegExp(
-          r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$',
-        );
-        final cookieParts = cookies.entries.map((e) {
-          if (!cookieNameRe.hasMatch(e.key)) {
-            throw ArgumentError(
-              "Cookie name '${e.key}' contains characters forbidden by RFC 6265",
-            );
+        final cookies = effectiveAuth.cookieParams();
+        if (cookies.isNotEmpty) {
+          /* RFC 6265 — don't URL-encode cookie name/value; most cookie
+             parsers don't URL-decode, so `=` (base64 padding) would
+             arrive as literal `%3D` and break JWT/session cookies.
+             Validate and pass through raw instead. */
+          final cookieNameRe = RegExp(r"^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$");
+          final cookieValueRe = RegExp(
+            r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$',
+          );
+          final cookieParts = cookies.entries.map((e) {
+            if (!cookieNameRe.hasMatch(e.key)) {
+              throw ArgumentError(
+                "Cookie name '${e.key}' contains characters forbidden by RFC 6265",
+              );
+            }
+            if (!cookieValueRe.hasMatch(e.value)) {
+              throw ArgumentError(
+                "Cookie value for '${e.key}' contains characters forbidden by RFC 6265",
+              );
+            }
+            return '${e.key}=${e.value}';
+          }).toList();
+          final cookieStr = cookieParts.join('; ');
+          if (headers.containsKey('Cookie')) {
+            headers['Cookie'] = '${headers["Cookie"]}; $cookieStr';
+          } else {
+            headers['Cookie'] = cookieStr;
           }
-          if (!cookieValueRe.hasMatch(e.value)) {
-            throw ArgumentError(
-              "Cookie value for '${e.key}' contains characters forbidden by RFC 6265",
-            );
-          }
-          return '${e.key}=${e.value}';
-        }).toList();
-        final cookieStr = cookieParts.join('; ');
-        if (headers.containsKey('Cookie')) {
-          headers['Cookie'] = '${headers["Cookie"]}; $cookieStr';
-        } else {
-          headers['Cookie'] = cookieStr;
         }
       }
+
+      TraceContextUtil.injectTraceContext(headers);
+
+      final Uint8List? serializedBody;
+      if (contentType == 'multipart/form-data' &&
+          body is Map<String, Object?>) {
+        final boundary = _generateUuid();
+        headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
+        serializedBody = _buildMultipartBody(body, boundary);
+      } else {
+        serializedBody = _serializeBody(body, contentType, rawBody: rawBody);
+      }
+      if (serializedBody == null) {
+        headers.remove('Content-Type');
+      }
+
+      return apiClient.sendRequest(method, requestUrl, headers, serializedBody);
     }
 
-    TraceContextUtil.injectTraceContext(headers);
+    final client = apiClient;
+    final maxRetries = client is RetryingApiClient ? client.maxRetries : 0;
+    final budgetMs = client is RetryingApiClient ? client.timeoutMillis : null;
+    /* A multipart body is never sent twice. */
+    final replayable = contentType != 'multipart/form-data';
+    final clock = Stopwatch()..start();
+    var retries = 0;
+    var reauthenticated = false;
+    var first = true;
+    final Object? credential = effectiveAuth;
+    final invalidating = credential is AccessTokenInvalidating
+        ? credential
+        : null;
+    while (true) {
+      ApiHttpResponse? response;
+      ApiException? failure;
+      try {
+        final pending = sendOnce();
+        response = (first || budgetMs == null)
+            ? await pending
+            : await pending.timeout(
+                _budgetLeft(budgetMs, clock),
+                onTimeout: () {
+                  throw NetworkTimeoutException(
+                    message: 'Request timed out after $budgetMs ms',
+                  );
+                },
+              );
+      } on NetworkException catch (e) {
+        failure = e;
+      }
+      first = false;
 
-    final Uint8List? serializedBody;
-    if (contentType == 'multipart/form-data' && body is Map<String, Object?>) {
-      final boundary = _generateUuid();
-      headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
-      serializedBody = _buildMultipartBody(body, boundary);
-    } else {
-      serializedBody = _serializeBody(body, contentType, rawBody: rawBody);
+      if (response != null) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return response;
+        }
+        /* A revoked or rotated token keeps failing while it is cached. On a
+         * 401 from a request that carried a token this SDK fetched, drop the
+         * token, obtain a new one (a refresh grant first) and replay the
+         * request once. A second 401, or a failed re-authentication, is
+         * reported as the usual error. */
+        if (response.statusCode == 401 &&
+            !reauthenticated &&
+            replayable &&
+            invalidating != null) {
+          reauthenticated = true;
+          invalidating.invalidateAccessToken();
+          try {
+            await effectiveAuth!.authHeadersAsync();
+            continue;
+          } catch (_) {
+            /* Fall through to the 401. */
+          }
+        } else if (replayable &&
+            retries < maxRetries &&
+            _isRetryableStatus(response.statusCode)) {
+          final delay = _retryDelay(retries, response.headers);
+          if (_withinBudget(delay, budgetMs, clock)) {
+            retries++;
+            await sleepBeforeRetry(delay);
+            continue;
+          }
+        }
+        throw ApiException.fromResponse(
+          response.statusCode,
+          response.headers,
+          response.body,
+        );
+      }
+
+      /* No response arrived: a network error. */
+      if (replayable && retries < maxRetries) {
+        final delay = _retryDelay(retries, const {});
+        if (_withinBudget(delay, budgetMs, clock)) {
+          retries++;
+          await sleepBeforeRetry(delay);
+          continue;
+        }
+      }
+      throw failure!;
     }
-    if (serializedBody == null) {
-      headers.remove('Content-Type');
+  }
+
+  /// Waits for [delay] before a retry. Overridable so a test does not have to
+  /// wait for real time.
+  Future<void> sleepBeforeRetry(Duration delay) => Future<void>.delayed(delay);
+
+  /// Whether a response with [status] is worth sending again: 408, 409, 429
+  /// and every 5xx but 501 (not implemented, which no retry fixes).
+  static bool _isRetryableStatus(int status) =>
+      status == 408 ||
+      status == 409 ||
+      status == 429 ||
+      (status >= 500 && status <= 599 && status != 501);
+
+  /// Time left of the end-to-end timeout of [budgetMs] milliseconds, never
+  /// negative.
+  static Duration _budgetLeft(int budgetMs, Stopwatch clock) {
+    final left = budgetMs - clock.elapsedMilliseconds;
+    return Duration(milliseconds: left < 0 ? 0 : left);
+  }
+
+  /// Whether a retry after [delay] still fits in the end-to-end timeout of
+  /// [budgetMs] milliseconds (null: no timeout). The retries never extend it.
+  static bool _withinBudget(Duration delay, int? budgetMs, Stopwatch clock) =>
+      budgetMs == null ||
+      delay.inMilliseconds < _budgetLeft(budgetMs, clock).inMilliseconds;
+
+  /// The wait before retry number [retries] (0 for the first): the server's
+  /// `Retry-After` (seconds or an HTTP date) capped at 60 s, else 0.5 s doubling
+  /// to 8 s less up to 25% jitter.
+  static Duration _retryDelay(int retries, Map<String, String> headers) {
+    final retryAfter = _retryAfter(headers);
+    if (retryAfter != null) {
+      return retryAfter;
     }
+    final seconds = min(0.5 * pow(2, retries).toDouble(), 8.0);
+    final jittered = seconds * (1 - 0.25 * Random().nextDouble());
+    return Duration(milliseconds: (jittered * 1000).round());
+  }
 
-    final response = await apiClient.sendRequest(
-      method,
-      requestUrl,
-      headers,
-      serializedBody,
-    );
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException.fromResponse(
-        response.statusCode,
-        response.headers,
-        response.body,
-      );
+  /// The `Retry-After` header as a wait capped at 60 s, or null when absent or
+  /// not understood.
+  static Duration? _retryAfter(Map<String, String> headers) {
+    String? raw;
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() == 'retry-after') {
+        raw = entry.value.trim();
+        break;
+      }
     }
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    final seconds = double.tryParse(raw);
+    if (seconds != null) {
+      if (seconds.isNaN || seconds < 0) {
+        return null;
+      }
+      return seconds >= 60
+          ? _maxRetryAfter
+          : Duration(milliseconds: (seconds * 1000).round());
+    }
+    final until = _tryParseHttpDate(raw);
+    if (until == null) {
+      return null;
+    }
+    final wait = until.difference(DateTime.now().toUtc());
+    if (wait.isNegative) {
+      return Duration.zero;
+    }
+    return wait > _maxRetryAfter ? _maxRetryAfter : wait;
+  }
 
-    return response;
+  /// The longest wait a `Retry-After` header can ask for.
+  static const Duration _maxRetryAfter = Duration(seconds: 60);
+
+  /// Parses an HTTP date, or returns null when [value] is not one.
+  static DateTime? _tryParseHttpDate(String value) {
+    try {
+      return parseHttpDate(value);
+    } on FormatException {
+      return null;
+    }
   }
 
   /// Invoke an API operation and return the full result including status

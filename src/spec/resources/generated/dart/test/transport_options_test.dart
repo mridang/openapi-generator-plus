@@ -58,6 +58,39 @@ void main() {
       },
     );
 
+    test('maxRetries defaults to 2 and 0 disables retries', () {
+      expect(TransportOptionsBuilder().build().maxRetries, equals(2));
+      expect(
+        TransportOptionsBuilder().maxRetries(0).build().maxRetries,
+        equals(0),
+      );
+      expect(
+        TransportOptionsBuilder().maxRetries(5).build().maxRetries,
+        equals(5),
+      );
+    });
+
+    test('a negative maxRetries is refused', () {
+      expect(
+        () => TransportOptionsBuilder().maxRetries(-1),
+        throwsArgumentError,
+      );
+    });
+
+    test('the default client exposes the retry policy of its options', () {
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder()
+            .maxRetries(4)
+            .timeout(2500)
+            .build(),
+      );
+      addTearDown(client.close);
+
+      expect(client, isA<RetryingApiClient>());
+      expect(client.maxRetries, equals(4));
+      expect(client.timeoutMillis, equals(2500));
+    });
+
     test('verifySsl defaults to true', () {
       final opts = TransportOptionsBuilder().build();
       expect(opts.verifySsl, isTrue);

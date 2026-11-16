@@ -1786,7 +1786,7 @@ public class PetApiTest
     )
     {
         var routed = new PetApi(
-            new DefaultApiClient(),
+            new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build()),
             Configuration.Builder().BaseUrl(_baseUrl + "/test/status/" + status).Build()
         );
 

@@ -62,6 +62,7 @@ describe("DefaultApiClient", () => {
       const transport = TransportOptions.builder()
         .verifySsl(true)
         .caCertPath(caCertPath)
+        .maxRetries(0)
         .build();
 
       const client = new DefaultApiClient(transport);

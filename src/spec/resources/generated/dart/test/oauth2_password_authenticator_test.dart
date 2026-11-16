@@ -178,6 +178,27 @@ void main() {
       expect(decoded, equals('id%2Bwith%2Fspecial:secret%26with%3Dstuff'));
     });
 
+    test(
+      'invalidateAccessToken keeps the refresh token and refreshes with it',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+        await auth.authHeadersAsync();
+
+        auth.invalidateAccessToken();
+        final headers = await auth.authHeadersAsync();
+
+        expect(headers['Authorization'], equals('Bearer tok2'));
+        expect(client.lastBody, contains('grant_type=refresh_token'));
+        expect(client.lastBody, contains('refresh_token=ref1'));
+      },
+    );
+
     test('redacts the secret in toString', () {
       final auth = OAuth2PasswordAuthenticator(
         host: 'https://api.example.com',

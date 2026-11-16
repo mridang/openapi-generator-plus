@@ -94,6 +94,16 @@ describe Petstore::Client::Errors::ApiError do
     _(err.response_headers['set-cookie']).must_equal 'sid=abc'
   end
 
+  it 'masks the challenge headers in the rendered headers' do
+    headers = { 'WWW-Authenticate' => 'Bearer realm="x"', 'Proxy-Authenticate' => 'Basic', 'x-id' => '1' }
+    err = Petstore::Client::Errors::ApiError.new(
+      status_code: 401, message: 'denied', response_headers: headers, response_body: nil
+    )
+
+    _(err.message).must_include('"Proxy-Authenticate":"***","WWW-Authenticate":"***","x-id":"1"')
+    _(err.response_headers['WWW-Authenticate']).must_equal 'Bearer realm="x"'
+  end
+
   it 'substitutes the default text for an empty detail message' do
     _(Petstore::Client::Errors::ApiError.new('').message).must_equal('Error message: the server returns an error')
     _(Petstore::Client::Errors::ApiError.new(message: '').message).must_equal('Error message: the server returns an error')

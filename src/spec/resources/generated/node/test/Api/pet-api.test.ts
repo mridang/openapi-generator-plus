@@ -32,6 +32,8 @@ import type { ApiClient } from "../../src/api-client.js";
 import type { ApiHttpResponse } from "../../src/api-http-response.js";
 import { BearerAuthenticator } from "../../src/auth/bearer-authenticator.js";
 import { Configuration } from "../../src/configuration.js";
+import { DefaultApiClient } from "../../src/default-api-client.js";
+import { TransportOptions } from "../../src/transport-options.js";
 import { Servers } from "../../src/servers.js";
 import {
   Medication,
@@ -420,7 +422,10 @@ function createMockServer(
       const mockConfig = Configuration.builder()
         .baseUrl(`http://127.0.0.1:${addr.port}`)
         .build();
-      const mockApi = new PetApi(undefined, mockConfig);
+      const mockApi = new PetApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        mockConfig,
+      );
       resolve({ api: mockApi, server, close: () => server.close() });
     });
   });

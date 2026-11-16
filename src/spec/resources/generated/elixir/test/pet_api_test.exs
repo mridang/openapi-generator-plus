@@ -660,7 +660,11 @@ defmodule PetstoreClient.Api.PetApiTest do
         default_headers: %{}
       )
 
-    PetstoreClient.Api.PetApi.new(nil, config)
+    # A mock answers one connection, so a retry would find nobody listening.
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(max_retries: 0))
+
+    PetstoreClient.Api.PetApi.new(client, config)
   end
 
   test "error handling 404 not found" do

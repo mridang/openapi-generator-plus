@@ -1385,7 +1385,12 @@ void main() {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/500')
           .build();
-      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+      final api = PetApi(
+        apiClient: DefaultApiClient(
+          transportOptions: TransportOptions.builder().maxRetries(0).build(),
+        ),
+        config: config,
+      );
 
       try {
         await api.getPetById(1, null);

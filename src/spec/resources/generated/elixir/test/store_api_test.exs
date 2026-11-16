@@ -102,7 +102,11 @@ defmodule PetstoreClient.Api.StoreApiTest do
         default_headers: %{}
       )
 
-    PetstoreClient.Api.StoreApi.new(nil, config)
+    # A mock answers one connection, so a retry would find nobody listening.
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(max_retries: 0))
+
+    PetstoreClient.Api.StoreApi.new(client, config)
   end
 
   test "get_order_by_id 404 returns error" do

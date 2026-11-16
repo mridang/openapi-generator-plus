@@ -551,3 +551,43 @@ fn test_transport_options_debug_masks_proxy_password_and_credential_headers() {
     assert!(shown.contains("proxy.example.com"));
     assert!(shown.contains("visible"));
 }
+
+#[test]
+fn test_transport_options_max_retries_defaults_to_two() {
+    let opts = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
+    assert_eq!(2, opts.max_retries());
+    assert_eq!(2, TransportOptions::default().max_retries());
+}
+
+#[test]
+fn test_transport_options_max_retries_can_be_set_and_disabled() {
+    let five = TransportOptions::builder()
+        .max_retries(5)
+        .build()
+        .expect("valid transport options");
+    let none = TransportOptions::builder()
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    assert_eq!(5, five.max_retries());
+    assert_eq!(0, none.max_retries());
+    assert!(format!("{:?}", five).contains("max_retries: 5"));
+}
+
+#[test]
+fn test_default_api_client_reports_the_retry_budget_to_the_call() {
+    use petstore::api_client::ApiClient;
+    let opts = TransportOptions::builder()
+        .max_retries(4)
+        .timeout(Some(2_500))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(opts));
+    assert_eq!(4, ApiClient::max_retries(&client));
+    assert_eq!(
+        Some(std::time::Duration::from_millis(2_500)),
+        ApiClient::request_timeout(&client)
+    );
+}

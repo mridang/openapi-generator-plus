@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient;
 
 use PetstoreClient\Errors\ApiException;
+use PetstoreClient\Errors\NetworkException;
 use PetstoreClient\Errors\NetworkTimeoutException;
 
 /**
@@ -77,6 +78,14 @@ abstract class AbstractApiClient implements ApiClient
      * redirect hop included, never a fresh allowance per hop.
      */
     private ?float $deadline = null;
+
+    /**
+     * Monotonic instant (seconds) at which the one end-to-end budget of a
+     * {@see sendWithRetries()} call is spent, or null outside such a call or
+     * when the timeout is disabled. Every attempt is bounded by it, so the
+     * retries never extend the request timeout.
+     */
+    private ?float $retryDeadline = null;
 
     /**
      * @param TransportOptions|null $transportOptions transport configuration applied to every request
@@ -215,6 +224,11 @@ abstract class AbstractApiClient implements ApiClient
         $this->deadline = $this->transportOptions->timeout === null
             ? null
             : hrtime(true) / 1e9 + $this->transportOptions->timeout / 1000.0;
+        if ($this->retryDeadline !== null) {
+            $this->deadline = $this->deadline === null
+                ? $this->retryDeadline
+                : min($this->deadline, $this->retryDeadline);
+        }
 
         try {
             $response = $this->execute($method, $url, $mergedHeaders, $body);
@@ -419,6 +433,131 @@ abstract class AbstractApiClient implements ApiClient
         } finally {
             $this->deadline = null;
         }
+    }
+
+    /**
+     * Send a request and retry it after a transient failure.
+     *
+     * The request is retried up to {@see TransportOptions::$maxRetries} times
+     * after a network error that happened before a response, and after a 408,
+     * 409, 429 or 5xx (except 501) response. The wait grows from 0.5 s,
+     * doubling up to 8 s, with up to 25% jitter, and a `Retry-After` header
+     * (seconds or an HTTP date, capped at 60 s) replaces it. The whole call,
+     * waits included, stays inside the one request timeout: when the next wait
+     * would outlast what is left, the last failure is returned or thrown. A body
+     * that is neither null nor a string (a stream or multipart parts) is not
+     * replayable and is sent once. Every attempt calls $headers again, so a
+     * retry carries freshly built headers, authentication included.
+     *
+     * @param string                          $method  HTTP method
+     * @param string                          $url     fully qualified URL
+     * @param callable(): array<string, string> $headers builds the request headers for one attempt
+     * @param mixed                           $body    request body (string, multipart array, stream, or null)
+     *
+     * @return ApiHttpResponse the response of the last attempt
+     *
+     * @throws ApiException if the last attempt fails at the transport level
+     */
+    public function sendWithRetries(string $method, string $url, callable $headers, mixed $body): ApiHttpResponse
+    {
+        $maxRetries = ($body === null || is_string($body)) ? $this->transportOptions->maxRetries : 0;
+        $timeout = $this->transportOptions->timeout;
+        $budgetEnd = $timeout === null ? null : hrtime(true) / 1e9 + $timeout / 1000.0;
+        $attempt = 0;
+        while (true) {
+            $this->retryDeadline = $budgetEnd;
+            try {
+                $response = $this->sendRequest($method, $url, $headers(), $body);
+                $failure = null;
+            } catch (NetworkException $e) {
+                $response = null;
+                $failure = $e;
+            } finally {
+                $this->retryDeadline = null;
+            }
+            if (!$failure instanceof \PetstoreClient\Errors\NetworkException && $response instanceof \PetstoreClient\ApiHttpResponse && !$this->isRetryableStatus($response->statusCode)) {
+                return $response;
+            }
+            if ($attempt >= $maxRetries) {
+                break;
+            }
+            $delay = $response instanceof \PetstoreClient\ApiHttpResponse
+                ? $this->retryAfterSeconds($response->headers['retry-after'] ?? null)
+                : null;
+            $delay ??= $this->backoffSeconds($attempt, $this->jitter());
+            if ($budgetEnd !== null && hrtime(true) / 1e9 + $delay >= $budgetEnd) {
+                break;
+            }
+            $this->pause($delay);
+            $attempt++;
+        }
+        if ($failure instanceof \PetstoreClient\Errors\NetworkException) {
+            throw $failure;
+        }
+        /* The loop only leaves with a response or a failure. */
+        assert($response instanceof \PetstoreClient\ApiHttpResponse);
+        return $response;
+    }
+
+    /**
+     * Waits between two attempts. A seam so tests can run without sleeping.
+     *
+     * @param float $seconds how long to wait
+     */
+    protected function pause(float $seconds): void
+    {
+        usleep((int) round($seconds * 1_000_000));
+    }
+
+    /**
+     * A random number in [0, 1) used to jitter the backoff. A seam for tests.
+     */
+    protected function jitter(): float
+    {
+        return mt_rand() / (mt_getrandmax() + 1);
+    }
+
+    /**
+     * Whether a response status is worth another attempt: 408, 409, 429 and
+     * every 5xx except 501 (which will not change).
+     */
+    private function isRetryableStatus(int $status): bool
+    {
+        return in_array($status, [408, 409, 429], true)
+            || ($status >= 500 && $status <= 599 && $status !== 501);
+    }
+
+    /**
+     * Backoff before retry number $attempt + 1: 0.5 s doubling up to 8 s, cut
+     * by up to 25% of itself according to $jitter in [0, 1).
+     */
+    private function backoffSeconds(int $attempt, float $jitter): float
+    {
+        $base = min(8.0, 0.5 * (2 ** min($attempt, 16)));
+        return $base * (1.0 - 0.25 * $jitter);
+    }
+
+    /**
+     * Seconds a `Retry-After` value asks for (delay-seconds or an HTTP date),
+     * capped at 60, or null when it is absent or not understood.
+     */
+    private function retryAfterSeconds(?string $value): ?float
+    {
+        if ($value === null) {
+            return null;
+        }
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+        if (preg_match('/\A\d+(\.\d+)?\z/', $value) === 1) {
+            return min(60.0, (float) $value);
+        }
+        $at = strtotime($value);
+        if ($at === false) {
+            return null;
+        }
+        return min(60.0, max(0.0, (float) ($at - time())));
     }
 
     /**

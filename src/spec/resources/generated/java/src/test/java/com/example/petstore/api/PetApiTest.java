@@ -17,6 +17,7 @@ import com.example.petstore.ApiHttpResponse;
 import com.example.petstore.ChasmContainer;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
+import com.example.petstore.TransportOptions;
 import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.DeletePetOptions;
@@ -1523,7 +1524,7 @@ class PetApiTest {
     for (Object[] row : table) {
       PetApi routed =
           new PetApi(
-              new DefaultApiClient(),
+              new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
               Configuration.builder()
                   .baseUrl(ChasmContainer.getBaseUrl() + "/test/status/" + row[0])
                   .build());

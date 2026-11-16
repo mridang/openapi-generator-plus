@@ -10,10 +10,14 @@
 package oauth
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"petstore/pkg/auth"
@@ -50,6 +54,51 @@ type OAuth2AuthorizationCodeAuthenticator struct {
 	// tokenExchanged is set by ExchangeCode (typically on a callback goroutine)
 	// and read by requests on others, so it is atomic.
 	tokenExchanged atomic.Bool
+	// pkceMu guards pkceVerifier, the PKCE code verifier (RFC 7636) of the last
+	// authorization URL built, kept until its code is exchanged.
+	pkceMu       sync.Mutex
+	pkceVerifier string
+}
+
+// newPKCEVerifier returns a fresh PKCE code verifier: 32 random bytes as 43
+// URL-safe base64 characters (RFC 7636 section 4.1).
+func newPKCEVerifier() string {
+	random := make([]byte, 32)
+	// crypto/rand.Read never returns an error and always fills the slice.
+	_, _ = rand.Read(random)
+	return base64.RawURLEncoding.EncodeToString(random)
+}
+
+// pkceChallenge is the S256 code challenge of a verifier: the unpadded
+// URL-safe base64 of its SHA-256 digest (RFC 7636 section 4.2).
+func pkceChallenge(verifier string) string {
+	digest := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(digest[:])
+}
+
+// currentPKCEVerifier returns the verifier waiting for a code exchange, or an
+// empty string when no authorization URL has been built.
+func (a *OAuth2AuthorizationCodeAuthenticator) currentPKCEVerifier() string {
+	a.pkceMu.Lock()
+	defer a.pkceMu.Unlock()
+	return a.pkceVerifier
+}
+
+// takePKCEVerifier returns the stored verifier and forgets it.
+func (a *OAuth2AuthorizationCodeAuthenticator) takePKCEVerifier() string {
+	a.pkceMu.Lock()
+	defer a.pkceMu.Unlock()
+	verifier := a.pkceVerifier
+	a.pkceVerifier = ""
+	return verifier
+}
+
+// setPKCEVerifier replaces the stored verifier. OpenID Connect rediscovery uses
+// it so the authenticator it rebuilds keeps the verifier of the pending login.
+func (a *OAuth2AuthorizationCodeAuthenticator) setPKCEVerifier(verifier string) {
+	a.pkceMu.Lock()
+	defer a.pkceMu.Unlock()
+	a.pkceVerifier = verifier
 }
 
 // NewOAuth2AuthorizationCodeAuthenticator creates a new authorization code authenticator.
@@ -95,9 +144,20 @@ func (a *OAuth2AuthorizationCodeAuthenticator) SetApiClient(client auth.ApiClien
 	a.tokenManager.SetApiClient(client)
 }
 
+// InvalidateAccessToken drops the cached access token and keeps the refresh
+// token, so the next request fetches a new token. The client calls it when an
+// API call is answered with 401, then replays the request once.
+func (a *OAuth2AuthorizationCodeAuthenticator) InvalidateAccessToken() {
+	a.tokenManager.InvalidateAccessToken()
+}
+
 // BuildAuthorizationURL builds the authorization URL to redirect the user to.
 //
-// The state parameter is optional and used for CSRF protection.
+// The state parameter is optional and used for CSRF protection. The URL carries
+// a PKCE S256 code_challenge (RFC 7636); the matching verifier is kept in the
+// authenticator and sent as code_verifier by the next ExchangeCode. Each call
+// starts a new challenge, so the last URL built is the one that can be
+// exchanged.
 func (a *OAuth2AuthorizationCodeAuthenticator) BuildAuthorizationURL(state string) string {
 	/* One fixed parameter order shared by every SDK: response_type,
 	 * client_id, redirect_uri, scope, state. */
@@ -112,6 +172,12 @@ func (a *OAuth2AuthorizationCodeAuthenticator) BuildAuthorizationURL(state strin
 	if state != "" {
 		params = append(params, [2]string{"state", state})
 	}
+	verifier := newPKCEVerifier()
+	a.setPKCEVerifier(verifier)
+	params = append(params,
+		[2]string{"code_challenge", pkceChallenge(verifier)},
+		[2]string{"code_challenge_method", "S256"},
+	)
 	// RFC 6749 §3.1: the authorization endpoint URI MAY already include
 	// a query component. Use '&' as the separator when one is already
 	// present so existing params are preserved, '?' otherwise.
@@ -142,6 +208,11 @@ func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {
 		"client_id":     a.clientID,
 		"client_secret": a.clientSecret,
 		"redirect_uri":  a.redirectURI,
+	}
+	/* A verifier exists only after BuildAuthorizationURL; it is single-use, so
+	 * it is dropped whether or not the exchange succeeds. */
+	if verifier := a.takePKCEVerifier(); verifier != "" {
+		params["code_verifier"] = verifier
 	}
 	/* Exchange always POSTs this code and replaces the session; the caching
 	 * GetAccessToken would return the previous token or refresh it instead. */

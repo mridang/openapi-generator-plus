@@ -211,6 +211,8 @@ Every error the SDK raises derives from `OpenAPIException`, so one catch of that
 
 A malformed response body and a failed token exchange are not `ApiException`s, so end a catch sequence with the root type.
 
+An `ApiException` prints its response body capped at 1 KiB (`... (N more bytes)`) with control characters escaped as `\xNN`, and masks credential headers (authorization, cookie, `*key*`, `*token*`, `*secret*` and the like); `responseBody` and `responseHeaders` keep the full values.
+
 ```dart
 Future<void> addPetOrReport(Client client, Pet pet, AddPetOptions? options) async {
   try {
@@ -244,6 +246,18 @@ final client = Client(
   transportOptions: transport,
 );
 ```
+
+### Retries
+
+```dart
+final transport = TransportOptions.builder()
+  .maxRetries(3) // default 2; 0 disables retries
+  .build();
+```
+
+Network errors before a response and statuses 408, 409, 429 and 500-599 (not 501) are retried with a backoff of 0.5 s doubling to 8 s with 25% jitter; `Retry-After` (at most 60 s) is honoured, the request timeout is never extended, and a multipart body is never retried.
+
+A 401 on an OAuth2 or OpenID Connect call drops the cached access token and replays the request once with fresh headers. The authorization-code flow sends a PKCE `S256` challenge and verifier.
 
 ### Custom HTTP Client
 

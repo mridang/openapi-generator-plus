@@ -108,6 +108,14 @@ OAuth2 authenticators resolve the access token by making an HTTP call to the tok
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
 
+#### A 401 replays the request once
+
+When an OAuth2 or OpenID Connect call is answered with 401, the SDK drops the cached access token (the refresh token is kept; `invalidate_access_token/1` on the authenticator does the same by hand) and sends the request once more with fresh headers. A second 401 is reported as the usual `UnauthorizedError`. API key, basic and bearer authenticators never replay.
+
+#### PKCE
+
+The Authorization Code and OpenID Connect flows use PKCE with S256 (RFC 7636). `build_authorization_url/2` draws a new 43-character verifier, keeps it, and adds `code_challenge` and `code_challenge_method=S256` to the URL; `exchange_code/2` sends the `code_verifier`. Call `build_authorization_url/2` before `exchange_code/2` with the same authenticator.
+
 #### Token caching
 
 The token manager caches the access token in memory and refreshes it before its declared expiry, by one margin of at most `60` seconds and never more than half of `expires_in` (a 60 second token is reused for 30 seconds). Expiry is measured on the monotonic clock, so a wall clock change does not extend or cut a token's life. A token response without `expires_in` is cached until the API answers 401 or the token is invalidated.
@@ -211,6 +219,8 @@ case PetstoreClient.Api.PetApi.add_pet(client.pet, pet) do
 end
 ```
 
+The text of an `ApiError` (`Exception.message/1`) cuts the response body at 1 KiB with a `... (N more bytes)` suffix, writes control characters as `\xNN`, and masks credential response headers (`Authorization`, `Cookie`, `Set-Cookie`, `WWW-Authenticate` and any name containing key, token or secret). The full body stays on `response_body` and the full headers on `response_headers`.
+
 ## Configuration
 
 ### Custom Transport Options
@@ -248,7 +258,14 @@ There is no cancellation argument. The SDK uses the platform's own mechanism: st
 
 ### Timeouts and retries
 
-`timeout` on `TransportOptions` is one end-to-end budget in milliseconds. The SDK does not retry a failed request.
+`timeout` on `TransportOptions` is one end-to-end budget in milliseconds. Retries share that budget: none runs past it.
+
+`max_retries` on `TransportOptions` is how many times a failed call is tried again (default `2`; `0` turns retries off). A call is retried after a network error that happened before any response, and after a response with status 408, 409, 429 or 500 to 599 other than 501 (a timeout, 400, 401, 403, 404, 422 and 501 are not retried). The wait starts at 0.5 s and doubles up to 8 s, less up to 25% jitter; a `Retry-After` header (seconds or an HTTP date) replaces it, capped at 60 s. Every retry is a fresh request: headers, authentication included, are rebuilt.
+
+```elixir
+transport = PetstoreClient.TransportOptions.new(max_retries: 0)
+client = PetstoreClient.Client.new(authenticator, transport)
+```
 
 ## API Methods
 

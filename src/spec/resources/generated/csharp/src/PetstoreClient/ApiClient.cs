@@ -95,6 +95,31 @@ public interface IApiClient : IDisposable
     }
 
     /// <summary>
+    /// Send an HTTP request that may be retried. When the transport retries a
+    /// failed attempt it calls <paramref name="refreshHeaders"/> first and sends
+    /// the headers it returns, so every retry is a fresh request that carries
+    /// current authentication headers. The default implementation ignores the
+    /// callback and delegates to the six-argument overload.
+    /// </summary>
+    /// <param name="method">HTTP method</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (may be null)</param>
+    /// <param name="noRedirect">When <c>true</c>, do not follow 3xx responses.</param>
+    /// <param name="refreshHeaders">Rebuilds the request headers for a retry, or null to reuse them.</param>
+    /// <param name="cancellationToken">Token that cancels the request.</param>
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        Func<Task<Dictionary<string, string>>>? refreshHeaders,
+        CancellationToken cancellationToken
+    ) => SendRequestAsync(method, url, headers, body, noRedirect, cancellationToken);
+
+    /// <summary>
     /// Releases any resources held by this client (connection pool, sockets).
     /// The default implementation is a no-op; implementations that own a
     /// pooled HTTP client should dispose of it.

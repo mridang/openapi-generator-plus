@@ -12,10 +12,12 @@ import mimetypes
 import re
 import socket
 import ssl
+import random
 import threading
 import time
 import uuid
 import zlib
+from email.utils import parsedate_to_datetime
 from urllib.parse import quote as _url_quote, unquote as _url_unquote, urljoin, urlsplit
 
 import urllib3
@@ -165,6 +167,51 @@ def _network_exception(error: urllib3.exceptions.HTTPError) -> NetworkException:
     if isinstance(cause, (urllib3.exceptions.TimeoutError, TimeoutError)):
         return NetworkTimeoutException(message=message)
     return NetworkException(message=message)
+
+
+_RETRY_BASE_DELAY_S = 0.5
+_RETRY_MAX_DELAY_S = 8.0
+_RETRY_AFTER_CAP_S = 60.0
+_RETRY_AFTER_SECONDS = re.compile(r"[0-9]+(?:\.[0-9]+)?")
+
+
+def _is_retryable_status(status: int) -> bool:
+    """Statuses worth retrying: 408, 409, 429 and 500 to 599 except 501."""
+    return status in (408, 409, 429) or (500 <= status <= 599 and status != 501)
+
+
+def _retry_delay(
+    attempt: int,
+    retry_after: Optional[str] = None,
+    now: Optional[float] = None,
+    jitter: Optional[float] = None,
+) -> float:
+    """Seconds to wait before retry number ``attempt + 1``.
+
+    The ``Retry-After`` value (delta seconds or an HTTP date, capped at 60 s)
+    when the server sent a usable one, otherwise 0.5 s doubling up to 8 s with
+    up to 25% jitter taken off.
+
+    Args:
+        attempt: Zero-based number of the attempt that just failed.
+        retry_after: The ``Retry-After`` response header, if any.
+        now: Current wall-clock time in epoch seconds (for tests).
+        jitter: A value in ``[0, 1)`` scaling the jitter (for tests).
+    """
+    header = (retry_after or "").strip()
+    if header:
+        if _RETRY_AFTER_SECONDS.fullmatch(header):
+            return min(float(header), _RETRY_AFTER_CAP_S)
+        when: Optional[float]
+        try:
+            when = parsedate_to_datetime(header).timestamp()
+        except (TypeError, ValueError, IndexError):
+            when = None
+        if when is not None:
+            current = time.time() if now is None else now
+            return min(max(when - current, 0.0), _RETRY_AFTER_CAP_S)
+    base = min(_RETRY_BASE_DELAY_S * 2 ** min(attempt, 10), _RETRY_MAX_DELAY_S)
+    return base * (1.0 - 0.25 * (random.random() if jitter is None else jitter))
 
 
 def _has_header(headers: Dict[str, str], name: str) -> bool:
@@ -501,6 +548,11 @@ class DefaultApiClient:
                 "https": _CancellableHTTPSConnectionPool,
             }
 
+    @property
+    def transport_options(self) -> TransportOptions:
+        """The transport options this client applies."""
+        return self._transport_options
+
     def close(self) -> None:
         """Cancel in-flight requests, then close the pool the client created.
 
@@ -539,6 +591,7 @@ class DefaultApiClient:
         body: Any = None,
         no_redirect: bool = False,
         handle: Optional[RequestHandle] = None,
+        deadline: Optional[float] = None,
     ) -> ApiHttpResponse:
         """Send an HTTP request and return the response.
 
@@ -552,6 +605,9 @@ class DefaultApiClient:
             body: Request body.
             no_redirect: When ``True``, a 3xx response is returned verbatim.
             handle: Optional handle another thread can cancel.
+            deadline: Optional ``time.monotonic()`` instant the whole call must
+                end by. It replaces the timeout of the transport options, so a
+                caller that retries keeps one end-to-end budget.
 
         Returns:
             :class:`ApiHttpResponse` containing status code, body, and headers.
@@ -569,7 +625,7 @@ class DefaultApiClient:
             self._inflight.add(handle)
         _ACTIVE.handle = handle
         try:
-            response = self._send(method, url, headers, body, no_redirect)
+            response = self._send(method, url, headers, body, no_redirect, deadline)
         except Exception as error:
             if handle.cancelled:
                 raise RuntimeError("The request was cancelled") from error
@@ -590,6 +646,7 @@ class DefaultApiClient:
         headers: Dict[str, str],
         body: Any = None,
         no_redirect: bool = False,
+        deadline_at: Optional[float] = None,
     ) -> ApiHttpResponse:
         """Send an HTTP request and return the response.
 
@@ -609,6 +666,8 @@ class DefaultApiClient:
                 manager so a credential-bearing POST is never silently
                 replayed against a redirect target -- the token manager
                 inspects and rejects the 3xx itself.
+            deadline_at: Optional ``time.monotonic()`` instant the call must
+                end by, replacing the configured timeout.
 
         Returns:
             :class:`ApiHttpResponse` containing status code, body, and headers.
@@ -677,7 +736,15 @@ class DefaultApiClient:
         # the same deadline, measured from the start of the call.
         request_kwargs: Dict[str, Any] = {}
         deadline: Optional[float] = None
-        if self._transport_options.timeout is not None:
+        if deadline_at is not None:
+            remaining_seconds = deadline_at - time.monotonic()
+            if remaining_seconds <= 0:
+                raise NetworkTimeoutException(
+                    message="Request timed out: the timeout budget was used up"
+                )
+            request_kwargs["timeout"] = urllib3.Timeout(total=remaining_seconds)
+            deadline = deadline_at
+        elif self._transport_options.timeout is not None:
             timeout_seconds = self._transport_options.timeout / 1000.0
             request_kwargs["timeout"] = urllib3.Timeout(total=timeout_seconds)
             deadline = time.monotonic() + timeout_seconds

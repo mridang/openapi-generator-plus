@@ -768,7 +768,7 @@ import Testing
   // headers arrived is still a transport failure: status 0 and the URLError
   // kept as the cause, never an ApiError carrying the 200 that was received.
   @Test func testBodyTruncatedAfterHeadersIsNetworkError() async throws {
-    let client = makeClient { _ in
+    let client = makeClient(transport: try TransportOptionsBuilder().maxRetries(0).build()) { _ in
       (
         Data("partial body".utf8), 200,
         [
@@ -799,6 +799,215 @@ import Testing
     }
     #expect(error?.statusCode == 0)
     #expect((error?.underlyingError as? URLError)?.code == .timedOut)
+  }
+
+  // MARK: - Automatic retries
+
+  private func retryClient(
+    maxRetries: Int = 2, timeout: Int? = 10000,
+    handler: @escaping (URLRequest) -> (Data, Int, [String: String])
+  ) throws -> DefaultApiClient {
+    let transport = try TransportOptionsBuilder().maxRetries(maxRetries).timeout(timeout).build()
+    return makeClient(transport: transport, handler: handler)
+  }
+
+  @Test func testServerErrorIsRetriedUntilItSucceeds() async throws {
+    var calls = 0
+    let client = try retryClient { _ in
+      calls += 1
+      return calls < 3 ? (Data(), 503, ["Retry-After": "0"]) : (Data("{}".utf8), 200, [:])
+    }
+    let response = try await client.sendRequest(
+      method: "GET", url: "http://localhost/flaky", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
+    #expect(calls == 3)
+  }
+
+  @Test func testRetriesStopAfterMaxRetriesAndReturnTheLastResponse() async throws {
+    var calls = 0
+    let client = try retryClient(maxRetries: 1) { _ in
+      calls += 1
+      return (Data(), 500, ["Retry-After": "0"])
+    }
+    let response = try await client.sendRequest(
+      method: "GET", url: "http://localhost/down", headers: [:], body: nil)
+    #expect(response.statusCode == 500)
+    #expect(calls == 2)
+  }
+
+  @Test func testMaxRetriesZeroSendsOnce() async throws {
+    var calls = 0
+    let client = try retryClient(maxRetries: 0) { _ in
+      calls += 1
+      return (Data(), 503, ["Retry-After": "0"])
+    }
+    let response = try await client.sendRequest(
+      method: "GET", url: "http://localhost/once", headers: [:], body: nil)
+    #expect(response.statusCode == 503)
+    #expect(calls == 1)
+  }
+
+  @Test(arguments: [400, 401, 403, 404, 422, 501])
+  func testStatusesThatAreNotTransientAreNotRetried(status: Int) async throws {
+    var calls = 0
+    let client = try retryClient { _ in
+      calls += 1
+      return (Data(), status, ["Retry-After": "0"])
+    }
+    let response = try await client.sendRequest(
+      method: "GET", url: "http://localhost/final", headers: [:], body: nil)
+    #expect(response.statusCode == status)
+    #expect(calls == 1)
+  }
+
+  @Test(arguments: [408, 409, 429, 500, 502, 503, 504, 599])
+  func testTransientStatusesAreRetried(status: Int) async throws {
+    var calls = 0
+    let client = try retryClient(maxRetries: 1) { _ in
+      calls += 1
+      return (Data(), status, ["Retry-After": "0"])
+    }
+    _ = try await client.sendRequest(
+      method: "GET", url: "http://localhost/transient", headers: [:], body: nil)
+    #expect(calls == 2)
+  }
+
+  @Test func testNetworkErrorBeforeAResponseIsRetried() async throws {
+    var calls = 0
+    let client = try retryClient(maxRetries: 1) { _ in
+      calls += 1
+      return (
+        Data("partial body".utf8), 200,
+        [UnitStubURLProtocol.failWithHeader: "networkConnectionLost"]
+      )
+    }
+    let error = await #expect(throws: NetworkError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://localhost/reset", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 0)
+    #expect(calls == 2)
+  }
+
+  @Test func testTimeoutIsNotRetried() async throws {
+    var calls = 0
+    let client = try retryClient { _ in
+      calls += 1
+      return (Data("partial body".utf8), 200, [UnitStubURLProtocol.failWithHeader: "timedOut"])
+    }
+    _ = await #expect(throws: NetworkTimeoutError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://localhost/slow", headers: [:], body: nil)
+    }
+    #expect(calls == 1)
+  }
+
+  @Test func testWaitLongerThanTheRemainingBudgetIsNotTaken() async throws {
+    var calls = 0
+    let client = try retryClient(timeout: 1000) { _ in
+      calls += 1
+      return (Data(), 503, ["Retry-After": "30"])
+    }
+    let started = Date()
+    let response = try await client.sendRequest(
+      method: "GET", url: "http://localhost/budget", headers: [:], body: nil)
+    #expect(response.statusCode == 503)
+    #expect(calls == 1)
+    #expect(Date().timeIntervalSince(started) < 1.0)
+  }
+
+  @Test func testStreamBodyIsNeverRetried() async throws {
+    var calls = 0
+    let client = try retryClient { _ in
+      calls += 1
+      return (Data(), 503, ["Retry-After": "0"])
+    }
+    let stream = InputStream(data: Data("payload".utf8))
+    let response = try await client.sendRequest(
+      method: "POST", url: "http://localhost/stream", headers: [:], body: stream)
+    #expect(response.statusCode == 503)
+    #expect(calls == 1)
+  }
+
+  @Test func testTokenRequestsAreNeverRetried() async throws {
+    var calls = 0
+    let client = try retryClient { _ in
+      calls += 1
+      return (Data(), 503, ["Retry-After": "0"])
+    }
+    let response = try await client.sendRequest(
+      method: "POST", url: "http://localhost/token", headers: [:], body: Data(), noRedirect: true)
+    #expect(response.statusCode == 503)
+    #expect(calls == 1)
+  }
+
+  @Test func testEachRetryAppliesTheAuthenticationHeadersAgain() async throws {
+    final class Counter: @unchecked Sendable { var value = 0 }
+    let issued = Counter()
+    var seen: [String?] = []
+    var calls = 0
+    let client = try retryClient { request in
+      calls += 1
+      seen.append(request.value(forHTTPHeaderField: "Authorization"))
+      return calls < 3 ? (Data(), 503, ["Retry-After": "0"]) : (Data("{}".utf8), 200, [:])
+    }
+    let response = try await client.sendRequest(
+      method: "GET", url: "http://localhost/auth", headers: ["Authorization": "Bearer 0"],
+      body: nil, noRedirect: false,
+      refreshHeaders: {
+        issued.value += 1
+        return ["Authorization": "Bearer \(issued.value)"]
+      })
+    #expect(response.statusCode == 200)
+    #expect(seen == ["Bearer 0", "Bearer 1", "Bearer 2"])
+  }
+
+  @Test func testEveryRetryIsAFreshRequestWithItsOwnRequestId() async throws {
+    var ids: [String?] = []
+    var calls = 0
+    let transport = try TransportOptionsBuilder().injectRequestID(true).build()
+    let client = makeClient(transport: transport) { request in
+      calls += 1
+      ids.append(request.value(forHTTPHeaderField: "X-Request-ID"))
+      return calls < 2 ? (Data(), 503, ["Retry-After": "0"]) : (Data("{}".utf8), 200, [:])
+    }
+    _ = try await client.sendRequest(
+      method: "GET", url: "http://localhost/ids", headers: [:], body: nil)
+    #expect(ids.count == 2)
+    #expect(ids[0] != nil && ids[0] != ids[1])
+  }
+
+  @Test func testBackoffDoublesFromHalfASecondToEight() {
+    let steps = (0..<7).map { DefaultApiClient.retryDelay(attempt: $0, retryAfter: nil, jitter: 0) }
+    #expect(steps == [0.5, 1, 2, 4, 8, 8, 8])
+  }
+
+  @Test func testJitterTakesAtMostAQuarterOff() {
+    #expect(DefaultApiClient.retryDelay(attempt: 1, retryAfter: nil, jitter: 1) == 0.75)
+    #expect(DefaultApiClient.retryDelay(attempt: 1, retryAfter: nil, jitter: 0.5) == 0.875)
+  }
+
+  @Test func testRetryAfterSecondsAreHonouredAndCappedAtSixtySeconds() {
+    #expect(DefaultApiClient.retryDelay(attempt: 0, retryAfter: "3", jitter: 0) == 3)
+    #expect(DefaultApiClient.retryDelay(attempt: 0, retryAfter: "0", jitter: 0) == 0)
+    #expect(DefaultApiClient.retryDelay(attempt: 0, retryAfter: "600", jitter: 0) == 60)
+  }
+
+  @Test func testRetryAfterHttpDateIsReadRelativeToNow() {
+    let now = Date(timeIntervalSince1970: 784_111_777)
+    let later = DefaultApiClient.retryDelay(
+      attempt: 0, retryAfter: "Sun, 06 Nov 1994 08:49:47 GMT", now: now, jitter: 0)
+    #expect(later == 10)
+    let past = DefaultApiClient.retryDelay(
+      attempt: 0, retryAfter: "Sun, 06 Nov 1994 08:49:00 GMT", now: now, jitter: 0)
+    #expect(past == 0)
+    let far = DefaultApiClient.retryDelay(
+      attempt: 0, retryAfter: "Mon, 07 Nov 1994 08:49:37 GMT", now: now, jitter: 0)
+    #expect(far == 60)
+  }
+
+  @Test func testUnreadableRetryAfterFallsBackToTheBackoff() {
+    #expect(DefaultApiClient.retryDelay(attempt: 2, retryAfter: "soon", jitter: 0) == 2)
   }
 
   // A malformed or non-HTTP request URL is a caller mistake:

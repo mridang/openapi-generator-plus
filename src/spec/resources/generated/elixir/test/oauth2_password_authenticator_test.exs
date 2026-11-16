@@ -508,6 +508,48 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff"
     end
 
+    test "invalidate_access_token drops the access token and keeps the refresh token" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 3600
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
+
+      assert PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.invalidate_access_token(auth) ==
+               :ok
+
+      assert PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok2"
+
+      assert [{_, first}, {_, second}] = FakeApiClient.requests(fake_client)
+      assert first =~ "grant_type=password"
+      assert second =~ "grant_type=refresh_token"
+      assert second =~ "refresh_token=ref1"
+    end
+
     test "redacts the secret" do
       auth = create_authenticator()
 

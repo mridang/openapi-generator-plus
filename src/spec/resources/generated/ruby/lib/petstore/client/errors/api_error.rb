@@ -119,11 +119,14 @@ module Petstore::Client
 
       # Most bytes of the response body that #message renders.
       MAX_RENDERED_BODY_BYTES = 1024
-      private_constant :MAX_RENDERED_BODY_BYTES
+      # Response headers that carry credentials or challenges, masked by name in
+      # the rendered message besides the names the S15 pattern catches.
+      CREDENTIAL_RESPONSE_HEADERS = %w[set-cookie www-authenticate proxy-authenticate].freeze
+      private_constant :MAX_RENDERED_BODY_BYTES, :CREDENTIAL_RESPONSE_HEADERS
 
       # Build a human-readable error message from the stored attributes. The
       # headers and body sections are left out when they are nil or empty. The
-      # headers have their credentials redacted (the S15 list plus Set-Cookie),
+      # headers have their credentials redacted (the S15 list plus Set-Cookie, WWW-Authenticate and Proxy-Authenticate),
       # and the body is cut at 1 KiB with control characters escaped, so one
       # error never floods or forges a log line. The full values stay in
       # #response_headers and #response_body.
@@ -144,7 +147,7 @@ module Petstore::Client
       # @return [Hash{String => String}]
       def rendered_headers
         headers = ::Petstore::Client::TransportOptions.redact_headers(response_headers || {})
-        headers.to_h { |name, value| [name, name.to_s.casecmp?('set-cookie') ? '***' : value] }
+        headers.to_h { |name, value| [name, CREDENTIAL_RESPONSE_HEADERS.include?(name.to_s.downcase) ? '***' : value] }
       end
 
       # The response body cut at {MAX_RENDERED_BODY_BYTES} bytes, control

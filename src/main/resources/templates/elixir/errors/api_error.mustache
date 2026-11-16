@@ -142,7 +142,7 @@ defmodule {{moduleName}}.Errors.ApiError do
   end
 
   defp response_secret_header?(name),
-    do: name |> to_string() |> String.downcase() in ["set-cookie", "www-authenticate", "proxy-authenticate"]
+    do: String.downcase(to_string(name)) in ["set-cookie", "www-authenticate", "proxy-authenticate"]
 
   @doc """
   Map an HTTP response that was not a success to the error for its status.

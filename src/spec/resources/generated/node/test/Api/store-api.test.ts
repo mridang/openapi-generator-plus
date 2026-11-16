@@ -8,6 +8,8 @@
 import * as http from "node:http";
 import { StoreApi } from "../../src/api/store-api.js";
 import { Configuration } from "../../src/configuration.js";
+import { DefaultApiClient } from "../../src/default-api-client.js";
+import { TransportOptions } from "../../src/transport-options.js";
 import {
   Account,
   Availability,
@@ -139,7 +141,10 @@ function createMockServer(
       const mockConfig = Configuration.builder()
         .baseUrl(`http://127.0.0.1:${addr.port}`)
         .build();
-      const mockApi = new StoreApi(undefined, mockConfig);
+      const mockApi = new StoreApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        mockConfig,
+      );
       resolve({ api: mockApi, server, close: () => server.close() });
     });
   });
@@ -609,7 +614,7 @@ describe("StoreApi error dispatch through the typed status routes", () => {
     "getOrderById answered with %i raises the status-specific error",
     async (status, expected) => {
       const statusApi = new StoreApi(
-        undefined,
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
         Configuration.builder()
           .baseUrl(`${baseUrl}/test/status/${status}`)
           .build(),

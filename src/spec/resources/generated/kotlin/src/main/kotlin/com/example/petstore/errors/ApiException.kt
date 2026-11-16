@@ -211,14 +211,70 @@ open class ApiException : OpenAPIException {
         }
         val headers = responseHeaders
         if (!headers.isNullOrEmpty()) {
-            rendered.append("\nResponse headers: ").append(compactJson(headers))
+            rendered.append("\nResponse headers: ").append(compactJson(maskCredentialHeaders(headers)))
         }
         val body = responseBody
         if (!body.isNullOrEmpty()) {
-            rendered.append("\nResponse body: ").append(body)
+            rendered.append("\nResponse body: ").append(renderBody(body))
         }
         return rendered.toString()
     }
+}
+
+/** The most body bytes the rendered form shows; the full body stays on [ApiException.responseBody]. */
+private const val MAX_RENDERED_BODY_BYTES = 1024
+
+/** Response headers whose value is a credential or a cookie, whatever else their name says. */
+private val CREDENTIAL_HEADER_NAMES: Set<String> =
+    setOf(
+        "authorization",
+        "proxy-authorization",
+        "cookie",
+        "set-cookie",
+        "www-authenticate",
+        "proxy-authenticate",
+    )
+
+/** The headers with every credential-bearing value replaced by `***`. */
+private fun maskCredentialHeaders(headers: Map<String, String>): Map<String, String> =
+    headers.mapValues { (name, value) ->
+        val lower = name.lowercase(java.util.Locale.ROOT)
+        if (lower in CREDENTIAL_HEADER_NAMES || "key" in lower || "token" in lower || "secret" in lower) {
+            "***"
+        } else {
+            value
+        }
+    }
+
+/**
+ * The body as shown in the rendered form: at most [MAX_RENDERED_BODY_BYTES] UTF-8 bytes (never
+ * cut inside a character) followed by `... (N more bytes)`, with every control character
+ * written as `\xNN` so a hostile server cannot forge log lines.
+ */
+private fun renderBody(body: String): String {
+    val bytes = body.toByteArray(Charsets.UTF_8)
+    var end = minOf(bytes.size, MAX_RENDERED_BODY_BYTES)
+    while (end < bytes.size && end > 0 && (bytes[end].toInt() and 0xC0) == 0x80) {
+        end--
+    }
+    val shown = String(bytes, 0, end, Charsets.UTF_8)
+    val escaped = StringBuilder(shown.length)
+    for (c in shown) {
+        if (c.code < 0x20 || c.code == 0x7F) {
+            escaped.append("\\x").append(
+                c.code
+                    .toString(16)
+                    .uppercase()
+                    .padStart(2, '0'),
+            )
+        } else {
+            escaped.append(c)
+        }
+    }
+    if (end < bytes.size) {
+        escaped.append("... (").append(bytes.size - end).append(" more bytes)")
+    }
+    return escaped.toString()
 }
 
 /** The headers as one compact JSON object with sorted keys, the same text in every SDK. */

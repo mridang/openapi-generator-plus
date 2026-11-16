@@ -313,8 +313,8 @@ public class ApiException extends OpenAPIException {
   private static final int MAX_RENDERED_BODY_BYTES = 1024;
 
   /**
-   * Whether the rendered form masks this response header: the credential and cookie headers, and
-   * any name containing key, token or secret (the S15 list).
+   * Whether the rendered form masks this response header: the credential, cookie and
+   * authentication-challenge headers, and any name containing key, token or secret (the S15 list).
    */
   private static boolean isSensitiveHeader(String name) {
     String lower = name.toLowerCase(java.util.Locale.ROOT);
@@ -322,6 +322,8 @@ public class ApiException extends OpenAPIException {
         || lower.equals("proxy-authorization")
         || lower.equals("cookie")
         || lower.equals("set-cookie")
+        || lower.equals("www-authenticate")
+        || lower.equals("proxy-authenticate")
         || lower.contains("key")
         || lower.contains("token")
         || lower.contains("secret");
@@ -348,6 +350,8 @@ public class ApiException extends OpenAPIException {
         escaped.append("\\r");
       } else if (c == '\n') {
         escaped.append("\\n");
+      } else if (c == '\t') {
+        escaped.append("\\t");
       } else if (c < 0x20 || c == 0x7f) {
         escaped.append(String.format("\\u%04x", (int) c));
       } else {

@@ -49,6 +49,12 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("maxRetries defaults to 2")
+        fun maxRetriesDefaultsToTwo() {
+            assertEquals(2, TransportOptions.builder().build().maxRetries)
+        }
+
+        @Test
         @DisplayName("followRedirects defaults to true")
         fun followRedirectsDefaultsToTrue() {
             val opts = TransportOptions.builder().build()
@@ -263,6 +269,32 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("a negative maxRetries is rejected and zero turns retries off")
+        fun negativeMaxRetriesIsRejected() {
+            val ex =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().maxRetries(-1)
+                }
+            assertEquals("Invalid maxRetries: must not be negative (got -1)", ex.message)
+            assertEquals(
+                0,
+                TransportOptions
+                    .builder()
+                    .maxRetries(0)
+                    .build()
+                    .maxRetries,
+            )
+            assertEquals(
+                5,
+                TransportOptions
+                    .builder()
+                    .maxRetries(5)
+                    .build()
+                    .maxRetries,
+            )
+        }
+
+        @Test
         @DisplayName("a proxy URL with an unterminated IPv6 literal is rejected")
         fun proxyUrlWithAnUnterminatedIpv6LiteralIsRejected() {
             for (proxy in listOf("http://[::1:3128", "http://user@[::1:3128")) {
@@ -339,6 +371,7 @@ class TransportOptionsTest {
             assertSame(builder, builder.defaultHeader("X-Key", "val"))
             assertSame(builder, builder.defaultHeaders(emptyMap()))
             assertSame(builder, builder.injectRequestId(false))
+            assertSame(builder, builder.maxRetries(2))
         }
     }
 

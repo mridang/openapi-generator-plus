@@ -36,6 +36,11 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         List.of("read", "write"));
   }
 
+  /** The URL without its trailing PKCE challenge, which is random per URL. */
+  private static String withoutPkce(String url) {
+    return url.replaceAll("&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256$", "");
+  }
+
   @Test
   void buildsAuthorizationUrlWithRequiredParams() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
@@ -66,7 +71,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     String url = auth.buildAuthorizationUrl("");
 
     assertFalse(url.contains("state"), url);
-    assertEquals(auth.buildAuthorizationUrl(null), url);
+    assertEquals(withoutPkce(auth.buildAuthorizationUrl(null)), withoutPkce(url));
   }
 
   @Test
@@ -77,7 +82,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
 
     String url = auth.buildAuthorizationUrl("s-._~*!'() x");
 
-    assertTrue(url.endsWith("&state=s-._~%2A%21%27%28%29%20x"), url);
+    assertTrue(withoutPkce(url).endsWith("&state=s-._~%2A%21%27%28%29%20x"), url);
   }
 
   @Test
@@ -160,7 +165,8 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     auth.getAuthHeaders();
 
     assertTrue(authorizeUrl.startsWith("https://auth.example.com/authorize?"), authorizeUrl);
-    assertTrue(authorizeUrl.endsWith("&scope=pets%3Aread%20pets%3Awrite"), authorizeUrl);
+    assertTrue(
+        withoutPkce(authorizeUrl).endsWith("&scope=pets%3Aread%20pets%3Awrite"), authorizeUrl);
     assertEquals(
         List.of("https://auth.example.com/oauth/token", "https://auth.example.com/oauth/refresh"),
         urls);
@@ -507,5 +513,140 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     assertThrowsExactly(OAuth2ServerException.class, () -> auth.exchangeCode("bad"));
 
     assertEquals("Bearer token1", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  /** The value of one form field of a token request body, or null when absent. */
+  @javax.annotation.Nullable
+  private static String field(String body, String name) {
+    for (String pair : body.split("&")) {
+      if (pair.startsWith(name + "=")) {
+        return pair.substring(name.length() + 1);
+      }
+    }
+    return null;
+  }
+
+  @javax.annotation.Nullable
+  private static String queryValue(String url, String name) {
+    return field(url.substring(url.indexOf('?') + 1), name);
+  }
+
+  @Test
+  void s256ChallengeMatchesTheRfc7636AppendixBVector() {
+    assertEquals(
+        "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+        OAuth2AuthorizationCodeAuthenticator.pkceChallenge(
+            "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"));
+  }
+
+  @Test
+  void generatedVerifiersAreFortyThreeUnreservedCharactersAndDiffer() {
+    String first = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
+    String second = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
+
+    assertEquals(43, first.length());
+    assertTrue(first.matches("[A-Za-z0-9_-]{43}"), first);
+    assertFalse(first.equals(second));
+  }
+
+  @Test
+  void authorizationUrlCarriesAnS256ChallengeAndNoNonce() {
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+
+    String url = auth.buildAuthorizationUrl("s");
+
+    assertEquals("S256", queryValue(url, "code_challenge_method"));
+    assertTrue(
+        java.util.Objects.requireNonNull(queryValue(url, "code_challenge"))
+            .matches("[A-Za-z0-9_-]{43}"),
+        url);
+    assertFalse(url.contains("nonce"), url);
+  }
+
+  @Test
+  void codeExchangeProvesTheChallengeOfTheAuthorizationUrl() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    String url = auth.buildAuthorizationUrl("s");
+    auth.exchangeCode("the-code");
+
+    String verifier =
+        java.util.Objects.requireNonNull(
+            field(java.util.Objects.requireNonNull(capturedBody.get()), "code_verifier"));
+    assertEquals(43, verifier.length());
+    assertEquals(
+        queryValue(url, "code_challenge"),
+        OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifier));
+  }
+
+  @Test
+  void codeExchangeWithoutAnAuthorizationUrlSendsNoVerifier() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.exchangeCode("the-code");
+
+    assertFalse(java.util.Objects.requireNonNull(capturedBody.get()).contains("code_verifier"));
+  }
+
+  @Test
+  void theVerifierIsSingleUse() {
+    java.util.List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          bodies.add(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.buildAuthorizationUrl(null);
+    auth.exchangeCode("first");
+    auth.exchangeCode("second");
+
+    assertNotNull(field(bodies.get(0), "code_verifier"));
+    assertEquals(null, field(bodies.get(1), "code_verifier"));
+  }
+
+  @Test
+  void invalidatingTheTokenKeepsTheRefreshTokenForTheNextRequest() {
+    java.util.List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          bodies.add(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200,
+              "{\"access_token\":\"at"
+                  + bodies.size()
+                  + "\",\"refresh_token\":\"rt\",\"expires_in\":3600}",
+              Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+    auth.exchangeCode("the-code");
+    assertEquals("Bearer at1", auth.getAuthHeaders().get("Authorization"));
+    assertEquals(1, bodies.size(), "the cached token is served");
+
+    auth.invalidateAccessToken();
+
+    assertEquals("Bearer at2", auth.getAuthHeaders().get("Authorization"));
+    assertEquals("refresh_token", field(bodies.get(1), "grant_type"));
+    assertEquals("rt", field(bodies.get(1), "refresh_token"));
   }
 }

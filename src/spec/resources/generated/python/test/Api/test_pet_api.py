@@ -37,6 +37,8 @@ from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
 from petstore_client.auth.api_key_location import ApiKeyLocation
 from petstore_client.api_http_response import ApiHttpResponse
 from petstore_client.configuration import Configuration
+from petstore_client.default_api_client import DefaultApiClient
+from petstore_client.transport_options import TransportOptions
 from petstore_client.errors.internal_server_error_exception import (
     InternalServerErrorException,
 )
@@ -873,7 +875,10 @@ def _create_mock_server(
     thread.start()
 
     config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
-    api = PetApi(config=config)
+    api = PetApi(
+        api_client=DefaultApiClient(TransportOptions.builder().max_retries(0).build()),
+        config=config,
+    )
     return api, server
 
 

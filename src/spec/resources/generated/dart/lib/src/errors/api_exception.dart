@@ -211,14 +211,74 @@ class ApiException extends OpenAPIException {
     final headers = responseHeaders;
     if (headers != null && headers.isNotEmpty) {
       final sorted = Map<String, String>.fromEntries(
-        headers.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+        headers.entries
+            .map(
+              (e) => MapEntry(e.key, _isSecretHeader(e.key) ? '***' : e.value),
+            )
+            .toList()
+          ..sort((a, b) => a.key.compareTo(b.key)),
       );
       buf.write('\nResponse headers: ${jsonEncode(sorted)}');
     }
     final body = responseBody;
     if (body != null && body.isNotEmpty) {
-      buf.write('\nResponse body: $body');
+      buf.write('\nResponse body: ${_renderBody(body)}');
     }
     return buf.toString();
+  }
+
+  /// Most response-body bytes shown by [toString]; the whole body stays on
+  /// [responseBody].
+  static const int _maxRenderedBodyBytes = 1024;
+
+  /// Header names whose value is a credential, shown as `***` by [toString].
+  static const Set<String> _secretHeaderNames = {
+    'authorization',
+    'proxy-authorization',
+    'cookie',
+    'set-cookie',
+    'www-authenticate',
+    'proxy-authenticate',
+  };
+
+  /// Whether the value of the header [name] is a credential: one of the fixed
+  /// names, or any name containing `key`, `token` or `secret`.
+  static bool _isSecretHeader(String name) {
+    final lower = name.toLowerCase();
+    return _secretHeaderNames.contains(lower) ||
+        lower.contains('key') ||
+        lower.contains('token') ||
+        lower.contains('secret');
+  }
+
+  /// The body as shown by [toString]: at most [_maxRenderedBodyBytes] bytes
+  /// followed by `... (N more bytes)`, with control characters shown as
+  /// `\xNN`, so a hostile server can neither fill a log nor forge a line in
+  /// it.
+  static String _renderBody(String body) {
+    final bytes = utf8.encode(body);
+    var end = bytes.length;
+    if (end > _maxRenderedBodyBytes) {
+      end = _maxRenderedBodyBytes;
+      /* Back up to a character boundary so no code point is cut in half. */
+      while (end > 0 && (bytes[end] & 0xC0) == 0x80) {
+        end--;
+      }
+    }
+    final shown = end == bytes.length
+        ? body
+        : utf8.decode(bytes.sublist(0, end));
+    final out = StringBuffer();
+    for (final unit in shown.runes) {
+      if (unit < 0x20 || unit == 0x7F) {
+        out.write('\\x${unit.toRadixString(16).toUpperCase().padLeft(2, '0')}');
+      } else {
+        out.writeCharCode(unit);
+      }
+    }
+    if (end < bytes.length) {
+      out.write('... (${bytes.length - end} more bytes)');
+    }
+    return out.toString();
   }
 }

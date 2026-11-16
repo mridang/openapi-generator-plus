@@ -226,6 +226,18 @@ transport = (
 client = Client(authenticator, transport)
 ```
 
+### Automatic retries
+
+`TransportOptions.builder().max_retries(n)` sets the retries after a transient failure (default 2; 0 disables). Network errors before a response and 408, 409, 429 and 5xx (not 501) are retried with a 0.5 s to 8 s backoff and `Retry-After` honoured (at most 60 s). The retries stay inside the request timeout, a stream or multipart body is never retried, and each retry rebuilds the headers, authentication included.
+
+```python
+transport = TransportOptions.builder().max_retries(0).build()
+```
+
+### OAuth2 re-authentication and PKCE
+
+A 401 on a call made with an OAuth2 or OpenID Connect authenticator drops the cached access token (the refresh token is kept) and sends the call once more with fresh headers; a second 401 raises `UnauthorizedException`. `authenticator.invalidate_access_token()` does it by hand. The authorization-code flow adds a PKCE `S256` challenge to the URL from `build_authorization_url()` and sends the verifier in `exchange_code()`, so use the same authenticator for both.
+
 ### Your own pool manager and cancellation
 
 ```python

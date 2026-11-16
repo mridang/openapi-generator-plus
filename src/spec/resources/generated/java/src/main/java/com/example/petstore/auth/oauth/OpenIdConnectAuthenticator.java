@@ -148,6 +148,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
               redirectUri,
               scopes);
     } else if (!endpoints.equals(discoveredEndpoints)) {
+      OAuth2AuthorizationCodeAuthenticator previous = current;
       current =
           new OAuth2AuthorizationCodeAuthenticator(
               host,
@@ -157,7 +158,10 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
               tokenEndpoint,
               redirectUri,
               scopes,
-              current.tokenManager());
+              previous.tokenManager());
+      /* A PKCE verifier issued with an authorization URL must still be
+       * there when the code comes back after a rediscovery. */
+      current.adoptPkceVerifierFrom(previous);
     }
     delegate = current;
     discoveredEndpoints = endpoints;
@@ -277,6 +281,17 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
    */
   public void exchangeCode(String code) {
     getDelegate().exchangeCode(code);
+  }
+
+  /**
+   * Drop the cached access token so the next request fetches a new one, keeping the refresh token.
+   * Nothing is discovered: before the first discovery there is no token to drop.
+   */
+  @Override
+  public synchronized void invalidateAccessToken() {
+    if (delegate != null) {
+      delegate.invalidateAccessToken();
+    }
   }
 
   @Override

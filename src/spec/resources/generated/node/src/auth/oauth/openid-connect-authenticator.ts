@@ -8,7 +8,10 @@
 import type { ApiClient } from "../../api-client.js";
 import { ApiError, SerializationError } from "../../errors/index.js";
 import type { HttpAwareAuthenticator } from "../http-aware-authenticator.js";
-import { OAuth2AuthorizationCodeAuthenticator } from "./oauth2-authorization-code-authenticator.js";
+import {
+  OAuth2AuthorizationCodeAuthenticator,
+  type PkceState,
+} from "./oauth2-authorization-code-authenticator.js";
 import { OAuth2TokenManager } from "./oauth2-token-manager.js";
 
 /**
@@ -37,6 +40,8 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   /* The session (tokens and the exchanged flag) outlives discovery: every
    * delegate built from a (re)fetched document shares this manager. */
   private readonly tokenManager = new OAuth2TokenManager();
+  /* The PKCE verifier of the last authorization URL outlives rediscovery too. */
+  private readonly pkce: PkceState = { verifier: null };
 
   /** RFC 8414 recommended default max-age for OIDC discovery documents. */
   private static readonly DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400;
@@ -192,6 +197,7 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       [...this.scopes],
       null,
       this.tokenManager,
+      this.pkce,
     );
     delegate.setApiClient(this.apiClient);
     this.delegate = delegate;
@@ -279,6 +285,15 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   async getAuthHeadersAsync(): Promise<Record<string, string>> {
     const delegate = await this.getDelegate();
     return delegate.getAuthHeadersAsync();
+  }
+
+  /**
+   * Drop the cached access token so the next request obtains a fresh one
+   * (through the refresh token when one is held). The refresh token is kept.
+   * The client calls this when the API answers 401.
+   */
+  invalidateAccessToken(): void {
+    this.tokenManager.invalidateAccessToken();
   }
 
   /**

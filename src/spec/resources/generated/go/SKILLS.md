@@ -228,6 +228,18 @@ if err != nil {
 client := petstore.NewClient(authenticator, transport)
 ```
 
+### Retries
+
+A request is retried up to `MaxRetries` times (default 2; `MaxRetries(0)` disables retries) after a network error that happened before a response and after a 408, 409, 429 or 5xx (not 501) response. The wait starts at 0.5 seconds, doubles up to 8 seconds, loses up to 25% to jitter and is replaced by a `Retry-After` header (seconds or an HTTP date, at most 60 seconds). The retries never extend the end-to-end `Timeout`, a cancelled context stops them, and every retry rebuilds the headers, authentication included.
+
+```go
+transport, err := petstore.NewTransportOptionsBuilder().
+    MaxRetries(0).
+    Build()
+```
+
+A 401 on an OAuth2 or OpenID Connect request calls `InvalidateAccessToken` on the authenticator (the refresh token is kept) and replays the request once; a second 401 is an `UnauthorizedError`.
+
 ## API Methods
 
 Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request (`errors.Is(err, context.Canceled)`), and `client.Close()` cancels every request in flight. Each API group is exposed as a typed field on the client (e.g., `client.Pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

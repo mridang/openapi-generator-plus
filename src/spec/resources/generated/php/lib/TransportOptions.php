@@ -55,6 +55,13 @@ final class TransportOptions
      *                                               {@see Configuration::$defaultHeaders}, operation-specific
      *                                               headers, and authentication headers all take precedence
      * @param bool                  $injectRequestId Whether to auto-inject an X-Request-ID header
+     * @param int                   $maxRetries     Maximum number of automatic retries of a failed request
+     *                                               (so up to `maxRetries + 1` attempts). Defaults to 2;
+     *                                               0 disables retries. A request is retried after a
+     *                                               network error that happened before a response, and
+     *                                               after a 408, 409, 429 or 5xx (except 501) response,
+     *                                               with exponential backoff and `Retry-After` honoured.
+     *                                               A stream or multipart body is never retried
      */
     public function __construct(
         public readonly bool $verifySsl = true,
@@ -66,6 +73,7 @@ final class TransportOptions
         public readonly ?string $userAgent = 'petstoreclient/1.0.0 (php)',
         public readonly array $defaultHeaders = [],
         public readonly bool $injectRequestId = false,
+        public readonly int $maxRetries = 2,
     ) {
         self::assertValidProxy($proxy);
         if ($timeout !== null && $timeout <= 0) {
@@ -76,6 +84,11 @@ final class TransportOptions
         if ($maxRedirects !== null && $maxRedirects < 0) {
             throw new \InvalidArgumentException(
                 "Invalid maxRedirects: must not be negative (got $maxRedirects)"
+            );
+        }
+        if ($maxRetries < 0) {
+            throw new \InvalidArgumentException(
+                "Invalid maxRetries: must not be negative (got $maxRetries)"
             );
         }
     }
@@ -158,6 +171,7 @@ final class TransportOptions
             'maxRedirects' => $this->maxRedirects,
             'userAgent' => $this->userAgent,
             'injectRequestId' => $this->injectRequestId,
+            'maxRetries' => $this->maxRetries,
             'defaultHeaders' => $headers,
         ];
     }

@@ -41,6 +41,7 @@ pub use oauth2_authorization_code_error::OAuth2AuthorizationCodeError;
 pub use oauth2_server_error::OAuth2ServerError;
 pub use oauth2_token_error::OAuth2TokenError;
 pub use open_api_error::OpenAPIError;
+pub use open_api_error::OpenAPIErrorExt;
 pub use serialization_error::SerializationError;
 pub use server_error::ServerError;
 pub use too_many_requests_error::TooManyRequestsError;

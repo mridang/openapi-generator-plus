@@ -168,6 +168,25 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     :exit, _ -> :ok
   end
 
+  @doc """
+  Drop the cached access token of the discovered flow so that the next call
+  fetches a new one with the refresh token. The SDK calls this when the server
+  answers a request with 401, before it sends that request once more. Nothing
+  happens before the first code exchange.
+  """
+  @spec invalidate_access_token(t()) :: :ok
+  def invalidate_access_token(%__MODULE__{discovery_cache: cache}) do
+    case Agent.get(cache, & &1.discovery) do
+      {delegate, _expiry} when not is_nil(delegate) ->
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.invalidate_access_token(
+          delegate
+        )
+
+      _ ->
+        :ok
+    end
+  end
+
   @impl PetstoreClient.Auth.Authenticator
   def host(%__MODULE__{} = self), do: self.host
 

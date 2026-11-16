@@ -55,6 +55,24 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         )
 
     @Test
+    fun invalidateAccessTokenMakesTheNextCallFetchANewToken() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val first = runBlocking { auth.getAuthHeaders() }["Authorization"]
+        val cached = runBlocking { auth.getAuthHeaders() }["Authorization"]
+        auth.invalidateAccessToken()
+        val second = runBlocking { auth.getAuthHeaders() }["Authorization"]
+
+        assertEquals("Bearer tok1", first)
+        assertEquals("Bearer tok1", cached)
+        assertEquals("Bearer tok2", second)
+    }
+
+    @Test
     fun sendsClientCredentialsGrantType() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")

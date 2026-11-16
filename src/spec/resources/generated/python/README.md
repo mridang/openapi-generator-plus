@@ -48,6 +48,24 @@ pytest
 - Name: `petstore-client`
 - Version: `1.0.0`
 
+## Configuration
+
+### Automatic retries
+
+A request that fails with a transient error is retried by the SDK. `TransportOptions.builder().max_retries(n)` sets how many times (default 2, so up to three attempts); `max_retries(0)` disables retrying.
+
+```python
+transport = TransportOptions.builder().max_retries(4).build()
+```
+
+A request is retried after a network error that happened before a response arrived, and after a 408, 409, 429 or 5xx response (not 501). The wait starts at 0.5 s, doubles up to 8 s and is shortened by up to 25% at random; a `Retry-After` header (seconds or an HTTP date, at most 60 s) replaces it. Retries never extend the request timeout: when the next wait would outlast what is left of it, the last failure is reported, and a timeout itself is not retried. A stream or multipart body is never retried, and every retry is a new request with freshly built authentication headers.
+
+### OAuth2 and OpenID Connect
+
+When the API answers 401 to a call authenticated through an OAuth2 or OpenID Connect authenticator, the SDK drops the cached access token (the refresh token is kept), obtains a new one and sends the call once more; a second 401 raises `UnauthorizedException`. A stream or multipart body is not sent again. `invalidate_access_token()` on the authenticator does the same by hand.
+
+The authorization-code flow uses PKCE (`S256`): `build_authorization_url()` creates the code verifier, keeps it in the authenticator and puts the `code_challenge` on the URL, and `exchange_code()` sends the `code_verifier`. Build the URL and exchange the code on the same authenticator.
+
 ## OpenAPI type mapping
 
 This SDK leans on pydantic 2's native typed surfaces:

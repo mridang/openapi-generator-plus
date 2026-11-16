@@ -53,6 +53,10 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     )
   end
 
+  defp strip_pkce(url) do
+    Regex.replace(~r/&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256\z/, url, "")
+  end
+
   describe "OpenIdConnectAuthenticator" do
     test "builds authorization URL from discovery" do
       fake_client =
@@ -466,6 +470,61 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
                "https://api.example.com"
     end
 
+    test "invalidate_access_token reaches the discovered flow and is a no-op before a code exchange" do
+      discovery = %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        body:
+          Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
+            "authorization_endpoint" => "https://auth.example.com/authorize",
+            "token_endpoint" => "https://auth.example.com/token"
+          })
+      }
+
+      fake_client =
+        FakeApiClient.new([
+          discovery,
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 3600
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.invalidate_access_token(auth) ==
+               :ok
+
+      auth = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok1"
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.invalidate_access_token(auth) ==
+               :ok
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok2"
+
+      assert FakeApiClient.last_body(fake_client) =~ "grant_type=refresh_token"
+    end
+
     test "redacts the secret" do
       auth = create_authenticator()
 
@@ -507,6 +566,59 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
       assert FakeApiClient.get_count(fake_client) == 2
       assert headers["Authorization"] == "Bearer oidc-tok"
+    end
+
+    # The PKCE verifier lives in the token manager the rediscovery keeps, so a
+    # code exchanged after the discovery document expired still proves the
+    # challenge of the authorization URL built before it.
+    test "the PKCE verifier survives a rediscovery and the URL has no nonce" do
+      discovery = %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        headers: %{"Cache-Control" => "max-age=0"},
+        body:
+          Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
+            "authorization_endpoint" => "https://auth.example.com/authorize",
+            "token_endpoint" => "https://auth.example.com/token"
+          })
+      }
+
+      fake_client =
+        FakeApiClient.new([
+          discovery,
+          discovery,
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      params =
+        auth
+        |> PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url("s")
+        |> URI.parse()
+        |> Map.fetch!(:query)
+        |> URI.decode_query()
+
+      assert params["code_challenge_method"] == "S256"
+      refute Map.has_key?(params, "nonce")
+
+      PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+
+      assert FakeApiClient.get_count(fake_client) == 2
+
+      verifier =
+        FakeApiClient.last_body(fake_client) |> URI.decode_query() |> Map.fetch!("code_verifier")
+
+      assert byte_size(verifier) == 43
+
+      assert params["code_challenge"] ==
+               Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
     end
 
     # The discovery document is cached for the max-age of its Cache-Control
@@ -572,7 +684,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       first = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
       second = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
 
-      assert second == first
+      assert strip_pkce(second) == strip_pkce(first)
       assert FakeApiClient.get_count(fake_client) == 2
     end
 

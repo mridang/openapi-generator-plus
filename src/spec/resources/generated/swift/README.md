@@ -131,6 +131,19 @@ throwing `CancellationError`. To bound how long a call can take, set the
 request timeout on `TransportOptions`; a call that exceeds it fails with
 `NetworkTimeoutError`.
 
+### Automatic retries
+
+`TransportOptionsBuilder.maxRetries(_:)` sets how many times a failed call is
+retried (default 2; 0 disables retries). A call is retried after a network
+error that happened before any response, and after a response with status 408,
+409, 429 or 500 to 599 except 501. The wait starts at 0.5 s, doubles up to 8 s
+and loses up to 25% to jitter; a `Retry-After` header (seconds or an HTTP date,
+capped at 60 s) is used instead when the server sends one. The request timeout
+is the single end-to-end budget: retries never extend it, and a wait that does
+not fit in what is left is skipped. Every retry is a fresh request that asks the
+authenticator for its headers again. A stream body and the OAuth2 token request
+are never retried, and a request that timed out is not retried.
+
 ### Bringing your own `URLSession`
 
 `TransportOptionsBuilder.session(_:)` sends every request through a `URLSession`

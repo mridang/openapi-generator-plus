@@ -392,7 +392,7 @@ public class ApiExceptionTest
 
         string rendered = ex.ToString();
         Assert.Contains(
-            new string('x', 1024) + "... (6 more characters)",
+            new string('x', 1024) + "... (6 more bytes)",
             rendered,
             StringComparison.Ordinal
         );

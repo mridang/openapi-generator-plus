@@ -35,14 +35,20 @@ func newStoreApiForIntegration(t *testing.T) *petstore.StoreApi {
 		BaseURL(chasmURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
-	client := petstore.NewDefaultApiClient(nil)
+	/* These tests expect exactly one request: retries are covered in
+	 * base_api_test. */
+	transport, err := petstore.NewTransportOptionsBuilder().MaxRetries(0).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := petstore.NewDefaultApiClient(transport)
 	return petstore.NewStoreApi(client, config, nil)
 }
 
 func newStoreApiForMock(t *testing.T, server *httptest.Server) *petstore.StoreApi {
 	t.Helper()
 	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
-	client := petstore.NewDefaultApiClient(nil)
+	client := petstore.NewDefaultApiClient(noRetryTransport(t))
 	return petstore.NewStoreApi(client, config, nil)
 }
 
@@ -100,7 +106,7 @@ func TestStoreApi_GetOrderByIdPicksTheStatusSpecificErrorClass(t *testing.T) {
 		config := petstore.NewConfigurationBuilder().
 			BaseURL(fmt.Sprintf("%s/test/status/%d", chasmURL, tc.status)).
 			Build()
-		api := petstore.NewStoreApi(petstore.NewDefaultApiClient(nil), config, nil)
+		api := petstore.NewStoreApi(petstore.NewDefaultApiClient(noRetryTransport(t)), config, nil)
 		_, err := api.GetOrderById(context.Background(), int64(1))
 		if err == nil {
 			t.Fatalf("status %d: expected an error", tc.status)

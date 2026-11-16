@@ -1,5 +1,8 @@
 import gzip
 import json
+import time
+from email.utils import formatdate
+
 import pytest
 import urllib3
 from urllib3._collections import HTTPHeaderDict
@@ -12,6 +15,8 @@ from petstore_client.default_api_client import (
     _charset_from_content_type,
     _decode_with_charset,
     _guess_content_type,
+    _is_retryable_status,
+    _retry_delay,
     _sanitize_multipart_field_name,
     _sanitize_multipart_filename,
 )
@@ -2010,3 +2015,84 @@ class TestInjectedPoolManager:
     ) -> None:
         with pytest.raises(ValueError, match="pool_manager"):
             DefaultApiClient(transport, pool_manager=_RecordingPool())
+
+
+class TestRetryPolicy:
+    """Which responses are retried and how long the wait before a retry is."""
+
+    @pytest.mark.parametrize("status", [408, 409, 429, 500, 502, 503, 504, 599])
+    def test_these_statuses_are_retried(self, status: int) -> None:
+        assert _is_retryable_status(status) is True
+
+    @pytest.mark.parametrize("status", [200, 301, 400, 401, 403, 404, 422, 501, 600])
+    def test_these_statuses_are_not_retried(self, status: int) -> None:
+        assert _is_retryable_status(status) is False
+
+    @pytest.mark.parametrize(
+        ("attempt", "expected"),
+        [(0, 0.5), (1, 1.0), (2, 2.0), (3, 4.0), (4, 8.0), (5, 8.0), (40, 8.0)],
+    )
+    def test_the_backoff_doubles_from_half_a_second_up_to_eight(
+        self, attempt: int, expected: float
+    ) -> None:
+        assert _retry_delay(attempt, jitter=0.0) == expected
+
+    def test_jitter_takes_up_to_a_quarter_off(self) -> None:
+        assert _retry_delay(2, jitter=1.0) == 1.5
+        assert 1.5 <= _retry_delay(2) <= 2.0
+
+    @pytest.mark.parametrize(
+        ("header", "expected"),
+        [("0", 0.0), ("3", 3.0), ("1.5", 1.5), (" 7 ", 7.0), ("120", 60.0)],
+    )
+    def test_retry_after_seconds_replaces_the_backoff_and_is_capped_at_a_minute(
+        self, header: str, expected: float
+    ) -> None:
+        assert _retry_delay(0, header, jitter=0.0) == expected
+
+    def test_retry_after_as_an_http_date_is_the_time_until_then(self) -> None:
+        assert _retry_delay(0, formatdate(1005, usegmt=True), now=1000.0) == 5.0
+        assert _retry_delay(0, formatdate(1000 + 3600, usegmt=True), now=1000.0) == 60.0
+
+    def test_retry_after_in_the_past_means_no_wait(self) -> None:
+        assert _retry_delay(0, formatdate(900, usegmt=True), now=1000.0) == 0.0
+
+    @pytest.mark.parametrize("header", ["", "soon", "-5", "nan", "inf"])
+    def test_an_unusable_retry_after_falls_back_to_the_backoff(
+        self, header: str
+    ) -> None:
+        assert _retry_delay(1, header, jitter=0.0) == 1.0
+
+    def test_an_exhausted_deadline_times_out_without_sending(self) -> None:
+        class _Pool:
+            def request(self, *args: Any, **kwargs: Any) -> Any:
+                raise AssertionError("no request may be sent")
+
+        client = DefaultApiClient(pool_manager=_Pool())
+
+        from petstore_client.errors import NetworkTimeoutException
+
+        with pytest.raises(NetworkTimeoutException):
+            client.send_request(
+                "GET", "https://example.com/x", {}, None, deadline=time.monotonic() - 1
+            )
+
+    def test_a_deadline_replaces_the_configured_timeout(self) -> None:
+        class _Pool:
+            def __init__(self) -> None:
+                self.timeout: Any = None
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.timeout = kwargs["timeout"]
+                return _FakeResp(200, {})
+
+        pool = _Pool()
+        client = DefaultApiClient(
+            TransportOptions.builder().timeout(600000).build(), pool_manager=pool
+        )
+
+        client.send_request(
+            "GET", "https://example.com/x", {}, None, deadline=time.monotonic() + 5
+        )
+
+        assert 0 < pool.timeout.total <= 5

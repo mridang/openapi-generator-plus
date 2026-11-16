@@ -55,6 +55,11 @@ import io.ktor.client.HttpClient
  *   top, and never closes it: the caller owns its lifecycle. It cannot be combined with
  *   [proxy], [caCertPath] or `verifySsl=false`; configure those on the supplied client instead.
  *   `null` makes the SDK build its own client.
+ * @property maxRetries How many times a failed request is sent again after the first attempt:
+ *   `2` by default, `0` turns retries off. A request is retried after a network error that
+ *   happened before a response arrived and after a 408, 409, 429 or 5xx (except 501) answer,
+ *   waiting 0.5 s doubling to 8 s with up to 25% jitter, or the server's `Retry-After` (capped at
+ *   60 s). Retries never extend [timeout]: they share its one end-to-end budget.
  */
 class TransportOptions private constructor(
     val verifySsl: Boolean,
@@ -67,6 +72,7 @@ class TransportOptions private constructor(
     val defaultHeaders: Map<String, String>,
     val injectRequestId: Boolean,
     val httpClient: HttpClient?,
+    val maxRetries: Int,
 ) {
     companion object {
         /**
@@ -85,6 +91,7 @@ class TransportOptions private constructor(
      * - `followRedirects` - `true`
      * - `injectRequestId` - `false`
      * - `timeout` - `10000` (10 seconds)
+     * - `maxRetries` - `2`
      * - `userAgent` - a package-specific default string
      * - All other fields - `null` or empty
      */
@@ -99,6 +106,7 @@ class TransportOptions private constructor(
         private val defaultHeaders: MutableMap<String, String> = mutableMapOf()
         private var injectRequestId: Boolean = false
         private var httpClient: HttpClient? = null
+        private var maxRetries: Int = 2
 
         /**
          * Enable or disable TLS certificate verification.
@@ -209,6 +217,25 @@ class TransportOptions private constructor(
          */
         fun httpClient(httpClient: HttpClient?): Builder = apply { this.httpClient = httpClient }
 
+        /**
+         * Set how many times a failed request is sent again.
+         *
+         * A request is retried after a network error that happened before a response and after a
+         * 408, 409, 429 or 5xx (except 501) answer. The wait is 0.5 s doubling to 8 s with up to
+         * 25% jitter, or the response's `Retry-After` (seconds or an HTTP date, capped at 60 s).
+         * Every retry is a fresh request and all retries share the one end-to-end [timeout].
+         *
+         * @param maxRetries retries after the first attempt (not negative); `0` disables them
+         * @return this builder
+         */
+        fun maxRetries(maxRetries: Int): Builder =
+            apply {
+                require(maxRetries >= 0) {
+                    "Invalid maxRetries: must not be negative (got $maxRetries)"
+                }
+                this.maxRetries = maxRetries
+            }
+
         /* The proxy URL with any user-info replaced by `***@`, so an error message never carries
          * the proxy credentials (D79). */
         private fun maskUserInfo(url: String): String {
@@ -282,6 +309,7 @@ class TransportOptions private constructor(
                 defaultHeaders.toMap(),
                 injectRequestId,
                 httpClient,
+                maxRetries,
             )
         }
     }

@@ -28,6 +28,14 @@ var ErrInvalidProxyURL = errors.New("invalid proxy URL")
 // number of milliseconds. Match it with errors.Is.
 var ErrInvalidTimeout = errors.New("invalid timeout")
 
+// ErrInvalidMaxRetries is returned by Build when the retry limit is negative.
+// Match it with errors.Is.
+var ErrInvalidMaxRetries = errors.New("invalid max retries")
+
+// DefaultMaxRetries is the number of times a failed request is retried when
+// the builder does not set MaxRetries.
+const DefaultMaxRetries = 2
+
 // ErrInvalidCACertificate is returned by TransportOptionsBuilder.Build when the
 // CA certificate file cannot be read or contains no PEM certificate. Match it
 // with errors.Is.
@@ -72,6 +80,7 @@ type TransportOptions struct {
 	userAgent       *string
 	defaultHeaders  map[string]string
 	injectRequestID bool
+	maxRetries      int
 	httpClient      HttpDoer
 	roundTripper    http.RoundTripper
 }
@@ -83,6 +92,7 @@ type TransportOptions struct {
 //   - verifySsl: true
 //   - followRedirects: true
 //   - injectRequestID: false
+//   - maxRetries: 2 (DefaultMaxRetries); call MaxRetries(0) to disable retries
 //   - timeout: 10000 (10 seconds); call Timeout with an explicit value to
 //     override it, or with nil for no timeout
 //   - userAgent: "petstore/1.0.0 (go)"; call UserAgent to override it or pass
@@ -97,6 +107,7 @@ func NewTransportOptionsBuilder() *TransportOptionsBuilder {
 		userAgent:       &defaultUserAgent,
 		defaultHeaders:  make(map[string]string),
 		timeout:         &defaultTimeout,
+		maxRetries:      DefaultMaxRetries,
 	}
 }
 
@@ -168,6 +179,16 @@ func (t *TransportOptions) DefaultHeaders() map[string]string {
 // injected if the caller has not already set one.
 func (t *TransportOptions) InjectRequestID() bool { return t.injectRequestID }
 
+// MaxRetries returns how many times a failed request is retried.
+//
+// A request is retried after a network error that happened before a response
+// and after a 408, 409, 429 or 5xx (not 501) response. The wait starts at 0.5
+// seconds, doubles up to 8 seconds and loses up to 25% to jitter, a Retry-After
+// header (seconds or an HTTP date, capped at 60 seconds) replaces it, and the
+// retries never extend the end-to-end Timeout. Defaults to 2; 0 disables
+// retries.
+func (t *TransportOptions) MaxRetries() int { return t.maxRetries }
+
 // TransportOptionsBuilder builds immutable TransportOptions instances.
 type TransportOptionsBuilder struct {
 	verifySsl       bool
@@ -180,6 +201,7 @@ type TransportOptionsBuilder struct {
 	userAgent       *string
 	defaultHeaders  map[string]string
 	injectRequestID bool
+	maxRetries      int
 	httpClient      HttpDoer
 	roundTripper    http.RoundTripper
 }
@@ -328,6 +350,16 @@ func (b *TransportOptionsBuilder) InjectRequestID(val bool) *TransportOptionsBui
 	return b
 }
 
+// MaxRetries sets how many times a failed request is retried (see
+// TransportOptions.MaxRetries for what is retried and how long it waits).
+//
+// Pass 0 to disable retries. Build rejects a negative value with
+// ErrInvalidMaxRetries.
+func (b *TransportOptionsBuilder) MaxRetries(val int) *TransportOptionsBuilder {
+	b.maxRetries = val
+	return b
+}
+
 // Build builds and returns an immutable TransportOptions instance.
 //
 // It returns ErrInvalidProxyURL when the proxy URL is invalid, and
@@ -340,6 +372,9 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 	}
 	if b.timeout != nil && *b.timeout <= 0 {
 		return nil, fmt.Errorf("%w: must be a positive number of milliseconds (got %d)", ErrInvalidTimeout, *b.timeout)
+	}
+	if b.maxRetries < 0 {
+		return nil, fmt.Errorf("%w: must not be negative (got %d)", ErrInvalidMaxRetries, b.maxRetries)
 	}
 	if b.httpClient != nil || b.roundTripper != nil {
 		switch {
@@ -379,6 +414,7 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 		userAgent:       b.userAgent,
 		defaultHeaders:  headers,
 		injectRequestID: b.injectRequestID,
+		maxRetries:      b.maxRetries,
 		httpClient:      b.httpClient,
 		roundTripper:    b.roundTripper,
 	}, nil

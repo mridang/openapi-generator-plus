@@ -889,7 +889,9 @@ describe Petstore::Client::Api::PetApi do
       end
 
       config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
-      api = Petstore::Client::Api::PetApi.new(nil, config)
+      # The server answers one request, so the transport must not send a second.
+      transport = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.max_retries(0).build)
+      api = Petstore::Client::Api::PetApi.new(transport, config)
       [api, server, thread]
     end
 

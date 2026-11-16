@@ -228,6 +228,34 @@ void main() {
       expect(decoded, equals('id%2Bwith%2Fspecial:secret%26with%3Dstuff'));
     });
 
+    test(
+      'invalidateAccessToken drops the cached token so the next call fetches a new one',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+        expect(
+          (await auth.authHeadersAsync())['Authorization'],
+          equals('Bearer tok1'),
+        );
+        expect(
+          (await auth.authHeadersAsync())['Authorization'],
+          equals('Bearer tok1'),
+        );
+        expect(client.urls, hasLength(1));
+
+        auth.invalidateAccessToken();
+
+        expect(
+          (await auth.authHeadersAsync())['Authorization'],
+          equals('Bearer tok2'),
+        );
+        expect(client.urls, hasLength(2));
+      },
+    );
+
     test('redacts the secret in toString', () {
       final auth = _createAuthenticator();
 

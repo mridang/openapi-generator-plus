@@ -55,6 +55,23 @@ public interface IAuthenticator
 }
 
 /// <summary>
+/// Implemented by the OAuth2 and OpenID Connect authenticators that hold a
+/// cached access token. When the API answers 401 the generated client calls
+/// <see cref="InvalidateAccessToken"/>, rebuilds the authentication headers
+/// and replays the request once. API-key, basic and bearer authenticators do
+/// not implement it and their requests are never replayed.
+/// </summary>
+public interface IInvalidatableAuthenticator : IAuthenticator
+{
+    /// <summary>
+    /// Drops the cached access token so that the next call to
+    /// <see cref="IAuthenticator.GetAuthHeadersAsync"/> fetches a fresh one
+    /// (a refresh grant first when a refresh token is held, which is kept).
+    /// </summary>
+    void InvalidateAccessToken();
+}
+
+/// <summary>
 /// Sentinel authenticator marking an operation as explicitly unauthenticated
 /// (an operation declared <c>security: []</c> in the spec).
 ///

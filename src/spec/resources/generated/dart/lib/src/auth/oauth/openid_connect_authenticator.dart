@@ -24,7 +24,7 @@ import 'oauth2_authorization_code_authenticator.dart';
 /// subsequent token exchange requests use the shared [ApiClient] with the
 /// same transport configuration (proxy, TLS, timeouts) as regular API calls.
 class OpenIdConnectAuthenticator extends BaseAuthenticator
-    implements HttpAwareAuthenticator {
+    implements HttpAwareAuthenticator, AccessTokenInvalidating {
   final String _host;
   final String _openIdConnectUrl;
   final String _clientId;
@@ -82,6 +82,13 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   Future<void> exchangeCode(String code) async {
     final delegate = await _resolveDelegate();
     await delegate.exchangeCode(code);
+  }
+
+  /// Drops the cached access token of the discovered delegate (none before the
+  /// first discovery). Called by the SDK when the API answers 401.
+  @override
+  void invalidateAccessToken() {
+    _delegate?.invalidateAccessToken();
   }
 
   @override
@@ -177,6 +184,10 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
     _authorizationEndpoint = authorizationEndpoint;
     _tokenEndpoint = tokenEndpoint;
 
+    /* A rediscovery that names new endpoints replaces the delegate, but the
+     * PKCE verifier of an authorization URL already handed out must survive
+     * it, or the code exchange would not prove the challenge. */
+    final pendingVerifier = _delegate?.pendingPkceVerifier;
     _delegate = OAuth2AuthorizationCodeAuthenticator(
       host: _host,
       clientId: _clientId,
@@ -187,6 +198,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       scopes: _scopes,
     );
     _delegate!.setApiClient(client);
+    _delegate!.resumePkce(pendingVerifier);
     _discoveryExpiry = expiry;
 
     return _delegate!;

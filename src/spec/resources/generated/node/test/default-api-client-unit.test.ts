@@ -427,7 +427,9 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
   // responseHeaders === null (the documented "no headers" sentinel), not an
   // empty {} that would be indistinguishable from a real header-less response.
   it("connection failure throws NetworkError with null responseHeaders", async () => {
-    const client = new DefaultApiClient();
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
     // Port 1 has no listener on the loopback interface; the connect attempt
     // fails before any response is received.
     let caught: ApiError | undefined;
@@ -2106,7 +2108,9 @@ describe("caller-supplied upload handles are left untouched", () => {
     global.fetch = (async () => {
       throw new TypeError("fetch failed");
     }) as unknown as typeof fetch;
-    const client = new DefaultApiClient();
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
     const part = new Blob(["part-bytes"]);
 
     await client
@@ -2114,5 +2118,273 @@ describe("caller-supplied upload handles are left untouched", () => {
       .catch(() => undefined);
 
     expect(await part.text()).toBe("part-bytes");
+  });
+});
+
+describe("automatic retries (TransportOptions.maxRetries)", () => {
+  type Step = Response | Error;
+  let delays: number[];
+  let calls: Array<{ headers: Record<string, string> }>;
+
+  /* Every backoff wait is recorded and skipped, so the schedule is checked without sleeping. */
+  beforeEach(() => {
+    delays = [];
+    calls = [];
+    jest.spyOn(globalThis, "setTimeout").mockImplementation(((
+      handler: () => void,
+      ms?: number,
+    ) => {
+      delays.push(ms ?? 0);
+      handler();
+      return 0 as unknown as NodeJS.Timeout;
+    }) as unknown as typeof setTimeout);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  /* A client whose fetch plays the steps in order and repeats the last one. */
+  function clientPlaying(
+    steps: Step[],
+    configure: (
+      builder: ReturnType<typeof TransportOptions.builder>,
+    ) => void = () => undefined,
+  ): DefaultApiClient {
+    const scripted = (async (
+      _url: unknown,
+      init?: { headers?: Record<string, string> },
+    ) => {
+      calls.push({ headers: { ...(init?.headers ?? {}) } });
+      const step = steps[Math.min(calls.length, steps.length) - 1]!;
+      if (step instanceof Error) {
+        throw step;
+      }
+      return step.clone();
+    }) as unknown as typeof fetch;
+    const builder = TransportOptions.builder().fetch(scripted);
+    configure(builder);
+    return new DefaultApiClient(builder.build());
+  }
+
+  const reply = (
+    status: number,
+    headers: Record<string, string> = {},
+  ): Response => new Response("body", { status, headers });
+  const send = (
+    client: DefaultApiClient,
+    options?: Parameters<DefaultApiClient["sendRequest"]>[4],
+  ) => client.sendRequest("GET", "http://api.example/items", {}, null, options);
+
+  it("retries twice by default and then returns the last response", async () => {
+    const response = await send(clientPlaying([reply(503)]));
+
+    expect(response.statusCode).toBe(503);
+    expect(calls).toHaveLength(3);
+    expect(TransportOptions.builder().build().maxRetries).toBe(2);
+  });
+
+  it.each([408, 409, 429, 500, 502, 503, 504, 599])(
+    "retries a %i and returns the success that follows",
+    async (status) => {
+      const response = await send(clientPlaying([reply(status), reply(200)]));
+
+      expect(response.statusCode).toBe(200);
+      expect(calls).toHaveLength(2);
+    },
+  );
+
+  it.each([400, 401, 404, 422, 501])("does not retry a %i", async (status) => {
+    const response = await send(clientPlaying([reply(status)]));
+
+    expect(response.statusCode).toBe(status);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("maxRetries(0) disables retries", async () => {
+    const response = await send(
+      clientPlaying([reply(503)], (builder) => builder.maxRetries(0)),
+    );
+
+    expect(response.statusCode).toBe(503);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("maxRetries(n) caps the attempts at n + 1", async () => {
+    await send(
+      clientPlaying([reply(500)], (builder) =>
+        builder.maxRetries(4).timeout(null),
+      ),
+    );
+
+    expect(calls).toHaveLength(5);
+  });
+
+  it("backs off from 0.5 s doubling to 8 s with up to 25% jitter taken off", async () => {
+    await send(
+      clientPlaying([reply(500)], (builder) =>
+        builder.maxRetries(6).timeout(null),
+      ),
+    );
+
+    expect(delays).toHaveLength(6);
+    delays.forEach((delay, index) => {
+      const base = Math.min(500 * 2 ** index, 8000);
+      expect(delay).toBeGreaterThanOrEqual(base * 0.75);
+      expect(delay).toBeLessThanOrEqual(base);
+    });
+    expect(Math.max(...delays)).toBeLessThanOrEqual(8000);
+  });
+
+  it("waits for a Retry-After given in seconds", async () => {
+    await send(clientPlaying([reply(429, { "Retry-After": "3" }), reply(200)]));
+
+    expect(delays).toEqual([3000]);
+  });
+
+  it("waits for a Retry-After given as an HTTP date", async () => {
+    const at = new Date(Date.now() + 30_000).toUTCString();
+
+    await send(
+      clientPlaying(
+        [reply(503, { "Retry-After": at }), reply(200)],
+        (builder) => builder.timeout(null),
+      ),
+    );
+
+    expect(delays).toHaveLength(1);
+    expect(delays[0]!).toBeGreaterThan(28_000);
+    expect(delays[0]!).toBeLessThanOrEqual(30_000);
+  });
+
+  it("caps a Retry-After at 60 s", async () => {
+    await send(
+      clientPlaying(
+        [reply(503, { "Retry-After": "3600" }), reply(200)],
+        (builder) => builder.timeout(null),
+      ),
+    );
+
+    expect(delays).toEqual([60_000]);
+  });
+
+  it("falls back to the backoff when Retry-After is not understood", async () => {
+    await send(
+      clientPlaying([reply(503, { "Retry-After": "soon" }), reply(200)]),
+    );
+
+    expect(delays).toHaveLength(1);
+    expect(delays[0]!).toBeGreaterThanOrEqual(375);
+    expect(delays[0]!).toBeLessThanOrEqual(500);
+  });
+
+  it("never extends the end-to-end timeout: a wait longer than what is left ends the retries", async () => {
+    const response = await send(
+      clientPlaying(
+        [reply(503, { "Retry-After": "5" }), reply(200)],
+        (builder) => builder.timeout(1000),
+      ),
+    );
+
+    expect(response.statusCode).toBe(503);
+    expect(calls).toHaveLength(1);
+    expect(delays).toEqual([]);
+  });
+
+  it("retries a network error that happened before any response", async () => {
+    const response = await send(
+      clientPlaying([new TypeError("fetch failed"), reply(200)]),
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("reports the last network error once the retries are spent", async () => {
+    const error = await send(
+      clientPlaying([new TypeError("fetch failed")]),
+    ).catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(NetworkError);
+    expect(calls).toHaveLength(3);
+  });
+
+  it("does not retry a failure while reading the body of a response that arrived", async () => {
+    const broken = new Response("", { status: 200 });
+    Object.defineProperty(broken, "arrayBuffer", {
+      value: () => Promise.reject(new TypeError("terminated")),
+    });
+    Object.defineProperty(broken, "clone", { value: () => broken });
+
+    const error = await send(clientPlaying([broken as Response])).catch(
+      (e: unknown) => e,
+    );
+
+    expect((error as Error).constructor).toBe(NetworkError);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("does not retry a timeout", async () => {
+    const timeout = Object.assign(new Error("timed out"), {
+      name: "TimeoutError",
+    });
+
+    const error = await send(clientPlaying([timeout])).catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(NetworkTimeoutError);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("builds every retry as a fresh request with the authentication headers asked for again", async () => {
+    let issued = 0;
+    const client = clientPlaying([reply(503), reply(200)], (builder) =>
+      builder.injectRequestId(true),
+    );
+
+    await send(client, {
+      refreshAuthHeaders: async () => ({
+        authorization: `Bearer token-${++issued}`,
+      }),
+    });
+
+    expect(issued).toBe(1);
+    expect(calls).toHaveLength(2);
+    expect(
+      calls[0]!.headers["Authorization"] ?? calls[0]!.headers["authorization"],
+    ).toBeUndefined();
+    expect(calls[1]!.headers["authorization"]).toBe("Bearer token-1");
+    expect(calls[1]!.headers["X-Request-ID"]).toBeDefined();
+    expect(calls[1]!.headers["X-Request-ID"]).not.toBe(
+      calls[0]!.headers["X-Request-ID"],
+    );
+  });
+
+  it.each([-1, 1.5, Number.NaN])("maxRetries(%p) is rejected", (value) => {
+    expect(() => TransportOptions.builder().maxRetries(value)).toThrow(
+      TypeError,
+    );
+  });
+});
+
+describe("automatic retries and cancellation", () => {
+  it("a caller signal that fires while waiting to retry stops the call with its own reason", async () => {
+    const controller = new AbortController();
+    let calls = 0;
+    const scripted = (async () => {
+      calls += 1;
+      return new Response("", { status: 503, headers: { "Retry-After": "5" } });
+    }) as unknown as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().fetch(scripted).build(),
+    );
+    setTimeout(() => controller.abort(), 50);
+
+    const error = await client
+      .sendRequest("GET", "http://api.example/items", {}, null, {
+        signal: controller.signal,
+      })
+      .catch((e: unknown) => e);
+
+    expect((error as Error).name).toBe("AbortError");
+    expect(calls).toBe(1);
   });
 });

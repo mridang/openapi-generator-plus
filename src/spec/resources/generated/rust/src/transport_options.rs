@@ -93,6 +93,16 @@ pub struct TransportOptions {
     /// Useful for distributed tracing and log correlation. The header is only
     /// injected if the caller has not already set one.
     inject_request_id: bool,
+
+    /// How many times a failed call is sent again. `0` disables retries.
+    ///
+    /// A call is retried after a network failure that happened before a
+    /// response, and after a response with status 408, 409, 429 or 500-599
+    /// (not 501). The wait starts at 0.5 s and doubles up to 8 s, with 25%
+    /// jitter, and a `Retry-After` header (seconds or an HTTP date, at most
+    /// 60 s) replaces it. The retries share the end-to-end `timeout`, and a
+    /// request with a multipart body is never retried. Defaults to 2.
+    max_retries: u32,
 }
 
 /// Returns `true` when a header name denotes a credential whose value must
@@ -167,6 +177,7 @@ impl std::fmt::Debug for TransportOptions {
             .field("user_agent", &self.user_agent)
             .field("default_headers", &redact_headers(&self.default_headers))
             .field("inject_request_id", &self.inject_request_id)
+            .field("max_retries", &self.max_retries)
             .finish()
     }
 }
@@ -226,6 +237,11 @@ impl TransportOptions {
     pub fn inject_request_id(&self) -> bool {
         self.inject_request_id
     }
+
+    /// How many times a failed call is sent again (`0` means never).
+    pub fn max_retries(&self) -> u32 {
+        self.max_retries
+    }
 }
 
 /// Builder for creating immutable [`TransportOptions`] instances.
@@ -234,6 +250,7 @@ impl TransportOptions {
 /// - `verify_ssl`: `true`
 /// - `follow_redirects`: `true`
 /// - `inject_request_id`: `false`
+/// - `max_retries`: `2`
 /// - `timeout`: `10000` (10 seconds)
 /// - `user_agent`: a package-specific default string
 /// - all other fields: `None` or empty
@@ -248,6 +265,7 @@ pub struct TransportOptionsBuilder {
     user_agent: Option<String>,
     default_headers: HashMap<String, String>,
     inject_request_id: bool,
+    max_retries: u32,
 }
 
 impl TransportOptionsBuilder {
@@ -267,6 +285,7 @@ impl TransportOptionsBuilder {
             user_agent: Some("petstore/1.0.0 (rust)".to_string()),
             default_headers: HashMap::new(),
             inject_request_id: false,
+            max_retries: 2,
         }
     }
 
@@ -377,6 +396,13 @@ impl TransportOptionsBuilder {
         self
     }
 
+    /// Sets how many times a failed call is sent again; `0` disables retries.
+    /// The default is `2`. See [`TransportOptions::max_retries`] for what is retried.
+    pub fn max_retries(mut self, val: u32) -> Self {
+        self.max_retries = val;
+        self
+    }
+
     /// Validates the configuration and builds an immutable [`TransportOptions`]
     /// instance.
     ///
@@ -452,6 +478,7 @@ impl TransportOptionsBuilder {
             user_agent: self.user_agent,
             default_headers: self.default_headers,
             inject_request_id: self.inject_request_id,
+            max_retries: self.max_retries,
         }
     }
 }

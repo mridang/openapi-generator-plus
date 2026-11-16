@@ -80,6 +80,15 @@ public class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
     tokenManager.setApiClient(apiClient);
   }
 
+  /**
+   * Drop the cached access token so the next request fetches a new one. The refresh token is kept,
+   * so the new token comes from the refresh grant when the server issued one.
+   */
+  @Override
+  public void invalidateAccessToken() {
+    tokenManager.invalidateAccessToken();
+  }
+
   @Override
   public String getHost() {
     return host;

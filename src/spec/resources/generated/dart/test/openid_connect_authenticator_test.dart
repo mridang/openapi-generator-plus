@@ -336,6 +336,60 @@ void main() {
     );
 
     test(
+      'a rediscovery that names new endpoints keeps the PKCE verifier',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
+        client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token2"}',
+          headers: {'Cache-Control': 'max-age=0'},
+        );
+        client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        final query = Uri.parse(
+          await auth.buildAuthorizationUrl('s'),
+        ).queryParameters;
+        expect(query['code_challenge_method'], equals('S256'));
+        expect(query.containsKey('nonce'), isFalse);
+        await auth.exchangeCode('oidc-code');
+
+        expect(client.urls.last, equals('https://auth.example.com/token2'));
+        final verifier = Uri.splitQueryString(
+          client.lastBody!,
+        )['code_verifier']!;
+        expect(
+          OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifier),
+          equals(query['code_challenge']),
+        );
+      },
+    );
+
+    test(
+      'invalidateAccessToken drops the delegate access token and is harmless before discovery',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(document);
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+        auth.invalidateAccessToken();
+
+        await auth.exchangeCode('oidc-code');
+        auth.invalidateAccessToken();
+        final headers = await auth.authHeadersAsync();
+
+        expect(headers['Authorization'], equals('Bearer tok2'));
+        expect(client.lastBody, contains('grant_type=refresh_token'));
+      },
+    );
+
+    test(
       'Cache-Control max-age=0 forces a rediscovery on the next call',
       () async {
         final client = _FakeApiClient();

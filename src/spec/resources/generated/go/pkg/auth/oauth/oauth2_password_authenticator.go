@@ -90,6 +90,13 @@ func (a *OAuth2PasswordAuthenticator) SetApiClient(client auth.ApiClient) {
 	a.tokenManager.SetApiClient(client)
 }
 
+// InvalidateAccessToken drops the cached access token and keeps the refresh
+// token, so the next request fetches a new token. The client calls it when an
+// API call is answered with 401, then replays the request once.
+func (a *OAuth2PasswordAuthenticator) InvalidateAccessToken() {
+	a.tokenManager.InvalidateAccessToken()
+}
+
 // AuthHeadersOrError returns the Bearer authentication header with a valid
 // access token, or the token-endpoint error. base_api prefers this method, so
 // a failed token request surfaces as the real OAuth error instead of an

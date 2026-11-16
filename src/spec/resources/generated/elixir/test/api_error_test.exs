@@ -84,6 +84,70 @@ defmodule PetstoreClient.ApiErrorTest do
     assert PetstoreClient.Errors.ApiError.message(bare) == "boom"
   end
 
+  test "the message cuts a long response body at 1 KiB and counts the bytes left out" do
+    body = String.duplicate("a", 3_000)
+
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "bad gateway",
+        status_code: 502,
+        response_body: body
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(err) ==
+             "bad gateway\nHTTP status code: 502\nResponse body: " <>
+               String.duplicate("a", 1_024) <> "... (1976 more bytes)"
+
+    assert byte_size(err.response_body) == 3_000
+  end
+
+  test "the message leaves a body of exactly 1 KiB whole" do
+    body = String.duplicate("a", 1_024)
+    err = PetstoreClient.Errors.ApiError.exception(message: "boom", response_body: body)
+
+    assert PetstoreClient.Errors.ApiError.message(err) == "boom\nResponse body: " <> body
+  end
+
+  test "the message escapes control characters in the response body" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "boom",
+        response_body: "a\r\nb\tc" <> <<1>> <> "d" <> <<127>>
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(err) ==
+             "boom\nResponse body: a\\r\\nb\\tc\\x01d\\x7F"
+
+    assert err.response_body == "a\r\nb\tc" <> <<1>> <> "d" <> <<127>>
+  end
+
+  test "the message masks credential response headers and keeps the real ones on the error" do
+    headers = %{
+      "authorization" => "Bearer s1",
+      "proxy-authorization" => "Basic s2",
+      "cookie" => "sid=s3",
+      "Set-Cookie" => "sid=s4",
+      "www-authenticate" => "Bearer realm=s5",
+      "proxy-authenticate" => "Basic realm=s6",
+      "x-api-key" => "s7",
+      "x-auth-token" => "s8",
+      "x-client-secret" => "s9",
+      "x-id" => "1"
+    }
+
+    err = PetstoreClient.Errors.ApiError.exception(message: "boom", response_headers: headers)
+    rendered = PetstoreClient.Errors.ApiError.message(err)
+
+    for secret <- ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9"] do
+      refute rendered =~ secret
+    end
+
+    assert rendered =~ ~s("x-id":"1")
+    assert rendered =~ ~s("authorization":"***")
+    assert rendered =~ ~s("Set-Cookie":"***")
+    assert err.response_headers == headers
+  end
+
   test "from_response keeps a scalar JSON body as the error body" do
     err = PetstoreClient.Errors.ApiError.from_response(500, %{}, ~s("overloaded"))
 

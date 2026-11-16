@@ -255,6 +255,196 @@ export abstract class AbstractApiClient implements ApiClient {
         "ApiClient has been closed and can no longer send requests",
       );
     }
+    /* One end-to-end deadline covers every attempt: a retry never extends it. */
+    const timeout = this.transportOptions.timeout;
+    const deadline = timeout != null ? AbortSignal.timeout(timeout) : undefined;
+    const started = performance.now();
+    const callerSignal = options?.signal;
+    const maxRetries = this.transportOptions.maxRetries;
+    for (let attempt = 0; ; attempt++) {
+      /* Every retry is a fresh request: the headers are rebuilt from the
+       * caller's, with the authentication headers asked for again. */
+      let attemptHeaders = headers;
+      if (attempt > 0 && options?.refreshAuthHeaders != null) {
+        attemptHeaders = AbstractApiClient.overlayHeaders(
+          headers,
+          await options.refreshAuthHeaders(),
+        );
+      }
+      let response: ApiHttpResponse | undefined;
+      let failure: unknown;
+      try {
+        response = await this.sendOnce(
+          method,
+          url,
+          attemptHeaders,
+          body,
+          options,
+          deadline,
+        );
+      } catch (error) {
+        failure = error;
+      }
+      const finish = (): ApiHttpResponse => {
+        if (response == null) {
+          throw failure;
+        }
+        return response;
+      };
+      const retryable =
+        response != null
+          ? AbstractApiClient.isRetryableStatus(response.statusCode)
+          : AbstractApiClient.isRetryableFailure(failure);
+      if (!retryable || attempt >= maxRetries) {
+        return finish();
+      }
+      const delay = AbstractApiClient.retryDelayMs(attempt, response?.headers);
+      if (timeout != null && delay >= timeout - (performance.now() - started)) {
+        return finish();
+      }
+      await AbstractApiClient.sleep(delay, [deadline, callerSignal]);
+      if (callerSignal?.aborted) {
+        throw callerSignal.reason;
+      }
+      if (deadline?.aborted) {
+        return finish();
+      }
+    }
+  }
+
+  /** Errors raised after the response headers arrived: a response did come, so they are never retried. */
+  private static readonly afterResponse = new WeakSet<object>();
+
+  /**
+   * Whether a response status is retried: 408, 409, 429 and every 5xx but 501.
+   *
+   * @param status the response status code
+   * @returns true when the request is worth repeating
+   */
+  private static isRetryableStatus(status: number): boolean {
+    return (
+      status === 408 ||
+      status === 409 ||
+      status === 429 ||
+      (status >= 500 && status <= 599 && status !== 501)
+    );
+  }
+
+  /**
+   * Whether a failure is a network error that happened before any response:
+   * not a timeout (the deadline is spent), not a failure while reading a
+   * body, not any other error.
+   *
+   * @param failure the value the attempt rejected with
+   * @returns true when the request is worth repeating
+   */
+  private static isRetryableFailure(failure: unknown): boolean {
+    return (
+      failure instanceof NetworkError &&
+      !(failure instanceof NetworkTimeoutError) &&
+      !AbstractApiClient.afterResponse.has(failure)
+    );
+  }
+
+  /**
+   * How long to wait before retry number `attempt` (0 for the first retry):
+   * the server's `Retry-After` (seconds or an HTTP date) capped at 60 s, else
+   * 0.5 s doubling to 8 s with up to 25% jitter taken off.
+   *
+   * @param attempt zero-based index of the retry
+   * @param headers the lower-cased headers of the response that failed, if any
+   * @returns the delay in milliseconds
+   */
+  private static retryDelayMs(
+    attempt: number,
+    headers: Readonly<Record<string, string>> | undefined,
+  ): number {
+    const retryAfter = headers?.["retry-after"]?.trim();
+    if (retryAfter != null && retryAfter.length > 0) {
+      let waitMs: number;
+      if (/^\d+(\.\d+)?$/.test(retryAfter)) {
+        waitMs = Number(retryAfter) * 1000;
+      } else {
+        waitMs = Date.parse(retryAfter) - Date.now();
+      }
+      if (Number.isFinite(waitMs)) {
+        return Math.min(Math.max(waitMs, 0), 60_000);
+      }
+    }
+    return Math.min(500 * 2 ** attempt, 8000) * (1 - 0.25 * Math.random());
+  }
+
+  /**
+   * Wait for `ms` milliseconds, or less when one of the signals fires.
+   *
+   * @param ms how long to wait
+   * @param signals cancellation signals to stop waiting on; absent ones are skipped
+   */
+  private static sleep(
+    ms: number,
+    signals: ReadonlyArray<AbortSignal | undefined>,
+  ): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const live = signals.filter(
+        (signal): signal is AbortSignal => signal != null,
+      );
+      const signal = live.length > 0 ? AbortSignal.any(live) : undefined;
+      if (signal?.aborted) {
+        resolve();
+        return;
+      }
+      const onAbort = (): void => {
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      }, ms);
+      signal?.addEventListener("abort", onAbort, { once: true });
+    });
+  }
+
+  /**
+   * Copy `base` with every header of `layer` added, a header of any case in
+   * `base` being replaced by the one in `layer` of the same name.
+   *
+   * @param base the headers to start from
+   * @param layer the headers that win
+   * @returns a new header map
+   */
+  private static overlayHeaders(
+    base: Readonly<Record<string, string>>,
+    layer: Readonly<Record<string, string>>,
+  ): Record<string, string> {
+    const names = new Set(Object.keys(layer).map((key) => key.toLowerCase()));
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(base)) {
+      if (!names.has(key.toLowerCase())) out[key] = value;
+    }
+    return Object.assign(out, layer);
+  }
+
+  /**
+   * Send one attempt of a request: header merging, body encoding, the redirect
+   * loop and the response read. {@link sendRequest} repeats it when a retry is due.
+   *
+   * @param method HTTP method
+   * @param url fully qualified URL
+   * @param headers HTTP headers for this attempt
+   * @param body request body
+   * @param options optional per-call flags
+   * @param deadline the single end-to-end timeout signal, or undefined for none
+   * @returns ApiHttpResponse containing status code, body, and headers
+   */
+  private async sendOnce(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | null,
+    options: SendRequestOptions | undefined,
+    deadline: AbortSignal | undefined,
+  ): Promise<ApiHttpResponse> {
     if (body instanceof Blob) {
       body = Buffer.from(await body.arrayBuffer());
     }
@@ -368,8 +558,8 @@ export abstract class AbstractApiClient implements ApiClient {
      * aborts the request. A timeout surfaces as NetworkTimeoutError, a
      * cancellation as the signal's own reason (an AbortError by default). */
     const signals: AbortSignal[] = [];
-    if (this.transportOptions.timeout != null) {
-      signals.push(AbortSignal.timeout(this.transportOptions.timeout));
+    if (deadline != null) {
+      signals.push(deadline);
     }
     const callerSignal = options?.signal;
     if (callerSignal != null) {
@@ -640,7 +830,9 @@ export abstract class AbstractApiClient implements ApiClient {
           { cause: error },
         );
       }
-      throw AbstractApiClient.transportError(error);
+      const bodyError = AbstractApiClient.transportError(error);
+      AbstractApiClient.afterResponse.add(bodyError);
+      throw bodyError;
     }
     const contentType = response.headers.get("content-type") ?? "";
     const responseBody = AbstractApiClient.isTextContentType(contentType)

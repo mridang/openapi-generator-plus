@@ -122,6 +122,16 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
     PetstoreClient.Auth.OAuth.OAuth2TokenManager.stop(self.token_manager)
   end
 
+  @doc """
+  Drop the cached access token so that the next call fetches a new one. The
+  refresh token is kept. The SDK calls this when the server answers a request
+  with 401, before it sends that request once more.
+  """
+  @spec invalidate_access_token(t()) :: :ok
+  def invalidate_access_token(%__MODULE__{} = self) do
+    PetstoreClient.Auth.OAuth.OAuth2TokenManager.invalidate_access_token(self.token_manager)
+  end
+
   @impl PetstoreClient.Auth.Authenticator
   def host(%__MODULE__{} = self), do: self.host
 

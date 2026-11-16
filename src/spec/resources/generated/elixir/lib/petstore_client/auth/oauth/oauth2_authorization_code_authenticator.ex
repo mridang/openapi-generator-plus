@@ -132,6 +132,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
         if(self.scopes != [], do: [{"scope", Enum.join(self.scopes, " ")}], else: []) ++
         if(state in [nil, ""], do: [], else: [{"state", state}])
 
+    # RFC 9700 section 2.1.1 / RFC 7636: bind the code to this client with a
+    # PKCE S256 challenge. The verifier is kept in the token manager for
+    # exchange_code/2.
+    params =
+      params ++
+        [
+          {"code_challenge",
+           PetstoreClient.Auth.OAuth.OAuth2TokenManager.begin_pkce(self.token_manager)},
+          {"code_challenge_method", "S256"}
+        ]
+
     # RFC 6749 §3.1: the authorization endpoint URI MAY already include
     # a query component. Use '&' as the separator when one is already
     # present so existing params are preserved, '?' otherwise.
@@ -174,6 +185,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
       "redirect_uri" => self.redirect_uri
     }
 
+    # Prove the PKCE challenge of the authorization URL built last; a code
+    # exchange without one (no URL built here) sends no verifier.
+    params =
+      case PetstoreClient.Auth.OAuth.OAuth2TokenManager.code_verifier(self.token_manager) do
+        nil -> params
+        verifier -> Map.put(params, "code_verifier", verifier)
+      end
+
     # Always POSTs this code (never answers from the cache or the refresh path)
     # and replaces the session; a rejected code keeps the previous session.
     _token =
@@ -193,6 +212,16 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
   @impl PetstoreClient.Auth.HttpAwareAuthenticator
   def close(%__MODULE__{} = self) do
     PetstoreClient.Auth.OAuth.OAuth2TokenManager.stop(self.token_manager)
+  end
+
+  @doc """
+  Drop the cached access token so that the next call fetches a new one. The
+  refresh token is kept. The SDK calls this when the server answers a request
+  with 401, before it sends that request once more.
+  """
+  @spec invalidate_access_token(t()) :: :ok
+  def invalidate_access_token(%__MODULE__{} = self) do
+    PetstoreClient.Auth.OAuth.OAuth2TokenManager.invalidate_access_token(self.token_manager)
   end
 
   @impl PetstoreClient.Auth.Authenticator

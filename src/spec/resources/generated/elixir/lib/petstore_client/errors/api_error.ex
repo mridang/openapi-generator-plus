@@ -102,18 +102,56 @@ defmodule PetstoreClient.Errors.ApiError do
     msg =
       if error.response_body in [nil, ""],
         do: msg,
-        else: msg <> "\nResponse body: #{error.response_body}"
+        else: msg <> "\nResponse body: #{rendered_body(error.response_body)}"
 
     msg
   end
 
-  # Compact JSON with the keys sorted, one rendering in every SDK.
+  # The most response-body bytes the message carries; the full body stays on
+  # `response_body`.
+  @max_rendered_body_bytes 1024
+
+  # The body cut at 1 KiB, control characters written as escapes and a suffix
+  # counting the bytes left out, so one error never floods or forges a log line.
+  defp rendered_body(body) do
+    body = to_string(body)
+    excess = byte_size(body) - @max_rendered_body_bytes
+
+    text =
+      if excess > 0,
+        do: body |> binary_part(0, @max_rendered_body_bytes) |> String.replace_invalid(),
+        else: String.replace_invalid(body)
+
+    text =
+      Regex.replace(~r/[\x00-\x1F\x7F]/, text, fn
+        "\n" -> "\\n"
+        "\r" -> "\\r"
+        "\t" -> "\\t"
+        char -> "\\x" <> Base.encode16(char)
+      end)
+
+    if excess > 0, do: "#{text}... (#{excess} more bytes)", else: text
+  end
+
+  # Compact JSON with the keys sorted, one rendering in every SDK. Credential
+  # values (the S15 list plus the cookie and challenge headers a response
+  # carries) are replaced by `***`.
   defp headers_json(headers) do
     headers
+    |> PetstoreClient.TransportOptions.redact_headers()
+    |> Enum.map(fn {name, value} ->
+      if response_secret_header?(name), do: {name, "***"}, else: {name, value}
+    end)
     |> Enum.sort()
     |> Jason.OrderedObject.new()
     |> Jason.encode!()
   end
+
+  defp response_secret_header?(name),
+    do:
+      name
+      |> to_string()
+      |> (String.downcase() in ["set-cookie", "www-authenticate", "proxy-authenticate"])
 
   @doc """
   Map an HTTP response that was not a success to the error for its status.

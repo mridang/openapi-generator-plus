@@ -15,7 +15,10 @@ namespace PetstoreClient.Auth.OAuth;
 /// use the shared <see cref="IApiClient"/> with the same transport configuration
 /// (proxy, TLS, timeouts) as regular API calls.
 /// </summary>
-public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
+public class OAuth2PasswordAuthenticator
+    : BaseAuthenticator,
+        IHttpAwareAuthenticator,
+        IInvalidatableAuthenticator
 {
     private readonly string _host;
     private readonly string _clientId;
@@ -67,6 +70,17 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
     public void SetApiClient(IApiClient apiClient)
     {
         _tokenManager.SetApiClient(apiClient);
+    }
+
+    /// <summary>
+    /// Drops the cached access token so that the next request fetches a fresh
+    /// one (a refresh grant first when a refresh token is held, which is kept).
+    /// The SDK calls this itself when the API answers 401; callers may use it
+    /// to force a refresh.
+    /// </summary>
+    public void InvalidateAccessToken()
+    {
+        _tokenManager.InvalidateAccessToken();
     }
 
     /// <inheritdoc/>

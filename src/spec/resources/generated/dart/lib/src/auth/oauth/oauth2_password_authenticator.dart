@@ -21,7 +21,7 @@ import 'oauth2_token_manager.dart';
 /// shared [ApiClient] with the same transport configuration (proxy, TLS,
 /// timeouts) as regular API calls.
 class OAuth2PasswordAuthenticator extends BaseAuthenticator
-    implements HttpAwareAuthenticator {
+    implements HttpAwareAuthenticator, AccessTokenInvalidating {
   final String _host;
   final String _clientId;
   final String _clientSecret;
@@ -122,6 +122,14 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator
       _refreshUrl,
     );
     return {'Authorization': 'Bearer $token'};
+  }
+
+  /// Drops the cached access token so the next request obtains a new one (a
+  /// refresh grant first where a refresh token is held). Called by the SDK
+  /// when the API answers 401; callers may use it to force a refresh.
+  @override
+  void invalidateAccessToken() {
+    _tokenManager.invalidateAccessToken();
   }
 
   /// Redacts the client secret and the resource owner password so neither

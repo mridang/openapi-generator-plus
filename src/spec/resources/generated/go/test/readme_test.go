@@ -82,3 +82,13 @@ func TestReadme_CancellationSectionDescribesTheContextParameter(t *testing.T) {
 		t.Errorf("expected the README to document the ctx parameter")
 	}
 }
+
+func TestReadme_ConfigurationSectionDocumentsTheRetries(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	for _, want := range []string{"## Configuration", "### Retries", "`MaxRetries(0)` disables retries", "`Retry-After`", "408, 409, 429 and 500-599 except 501", "`InvalidateAccessToken`"} {
+		if !strings.Contains(readme, want) {
+			t.Errorf("expected the README to contain %q", want)
+		}
+	}
+}

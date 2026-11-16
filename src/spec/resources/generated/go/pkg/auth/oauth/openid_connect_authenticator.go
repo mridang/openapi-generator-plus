@@ -122,6 +122,18 @@ func (a *OpenIdConnectAuthenticator) SetApiClient(client auth.ApiClient) {
 	a.apiClient = client
 }
 
+// InvalidateAccessToken drops the cached access token of the current session
+// and keeps the refresh token. It makes no discovery request: before the first
+// discovery there is no token to drop.
+func (a *OpenIdConnectAuthenticator) InvalidateAccessToken() {
+	a.mu.Lock()
+	delegate := a.delegate
+	a.mu.Unlock()
+	if delegate != nil {
+		delegate.InvalidateAccessToken()
+	}
+}
+
 // BuildAuthorizationURL builds the authorization URL using the discovered
 // authorization endpoint.
 func (a *OpenIdConnectAuthenticator) BuildAuthorizationURL(state string) (string, error) {
@@ -256,6 +268,9 @@ func (a *OpenIdConnectAuthenticator) discover() (*OAuth2AuthorizationCodeAuthent
 		 * user's session and must survive it. */
 		fresh.tokenManager = a.delegate.tokenManager
 		fresh.tokenExchanged.Store(a.delegate.tokenExchanged.Load())
+		/* The PKCE verifier of a login that is still pending must survive
+		 * too, or its code could no longer be exchanged. */
+		fresh.setPKCEVerifier(a.delegate.currentPKCEVerifier())
 	}
 	a.delegate = fresh
 	a.delegate.tokenManager.SetApiClient(client)

@@ -53,6 +53,15 @@ module Petstore::Client
           @token_manager.api_client = client
         end
 
+        # Drop the cached access token so the next request obtains a new one
+        # (a refresh grant first, where a refresh token is held). The API
+        # classes call this when a request answers 401 before replaying it once.
+        #
+        # @return [void]
+        def invalidate_access_token
+          @token_manager.invalidate_access_token
+        end
+
         # @return [Hash{String => String}]
         def auth_headers
           params, extra_headers = body_or_basic_params

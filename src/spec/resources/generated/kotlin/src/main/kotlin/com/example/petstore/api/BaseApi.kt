@@ -254,11 +254,32 @@ abstract class BaseApi {
             headers.remove("Content-Type")
         }
 
-        val response = apiClient.sendRequest(method, url, headers, requestBody)
+        var response = apiClient.sendRequest(method, url, headers, requestBody)
 
         if (response.statusCode == 401 && effectiveAuth is HttpAwareAuthenticator) {
             // A cached OAuth2 token the API no longer accepts must not outlive this answer.
             effectiveAuth.invalidateAccessToken()
+            /* The request is replayed once with a freshly obtained token (a refresh grant first when
+             * a refresh token is held). A multipart body is not replayed, and a re-authentication
+             * that fails leaves the 401 as the answer. A second 401 is reported as usual. Only the
+             * OAuth2 and OpenID Connect authenticators take part: API key, basic and bearer
+             * credentials are static, so a new attempt could not change the outcome. */
+            if (requestBody !is Map<*, *>) {
+                val freshAuthHeaders =
+                    try {
+                        effectiveAuth.getAuthHeaders()
+                    } catch (_: com.example.petstore.errors.OpenAPIException) {
+                        null
+                    }
+                if (freshAuthHeaders != null) {
+                    val replayHeaders = headers.toMutableMap()
+                    for (name in freshAuthHeaders.keys) {
+                        replayHeaders.keys.removeAll { it.equals(name, ignoreCase = true) }
+                    }
+                    replayHeaders.putAll(freshAuthHeaders)
+                    response = apiClient.sendRequest(method, url, replayHeaders, requestBody)
+                }
+            }
         }
         if (response.statusCode < 200 || response.statusCode >= 300) {
             throw ApiException.fromResponse(response.statusCode, response.headers, response.body)

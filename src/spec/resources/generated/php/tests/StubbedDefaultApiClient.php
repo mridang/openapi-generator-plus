@@ -19,6 +19,17 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 final class StubbedDefaultApiClient extends DefaultApiClient
 {
+    /**
+     * Every wait the retry loop asked for, in seconds, in order. The waits are
+     * recorded instead of slept so retry tests run instantly.
+     *
+     * @var list<float>
+     */
+    public array $pauses = [];
+
+    /** The jitter in [0, 1) the retry loop sees: 0 keeps the full backoff. */
+    public float $jitterValue = 0.0;
+
     public function __construct(
         private readonly HttpClientInterface $stubClient,
         ?TransportOptions $transportOptions = null,
@@ -29,5 +40,15 @@ final class StubbedDefaultApiClient extends DefaultApiClient
     protected function createHttpClient(): HttpClientInterface
     {
         return $this->stubClient;
+    }
+
+    protected function pause(float $seconds): void
+    {
+        $this->pauses[] = $seconds;
+    }
+
+    protected function jitter(): float
+    {
+        return $this->jitterValue;
     }
 }

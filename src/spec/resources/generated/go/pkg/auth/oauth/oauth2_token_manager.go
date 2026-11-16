@@ -293,7 +293,7 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 // by every SDK; keys outside it follow, sorted.
 var tokenFormKeyOrder = []string{
 	"grant_type", "code", "refresh_token", "username", "password",
-	"client_id", "client_secret", "redirect_uri", "scope",
+	"client_id", "client_secret", "redirect_uri", "code_verifier", "scope",
 }
 
 // encodeTokenForm form-urlencodes the token-request params in the shared key

@@ -52,6 +52,25 @@ describe Petstore::Client::TransportOptions do
     _(opts.inject_request_id).must_equal false
   end
 
+  it 'max_retries defaults to 2' do
+    _(Petstore::Client::TransportOptions.builder.build.max_retries).must_equal 2
+  end
+
+  it 'max_retries accepts zero to turn retries off' do
+    _(Petstore::Client::TransportOptions.builder.max_retries(0).build.max_retries).must_equal 0
+  end
+
+  [-1, 1.5, '2', nil].each do |bad|
+    it "rejects max_retries #{bad.inspect} through the builder" do
+      err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_retries(bad) } # steep:ignore ArgumentTypeMismatch
+      _(err.message).must_include 'Invalid max_retries'
+    end
+  end
+
+  it 'shows max_retries in inspect' do
+    _(Petstore::Client::TransportOptions.builder.max_retries(4).build.inspect).must_include 'max_retries=4'
+  end
+
   it 'builder sets all fields' do
     opts = Petstore::Client::TransportOptions.builder
       .verify_ssl(false)
@@ -63,8 +82,10 @@ describe Petstore::Client::TransportOptions do
       .user_agent('TestAgent/1.0')
       .default_header('X-Custom', 'value')
       .inject_request_id(true)
+      .max_retries(5)
       .build
 
+    _(opts.max_retries).must_equal 5
     _(opts.verify_ssl).must_equal false
     _(opts.ca_cert_path).must_equal '/path/to/ca.pem'
     _(opts.proxy).must_equal 'http://proxy:8080'

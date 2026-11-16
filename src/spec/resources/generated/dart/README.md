@@ -100,6 +100,40 @@ The SDK's `ClientException` (every 4xx response) has the same name as
 `import 'package:http/http.dart' as http;`, and refer to its type as
 `http.ClientException`. The SDK itself imports `package:http` that way.
 
+## Configuration
+
+### Retries
+
+`TransportOptions.builder().maxRetries(n)` sets how many times a failed call is
+sent again; the default is 2 and `0` turns retries off. A call is retried after
+a network error that happened before a response arrived, and after a response
+with status 408, 409, 429 or 500-599 (not 501). The wait starts at 0.5 seconds,
+doubles up to 8 seconds and carries up to 25% jitter; a `Retry-After` header
+(seconds or an HTTP date, at most 60 seconds) replaces it. Retries never extend
+the request timeout: a wait that would outlast it is not taken and the last
+error is reported. A call with a multipart body is never retried. Every retry
+is a new request and asks the authenticator for its headers again.
+
+```dart
+final transport = TransportOptions.builder().maxRetries(0).build();
+```
+
+### Token refresh on 401
+
+When an OAuth2 or OpenID Connect call answers 401, the SDK drops the cached
+access token (the refresh token is kept), obtains a new one and sends the
+request once more. A second 401 is reported as `UnauthorizedException`. API-key,
+basic and bearer authenticators are never replayed, and neither is a multipart
+body. `invalidateAccessToken()` on the OAuth2 and OpenID Connect authenticators
+does the same on demand.
+
+### PKCE
+
+The authorization-code flow (also through OpenID Connect) is protected with
+PKCE `S256`: `buildAuthorizationUrl` adds `code_challenge` and
+`code_challenge_method=S256`, keeps the matching verifier in the authenticator,
+and `exchangeCode` sends it as `code_verifier`.
+
 ## Not supported
 
 ### Webhooks and callbacks

@@ -211,7 +211,7 @@ public class ApiException : OpenAPIException
         return rendered.ToString();
     }
 
-    /// <summary>The longest response body, in characters, that the string form shows.</summary>
+    /// <summary>The longest response body, in characters (1 KiB), that the string form shows.</summary>
     internal const int MaxRenderedBodyLength = 1024;
 
     private static bool IsSensitiveHeader(string name)
@@ -258,9 +258,11 @@ public class ApiException : OpenAPIException
             escaped
                 .Append("... (")
                 .Append(
-                    (body.Length - MaxRenderedBodyLength).ToString(CultureInfo.InvariantCulture)
+                    (Encoding.UTF8.GetByteCount(body) - Encoding.UTF8.GetByteCount(head)).ToString(
+                        CultureInfo.InvariantCulture
+                    )
                 )
-                .Append(" more characters)");
+                .Append(" more bytes)");
         }
         return escaped.ToString();
     }

@@ -111,7 +111,7 @@ class DefaultApiClientTest {
         @Test
         @DisplayName("the default transport rejects a certificate from an untrusted CA")
         fun defaultTransportRejectsUntrustedCa() {
-            val client = DefaultApiClient(TransportOptions.builder().build())
+            val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
             val ex =
                 assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) {
                     runBlocking {
@@ -134,6 +134,7 @@ class DefaultApiClientTest {
                     .proxy(SquidContainer.getProxyUrl())
                     .verifySsl(true)
                     .caCertPath(caCertPath)
+                    .maxRetries(0)
                     .build()
             val client = DefaultApiClient(transport)
             val ex =
