@@ -3,7 +3,6 @@
 {{>api_info}}
 
 require 'faraday'
-require 'faraday/follow_redirects'
 require 'json'
 require 'securerandom'
 require 'openssl'
@@ -201,8 +200,9 @@ module {{moduleName}}
       )
     end
 
-    # Releases the Faraday connection and its underlying socket pool and
-    # marks the client closed. Subsequent calls to {#send_request} raise a
+    # Drops the Faraday connection the SDK built and marks the client closed
+    # (the default +net_http+ adapter opens a socket per request, so there is
+    # no pooled socket to release). Subsequent calls to {#send_request} raise a
     # RuntimeError rather than silently rebuilding a connection. It is safe
     # to call this method repeatedly (idempotent).
     #

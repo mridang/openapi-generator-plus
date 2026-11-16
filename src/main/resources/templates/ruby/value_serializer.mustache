@@ -151,6 +151,10 @@ module {{moduleName}}
       # A uniqueItems array parameter is a Set; it expands exactly like an
       # array, in the Set's iteration order.
       value = value.to_a if value.is_a?(Set)
+      # A +format: date+ parameter is written as YYYY-MM-DD even when the caller
+      # passes a DateTime or Time (a DateTime is a Date, so the type check does
+      # not stop it).
+      value = date_only(value) if ['Date', 'Array<Date>'].include?(schema_type)
       # Path parameters are required components of the URL — accepting an
       # empty string would silently produce a malformed URL like
       # `/resource//details`, which most servers route to 404 instead of
@@ -341,7 +345,19 @@ module {{moduleName}}
       end
     end
 
-    private_class_method :serialize_nil, :serialize_array, :serialize_query_array, :encode_item,
+    # Drop the time of day from a DateTime or Time, in an array as well.
+    #
+    # @param value [Object, nil] the parameter value
+    # @return [Object, nil] the same value, with any DateTime or Time as a Date
+    def self.date_only(value)
+      case value
+      when DateTime, Time then value.to_date
+      when Array then value.map { |item| date_only(item) }
+      else value
+      end
+    end
+
+    private_class_method :date_only, :serialize_nil, :serialize_array, :serialize_query_array, :encode_item,
                          :object_fields, :serialize_object, :object_field_text
   end
 end
