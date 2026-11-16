@@ -2272,5 +2272,29 @@ void main() {
       });
     }
   });
+
+  group('Response cookies', () {
+    test('a Set-Cookie answer is never replayed as a Cookie on the next request', () async {
+      final seen = <String?>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        seen.add(request.headers.value('cookie'));
+        request.response
+          ..statusCode = 200
+          ..headers.add('Set-Cookie', 'sid=abc; Path=/')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final url = 'http://localhost:${server.port}/x';
+        await client.sendRequest('GET', url, {}, null);
+        await client.sendRequest('GET', url, {}, null);
+        expect(seen, equals([null, null]));
+      } finally {
+        await server.close();
+      }
+    });
+  });
 }
 {{/generateTests}}

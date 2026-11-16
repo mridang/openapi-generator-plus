@@ -519,6 +519,14 @@ void main() {
       expect(written['location'], equals([1.5, 2.5, 'label']));
     });
 
+    test('a JSON object with a duplicate key resolves to the last value', () {
+      expect(deserializeRaw('{"a":1,"a":2}'), equals({'a': 2}));
+      expect(deserializeRaw('{"o":{"k":1,"k":2}}'), equals({'o': {'k': 2}}));
+      final category = deserialize<Category>(
+          '{"id":"x","id":1,"name":"n"}', Category.fromJson);
+      expect(category!.id, equals(1));
+    });
+
     // DeserializationErrorWrappingTests
 
     // The error contract: every wire-shape failure throws exactly

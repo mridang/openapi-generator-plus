@@ -1317,6 +1317,46 @@ void main() {
     final source =
         File('${Directory.current.path}/lib/src/api/pet_api.dart').readAsStringSync();
 
+    /* A deprecated operation carries @Deprecated on every public variant, a
+     * deprecated model carries it on the class and a deprecated parameter on
+     * its Options field. */
+    test('deprecation markers sit on every variant of a deprecated operation', () {
+      expect(
+        source,
+        contains(
+          "  @Deprecated('This operation is deprecated.')\n"
+          '  Future<List<Pet>> findPetsByStatus(',
+        ),
+      );
+      expect(
+        source,
+        contains(
+          "  @Deprecated('This operation is deprecated.')\n"
+          '  Future<ApiResult<List<Pet>>> findPetsByStatusWithHttpInfo(',
+        ),
+      );
+      expect(
+        source,
+        contains(
+          "  @Deprecated('This operation is deprecated.')\n"
+          '  Future<Pet> getPetById(',
+        ),
+      );
+    });
+
+    test('deprecation markers sit on a deprecated model and parameter', () {
+      final tag = File('${Directory.current.path}/lib/src/models/tag.dart')
+          .readAsStringSync();
+      expect(tag, contains("@Deprecated('This schema is deprecated.')\nclass Tag {"));
+      final options = File(
+              '${Directory.current.path}/lib/src/api/options/find_pets_by_status_options.dart')
+          .readAsStringSync();
+      expect(
+        options,
+        contains("@Deprecated('This parameter is deprecated.')\n  final String? status;"),
+      );
+    });
+
     /* The `options` argument is documented on every operation that takes
      * it: the authenticator clause appears only where the Options class
      * carries one, and an auth-only Options says just that. */
