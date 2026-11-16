@@ -197,7 +197,7 @@ public class DefaultApiClientUnitTest
         var client = new DefaultApiClient(httpClient);
         await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
             new Dictionary<string, string>(), null);
-        Assert.False(string.IsNullOrEmpty(capturedUserAgent));
+        Assert.Equal("{{{userAgentDefault}}}", capturedUserAgent);
     }
 
     [Fact]

@@ -149,6 +149,51 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void GetUrlDoesNotExpandAPlaceholderThatASubstitutedValueIntroduces()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("{version}", null, []),
+                ["version"] = new ServerVariable("v2", null, []),
+            });
+
+        Assert.Equal("https://{version}.example.com/v2", server.GetUrl());
+    }
+
+    [Fact]
+    public void GetUrlLeavesAnUnknownPlaceholderAndUnbalancedBraceAsWritten()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/{other}/{",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, []),
+            });
+
+        Assert.Equal("https://api.example.com/{other}/{", server.GetUrl());
+    }
+
+    [Fact]
+    public void ServerConfigurationCopiesTheCallersVariablesAtConstruction()
+    {
+        var variables = new Dictionary<string, ServerVariable>
+        {
+            ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+        };
+        var server = new ServerConfiguration("https://{env}.example.com", null, variables);
+
+        variables["env"] = new ServerVariable("changed", null, []);
+        variables["extra"] = new ServerVariable("x", null, []);
+
+        Assert.Equal("https://api.example.com", server.GetUrl());
+        Assert.Single(server.Variables);
+    }
+
+    [Fact]
     public void GetUrlAcceptsAnyValueWhenEnumIsEmpty()
     {
         var server = new ServerConfiguration(
