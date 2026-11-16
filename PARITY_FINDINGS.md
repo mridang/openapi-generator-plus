@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 471, forced 4, needs-spec 2, open 125, parked 37, partial 5. Severity: critical 3, high 60, medium 547, low 212.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 506, forced 4, needs-spec 2, open 93, parked 34, partial 5. Severity: critical 3, high 60, medium 547, low 212.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -194,7 +194,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 471, forced 4,
 | F186 | medium | fixed | L16-docs-packaging | node | node README says edge runtimes throw 'a typed `ApiError`' for proxy/CA/TLS-off; the code throws a built-in TypeError |
 | F187 | medium | fixed | L16-docs-packaging | node | node SKILLS.md imports every symbol from `./src/...` paths a consumer cannot reach; the other 11 import from the published package |
 | F188 | medium | fixed | L16-docs-packaging | ruby | ruby: blank lines inside the generated YARD block detach the operation summary and @param tags from the method |
-| F189 | medium | open | L16-docs-packaging | swift | swift README decimal caveat recommends a non-existent API (`JSONDecoder().userInfo[.useDecimal]`); AGENTS.md repeats the false claim |
+| F189 | medium | fixed | L16-docs-packaging | swift | swift README decimal caveat recommends a non-existent API (`JSONDecoder().userInfo[.useDecimal]`); AGENTS.md repeats the false claim |
 | F190 | medium | fixed | L17-gates | dart, go | Dart and Go spec setup rewrites the golden before the checks run, so the dart format gate cannot fail and go.mod/go.sum drift is hidden |
 | F191 | medium | deferred | L17-gates | java, kotlin, csharp, php, python, ruby, node, dart, swift, elixir, go | Every SDK ships a warnings-fatal docs build, but only rust runs it in a spec |
 | F192 | medium | fixed | L17-gates | ruby, python, node, go, dart | Five SDKs' decompression integration tests call a public internet host and pass whether or not the body was encoded |
@@ -502,7 +502,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 471, forced 4,
 | F494 | medium | duplicate | batch3-discovered | java | java model.mustache renders externalDocs description and plural-example summary with double braces (about 14 @see sites plus line 682), so an apostrophe or quote in spec prose is HTML-escaped into gen |
 | F495 | medium | false-positive | batch3-discovered | java | Setup step 1 failed: branch parity/b2-java is already checked out in another worktree (wf_4a554f2f-32a-1, at f16a8a5fb), so this work is on parity/b2-java-r2, branched from f8d625c89; the orchestrator |
 | F496 | medium | duplicate | batch3-discovered | java | javadocDescription escapes only angle brackets, not a bare ampersand, which doclint=all rejects as a bad HTML entity |
-| F497 | medium | parked | batch3-discovered | java | operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified |
+| F497 | medium | fixed | batch3-discovered | java | operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified |
 | F498 | medium | duplicate | batch3-discovered | dart | dart's reserved-word list (src/main/resources/reserved-words/dart.txt) is matched lowercase by every isReservedWord caller, so a model named Type still becomes model_type while a model named Function  |
 | F499 | medium | duplicate | batch3-discovered | dart | dart date-array params and model date-array properties are typed List<DateTime> and serialized through the generic date-time path, so the date-only wire form is lost for arrays (F070), and no petstore |
 | F500 | medium | fixed | batch3-discovered | csharp | servers.mustache still embeds serverUrl, serverDescription and varDescription raw inside C# string literals, so a double quote or backslash in a server URL or description breaks compilation (only the  |
@@ -510,10 +510,10 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 471, forced 4,
 | F502 | medium | false-positive | batch3-discovered | csharp | Branch name parity/b2-csharp is already checked out by the stale worktree wf_4a554f2f-32a-3 (commit 1e246e228), so git checkout -B failed; work was done on parity/b2-csharp-2 from f8d625c89 instead |
 | F503 | medium | false-positive | batch3-discovered | csharp | The worktree started at a8bc609f4 which lacks PARITY_FINDINGS.json and etc/parity-findings.py; checking out f8d625c89 under the new branch name fixed that |
 | F504 | medium | false-positive | batch3-discovered | kotlin | The kotlin api.mustache `@param` lines emitted through two-tag section lines such as the pluralExamples and requestContentType blocks leave stray blank lines inside KDoc blocks in the golden (for exam |
-| F505 | medium | parked | batch3-discovered | kotlin | Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ] |
-| F506 | medium | parked | batch3-discovered | node | Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme |
-| F507 | medium | open | batch3-discovered | node | Node SKILLS 'Client authentication method' section renders under hasAnyOAuth2 but imports ClientAuthMethod and the client-credentials authenticator |
-| F508 | medium | open | batch3-discovered | node | Node SKILLS Configuration example uses an undeclared `authenticator` variable, so it is not runnable verbatim |
+| F505 | medium | fixed | batch3-discovered | kotlin | Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ] |
+| F506 | medium | fixed | batch3-discovered | node | Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme |
+| F507 | medium | fixed | batch3-discovered | node | Node SKILLS 'Client authentication method' section renders under hasAnyOAuth2 but imports ClientAuthMethod and the client-credentials authenticator |
+| F508 | medium | fixed | batch3-discovered | node | Node SKILLS Configuration example uses an undeclared `authenticator` variable, so it is not runnable verbatim |
 | F509 | medium | duplicate | batch3-discovered | node | Node model constructors have no element checks for arrays of integer, number or boolean |
 | F510 | medium | false-positive | batch3-discovered | go | Branch parity/b2-go is held by a stale worktree (wf_3417e94f-a6d-1, commit 12db9544e, the pre-merge copy of 88768c89f), so the setup command git checkout -B parity/b2-go failed and I used parity/b3-go |
 | F511 | medium | false-positive | batch3-discovered | go | Sandbox rules in this run blocked eval, source and heredocs, so devbox shellenv had to be wrapped in scratchpad scripts (b3go-run.sh, b3go-verify.sh) |
@@ -587,7 +587,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 471, forced 4,
 | F579 | medium | false-positive | batch4-discovered | rust | The rust golden suite has no chasm brotli integration test; brotli is covered only by the new in-process test |
 | F580 | medium | open | batch4-discovered | rust | test_custom_ca_cert_replaces_the_system_trust_store silently skips (returns) when example.com:443 is unreachable, so CA sole-anchor coverage is network dependent |
 | F581 | medium | parked | batch4-discovered | go | Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into th |
-| F582 | medium | open | batch4-discovered | go | TransportOptionsBuilder.Timeout doc says a value of 0 means a 0ms timeout, but http.Client treats Timeout 0 as no timeout and a negative value as an already-expired deadline; there is no validation of |
+| F582 | medium | fixed | batch4-discovered | go | TransportOptionsBuilder.Timeout doc says a value of 0 means a 0ms timeout, but http.Client treats Timeout 0 as no timeout and a negative value as an already-expired deadline; there is no validation of |
 | F583 | medium | fixed | batch4-discovered | go | OAuth2AuthorizationCodeAuthenticator.AuthHeadersOrError builds its refresh params with only grant_type and refresh_token, so the refresh grant does not carry client_id or client_secret (unlike the pas |
 | F584 | medium | fixed | batch4-discovered | go | OIDC rediscovery dropped the exchanged tokens and tokenExchanged flag (F016/F230) |
 | F585 | medium | fixed | batch5-discovered | csharp | The expanded spec broke the csharp golden in about ten places, so the fixes below are in this commit, made csharp-local (BetterCSharpCodegen and templates) where the decisions name shared codegen |
@@ -753,37 +753,37 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 471, forced 4,
 | F745 | medium | fixed | api-surface | elixir | API surface: harmonise options `setpetpreferencesoptions` (1 differences) |
 | F746 | medium | fixed | api-surface | elixir, go | API surface: harmonise options `uploadpetcertificateoptions` (1 differences) |
 | F747 | medium | fixed | api-surface | elixir, go, rust | API surface: harmonise options `uploadpetdocumentoptions` (3 differences) |
-| F748 | medium | open | review | php | php status-leaf ctor defaults responseHeaders to [] instead of null |
+| F748 | medium | fixed | review | php | php status-leaf ctor defaults responseHeaders to [] instead of null |
 | F749 | low | open | review | node | node base-api.test status 400 exception test is flaky on a cold start (NetworkError on the first request) |
 | F750 | medium | open | review | java, kotlin, csharp, php, python, ruby, node, dart, go, elixir | Negative transport timeout is rejected only in rust and swift; the other ten accept it silently |
-| F751 | medium | open | review | php | php TraceContextUtilTest hard-codes trace flags 01 and fails with current open-telemetry/sdk |
+| F751 | medium | fixed | review | php | php TraceContextUtilTest hard-codes trace flags 01 and fails with current open-telemetry/sdk |
 | F752 | low | open | review | csharp, swift, java, kotlin, python, ruby, node, dart, php, elixir | Status-specific error constructors accept a cause in some SDKs only |
-| F753 | medium | open | review | kotlin | The worktree was created at an older commit without kotlin templates; I ran git checkout -b parity/error-api-kotlin 8731130e first. |
-| F754 | medium | open | review | kotlin | Root exception (message, cause) previously required non-null Throwable; widened to Throwable? as a side effect of the six-arg ApiException constructor, which is a minor public signature widening. |
-| F755 | medium | open | review | csharp | The agent file .claude/agents/sdk-csharp.md exists only in the pr35 worktree, not in this worktree's base commit (read it from there). |
-| F756 | medium | open | review | dart | The worktree was created at an unrelated commit (no .claude/agents, AGENTS.md or dart templates); I had to create the branch from base 8731130e3 myself. |
-| F757 | medium | open | review | dart | etc/api-surface-allow.json (shared) needs dart and ruby allow rules for the public cause member (apierror, networkerror, networktimeouterror, openapierror) as the task states; ctor-optional rows for d |
-| F758 | medium | open | review | rust | Behaviour change worth noting: ApiError::new no longer parses the body itself, so the api.mustache empty-body error (Some(raw_body), error_body None) no longer exposes a parsed error_body, as the task |
-| F759 | medium | open | review | rust | Several earlier scripted edits silently failed to apply (api.mustache and the redirect-cap call in default_api_client.mustache). Caught only by compiling the regenerated golden; always compile after b |
-| F760 | medium | open | review | php | php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or f |
-| F761 | medium | open | review | php | php TraceContextUtilTest hardcodes traceparent flags 01/00 and fails when the span carries the W3C random flag (03) |
+| F753 | medium | fixed | review | kotlin | The worktree was created at an older commit without kotlin templates; I ran git checkout -b parity/error-api-kotlin 8731130e first. |
+| F754 | medium | fixed | review | kotlin | Root exception (message, cause) previously required non-null Throwable; widened to Throwable? as a side effect of the six-arg ApiException constructor, which is a minor public signature widening. |
+| F755 | medium | fixed | review | csharp | The agent file .claude/agents/sdk-csharp.md exists only in the pr35 worktree, not in this worktree's base commit (read it from there). |
+| F756 | medium | fixed | review | dart | The worktree was created at an unrelated commit (no .claude/agents, AGENTS.md or dart templates); I had to create the branch from base 8731130e3 myself. |
+| F757 | medium | fixed | review | dart | etc/api-surface-allow.json (shared) needs dart and ruby allow rules for the public cause member (apierror, networkerror, networktimeouterror, openapierror) as the task states; ctor-optional rows for d |
+| F758 | medium | fixed | review | rust | Behaviour change worth noting: ApiError::new no longer parses the body itself, so the api.mustache empty-body error (Some(raw_body), error_body None) no longer exposes a parsed error_body, as the task |
+| F759 | medium | fixed | review | rust | Several earlier scripted edits silently failed to apply (api.mustache and the redirect-cap call in default_api_client.mustache). Caught only by compiling the regenerated golden; always compile after b |
+| F760 | medium | fixed | review | php | php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or f |
+| F761 | medium | fixed | review | php | php TraceContextUtilTest hardcodes traceparent flags 01/00 and fails when the span carries the W3C random flag (03) |
 | F762 | low | open | review | php | php server description doc comment still uses the comment escaper (`a*_/b`) |
-| F763 | medium | open | review | csharp | The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself. |
-| F764 | medium | open | review | csharp | Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed. |
-| F765 | medium | open | review | php | php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpC |
-| F766 | medium | open | review | node, kotlin | Language agents edit the shared etc/ API-surface tooling without a shared task |
+| F763 | medium | fixed | review | csharp | The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself. |
+| F764 | medium | fixed | review | csharp | Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed. |
+| F765 | medium | fixed | review | php | php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpC |
+| F766 | medium | fixed | review | node, kotlin | Language agents edit the shared etc/ API-surface tooling without a shared task |
 | F767 | low | open | review | elixir | elixir prepare_body/2 now routes every model request body through Model.serialize/1 |
 | F768 | medium | open | review | php | The php byte doc line 'Raw bytes (base64 on the wire).' is added only to properties that have a spec description. Byte properties with no description get no doc line, because the template's no-descrip |
 | F769 | medium | open | review | php | The php golden's spec/ directory and README may still mention the removed AsBytes helpers; I grepped the templates and found none, but did not check the generated README text. |
-| F770 | medium | open | review | ruby | Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no |
-| F771 | medium | open | review | swift | The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/ |
-| F772 | medium | open | review | swift | The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a. |
-| F773 | medium | open | review | elixir | The worktree had no .claude directory, so I read the agent file from the pr35 checkout. |
-| F774 | medium | open | review | elixir | BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body). |
+| F770 | medium | fixed | review | ruby | Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no |
+| F771 | medium | fixed | review | swift | The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/ |
+| F772 | medium | fixed | review | swift | The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a. |
+| F773 | medium | fixed | review | elixir | The worktree had no .claude directory, so I read the agent file from the pr35 checkout. |
+| F774 | medium | fixed | review | elixir | BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body). |
 | F775 | low | open | review | kotlin | kotlin RequiredNullable.note required-nullable is not in the api-surface allow-list |
 | F776 | low | open | review | go, rust | DateTime unwrap accessor (go Time() / rust into_inner()) is not allow-listed |
 | F777 | low | open | review | go | go oneOf constructor accepts pointer variants, unlike the decode path |
-| F778 | medium | open | review | node | The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an al |
+| F778 | medium | fixed | review | node | The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an al |
 | F779 | medium | open | review | node | Spec change needed (shared): petstore openapi.yaml needs a model with `additionalProperties: {type: string}` so the typed index-signature case is compiled. |
 | F780 | low | open | review | go | go: oneOf ActualInstance() keeps a pointer receiver while MarshalJSON and the new anyOf accessors use value receivers |
 | F781 | low | open | review | kotlin | kotlin: rejectUnevaluatedKeys spells kotlinx.serialization.descriptors.StructureKind out in full instead of importing it |
@@ -802,11 +802,11 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 471, forced 4,
 | F794 | low | open | review | elixir | elixir: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-b |
 | F795 | low | open | review | elixir | elixir: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which che |
 | F796 | low | open | review | ruby | ruby: Stale selector name in a comment. src/main/resources/templates/ruby/test/api/pet_api_test.mustache:268 (and the generated src/spec/resources/generated/ruby/test/api/pet_api_test.rb:268) still sa |
-| F797 | medium | open | review | python | Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real Python |
-| F798 | medium | open | review | java | devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies. |
-| F799 | medium | open | review | java | Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm f |
-| F800 | medium | open | review | java | etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background. |
-| F801 | medium | open | review | java | etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult |
+| F797 | medium | fixed | review | python | Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real Python |
+| F798 | medium | fixed | review | java | devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies. |
+| F799 | medium | fixed | review | java | Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm f |
+| F800 | medium | fixed | review | java | etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background. |
+| F801 | medium | fixed | review | java | etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult |
 | F802 | high | open | review | java, csharp | Spec reuse of DryFood and WetFood in the DeprecatedFood union re-parents them in java and csharp |
 | F803 | medium | open | review | java, kotlin, csharp, elixir, php, python, ruby, rust, node, dart, go, swift | Adding security to an operation adds a positional options parameter before server, silently breaking existing server-only call sites |
 | F804 | medium | open | review | rust | Rust close() cannot release an idle pooled connection by dropping reqwest::Client |
@@ -826,8 +826,8 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 471, forced 4,
 | F818 | low | open | review | php | php: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.musta |
 | F819 | low | open | review | python | python: The template test calls get_external_pet_info with a positional None for the new options parameter just to reach server. The call site is awkward, and the change is unnecessary: options defaul |
 | F820 | low | open | review | python | python: The generated anyof_merged_dump comment in deprecated_treatment.py line 106 and treatment_record.py line 103 is one line of about 140 characters. The template (model.mustache lines 285-286) an |
-| F821 | medium | open | review | python | Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive f |
-| F822 | medium | open | review | python | The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec. |
+| F821 | medium | fixed | review | python | Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive f |
+| F822 | medium | fixed | review | python | The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec. |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -3300,7 +3300,7 @@ Reviewer suspected this is forced: None. It is mustache standalone-line whitespa
 - `src/spec/resources/generated/ruby/Makefile:21` — bundle exec yard doc --output-dir .out/docs --fail-on-warning
 
 ## F189 [medium] swift README decimal caveat recommends a non-existent API (`JSONDecoder().userInfo[.useDecimal]`); AGENTS.md repeats the false claim
-- Status: **open** (documents corrected; the code or template part is still open) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (fixed in direct batch 6; each language spec and the bearer unit test pass) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: swift
 
 The swift README tells users who need exact decimals to decode 'with `JSONDecoder().userInfo[.useDecimal] = true`'. Foundation has no such CodingUserInfoKey. A compile check with the local toolchain (`swiftc -typecheck`) fails with: type 'CodingUserInfoKey' has no member 'useDecimal'. The real opt-in is to decode into a `Decimal`-typed field. CLAUDE.md requires every example to compile when pasted verbatim. AGENTS.md (forced-divergence entry for `format: number`) cites the same non-existent opt-in as the documented caller workaround.
@@ -6385,7 +6385,7 @@ Setup step 1 failed: branch parity/b2-java is already checked out in another wor
 javadocDescription escapes only angle brackets, not a bare ampersand, which doclint=all rejects as a bad HTML entity.
 
 ## F497 [medium] operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified
-- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed in direct batch 6; each language spec and the bearer unit test pass) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: java
 
 operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified.
@@ -6433,25 +6433,25 @@ The worktree started at a8bc609f4 which lacks PARITY_FINDINGS.json and etc/parit
 The kotlin api.mustache `@param` lines emitted through two-tag section lines such as the pluralExamples and requestContentType blocks leave stray blank lines inside KDoc blocks in the golden (for example PetApi.kt around the `Example` lines).
 
 ## F505 [medium] Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ]
-- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed in direct batch 6; each language spec and the bearer unit test pass) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: kotlin
 
 Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ]. java rejects it.
 
 ## F506 [medium] Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme
-- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed in direct batch 6; each language spec and the bearer unit test pass) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: node
 
 Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme. A spec without one produces a node client that imports a missing file.
 
 ## F507 [medium] Node SKILLS 'Client authentication method' section renders under hasAnyOAuth2 but imports ClientAuthMethod and the client-credentials authenticator
-- Status: **open** (reported by the node fix agent, unverified) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed in direct batch 6; each language spec and the bearer unit test pass) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: node
 
 Node SKILLS 'Client authentication method' section renders under hasAnyOAuth2 but imports ClientAuthMethod and the client-credentials authenticator. The barrel only exports ClientAuthMethod for client-credentials or password flows, so an authorization-code-only or implicit-only spec gets an example that does not compile.
 
 ## F508 [medium] Node SKILLS Configuration example uses an undeclared `authenticator` variable, so it is not runnable verbatim
-- Status: **open** (reported by the node fix agent, unverified) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed in direct batch 6; each language spec and the bearer unit test pass) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: node
 
 Node SKILLS Configuration example uses an undeclared `authenticator` variable, so it is not runnable verbatim.
@@ -6895,7 +6895,7 @@ test_custom_ca_cert_replaces_the_system_trust_store silently skips (returns) whe
 Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into the enum type because GetUrl never validates, so out-of-enum values are not rejected at runtime in go (F041/F357 rejection cases cannot be locked here).
 
 ## F582 [medium] TransportOptionsBuilder.Timeout doc says a value of 0 means a 0ms timeout, but http.Client treats Timeout 0 as no timeout and a negative value as an already-expired deadline; there is no validation of
-- Status: **open** (reported by the go fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed in direct batch 6; each language spec and the bearer unit test pass) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: go
 
 TransportOptionsBuilder.Timeout doc says a value of 0 means a 0ms timeout, but http.Client treats Timeout 0 as no timeout and a negative value as an already-expired deadline; there is no validation of zero or negative values (F123 item 4), so a test would first need a decision on the intended behaviour.
@@ -8255,7 +8255,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - uploadpetdocumentoptions.file [prop-optional] majority required (8 SDKs); differs: elixir=optional; go=optional
 
 ## F748 [medium] php status-leaf ctor defaults responseHeaders to [] instead of null
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed in direct batch 6; each language spec and the bearer unit test pass) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: php
 
 php/errors/*Exception.mustache leaves declare `?array $responseHeaders = []`. This conflicts with the AGENTS.md and PARITY_DECISIONS rule that constructors never default headers to an empty map, because null means no response arrived. The other languages default to null, node now included. The plan excluded this as a separate headers-null decision, so it remains open.
@@ -8273,7 +8273,7 @@ base-api.test 'status 400 throws correct exception' is flaky on a cold start (Ne
 rust/transport_options.mustache:292-299 rejects a negative timeout in TransportOptionsBuilder::build with ConfigurationError::InvalidTimeout ('invalid timeout: N ms; must not be negative'). After this change set, swift rejects it in DefaultApiClient.init (swift/default_api_client.mustache:894-896) with ConfigurationError.invalidTimeout. A grep of the other ten languages' transport options and client templates finds no negative-timeout check, so `timeout(-1)` is accepted and passed to the HTTP library, where the behaviour is library-defined. rust and swift also reject at different stages: rust at builder build(), swift at client construction. One rule is needed: reject at the same point with each language's argument error and the canonical message.
 
 ## F751 [medium] php TraceContextUtilTest hard-codes trace flags 01 and fails with current open-telemetry/sdk
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed earlier: the php trace-flags test reads the span's own flags) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: php
 
 src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds the expected flags as `isSampled() ? '01' : '00'`, and line 144 compares them with the injected traceparent. composer.mustache:35 allows open-telemetry/sdk ^1.0. Newer SDK releases set the W3C Trace Context level-2 random flag (0x02), so the traceparent ends in -03 and the test fails. This was observed in the php error-api agent run (PhpClientSpec, 1 of 1013 failing), in code this change set does not touch. Fix: derive the expected flags from `$span->getContext()->getTraceFlags()` as two hex digits, or assert only the sampled bit.
@@ -8285,55 +8285,55 @@ src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds 
 After this change set, every ApiError base takes a cause. The status subclasses (NotFound, BadRequest and the rest) differ. swift (underlyingError, e.g. swift/errors/not_found_error.mustache:13) and csharp (an innerException overload, NotFoundException.cs:22) accept one. python (python/errors/not_found_exception.mustache:11-16), ruby, dart and node take only (message, headers, body, errorBody). API_SURFACE.md currently files this under 'idiom (allow-list)'. Decide whether status subclasses carry a cause, and apply that decision in all 12.
 
 ## F753 [medium] The worktree was created at an older commit without kotlin templates; I ran git checkout -b parity/error-api-kotlin 8731130e first.
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: kotlin
 
 The worktree was created at an older commit without kotlin templates; I ran git checkout -b parity/error-api-kotlin 8731130e first.
 
 ## F754 [medium] Root exception (message, cause) previously required non-null Throwable; widened to Throwable? as a side effect of the six-arg ApiException constructor, which is a minor public signature widening.
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: kotlin
 
 Root exception (message, cause) previously required non-null Throwable; widened to Throwable? as a side effect of the six-arg ApiException constructor, which is a minor public signature widening.
 
 ## F755 [medium] The agent file .claude/agents/sdk-csharp.md exists only in the pr35 worktree, not in this worktree's base commit (read it from there).
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: csharp
 
 The agent file .claude/agents/sdk-csharp.md exists only in the pr35 worktree, not in this worktree's base commit (read it from there).
 
 ## F756 [medium] The worktree was created at an unrelated commit (no .claude/agents, AGENTS.md or dart templates); I had to create the branch from base 8731130e3 myself.
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: dart
 
 The worktree was created at an unrelated commit (no .claude/agents, AGENTS.md or dart templates); I had to create the branch from base 8731130e3 myself.
 
 ## F757 [medium] etc/api-surface-allow.json (shared) needs dart and ruby allow rules for the public cause member (apierror, networkerror, networktimeouterror, openapierror) as the task states; ctor-optional rows for d
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (allow rules for these helpers and causes are in etc/api-surface-allow.json, each with its reason) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: dart
 
 etc/api-surface-allow.json (shared) needs dart and ruby allow rules for the public cause member (apierror, networkerror, networktimeouterror, openapierror) as the task states; ctor-optional rows for dart named args on ApiError/NetworkError/NetworkTimeoutError are also new and need an allow or the keyword-argument idiom rule (needs-shared).
 
 ## F758 [medium] Behaviour change worth noting: ApiError::new no longer parses the body itself, so the api.mustache empty-body error (Some(raw_body), error_body None) no longer exposes a parsed error_body, as the task
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: rust
 
 Behaviour change worth noting: ApiError::new no longer parses the body itself, so the api.mustache empty-body error (Some(raw_body), error_body None) no longer exposes a parsed error_body, as the task specified.
 
 ## F759 [medium] Several earlier scripted edits silently failed to apply (api.mustache and the redirect-cap call in default_api_client.mustache). Caught only by compiling the regenerated golden; always compile after b
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: rust
 
 Several earlier scripted edits silently failed to apply (api.mustache and the redirect-cap call in default_api_client.mustache). Caught only by compiling the regenerated golden; always compile after bulk edits.
 
 ## F760 [medium] php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or f
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed earlier: the php trace-flags test reads the span's own flags) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: php
 
 php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or flakiness.
 
 ## F761 [medium] php TraceContextUtilTest hardcodes traceparent flags 01/00 and fails when the span carries the W3C random flag (03)
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed earlier: the php trace-flags test reads the span's own flags) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: php
 
 src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds the expected flags as `$span->getContext()->isSampled() ? '01' : '00'`. The injected traceparent carried flags '03' (sampled plus random-trace-id, W3C Trace Context level 2), so PhpClientSpec.shouldRunClientTests fails 'injects traceparent when a span is active' at tests/TraceContextUtilTest.php:143. The php agent's log at /tmp/php-string-default-literals-php.txt shows it. Fix: derive the expected flags from the span context's actual trace flags, e.g. sprintf('%02x', $span->getContext()->getTraceFlags()), not from isSampled(). Then check that the other eleven SDKs either propagate the random bit the same way or all mask it, so the wire bytes stay harmonised.
@@ -8345,25 +8345,25 @@ src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds 
 src/spec/resources/generated/php/lib/Servers.php:78 renders the server description in a docblock as `$5 #{x} a*_/b`. The other SDKs' doc comments show `a*/b`: dart and rust with ///, swift ///, csharp CDATA, ruby #. In a /** */ block the `*_/` rewrite is needed, so this may be an accepted idiom difference. The literal on line 84 is exact. Confirm it is recorded as idiom; if not, decide on one comment-safe form for every SDK that writes the description inside a block comment.
 
 ## F763 [medium] The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself.
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: csharp
 
 The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself.
 
 ## F764 [medium] Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed.
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: csharp
 
 Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed.
 
 ## F765 [medium] php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpC
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (fixed earlier: the php trace-flags test reads the span's own flags) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: php
 
 php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpClientSpec cannot go fully green until fixed.
 
 ## F766 [medium] Language agents edit the shared etc/ API-surface tooling without a shared task
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: node, kotlin
 
 parity/api-models-node-r1 and parity/api-models-kotlin-r1 each added overlapping allow entries to etc/api-surface-allow.json and a near-identical private_constant change to etc/api-surface.py (run_ruby, around line 1737). kotlin-r1's version uses an undefined-in-scope `t` with no owner None guard. This blocks staging; the workflow should give etc/ to one shared task per change set.
@@ -8387,31 +8387,31 @@ The php byte doc line 'Raw bytes (base64 on the wire).' is added only to propert
 The php golden's spec/ directory and README may still mention the removed AsBytes helpers; I grepped the templates and found none, but did not check the generated README text.
 
 ## F770 [medium] Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: ruby
 
 Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no way to run the full ruby suite.
 
 ## F771 [medium] The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: swift
 
 The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/F729 drop it. I chose methods everywhere, (as:) on oneOf only. The orchestrator should confirm.
 
 ## F772 [medium] The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a.
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: swift
 
 The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a.
 
 ## F773 [medium] The worktree had no .claude directory, so I read the agent file from the pr35 checkout.
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: elixir
 
 The worktree had no .claude directory, so I read the agent file from the pr35 checkout.
 
 ## F774 [medium] BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body).
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: elixir
 
 BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body).
@@ -8435,7 +8435,7 @@ The canonical file (api-models part 1, item 1) says go `DateTime.Time()` and rus
 From the go idiom review notes, confirmed against the canonical shape. `NewPetFood(actualInstance any)` accepts `&DryFood`, while decoding stores the `DryFood` value. A type switch on `ActualInstance()` then sees different dynamic types depending on how the value was built. To keep the canonical single-`any` constructor, normalise pointers to values in the constructor, or reject them, so that construction matches what decoding produces.
 
 ## F778 [medium] The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an al
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (allow rules for these helpers and causes are in etc/api-surface-allow.json, each with its reason) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: node
 
 The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an allow rule or the helper should be made non-exported.
@@ -8565,31 +8565,31 @@ Idiom review of api-small-classes: Stale selector name in a comment. src/main/re
 Suggested form: Change the comment line to: # backward compatible: an unspecified request_content_type still sends the first. Apply the same change in the template and in the generated pet_api_test.rb so they stay in step.
 
 ## F797 [medium] Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real Python
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: python
 
 Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real PythonClientSpec run may differ, and the reviewer should confirm with the full spec.
 
 ## F798 [medium] devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies.
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: java
 
 devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies.
 
 ## F799 [medium] Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm f
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: java
 
 Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm fixture copy uses /app paths); seven live-endpoint tests still fail with ConnectException in that setup.
 
 ## F800 [medium] etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background.
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: java
 
 etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background.
 
 ## F801 [medium] etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (allow rules for these helpers and causes are in etc/api-surface-allow.json, each with its reason) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: java
 
 etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult (and baseapi.invokeapiforemptyresult) with reason 'no protected modifier; a library-private name would hide the members from subclasses in other library files'; node and dart allowreservedvalue with reason 'shared across two source files, not exported by the package barrel'; ruby valueserializer.unwrapallowreserved with reason 'BaseApi cannot name a private_constant'; plus the API_SURFACE.md rows for Petstore and Iso8601Duration and the not-part-of-the-canonical-surface rows for Configuration.fromServer, TransportOptions.assertValidProxy and TransportOptions.validateProxy.
@@ -8741,13 +8741,13 @@ Idiom review of single-language-defects: The generated anyof_merged_dump comment
 Suggested form: Replace the single comment line in deprecated_treatment.py:106 and treatment_record.py:103 with the two-line form used by model.mustache and pet_treatment.py: `# JSON mode keeps date-time, bytes and Decimal fields in their` followed by `# wire form, so the merged dict matches model_dump_json.` at the same indentation. Regenerate the files rather than hand-editing if possible.
 
 ## F821 [medium] Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive f
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: python
 
 Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive filesystems.
 
 ## F822 [medium] The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec.
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: python
 
 The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec.

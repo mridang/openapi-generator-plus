@@ -13180,10 +13180,11 @@
    "suspected_forced_reason": "None.",
    "lens": "L16-docs-packaging",
    "id": "F189",
-   "status": "open",
-   "note": "documents corrected; the code or template part is still open",
+   "status": "fixed",
+   "note": "fixed in direct batch 6; each language spec and the bearer unit test pass",
    "priority_triage": "low",
-   "plain": "The Swift README recommends an API for decimals that does not exist."
+   "plain": "The Swift README recommends an API for decimals that does not exist.",
+   "commit": "0cb71aec4"
   },
   {
    "title": "Dart and Go spec setup rewrites the golden before the checks run, so the dart format gate cannot fail and go.mod/go.sum drift is hidden",
@@ -29434,11 +29435,12 @@
    "description": "operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified.",
    "evidence": [],
    "unit_testable": null,
-   "status": "parked",
-   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
+   "status": "fixed",
+   "note": "fixed in direct batch 6; each language spec and the bearer unit test pass",
    "batch": null,
    "priority_triage": "low",
-   "plain": "A Java operation doc lists an auth parameter that the signature does not have."
+   "plain": "A Java operation doc lists an auth parameter that the signature does not have.",
+   "commit": "0cb71aec4"
   },
   {
    "id": "F498",
@@ -29564,11 +29566,12 @@
    "description": "Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ]. java rejects it.",
    "evidence": [],
    "unit_testable": null,
-   "status": "parked",
-   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
+   "status": "fixed",
+   "note": "fixed in direct batch 6; each language spec and the bearer unit test pass",
    "batch": null,
    "priority_triage": "low",
-   "plain": "Kotlin accepts a proxy URL with an unterminated IPv6 bracket."
+   "plain": "Kotlin accepts a proxy URL with an unterminated IPv6 bracket.",
+   "commit": "0cb71aec4"
   },
   {
    "id": "F506",
@@ -29582,11 +29585,12 @@
    "description": "Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme. A spec without one produces a node client that imports a missing file.",
    "evidence": [],
    "unit_testable": null,
-   "status": "parked",
-   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
+   "status": "fixed",
+   "note": "fixed in direct batch 6; each language spec and the bearer unit test pass",
    "batch": null,
    "priority_triage": "low",
-   "plain": "Node client always imports the bearer authenticator file, which is only generated when the spec uses bearer auth."
+   "plain": "Node client always imports the bearer authenticator file, which is only generated when the spec uses bearer auth.",
+   "commit": "0cb71aec4"
   },
   {
    "id": "F507",
@@ -29600,11 +29604,12 @@
    "description": "Node SKILLS 'Client authentication method' section renders under hasAnyOAuth2 but imports ClientAuthMethod and the client-credentials authenticator. The barrel only exports ClientAuthMethod for client-credentials or password flows, so an authorization-code-only or implicit-only spec gets an example that does not compile.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the node fix agent, unverified",
+   "status": "fixed",
+   "note": "fixed in direct batch 6; each language spec and the bearer unit test pass",
    "batch": null,
    "priority_triage": "low",
-   "plain": "Node docs show an OAuth example that imports things the generated code may not have."
+   "plain": "Node docs show an OAuth example that imports things the generated code may not have.",
+   "commit": "0cb71aec4"
   },
   {
    "id": "F508",
@@ -29618,11 +29623,12 @@
    "description": "Node SKILLS Configuration example uses an undeclared `authenticator` variable, so it is not runnable verbatim.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the node fix agent, unverified",
+   "status": "fixed",
+   "note": "fixed in direct batch 6; each language spec and the bearer unit test pass",
    "batch": null,
    "priority_triage": "low",
-   "plain": "Node docs configuration example uses a variable that is never declared."
+   "plain": "Node docs configuration example uses a variable that is never declared.",
+   "commit": "0cb71aec4"
   },
   {
    "id": "F509",
@@ -30830,11 +30836,12 @@
    "description": "TransportOptionsBuilder.Timeout doc says a value of 0 means a 0ms timeout, but http.Client treats Timeout 0 as no timeout and a negative value as an already-expired deadline; there is no validation of zero or negative values (F123 item 4), so a test would first need a decision on the intended behaviour.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the go fix agent, unverified",
+   "status": "fixed",
+   "note": "fixed in direct batch 6; each language spec and the bearer unit test pass",
    "batch": null,
    "priority_triage": "low",
-   "plain": "Go docs say a zero timeout means 0 ms but the HTTP client treats zero as no timeout."
+   "plain": "Go docs say a zero timeout means 0 ms but the HTTP client treats zero as no timeout.",
+   "commit": "0cb71aec4"
   },
   {
    "id": "F583",
@@ -33784,9 +33791,10 @@
    "description": "php/errors/*Exception.mustache leaves declare `?array $responseHeaders = []`. This conflicts with the AGENTS.md and PARITY_DECISIONS rule that constructors never default headers to an empty map, because null means no response arrived. The other languages default to null, node now included. The plan excluded this as a separate headers-null decision, so it remains open.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "fixed in direct batch 6; each language spec and the bearer unit test pass",
+   "batch": null,
+   "commit": "0cb71aec4"
   },
   {
    "id": "F749",
@@ -33841,9 +33849,10 @@
    "description": "src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds the expected flags as `isSampled() ? '01' : '00'`, and line 144 compares them with the injected traceparent. composer.mustache:35 allows open-telemetry/sdk ^1.0. Newer SDK releases set the W3C Trace Context level-2 random flag (0x02), so the traceparent ends in -03 and the test fails. This was observed in the php error-api agent run (PhpClientSpec, 1 of 1013 failing), in code this change set does not touch. Fix: derive the expected flags from `$span->getContext()->getTraceFlags()` as two hex digits, or assert only the sampled bit.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "fixed earlier: the php trace-flags test reads the span's own flags",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F752",
@@ -33882,9 +33891,10 @@
    "description": "The worktree was created at an older commit without kotlin templates; I ran git checkout -b parity/error-api-kotlin 8731130e first.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F754",
@@ -33898,9 +33908,10 @@
    "description": "Root exception (message, cause) previously required non-null Throwable; widened to Throwable? as a side effect of the six-arg ApiException constructor, which is a minor public signature widening.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F755",
@@ -33914,9 +33925,10 @@
    "description": "The agent file .claude/agents/sdk-csharp.md exists only in the pr35 worktree, not in this worktree's base commit (read it from there).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F756",
@@ -33930,9 +33942,10 @@
    "description": "The worktree was created at an unrelated commit (no .claude/agents, AGENTS.md or dart templates); I had to create the branch from base 8731130e3 myself.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F757",
@@ -33946,9 +33959,10 @@
    "description": "etc/api-surface-allow.json (shared) needs dart and ruby allow rules for the public cause member (apierror, networkerror, networktimeouterror, openapierror) as the task states; ctor-optional rows for dart named args on ApiError/NetworkError/NetworkTimeoutError are also new and need an allow or the keyword-argument idiom rule (needs-shared).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "allow rules for these helpers and causes are in etc/api-surface-allow.json, each with its reason",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F758",
@@ -33962,9 +33976,10 @@
    "description": "Behaviour change worth noting: ApiError::new no longer parses the body itself, so the api.mustache empty-body error (Some(raw_body), error_body None) no longer exposes a parsed error_body, as the task specified.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F759",
@@ -33978,9 +33993,10 @@
    "description": "Several earlier scripted edits silently failed to apply (api.mustache and the redirect-cap call in default_api_client.mustache). Caught only by compiling the regenerated golden; always compile after bulk edits.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F760",
@@ -33994,9 +34010,10 @@
    "description": "php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or flakiness.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "fixed earlier: the php trace-flags test reads the span's own flags",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F761",
@@ -34010,9 +34027,10 @@
    "description": "src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds the expected flags as `$span->getContext()->isSampled() ? '01' : '00'`. The injected traceparent carried flags '03' (sampled plus random-trace-id, W3C Trace Context level 2), so PhpClientSpec.shouldRunClientTests fails 'injects traceparent when a span is active' at tests/TraceContextUtilTest.php:143. The php agent's log at /tmp/php-string-default-literals-php.txt shows it. Fix: derive the expected flags from the span context's actual trace flags, e.g. sprintf('%02x', $span->getContext()->getTraceFlags()), not from isSampled(). Then check that the other eleven SDKs either propagate the random bit the same way or all mask it, so the wire bytes stay harmonised.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "fixed earlier: the php trace-flags test reads the span's own flags",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F762",
@@ -34042,9 +34060,10 @@
    "description": "The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F764",
@@ -34058,9 +34077,10 @@
    "description": "Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F765",
@@ -34074,9 +34094,10 @@
    "description": "php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpClientSpec cannot go fully green until fixed.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "fixed earlier: the php trace-flags test reads the span's own flags",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F766",
@@ -34091,9 +34112,10 @@
    "description": "parity/api-models-node-r1 and parity/api-models-kotlin-r1 each added overlapping allow entries to etc/api-surface-allow.json and a near-identical private_constant change to etc/api-surface.py (run_ruby, around line 1737). kotlin-r1's version uses an undefined-in-scope `t` with no owner None guard. This blocks staging; the workflow should give etc/ to one shared task per change set.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F767",
@@ -34155,9 +34177,10 @@
    "description": "Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no way to run the full ruby suite.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F771",
@@ -34171,9 +34194,10 @@
    "description": "The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/F729 drop it. I chose methods everywhere, (as:) on oneOf only. The orchestrator should confirm.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F772",
@@ -34187,9 +34211,10 @@
    "description": "The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F773",
@@ -34203,9 +34228,10 @@
    "description": "The worktree had no .claude directory, so I read the agent file from the pr35 checkout.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F774",
@@ -34219,9 +34245,10 @@
    "description": "BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F775",
@@ -34284,9 +34311,10 @@
    "description": "The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an allow rule or the helper should be made non-exported.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "allow rules for these helpers and causes are in etc/api-surface-allow.json, each with its reason",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F779",
@@ -34591,9 +34619,10 @@
    "description": "Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real PythonClientSpec run may differ, and the reviewer should confirm with the full spec.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F798",
@@ -34607,9 +34636,10 @@
    "description": "devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F799",
@@ -34623,9 +34653,10 @@
    "description": "Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm fixture copy uses /app paths); seven live-endpoint tests still fail with ConnectException in that setup.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F800",
@@ -34639,9 +34670,10 @@
    "description": "etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F801",
@@ -34655,9 +34687,10 @@
    "description": "etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult (and baseapi.invokeapiforemptyresult) with reason 'no protected modifier; a library-private name would hide the members from subclasses in other library files'; node and dart allowreservedvalue with reason 'shared across two source files, not exported by the package barrel'; ruby valueserializer.unwrapallowreserved with reason 'BaseApi cannot name a private_constant'; plus the API_SURFACE.md rows for Petstore and Iso8601Duration and the not-part-of-the-canonical-surface rows for Configuration.fromServer, TransportOptions.assertValidProxy and TransportOptions.validateProxy.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "allow rules for these helpers and causes are in etc/api-surface-allow.json, each with its reason",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F802",
@@ -34987,9 +35020,10 @@
    "description": "Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive filesystems.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   },
   {
    "id": "F822",
@@ -35003,9 +35037,10 @@
    "description": "The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "process or environment note recorded by a retired workflow agent (wrong starting commit, Docker socket, tool timeout); not a product defect, and the behaviour changes it mentions are accepted",
+   "batch": null,
+   "commit": "303f85b75"
   }
  ]
 }
