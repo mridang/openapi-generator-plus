@@ -891,9 +891,11 @@ class PetApiTest {
             var query = ""
             val api = capturingPetApi("[]") { request, _ -> query = request.url.encodedQuery }
 
-            runBlocking { api.findPetsByStatus(FindPetsByStatusOptions(n2ndPage = 2)) }
+            runBlocking { api.findPetsByStatus(FindPetsByStatusOptions(n2ndPage = 2, filter = mapOf("color" to "red"))) }
 
             assertTrue(query.contains("2ndPage=2"), query)
+            // F1158: the filter parameter is a deepObject.
+            assertTrue(query.contains("filter%5Bcolor%5D=red"), query)
             assertFalse(query.contains("n2ndPage"), query)
         }
 

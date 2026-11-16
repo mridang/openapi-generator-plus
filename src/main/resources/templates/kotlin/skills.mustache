@@ -200,9 +200,13 @@ val client = {{clientClassName}}(fake)
 
 ## Error Handling
 
-All API errors derive from `ApiException`. The error hierarchy is:
+Every error the SDK raises derives from `{{errorPrefix}}Exception`. Besides the HTTP errors under `ApiException` it has three siblings: `SerializationException` (a body or value that could not be encoded or decoded), `OAuth2ServerException` (the token endpoint answered with an OAuth2 error, with `code`, `description` and `uri`) and `OAuth2TokenException` (a token response that is unusable). The error hierarchy is:
 
-- `ApiException` (base)
+- `{{errorPrefix}}Exception` (root)
+  - `SerializationException`
+  - `OAuth2ServerException`
+  - `OAuth2TokenException`
+- `ApiException` (base of the HTTP errors, below `{{errorPrefix}}Exception`)
   - `ClientException` (4xx)
     - `BadRequestException` (400)
     - `UnauthorizedException` (401)

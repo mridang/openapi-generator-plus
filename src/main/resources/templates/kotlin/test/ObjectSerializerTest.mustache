@@ -1267,7 +1267,19 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a date-time without an offset is rejected on decode")
+        @DisplayName("a prefixItems tuple (Pet.location) keeps its mixed items in order")
+        fun prefixItemsTupleRoundTrips() {
+            // F1175: two numbers then a string.
+            val decoded =
+                serializer.deserialize<{{modelPackage}}.Pet>(
+                    "{\"name\":\"f\",\"photoUrls\":[],\"location\":[1.5,2.5,\"x\"]}",
+                )
+            assertNotNull(decoded)
+            assertEquals(3, decoded!!.location!!.size)
+            assertTrue(serializer.serialize(decoded).contains("\"location\":[1.5,2.5,\"x\"]"))
+        }
+
+
         fun dateTimeWithoutOffsetIsRejected() {
             // D57/F080, F1163: the host time zone must never fill the missing offset in.
             assertThrows(SerializationException::class.java) {
