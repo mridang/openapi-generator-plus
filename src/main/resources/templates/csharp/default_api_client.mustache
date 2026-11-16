@@ -54,6 +54,18 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {{/apiKeyHeaderNames}}
         };
 
+    /* A header is dropped on a cross-origin hop when it is in the fixed set or
+       its name says it carries a credential (key, token or secret), so a default
+       header or a custom authenticator header is not replayed to another
+       origin (F1093). */
+    private static bool IsCredentialHeader(string name)
+    {
+        return SensitiveHeaderNames.Contains(name)
+            || name.Contains("key", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("token", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("secret", StringComparison.OrdinalIgnoreCase);
+    }
+
     private readonly HttpClient _httpClient;
     private readonly TransportOptions _transportOptions;
 
@@ -629,7 +641,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     Dictionary<string, string> redirectHeaders = new(StringComparer.OrdinalIgnoreCase);
                     foreach (KeyValuePair<string, string> header in currentHeaders)
                     {
-                        if (crossOrigin && SensitiveHeaderNames.Contains(header.Key))
+                        if (crossOrigin && IsCredentialHeader(header.Key))
                         {
                             continue;
                         }

@@ -887,6 +887,33 @@ public class DefaultApiClientUnitTest
     }
 
     [Theory]
+    [InlineData("X-Tenant-Token")]
+    [InlineData("X-Custom-Auth-Key")]
+    [InlineData("X-Client-Secret")]
+    public async Task CrossOriginRedirectStripsAnyHeaderNamedLikeACredential(string credentialHeader)
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://other.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>
+            {
+                { credentialHeader, "secret" },
+                { "X-Trace", "keep" },
+            },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.True(handler.Requests[0].Headers.Contains(credentialHeader));
+        Assert.False(handler.Requests[1].Headers.Contains(credentialHeader));
+        Assert.True(handler.Requests[1].Headers.Contains("X-Trace"));
+    }
+
+    [Theory]
     [InlineData("http://origin.example.com/start", "http://origin.example.com:80/landed")]
     [InlineData("https://origin.example.com/start", "https://origin.example.com:443/landed")]
     [InlineData("http://origin.example.com:80/start", "http://origin.example.com/landed")]
