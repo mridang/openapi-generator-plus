@@ -83,20 +83,30 @@ final class TransportOptions
             return;
         }
         if (filter_var($proxy, FILTER_VALIDATE_URL) === false) {
-            throw new \InvalidArgumentException("Invalid proxy URL: $proxy");
+            throw new \InvalidArgumentException('Invalid proxy URL: ' . self::redactProxyUserinfo($proxy));
         }
         $parsed = parse_url($proxy);
         $scheme = strtolower($parsed['scheme'] ?? '');
         if ($scheme !== 'http' && $scheme !== 'https') {
             throw new \InvalidArgumentException(
-                "Invalid proxy URL (must use http or https scheme): $proxy"
+                'Invalid proxy URL (must use http or https scheme): ' . self::redactProxyUserinfo($proxy)
             );
         }
         if (empty($parsed['host'])) {
             throw new \InvalidArgumentException(
-                "Invalid proxy URL (missing host): $proxy"
+                'Invalid proxy URL (missing host): ' . self::redactProxyUserinfo($proxy)
             );
         }
+    }
+
+    /**
+     * Renders a proxy URL for an error message with any user:password
+     * userinfo replaced by `***@`, so a configuration error never carries
+     * credentials into logs or error trackers.
+     */
+    private static function redactProxyUserinfo(string $proxy): string
+    {
+        return preg_replace('~^([a-z][a-z0-9+.-]*://)[^/?#]*@~i', '$1***@', $proxy) ?? $proxy;
     }
 
     /**

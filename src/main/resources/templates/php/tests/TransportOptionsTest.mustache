@@ -241,6 +241,23 @@ test('constructor rejects a malformed proxy url', function (): void {
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL: not-a-url');
 });
 
+test('a rejected proxy url never carries its userinfo into the message', function (string $proxy, string $expected): void {
+    expect(fn () => new TransportOptions(proxy: $proxy))
+        ->toThrow(function (\InvalidArgumentException $e) use ($expected): void {
+            expect($e->getMessage())->toBe($expected);
+            expect($e->getMessage())->not->toContain('s3cret');
+        });
+})->with([
+    'unsupported scheme' => [
+        'socks5://svc:s3cret@proxy:1080',
+        'Invalid proxy URL (must use http or https scheme): socks5://***@proxy:1080',
+    ],
+    'ftp scheme' => [
+        'ftp://svc:s3cret@proxy:21',
+        'Invalid proxy URL (must use http or https scheme): ftp://***@proxy:21',
+    ],
+]);
+
 test('constructor accepts a valid proxy and none', function (): void {
     expect((new TransportOptions(proxy: 'https://proxy:3128'))->proxy)->toBe('https://proxy:3128');
     expect((new TransportOptions())->proxy)->toBeNull();
