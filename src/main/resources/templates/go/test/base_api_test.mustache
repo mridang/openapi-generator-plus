@@ -6,15 +6,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"{{packageName}}/pkg"
 	"{{packageName}}/pkg/auth"
+	"{{packageName}}/pkg/auth/oauth"
 	apierrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
 	"{{packageName}}/pkg/options"
@@ -60,6 +65,17 @@ func newBaseApiAuth() *baseApiAuth {
 func chasmApi() *{{packageName}}.PetApi {
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(chasmHTTPURL).Build()
 	return {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, nil)
+}
+
+// noRetryTransport is the default transport with retries disabled, for the tests
+// that expect exactly one failing request.
+func noRetryTransport(t *testing.T) *{{packageName}}.TransportOptions {
+	t.Helper()
+	transport, err := {{packageName}}.NewTransportOptionsBuilder().MaxRetries(0).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	return transport
 }
 
 // ── Exception dispatch ──
@@ -119,7 +135,7 @@ func TestBaseApi_ErrorDispatchViaApi(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.errType, func(t *testing.T) {
 			config := {{packageName}}.NewConfigurationBuilder().BaseURL(chasmHTTPURL + tc.path).Build()
-			api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, nil)
+			api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(noRetryTransport(t)), config, nil)
 			_, err := api.GetPetById(context.Background(), int64(1), nil)
 			if err == nil {
 				t.Fatalf("expected error for status %d, got nil", tc.status)
@@ -171,7 +187,7 @@ func TestBaseApi_NotFoundIsClientError(t *testing.T) {
 func TestBaseApi_InternalServerErrorIsServerError(t *testing.T) {
 	t.Parallel()
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/500").Build()
-	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, nil)
+	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(noRetryTransport(t)), config, nil)
 
 	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
@@ -1811,5 +1827,392 @@ func TestBaseApi_ContentHeaderParameterIsEncodedBySdkSerializer(t *testing.T) {
 
 	if got, want := client.capturedHeaders["X-Filter"], `{"a":"<b>"}`; got != want {
 		t.Errorf("expected X-Filter %q, got %q", want, got)
+	}
+}
+
+// ── F855: a 401 on an OAuth2 request replays it once ──
+
+// oauthReplayServer is an API that accepts one access token and a token endpoint
+// that issues tok1, tok2, ...; it counts the calls to each.
+type oauthReplayServer struct {
+	*httptest.Server
+	apiHits   atomic.Int32
+	tokenHits atomic.Int32
+}
+
+// newOAuthReplayServer starts the server; failTokenFrom, when positive, makes
+// the token endpoint answer 500 from that request on.
+func newOAuthReplayServer(t *testing.T, accepted string, failTokenFrom int32) *oauthReplayServer {
+	t.Helper()
+	srv := &oauthReplayServer{}
+	srv.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/token" {
+			n := srv.tokenHits.Add(1)
+			if failTokenFrom > 0 && n >= failTokenFrom {
+				w.WriteHeader(500)
+				_, _ = w.Write([]byte(`{"error":"server_error"}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"access_token":"tok` + string(rune('0'+n)) + `","expires_in":3600}`))
+			return
+		}
+		srv.apiHits.Add(1)
+		if r.Header.Get("Authorization") != "Bearer "+accepted {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"message":"expired"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func replayClient(t *testing.T, srv *oauthReplayServer) *{{packageName}}.{{clientClassName}} {
+	t.Helper()
+	authObj := oauth.NewOAuth2ClientCredentialsAuthenticator(srv.URL, "id", "secret", srv.URL+"/token", nil)
+	client := {{packageName}}.New{{clientClassName}}(authObj, noRetryTransport(t))
+	t.Cleanup(func() { _ = client.Close() })
+	return client
+}
+
+func TestBaseApi_A401OnOAuthRequestRenewsTheTokenAndReplaysOnce(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "tok2", 0)
+	client := replayClient(t, srv)
+
+	if _, err := client.Pet.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil); err != nil {
+		t.Fatalf("expected the replayed request to succeed, got %v", err)
+	}
+	if got := srv.apiHits.Load(); got != 2 {
+		t.Errorf("expected the request sent twice, got %d", got)
+	}
+	if got := srv.tokenHits.Load(); got != 2 {
+		t.Errorf("expected a second token after the 401, got %d", got)
+	}
+}
+
+func TestBaseApi_ASecond401IsReportedAfterOneReplay(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "never", 0)
+	client := replayClient(t, srv)
+
+	_, err := client.Pet.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
+	var unauthorized *apierrors.UnauthorizedError
+	if !errors.As(err, &unauthorized) {
+		t.Fatalf("expected *UnauthorizedError, got %T: %v", err, err)
+	}
+	if got := srv.apiHits.Load(); got != 2 {
+		t.Errorf("expected exactly one replay, got %d requests", got)
+	}
+	if got := srv.tokenHits.Load(); got != 2 {
+		t.Errorf("expected exactly one new token, got %d", got)
+	}
+}
+
+func TestBaseApi_AFailedReauthenticationLeavesTheOriginal401(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "tok2", 2)
+	client := replayClient(t, srv)
+
+	_, err := client.Pet.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
+	var unauthorized *apierrors.UnauthorizedError
+	if !errors.As(err, &unauthorized) {
+		t.Fatalf("expected the original *UnauthorizedError, got %T: %v", err, err)
+	}
+	if got := srv.apiHits.Load(); got != 1 {
+		t.Errorf("expected no replay without a new token, got %d requests", got)
+	}
+}
+
+func TestBaseApi_ABearerRequestIsNeverReplayedOnA401(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "never", 0)
+	client := {{packageName}}.New{{clientClassName}}(mustBearer(t, srv.URL, "static"), noRetryTransport(t))
+	t.Cleanup(func() { _ = client.Close() })
+
+	_, err := client.Pet.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
+	var unauthorized *apierrors.UnauthorizedError
+	if !errors.As(err, &unauthorized) {
+		t.Fatalf("expected *UnauthorizedError, got %T: %v", err, err)
+	}
+	if got := srv.apiHits.Load(); got != 1 {
+		t.Errorf("expected no replay for a bearer token, got %d requests", got)
+	}
+}
+
+// ── F823: automatic retries with backoff ──
+
+// scriptedReply is one answer of a scriptedServer.
+type scriptedReply struct {
+	status     int
+	retryAfter string
+}
+
+// scriptedServer answers its requests from a script (the last reply repeats) and
+// records the Authorization header of each.
+type scriptedServer struct {
+	*httptest.Server
+	mu   sync.Mutex
+	auth []string
+	hits atomic.Int32
+}
+
+func newScriptedServer(t *testing.T, script ...scriptedReply) *scriptedServer {
+	t.Helper()
+	srv := &scriptedServer{}
+	srv.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := int(srv.hits.Add(1)) - 1
+		srv.mu.Lock()
+		srv.auth = append(srv.auth, r.Header.Get("Authorization"))
+		srv.mu.Unlock()
+		reply := script[min(n, len(script)-1)]
+		w.Header().Set("Content-Type", "application/json")
+		if reply.retryAfter != "" {
+			w.Header().Set("Retry-After", reply.retryAfter)
+		}
+		w.WriteHeader(reply.status)
+		if reply.status >= 200 && reply.status < 300 {
+			_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"message":"failed"}`))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// retryApi is a PetApi on the server with the given transport options.
+func retryApi(t *testing.T, srv *scriptedServer, configure func(*{{packageName}}.TransportOptionsBuilder), authenticator {{packageName}}.Authenticator) *{{packageName}}.PetApi {
+	t.Helper()
+	builder := {{packageName}}.NewTransportOptionsBuilder()
+	if configure != nil {
+		configure(builder)
+	}
+	transport, err := builder.Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL(srv.URL).Build()
+	client := {{packageName}}.NewDefaultApiClient(transport)
+	t.Cleanup(func() { _ = client.Close() })
+	return {{packageName}}.NewPetApi(client, config, authenticator)
+}
+
+func addPetCall(api *{{packageName}}.PetApi) error {
+	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
+	return err
+}
+
+func TestBaseApi_RetriesTwiceByDefaultWithBackoff(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 500}, scriptedReply{status: 503}, scriptedReply{status: 200})
+	api := retryApi(t, srv, nil, nil)
+
+	started := time.Now()
+	if err := addPetCall(api); err != nil {
+		t.Fatalf("expected the third attempt to succeed, got %v", err)
+	}
+	if got := srv.hits.Load(); got != 3 {
+		t.Errorf("expected 3 requests, got %d", got)
+	}
+	/* 0.5 s and 1 s, each reduced by at most 25% jitter. */
+	if elapsed := time.Since(started); elapsed < 1100*time.Millisecond {
+		t.Errorf("expected the backoff to wait about 1.5 s, waited %v", elapsed)
+	}
+}
+
+func TestBaseApi_StopsAfterMaxRetriesAndReturnsTheLastFailure(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 503, retryAfter: "0"})
+	api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.MaxRetries(3) }, nil)
+
+	err := addPetCall(api)
+	var serverErr *apierrors.ServerError
+	if !errors.As(err, &serverErr) || serverErr.StatusCode() != 503 {
+		t.Fatalf("expected the 503 *ServerError, got %T: %v", err, err)
+	}
+	if got := srv.hits.Load(); got != 4 {
+		t.Errorf("expected the request and 3 retries, got %d requests", got)
+	}
+}
+
+func TestBaseApi_MaxRetriesZeroSendsOneRequest(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 503})
+	api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
+
+	if err := addPetCall(api); err == nil {
+		t.Fatal("expected the 503 to be returned")
+	}
+	if got := srv.hits.Load(); got != 1 {
+		t.Errorf("expected one request, got %d", got)
+	}
+}
+
+func TestBaseApi_RetriesOnlyTheTransientStatuses(t *testing.T) {
+	t.Parallel()
+	for status, wantHits := range map[int]int32{
+		400: 1, 401: 1, 403: 1, 404: 1, 422: 1, 501: 1,
+		408: 2, 409: 2, 429: 2, 500: 2, 502: 2, 503: 2, 504: 2, 599: 2,
+	} {
+		srv := newScriptedServer(t, scriptedReply{status: status, retryAfter: "0"})
+		api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.MaxRetries(1) }, nil)
+
+		if err := addPetCall(api); err == nil {
+			t.Errorf("status %d: expected an error", status)
+		}
+		if got := srv.hits.Load(); got != wantHits {
+			t.Errorf("status %d: expected %d requests, got %d", status, wantHits, got)
+		}
+	}
+}
+
+func TestBaseApi_RetryAfterSecondsReplacesTheBackoff(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 429, retryAfter: "1"}, scriptedReply{status: 200})
+	api := retryApi(t, srv, nil, nil)
+
+	started := time.Now()
+	if err := addPetCall(api); err != nil {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	/* The first backoff is at most 0.5 s, so waiting a second proves the header. */
+	if elapsed := time.Since(started); elapsed < 950*time.Millisecond {
+		t.Errorf("expected to wait the Retry-After second, waited %v", elapsed)
+	}
+}
+
+func TestBaseApi_RetryAfterHttpDateReplacesTheBackoff(t *testing.T) {
+	t.Parallel()
+	date := time.Now().Add(2 * time.Second).UTC().Format(http.TimeFormat)
+	srv := newScriptedServer(t, scriptedReply{status: 503, retryAfter: date}, scriptedReply{status: 200})
+	api := retryApi(t, srv, nil, nil)
+
+	started := time.Now()
+	if err := addPetCall(api); err != nil {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	if elapsed := time.Since(started); elapsed < 600*time.Millisecond {
+		t.Errorf("expected to wait for the Retry-After date, waited %v", elapsed)
+	}
+}
+
+func TestBaseApi_RetriesNeverExtendTheEndToEndTimeout(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 503})
+	timeout := 1200
+	api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.MaxRetries(10).Timeout(&timeout) }, nil)
+
+	started := time.Now()
+	err := addPetCall(api)
+	elapsed := time.Since(started)
+
+	var serverErr *apierrors.ServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected the last 503 to be returned, got %T: %v", err, err)
+	}
+	if elapsed > 1400*time.Millisecond {
+		t.Errorf("expected the retries to stay inside the 1.2 s timeout, took %v", elapsed)
+	}
+	if got := srv.hits.Load(); got > 3 {
+		t.Errorf("expected the retries to stop when the budget ran out, got %d requests", got)
+	}
+}
+
+func TestBaseApi_ARetryAfterBeyondTheTimeoutEndsTheRetries(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 429, retryAfter: "3600"}, scriptedReply{status: 200})
+	timeout := 2000
+	api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.Timeout(&timeout) }, nil)
+
+	started := time.Now()
+	var tooMany *apierrors.TooManyRequestsError
+	if err := addPetCall(api); !errors.As(err, &tooMany) {
+		t.Fatalf("expected the 429 *TooManyRequestsError, got %T: %v", err, err)
+	}
+	if got := srv.hits.Load(); got != 1 {
+		t.Errorf("expected no retry, got %d requests", got)
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Errorf("expected no wait, took %v", elapsed)
+	}
+}
+
+func TestBaseApi_CancellingDuringTheBackoffStopsTheRetries(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 503, retryAfter: "30"}, scriptedReply{status: 200})
+	api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.Timeout(nil) }, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(200*time.Millisecond, cancel)
+	started := time.Now()
+	_, err := api.AddPet(ctx, *models.NewPet("Test", []string{}), nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected a cancellation error, got %T: %v", err, err)
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Errorf("expected the wait to be cut short, took %v", elapsed)
+	}
+	if got := srv.hits.Load(); got != 1 {
+		t.Errorf("expected no second request, got %d", got)
+	}
+}
+
+// rotatingAuth hands out a new Authorization value every time it is asked.
+type rotatingAuth struct {
+	baseApiAuth
+	calls atomic.Int32
+}
+
+func (a *rotatingAuth) AuthHeaders() map[string]string {
+	return map[string]string{"Authorization": "Bearer t" + string(rune('0'+a.calls.Add(1)))}
+}
+
+func TestBaseApi_ARetryAppliesTheAuthenticationHeadersAgain(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 500, retryAfter: "0"}, scriptedReply{status: 200})
+	authObj := &rotatingAuth{baseApiAuth: *newBaseApiAuth()}
+	api := retryApi(t, srv, nil, authObj)
+
+	if err := addPetCall(api); err != nil {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	srv.mu.Lock()
+	defer srv.mu.Unlock()
+	if want := []string{"Bearer t1", "Bearer t2"}; !reflect.DeepEqual(srv.auth, want) {
+		t.Errorf("expected the headers rebuilt for the retry %v, got %v", want, srv.auth)
+	}
+}
+
+func TestBaseApi_RetriesANetworkErrorThatHappenedBeforeAResponse(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hits.Add(1) == 1 {
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err == nil {
+				_ = conn.Close()
+			}
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	transport, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	client := {{packageName}}.NewDefaultApiClient(transport)
+	defer func() { _ = client.Close() }()
+
+	if err := addPetCall({{packageName}}.NewPetApi(client, config, nil)); err != nil {
+		t.Fatalf("expected the retry after the dropped connection to succeed, got %v", err)
+	}
+	if got := hits.Load(); got != 2 {
+		t.Errorf("expected 2 requests, got %d", got)
 	}
 }

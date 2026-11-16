@@ -2,6 +2,7 @@
 package {{packageName}}
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -2012,5 +2013,100 @@ func TestDefaultApiClient_BodyTruncatedAfterHeadersReturnsNetworkError(t *testin
 	}
 	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("expected the read error to be kept as the cause, got %v", err)
+	}
+}
+
+// F823: the retry rules of base_api. Only these statuses are transient.
+func TestIsRetryableStatus_IsTheTransientSet(t *testing.T) {
+	t.Parallel()
+	for status, want := range map[int]bool{
+		200: false, 301: false, 400: false, 401: false, 404: false, 422: false,
+		408: true, 409: true, 429: true, 500: true, 502: true, 503: true, 504: true, 599: true,
+		501: false, 600: false,
+	} {
+		if got := isRetryableStatus(status); got != want {
+			t.Errorf("status %d: expected retryable %t, got %t", status, want, got)
+		}
+	}
+}
+
+// A Retry-After in seconds or as an HTTP date is honoured, capped at 60 seconds,
+// and an unusable one is ignored.
+func TestRetryAfterDelay_ReadsSecondsAndDatesAndCapsAtAMinute(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+	cases := []struct {
+		name   string
+		header string
+		want   time.Duration
+		ok     bool
+	}{
+		{"seconds", "7", 7 * time.Second, true},
+		{"zero", "0", 0, true},
+		{"spaces are trimmed", " 3 ", 3 * time.Second, true},
+		{"seconds beyond a minute are capped", "3600", 60 * time.Second, true},
+		{"a date", now.Add(5 * time.Second).Format(http.TimeFormat), 5 * time.Second, true},
+		{"a date in the past waits nothing", now.Add(-time.Hour).Format(http.TimeFormat), 0, true},
+		{"a date beyond a minute is capped", now.Add(time.Hour).Format(http.TimeFormat), 60 * time.Second, true},
+		{"negative is ignored", "-5", 0, false},
+		{"NaN is ignored", "NaN", 0, false},
+		{"text is ignored", "soon", 0, false},
+		{"empty is ignored", "", 0, false},
+	}
+	for _, tc := range cases {
+		got, ok := retryAfterDelay(map[string]string{"retry-after": tc.header}, now)
+		if ok != tc.ok || got != tc.want {
+			t.Errorf("%s: expected %v, %t, got %v, %t", tc.name, tc.want, tc.ok, got, ok)
+		}
+	}
+	if _, ok := retryAfterDelay(map[string]string{"Retry-After": "1"}, now); !ok {
+		t.Error("expected the header name to be matched case-insensitively")
+	}
+	if _, ok := retryAfterDelay(nil, now); ok {
+		t.Error("expected no delay without headers")
+	}
+}
+
+// The backoff starts at 0.5 s, doubles up to 8 s and loses at most 25% to
+// jitter; a Retry-After replaces it.
+func TestRetryDelay_DoublesFromHalfASecondToEightWithJitter(t *testing.T) {
+	t.Parallel()
+	now := time.Now()
+	for retries, base := range map[int]time.Duration{
+		0: 500 * time.Millisecond, 1: time.Second, 2: 2 * time.Second, 3: 4 * time.Second,
+		4: 8 * time.Second, 5: 8 * time.Second, 40: 8 * time.Second,
+	} {
+		for i := 0; i < 50; i++ {
+			got := retryDelay(retries, nil, now)
+			if got > base || got < base*3/4 {
+				t.Fatalf("retry %d: expected a delay in [%v, %v], got %v", retries, base*3/4, base, got)
+			}
+		}
+	}
+	if got := retryDelay(0, map[string]string{"retry-after": "9"}, now); got != 9*time.Second {
+		t.Errorf("expected Retry-After to replace the backoff, got %v", got)
+	}
+}
+
+// Only a network error is retried: not a cancellation, not a closed client and
+// not an error that is not a network error.
+func TestIsRetryableTransportError_IsTheNetworkErrors(t *testing.T) {
+	t.Parallel()
+	cause := errors.New("connection reset")
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"network error", pkgerrors.NewNetworkError("request failed", cause), true},
+		{"timeout error", pkgerrors.NewNetworkTimeoutError("request timed out", cause), true},
+		{"cancellation", fmt.Errorf("request cancelled: %w", context.Canceled), false},
+		{"closed client", ErrClientClosed, false},
+		{"invalid request", fmt.Errorf("%w: bad", ErrInvalidRequest), false},
+	}
+	for _, tc := range cases {
+		if got := isRetryableTransportError(tc.err); got != tc.want {
+			t.Errorf("%s: expected %t, got %t", tc.name, tc.want, got)
+		}
 	}
 }

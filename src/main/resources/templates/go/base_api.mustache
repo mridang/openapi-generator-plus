@@ -7,15 +7,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"math/rand/v2"
 	"mime"
 	"mime/multipart"
+	"net/http"
 	"net/textproto"
 	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -160,126 +165,309 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		effectiveAuth = b.authenticator
 	}
 
-	/* Merge authentication query params */
-	if effectiveAuth != nil {
-		authQueryParams := effectiveAuth.QueryParams()
-		if params.queryParams == nil {
-			params.queryParams = make(map[string]any)
-		}
-		for k, v := range authQueryParams {
-			params.queryParams[k] = v
-		}
-	}
-
-	/* Build query string */
-	queryString := buildQueryStringOrdered(params.queryParams, params.order)
-	if queryString != "" {
-		requestURL = requestURL + "?" + queryString
-	}
-
-	/* Select headers */
-	isMultipart := params.contentType == "multipart/form-data"
-	headers := b.headerSelector.selectHeaders(params.accepts, params.contentType, isMultipart)
-
-	/* Merge config default headers */
-	mergeHeaders(headers, b.config.DefaultHeaders())
-
-	/* Merge operation-specific headers */
-	mergeHeaders(headers, params.headerParams)
-
-	/* Merge auth headers */
-	if effectiveAuth != nil {
-		/* Prefer AuthHeadersOrError when the authenticator exposes it, so a
-		 * token-fetch failure surfaces as the real OAuth error instead of being
-		 * swallowed into an empty header map (which would send the request
-		 * unauthenticated and produce a confusing 401). */
-		var authHeaders map[string]string
-		if p, ok := effectiveAuth.(interface {
-			AuthHeadersOrError() (map[string]string, error)
-		}); ok {
-			h, aerr := p.AuthHeadersOrError()
-			if aerr != nil {
-				return nil, aerr
-			}
-			authHeaders = h
-		} else {
-			authHeaders = effectiveAuth.AuthHeaders()
-		}
-		mergeHeaders(headers, authHeaders)
-		/* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
-		 * most cookie parsers don't URL-decode, so `=` (base64 padding) would
-		 * arrive as literal `%3D` and break JWT/session cookies. Validate and
-		 * pass through raw instead. Invalid input is a caller mistake and is
-		 * returned as ErrInvalidCookie. */
-		cookies := effectiveAuth.CookieParams()
-		if len(cookies) > 0 {
-			var cookieParts []string
-			for k, v := range cookies {
-				if !isValidCookieName(k) {
-					return nil, fmt.Errorf("%w: cookie name '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, k)
-				}
-				if !isValidCookieValue(v) {
-					return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, k)
-				}
-				cookieParts = append(cookieParts, fmt.Sprintf("%s=%s", k, v))
-			}
-			cookieStr := strings.Join(cookieParts, "; ")
-			if existing, ok := headers["Cookie"]; ok {
-				headers["Cookie"] = existing + "; " + cookieStr
-			} else {
-				headers["Cookie"] = cookieStr
-			}
-		}
-	}
-
-	/* Inject trace context */
-	InjectTraceContext(headers)
-
-	/* Serialize body -- multipart/form-data is handled here so that
-	 * the boundary can be injected into the Content-Type header. */
+	/* Everything from here on is rebuilt for every attempt: a replayed or
+	 * retried request is a fresh request, so its authentication headers, query
+	 * parameters and cookies are asked of the authenticator again (a token
+	 * refreshed in between is the one that goes out). Only the serialized body
+	 * is built once, because a body read from a reader can be read once; every
+	 * body is held in memory, so each attempt sends the same bytes. */
 	var serializedBody []byte
-	if params.contentType == "multipart/form-data" && params.body != nil {
-		formFields, ok := params.body.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("multipart body must be map[string]any")
+	var bodyContentType string
+	bodyBuilt := false
+	buildAttempt := func() (string, map[string]string, error) {
+		attemptURL := requestURL
+		queryParams := params.queryParams
+		if effectiveAuth != nil {
+			/* Merge authentication query params */
+			queryParams = make(map[string]any, len(params.queryParams))
+			for k, v := range params.queryParams {
+				queryParams[k] = v
+			}
+			for k, v := range effectiveAuth.QueryParams() {
+				queryParams[k] = v
+			}
 		}
-		boundary := uuid.New().String()
-		headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
-		var merr error
-		serializedBody, merr = buildMultipartBodyOrdered(formFields, boundary, params.order)
-		if merr != nil {
-			return nil, fmt.Errorf("failed to build multipart body: %w", merr)
+
+		/* Build query string */
+		queryString := buildQueryStringOrdered(queryParams, params.order)
+		if queryString != "" {
+			attemptURL = attemptURL + "?" + queryString
 		}
-	} else {
-		var err error
-		serializedBody, err = serializeBodyOrdered(params.body, params.contentType, params.rawBody, params.order)
-		if err != nil {
-			return nil, fmt.Errorf("failed to serialize request body: %w", err)
+
+		/* Select headers */
+		isMultipart := params.contentType == "multipart/form-data"
+		headers := b.headerSelector.selectHeaders(params.accepts, params.contentType, isMultipart)
+
+		/* Merge config default headers */
+		mergeHeaders(headers, b.config.DefaultHeaders())
+
+		/* Merge operation-specific headers */
+		mergeHeaders(headers, params.headerParams)
+
+		/* Merge auth headers */
+		if effectiveAuth != nil {
+			/* Prefer AuthHeadersOrError when the authenticator exposes it, so a
+			 * token-fetch failure surfaces as the real OAuth error instead of being
+			 * swallowed into an empty header map (which would send the request
+			 * unauthenticated and produce a confusing 401). */
+			var authHeaders map[string]string
+			if p, ok := effectiveAuth.(interface {
+				AuthHeadersOrError() (map[string]string, error)
+			}); ok {
+				h, aerr := p.AuthHeadersOrError()
+				if aerr != nil {
+					return "", nil, aerr
+				}
+				authHeaders = h
+			} else {
+				authHeaders = effectiveAuth.AuthHeaders()
+			}
+			mergeHeaders(headers, authHeaders)
+			/* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
+			 * most cookie parsers don't URL-decode, so `=` (base64 padding) would
+			 * arrive as literal `%3D` and break JWT/session cookies. Validate and
+			 * pass through raw instead. Invalid input is a caller mistake and is
+			 * returned as ErrInvalidCookie. */
+			cookies := effectiveAuth.CookieParams()
+			if len(cookies) > 0 {
+				var cookieParts []string
+				for k, v := range cookies {
+					if !isValidCookieName(k) {
+						return "", nil, fmt.Errorf("%w: cookie name '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, k)
+					}
+					if !isValidCookieValue(v) {
+						return "", nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, k)
+					}
+					cookieParts = append(cookieParts, fmt.Sprintf("%s=%s", k, v))
+				}
+				cookieStr := strings.Join(cookieParts, "; ")
+				if existing, ok := headers["Cookie"]; ok {
+					headers["Cookie"] = existing + "; " + cookieStr
+				} else {
+					headers["Cookie"] = cookieStr
+				}
+			}
 		}
+
+		/* Inject trace context */
+		InjectTraceContext(headers)
+
+		/* Serialize body -- multipart/form-data is handled here so that
+		 * the boundary can be injected into the Content-Type header. */
+		if !bodyBuilt {
+			if params.contentType == "multipart/form-data" && params.body != nil {
+				formFields, ok := params.body.(map[string]any)
+				if !ok {
+					return "", nil, fmt.Errorf("multipart body must be map[string]any")
+				}
+				boundary := uuid.New().String()
+				bodyContentType = "multipart/form-data; boundary=" + boundary
+				var merr error
+				serializedBody, merr = buildMultipartBodyOrdered(formFields, boundary, params.order)
+				if merr != nil {
+					return "", nil, fmt.Errorf("failed to build multipart body: %w", merr)
+				}
+			} else {
+				var err error
+				serializedBody, err = serializeBodyOrdered(params.body, params.contentType, params.rawBody, params.order)
+				if err != nil {
+					return "", nil, fmt.Errorf("failed to serialize request body: %w", err)
+				}
+			}
+			bodyBuilt = true
+		}
+		if bodyContentType != "" {
+			headers["Content-Type"] = bodyContentType
+		}
+
+		/* Drop Content-Type when there is no body (sending Content-Type without a
+		 * body is semantically wrong and rejected by some servers). */
+		if serializedBody == nil {
+			delete(headers, "Content-Type")
+		}
+		return attemptURL, headers, nil
 	}
 
-	/* Drop Content-Type when there is no body (sending Content-Type without a
-	 * body is semantically wrong and rejected by some servers). */
-	if serializedBody == nil {
-		delete(headers, "Content-Type")
-	}
-
-	/* Send request */
+	/* Send the request. A 401 on an OAuth2 or OpenID Connect request drops the
+	 * cached access token and replays the request once with fresh headers; a
+	 * transient failure is retried with backoff (see TransportOptions.MaxRetries).
+	 * The retry budget never extends the transport's end-to-end timeout: both
+	 * run under one deadline. */
 	ctx := params.ctx
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	response, err := b.apiClient.SendRequestWithOptions(params.method, requestURL, headers, serializedBody, &RequestOptions{Context: ctx})
-	if err != nil {
-		return nil, err
+	maxRetries := 0
+	if provider, ok := b.apiClient.(retryPolicyProvider); ok {
+		var timeout time.Duration
+		maxRetries, timeout = provider.retryPolicy()
+		if maxRetries > 0 && timeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, timeout)
+			defer cancel()
+		}
 	}
+	invalidator, canReplay := effectiveAuth.(auth.AccessTokenInvalidator)
+	replayed := false
+	retries := 0
+	var lastFailure error
+	for {
+		attemptURL, headers, buildErr := buildAttempt()
+		if buildErr != nil {
+			/* Failing to authenticate a second time leaves the failure that
+			 * made it necessary as the answer. */
+			if lastFailure != nil {
+				return nil, lastFailure
+			}
+			return nil, buildErr
+		}
+		response, err := b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: ctx})
+		if err != nil {
+			if retries < maxRetries && isRetryableTransportError(err) {
+				proceed, cancelErr := waitBeforeRetry(ctx, retries, nil)
+				if cancelErr != nil {
+					return nil, cancelErr
+				}
+				if proceed {
+					retries++
+					lastFailure = err
+					continue
+				}
+			}
+			return nil, err
+		}
 
-	/* Check for errors */
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, throwAPIError(response)
+		/* Check for errors */
+		if response.StatusCode >= 200 && response.StatusCode < 300 {
+			return response, nil
+		}
+		failure := throwAPIError(response)
+		if response.StatusCode == http.StatusUnauthorized && canReplay && !replayed {
+			invalidator.InvalidateAccessToken()
+			replayed = true
+			lastFailure = failure
+			continue
+		}
+		if retries < maxRetries && isRetryableStatus(response.StatusCode) {
+			proceed, cancelErr := waitBeforeRetry(ctx, retries, response.Headers)
+			if cancelErr != nil {
+				return nil, cancelErr
+			}
+			if proceed {
+				retries++
+				lastFailure = failure
+				continue
+			}
+		}
+		return nil, failure
 	}
+}
 
-	return response, nil
+/* Retry policy (F823). The numbers are the shared decision: a request is
+ * retried up to MaxRetries times (default 2) after a network error that
+ * happened before a response, or a response with status 408, 409, 429 or any
+ * 5xx but 501; the wait starts at half a second, doubles up to eight seconds
+ * and loses up to a quarter to jitter; a Retry-After header (seconds or an
+ * HTTP date) replaces the wait, capped at a minute. A wait that would outlast
+ * the end-to-end timeout ends the retries and the last failure is returned. */
+const (
+	retryInitialDelay = 500 * time.Millisecond
+	retryMaxDelay     = 8 * time.Second
+	retryAfterCap     = 60 * time.Second
+	retryJitter       = 0.25
+)
+
+// retryPolicyProvider is implemented by a client that retries on the caller's
+// behalf: DefaultApiClient reports its MaxRetries and its timeout (zero for
+// none). A custom ApiClient does not implement it and is never retried, since
+// its transport belongs to the caller.
+type retryPolicyProvider interface {
+	retryPolicy() (maxRetries int, timeout time.Duration)
+}
+
+// isRetryableStatus reports whether a response status is worth retrying.
+func isRetryableStatus(status int) bool {
+	switch {
+	case status == http.StatusRequestTimeout, status == http.StatusConflict, status == http.StatusTooManyRequests:
+		return true
+	case status == http.StatusNotImplemented:
+		return false
+	default:
+		return status >= 500 && status <= 599
+	}
+}
+
+// isRetryableTransportError reports whether a send failure is a network error
+// that may succeed on another attempt: a cancellation and a closed client
+// never are.
+func isRetryableTransportError(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, ErrClientClosed) {
+		return false
+	}
+	var networkErr *errors_pkg.NetworkError
+	return errors.As(err, &networkErr)
+}
+
+// retryAfterDelay reads a Retry-After header (delay in seconds or an HTTP
+// date) and returns the wait it asks for, capped at retryAfterCap. The second
+// result is false when the header is absent or unusable.
+func retryAfterDelay(headers map[string]string, now time.Time) (time.Duration, bool) {
+	value := ""
+	for name, v := range headers {
+		if strings.EqualFold(name, "Retry-After") {
+			value = strings.TrimSpace(v)
+			break
+		}
+	}
+	if value == "" {
+		return 0, false
+	}
+	if seconds, err := strconv.ParseFloat(value, 64); err == nil {
+		if math.IsNaN(seconds) || math.IsInf(seconds, 0) || seconds < 0 {
+			return 0, false
+		}
+		return time.Duration(min(seconds, retryAfterCap.Seconds()) * float64(time.Second)), true
+	}
+	if at, err := http.ParseTime(value); err == nil {
+		return min(max(at.Sub(now), 0), retryAfterCap), true
+	}
+	return 0, false
+}
+
+// retryDelay is the wait before retry number retries+1: the Retry-After the
+// response asked for, else the exponential backoff with jitter.
+func retryDelay(retries int, headers map[string]string, now time.Time) time.Duration {
+	if delay, ok := retryAfterDelay(headers, now); ok {
+		return delay
+	}
+	delay := retryInitialDelay
+	for i := 0; i < retries && delay < retryMaxDelay; i++ {
+		delay *= 2
+	}
+	delay = min(delay, retryMaxDelay)
+	return delay - time.Duration(float64(delay)*retryJitter*rand.Float64())
+}
+
+// waitBeforeRetry sleeps the retry delay. It reports false, without waiting,
+// when the delay would outlast the context deadline, which ends the retries,
+// and returns a cancellation error when the caller cancels the context while
+// it waits.
+func waitBeforeRetry(ctx context.Context, retries int, headers map[string]string) (bool, error) {
+	delay := retryDelay(retries, headers, time.Now())
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= delay {
+		return false, nil
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return true, nil
+	case <-ctx.Done():
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return false, nil
+		}
+		return false, fmt.Errorf("request cancelled: %w", ctx.Err())
+	}
 }
 
 // invokeApi invokes an API operation.

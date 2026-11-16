@@ -121,6 +121,17 @@ func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
 	return c
 }
 
+// retryPolicy reports the retry limit and the end-to-end timeout (zero for
+// none) to the API layer, which retries a failed request with freshly built
+// headers.
+func (c *DefaultApiClient) retryPolicy() (int, time.Duration) {
+	var timeout time.Duration
+	if t := c.transportOptions.Timeout(); t != nil {
+		timeout = time.Duration(*t) * time.Millisecond
+	}
+	return c.transportOptions.MaxRetries(), timeout
+}
+
 // mergeContexts returns a context cancelled when either the call context or
 // the client's base context is cancelled. The returned cancel function must be
 // called to release the link to the base context.
