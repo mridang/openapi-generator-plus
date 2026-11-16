@@ -200,8 +200,10 @@ public abstract class BaseApi {
         if (headerParams != null) {
             headers.putAll(headerParams);
         }
+        Map<String, String> sentAuthHeaders = Map.of();
         if (effectiveAuth != null) {
-            headers.putAll(effectiveAuth.getAuthHeaders());
+            sentAuthHeaders = effectiveAuth.getAuthHeaders();
+            headers.putAll(sentAuthHeaders);
             Map<String, String> cookies = effectiveAuth.getCookieParams();
             if (!cookies.isEmpty()) {
                 /* RFC 6265 — cookie name is a token (RFC 7230 §3.2.6); cookie
@@ -307,7 +309,9 @@ public abstract class BaseApi {
             headers.remove("Content-Type");
         }
 
-        ApiHttpResponse response = apiClient.sendRequest(method, url, headers, requestBody);
+        ApiHttpResponse response =
+                sendReplayingOnUnauthorized(
+                        method, url, headers, requestBody, effectiveAuth, sentAuthHeaders);
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw ApiException.fromResponse(
@@ -423,6 +427,44 @@ public abstract class BaseApi {
         }
         throw new IllegalArgumentException(
                 "No binary payload found in request body for raw octet-stream upload");
+    }
+
+    /**
+     * Send the request, and when an OAuth2 or OpenID Connect authenticator was
+     * refused with {@code 401}, drop its cached access token and send the
+     * request once more with the fresh authentication headers.
+     *
+     * <p>A second {@code 401} is returned as is, so the caller sees the usual
+     * {@code UnauthorizedException}. The request is not sent again when its
+     * body is a stream or a multipart form (it cannot be replayed), or when the
+     * authenticator has no fresher credential to offer. Authenticators that are
+     * not {@link HttpAwareAuthenticator} (API key, basic, bearer) never replay.
+     */
+    private ApiHttpResponse sendReplayingOnUnauthorized(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object requestBody,
+            @Nullable Authenticator auth,
+            Map<String, String> sentAuthHeaders) {
+        ApiHttpResponse response = apiClient.sendRequest(method, url, headers, requestBody);
+        if (response.statusCode() != 401 || !(auth instanceof HttpAwareAuthenticator tokenAuth)) {
+            return response;
+        }
+        tokenAuth.invalidateAccessToken();
+        boolean replayable =
+                requestBody == null || requestBody instanceof String || requestBody instanceof byte[];
+        if (!replayable) {
+            return response;
+        }
+        Map<String, String> fresh = tokenAuth.getAuthHeaders();
+        if (fresh.equals(sentAuthHeaders)) {
+            return response;
+        }
+        headers.keySet()
+                .removeIf(name -> fresh.keySet().stream().anyMatch(name::equalsIgnoreCase));
+        headers.putAll(fresh);
+        return apiClient.sendRequest(method, url, headers, requestBody);
     }
 
     /**
