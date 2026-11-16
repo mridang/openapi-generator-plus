@@ -46,7 +46,7 @@ module {{moduleName}}
 {{#hasEnumValues}}
         allowed = [{{#enumValues}}{{serverTypeName}}{{enumTypeName}}::{{#lambda.rubyConst}}{{{name}}}{{/lambda.rubyConst}}{{^-last}}, {{/-last}}{{/enumValues}}]
         unless allowed.include?({{snakeName}})
-          raise ArgumentError, format("Invalid value '%<value>s' for server variable '{{name}}'. Allowed values: %<allowed>s", value: {{snakeName}}, allowed: allowed)
+          raise ArgumentError, format("Invalid value '%<value>s' for server variable '{{name}}'. Allowed values: [%<allowed>s]", value: {{snakeName}}, allowed: allowed.join(', '))
         end
 
 {{/hasEnumValues}}
@@ -57,15 +57,13 @@ module {{moduleName}}
 {{/hasVariables}}
       def url
 {{#hasVariables}}
-        url = '{{url}}'
+        values = {
 {{#serverVariables}}
-{{^-last}}
-        url = url.gsub('{' + '{{name}}' + '}') { @{{snakeName}}.to_s }
-{{/-last}}
-{{#-last}}
-        url.gsub('{' + '{{name}}' + '}') { @{{snakeName}}.to_s }
-{{/-last}}
+          '{{name}}' => @{{snakeName}}.to_s{{^-last}},{{/-last}}
 {{/serverVariables}}
+        }
+        # One pass: a placeholder that a substituted value introduces is never expanded again.
+        '{{url}}'.gsub(/\{([^{}]+)\}/) { |placeholder| values.fetch(placeholder.delete_prefix('{').delete_suffix('}')) { placeholder } }
 {{/hasVariables}}
 {{^hasVariables}}
         '{{url}}'
@@ -95,17 +93,13 @@ module {{moduleName}}
 {{#pathParams}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-      # {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}
-      # {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
-      # Example: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
+      # Example for +{{paramName}}+ — {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-      # {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}
-      # {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
-      # Example: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
+      # Example for +{{paramName}}+ — {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}
@@ -370,7 +364,7 @@ module {{moduleName}}
           else
             raise ArgumentError,
                   "Unsupported request content-type '#{request_content_type}' for " \
-                  "{{operationId}}; declared types are #{declared_consumes}"
+                  "{{operationId}}; declared types are [#{declared_consumes.join(', ')}]"
           end
 
         invoke_api_for_result(

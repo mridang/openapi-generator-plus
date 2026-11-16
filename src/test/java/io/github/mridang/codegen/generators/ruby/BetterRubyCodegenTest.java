@@ -57,4 +57,18 @@ class BetterRubyCodegenTest {
     void aValueWithNoIdentifierCharactersTakesTheEmptyName() {
         assertEquals("EMPTY", BetterRubyCodegen.toRubyConstantName("@@"));
     }
+
+    @Test
+    void aParameterNamedLikeAnInjectedArgumentGetsASuffix() {
+        final BetterRubyCodegen codegen = new BetterRubyCodegen();
+        assertEquals("options_param", codegen.toParamName("options"));
+        assertEquals("server_param", codegen.toParamName("server"));
+        assertEquals("path_param", codegen.toParamName("path"));
+        assertEquals("request_content_type_param", codegen.toParamName("requestContentType"));
+    }
+
+    @Test
+    void anOrdinaryParameterNameKeepsItsName() {
+        assertEquals("pet_id", new BetterRubyCodegen().toParamName("petId"));
+    }
 }

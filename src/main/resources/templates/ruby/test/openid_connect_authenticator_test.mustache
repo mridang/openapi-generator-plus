@@ -109,6 +109,33 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(url).must_include 'scope=openid%20profile'
   end
 
+  it 'does not send the transport default headers to the discovery endpoint' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/.well-known/openid-configuration') do |env|
+        seen = env.request_headers.to_h.transform_keys(&:downcase)
+        [200, { 'content-type' => 'application/json' }, discovery_response[:body].to_json]
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.default_headers({ 'X-Api-Secret' => 'api-only' }).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.define_singleton_method(:build_connection) { Faraday.new('https://auth.example.com') { |f| f.adapter :test, stubs } }
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'my_client_secret',
+      'https://app.example.com/callback',
+      %w[profile]
+    )
+    auth.api_client = client
+
+    auth.build_authorization_url('state_abc')
+
+    _(seen).wont_include 'x-api-secret'
+    _(seen['accept']).must_equal 'application/json'
+  end
+
   # D05: OpenID Connect Core 3.1.2.1 requires the openid scope, so the
   # authenticator always requests it, first and exactly once.
   {

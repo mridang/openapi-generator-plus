@@ -20,6 +20,9 @@ module {{moduleName}}
 {{/hasAuthField}}
 {{#params}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#pluralExamples}}
+      # Example for +{{paramName}}+ — {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
+{{/pluralExamples}}
 {{#isDeprecated}}
       # @deprecated This parameter is deprecated.
 {{/isDeprecated}}

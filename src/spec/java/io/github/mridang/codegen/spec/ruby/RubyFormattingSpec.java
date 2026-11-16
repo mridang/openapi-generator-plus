@@ -47,4 +47,26 @@ public class RubyFormattingSpec extends AbstractFormattingSpec implements RubySp
         .withFailMessage("Generated Ruby code is not properly formatted:\n%s", result.output())
         .isTrue();
   }
+
+  @Test
+  void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+    Path petApi = tempOutputDir.resolve("lib/petstore/client/api/pet_api.rb");
+    String src = java.nio.file.Files.readString(petApi);
+    assertThat(src)
+        .as("ruby pet_api.rb should attribute plural examples to their parameter")
+        .contains("# Example for +pet_id+ — Small breed ID: 1")
+        .contains("# Example for +pet_id+ — Large breed ID: 42");
+  }
+
+  @Test
+  void pluralExamplesOfAnOptionalParameterShouldBeAttributedToParameter()
+      throws java.io.IOException {
+    Path options =
+        tempOutputDir.resolve("lib/petstore/client/api/options/find_pets_by_status_options.rb");
+    String src = java.nio.file.Files.readString(options);
+    assertThat(src)
+        .as("the options file should carry the named examples of its parameters")
+        .contains("# Example for +status+ — Available only: available")
+        .contains("# Example for +status+ — Sold pets: sold");
+  }
 }

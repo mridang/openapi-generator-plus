@@ -1,6 +1,6 @@
 # Ruby SDK generator
 
-This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an OpenAPI document: a `Client` entry class, `Configuration` and `TransportOptions` builders, one API class per tag with an Options object per operation, dry-struct models, an authenticator per security scheme, the error hierarchy, and the minitest suite, README, SKILLS.md, RBS signatures and lint/type-check config that ship with it. HTTP goes through Faraday 2 (`faraday-follow_redirects` for redirects, `DefaultApiClient` on top); models use `dry-struct` and `dry-types`; `format: time` uses `tod`, `format: duration` uses `iso8601`; `brotli` and `zstd-ruby` are an optional gem group. Tests run with minitest (`bundle exec rake test`), style with RuboCop (`rubocop-minitest`, `rubocop-rake`), types with Steep over hand-generated `.rbs` files. The floor is Ruby 3.4 (`ruby '>= 3.4'`, `required_ruby_version >= 3.4`, test image `ruby:3.4-alpine`, formatter image `ruby:3.4`).
+This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an OpenAPI document: a `Client` entry class, `Configuration` and `TransportOptions` builders, one API class per tag with an Options object per operation, dry-struct models, an authenticator per security scheme, the error hierarchy, and the minitest suite, README, SKILLS.md, RBS signatures and lint/type-check config that ship with it. HTTP goes through Faraday 2 (`DefaultApiClient` on top, following redirects itself); models use `dry-struct` and `dry-types`; `format: time` uses `tod`, `format: duration` uses `iso8601`; `brotli` and `zstd-ruby` are an optional gem group. Tests run with minitest (`bundle exec rake test`), style with RuboCop (`rubocop-minitest`, `rubocop-rake`), types with Steep over hand-generated `.rbs` files. The floor is Ruby 3.4 (`ruby '>= 3.4'`, `required_ruby_version >= 3.4`, test image `ruby:3.4-alpine`, formatter image `ruby:3.4`).
 
 ## Read first
 
@@ -396,3 +396,58 @@ Test: `api_error_test`.
 
 ### Skipped: F825
 Rust only.
+
+## Decisions taken in batch 10
+
+### Transport default headers stay off the identity provider (F860)
+Rule: `DefaultApiClient#send_request` takes `no_default_headers: false`; when true the transport's `default_headers` are not merged into that request (the SDK headers, `User-Agent` and `X-Request-ID` still are). The OAuth2 token POST and the OIDC discovery GET pass it when the injected client is a `DefaultApiClient`; a custom `ApiClient` is called as before (its signature is unchanged, as with `retry_headers:`).
+Why: an `Authorization` or API-key default header meant for the API must not reach another origin.
+Where: `default_api_client.mustache`, `auth/oauth/oauth2_token_manager.mustache`, `auth/oauth/openid_connect_authenticator.mustache`, `infrastructure_rbs.mustache`.
+Test: `default_api_client_unit_test`, `oauth2_token_manager_test`, `openid_connect_authenticator_test`.
+
+### Wording, lists and one-pass substitution (F1101, F1102, F1104, F1118)
+Rule: `Must call exchange_code() before making API requests` (with the parentheses); a failed parse or decode reads `Failed to deserialize JSON: <detail>` (the target type is no longer in the stem); lists in the server-variable and content-type messages render `[a, b, c]` (no quotes); a server URL is substituted in one pass (`gsub` over `{name}` with a lookup), so a placeholder introduced by a value is never expanded, in `ServerConfiguration#url` and in the per-operation server classes.
+Where: `auth/oauth/oauth2_auth_code_authenticator.mustache`, `object_serializer.mustache`, `server_configuration.mustache`, `api/api.mustache`.
+Test: `oauth2_auth_code_authenticator_test`, `object_serializer_test`, `server_configuration_test`, `api/pet_api_test`.
+
+### anyOf variants are tried in declaration order (D64, F1129)
+Rule: `openapi_any_of` is rendered from `composedSchemas.anyOf` (declaration order, `AnyType` kept, duplicates removed with `uniq`) instead of the alphabetically sorted `anyOf` name set, as `openapi_one_of` already was. Before this a `TreatmentRecord` kept Medication first.
+Where: `models/model.mustache`.
+Test: `composed_schema_test` (TreatmentRecord).
+
+### `format: date` parameters drop the time of day (F1083)
+Rule: `ValueSerializer.serialize_styled` turns a `DateTime` or `Time` into a `Date` (an array element too) when the parameter type is `Date` or `Array<Date>`; a `DateTime` is a `Date` in Ruby, so the type check did not stop it.
+Where: `value_serializer.mustache`, `infrastructure_rbs.mustache`.
+Test: `value_serializer_test`.
+
+### A parameter named like an injected argument is suffixed (F1055)
+Rule: `BetterRubyCodegen#getInjectedArgumentNames` lists the names the operation method binds (`options`, `server`, `request_content_type`, `path`, `server_url`, `query_params`, `header_params`, `cookie_parts`, `cookie_value`, `request_body`, `declared_consumes`, `resolved_content_type`, `result`) and the suffix is `_param`; the wire name stays in `baseName`.
+Where: `BetterRubyCodegen.java`.
+Test: `BetterRubyCodegenTest`.
+
+### Examples are attributed to their parameter (F893, F1071)
+Rule: a named example reads `# Example for +<param>+ — <summary>: <value>` under the parameter in the API class, and the same line is written for each optional parameter in its options file (it was dropped there). The old three-line summary/description/value block is gone.
+Where: `api/api.mustache`, `api/options.mustache`, `BetterRubyCodegen.generateOptionsFileContent`.
+Test: `RubyFormattingSpec` (`pluralExamplesShouldBeAttributedToParameter`, `pluralExamplesOfAnOptionalParameterShouldBeAttributedToParameter`).
+
+### The redirect middleware gem is gone (F1098)
+Rule: `faraday-follow_redirects` is no longer a dependency or a `require`; the SDK follows redirects itself so it can strip credentials per origin.
+Where: `gemspec.mustache`, `gemfile.mustache`, `default_api_client.mustache`.
+Test: `default_api_client_unit_test` (the middleware is not loaded, the gemspec does not declare it).
+
+### SKILLS.md Configuration order (F890)
+Rule: `### Custom Transport Options`, `### Custom HTTP client` (was Custom Faraday Connection), `### Retries`, `### Cancellation`, then `### Timeouts` and `### Request id`.
+Where: `skills.mustache`.
+Test: `skills_test`.
+
+### Tests added for behaviour already in place
+F926 (token error sentences), F933 (depth and serialize sentences), F1065 (IPv6 proxy), F1073 and F1074 (bearer), F1112 (BinaryVault equality), F1124 (nickname, slug), F1137 (jpg, jpeg, gif, json parts), F1161 (response headers, empty body, typed status routes), F1167 (default User-Agent), F1170 (no body, no `Content-Type`).
+
+### Skipped in batch 10
+- F229: keep-alive needs a new adapter dependency (an owner decision); only the false code comment was corrected.
+- F912: Faraday's `net_http` read timeout bounds one read; an end-to-end deadline over a trickled body needs a streaming reader.
+- F1140: Faraday buffers each hop and `net_http` finishes the exchange, so an intermediate 3xx holds no connection to release.
+- F1145: `Tod::TimeOfDay` holds whole seconds, so `.SSS` cannot be carried (the test pins the documented behaviour).
+- F831: the `retry_after` accessor shape is a cross-language decision not yet taken (the 429 type exists).
+- F858 nonce, F840, F857, F862, F843, F1081, F1087, F894, F1077: cross-language decisions not yet taken. F866, F1056, F1061, F1085, F1157, F1172: shared Java, fixtures or gates.
+- F855 and F1180 are conforming since batch 9 (public `invalidate_access_token`, replay in `base_api.mustache`).
