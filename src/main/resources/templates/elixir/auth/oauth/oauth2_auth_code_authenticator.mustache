@@ -186,7 +186,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
   @impl {{moduleName}}.Auth.Authenticator
   def auth_headers(%__MODULE__{} = self) do
     unless {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchanged?(self.token_manager) do
-      raise "Must call exchange_code before making API requests"
+      raise "Must call exchange_code() before making API requests"
     end
 
     params = %{

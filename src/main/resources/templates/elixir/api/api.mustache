@@ -49,15 +49,22 @@ defmodule {{moduleName}}.Api.{{serverTypeName}}.{{variantName}} do
 
     if server.{{snakeName}} not in allowed_{{snakeName}} do
       raise ArgumentError,
-            "Invalid value '#{server.{{snakeName}}}' for server variable '{{name}}'. Allowed values: #{inspect(allowed_{{snakeName}})}"
+            "Invalid value '#{server.{{snakeName}}}' for server variable '{{name}}'. Allowed values: [#{Enum.join(allowed_{{snakeName}}, ", ")}]"
     end
 
   {{/hasEnumValues}}
   {{/serverVariables}}
-    "{{url}}"
+    values = %{
   {{#serverVariables}}
-    |> String.replace("{" <> "{{name}}" <> "}", to_string(server.{{snakeName}}))
+      "{{name}}" => to_string(server.{{snakeName}}){{^-last}},{{/-last}}
   {{/serverVariables}}
+    }
+
+    # One pass over the template: a placeholder that a substituted value
+    # introduces is never expanded again.
+    Regex.replace(~r/\{([^{}]+)\}/, "{{url}}", fn placeholder, name ->
+      Map.get(values, name, placeholder)
+    end)
   {{/hasVariables}}
   {{^hasVariables}}
     "{{url}}"
@@ -465,7 +472,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
           else
             raise ArgumentError,
                   "Unsupported request content-type '#{selected}' for {{operationId}}; " <>
-                    "declared types are #{inspect(declared_content_types)}"
+                    "declared types are [#{Enum.join(declared_content_types, ", ")}]"
           end
       end
 
