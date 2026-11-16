@@ -738,6 +738,74 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    fun tokenTypeOtherThanBearerIsRefusedWithoutEchoingIt() {
+        for (tokenType in listOf("DPoP", "mac", "N_A")) {
+            val client = FakeApiClient()
+            client.enqueue("""{"access_token":"tok","token_type":"$tokenType","expires_in":3600}""")
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+
+            val ex =
+                assertThrowsExactly(OAuth2TokenException::class.java) {
+                    runBlocking {
+                        manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+                    }
+                }
+            assertEquals("Unsupported token_type in token response", ex.message)
+        }
+    }
+
+    @Test
+    fun tokenTypeBearerInAnyCaseOrMissingIsAccepted() {
+        for (body in listOf(
+            """{"access_token":"tok","token_type":"Bearer","expires_in":3600}""",
+            """{"access_token":"tok","token_type":"bearer","expires_in":3600}""",
+            """{"access_token":"tok","expires_in":3600}""",
+        )) {
+            val client = FakeApiClient()
+            client.enqueue(body)
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+            val token =
+                runBlocking {
+                    manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+                }
+            assertEquals("tok", token, body)
+        }
+    }
+
+    @Test
+    fun expiresInSixtySecondsIsServedFromCacheOnTheSecondCall() {
+        // One safety margin only: a token valid for 60s is reused for 30s, so two
+        // back-to-back calls make exactly one token request.
+        val networkCalls = AtomicInteger(0)
+        val client =
+            object : ApiClient {
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                    noRedirect: Boolean,
+                ): ApiHttpResponse {
+                    networkCalls.incrementAndGet()
+                    return ApiHttpResponse(200, """{"access_token":"sixty","expires_in":60}""", emptyMap())
+                }
+            }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("sixty", second)
+        assertEquals(1, networkCalls.get())
+    }
+
+    @Test
     fun expiresInExactlyBufferReturnsZeroBuffer() {
         // Gap CM: expires_in == 30 (the buffer) collapses expiry to now, forcing
         // the next getAccessToken call to refetch.

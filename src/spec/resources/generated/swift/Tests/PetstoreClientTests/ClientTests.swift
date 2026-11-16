@@ -125,7 +125,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   // rejection that would break legitimate tokens.
   @Test func testBearerAcceptsNonEmptyTokenWithGuardInPlace() async throws {
     let auth = try BearerAuthenticator(host: "/api/v3", token: "abc.def-123")
-    let headers = try await auth.authHeaders()
+    let headers = await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer abc.def-123")
   }
 
@@ -145,7 +145,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   @Test func testApiGroupsAreAccessible() throws {
     let client = try Client(authenticator: authenticator)
 
-    #expect(client.pet != nil)
-    #expect(client.store != nil)
+    _ = client.pet
+    _ = client.store
   }
 }

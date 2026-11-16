@@ -21,11 +21,12 @@ namespace PetstoreClient.Auth.OAuth;
 public sealed class OAuth2TokenManager
 {
     /// <summary>
-    /// Safety margin (in seconds) applied to token expiry checks so that we
-    /// refresh slightly before the token actually expires, avoiding a race
-    /// against the server clock.
+    /// Upper bound (in seconds) of the single safety margin by which a token
+    /// is refreshed before it expires, avoiding a race against the server
+    /// clock. The margin is capped at half the token's lifetime, so a token
+    /// with an <c>expires_in</c> of 60 seconds is reused for 30 seconds.
     /// </summary>
-    private const int ExpirySafetyMarginSeconds = 60;
+    private const double MaxExpirySafetyMarginSeconds = 60d;
 
     /// <summary>
     /// Ceiling applied to a server-supplied <c>expires_in</c>, in seconds (one
@@ -36,8 +37,17 @@ public sealed class OAuth2TokenManager
     private readonly object _stateLock = new();
     private Task<string>? _inflightRefresh;
     private IApiClient? _apiClient;
-    private string? _accessToken;
-    private DateTimeOffset? _tokenExpiry;
+
+    /* The access token and the instant it goes stale live in one immutable
+     * snapshot behind a single volatile reference, so the lock-free fast path
+     * can never read a token paired with another token's expiry. */
+    private volatile TokenSnapshot? _snapshot;
+
+    /// <summary>An access token and the instant after which it must be refreshed (null: never).</summary>
+    private sealed record TokenSnapshot(string AccessToken, DateTimeOffset? RefreshAt)
+    {
+        public bool IsFresh() => RefreshAt is null || DateTimeOffset.UtcNow < RefreshAt.Value;
+    }
 
     /// <summary>
     /// Inject the shared API client for making token requests.
@@ -79,30 +89,19 @@ public sealed class OAuth2TokenManager
     )
     {
         ArgumentNullException.ThrowIfNull(parameters);
-        if (
-            _accessToken is not null
-            && (
-                _tokenExpiry is null
-                || DateTimeOffset.UtcNow < _tokenExpiry.Value.AddSeconds(-ExpirySafetyMarginSeconds)
-            )
-        )
+        TokenSnapshot? cached = _snapshot;
+        if (cached is not null && cached.IsFresh())
         {
-            return Task.FromResult(_accessToken);
+            return Task.FromResult(cached.AccessToken);
         }
 
         Task<string> task;
         lock (_stateLock)
         {
-            if (
-                _accessToken is not null
-                && (
-                    _tokenExpiry is null
-                    || DateTimeOffset.UtcNow
-                        < _tokenExpiry.Value.AddSeconds(-ExpirySafetyMarginSeconds)
-                )
-            )
+            cached = _snapshot;
+            if (cached is not null && cached.IsFresh())
             {
-                return Task.FromResult(_accessToken);
+                return Task.FromResult(cached.AccessToken);
             }
 
             task = _inflightRefresh ??= RefreshOrFetchAsync(
@@ -168,23 +167,18 @@ public sealed class OAuth2TokenManager
             }
         }
 
-        string? previousAccessToken = _accessToken;
+        TokenSnapshot? previousSnapshot = _snapshot;
         string? previousRefreshToken = RefreshToken;
-        DateTimeOffset? previousExpiry = _tokenExpiry;
-        _accessToken = null;
+        _snapshot = null;
         RefreshToken = null;
-        _tokenExpiry = null;
         try
         {
-            await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
-            return _accessToken
-                ?? throw new OAuth2TokenException("Token fetch did not return an access token");
+            return await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
         }
         catch
         {
-            _accessToken = previousAccessToken;
+            _snapshot = previousSnapshot;
             RefreshToken = previousRefreshToken;
-            _tokenExpiry = previousExpiry;
             throw;
         }
     }
@@ -234,12 +228,8 @@ public sealed class OAuth2TokenManager
             }
             try
             {
-                await FetchTokenAsync(refreshUrl, refreshParams, extraHeaders)
+                return await FetchTokenAsync(refreshUrl, refreshParams, extraHeaders)
                     .ConfigureAwait(false);
-                if (_accessToken is not null)
-                {
-                    return _accessToken;
-                }
             }
             catch (Exception ex)
                 when (ex
@@ -264,9 +254,7 @@ public sealed class OAuth2TokenManager
             }
         }
 
-        await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
-        return _accessToken
-            ?? throw new OAuth2TokenException("Token fetch did not return an access token");
+        return await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -278,8 +266,7 @@ public sealed class OAuth2TokenManager
     {
         lock (_stateLock)
         {
-            _accessToken = null;
-            _tokenExpiry = null;
+            _snapshot = null;
         }
     }
 
@@ -289,11 +276,10 @@ public sealed class OAuth2TokenManager
     /// <param name="token">The access token to use.</param>
     public void SetAccessToken(string token)
     {
-        _accessToken = token;
-        _tokenExpiry = null;
+        _snapshot = new TokenSnapshot(token, null);
     }
 
-    private async Task FetchTokenAsync(
+    private async Task<string> FetchTokenAsync(
         Uri tokenUrl,
         Dictionary<string, string> parameters,
         Dictionary<string, string>? extraHeaders
@@ -368,7 +354,6 @@ public sealed class OAuth2TokenManager
         {
             throw new OAuth2TokenException("Token response missing or empty access_token field");
         }
-        _accessToken = accessTokenValue;
         if (
             root.TryGetProperty("refresh_token", out JsonElement refreshTokenElement)
             && refreshTokenElement.ValueKind == JsonValueKind.String
@@ -380,6 +365,11 @@ public sealed class OAuth2TokenManager
                 RefreshToken = newRefreshToken;
             }
         }
+        /* The real expiry is kept and one margin is applied when the token is
+         * read, capped at half the lifetime (a token with a 60 second life is
+         * reused for 30 seconds). A response without expires_in carries no
+         * expiry, so the token is cached until it is invalidated. */
+        DateTimeOffset? refreshAt = null;
         if (
             root.TryGetProperty("expires_in", out JsonElement expiresIn)
             && expiresIn.ValueKind != JsonValueKind.Null
@@ -392,16 +382,15 @@ public sealed class OAuth2TokenManager
              * mark the token as immediately stale so the next call refetches
              * (preferable to caching a token of unknown lifetime forever). */
             long seconds = ParseExpiresIn(expiresIn);
-            if (seconds > 0L)
-            {
-                long bufferSecs = Math.Min(seconds, 30L);
-                _tokenExpiry = DateTimeOffset.UtcNow.AddSeconds(seconds - bufferSecs);
-            }
-            else
-            {
-                _tokenExpiry = DateTimeOffset.UtcNow;
-            }
+            refreshAt =
+                seconds > 0L
+                    ? DateTimeOffset.UtcNow.AddSeconds(
+                        seconds - Math.Min(MaxExpirySafetyMarginSeconds, seconds / 2d)
+                    )
+                    : DateTimeOffset.UtcNow;
         }
+        _snapshot = new TokenSnapshot(accessTokenValue, refreshAt);
+        return accessTokenValue;
     }
 
     /// <summary>
@@ -414,9 +403,10 @@ public sealed class OAuth2TokenManager
         {
             return JsonDocument.Parse(body);
         }
-        catch (JsonException ex)
+        catch (JsonException)
         {
-            throw new OAuth2TokenException($"Token response is not valid JSON: {ex.Message}", ex);
+            /* D07: no cause and no parser detail, which can quote the body. */
+            throw new OAuth2TokenException("Token response is not valid JSON");
         }
     }
 

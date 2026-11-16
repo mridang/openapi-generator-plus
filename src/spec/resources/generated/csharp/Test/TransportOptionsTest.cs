@@ -129,6 +129,33 @@ public class TransportOptionsTest
     }
 
     [Fact]
+    public void RejectsANegativeTimeoutWithTheCanonicalMessage()
+    {
+        // D77. ArgumentException appends the parameter name to Message, so the
+        // canonical text is the prefix.
+        var ex = Assert.Throws<ArgumentException>(() => TransportOptions.Builder().Timeout(-5));
+        Assert.StartsWith(
+            "Invalid timeout: must be a positive number of milliseconds (got -5)",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void RejectsANegativeMaxRedirectsAtConfiguration()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().MaxRedirects(-1)
+        );
+        Assert.StartsWith(
+            "Invalid maxRedirects: must not be negative (got -1)",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+        Assert.Equal(0, TransportOptions.Builder().MaxRedirects(0).Build().MaxRedirects);
+    }
+
+    [Fact]
     public void InvalidProxyUrlThrowsException()
     {
         var ex = Assert.Throws<ArgumentException>(() =>

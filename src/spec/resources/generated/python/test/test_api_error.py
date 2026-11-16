@@ -325,7 +325,7 @@ class TestApiErrorRendering:
 
         assert str(err) == (
             "not found\nHTTP status code: 404"
-            "\nResponse headers: {'x-id': '7'}\nResponse body: " + '{"a":1}'
+            '\nResponse headers: {"x-id":"7"}\nResponse body: ' + '{"a":1}'
         )
 
     def test_omits_empty_headers_and_an_empty_body(self) -> None:

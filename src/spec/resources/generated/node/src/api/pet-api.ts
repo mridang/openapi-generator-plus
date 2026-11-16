@@ -2599,7 +2599,7 @@ export class PetApi extends BaseApi {
      * transport decides multipart-vs-raw by inspecting the body's runtime
      * type (a plain object becomes multipart; a Buffer is sent verbatim), so
      * we hand it the Buffer directly when the caller did not pick multipart. */
-    const requestBody: Record<string, unknown> | Buffer | null =
+    const requestBody: Record<string, unknown> | Buffer | Blob | null =
       (requestContentType ?? "multipart/form-data") === "multipart/form-data"
         ? formBody
         : (options?.file ?? null);

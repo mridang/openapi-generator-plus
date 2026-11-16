@@ -142,6 +142,29 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     %{self | delegate: delegate}
   end
 
+  @doc """
+  Release the discovery cache and the token manager of the discovered
+  delegate. Idempotent. Called by `Client.close/1`.
+  """
+  @impl PetstoreClient.Auth.HttpAwareAuthenticator
+  def close(%__MODULE__{discovery_cache: cache}) do
+    if Process.alive?(cache) do
+      case Agent.get(cache, & &1.discovery) do
+        {delegate, _expiry} when not is_nil(delegate) ->
+          PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.close(delegate)
+
+        _ ->
+          :ok
+      end
+
+      Agent.stop(cache)
+    end
+
+    :ok
+  catch
+    :exit, _ -> :ok
+  end
+
   @impl PetstoreClient.Auth.Authenticator
   def host(%__MODULE__{} = self), do: self.host
 
@@ -162,20 +185,22 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
 
   defp resolve_delegate(%__MODULE__{delegate: delegate, discovery_expiry: expiry} = self)
        when not is_nil(delegate) do
-    if expiry != nil and System.system_time(:second) < expiry do
+    if expiry != nil and System.monotonic_time(:millisecond) < expiry do
       self
     else
-      cache_discovery(fetch_discovery(self, delegate))
+      rediscover(self, delegate, self)
     end
   end
 
   defp resolve_delegate(%__MODULE__{} = self) do
     case Agent.get(self.discovery_cache, & &1.discovery) do
       {delegate, expiry} when is_integer(expiry) ->
-        if System.system_time(:second) < expiry do
-          %{self | delegate: delegate, discovery_expiry: expiry}
+        cached = %{self | delegate: delegate, discovery_expiry: expiry}
+
+        if System.monotonic_time(:millisecond) < expiry do
+          cached
         else
-          cache_discovery(fetch_discovery(self, delegate))
+          rediscover(self, delegate, cached)
         end
 
       _ ->
@@ -188,6 +213,16 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     raise "ApiClient has not been injected. " <>
             "Ensure the Client constructor calls set_api_client " <>
             "on HttpAwareAuthenticator before making API requests."
+  end
+
+  # Fetch the discovery document again. If that fails while a delegate from an
+  # earlier discovery is held, keep serving it (its tokens are still valid) and
+  # try again on the next call, instead of failing every API call for as long
+  # as the discovery endpoint is down.
+  defp rediscover(%__MODULE__{} = self, previous, %__MODULE__{} = fallback) do
+    cache_discovery(fetch_discovery(self, previous))
+  rescue
+    _ -> fallback
   end
 
   defp cache_discovery(%__MODULE__{} = self) do
@@ -208,8 +243,17 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
 
     response =
       case self.api_client do
-        %{__struct__: mod} = c -> mod.send_request(c, :get, self.openid_connect_url, headers, nil)
-        mod when is_atom(mod) -> mod.send_request(:get, self.openid_connect_url, headers, nil)
+        %{__struct__: mod} = c ->
+          if function_exported?(mod, :send_request, 6) do
+            mod.send_request(c, :get, self.openid_connect_url, headers, nil,
+              no_default_headers: true
+            )
+          else
+            mod.send_request(c, :get, self.openid_connect_url, headers, nil)
+          end
+
+        mod when is_atom(mod) ->
+          mod.send_request(:get, self.openid_connect_url, headers, nil)
       end
 
     # Discovery is an HTTP call like any other: a transport failure is
@@ -253,6 +297,10 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
         message: "OIDC discovery document is missing 'token_endpoint'"
     end
 
+    verify_issuer!(self.openid_connect_url, discovery["issuer"])
+    require_secure_endpoint!(authorization_endpoint, "authorization_endpoint")
+    require_secure_endpoint!(token_endpoint, "token_endpoint")
+
     delegate =
       PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
         self.host,
@@ -273,8 +321,43 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
       )
 
     response_headers = Map.get(response, :headers, %{}) || %{}
-    expiry = System.system_time(:second) + parse_max_age(response_headers)
+    expiry = System.monotonic_time(:millisecond) + parse_max_age(response_headers) * 1000
     %{self | delegate: delegate, discovery_expiry: expiry}
+  end
+
+  @well_known_suffix "/.well-known/openid-configuration"
+
+  # OpenID Connect Discovery 1.0 section 4.3: the issuer must be identical to
+  # the discovery URL with the well-known suffix removed (the mix-up defence).
+  # A discovery URL that does not end in the suffix has no issuer to compare.
+  defp verify_issuer!(url, issuer) do
+    if String.ends_with?(url, @well_known_suffix) do
+      expected = String.replace_suffix(url, @well_known_suffix, "")
+
+      unless is_binary(issuer) and
+               String.trim_trailing(issuer, "/") == String.trim_trailing(expected, "/") do
+        raise PetstoreClient.Errors.SerializationError,
+          message: "OIDC discovery document 'issuer' does not match the discovery URL"
+      end
+    end
+
+    :ok
+  end
+
+  # The client secret, the code and the refresh token go to these endpoints, so
+  # they must be https. A loopback host is allowed (RFC 8252 section 8.3).
+  defp require_secure_endpoint!(endpoint, name) do
+    case URI.parse(endpoint) do
+      %URI{scheme: "https"} ->
+        :ok
+
+      %URI{scheme: "http", host: host} when host in ["localhost", "127.0.0.1", "[::1]", "::1"] ->
+        :ok
+
+      _ ->
+        raise PetstoreClient.Errors.SerializationError,
+          message: "OIDC discovery document '#{name}' must be an https URL"
+    end
   end
 
   defp keep_token_manager(delegate, nil), do: delegate

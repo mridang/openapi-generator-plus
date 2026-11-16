@@ -138,7 +138,9 @@ abstract class AbstractApiClient implements ApiClient {
     /* Using a client after close() is a wrong call order: the invalid-state
      * built-in StateError, not an SDK exception. */
     if (_closed) {
-      throw StateError('Cannot send request: the API client has been closed');
+      throw StateError(
+        'ApiClient has been closed and can no longer send requests',
+      );
     }
     final merged = <String, String>{};
 
@@ -289,7 +291,8 @@ abstract class AbstractApiClient implements ApiClient {
             throw ApiException(
               statusCode: streamedResponse.statusCode,
               message:
-                  'Refusing to follow redirect to non-http(s) URL: $nextUri',
+                  'Refusing to follow redirect to non-HTTP(S) URL: $nextUri',
+              responseHeaders: _lowerHeaders(streamedResponse.headers),
             );
           }
           /* Anchor the downgrade check on the CURRENT hop (currentUri, whose
@@ -339,7 +342,8 @@ abstract class AbstractApiClient implements ApiClient {
               statusCode: streamedResponse.statusCode,
               message:
                   'Refusing to replay request body across HTTPS->HTTP '
-                  'downgrade redirect to: $nextUri',
+                  'redirect: $currentUri -> $nextUri',
+              responseHeaders: _lowerHeaders(streamedResponse.headers),
             );
           }
 
@@ -401,12 +405,16 @@ abstract class AbstractApiClient implements ApiClient {
          * final response is still a 3xx with a Location we could keep
          * following. Surface this as a typed SDK error instead of silently
          * returning the last 3xx as if it were the result. */
+        final lastLocation = streamedResponse.headers['location'];
         if (hops >= maxRedirects &&
-            _isRedirectStatus(streamedResponse.statusCode)) {
+            _isRedirectStatus(streamedResponse.statusCode) &&
+            lastLocation != null &&
+            lastLocation.isNotEmpty) {
           await _drainWithin(streamedResponse.stream, clock);
           throw ApiException(
             statusCode: streamedResponse.statusCode,
-            message: 'Exceeded maximum number of redirects ($maxRedirects)',
+            message: 'Too many redirects (exceeded $maxRedirects)',
+            responseHeaders: _lowerHeaders(streamedResponse.headers),
           );
         }
       }
@@ -795,7 +803,11 @@ abstract class AbstractApiClient implements ApiClient {
       r'charset=([^;]+)',
       caseSensitive: false,
     ).firstMatch(contentType);
-    return match?.group(1)?.trim().toLowerCase() ?? '';
+    var value = match?.group(1)?.trim().toLowerCase() ?? '';
+    if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+      value = value.substring(1, value.length - 1).trim();
+    }
+    return value;
   }
 
   /// Decodes UTF-16 [bytes] into a Dart string, mirroring Go's
@@ -858,6 +870,11 @@ abstract class AbstractApiClient implements ApiClient {
         mediaType.endsWith('+json') ||
         mediaType.endsWith('+xml');
   }
+
+  /// Returns a copy of [headers] with every name lower-cased.
+  static Map<String, String> _lowerHeaders(Map<String, String> headers) => {
+    for (final e in headers.entries) e.key.toLowerCase(): e.value,
+  };
 
   /// Returns true for HTTP 3xx redirect status codes that carry a Location header.
   static bool _isRedirectStatus(int code) {
@@ -954,7 +971,7 @@ String buildFilenameDirective(String filename) {
     return 'filename="$escaped"';
   }
   final fallbackBuf = StringBuffer();
-  for (final c in filename.codeUnits) {
+  for (final c in filename.runes) {
     if (c > 0x7F || c < 0x20 || c == 0x7F) {
       fallbackBuf.writeCharCode(0x5F);
     } else {

@@ -115,7 +115,7 @@ describe("OAuth2TokenManager", () => {
   test("refetches token when expired", async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: "token-1",
-      expires_in: 1,
+      expires_in: 0,
     });
 
     await tokenManager.getAccessToken("https://auth.example.com/token", {
@@ -219,7 +219,7 @@ describe("OAuth2TokenManager", () => {
             body: JSON.stringify({
               access_token: "old_access",
               refresh_token: "old_refresh",
-              expires_in: 1,
+              expires_in: 0,
             }),
             headers: { "content-type": "application/json" },
           };
@@ -503,7 +503,7 @@ describe("OAuth2TokenManager", () => {
     const { client, bodies } = scripted([
       {
         status: 200,
-        body: { access_token: "old", refresh_token: "ref-1", expires_in: 1 },
+        body: { access_token: "old", refresh_token: "ref-1", expires_in: 0 },
       },
       { status: 200, body: { access_token: "new", expires_in: 3600 } },
     ]);
@@ -533,7 +533,7 @@ describe("OAuth2TokenManager", () => {
     const { client, bodies } = scripted([
       {
         status: 200,
-        body: { access_token: "old", refresh_token: "ref-1", expires_in: 1 },
+        body: { access_token: "old", refresh_token: "ref-1", expires_in: 0 },
       },
       { status: 400, body: { error: "invalid_grant" } },
       { status: 200, body: { access_token: "fresh", expires_in: 3600 } },
@@ -560,7 +560,7 @@ describe("OAuth2TokenManager", () => {
     const { client, urls } = scripted([
       {
         status: 200,
-        body: { access_token: "old", refresh_token: "ref-1", expires_in: 1 },
+        body: { access_token: "old", refresh_token: "ref-1", expires_in: 0 },
       },
       { status: 400, body: { error: "invalid_grant" } },
       { status: 200, body: { access_token: "fresh", expires_in: 3600 } },
@@ -592,7 +592,7 @@ describe("OAuth2TokenManager", () => {
     const { client, bodies } = scripted([
       {
         status: 200,
-        body: { access_token: "old", refresh_token: "ref-1", expires_in: 1 },
+        body: { access_token: "old", refresh_token: "ref-1", expires_in: 0 },
       },
       { status: 400, body: { error: "invalid_grant" } },
       { status: 200, body: { access_token: "unexpected", expires_in: 3600 } },
@@ -700,7 +700,7 @@ describe("OAuth2TokenManager", () => {
     }
   });
 
-  test("a refresh response without expires_in keeps the existing expiry", async () => {
+  test("a refresh response without expires_in clears the stale expiry", async () => {
     const { client, bodies } = scripted([
       {
         status: 200,
@@ -734,13 +734,12 @@ describe("OAuth2TokenManager", () => {
           "https://auth.example.com/token",
           originalParams,
         ),
-      ).toBe("third");
+      ).toBe("second");
     } finally {
       Date.now = originalNow;
     }
     expect(bodies.map((b) => b.get("grant_type"))).toEqual([
       "authorization_code",
-      "refresh_token",
       "refresh_token",
     ]);
   });
@@ -825,39 +824,116 @@ describe("OAuth2TokenManager", () => {
     expect(mockClient.callCount).toBe(1);
   });
 
-  test("expires_in exactly buffer returns zero buffer", async () => {
-    // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+  test.each([[30], [60], [90]])(
+    "expires_in %p is reused, not re-fetched on every call",
+    async (expiresIn) => {
+      // One safety margin applies, capped at half the lifetime, so a short-lived
+      // token is reused for the first half of its life instead of never.
+      let n = 0;
+      const stepClient: ApiClient = {
+        async sendRequest(): Promise<ApiHttpResponse> {
+          n++;
+          return {
+            statusCode: 200,
+            body: JSON.stringify({
+              access_token: `edge${n}`,
+              expires_in: expiresIn,
+            }),
+            headers: { "content-type": "application/json" },
+          };
+        },
+      };
+      const manager = new OAuth2TokenManager();
+      manager.setApiClient(stepClient);
+
+      const first = await manager.getAccessToken(
+        "https://auth.example.com/token",
+        {
+          grant_type: "client_credentials",
+        },
+      );
+      const second = await manager.getAccessToken(
+        "https://auth.example.com/token",
+        {
+          grant_type: "client_credentials",
+        },
+      );
+
+      expect(first).toBe("edge1");
+      expect(second).toBe("edge1");
+      expect(n).toBe(1);
+    },
+  );
+
+  test("a token is re-fetched once less than half its lifetime remains", async () => {
     let n = 0;
     const stepClient: ApiClient = {
       async sendRequest(): Promise<ApiHttpResponse> {
         n++;
         return {
           statusCode: 200,
-          body: JSON.stringify({ access_token: `edge${n}`, expires_in: 30 }),
+          body: JSON.stringify({ access_token: `half${n}`, expires_in: 60 }),
           headers: { "content-type": "application/json" },
         };
       },
     };
     const manager = new OAuth2TokenManager();
     manager.setApiClient(stepClient);
+    const originalNow = Date.now;
 
-    const first = await manager.getAccessToken(
-      "https://auth.example.com/token",
-      {
+    try {
+      await manager.getAccessToken("https://auth.example.com/token", {
         grant_type: "client_credentials",
-      },
-    );
-    const second = await manager.getAccessToken(
-      "https://auth.example.com/token",
-      {
-        grant_type: "client_credentials",
-      },
-    );
-
-    expect(first).toBe("edge1");
-    expect(second).toBe("edge2");
-    expect(n).toBe(2);
+      });
+      Date.now = () => originalNow() + 31_000;
+      const second = await manager.getAccessToken(
+        "https://auth.example.com/token",
+        {
+          grant_type: "client_credentials",
+        },
+      );
+      expect(second).toBe("half2");
+    } finally {
+      Date.now = originalNow;
+    }
   });
+
+  test.each([["DPoP"], ["MAC"], [42]])(
+    "token_type %p is refused without echoing it",
+    async (tokenType) => {
+      mockClient.responseBody = JSON.stringify({
+        access_token: "tok",
+        token_type: tokenType,
+      });
+
+      const error = await tokenManager
+        .getAccessToken("https://auth.example.com/token", {
+          grant_type: "client_credentials",
+        })
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(OAuth2TokenError);
+      expect((error as Error).message).toBe(
+        "Unsupported token_type in token response",
+      );
+    },
+  );
+
+  test.each([["bearer"], ["Bearer"], ["BEARER"]])(
+    "token_type %p is accepted",
+    async (tokenType) => {
+      mockClient.responseBody = JSON.stringify({
+        access_token: "tok",
+        token_type: tokenType,
+      });
+
+      expect(
+        await tokenManager.getAccessToken("https://auth.example.com/token", {
+          grant_type: "client_credentials",
+        }),
+      ).toBe("tok");
+    },
+  );
 
   test("coalesces concurrent refresh calls into single token request", async () => {
     let pendingResolve: ((value: ApiHttpResponse) => void) | null = null;
@@ -946,6 +1022,7 @@ describe("OAuth2TokenManager", () => {
       });
       expect(mockClient.lastOptions).toBeDefined();
       expect(mockClient.lastOptions?.noRedirect).toBe(true);
+      expect(mockClient.lastOptions?.noDefaultHeaders).toBe(true);
     });
 
     /* A 3xx is a non-2xx answer, so the refusal is an OAuth2ServerError

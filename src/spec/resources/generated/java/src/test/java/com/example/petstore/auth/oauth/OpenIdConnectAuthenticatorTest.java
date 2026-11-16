@@ -219,6 +219,74 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
+  void discoveryRejectsAnIssuerThatDoesNotMatchTheDiscoveryUrl() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiHttpResponse(
+                200,
+                "{\"issuer\":\"https://evil.example.com\","
+                    + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                    + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                Map.of());
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    SerializationException ex =
+        assertThrowsExactly(SerializationException.class, () -> auth.buildAuthorizationUrl(null));
+    assertEquals(
+        "OIDC discovery document issuer does not match the discovery URL", ex.getMessage());
+  }
+
+  @Test
+  void discoveryAcceptsAMatchingIssuerWithATrailingSlash() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiHttpResponse(
+                200,
+                "{\"issuer\":\"https://auth.example.com/\","
+                    + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                    + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                Map.of());
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    assertTrue(auth.buildAuthorizationUrl(null).startsWith("https://auth.example.com/authorize?"));
+  }
+
+  @Test
+  void discoveryRejectsAPlainHttpTokenEndpoint() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiHttpResponse(
+                200,
+                "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                    + "\"token_endpoint\":\"http://auth.example.com/token\"}",
+                Map.of());
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    SerializationException ex =
+        assertThrowsExactly(SerializationException.class, () -> auth.buildAuthorizationUrl(null));
+    assertEquals(
+        "OIDC discovery document field must be an https URL: token_endpoint", ex.getMessage());
+  }
+
+  @Test
+  void discoveryAllowsALoopbackHttpEndpoint() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiHttpResponse(
+                200,
+                "{\"authorization_endpoint\":\"http://localhost:8080/authorize\","
+                    + "\"token_endpoint\":\"http://127.0.0.1:8080/token\"}",
+                Map.of());
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    assertTrue(auth.buildAuthorizationUrl(null).startsWith("http://localhost:8080/authorize?"));
+  }
+
+  @Test
   void malformedDiscoveryDocumentRaisesSerializationException() {
     ApiClient client =
         (method, url, headers, body) -> new ApiHttpResponse(200, "{not json", Map.of());

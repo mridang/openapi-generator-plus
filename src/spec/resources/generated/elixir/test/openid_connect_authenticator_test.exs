@@ -61,6 +61,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
             status_code: 200,
             body:
               Jason.encode!(%{
+                "issuer" => "https://auth.example.com",
                 "authorization_endpoint" => "https://auth.example.com/authorize",
                 "token_endpoint" => "https://auth.example.com/token"
               })
@@ -91,6 +92,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
             status_code: 200,
             body:
               Jason.encode!(%{
+                "issuer" => "https://auth.example.com",
                 "authorization_endpoint" => "https://auth.example.com/authorize",
                 "token_endpoint" => "https://auth.example.com/token"
               })
@@ -115,6 +117,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
             status_code: 200,
             body:
               Jason.encode!(%{
+                "issuer" => "https://auth.example.com",
                 "authorization_endpoint" => "https://auth.example.com/authorize",
                 "token_endpoint" => "https://auth.example.com/token"
               })
@@ -141,6 +144,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
             status_code: 200,
             body:
               Jason.encode!(%{
+                "issuer" => "https://auth.example.com",
                 "authorization_endpoint" => "https://auth.example.com/authorize",
                 "token_endpoint" => "https://auth.example.com/token"
               })
@@ -170,6 +174,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
             status_code: 200,
             body:
               Jason.encode!(%{
+                "issuer" => "https://auth.example.com",
                 "authorization_endpoint" => "https://auth.example.com/authorize",
                 "token_endpoint" => "https://auth.example.com/token"
               })
@@ -205,6 +210,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
             status_code: 200,
             body:
               Jason.encode!(%{
+                "issuer" => "https://auth.example.com",
                 "authorization_endpoint" => "https://auth.example.com/authorize",
                 "token_endpoint" => "https://auth.example.com/token"
               })
@@ -348,6 +354,68 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       end
     end
 
+    test "a discovery document with a different issuer, or plain-http endpoints, is refused" do
+      refuse = fn doc, pattern ->
+        fake_client =
+          FakeApiClient.new([
+            %PetstoreClient.ApiHttpResponse{status_code: 200, body: Jason.encode!(doc)}
+          ])
+
+        auth =
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+            create_authenticator(),
+            fake_client
+          )
+
+        assert_raise PetstoreClient.Errors.SerializationError, pattern, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        end
+      end
+
+      good = %{
+        "issuer" => "https://auth.example.com",
+        "authorization_endpoint" => "https://auth.example.com/authorize",
+        "token_endpoint" => "https://auth.example.com/token"
+      }
+
+      refuse.(%{good | "issuer" => "https://evil.example.com"}, ~r/'issuer' does not match/)
+      refuse.(Map.delete(good, "issuer"), ~r/'issuer' does not match/)
+
+      refuse.(
+        %{good | "token_endpoint" => "http://auth.example.com/token"},
+        ~r/'token_endpoint' must be an https URL/
+      )
+
+      refuse.(
+        %{good | "authorization_endpoint" => "http://auth.example.com/authorize"},
+        ~r/'authorization_endpoint' must be an https URL/
+      )
+    end
+
+    test "a trailing slash on the issuer and a loopback http endpoint are accepted" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "issuer" => "https://auth.example.com/",
+                "authorization_endpoint" => "http://127.0.0.1:8080/authorize",
+                "token_endpoint" => "http://localhost:8080/token"
+              })
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+          create_authenticator(),
+          fake_client
+        )
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth) =~
+               "http://127.0.0.1:8080/authorize"
+    end
+
     test "get_host returns configured host" do
       auth = create_authenticator()
 
@@ -370,6 +438,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
         headers: %{"Cache-Control" => "max-age=0"},
         body:
           Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
             "authorization_endpoint" => "https://auth.example.com/authorize",
             "token_endpoint" => "https://auth.example.com/token"
           })
@@ -413,6 +482,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
           headers: headers,
           body:
             Jason.encode!(%{
+              "issuer" => "https://auth.example.com",
               "authorization_endpoint" => "https://auth.example.com/authorize",
               "token_endpoint" => "https://auth.example.com/token"
             })
@@ -433,12 +503,43 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       end
     end
 
+    test "a failed rediscovery keeps using the previous discovery document" do
+      discovery = %PetstoreClient.ApiHttpResponse{
+        status_code: 200,
+        headers: %{"Cache-Control" => "max-age=0"},
+        body:
+          Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
+            "authorization_endpoint" => "https://auth.example.com/authorize",
+            "token_endpoint" => "https://auth.example.com/token"
+          })
+      }
+
+      fake_client =
+        FakeApiClient.new([
+          discovery,
+          %PetstoreClient.ApiHttpResponse{status_code: 503, body: "unavailable"}
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      first = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+      second = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+
+      assert second == first
+      assert FakeApiClient.get_count(fake_client) == 2
+    end
+
     test "max-age=0 makes every use fetch the discovery document again" do
       discovery = %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         headers: %{"Cache-Control" => "max-age=0"},
         body:
           Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
             "authorization_endpoint" => "https://auth.example.com/authorize",
             "token_endpoint" => "https://auth.example.com/token"
           })
@@ -466,6 +567,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
             status_code: 200,
             body:
               Jason.encode!(%{
+                "issuer" => "https://auth.example.com",
                 "authorization_endpoint" => "https://auth.example.com/authorize",
                 "token_endpoint" => "https://auth.example.com/token"
               })
@@ -474,6 +576,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
             status_code: 200,
             body:
               Jason.encode!(%{
+                "issuer" => "https://auth.example.com",
                 "authorization_endpoint" => "https://auth.example.com/authorize",
                 "token_endpoint" => "https://auth.example.com/token"
               })

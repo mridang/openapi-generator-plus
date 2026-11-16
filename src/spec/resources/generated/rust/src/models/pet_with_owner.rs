@@ -25,6 +25,17 @@ pub enum PetWithOwnerStatusEnum {
     Sold,
 }
 
+impl std::fmt::Display for PetWithOwnerStatusEnum {
+    /// Writes the wire value, not the variant name.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            PetWithOwnerStatusEnum::Available => "available",
+            PetWithOwnerStatusEnum::Pending => "pending",
+            PetWithOwnerStatusEnum::Sold => "sold",
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct PetWithOwner {
     /// Example: `10`

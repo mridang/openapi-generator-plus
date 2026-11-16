@@ -25,6 +25,18 @@ pub enum Separator {
     AB2,
 }
 
+impl std::fmt::Display for Separator {
+    /// Writes the wire value, not the variant name.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Separator::SPACE1 => " ",
+            Separator::VALUE00400040 => "@@",
+            Separator::AB => "a-b",
+            Separator::AB2 => "a_b",
+        })
+    }
+}
+
 impl Separator {
     /// Returns all allowed values of Separator.
     pub fn all_values() -> Vec<Separator> {

@@ -43,6 +43,8 @@ export class Order {
   /** @example 198772 */
   @Expose({ name: "petId" })
   petId?: number;
+  /** @minimum 1 */
+  /** @maximum 100 */
   /** @example 7 */
   @Expose({ name: "quantity" })
   quantity?: number;
@@ -83,7 +85,12 @@ export class Order {
   complete?: boolean;
 
   constructor(data?: Partial<Order>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (this.status === undefined) {
       this.status = OrderStatusEnum.Placed;
     }

@@ -22,6 +22,17 @@ pub enum Swatch {
     Blue,
 }
 
+impl std::fmt::Display for Swatch {
+    /// Writes the wire value, not the variant name.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Swatch::Red => "red",
+            Swatch::Green => "green",
+            Swatch::Blue => "blue",
+        })
+    }
+}
+
 impl Swatch {
     /// Returns all allowed values of Swatch.
     pub fn all_values() -> Vec<Swatch> {

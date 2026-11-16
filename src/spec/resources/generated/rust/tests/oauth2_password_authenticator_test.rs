@@ -172,7 +172,7 @@ async fn test_returns_authorization_bearer_header() {
 async fn test_uses_refresh_token_on_subsequent_calls() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
-        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
         200,
     );
     client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
@@ -281,7 +281,7 @@ async fn test_refresh_grant_goes_to_the_refresh_url() {
     ] {
         let client = Arc::new(FakeApiClient::new());
         client.enqueue(
-            r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+            r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
             200,
         );
         client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
@@ -318,7 +318,7 @@ async fn test_refresh_grant_goes_to_the_refresh_url() {
 async fn test_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
-        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
         200,
     );
     client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
@@ -410,7 +410,7 @@ scopes: [\"read\", \"write\"], client_auth_method: Body }",
 async fn test_refresh_grant_authenticates_the_client_in_the_body() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
-        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
         200,
     );
     client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
@@ -435,7 +435,7 @@ async fn test_refresh_grant_authenticates_the_client_in_the_body() {
 async fn test_refresh_grant_authenticates_the_client_with_basic() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
-        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
         200,
     );
     client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
@@ -465,7 +465,7 @@ async fn test_refresh_grant_authenticates_the_client_with_basic() {
 async fn test_rejected_refresh_falls_back_to_the_password_grant() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
-        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
         200,
     );
     client.enqueue(r#"{"error":"invalid_grant"}"#, 400);

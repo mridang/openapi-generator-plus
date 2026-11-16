@@ -306,7 +306,7 @@ public sealed class ClientTest : IDisposable
     {
         var transport = new ScriptedApiClient();
         transport.Enqueue(
-            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"
         );
         transport.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = new LegacyAuthPasswordAuthenticator(Host, "cid", "csecret", "alice", "s3cret");
@@ -339,7 +339,7 @@ public sealed class ClientTest : IDisposable
     {
         var transport = new ScriptedApiClient();
         transport.Enqueue(
-            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"
         );
         transport.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = new UserAuthAuthorizationCodeAuthenticator(

@@ -308,6 +308,28 @@ fn test_transport_options_negative_timeout_is_rejected() {
     );
 }
 
+/* D77: a timeout must be a positive number of milliseconds or None, so zero is
+ * refused too, and the message is the canonical one. */
+#[test]
+fn test_transport_options_rejects_a_non_positive_timeout_with_the_canonical_message() {
+    for (ms, message) in [
+        (
+            -5,
+            "Invalid timeout: must be a positive number of milliseconds (got -5)",
+        ),
+        (
+            0,
+            "Invalid timeout: must be a positive number of milliseconds (got 0)",
+        ),
+    ] {
+        let err = TransportOptionsBuilder::new()
+            .timeout(Some(ms))
+            .build()
+            .expect_err("a non-positive timeout must be rejected");
+        assert_eq!(message, err.to_string());
+    }
+}
+
 #[test]
 fn test_transport_options_null_proxy_url_is_accepted() {
     let opts = TransportOptionsBuilder::new()

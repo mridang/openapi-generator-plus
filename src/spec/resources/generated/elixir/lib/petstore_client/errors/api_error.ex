@@ -97,7 +97,7 @@ defmodule PetstoreClient.Errors.ApiError do
     msg =
       if error.response_headers in [nil, %{}],
         do: msg,
-        else: msg <> "\nResponse headers: #{inspect(error.response_headers)}"
+        else: msg <> "\nResponse headers: #{headers_json(error.response_headers)}"
 
     msg =
       if error.response_body in [nil, ""],
@@ -105,6 +105,14 @@ defmodule PetstoreClient.Errors.ApiError do
         else: msg <> "\nResponse body: #{error.response_body}"
 
     msg
+  end
+
+  # Compact JSON with the keys sorted, one rendering in every SDK.
+  defp headers_json(headers) do
+    headers
+    |> Enum.sort()
+    |> Jason.OrderedObject.new()
+    |> Jason.encode!()
   end
 
   @doc """

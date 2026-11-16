@@ -29,6 +29,9 @@ enum class Swatch(
     BLUE("blue"),
     ;
 
+    /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
+    override fun toString(): String = value.toString()
+
     companion object {
         fun fromValue(value: String): Swatch =
             entries.firstOrNull { it.value == value }

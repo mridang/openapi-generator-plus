@@ -4,7 +4,7 @@ import type { Swatch } from "../../models/index.js";
  * Options for the uploadPetDocument operation.
  */
 export interface UploadPetDocumentOptions {
-  readonly file: Buffer;
+  readonly file: Buffer | Blob;
   readonly documentType?: string;
   readonly notes?: string;
   readonly isPrimary?: boolean;

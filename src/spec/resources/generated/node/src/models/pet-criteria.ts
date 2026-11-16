@@ -42,7 +42,12 @@ export class PetCriteria {
   min_age?: number;
 
   constructor(data?: Partial<PetCriteria>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (this.breed != null && typeof this.breed !== "string") {
       throw new TypeError(`breed must be a string, got ${typeof this.breed}`);
     }

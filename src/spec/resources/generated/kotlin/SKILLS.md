@@ -133,7 +133,7 @@ When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a
 
 #### Token caching
 
-The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+The token manager caches the access token in memory and refreshes it `30` seconds before its declared expiry. This single safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed and is not applied twice: a token valid for 60 seconds is reused for 30. A token valid for 30 seconds or less is fetched again on every call; tune your authorization server's `expires_in` if it is too short.
 
 #### Client authentication method
 
@@ -233,6 +233,14 @@ val transport = TransportOptions.builder()
 val client = Client(authenticator, transport)
 ```
 
+### Custom HTTP client
+
+`TransportOptions.builder().httpClient(myKtorClient)` sends every request through your own Ktor `HttpClient`. The SDK never closes a client you supply. It cannot be combined with `proxy`, `caCertPath` or `verifySsl(false)`.
+
+### Cancellation
+
+Operations are `suspend` functions: cancel the calling coroutine or wrap the call in `withTimeout`, and the call raises `kotlinx.coroutines.CancellationException`. `NetworkTimeoutException` is only for the SDK's own `TransportOptions` timeout.
+
 ## API Methods
 
 Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
@@ -246,7 +254,7 @@ Models are generated as Kotlin data classes in the `com.example.petstore.models`
 ```kotlin
 import com.example.petstore.models.*
 
-val model = Account(/* properties */)
+val model = Account(username = "example")
 ```
 
 ## Binary / File Uploads

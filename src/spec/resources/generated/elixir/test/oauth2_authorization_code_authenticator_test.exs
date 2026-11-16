@@ -197,7 +197,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -237,7 +237,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -279,7 +279,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -327,7 +327,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -489,7 +489,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -567,9 +567,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     test "rejects empty authorization code" do
       auth = create_authenticator()
 
-      assert_raise ArgumentError, fn ->
-        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "")
-      end
+      err =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "")
+        end
+
+      assert err.message == "Authorization code must not be empty"
     end
 
     test "rejects whitespace-only authorization code" do

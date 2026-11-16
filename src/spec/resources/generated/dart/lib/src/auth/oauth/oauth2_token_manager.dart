@@ -24,6 +24,13 @@ class OAuth2TokenManager {
   /// before the token actually expires, avoiding a race against the server clock.
   static const Duration _expirySafetyMargin = Duration(seconds: 60);
 
+  /// The safety margin for a token of [lifetimeSeconds]: one margin, applied
+  /// once, capped at half the lifetime so a short-lived token is still reused.
+  static Duration _marginFor(int lifetimeSeconds) {
+    final half = Duration(milliseconds: lifetimeSeconds * 500);
+    return half < _expirySafetyMargin ? half : _expirySafetyMargin;
+  }
+
   /// Ceiling applied to a parsed `expires_in` (one year, the same in every
   /// SDK), so a huge server-supplied lifetime caches the token for at most a
   /// year instead of overflowing the expiry arithmetic.
@@ -74,10 +81,7 @@ class OAuth2TokenManager {
     String? refreshUrl,
   ]) async {
     if (_accessToken.isNotEmpty &&
-        (_tokenExpiry == null ||
-            DateTime.now().isBefore(
-              _tokenExpiry!.subtract(_expirySafetyMargin),
-            ))) {
+        (_tokenExpiry == null || DateTime.now().isBefore(_tokenExpiry!))) {
       return _accessToken;
     }
 
@@ -247,10 +251,8 @@ class OAuth2TokenManager {
     final Object? decoded;
     try {
       decoded = jsonDecode(response.body);
-    } on FormatException catch (e) {
-      throw OAuth2TokenException(
-        'Token response is not valid JSON: ${e.message}',
-      );
+    } on FormatException {
+      throw OAuth2TokenException('Token response is not valid JSON');
     }
     if (decoded is! Map<String, dynamic>) {
       throw OAuth2TokenException('Token response is not a JSON object');
@@ -276,13 +278,16 @@ class OAuth2TokenManager {
        * (preferable to caching a token of unknown lifetime forever). */
       final expiresIn = _parseExpiresIn(parsed['expires_in']);
       if (expiresIn > 0) {
-        final bufferSecs = expiresIn < 30 ? expiresIn : 30;
         _tokenExpiry = DateTime.now().add(
-          Duration(seconds: expiresIn - bufferSecs),
+          Duration(seconds: expiresIn) - _marginFor(expiresIn),
         );
       } else {
         _tokenExpiry = DateTime.now();
       }
+    } else {
+      /* No expires_in means no expiry: a stale instant from a previous grant
+       * must not make every following call refresh again. */
+      _tokenExpiry = null;
     }
   }
 

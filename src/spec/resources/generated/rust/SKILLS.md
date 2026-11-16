@@ -125,7 +125,7 @@ When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a
 
 #### Token caching
 
-The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry, or half the lifetime for a token that lives less than two minutes (a 60 second token is reused for 30 seconds). The margin is applied once. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. A token response without `expires_in` is cached until you invalidate it.
 
 #### Client authentication method
 
@@ -238,6 +238,10 @@ let transport = TransportOptions::builder()
 
 let client = Client::new(Box::new(authenticator), Some(transport));
 ```
+
+### Cancellation
+
+The SDK adds no cancellation parameter: drop the future to cancel a call, or wrap it in `tokio::time::timeout` or `tokio::select!`. `TransportOptions::timeout` bounds a call and fails with `NetworkTimeoutError`; cancellation is never reported as one.
 
 ## API Methods
 

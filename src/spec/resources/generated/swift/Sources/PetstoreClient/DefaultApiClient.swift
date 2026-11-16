@@ -375,6 +375,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       throw ApiError(
         statusCode: undecodable.response.statusCode,
         message: "Failed to decode response body: \(undecodable.urlError.localizedDescription)",
+        responseHeaders: DefaultApiClient.lowercasedHeaders(of: undecodable.response),
         underlyingError: undecodable.urlError
       )
     } catch let urlError as URLError {
@@ -416,15 +417,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
        with ", " between values. The joined form is not directly
        parseable for Set-Cookie; callers needing structured cookie
        access should use HTTPCookie.cookies(withResponseHeaderFields:for:). */
-    var respHeaders: [String: String] = [:]
-    for key in httpResponse.allHeaderFields.keys {
-      guard let k = key as? String else { continue }
-      if let joined = httpResponse.value(forHTTPHeaderField: k) {
-        respHeaders[k.lowercased()] = joined
-      } else if let v = httpResponse.allHeaderFields[key] as? String {
-        respHeaders[k.lowercased()] = v
-      }
-    }
+    let respHeaders = DefaultApiClient.lowercasedHeaders(of: httpResponse)
 
     /* Defend against a `Content-Encoding` lie WITHOUT mistaking a
        normal, already-decompressed response for one.
@@ -1237,7 +1230,8 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
       redirectErrors.set(
         ApiError(
           statusCode: response.statusCode,
-          message: "Exceeded maximum number of redirects (\(limit))"
+          message: "Exceeded maximum number of redirects (\(limit))",
+          responseHeaders: DefaultApiClient.lowercasedHeaders(of: response)
         ), for: taskKey)
       completionHandler(nil)
       return
@@ -1255,7 +1249,8 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
         ApiError(
           statusCode: response.statusCode,
           message: "Refusing to follow redirect to non-HTTP(S) Location: "
-            + (request.url?.absoluteString ?? "<unknown>")
+            + (request.url?.absoluteString ?? "<unknown>"),
+          responseHeaders: DefaultApiClient.lowercasedHeaders(of: response)
         ), for: taskKey)
       completionHandler(nil)
       return
@@ -1320,7 +1315,8 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
           statusCode: response.statusCode,
           message: "Refusing to replay request body across an HTTPS -> HTTP "
             + "redirect (TLS downgrade) to "
-            + (request.url?.absoluteString ?? "<unknown>")
+            + (request.url?.absoluteString ?? "<unknown>"),
+          responseHeaders: DefaultApiClient.lowercasedHeaders(of: response)
         ), for: taskKey)
       completionHandler(nil)
       return
@@ -1410,6 +1406,23 @@ extension DefaultApiClient {
     default:
       return method
     }
+  }
+
+  /* Lower-cased response headers, shared by the normal response path, the
+     undecodable-body error and the redirect refusals, so every ApiError for
+     a response that arrived carries the real headers (nil means no response
+     arrived). */
+  static func lowercasedHeaders(of httpResponse: HTTPURLResponse) -> [String: String] {
+    var headers: [String: String] = [:]
+    for key in httpResponse.allHeaderFields.keys {
+      guard let k = key as? String else { continue }
+      if let joined = httpResponse.value(forHTTPHeaderField: k) {
+        headers[k.lowercased()] = joined
+      } else if let v = httpResponse.allHeaderFields[key] as? String {
+        headers[k.lowercased()] = v
+      }
+    }
+    return headers
   }
 
   /// Compare two URLs by scheme + host + effective port.

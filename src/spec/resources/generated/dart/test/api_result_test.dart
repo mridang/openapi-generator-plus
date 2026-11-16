@@ -38,6 +38,18 @@ void main() {
       expect(result.headers, isEmpty);
     });
 
+    test('ApiHttpResponse headers are an unmodifiable copy', () {
+      final source = {'content-type': 'text/plain'};
+      final response = ApiHttpResponse(
+        statusCode: 200,
+        body: '',
+        headers: source,
+      );
+      source['x'] = 'y';
+      expect(response.headers.containsKey('x'), isFalse);
+      expect(() => response.headers['z'] = '1', throwsUnsupportedError);
+    });
+
     test('headers are an unmodifiable copy of the supplied map', () {
       final source = {'content-type': 'application/json'};
       final result = ApiResult<String>(

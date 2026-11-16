@@ -168,6 +168,10 @@ defmodule PetstoreClient.DefaultApiClient do
       `TransportOptions.follow_redirects` setting. Used by
       `Auth.OAuth.OAuth2TokenManager` to refuse 307/308 token-endpoint
       replays.
+    * `:no_default_headers` -- when `true`, the transport's `default_headers`
+      are not added to this call. Used for the identity provider's token
+      endpoint and OpenID Connect discovery, so an `Authorization` or API-key
+      default header meant for the API never reaches another host.
   """
   @impl PetstoreClient.ApiClient
   @spec send_request(
@@ -184,7 +188,7 @@ defmodule PetstoreClient.DefaultApiClient do
     # raises RuntimeError rather than letting the call proceed against a
     # logically closed client.
     if client.closed != nil and :atomics.get(client.closed, 1) == 1 do
-      raise RuntimeError, "ApiClient has been closed and can no longer be used"
+      raise RuntimeError, "ApiClient has been closed and can no longer send requests"
     end
 
     # A malformed or non-HTTP request URL is a caller mistake, not a network
@@ -199,7 +203,13 @@ defmodule PetstoreClient.DefaultApiClient do
     end
 
     opts = client.transport_options
-    merged = Map.merge(opts.default_headers, headers)
+
+    default_headers =
+      if Keyword.get(request_opts, :no_default_headers, false),
+        do: %{},
+        else: opts.default_headers
+
+    merged = merge_headers(default_headers, headers)
 
     merged =
       if opts.user_agent && !has_header?(merged, "User-Agent") do
@@ -216,7 +226,7 @@ defmodule PetstoreClient.DefaultApiClient do
       end
 
     merged =
-      if Map.has_key?(merged, "Accept-Encoding") do
+      if has_header?(merged, "Accept-Encoding") do
         merged
       else
         # Only advertise "br" when the optional :brotli NIF is actually
@@ -898,8 +908,7 @@ defmodule PetstoreClient.DefaultApiClient do
               # surface it as a typed SDK error instead.
               raise PetstoreClient.Errors.ApiError,
                 message:
-                  "refusing to follow redirect to non-http(s) Location " <>
-                    "(#{response.status} redirect from #{orig_url} to #{next_url})",
+                  "Refusing to follow redirect to non-HTTP(S) URL: #{redact_url(next_url)}",
                 status_code: response.status
 
             true ->
@@ -918,8 +927,8 @@ defmodule PetstoreClient.DefaultApiClient do
               if refuse_body_replay?(response.status, url, next_url, body) do
                 raise PetstoreClient.Errors.ApiError,
                   message:
-                    "refusing to replay request body across HTTPS->HTTP downgrade " <>
-                      "(#{response.status} redirect from #{orig_url} to #{next_url})",
+                    "Refusing to replay request body across HTTPS->HTTP redirect: " <>
+                      "#{redact_url(url)} -> #{redact_url(next_url)}",
                   status_code: response.status
               end
 
@@ -947,7 +956,7 @@ defmodule PetstoreClient.DefaultApiClient do
               # cannot be used: an ApiError with the redirect's real status.
               if hops + 1 > max do
                 raise PetstoreClient.Errors.ApiError,
-                  message: "too many redirects (exceeded #{max})",
+                  message: "Too many redirects (exceeded #{max})",
                   status_code: response.status
               end
 
@@ -1299,12 +1308,37 @@ defmodule PetstoreClient.DefaultApiClient do
     end
   end
 
+  @doc false
+  # A URL for an error message: the query (where an API key may travel) and any
+  # userinfo are dropped, so a credential never reaches a log.
+  @spec redact_url(String.t()) :: String.t()
+  def redact_url(url) do
+    url
+    |> URI.parse()
+    |> Map.merge(%{query: nil, userinfo: nil, fragment: nil})
+    |> URI.to_string()
+  end
+
   # RFC 9110 section 5.1: header field names are case-insensitive, so a
   # caller's `user-agent` or `x-request-id` (even with an empty value) counts
   # as already set and is left exactly as written.
   defp has_header?(headers, name) do
     wanted = String.downcase(name, :ascii)
     Enum.any?(Map.keys(headers), &(String.downcase(to_string(&1), :ascii) == wanted))
+  end
+
+  # Later layer wins and keeps its own spelling: a header the caller passes
+  # replaces a default of the same name whatever the casing, so one header is
+  # never sent twice or chosen at random.
+  defp merge_headers(base, overrides) do
+    Enum.reduce(overrides, base, fn {name, value}, acc ->
+      wanted = String.downcase(to_string(name), :ascii)
+
+      acc
+      |> Enum.reject(fn {key, _} -> String.downcase(to_string(key), :ascii) == wanted end)
+      |> Map.new()
+      |> Map.put(name, value)
+    end)
   end
 
   defp generate_uuid do

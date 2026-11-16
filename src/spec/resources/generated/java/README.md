@@ -19,6 +19,71 @@ The generated project comes pre-wired with the following Maven plugins:
 | Static analyser (compile-time) | Error Prone + NullAway (via `maven-compiler-plugin`) | `mvn compile` |
 | Auto-upgrader | `rewrite-maven-plugin` (`org.openrewrite.java.migrate.UpgradeToJava25` recipe) | `mvn rewrite:run` |
 
+## Installation
+
+Add the dependency to your `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>com.example.petstore</groupId>
+    <artifactId>petstore-client</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
+## Usage
+
+```java
+import com.example.petstore.Client;
+import com.example.petstore.models.Pet;
+
+try (Client client = Client.withToken("https://api.example.com", "your-token")) {
+    var result = client.pet.addPet(new Pet());
+}
+```
+
+The client is `AutoCloseable`: close it (or use try-with-resources) to release
+its connections. A closed client throws `IllegalStateException`. Errors derive
+from `ApiException`; `NetworkException` and `NetworkTimeoutException` mean no
+HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See
+[SKILLS.md](SKILLS.md) for authentication, servers and error handling.
+
+### Raw responses
+
+Every operation has a `...WithHttpInfo` variant returning an `ApiResult<T>`
+with `statusCode()`, `data()`, `rawBody()` and the lower-cased `headers()`.
+It is the way to read a response header.
+
+### Timeouts
+
+`TransportOptions.builder().timeout(5000)` sets one end-to-end budget in
+milliseconds (a positive integer) for the whole call, redirects and the one
+stale-connection retry included. A call that exceeds it fails with
+`NetworkTimeoutException`; there is no default timeout.
+
+### Request id
+
+The SDK adds a unique `X-Request-ID` header to every request unless you set
+your own (header names are matched case-insensitively). Quote it when you
+report a problem with a call.
+
+### Cancellation
+
+Interrupt the calling thread (`Future.cancel(true)`, an executor shutdown, or
+`Thread.interrupt()`). The call throws `java.util.concurrent.CancellationException`,
+with the `InterruptedException` as its cause and the thread's interrupt flag
+restored. It is never reported as `NetworkTimeoutException`. To bound a call by
+time instead, set the timeout above.
+
+### Custom HTTP client
+
+`TransportOptions.builder().httpClient(client)` makes the SDK send every
+request through your own `java.net.http.HttpClient`. The SDK keeps its request
+timeout, user agent and redirect handling on top and never closes the
+client; you own its lifecycle. Because the client carries its own proxy and TLS
+settings, combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails
+at `build()`, as does a client whose redirect policy is not `Redirect.NEVER`.
+
 ## Build
 
 ```bash
@@ -83,18 +148,9 @@ the type checks the models make while decoding and the presence of required
 properties. If you want fast-fail validation before the network round trip,
 plug in a Bean Validation or JSON Schema library.
 
-`uniqueItems` arrays are held in a `java.util.Set`. Arrays of scalars are
-written in ascending order so the bytes do not depend on insertion order;
-arrays of objects keep the set's own (insertion) order.
-
-### Custom HTTP client
-
-`TransportOptions.builder().httpClient(client)` makes the SDK send every
-request through your own `java.net.http.HttpClient`. The SDK keeps its request
-timeout, retries, user agent and redirect handling on top and never closes the
-client; you own its lifecycle. Because the client carries its own proxy and TLS
-settings, combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails
-at `build()`, as does a client whose redirect policy is not `Redirect.NEVER`.
+`uniqueItems` arrays are held in a `java.util.Set` (a `LinkedHashSet`). They
+are written in the set's own order, which is insertion order; the SDK does not
+sort them, because the order carries no meaning.
 
 ## Not supported
 
@@ -106,6 +162,28 @@ per-operation `callbacks` — are intentionally skipped during code
 generation. If you need to receive webhook deliveries, write the
 handler yourself and use this SDK only to deserialize the incoming
 payload (e.g. by reusing the relevant request-body model).
+
+### Automatic retries
+
+The SDK never retries a failed call on its own, apart from one replay of an
+idempotent request when a reused keep-alive connection turns out to be closed.
+Wrap calls in your own retry policy when you need one.
+
+### XML bodies and `nodeType`
+
+Request and response bodies in `application/xml` and the XML `nodeType`
+keyword are not generated (#70, #88). An operation that only declares XML has
+no usable body in this SDK.
+
+### Link Objects
+
+OpenAPI Link Objects are ignored (#78).
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes produce no authenticator (#90). Configure a client
+certificate on your own `java.net.http.HttpClient` and pass it with
+`TransportOptions.builder().httpClient(client)`.
 
 ### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
 
@@ -124,12 +202,6 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
-
-### Per-call cancellation
-
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutException`.
 
 ### `LICENSE` file is not auto-emitted
 

@@ -303,6 +303,66 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task LowerCaseCallerAcceptEncodingIsNotSentAlongsideTheDefault()
+    {
+        // F905: header names are case-insensitive, so a caller's lower-case
+        // accept-encoding replaces the default instead of adding a second value.
+        var values = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            foreach (var header in req.Headers)
+            {
+                if (
+                    string.Equals(header.Key, "Accept-Encoding", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    values.AddRange(header.Value);
+                }
+            }
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string> { { "accept-encoding", "identity" } },
+            null
+        );
+        Assert.Equal("identity", Assert.Single(values));
+    }
+
+    [Fact]
+    public async Task CallerHeaderReplacesATransportDefaultOfADifferentCasing()
+    {
+        // F860: the merge is case-insensitive, so one Authorization header is
+        // sent and it is the caller's.
+        var values = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            foreach (var header in req.Headers)
+            {
+                if (string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+                {
+                    values.AddRange(header.Value);
+                }
+            }
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions
+            .Builder()
+            .DefaultHeader("Authorization", "default")
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string> { { "authorization", "caller" } },
+            null
+        );
+        Assert.Equal("caller", Assert.Single(values));
+    }
+
+    [Fact]
     public async Task DoesNotOverrideCallerRequestId()
     {
         string? capturedRequestId = null;
@@ -1262,9 +1322,15 @@ public class DefaultApiClientUnitTest
         // Only the original encrypted request must have been made; the
         // downgraded follow-up must be refused.
         Assert.Single(handler.Requests);
-        Assert.Contains("downgrade", ex.Message, StringComparison.OrdinalIgnoreCase);
-        // A refused redirect carries the redirect's real status.
+        Assert.Equal(
+            "Refusing to replay request body across HTTPS->HTTP redirect:"
+                + " https://secure.example.com/start -> http://downgraded.example.com/landed",
+            ex.Message
+        );
+        // A refused redirect carries the redirect's real status and headers.
         Assert.Equal(307, ex.StatusCode);
+        Assert.NotNull(ex.ResponseHeaders);
+        Assert.Equal("http://downgraded.example.com/landed", ex.ResponseHeaders!["location"]);
     }
 
     // ---- T-D3: non-http(s) redirect target is refused with a typed error ----
@@ -1288,8 +1354,13 @@ public class DefaultApiClientUnitTest
 
         // The blocked redirect must surface as an error, not a silent 3xx.
         Assert.Single(handler.Requests);
-        Assert.Contains("non-http", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(
+            "Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd",
+            ex.Message
+        );
         Assert.Equal(302, ex.StatusCode);
+        Assert.NotNull(ex.ResponseHeaders);
+        Assert.True(ex.ResponseHeaders!.ContainsKey("location"));
     }
 
     // ---- T-D1: exceeding maxRedirects throws "too many redirects" ----
@@ -1311,8 +1382,93 @@ public class DefaultApiClientUnitTest
             )
         );
 
-        Assert.Contains("redirect", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Too many redirects (exceeded 3)", ex.Message);
         Assert.Equal(302, ex.StatusCode);
+        Assert.NotNull(ex.ResponseHeaders);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task ReturnsAFinalRedirectWithoutLocationUnchanged(int maxRedirects)
+    {
+        // D70: the budget is only "exhausted" when a Location is present. A
+        // 3xx that offers nowhere to go is returned to the caller, however
+        // many hops came before it (and with maxRedirects 0, none at all).
+        (HttpStatusCode, Uri?)[] script =
+            maxRedirects == 0
+                ? new (HttpStatusCode, Uri?)[] { (HttpStatusCode.Redirect, null) }
+                : new (HttpStatusCode, Uri?)[]
+                {
+                    (HttpStatusCode.Redirect, new Uri("http://origin.example.com/a")),
+                    (HttpStatusCode.Redirect, null),
+                };
+        var handler = new ScriptedRedirectHandler(script);
+        var transport = TransportOptions.Builder().MaxRedirects(maxRedirects).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(302, response.StatusCode);
+        Assert.Equal(maxRedirects + 1, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task ThrowsWhenAZeroRedirectBudgetMeetsARedirectWithLocation()
+    {
+        var handler = new ScriptedRedirectHandler([
+            (HttpStatusCode.Redirect, new Uri("http://origin.example.com/a")),
+        ]);
+        var transport = TransportOptions.Builder().MaxRedirects(0).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://origin.example.com/start"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal("Too many redirects (exceeded 0)", ex.Message);
+    }
+
+    [Fact]
+    public async Task CredentialsDroppedOnACrossOriginHopStayDroppedWhenTheChainReturns()
+    {
+        // F898: A -> B -> A. The hop to B strips the credentials; the hop back
+        // to the original origin must not bring them back, because the third
+        // hop's target was chosen by B.
+        var handler = new ScriptedRedirectHandler([
+            (HttpStatusCode.TemporaryRedirect, new Uri("http://other.example.com/y")),
+            (HttpStatusCode.TemporaryRedirect, new Uri("http://origin.example.com/admin")),
+        ]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/x"),
+            new Dictionary<string, string>
+            {
+                { "Authorization", "Bearer secret" },
+                { "Cookie", "session=1" },
+                { "X-Trace", "keep" },
+            },
+            null
+        );
+
+        Assert.Equal(3, handler.Requests.Count);
+        Assert.True(handler.Requests[0].Headers.Contains("Authorization"));
+        Assert.False(handler.Requests[1].Headers.Contains("Authorization"));
+        Assert.False(handler.Requests[2].Headers.Contains("Authorization"));
+        Assert.False(handler.Requests[2].Headers.Contains("Cookie"));
+        Assert.True(handler.Requests[2].Headers.Contains("X-Trace"));
     }
 
     [Fact]
@@ -1600,6 +1756,7 @@ public class DefaultApiClientUnitTest
             typeof(OpenAPIException).IsInstanceOfType(ex),
             "use-after-close must not be an SDK error"
         );
+        Assert.Equal("ApiClient has been closed and can no longer send requests", ex.Message);
     }
 
     [Fact]
@@ -2119,6 +2276,48 @@ public class DefaultApiClientUnitTest
                 return redirect;
             }
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("") };
+        }
+    }
+
+    /// <summary>
+    /// Plays the scripted (status, Location) pairs in order, one per request,
+    /// then answers 200 OK. A null Location sends a redirect without one.
+    /// </summary>
+    private sealed class ScriptedRedirectHandler : HttpMessageHandler
+    {
+        private readonly (HttpStatusCode Status, Uri? Location)[] _script;
+        public List<HttpRequestMessage> Requests { get; } = [];
+
+        public ScriptedRedirectHandler((HttpStatusCode Status, Uri? Location)[] script)
+        {
+            _script = script;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            var snapshot = new HttpRequestMessage(request.Method, request.RequestUri);
+            foreach (var h in request.Headers)
+            {
+                snapshot.Headers.TryAddWithoutValidation(h.Key, h.Value);
+            }
+            Requests.Add(snapshot);
+
+            if (Requests.Count > _script.Length)
+            {
+                return Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("") }
+                );
+            }
+            var step = _script[Requests.Count - 1];
+            var response = new HttpResponseMessage(step.Status) { Content = new StringContent("") };
+            if (step.Location != null)
+            {
+                response.Headers.Location = step.Location;
+            }
+            return Task.FromResult(response);
         }
     }
 

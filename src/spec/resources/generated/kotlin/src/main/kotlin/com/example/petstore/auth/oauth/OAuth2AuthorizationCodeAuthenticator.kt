@@ -116,7 +116,7 @@ open class OAuth2AuthorizationCodeAuthenticator internal constructor(
         // the token request. Reject an empty/whitespace code before the POST
         // so the caller sees a clear precondition error rather than a confusing
         // downstream "invalid_grant" from the IdP (or no error at all).
-        require(code.isNotBlank()) { "Authorization code must not be empty or blank" }
+        require(code.isNotBlank()) { "Authorization code must not be empty" }
         val params =
             mutableMapOf(
                 "grant_type" to "authorization_code",

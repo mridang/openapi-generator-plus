@@ -206,18 +206,39 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a negative timeout is rejected")
-        fun negativeTimeoutIsRejected() {
-            assertThrowsExactly(IllegalArgumentException::class.java) {
-                TransportOptions.builder().timeout(-1)
+        @DisplayName("a non-positive timeout is rejected with the canonical message")
+        fun nonPositiveTimeoutIsRejected() {
+            for (invalid in listOf(-1L, 0L)) {
+                val ex =
+                    assertThrowsExactly(IllegalArgumentException::class.java) {
+                        TransportOptions.builder().timeout(invalid)
+                    }
+                assertEquals("Invalid timeout: must be a positive number of milliseconds (got $invalid)", ex.message)
             }
-            assertEquals(
-                0L,
+            assertNull(
                 TransportOptions
                     .builder()
-                    .timeout(0)
+                    .timeout(null)
                     .build()
                     .timeout,
+            )
+        }
+
+        @Test
+        @DisplayName("a negative maxRedirects is rejected and zero is accepted")
+        fun negativeMaxRedirectsIsRejected() {
+            val ex =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().maxRedirects(-1)
+                }
+            assertEquals("Invalid maxRedirects: must not be negative (got -1)", ex.message)
+            assertEquals(
+                0,
+                TransportOptions
+                    .builder()
+                    .maxRedirects(0)
+                    .build()
+                    .maxRedirects,
             )
         }
 

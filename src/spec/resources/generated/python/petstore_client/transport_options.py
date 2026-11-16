@@ -29,6 +29,27 @@ def _assert_valid_proxy(proxy: Optional[str]) -> None:
         raise ValueError(f"Invalid proxy URL (missing host): {proxy}")
 
 
+def _assert_valid_timeout(timeout: Optional[int]) -> None:
+    """Reject a timeout that is not ``None`` or a positive number of milliseconds (D77).
+
+    Shared by the constructor and the builder so a ``TransportOptions`` built
+    directly cannot carry a timeout the builder would have refused.
+
+    Raises:
+        ValueError: If the timeout is zero, negative or not a number.
+    """
+    if timeout is None:
+        return
+    if (
+        isinstance(timeout, bool)
+        or not isinstance(timeout, (int, float))
+        or not timeout >= 1
+    ):
+        raise ValueError(
+            f"Invalid timeout: must be a positive number of milliseconds (got {timeout})"
+        )
+
+
 _REDACTED = "***"
 _SENSITIVE_HEADER_NAMES = ("authorization", "proxy-authorization", "cookie")
 _SENSITIVE_HEADER_FRAGMENTS = ("key", "token", "secret")
@@ -156,8 +177,9 @@ class TransportOptions:
     """
 
     def __post_init__(self) -> None:
-        """Validate the proxy and make default_headers an immutable MappingProxyType."""
+        """Validate the proxy and the timeout and make default_headers an immutable MappingProxyType."""
         _assert_valid_proxy(self.proxy)
+        _assert_valid_timeout(self.timeout)
         if not isinstance(self.default_headers, MappingProxyType):
             object.__setattr__(
                 self, "default_headers", MappingProxyType(dict(self.default_headers))
@@ -260,13 +282,15 @@ class TransportOptionsBuilder:
         """Set the end-to-end request timeout in milliseconds.
 
         Args:
-            timeout: Timeout in milliseconds, or ``None`` for no timeout.
+            timeout: Timeout in milliseconds (at least 1), or ``None`` for no timeout.
+
+        Raises:
+            ValueError: If the timeout is zero or negative.
 
         Returns:
             This builder.
         """
-        if timeout is not None and timeout < 0:
-            raise ValueError(f"Invalid timeout (must not be negative): {timeout}")
+        _assert_valid_timeout(timeout)
         self._timeout = timeout
         return self
 

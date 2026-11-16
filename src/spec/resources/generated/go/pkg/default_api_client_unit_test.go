@@ -227,6 +227,50 @@ func TestDefaultApiClient_CallerHeadersOverrideDefaults(t *testing.T) {
 	}
 }
 
+func TestDefaultApiClient_HeaderSpellingsAreMergedCaseInsensitively(t *testing.T) {
+	t.Parallel()
+	var received http.Header
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received = r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		DefaultHeader("authorization", "Bearer A").
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+
+	for i := 0; i < 20; i++ {
+		headers := map[string]string{"Authorization": "Bearer B", "accept-encoding": "identity"}
+		if _, err := client.SendRequest("GET", server.URL+"/test", headers, nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := received.Values("Authorization"); len(got) != 1 || got[0] != "Bearer B" {
+			t.Fatalf("expected the later layer to win on every request, got %q", got)
+		}
+		if got := received.Get("Accept-Encoding"); got != "identity" {
+			t.Fatalf("expected the caller's accept-encoding to suppress the injected one, got %q", got)
+		}
+	}
+}
+
+func TestMergeHeaders_LaterLayerReplacesAnyCaseVariantAndKeepsItsSpelling(t *testing.T) {
+	t.Parallel()
+	dst := map[string]string{"content-type": "a", "X-Other": "keep"}
+	mergeHeaders(dst, map[string]string{"Content-Type": "b"})
+	if len(dst) != 2 || dst["Content-Type"] != "b" || dst["X-Other"] != "keep" {
+		t.Errorf("unexpected merge result: %v", dst)
+	}
+	removeHeader(dst, "CONTENT-TYPE")
+	if _, ok := dst["Content-Type"]; ok || len(dst) != 1 {
+		t.Errorf("expected every spelling removed, got %v", dst)
+	}
+}
+
 func TestDefaultApiClient_RequestIdsAreUnique(t *testing.T) {
 	t.Parallel()
 	var ids []string
@@ -1034,6 +1078,9 @@ func TestDefaultApiClient_UseAfterCloseReturnsErrClientClosed(t *testing.T) {
 	if errors.As(err, &root) {
 		t.Errorf("use after close must not be a OpenAPIError, got %T", err)
 	}
+	if want := "API client has been closed and can no longer send requests"; err.Error() != want {
+		t.Errorf("expected the canonical message %q, got %q", want, err.Error())
+	}
 }
 
 // A malformed request URL is a caller mistake: ErrInvalidRequest, not an SDK
@@ -1165,6 +1212,55 @@ func TestDefaultApiClient_RedirectToNonHttpSchemeIsApiErrorWithStatus(t *testing
 	var netErr *pkgerrors.NetworkError
 	if errors.As(err, &netErr) {
 		t.Errorf("a refused redirect must not be a *NetworkError, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "refusing to follow redirect to non-HTTP(S) URL: ftp://example.com/file") {
+		t.Errorf("expected the canonical refusal message, got %q", err.Error())
+	}
+	if strings.Contains(err.Error(), "redirect refused:") || strings.Contains(err.Error(), "Get \"") {
+		t.Errorf("expected no prefix and no *url.Error wrapper in the message, got %q", err.Error())
+	}
+}
+
+// A query-parameter API key must not reach an error message: net/http prints
+// the full request URL, so the SDK replaces the query with "***".
+func TestDefaultApiClient_NetworkErrorMessageRedactsTheQuery(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	closedURL := server.URL
+	server.Close()
+
+	client := NewDefaultApiClient(nil)
+	_, err := client.SendRequest("GET", closedURL+"/pet?api_key=SECRET-KEY", map[string]string{}, nil)
+	var netErr *pkgerrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
+	}
+	if strings.Contains(err.Error(), "SECRET-KEY") {
+		t.Errorf("the API key leaked into the message: %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "/pet?***") {
+		t.Errorf("expected the query to read ***, got %q", err.Error())
+	}
+}
+
+// Past maxRedirects the refusal reads "too many redirects (exceeded N)".
+func TestDefaultApiClient_TooManyRedirectsUsesTheCanonicalMessage(t *testing.T) {
+	t.Parallel()
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", server.URL+"/again")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).MaxRedirects(2).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err = client.SendRequest("GET", server.URL+"/start", map[string]string{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "too many redirects (exceeded 2)") {
+		t.Fatalf("expected the canonical too-many-redirects message, got %v", err)
 	}
 }
 

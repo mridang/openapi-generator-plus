@@ -716,7 +716,7 @@ describe Petstore::Client::DefaultApiClient do
         err = assert_raises(Petstore::Client::Errors::ApiError) do
           client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
         end
-        _(err.message).must_match(/TLS downgrade/)
+        _(err.detail_message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
       end
     end
 
@@ -732,7 +732,7 @@ describe Petstore::Client::DefaultApiClient do
         err = assert_raises(Petstore::Client::Errors::ApiError) do
           client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
         end
-        _(err.message).must_match(/TLS downgrade/)
+        _(err.detail_message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
       end
     end
   end

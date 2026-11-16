@@ -64,7 +64,12 @@ export class Defaults {
   ceiling?: number = 9000000000;
 
   constructor(data?: Partial<Defaults>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (this.retries === undefined) {
       this.retries = 3;
     }

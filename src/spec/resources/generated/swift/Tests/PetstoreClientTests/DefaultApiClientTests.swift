@@ -362,10 +362,11 @@ import Testing
         _ = try await client.sendRequest(
           method: "GET", url: "https://example.com", headers: [:], body: nil)
       }
-      guard case .invalidState? = error else {
+      guard case .invalidState(let reason)? = error else {
         Issue.record("expected ConfigurationError.invalidState, got \(String(describing: error))")
         return
       }
+      #expect(reason == "ApiClient has been closed and can no longer send requests")
     }
 
     @Test func testDecompressesGzipResponse() async throws {
@@ -556,10 +557,11 @@ import Testing
       let client = DefaultApiClient(
         transportOptions: transport,
         protocolClasses: [RedirectStubURLProtocol.self])
-      await #expect(throws: ApiError.self) {
+      let error = await #expect(throws: ApiError.self) {
         _ = try await client.sendRequest(
           method: "GET", url: "https://example.com/start", headers: [:], body: nil)
       }
+      #expect(error?.responseHeaders?["location"] != nil)
     }
 
     // redirect-scheme-refusal-silent: a Location pointing at a non-HTTP(S)
@@ -573,10 +575,11 @@ import Testing
       let client = DefaultApiClient(
         transportOptions: transport,
         protocolClasses: [RedirectStubURLProtocol.self])
-      await #expect(throws: ApiError.self) {
+      let error = await #expect(throws: ApiError.self) {
         _ = try await client.sendRequest(
           method: "GET", url: "https://example.com/start", headers: [:], body: nil)
       }
+      #expect(error?.responseHeaders?["location"] != nil)
     }
 
     // downgrade-body-replay-silent: an HTTPS->HTTP redirect with a body in

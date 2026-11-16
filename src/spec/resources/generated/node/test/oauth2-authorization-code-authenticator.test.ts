@@ -129,7 +129,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     mockClient.responseBody = JSON.stringify({
       access_token: "access-token-123",
       refresh_token: "refresh-token-456",
-      expires_in: 1,
+      expires_in: 0,
     });
 
     await authenticator.exchangeCode("my-auth-code");
@@ -166,7 +166,9 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
   test("exchangeCode rejects an empty or whitespace code without hitting the token endpoint", async () => {
     // oauth-exchangecode-no-empty-code-guard: an empty code can only fail
     // at the token endpoint, so reject it up front.
-    await expect(authenticator.exchangeCode("")).rejects.toThrow(TypeError);
+    await expect(authenticator.exchangeCode("")).rejects.toThrow(
+      new TypeError("Authorization code must not be empty"),
+    );
     await expect(authenticator.exchangeCode("   ")).rejects.toThrow(TypeError);
     // No token request should have been issued for the invalid code.
     expect(mockClient.lastMethod).toBe("");
@@ -241,7 +243,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     mockClient.responseBody = JSON.stringify({
       access_token: "tok1",
       refresh_token: "ref1",
-      expires_in: 1,
+      expires_in: 0,
     });
     refreshing.setApiClient(mockClient);
     const sendSpy = jest.spyOn(mockClient, "sendRequest");
@@ -265,7 +267,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     mockClient.queued = [
       {
         status: 200,
-        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 0 },
       },
       { status: 200, body: { access_token: "tok2", expires_in: 3600 } },
     ];
@@ -291,7 +293,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     mockClient.queued = [
       {
         status: 200,
-        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 0 },
       },
       { status: 400, body: { error: "invalid_grant" } },
       { status: 200, body: { access_token: "unexpected", expires_in: 3600 } },
@@ -342,9 +344,9 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     mockClient.queued = [
       {
         status: 200,
-        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 0 },
       },
-      { status: 200, body: { access_token: "tok2", expires_in: 1 } },
+      { status: 200, body: { access_token: "tok2", expires_in: 0 } },
       { status: 200, body: { access_token: "tok3", expires_in: 3600 } },
     ];
 

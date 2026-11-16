@@ -270,7 +270,7 @@ class ObjectSerializer:
         except SerializationException:
             raise
         except Exception as e:
-            raise SerializationException(f"Failed to parse JSON: {e}", e)
+            raise SerializationException(f"Failed to deserialize JSON: {e}", e)
 
     @overload
     def deserialize(self, json_string: Optional[str], target_type: str) -> Any: ...
@@ -301,9 +301,7 @@ class ObjectSerializer:
         except SerializationException:
             raise
         except Exception as e:
-            raise SerializationException(
-                f"Failed to deserialize JSON to {target_type}: {e}", e
-            )
+            raise SerializationException(f"Failed to deserialize JSON: {e}", e)
 
     @classmethod
     def _sanitize_for_serialization(

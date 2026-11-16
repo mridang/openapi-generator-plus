@@ -99,6 +99,37 @@ and feed the string into `decimal.Decimal`.
 `format: int64` is unaffected — Python's `int` is arbitrary-precision and
 represents the full 64-bit range (and beyond) without loss.
 
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server, which stays
+the authority. This SDK also checks them in the generated models, because
+pydantic does so natively (`Field(...)` constraints): constructing a model that
+violates one raises `pydantic.ValidationError`, and decoding a response that
+violates one raises `SerializationException`.
+Request parameters outside a model are not checked client-side. `uniqueItems`
+arrays are sent in the collection's natural order (a Python `set` in iteration
+order), never sorted.
+
+### Your own HTTP transport
+
+Pass a `urllib3.PoolManager` you built to the client
+(`Client(authenticator, pool_manager=pool)`; `with_token` and
+`with_authenticator` take it too). The SDK defaults (timeout, redirect policy,
+user agent, request id, default headers) are applied on top of it, and the SDK
+never closes it: you own its lifecycle. Combining it with a proxy, a CA bundle
+or `verify_ssl(False)` in `TransportOptions` raises `ValueError`, because those
+settings belong to the pool manager you built.
+
+### Per-call cancellation
+
+Cancelling the asyncio task that awaits an operation aborts the request
+itself: its socket is shut down and the connection dropped, instead of the
+call running on in a worker thread. `Client.close()` (also `with Client(...)`)
+cancels every request still in flight; those calls raise `RuntimeError`. To
+bound how long a call can take, set the request timeout on `TransportOptions`;
+a call that exceeds it fails with `NetworkTimeoutException`.
+
 ## Not supported
 
 ### Webhooks and callbacks
@@ -118,39 +149,6 @@ OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
 
-### Numeric / string constraint validation
-
-OpenAPI keywords `minLength`, `maxLength`, `pattern`, `minimum`,
-`maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`,
-`minItems`, `maxItems`, and `uniqueItems` ARE enforced client-side on
-generated models via pydantic 2's native `Field(...)` constraints
-(`min_length`, `max_length`, `pattern`, `ge`/`gt`, `le`/`lt`,
-`multiple_of`). Constraint violations raise `pydantic.ValidationError`,
-which the `ObjectSerializer` surfaces as a `SerializationException` to
-the caller. The server remains the
-authoritative validator; the client-side check is a fast-fail
-convenience before the network round trip.
-
-### Schema constraints
-
-The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
-`multipleOf`, `minItems` and `maxItems` are validated by the server and, in
-this SDK, by the generated models: Python validates them through pydantic
-(`Field(...)` constraints), and a violation raises `pydantic.ValidationError`.
-Request parameters outside a model are not checked client-side. `uniqueItems`
-arrays are sent in the collection's natural order (a Python `set` in iteration
-order), never sorted.
-
-### Your own HTTP transport
-
-Pass a `urllib3.PoolManager` you built to the client
-(`Client(authenticator, pool_manager=pool)`; `with_token` and
-`with_authenticator` take it too). The SDK defaults (timeout, redirect policy,
-user agent, request id, default headers) are applied on top of it, and the SDK
-never closes it: you own its lifecycle. Combining it with a proxy, a CA bundle
-or `verify_ssl(False)` in `TransportOptions` raises `ValueError`, because those
-settings belong to the pool manager you built.
-
 ### SOCKS proxies
 
 `TransportOptions.builder().proxy()` accepts only `http://` and `https://` URLs.
@@ -160,15 +158,6 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
-
-### Per-call cancellation
-
-Cancelling the asyncio task that awaits an operation aborts the request
-itself: its socket is shut down and the connection dropped, instead of the
-call running on in a worker thread. `Client.close()` (also `with Client(...)`)
-cancels every request still in flight; those calls raise `RuntimeError`. To
-bound how long a call can take, set the request timeout on `TransportOptions`;
-a call that exceeds it fails with `NetworkTimeoutException`.
 
 ### `LICENSE` file is not auto-emitted
 

@@ -2,5 +2,5 @@
  * Options for the uploadPetCertificate operation.
  */
 export interface UploadPetCertificateOptions {
-  readonly file: Buffer;
+  readonly file: Buffer | Blob;
 }

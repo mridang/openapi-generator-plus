@@ -755,7 +755,7 @@ import Testing
       )
       Issue.record("Expected error when token request fails")
     } catch {
-      #expect(error != nil)
+      _ = error
     }
   }
 

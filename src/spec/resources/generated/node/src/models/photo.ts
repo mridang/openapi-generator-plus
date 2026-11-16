@@ -46,7 +46,12 @@ export class Photo {
   url?: string;
 
   constructor(data?: Partial<Photo>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (this.id != null && typeof this.id !== "number") {
       throw new TypeError(`id must be a number, got ${typeof this.id}`);
     }

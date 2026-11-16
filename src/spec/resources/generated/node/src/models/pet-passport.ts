@@ -141,7 +141,12 @@ export class PetPassport {
   biometricChip?: Buffer;
 
   constructor(data?: Partial<PetPassport>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (
       this.pet != null &&
       (typeof this.pet !== "object" || Array.isArray(this.pet))

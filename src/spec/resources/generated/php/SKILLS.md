@@ -235,7 +235,7 @@ Models are generated as PHP classes under the `PetstoreClient\Models` namespace.
 ```php
 use PetstoreClient\Models\Account;
 
-$model = new Account();
+$model = new Account(username: 'example');
 ```
 
 ## Binary / File Uploads

@@ -55,7 +55,12 @@ export class Department {
   lead?: Employee;
 
   constructor(data?: Partial<Department>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (data !== undefined) {
       if (this.name == null) {
         throw new TypeError("name is required");

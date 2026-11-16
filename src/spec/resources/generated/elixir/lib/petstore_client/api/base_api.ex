@@ -342,8 +342,17 @@ defmodule PetstoreClient.Api.BaseApi do
               :error -> response.body
             end
 
-          true ->
+          return_type in ["String", "String.t()"] ->
             response.body
+
+          true ->
+            # A non-JSON success body on an operation that returns a model, a
+            # list or any other non-text type cannot be decoded; returning the
+            # raw string as that type would be type confusion.
+            raise PetstoreClient.Errors.SerializationError,
+              message:
+                "Response Content-Type #{resp_content_type} is not JSON " <>
+                  "and cannot be decoded as #{return_type}"
         end
       else
         nil

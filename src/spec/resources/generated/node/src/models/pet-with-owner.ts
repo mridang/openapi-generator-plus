@@ -121,6 +121,9 @@ export class PetWithOwner {
     toClassOnly: true,
   })
   weightKg?: Decimal;
+  /** @pattern /^(?!admin)[a-z']+$/ */
+  /** @minLength 2 */
+  /** @maxLength 8 */
   /** @example rex */
   @Expose({ name: "nickname" })
   nickname?: string;
@@ -128,7 +131,12 @@ export class PetWithOwner {
   ownerName!: string;
 
   constructor(data?: Partial<PetWithOwner>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (data !== undefined) {
       if (this.name == null) {
         throw new TypeError("name is required");

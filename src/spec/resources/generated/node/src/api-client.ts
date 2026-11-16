@@ -16,12 +16,17 @@ import type { ApiHttpResponse } from "./api-http-response.js";
  *   exchange, where blindly following a 307/308 to an attacker-controlled
  *   host would replay the body (containing client_secret / refresh_token)
  *   to that host.
+ * - `noDefaultHeaders` -- when `true`, the transport does not add
+ *   {@link TransportOptions.defaultHeaders}. Used for OAuth2 token and OIDC
+ *   discovery requests, which go to the identity provider and must not carry
+ *   an `Authorization` or API-key default meant for the API.
  * - `signal` -- aborts the request when it fires. The transport rejects with
  *   the signal's reason (an `AbortError` by default), which is distinct from
  *   the timeout error.
  */
 export interface SendRequestOptions {
   readonly noRedirect?: boolean;
+  readonly noDefaultHeaders?: boolean;
   readonly signal?: AbortSignal;
 }
 

@@ -171,13 +171,28 @@ class TransportOptionsTest {
     assertNull(opts.getMaxRedirects());
   }
 
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(ints = {-1, 0})
+  @DisplayName("a non-positive timeout is rejected with the canonical message")
+  void nonPositiveTimeoutIsRejected(int timeout) {
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class, () -> TransportOptions.builder().timeout(timeout));
+    assertEquals(
+        "Invalid timeout: must be a positive number of milliseconds (got " + timeout + ")",
+        ex.getMessage());
+    // Null stays valid: it means no deadline.
+    assertNull(TransportOptions.builder().timeout(null).build().getTimeout());
+  }
+
   @Test
-  @DisplayName("a negative timeout throws IllegalArgumentException")
-  void negativeTimeoutThrowsException() {
-    assertThrowsExactly(
-        IllegalArgumentException.class, () -> TransportOptions.builder().timeout(-1));
-    // Zero and null stay valid: zero is a zero-length deadline, null means none.
-    assertEquals(0, TransportOptions.builder().timeout(0).build().getTimeout());
+  @DisplayName("a negative maxRedirects is rejected")
+  void negativeMaxRedirectsIsRejected() {
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class, () -> TransportOptions.builder().maxRedirects(-1));
+    assertEquals("Invalid maxRedirects: must not be negative (got -1)", ex.getMessage());
+    assertEquals(0, TransportOptions.builder().maxRedirects(0).build().getMaxRedirects());
   }
 
   @Test

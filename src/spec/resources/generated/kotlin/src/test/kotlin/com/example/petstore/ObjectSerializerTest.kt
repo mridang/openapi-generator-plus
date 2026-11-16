@@ -290,14 +290,14 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a uniqueItems array of scalars goes on the wire in ascending order")
-        fun scalarSetIsSortedOnTheWire() {
+        @DisplayName("a uniqueItems array of scalars goes on the wire in the set's insertion order")
+        fun scalarSetKeepsItsInsertionOrderOnTheWire() {
             val pet =
                 com.example.petstore.models
                     .Pet(name = "n", photoUrls = linkedSetOf("c", "a", "b"))
             repeat(2) {
                 val json = serializer.serialize(pet)
-                assertTrue(json.contains("\"photoUrls\":[\"a\",\"b\",\"c\"]"), "got: $json")
+                assertTrue(json.contains("\"photoUrls\":[\"c\",\"a\",\"b\"]"), "got: $json")
             }
         }
 
@@ -1853,9 +1853,46 @@ class ObjectSerializerTest {
             val within = "[".repeat(600) + "]".repeat(600)
             assertNotNull(serializer.parseToJsonElement(within))
             val beyond = "[".repeat(1500) + "]".repeat(1500)
-            assertThrows(SerializationException::class.java) {
-                serializer.parseToJsonElement(beyond)
+            val ex =
+                assertThrows(SerializationException::class.java) {
+                    serializer.parseToJsonElement(beyond)
+                }
+            assertEquals("JSON nesting depth 1500 exceeds limit 1000", ex.message)
+        }
+
+        @Test
+        @DisplayName("a format: password property is redacted in toString but still on the wire")
+        fun passwordIsRedactedInToString() {
+            val account =
+                com.example.petstore.models
+                    .Account(username = "u", password = "hunter2")
+            assertFalse(account.toString().contains("hunter2"), account.toString())
+            assertTrue(account.toString().contains("password=***"), account.toString())
+            assertTrue(serializer.serialize(account).contains("\"password\":\"hunter2\""))
+        }
+
+        @Test
+        @DisplayName("an enum member renders as its wire value, not its constant name")
+        fun enumStringFormIsTheWireValue() {
+            for (member in com.example.petstore.models.Color.entries) {
+                assertEquals(member.value, member.toString())
+                assertEquals(member.value, "$member")
             }
+        }
+
+        @Test
+        @DisplayName("a malformed document is reported as Failed to deserialize JSON with the detail")
+        fun malformedDocumentMessage() {
+            val ex =
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.Pet>("{not json")
+                }
+            assertTrue(ex.message!!.startsWith("Failed to deserialize JSON: "), ex.message)
+            val parsed =
+                assertThrows(SerializationException::class.java) {
+                    serializer.parseToJsonElement("{not json")
+                }
+            assertTrue(parsed.message!!.startsWith("Failed to deserialize JSON: "), parsed.message)
         }
     }
 }

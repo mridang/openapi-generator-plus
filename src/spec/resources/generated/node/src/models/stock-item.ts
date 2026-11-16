@@ -49,7 +49,12 @@ export class StockItem {
   matrix?: Array<Array<number>>;
 
   constructor(data?: Partial<StockItem>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (data !== undefined) {
       if (this.priority == null) {
         throw new TypeError("priority is required");

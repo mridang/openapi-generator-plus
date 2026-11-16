@@ -269,6 +269,27 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert is_binary(result)
   end
 
+  test "a non-JSON success body on a non-text return type raises SerializationError", %{
+    state: state
+  } do
+    err =
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.Api.BaseApi.invoke_api(
+          state,
+          :get,
+          "/test/text-plain",
+          %{},
+          %{},
+          nil,
+          ["text/plain"],
+          "application/json",
+          "Pet"
+        )
+      end
+
+    assert err.message =~ "is not JSON"
+  end
+
   test "returns nil when return_type is nil", %{state: state} do
     assert {:ok, nil} =
              PetstoreClient.Api.BaseApi.invoke_api(

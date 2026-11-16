@@ -357,9 +357,9 @@ export class TransportOptionsBuilder {
    * @returns this builder
    */
   timeout(timeout: number | null): this {
-    if (timeout !== null && timeout < 0) {
-      throw new RangeError(
-        `Invalid timeout (must not be negative): ${timeout}`,
+    if (timeout !== null && !(timeout > 0)) {
+      throw new TypeError(
+        `Invalid timeout: must be a positive number of milliseconds (got ${timeout})`,
       );
     }
     this._timeout = timeout;

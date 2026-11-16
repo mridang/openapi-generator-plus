@@ -82,7 +82,12 @@ export class PhotoMetadata {
   location?: PhotoMetadataLocation;
 
   constructor(data?: Partial<PhotoMetadata>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (this.caption != null && typeof this.caption !== "string") {
       throw new TypeError(
         `caption must be a string, got ${typeof this.caption}`,

@@ -265,6 +265,28 @@ test('a binary body is sent as raw bytes whether given as string, stream resourc
     fclose($resource);
 })->with(['string', 'resource', 'psr7']);
 
+test('a binary body file that can no longer be read throws instead of sending an empty body', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $path = tempnam(sys_get_temp_dir(), 'body');
+    assert($path !== false);
+    file_put_contents($path, 'bytes');
+    $file = new \SplFileObject($path);
+    unlink($path);
+
+    expect(fn (): mixed => $api->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        $file,
+        ['application/json'],
+        'application/octet-stream',
+        null
+    ))->toThrow(\InvalidArgumentException::class, 'Failed to read request body file');
+    expect($client->capturedBody)->toBeNull();
+});
+
 test('falls back to client-level authenticator when no per-call auth is supplied', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');

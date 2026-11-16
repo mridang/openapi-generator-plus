@@ -141,7 +141,7 @@ final class PetApiTests {
     let pet = Pet(name: "Fido", photoUrls: ["http://example.com/fido.jpg"])
 
     let result = try await api.addPet(pet: pet, options: AddPetOptions(auth: auth))
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testAddPetWithHTTPInfo() async throws {
@@ -160,7 +160,7 @@ final class PetApiTests {
     let api = petApiForIntegration()
 
     let result = try await api.getPetById(petId: 1)
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testGetPetByIdWithHTTPInfo() async throws {
@@ -168,7 +168,6 @@ final class PetApiTests {
 
     let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
     #expect(result.statusCode == 200)
-    #expect(result.headers != nil)
     #expect(!result.rawBody.isEmpty)
   }
 
@@ -178,7 +177,7 @@ final class PetApiTests {
     let pet = Pet(name: "UpdatedFido", photoUrls: ["http://example.com/fido-updated.jpg"])
 
     let result = try await api.updatePet(petId: 1, pet: pet)
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testUpdatePetWithHTTPInfo() async throws {
@@ -213,7 +212,7 @@ final class PetApiTests {
 
     let result = try await api.findPetsByStatus(
       options: FindPetsByStatusOptions(status: "available"))
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testFindPetsByStatusWithHTTPInfo() async throws {
@@ -228,7 +227,7 @@ final class PetApiTests {
     let api = petApiForIntegration()
 
     let result = try await api.getPetPassport(petId: 1)
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testGetPetPassportWithHTTPInfo() async throws {
@@ -479,7 +478,7 @@ final class PetApiTests {
     let api = petApiForIntegration()
 
     let result = try await api.getPetAvatarThumbnail(petId: 1)
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testSetPetAvatarThumbnail() async throws {
@@ -496,7 +495,7 @@ final class PetApiTests {
 
     let result = try await api.uploadPetCertificate(
       petId: 1, options: UploadPetCertificateOptions(file: fakeCert))
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testUploadPetDocument() async throws {
@@ -508,7 +507,7 @@ final class PetApiTests {
       options: UploadPetDocumentOptions(
         file: fakeDoc, documentType: "vaccination_record", notes: "Annual checkup")
     )
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testAddPetPhotos() async throws {
@@ -523,7 +522,7 @@ final class PetApiTests {
     let api = petApiForIntegration()
 
     let result = try await api.downloadPetDocument(petId: 1, documentId: 1)
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testGetPetPhoto() async throws {
@@ -629,7 +628,7 @@ final class PetApiTests {
     let mockApi = petApiForMock(
       statusCode: 200, body: "FAKE_BINARY_DATA", contentType: "application/octet-stream")
     let result = try await mockApi.getPetAvatar(petId: 1)
-    #expect(result != nil)
+    _ = result
   }
 
   // byte-over-json: `format: byte` returned as application/json arrives as a JSON
@@ -649,7 +648,7 @@ final class PetApiTests {
     let fakeCert = Data("fake-cert".utf8)
     let result = try await mockApi.uploadPetCertificate(
       petId: 1, options: UploadPetCertificateOptions(file: fakeCert))
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testErrorHandlingNotFound() async throws {
@@ -779,7 +778,7 @@ final class PetApiTests {
     #expect(opts.status == "available")
     let mockApi = petApiForMock(statusCode: 200, body: "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}")
     let result = try await mockApi.getPetById(petId: 1)
-    #expect(result != nil)
+    _ = result
   }
 
   // form-array-repeated-keys: an x-www-form-urlencoded array field must be
@@ -930,7 +929,7 @@ final class PetApiTests {
 
     let result = try await api.getPetByName(
       name: "Fido", options: GetPetByNameOptions(category: "dog", xCorrelationId: "c-1"))
-    #expect(result != nil)
+    _ = result
     #expect(mockClient.lastURL.contains("category=dog"))
   }
 

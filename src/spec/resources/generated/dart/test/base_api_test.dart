@@ -52,7 +52,7 @@ class _CapturingApiClient implements ApiClient {
   }) async {
     capturedUrl = url;
     capturedBody = body is List<int> ? utf8.decode(body) : '';
-    return const ApiHttpResponse(
+    return ApiHttpResponse(
       statusCode: 200,
       body: '{}',
       headers: {'content-type': 'application/json'},
@@ -92,13 +92,11 @@ void main() {
         final status = entry.key;
         final errType = entry.value;
 
-        final config = ConfigurationBuilder()
-            .baseUrl('$chasmHttpUrl/test/status/$status')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
+        final api = BaseApi(apiClient: DefaultApiClient(), config: config);
 
         try {
-          await api.getPetById(1, null);
+          await api.invokeApi(method: 'GET', path: '/test/status/$status');
           fail('Expected error for status $status');
         } on ApiException catch (e) {
           expect(

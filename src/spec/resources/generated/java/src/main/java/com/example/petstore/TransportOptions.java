@@ -300,12 +300,13 @@ public final class TransportOptions {
     /**
      * Set the end-to-end request timeout in milliseconds.
      *
-     * @param timeout timeout in milliseconds, or {@code null} for no timeout
+     * @param timeout timeout in milliseconds (positive), or {@code null} for no timeout
      * @return this builder
      */
     public Builder timeout(@Nullable Integer timeout) {
-      if (timeout != null && timeout < 0) {
-        throw new IllegalArgumentException("Invalid timeout (must not be negative): " + timeout);
+      if (timeout != null && timeout <= 0) {
+        throw new IllegalArgumentException(
+            "Invalid timeout: must be a positive number of milliseconds (got " + timeout + ")");
       }
       this.timeout = timeout;
       return this;
@@ -325,10 +326,14 @@ public final class TransportOptions {
     /**
      * Set the maximum number of redirects to follow.
      *
-     * @param maxRedirects maximum redirect hops, or {@code null} for client default
+     * @param maxRedirects maximum redirect hops (not negative), or {@code null} for client default
      * @return this builder
      */
     public Builder maxRedirects(@Nullable Integer maxRedirects) {
+      if (maxRedirects != null && maxRedirects < 0) {
+        throw new IllegalArgumentException(
+            "Invalid maxRedirects: must not be negative (got " + maxRedirects + ")");
+      }
       this.maxRedirects = maxRedirects;
       return this;
     }

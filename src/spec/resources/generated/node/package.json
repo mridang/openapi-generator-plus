@@ -18,6 +18,9 @@
       "default": "./dist/src/default-api-client.web.js"
     }
   },
+  "sideEffects": [
+    "./dist/src/object-serializer.js"
+  ],
   "files": [
     "dist"
   ],

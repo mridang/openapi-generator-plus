@@ -31,11 +31,15 @@ defmodule PetstoreClient.Client do
   """
 
   @type t :: %__MODULE__{
+          api_client: PetstoreClient.DefaultApiClient.t(),
+          authenticator: term(),
           pet: PetstoreClient.Api.PetApi.t(),
           store: PetstoreClient.Api.StoreApi.t()
         }
 
   defstruct [
+    :api_client,
+    :authenticator,
     :pet,
     :store
   ]
@@ -71,6 +75,8 @@ defmodule PetstoreClient.Client do
       PetstoreClient.Configuration.new(base_url: authenticator.__struct__.host(authenticator))
 
     %__MODULE__{
+      api_client: api_client,
+      authenticator: authenticator,
       pet: PetstoreClient.Api.PetApi.new(api_client, config, authenticator),
       store: PetstoreClient.Api.StoreApi.new(api_client, config, authenticator)
     }
@@ -119,5 +125,23 @@ defmodule PetstoreClient.Client do
   @spec with_authenticator(term(), PetstoreClient.TransportOptions.t() | nil) :: t()
   def with_authenticator(authenticator, transport_options \\ nil) do
     new(authenticator, transport_options)
+  end
+
+  @doc """
+  Releases the transport this client created and the processes its
+  authenticator started (OAuth2 token managers, OpenID Connect discovery).
+
+  Idempotent. After it returns, a call through this client raises. A transport
+  supplied through `TransportOptions` `req_options` is never closed by the SDK.
+  """
+  @spec close(t()) :: :ok
+  def close(%__MODULE__{api_client: api_client, authenticator: authenticator}) do
+    if is_map(authenticator) and Map.has_key?(authenticator, :__struct__) and
+         Code.ensure_loaded?(authenticator.__struct__) and
+         function_exported?(authenticator.__struct__, :close, 1) do
+      authenticator.__struct__.close(authenticator)
+    end
+
+    PetstoreClient.DefaultApiClient.close(api_client)
   end
 end

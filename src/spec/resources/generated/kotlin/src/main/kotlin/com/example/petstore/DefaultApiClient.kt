@@ -150,7 +150,7 @@ class DefaultApiClient internal constructor(
         if (transportOptions.injectRequestId && !hasHeader(mergedHeaders, "X-Request-ID")) {
             mergedHeaders["X-Request-ID"] = generateRequestId()
         }
-        if ("Accept-Encoding" !in mergedHeaders) {
+        if (!hasHeader(mergedHeaders, "Accept-Encoding")) {
             mergedHeaders["Accept-Encoding"] = supportedEncodings()
         }
         if (proxyAuthHeader != null) {
@@ -222,7 +222,7 @@ class DefaultApiClient internal constructor(
                 ) {
                     throw ApiException(
                         response.status.value,
-                        "Refusing to follow redirect to non-HTTP(S) URL: $redirectUri",
+                        "Refusing to follow redirect to non-HTTP(S) URL: ${redactUrl(redirectUri.toString())}",
                         responseHeadersOf(response),
                         null,
                     )
@@ -255,8 +255,9 @@ class DefaultApiClient internal constructor(
                 ) {
                     throw ApiException(
                         response.status.value,
-                        "Refusing to replay request body across HTTPS->HTTP redirect: $currentUrl -> $redirectUri",
-                        null,
+                        "Refusing to replay request body across HTTPS->HTTP redirect: " +
+                            "${redactUrl(currentUrl)} -> ${redactUrl(redirectUri.toString())}",
+                        responseHeadersOf(response),
                         null,
                     )
                 }
@@ -320,10 +321,15 @@ class DefaultApiClient internal constructor(
             // Redirect budget exhausted but the server is still returning a
             // 3xx: fail loud instead of silently handing the caller the last
             // redirect response as if it were a normal result.
-            if (isRedirectStatus(response.status.value) && redirectsRemaining == 0) {
+            // A 3xx with no usable Location is returned as-is (D70): only a
+            // response that could still be followed counts as exhaustion.
+            if (isRedirectStatus(response.status.value) &&
+                redirectsRemaining == 0 &&
+                usableRedirectLocation(java.net.URI(currentUrl), response.headers[HttpHeaders.Location]) != null
+            ) {
                 throw ApiException(
                     response.status.value,
-                    "Too many redirects (exceeded maxRedirects=${transportOptions.maxRedirects ?: 20})",
+                    "Too many redirects (exceeded ${transportOptions.maxRedirects ?: 20})",
                     responseHeadersOf(response),
                     null,
                 )
@@ -708,7 +714,9 @@ internal fun buildProxyAuthHeader(proxyUrl: String?): String? {
         }
     val rawUserInfo = uri.rawUserInfo ?: return null
     if (rawUserInfo.isEmpty()) return null
-    val decoded = java.net.URLDecoder.decode(rawUserInfo, Charsets.UTF_8)
+    // URLDecoder is form decoding and turns a literal '+' into a space; in a
+    // URI userinfo '+' is a plain sub-delim (RFC 3986 section 3.2.1).
+    val decoded = java.net.URLDecoder.decode(rawUserInfo.replace("+", "%2B"), Charsets.UTF_8)
     val encoded =
         java.util.Base64
             .getEncoder()
@@ -790,6 +798,12 @@ internal fun usableRedirectLocation(
     }
 }
 
+/**
+ * A URL as it may appear in an error message: the query and fragment are
+ * dropped, because a query-parameter API key is part of the query.
+ */
+internal fun redactUrl(url: String): String = url.substringBefore('#').substringBefore('?')
+
 /** True when [headers] holds [name] under any ASCII letter case (RFC 9110 section 5.1). */
 private fun hasHeader(
     headers: Map<String, String>,
@@ -843,10 +857,23 @@ internal fun contentTypeForFilename(filename: String): ContentType {
  */
 internal fun charsetFor(contentType: String?): java.nio.charset.Charset {
     if (contentType.isNullOrEmpty()) return Charsets.UTF_8
-    val afterEquals = contentType.substringAfter("charset=", "")
-    if (afterEquals.isEmpty()) return Charsets.UTF_8
-    val name = afterEquals.substringBefore(";").trim().trim('"', '\'')
-    if (name.isEmpty()) return Charsets.UTF_8
+    // Parameter names are case-insensitive and may have whitespace around '='
+    // (RFC 9110 sections 5.6.6 and 8.3.1); only a parameter named exactly
+    // `charset` counts, never one that merely ends in it (`xcharset`).
+    val name =
+        contentType
+            .split(';')
+            .drop(1)
+            .map { it.trim() }
+            .firstNotNullOfOrNull { parameter ->
+                val eq = parameter.indexOf('=')
+                if (eq > 0 && parameter.substring(0, eq).trim().equals("charset", ignoreCase = true)) {
+                    parameter.substring(eq + 1).trim().trim('"', '\'')
+                } else {
+                    null
+                }
+            }
+    if (name.isNullOrEmpty()) return Charsets.UTF_8
     return try {
         java.nio.charset.Charset
             .forName(name)

@@ -164,9 +164,13 @@ defmodule PetstoreClient.ObjectSerializer do
 
       {:error, reason} ->
         raise PetstoreClient.Errors.SerializationError,
-          message: "Failed to serialize: #{inspect(reason)}"
+          message: "Failed to serialize object to JSON: #{error_detail(reason)}"
     end
   end
+
+  defp error_detail(reason) when is_binary(reason), do: reason
+  defp error_detail(reason) when is_exception(reason), do: Exception.message(reason)
+  defp error_detail(reason), do: inspect(reason)
 
   # A model's JSON object is written with its keys in schema declaration order
   # (the model's `json_key_order/0`), then any captured additional properties,
@@ -247,7 +251,7 @@ defmodule PetstoreClient.ObjectSerializer do
 
       {:error, reason} ->
         raise PetstoreClient.Errors.SerializationError,
-          message: "Failed to parse JSON: #{inspect(reason)}"
+          message: "Failed to deserialize JSON: #{error_detail(reason)}"
     end
   end
 

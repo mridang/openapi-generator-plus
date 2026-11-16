@@ -62,7 +62,16 @@ defmodule PetstoreClient.ApiErrorTest do
       )
 
     assert PetstoreClient.Errors.ApiError.message(full) ==
-             ~s(boom\nHTTP status code: 502\nResponse headers: %{"x-id" => "1"}\nResponse body: upstream down)
+             ~s(boom\nHTTP status code: 502\nResponse headers: {"x-id":"1"}\nResponse body: upstream down)
+
+    sorted =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "boom",
+        response_headers: %{"b" => "2", "a" => "1"}
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(sorted) ==
+             ~s(boom\nResponse headers: {"a":"1","b":"2"})
 
     bare =
       PetstoreClient.Errors.ApiError.exception(

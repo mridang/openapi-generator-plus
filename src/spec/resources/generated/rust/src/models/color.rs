@@ -22,6 +22,17 @@ pub enum Color {
     Blue,
 }
 
+impl std::fmt::Display for Color {
+    /// Writes the wire value, not the variant name.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Color::Red => "red",
+            Color::Green => "green",
+            Color::Blue => "blue",
+        })
+    }
+}
+
 impl Color {
     /// Returns all allowed values of Color.
     pub fn all_values() -> Vec<Color> {

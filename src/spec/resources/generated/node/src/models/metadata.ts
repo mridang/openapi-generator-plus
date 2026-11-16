@@ -134,7 +134,7 @@ export class Metadata {
       this,
       Object.fromEntries(
         Object.entries(data ?? {}).filter(
-          ([key]) => key !== "additionalProperties",
+          ([key]) => key !== "additionalProperties" && key !== "__proto__",
         ),
       ),
     );

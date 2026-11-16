@@ -23,9 +23,10 @@ class OAuth2TokenManager:
     as regular API calls.
     """
 
-    # Safety margin (in seconds) applied to token expiry checks so that we
-    # refresh slightly before the token actually expires, avoiding a race
-    # against the server clock.
+    # Safety margin (in seconds), applied once when a token is stored so that
+    # we refresh slightly before the token actually expires, avoiding a race
+    # against the server clock. The margin is capped at half the lifetime, so
+    # a short-lived token is still reused for the other half.
     _EXPIRY_SAFETY_MARGIN_S = 60
 
     def __init__(self) -> None:
@@ -88,8 +89,7 @@ class OAuth2TokenManager:
         """
         with self._lock:
             if self._access_token and (
-                self._token_expiry is None
-                or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)
+                self._token_expiry is None or time.time() < self._token_expiry
             ):
                 return self._access_token
             if self._refresh_token and params.get("grant_type") != "refresh_token":
@@ -258,8 +258,8 @@ class OAuth2TokenManager:
         # it as OAuth2TokenException rather than a raw decoder error.
         try:
             token_data = json.loads(response.body)
-        except ValueError as e:
-            raise OAuth2TokenException(f"Token response is not valid JSON: {e}") from e
+        except ValueError:
+            raise OAuth2TokenException("Token response is not valid JSON") from None
         if not isinstance(token_data, dict):
             raise OAuth2TokenException("Token response is not a JSON object")
         access_token = token_data.get("access_token")
@@ -280,10 +280,15 @@ class OAuth2TokenManager:
             # (preferable to caching a token of unknown lifetime forever).
             expires_in = self._parse_expires_in(token_data["expires_in"])
             if expires_in > 0:
-                buffer_secs = min(expires_in, 30)
-                self._token_expiry = time.time() + expires_in - buffer_secs
+                margin = min(self._EXPIRY_SAFETY_MARGIN_S, expires_in / 2)
+                self._token_expiry = time.time() + expires_in - margin
             else:
                 self._token_expiry = time.time()
+        else:
+            # No expires_in means no expiry (RFC 6749 section 5.1 makes it
+            # optional): drop the previous token's expiry so a refreshed token
+            # is not judged stale by the old, past instant.
+            self._token_expiry = None
 
     @staticmethod
     def _parse_oauth2_server_error(

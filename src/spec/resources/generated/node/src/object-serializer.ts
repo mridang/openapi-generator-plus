@@ -584,7 +584,7 @@ export class ObjectSerializer {
       return JSON.parse(json, recordNumberSource);
     } catch (e) {
       throw new SerializationError(
-        `Failed to parse JSON: ${e instanceof Error ? e.message : String(e)}`,
+        `Failed to deserialize JSON: ${e instanceof Error ? e.message : String(e)}`,
         e instanceof Error ? e : undefined,
       );
     }
@@ -1100,7 +1100,14 @@ export class ObjectSerializer {
           `Null value for key ${JSON.stringify(k)} of a map of ${(cls as ClassConstructor<T>).name}`,
         );
       }
-      out[k] = deserialized as T;
+      /* defineProperty, never `out[k] =`: a wire key "__proto__" must stay an
+       * own entry, not call the prototype setter and re-prototype the map. */
+      Object.defineProperty(out, k, {
+        value: deserialized as T,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     }
     return out;
   }

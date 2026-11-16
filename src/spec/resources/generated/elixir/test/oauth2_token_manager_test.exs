@@ -195,7 +195,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
             status_code: 200,
-            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 1})
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 0})
           },
           %PetstoreClient.ApiHttpResponse{
             status_code: 200,
@@ -359,17 +359,16 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 1
     end
 
-    test "expires_in exactly buffer returns zero buffer" do
-      # Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+    test "expires_in of 0 is stale at once and refetches" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
             status_code: 200,
-            body: Jason.encode!(%{"access_token" => "edge1", "expires_in" => 30})
+            body: Jason.encode!(%{"access_token" => "edge1", "expires_in" => 0})
           },
           %PetstoreClient.ApiHttpResponse{
             status_code: 200,
-            body: Jason.encode!(%{"access_token" => "edge2", "expires_in" => 30})
+            body: Jason.encode!(%{"access_token" => "edge2", "expires_in" => 0})
           }
         ])
 
@@ -390,6 +389,39 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 2
     end
 
+    for expires_in <- [31, 60, 90, 120] do
+      test "a token with expires_in #{expires_in} is reused, not refetched on every call" do
+        fake_client =
+          FakeApiClient.new([
+            %PetstoreClient.ApiHttpResponse{
+              status_code: 200,
+              body:
+                Jason.encode!(%{"access_token" => "reused", "expires_in" => unquote(expires_in)})
+            }
+          ])
+
+        {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+        params = %{"grant_type" => "client_credentials"}
+        token_url = "https://auth.example.com/token"
+
+        assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+                 manager,
+                 token_url,
+                 params
+               ) == "reused"
+
+        assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+                 manager,
+                 token_url,
+                 params
+               ) == "reused"
+
+        assert FakeApiClient.call_count(fake_client) == 1
+      end
+    end
+
     test "refresh_token empty string preserves existing" do
       # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
       # MUST NOT clobber the cached refresh_token.
@@ -401,7 +433,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
               Jason.encode!(%{
                 "access_token" => "old_access",
                 "refresh_token" => "old_refresh",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -439,7 +471,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -485,7 +517,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -531,7 +563,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -574,7 +606,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -620,7 +652,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -788,7 +820,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 1
     end
 
-    test "a refresh response without expires_in keeps the existing expiry" do
+    test "a refresh response without expires_in is cached without a lapsed expiry" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -797,16 +829,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
             status_code: 200,
             body: Jason.encode!(%{"access_token" => "tok2"})
-          },
-          %PetstoreClient.ApiHttpResponse{
-            status_code: 200,
-            body: Jason.encode!(%{"access_token" => "tok3", "expires_in" => 3600})
           }
         ])
 
@@ -828,15 +856,15 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
                params
              ) == "tok2"
 
-      # The first token's expiry was not replaced by "never expires", so the
-      # token is still stale and the next call goes back to the endpoint.
+      # The refresh answer named no lifetime, so the lapsed expiry of the first
+      # token is cleared and the second token is reused, not refreshed per call.
       assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
                manager,
                token_url,
                params
-             ) == "tok3"
+             ) == "tok2"
 
-      assert FakeApiClient.call_count(fake_client) == 3
+      assert FakeApiClient.call_count(fake_client) == 2
     end
 
     test "a non-string refresh_token is ignored" do
@@ -1073,13 +1101,29 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
         )
       end
 
-      assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
-        fetch.(%PetstoreClient.ApiHttpResponse{status_code: 200, body: "<html>ok</html>"})
-      end
+      err =
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+          fetch.(%PetstoreClient.ApiHttpResponse{status_code: 200, body: "<html>ok</html>"})
+        end
 
-      assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
-        fetch.(%PetstoreClient.ApiHttpResponse{status_code: 200, body: "[1, 2]"})
-      end
+      assert err.message == "Token response is not valid JSON"
+
+      err =
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+          fetch.(%PetstoreClient.ApiHttpResponse{status_code: 200, body: "[1, 2]"})
+        end
+
+      assert err.message == "Token response is not a JSON object"
+
+      err =
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+          fetch.(%PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: ~s({"access_token": ""})
+          })
+        end
+
+      assert err.message == "Token response missing or empty access_token field"
 
       assert_raise PetstoreClient.Errors.NetworkError, fn ->
         fetch.(PetstoreClient.Errors.NetworkError.exception(message: "connection refused"))
@@ -1159,6 +1203,55 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
 
       assert Enum.all?(tokens, &(&1 == "tok2"))
       assert NumberingCountingApiClient.call_count(counting_client) == 2
+    end
+
+    test "token_type bearer in any case, or none, is accepted; anything else is refused" do
+      fetch = fn token_type ->
+        body = %{"access_token" => "tok", "expires_in" => 3600}
+        body = if token_type == :none, do: body, else: Map.put(body, "token_type", token_type)
+
+        {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(
+          manager,
+          FakeApiClient.new([
+            %PetstoreClient.ApiHttpResponse{status_code: 200, body: Jason.encode!(body)}
+          ])
+        )
+
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+
+      for accepted <- [:none, "Bearer", "bearer", "BEARER"] do
+        assert fetch.(accepted) == "tok"
+      end
+
+      for refused <- ["DPoP", "mac", "N_A", 5] do
+        err = assert_raise PetstoreClient.Errors.OAuth2TokenError, fn -> fetch.(refused) end
+        assert err.message == "Unsupported token_type in token response"
+      end
+    end
+
+    test "stop/1 is idempotent and a stopped manager raises a typed error" do
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.stop(manager) == :ok
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.stop(manager) == :ok
+
+      err =
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+          PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials"}
+          )
+        end
+
+      assert err.message == "The token manager is stopped (the client was closed)"
     end
   end
 end

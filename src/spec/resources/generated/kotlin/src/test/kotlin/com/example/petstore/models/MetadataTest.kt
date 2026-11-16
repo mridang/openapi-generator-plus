@@ -56,6 +56,17 @@ class MetadataTest {
     }
 
     @Test
+    @DisplayName("the additionalProperties bucket can be supplied at construction and copy() carries it")
+    fun testAdditionalPropertiesConstructorParameterAndCopy() {
+        val metadata = Metadata(additionalProperties = mutableMapOf<String, Any?>("k" to "v"))
+        assertEquals("v", metadata.additionalProperties["k"])
+
+        val copied = metadata.copy(createdAt = null)
+        assertEquals("v", copied.additionalProperties["k"])
+        assertEquals(metadata, copied)
+    }
+
+    @Test
     @DisplayName("equals and hashCode include the additionalProperties bucket")
     fun testEqualsIncludesAdditionalProperties() {
         // The overflow bucket is a @Transient property in the class body, which

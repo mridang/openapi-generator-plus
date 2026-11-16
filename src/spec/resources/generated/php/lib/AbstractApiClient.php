@@ -181,10 +181,18 @@ abstract class AbstractApiClient implements ApiClient
             $mergedHeaders['X-Request-ID'] = $this->generateUuid();
         }
 
-        $mergedHeaders['Accept-Encoding'] ??= $this->getSupportedEncodings();
+        /* A caller's accept-encoding in any casing wins (RFC 9110 section 5.1);
+         * a second differently-cased line would be sent next to it. */
+        if (!isset($presentHeaders['accept-encoding'])) {
+            $mergedHeaders['Accept-Encoding'] = $this->getSupportedEncodings();
+        }
 
         if ($body === null) {
-            unset($mergedHeaders['Content-Type']);
+            foreach (array_keys($mergedHeaders) as $headerName) {
+                if (strtolower((string) $headerName) === 'content-type') {
+                    unset($mergedHeaders[$headerName]);
+                }
+            }
             /* Some servers / WAFs treat POST/PUT/PATCH with no body
              * and no Content-Length as malformed (411 Length
              * Required) or behave inconsistently. Emit an explicit
@@ -233,7 +241,8 @@ abstract class AbstractApiClient implements ApiClient
                          * returning the 3xx, matching the throwing SDKs. */
                         throw new ApiException(
                             $response->statusCode,
-                            "Redirect to unsupported scheme '$scheme' in Location: $nextUrl"
+                            "Refusing to follow redirect to non-HTTP(S) URL: $nextUrl",
+                            $this->joinedHeaders($response->headers)
                         );
                     }
                     $crossOrigin = !self::sameOrigin($originalUrl, $nextUrl);
@@ -277,7 +286,8 @@ abstract class AbstractApiClient implements ApiClient
                          * matching the SDKs that throw on a refused replay. */
                         throw new ApiException(
                             $statusCode,
-                            "Refusing to replay request body across HTTPS->HTTP downgrade redirect to $nextUrl"
+                            "Refusing to replay request body across HTTPS->HTTP redirect: $url -> $nextUrl",
+                            $this->joinedHeaders($response->headers)
                         );
                     }
 
@@ -318,10 +328,16 @@ abstract class AbstractApiClient implements ApiClient
                  * response is still a redirect, raise "too many redirects"
                  * instead of silently returning the last 3xx as a normal
                  * response — matching the throwing SDKs. */
-                if ($hops >= $maxRedirects && self::isRedirectStatus($response->statusCode)) {
+                if (
+                    $hops >= $maxRedirects
+                    && self::isRedirectStatus($response->statusCode)
+                    && isset($response->headers['location'][0])
+                    && self::resolveUrl($url, $response->headers['location'][0]) !== null
+                ) {
                     throw new ApiException(
                         $response->statusCode,
-                        "Too many redirects (exceeded maxRedirects=$maxRedirects)"
+                        "Too many redirects (exceeded $maxRedirects)",
+                        $this->joinedHeaders($response->headers)
                     );
                 }
             }
@@ -338,10 +354,7 @@ abstract class AbstractApiClient implements ApiClient
                for the public surface. The joined form is not directly
                parseable for Set-Cookie; callers needing structured cookie
                access should use a transport that exposes the raw response. */
-            $responseHeaders = [];
-            foreach ($response->headers as $name => $values) {
-                $responseHeaders[strtolower((string) $name)] = implode(', ', $values);
-            }
+            $responseHeaders = $this->joinedHeaders($response->headers);
             $contentEncoding = $response->headers['content-encoding'][0] ?? '';
             try {
                 $responseBody = $this->decompressBody($responseBody, $contentEncoding);
@@ -379,6 +392,22 @@ abstract class AbstractApiClient implements ApiClient
         } finally {
             $this->deadline = null;
         }
+    }
+
+    /**
+     * Lower-cases header names and joins repeated values with ', ', the form
+     * the public response and the redirect refusals carry.
+     *
+     * @param array<array-key, array<array-key, string>> $headers transport headers, name to value list
+     * @return array<string, string>
+     */
+    private function joinedHeaders(array $headers): array
+    {
+        $joined = [];
+        foreach ($headers as $name => $values) {
+            $joined[strtolower((string) $name)] = implode(', ', $values);
+        }
+        return $joined;
     }
 
     /**

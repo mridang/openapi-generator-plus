@@ -84,10 +84,19 @@ class TestTransportOptions:
         assert opts.follow_redirects is True
         assert opts.max_redirects is None
 
-    def test_negative_timeout_raises_value_error(self) -> None:
-        with pytest.raises(ValueError):
-            TransportOptions.builder().timeout(-1)
-        assert TransportOptions.builder().timeout(0).build().timeout == 0
+    @pytest.mark.parametrize("value", [-1, 0])
+    def test_a_non_positive_timeout_is_rejected_with_the_canonical_message(
+        self, value: int
+    ) -> None:
+        message = (
+            f"Invalid timeout: must be a positive number of milliseconds (got {value})"
+        )
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().timeout(value)
+        assert str(exc_info.value) == message
+        with pytest.raises(ValueError) as direct:
+            TransportOptions(timeout=value)
+        assert str(direct.value) == message
 
     def test_invalid_proxy_url_throws_exception(self) -> None:
         with pytest.raises(ValueError) as exc_info:

@@ -8,6 +8,8 @@
 package com.example.petstore.errors
 
 import com.example.petstore.ObjectSerializer
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * Exception thrown when an API call fails.
@@ -209,7 +211,7 @@ open class ApiException : OpenAPIException {
         }
         val headers = responseHeaders
         if (!headers.isNullOrEmpty()) {
-            rendered.append("\nResponse headers: ").append(headers)
+            rendered.append("\nResponse headers: ").append(compactJson(headers))
         }
         val body = responseBody
         if (!body.isNullOrEmpty()) {
@@ -218,3 +220,7 @@ open class ApiException : OpenAPIException {
         return rendered.toString()
     }
 }
+
+/** The headers as one compact JSON object with sorted keys, the same text in every SDK. */
+private fun compactJson(headers: Map<String, String>): String =
+    JsonObject(headers.toSortedMap().mapValues { JsonPrimitive(it.value) }).toString()

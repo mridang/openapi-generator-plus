@@ -21,7 +21,7 @@ import Testing
 
   @Test func testBuilderReturnsInstance() {
     let builder = ConfigurationBuilder()
-    #expect(builder != nil)
+    _ = builder
   }
 
   @Test func testBuilderSetsBaseURL() {

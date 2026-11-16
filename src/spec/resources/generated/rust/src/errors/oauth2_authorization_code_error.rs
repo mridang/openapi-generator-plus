@@ -27,10 +27,10 @@ pub enum OAuth2AuthorizationCodeError {
 impl fmt::Display for OAuth2AuthorizationCodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CodeNotExchanged => f.write_str(
-                "oauth2 authorization code: must call exchange_code before requesting auth headers",
-            ),
-            Self::EmptyCode => f.write_str("oauth2 authorization code: code must not be empty"),
+            Self::CodeNotExchanged => {
+                f.write_str("Must call exchange_code() before making API requests")
+            }
+            Self::EmptyCode => f.write_str("Authorization code must not be empty"),
         }
     }
 }

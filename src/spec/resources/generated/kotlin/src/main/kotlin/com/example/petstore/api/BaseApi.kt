@@ -17,6 +17,7 @@ import com.example.petstore.ObjectSerializer
 import com.example.petstore.TraceContextUtil
 import com.example.petstore.ValueSerializer
 import com.example.petstore.auth.Authenticator
+import com.example.petstore.auth.HttpAwareAuthenticator
 import com.example.petstore.auth.NoAuth
 import com.example.petstore.errors.ApiException
 import io.ktor.http.encodeURLParameter
@@ -147,6 +148,13 @@ abstract class BaseApi {
                 auth != null -> auth
                 else -> this.authenticator
             }
+        /* A per-call authenticator that makes HTTP calls of its own (an OAuth2 or
+         * OpenID Connect flow) never went through the client facade, so it has no
+         * transport yet. Hand it this API's, so its token requests use the same
+         * proxy, TLS and timeout settings as the call it authenticates. */
+        if (auth != null && auth !== NoAuth && effectiveAuth is HttpAwareAuthenticator) {
+            effectiveAuth.setApiClient(apiClient)
+        }
         if (effectiveAuth != null) {
             for ((key, value) in effectiveAuth.getQueryParams()) {
                 queryParams[key] = value
@@ -359,7 +367,9 @@ abstract class BaseApi {
             } else {
                 null
             }
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        // The result owns a copy: mutating the map the transport handed over
+        // must never change what the caller already holds, and vice versa.
+        return ApiResult(response.statusCode, data, response.body, response.headers.toMap())
     }
 
     /**

@@ -16,6 +16,7 @@ import com.example.petstore.DefaultApiClient;
 import com.example.petstore.ObjectSerializer;
 import com.example.petstore.TraceContextUtil;
 import com.example.petstore.auth.Authenticator;
+import com.example.petstore.auth.HttpAwareAuthenticator;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.errors.SerializationException;
 import java.io.ByteArrayInputStream;
@@ -167,6 +168,9 @@ public abstract class BaseApi {
       effectiveAuth = null;
     } else if (auth != null) {
       effectiveAuth = auth;
+      if (auth instanceof HttpAwareAuthenticator httpAware) {
+        httpAware.setApiClient(apiClient);
+      }
     } else {
       effectiveAuth = this.authenticator;
     }

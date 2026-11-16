@@ -320,8 +320,13 @@ public class PetApiTest
         // An unknown requestContentType must be rejected client-side
         // (ArgumentException), not passed onto the wire as an undeclared type.
         var imageData = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF });
-        await Assert.ThrowsAsync<ArgumentException>(() =>
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
             _api.SetPetAvatarAsync(1L, imageData, "application/unknown-type")
+        );
+        Assert.Equal(
+            "Unsupported request content-type 'application/unknown-type' for SetPetAvatar;"
+                + " declared types are [image/jpeg, image/png, application/json]",
+            ex.Message
         );
     }
 
@@ -1163,6 +1168,22 @@ public class PetApiTest
 
         await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
             mockApi.GetPetByIdAsync(1L)
+        );
+    }
+
+    [Fact]
+    public async Task TestNonJsonSuccessContentTypeNamesTheOperation()
+    {
+        // A JSON-typed operation answered with a non-JSON Content-Type fails
+        // with the canonical message, naming the operation and not the model.
+        var mockApi = NewPetApiForMock(200, "text/plain", "plain words");
+
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            mockApi.GetPetByIdAsync(1L)
+        );
+        Assert.Equal(
+            "Unexpected response Content-Type 'text/plain' for PetApi.GetPetById: expected a JSON body",
+            ex.Message
         );
     }
 

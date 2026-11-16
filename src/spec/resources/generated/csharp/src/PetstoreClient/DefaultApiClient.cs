@@ -376,7 +376,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
         if (_closed)
         {
-            throw new InvalidOperationException("ApiClient has been closed");
+            throw new InvalidOperationException(
+                "ApiClient has been closed and can no longer send requests"
+            );
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -386,9 +388,17 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             throw new ArgumentException($"Request URL must be absolute: {url}", nameof(url));
         }
 
-        Dictionary<string, string> mergedHeaders = new(_transportOptions.DefaultHeaders);
+        /* Field names are case-insensitive (RFC 9110 section 5.1), so a caller
+         * header replaces a default of the same name whatever its casing and
+         * both are never sent as two headers. */
+        Dictionary<string, string> mergedHeaders = new(StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, string> header in _transportOptions.DefaultHeaders)
+        {
+            mergedHeaders[header.Key] = header.Value;
+        }
         foreach (KeyValuePair<string, string> header in headers)
         {
+            _ = mergedHeaders.Remove(header.Key);
             mergedHeaders[header.Key] = header.Value;
         }
 
@@ -404,7 +414,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             mergedHeaders["X-Request-ID"] = Guid.NewGuid().ToString();
         }
 
-        if (!mergedHeaders.ContainsKey("Accept-Encoding"))
+        if (!HasHeader(mergedHeaders, "Accept-Encoding"))
         {
             mergedHeaders["Accept-Encoding"] = SupportedEncodings();
         }
@@ -543,8 +553,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 /* Default to 20 hops when caller does not configure an
                    explicit cap — unified across all 12 SDKs. */
                 int maxRedirects = _transportOptions.MaxRedirects ?? 20;
-                Uri originalUrl = url;
                 Uri currentUrl = url;
+                /* The headers carried from hop to hop. A credential header
+                   dropped on a cross-origin hop stays dropped for every later
+                   hop, even one that returns to the original origin. */
+                Dictionary<string, string> currentHeaders = mergedHeaders;
                 int hops = 0;
                 string currentMethod = method;
                 object? currentBody = body;
@@ -566,13 +579,15 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                            blocked redirect — matching java/kotlin/python and
                            the harmonised cross-SDK canonical. */
                         int refusedStatus = (int)response.StatusCode;
+                        Dictionary<string, string> refusedHeaders = CollectHeaders(response);
                         response.Dispose();
                         throw new ApiException(
                             refusedStatus,
-                            $"Refusing to follow redirect to non-http(s) URL: {nextUrl}"
+                            $"Refusing to follow redirect to non-HTTP(S) URL: {nextUrl}",
+                            refusedHeaders
                         );
                     }
-                    bool crossOrigin = !SameOrigin(originalUrl, nextUrl);
+                    bool crossOrigin = !SameOrigin(currentUrl, nextUrl);
 
                     /* Gap 3.3: HTTPS -> HTTP downgrade body-replay guard. A
                        307/308 normally preserves the original method and body,
@@ -614,10 +629,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                            matching the 8 SDKs that already throw. The body is
                            never leaked in either case; only the error surface
                            is harmonised. */
+                        Dictionary<string, string> downgradeHeaders = CollectHeaders(response);
                         response.Dispose();
                         throw new ApiException(
                             redirectStatus,
-                            $"Refusing to replay request body across HTTPS->HTTP downgrade redirect to: {nextUrl}"
+                            $"Refusing to replay request body across HTTPS->HTTP redirect: {currentUrl} -> {nextUrl}",
+                            downgradeHeaders
                         );
                     }
 
@@ -648,8 +665,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     }
 
                     HttpRequestMessage next = new(new HttpMethod(nextMethod), nextUrl);
-                    foreach (KeyValuePair<string, string> header in mergedHeaders)
+                    Dictionary<string, string> redirectHeaders = new(
+                        StringComparer.OrdinalIgnoreCase
+                    );
+                    foreach (KeyValuePair<string, string> header in currentHeaders)
                     {
+                        if (crossOrigin && SensitiveHeaderNames.Contains(header.Key))
+                        {
+                            continue;
+                        }
+                        redirectHeaders[header.Key] = header.Value;
                         if (
                             string.Equals(
                                 header.Key,
@@ -668,10 +693,6 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                                 StringComparison.OrdinalIgnoreCase
                             )
                         )
-                        {
-                            continue;
-                        }
-                        if (crossOrigin && SensitiveHeaderNames.Contains(header.Key))
                         {
                             continue;
                         }
@@ -705,6 +726,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     }
                     response.Dispose();
                     currentUrl = nextUrl;
+                    currentHeaders = redirectHeaders;
                     currentMethod = nextMethod;
                     currentBody = nextBody;
                     response = await _httpClient
@@ -718,15 +740,20 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                    Surface a typed SDK error instead of silently returning the
                    final 3xx as if it were a normal response — matching the
                    harmonised cross-SDK canonical (throw "too many redirects"
-                   everywhere). */
-                if (hops >= maxRedirects && IsRedirectStatus((int)response.StatusCode))
+                   everywhere). A 3xx without a usable Location is not a hop that
+                   could have been followed, so it is returned unchanged (D70). */
+                if (
+                    hops >= maxRedirects
+                    && IsRedirectStatus((int)response.StatusCode)
+                    && response.Headers.Location != null
+                )
                 {
                     int lastStatus = (int)response.StatusCode;
                     Dictionary<string, string> lastHeaders = CollectHeaders(response);
                     response.Dispose();
                     throw new ApiException(
                         lastStatus,
-                        $"Exceeded maximum number of redirects ({maxRedirects})",
+                        $"Too many redirects (exceeded {maxRedirects})",
                         lastHeaders
                     );
                 }

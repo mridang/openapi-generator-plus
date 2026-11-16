@@ -18,15 +18,18 @@ import { OAuth2TokenError } from "../../errors/oauth2-token-error.js";
  */
 export class OAuth2TokenManager {
   /**
-   * Safety margin (in milliseconds) applied to token expiry checks so that
-   * we refresh slightly before the token actually expires, avoiding a race
-   * against the server clock.
+   * Largest safety margin (in milliseconds) applied once, when the cached
+   * token is read, so that we refresh slightly before the token actually
+   * expires, avoiding a race against the server clock. The margin never
+   * exceeds half of the token's lifetime, so a short-lived token is still
+   * reused for the first half of its life.
    */
   private static readonly EXPIRY_SAFETY_MARGIN_MS = 60_000;
 
   private apiClient: ApiClient | null = null;
   private accessToken: string | null = null;
   private tokenExpiry: number | null = null;
+  private tokenLifetimeMs = 0;
   private refreshToken: string | null = null;
   private inflightRefresh: Promise<string> | null = null;
   private exchanged = false;
@@ -69,7 +72,11 @@ export class OAuth2TokenManager {
       this.accessToken &&
       (this.tokenExpiry === null ||
         Date.now() <
-          this.tokenExpiry - OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_MS)
+          this.tokenExpiry -
+            Math.min(
+              OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_MS,
+              this.tokenLifetimeMs / 2,
+            ))
     ) {
       return this.accessToken;
     }
@@ -143,6 +150,7 @@ export class OAuth2TokenManager {
         accessToken: this.accessToken,
         refreshToken: this.refreshToken,
         tokenExpiry: this.tokenExpiry,
+        tokenLifetimeMs: this.tokenLifetimeMs,
         exchanged: this.exchanged,
       };
       this.accessToken = null;
@@ -156,6 +164,7 @@ export class OAuth2TokenManager {
         this.accessToken = previous.accessToken;
         this.refreshToken = previous.refreshToken;
         this.tokenExpiry = previous.tokenExpiry;
+        this.tokenLifetimeMs = previous.tokenLifetimeMs;
         this.exchanged = previous.exchanged;
         throw error;
       } finally {
@@ -254,7 +263,7 @@ export class OAuth2TokenManager {
         ...extraHeaders,
       },
       body,
-      { noRedirect: true },
+      { noRedirect: true, noDefaultHeaders: true },
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -288,7 +297,22 @@ export class OAuth2TokenManager {
         "Token response missing or empty access_token field",
       );
     }
+    /* RFC 6749 section 7.1: a token whose type is not understood must not be
+     * used. Only a missing or `bearer` (any case) type is sent as a Bearer
+     * credential; the offending value is not echoed. */
+    if (
+      json.token_type !== undefined &&
+      json.token_type !== null &&
+      (typeof json.token_type !== "string" ||
+        json.token_type.toLowerCase() !== "bearer")
+    ) {
+      throw new OAuth2TokenError("Unsupported token_type in token response");
+    }
     this.accessToken = accessTokenValue;
+    /* No expires_in means no expiry: a stale expiry from an earlier response
+     * must not make every following call refresh again. */
+    this.tokenExpiry = null;
+    this.tokenLifetimeMs = 0;
     if (
       typeof json.refresh_token === "string" &&
       json.refresh_token.length > 0
@@ -304,8 +328,8 @@ export class OAuth2TokenManager {
        * (preferable to caching a token of unknown lifetime forever). */
       const expiresIn = OAuth2TokenManager.parseExpiresIn(json.expires_in);
       if (expiresIn > 0) {
-        const bufferSecs = Math.min(expiresIn, 30);
-        this.tokenExpiry = Date.now() + (expiresIn - bufferSecs) * 1000;
+        this.tokenLifetimeMs = expiresIn * 1000;
+        this.tokenExpiry = Date.now() + this.tokenLifetimeMs;
       } else {
         this.tokenExpiry = Date.now();
       }

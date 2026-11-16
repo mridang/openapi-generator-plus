@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
 
-use crate::api_client::{ApiClient, MultipartValue, RequestBody};
+use crate::api_client::{insert_header, remove_header, ApiClient, MultipartValue, RequestBody};
 use crate::api_http_response::ApiHttpResponse;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
@@ -196,12 +196,12 @@ impl BaseApi {
 
         /* Merge config default headers */
         for (k, v) in self.config.default_headers() {
-            headers.insert(k, v);
+            insert_header(&mut headers, k, v);
         }
 
         /* Merge operation-specific headers */
         for (k, v) in &params.header_params {
-            headers.insert(k.clone(), v.clone());
+            insert_header(&mut headers, k.clone(), v.clone());
         }
 
         /* Merge auth headers */
@@ -210,7 +210,7 @@ impl BaseApi {
              * produce credentials must fail the call rather than let the
              * request go out unauthenticated. */
             for (k, v) in auth.try_auth_headers().await? {
-                headers.insert(k, v);
+                insert_header(&mut headers, k, v);
             }
             /* RFC 6265 -- cookie name is a token (RFC 7230 s3.2.6); cookie
              * value is *cookie-octet (US-ASCII excluding whitespace, DQUOTE,
@@ -262,7 +262,7 @@ impl BaseApi {
          * by the header selector lacks the boundary, so we drop it here and let
          * the client install the boundary-bearing value. */
         let serialized_body: Option<RequestBody> = if let Some(fields) = params.multipart {
-            headers.remove("Content-Type");
+            remove_header(&mut headers, "Content-Type");
             if fields.is_empty() {
                 None
             } else {
@@ -273,7 +273,7 @@ impl BaseApi {
         };
 
         if serialized_body.is_none() {
-            headers.remove("Content-Type");
+            remove_header(&mut headers, "Content-Type");
         }
 
         /* Send request */

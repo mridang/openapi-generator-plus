@@ -503,7 +503,11 @@ Future<void> main(List<String> args) async {
                   'statusCode',
                   inInclusiveRange(307, 308),
                 )
-                .having((e) => e.message, 'message', contains('downgrade')),
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('HTTPS->HTTP redirect'),
+                ),
           ),
         );
         expect(
@@ -565,7 +569,11 @@ Future<void> main(List<String> args) async {
                   'statusCode',
                   inInclusiveRange(307, 308),
                 )
-                .having((e) => e.message, 'message', contains('downgrade')),
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('HTTPS->HTTP redirect'),
+                ),
           ),
         );
         expect(

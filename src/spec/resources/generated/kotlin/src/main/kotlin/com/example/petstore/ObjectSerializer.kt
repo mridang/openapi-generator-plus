@@ -247,82 +247,6 @@ internal object StrictBooleanSerializer : KSerializer<Boolean> {
     }
 }
 
-/**
- * True for a descriptor whose JSON form is a scalar: a primitive (string,
- * number, boolean) or an enum. Contextual and polymorphic descriptors are not
- * scalars here because their wire shape is decided by the serializer itself.
- */
-private fun isScalarDescriptor(descriptor: SerialDescriptor): Boolean =
-    descriptor.kind is PrimitiveKind || descriptor.kind == SerialKind.ENUM
-
-/** True for the descriptor of a kotlin Set (LinkedHashSet or HashSet), nullable or not. */
-private fun isSetDescriptor(descriptor: SerialDescriptor): Boolean =
-    descriptor.kind == StructureKind.LIST &&
-        descriptor.serialName.removeSuffix("?").endsWith("Set")
-
-/** Compares two strings by Unicode code point, not by UTF-16 unit. */
-private fun compareCodePoints(
-    a: String,
-    b: String,
-): Int {
-    val left = a.codePoints().toArray()
-    val right = b.codePoints().toArray()
-    for (i in 0 until minOf(left.size, right.size)) {
-        if (left[i] != right[i]) return left[i].compareTo(right[i])
-    }
-    return left.size.compareTo(right.size)
-}
-
-/**
- * Ascending natural order for the scalar elements of a uniqueItems array:
- * numbers numerically, strings and enum wire values by code point, false
- * before true. A JSON null sorts first.
- */
-private val SCALAR_ORDER: Comparator<JsonElement> =
-    Comparator { a, b ->
-        val left = a as? JsonPrimitive
-        val right = b as? JsonPrimitive
-        when {
-            left == null || left is JsonNull -> if (right == null || right is JsonNull) 0 else -1
-            right == null || right is JsonNull -> 1
-            !left.isString &&
-                !right.isString &&
-                left.content.toBigDecimalOrNull() != null &&
-                right.content.toBigDecimalOrNull() != null ->
-                left.content.toBigDecimal().compareTo(right.content.toBigDecimal())
-            else -> compareCodePoints(left.content, right.content)
-        }
-    }
-
-/**
- * Rewrites every uniqueItems array of scalars (a kotlin Set in the model) in
- * ascending natural order, so a set goes on the wire as identical bytes on
- * every run and in every SDK. Arrays of models keep the set's own order. The
- * walk follows [descriptor] alongside [element]; anything it cannot map
- * (contextual, polymorphic, free-form) is left untouched.
- */
-internal fun sortScalarSets(
-    element: JsonElement,
-    descriptor: SerialDescriptor,
-): JsonElement =
-    when {
-        element is JsonObject && descriptor.kind == StructureKind.CLASS ->
-            JsonObject(
-                element.mapValues { (key, value) ->
-                    val index = descriptor.getElementIndex(key)
-                    if (index < 0) value else sortScalarSets(value, descriptor.getElementDescriptor(index))
-                },
-            )
-        element is JsonObject && descriptor.kind == StructureKind.MAP ->
-            JsonObject(element.mapValues { (_, value) -> sortScalarSets(value, descriptor.getElementDescriptor(1)) })
-        element is JsonArray && descriptor.kind == StructureKind.LIST -> {
-            val item = descriptor.getElementDescriptor(0)
-            val children = element.map { sortScalarSets(it, item) }
-            JsonArray(if (isSetDescriptor(descriptor) && isScalarDescriptor(item)) children.sortedWith(SCALAR_ORDER) else children)
-        }
-        else -> element
-    }
-
 /** Inclusive bounds of each integer kind on the wire. */
 private fun integerBounds(kind: SerialKind): LongRange? =
     when (kind) {
@@ -364,7 +288,7 @@ private fun requireStrictScalar(
         }
     if (!ok) {
         throw SerializationException(
-            "Failed to decode response body: invalid ${kind.toString().lowercase()} at $path: $primitive",
+            "Failed to deserialize JSON: invalid ${kind.toString().lowercase()} at $path: $primitive",
         )
     }
 }
@@ -494,7 +418,7 @@ internal class ObjectSerializer(
             return try {
                 json.encodeToString(JsonElement.serializer(), toJsonElement(unwrapped))
             } catch (e: kotlinx.serialization.SerializationException) {
-                throw SerializationException("Failed to encode request body: ${e.message}", e)
+                throw SerializationException("Failed to serialize object to JSON: ${e.message}", e)
             }
         }
         // Two separate wire contracts are intentionally decoupled here, because
@@ -518,14 +442,11 @@ internal class ObjectSerializer(
             try {
                 val modelSerializer = serializer(unwrapped::class.java)
                 modelDescriptor = modelSerializer.descriptor
-                sortScalarSets(
-                    json.parseToJsonElement(json.encodeToString(modelSerializer, unwrapped)),
-                    modelSerializer.descriptor,
-                )
+                json.parseToJsonElement(json.encodeToString(modelSerializer, unwrapped))
             } catch (e: OpenAPIException) {
                 throw e
             } catch (e: Exception) {
-                throw SerializationException("Failed to encode request body: ${e.message}", e)
+                throw SerializationException("Failed to serialize object to JSON: ${e.message}", e)
             }
         // Re-attach any free-form `additionalProperties` the model carries. The
         // map is declared @Transient on the model so kotlinx-serialization
@@ -716,7 +637,7 @@ internal class ObjectSerializer(
         return try {
             json.parseToJsonElement(text)
         } catch (e: kotlinx.serialization.SerializationException) {
-            throw SerializationException("Failed to parse JSON: ${e.message}", e)
+            throw SerializationException("Failed to deserialize JSON: ${e.message}", e)
         }
     }
 
@@ -758,7 +679,7 @@ internal class ObjectSerializer(
                 // contextual serializer raises (bad date, URI, UUID, duration) all
                 // become the SDK's own SerializationException, so a catch on the
                 // SDK root sees every decode failure.
-                throw SerializationException("Failed to decode response body: ${e.message}", e)
+                throw SerializationException("Failed to deserialize JSON: ${e.message}", e)
             }
         // Capture any JSON keys that are not declared properties of the model
         // into its free-form `additionalProperties` map. The configured Json has

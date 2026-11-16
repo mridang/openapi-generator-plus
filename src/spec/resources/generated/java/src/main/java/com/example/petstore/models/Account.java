@@ -95,7 +95,7 @@ public class Account {
     sb.append(getClass().getSimpleName()).append("{");
     sb.append("id=").append(id);
     sb.append(", username=").append(username);
-    sb.append(", password=").append(password);
+    sb.append(", password=").append((password == null ? "null" : "***"));
     sb.append("}");
     return sb.toString();
   }

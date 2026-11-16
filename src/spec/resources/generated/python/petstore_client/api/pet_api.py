@@ -1932,7 +1932,7 @@ class PetApi(BaseApi):
         else:
             raise ValueError(
                 f"Unsupported request content-type '{request_content_type}' for "
-                f"set_pet_avatar; declared types are {_declared_consumes}"
+                f"set_pet_avatar; declared types are [{', '.join(_declared_consumes)}]"
             )
 
         return await self._invoke_api_for_result(
@@ -2366,7 +2366,7 @@ class PetApi(BaseApi):
         else:
             raise ValueError(
                 f"Unsupported request content-type '{request_content_type}' for "
-                f"upload_pet_document; declared types are {_declared_consumes}"
+                f"upload_pet_document; declared types are [{', '.join(_declared_consumes)}]"
             )
 
         return await self._invoke_api_for_result(

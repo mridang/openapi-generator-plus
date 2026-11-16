@@ -21,9 +21,10 @@ module Petstore::Client
       # honour the same transport configuration (proxy, TLS, timeouts) as
       # regular API calls.
       class OAuth2TokenManager
-        # Safety margin (in seconds) applied to token expiry checks so that
-        # we refresh slightly before the token actually expires, avoiding a
-        # race against the server clock.
+        # Largest safety margin (in seconds) applied when the cached token is
+        # read, so that we refresh slightly before it actually expires. The
+        # real expiry is stored and this is the only margin: it is capped at
+        # half the token's lifetime, so a 60 s token is reused for 30 s.
         EXPIRY_SAFETY_MARGIN_S = 60
 
         # Ceiling (one year, in seconds) for a server-supplied expires_in, so
@@ -54,6 +55,7 @@ module Petstore::Client
           @access_token = nil
           @refresh_token = nil
           @token_expiry = nil
+          @token_margin = 0
           @exchanged = false
         end
 
@@ -152,7 +154,7 @@ module Petstore::Client
 
         # @return [Boolean] true when the cached access token is still valid
         def token_still_valid?
-          @access_token && (@token_expiry.nil? || Time.now.to_f < (@token_expiry - EXPIRY_SAFETY_MARGIN_S))
+          @access_token && (@token_expiry.nil? || Time.now.to_f < (@token_expiry - @token_margin))
         end
 
         # Try to refresh using the existing refresh token.
@@ -260,7 +262,17 @@ module Petstore::Client
           access_token = parsed['access_token']
           raise ::Petstore::Client::Errors::OAuth2TokenError, 'Token response missing or empty access_token field' unless access_token.is_a?(String) && !access_token.empty?
 
+          # RFC 6749 section 7.1: a token whose type is not understood must not
+          # be used. Only a missing type or 'bearer' (any case) is accepted;
+          # the value is never echoed.
+          token_type = parsed['token_type']
+          raise ::Petstore::Client::Errors::OAuth2TokenError, 'Unsupported token_type in token response' unless token_type.nil? || (token_type.is_a?(String) && token_type.casecmp?('bearer'))
+
           @access_token = access_token
+          # No expires_in means no expiry: a stale expiry from an earlier
+          # token must not outlive the token that replaced it.
+          @token_expiry = nil
+          @token_margin = 0
           new_refresh_token = parsed['refresh_token']
           @refresh_token = new_refresh_token if new_refresh_token.is_a?(String) && !new_refresh_token.empty?
           return unless parsed.key?('expires_in')
@@ -276,13 +288,9 @@ module Petstore::Client
           # (preferable to caching a token of unknown lifetime forever).
           expires_in = parse_expires_in(raw)
 
-          @token_expiry =
-            if expires_in.positive?
-              buffer_secs = [expires_in, 30].min
-              Time.now.to_f + expires_in - buffer_secs
-            else
-              Time.now.to_f
-            end
+          lifetime = [expires_in, 0].max
+          @token_expiry = Time.now.to_f + lifetime
+          @token_margin = [EXPIRY_SAFETY_MARGIN_S, lifetime / 2.0].min
         end
 
         def parse_expires_in(raw)

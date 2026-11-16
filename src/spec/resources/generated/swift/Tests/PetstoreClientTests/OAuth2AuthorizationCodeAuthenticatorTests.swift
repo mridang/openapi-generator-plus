@@ -259,6 +259,12 @@ import Testing
     #expect(client.lastURL.isEmpty)
   }
 
+  @Test func testEmptyCodeErrorCarriesTheCanonicalMessage() {
+    #expect(
+      OAuth2AuthorizationCodeError.emptyCode.localizedDescription
+        == "Authorization code must not be empty")
+  }
+
   @Test func testExchangeCodeRejectsWhitespaceOnlyCode() async {
     let client = MockApiClient()
     let auth = createAuthenticator()

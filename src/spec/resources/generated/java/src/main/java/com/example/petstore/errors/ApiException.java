@@ -296,7 +296,9 @@ public class ApiException extends OpenAPIException {
       buf.append("\nHTTP status code: ").append(statusCode);
     }
     if (responseHeaders != null && !responseHeaders.isEmpty()) {
-      buf.append("\nResponse headers: ").append(responseHeaders);
+      /* D17: compact JSON with the keys sorted, the same text as the other SDKs. */
+      buf.append("\nResponse headers: ")
+          .append(ERROR_BODY_SERIALIZER.serialize(new java.util.TreeMap<>(responseHeaders)));
     }
     if (responseBody != null && !responseBody.isEmpty()) {
       buf.append("\nResponse body: ").append(responseBody);

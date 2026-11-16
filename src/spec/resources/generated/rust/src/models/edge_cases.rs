@@ -25,6 +25,17 @@ pub enum EdgeCasesPhaseEnum {
     OUTOFSTOCK,
 }
 
+impl std::fmt::Display for EdgeCasesPhaseEnum {
+    /// Writes the wire value, not the variant name.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            EdgeCasesPhaseEnum::InStock => "In-Stock",
+            EdgeCasesPhaseEnum::OnHold => "on-hold",
+            EdgeCasesPhaseEnum::OUTOFSTOCK => "OUT_OF_STOCK",
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct EdgeCases {
     #[serde(rename = "freeFormAny", skip_serializing_if = "Option::is_none")]

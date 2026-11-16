@@ -42,4 +42,51 @@ data class Account(
      */
     @SerialName("password")
     val password: String? = null,
-)
+) {
+    /* Kotlin's synthesized data-class equals/hashCode compare Array and
+     * ByteArray by reference identity (and List<ByteArray> bottoms out in
+     * reference-equal elements), so two instances decoded from identical JSON
+     * would not be equal and would hash differently. The overrides below route
+     * those fields through contentEquals/contentHashCode (element-wise for
+     * List<ByteArray>) and compare BigDecimal fields by numeric value (the data
+     * class would treat 1.5 and 1.50 as different) while every other field keeps
+     * ordinary == semantics. */
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as Account
+        if (id != other.id) return false
+        if (username != other.username) return false
+        if (password != other.password) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = 0
+        result = 31 * result + (id?.hashCode() ?: 0)
+        result = 31 * result + username.hashCode()
+        result = 31 * result + (password?.hashCode() ?: 0)
+        return result
+    }
+
+  /* The synthesized data-class toString prints ByteArray fields as an
+   * identity hash (`[B@1b6d3586`), omits the @Transient additionalProperties
+   * bucket and does not look inside containers. This override keeps the
+   * data-class shape but renders byte data by content, containers
+   * element-wise and appends additionalProperties. A `format: password`
+   * property prints as `***`. */
+    override fun toString(): String =
+        listOf(
+            "id=" + renderForToString(id),
+            "username=" + renderForToString(username),
+            "password=" + "***",
+        ).joinToString(", ", "Account(", ")")
+
+    private fun renderForToString(value: Any?): String =
+        when (value) {
+            is ByteArray -> value.contentToString()
+            is Map<*, *> -> value.entries.joinToString(", ", "{", "}") { "${it.key}=${renderForToString(it.value)}" }
+            is Iterable<*> -> value.joinToString(", ", "[", "]") { renderForToString(it) }
+            else -> value.toString()
+        }
+}

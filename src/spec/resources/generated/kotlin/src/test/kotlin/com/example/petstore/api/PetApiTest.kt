@@ -258,9 +258,17 @@ class PetApiTest {
             val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())
             // An unknown requestContentType must be rejected client-side, not
             // passed onto the wire as an undeclared Content-Type.
-            assertThrows(IllegalArgumentException::class.java) {
-                runBlocking { api.setPetAvatar(1L, imageData, requestContentType = "application/unknown-type") }
-            }
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking { api.setPetAvatar(1L, imageData, requestContentType = "application/unknown-type") }
+                }
+            assertTrue(
+                ex.message!!.startsWith(
+                    "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are [",
+                ),
+                "got: ${ex.message}",
+            )
+            assertTrue(ex.message!!.endsWith("]"), "got: ${ex.message}")
         }
 
         @Test

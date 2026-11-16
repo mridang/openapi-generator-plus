@@ -556,6 +556,55 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("the result headers are a copy of the transport's map")
+        fun resultHeadersAreACopy() {
+            val transportHeaders = mutableMapOf("Content-Type" to "text/plain", "x-a" to "1")
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiHttpResponse = ApiHttpResponse(200, "hello", transportHeaders)
+                }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val result =
+                runBlocking {
+                    testApi.callForResult<String>("GET", "/test/echo", accepts = arrayOf("text/plain"))
+                }
+            transportHeaders["x-a"] = "changed"
+            assertEquals("1", result.headers["x-a"])
+        }
+
+        @Test
+        @DisplayName("a non-JSON success body on a model return names the content type and the operation")
+        fun nonJsonBodyOnAModelReturnNamesTheOperation() {
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiHttpResponse = ApiHttpResponse(200, "<html></html>", mapOf("Content-Type" to "text/html; charset=utf-8"))
+                }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val ex =
+                assertThrows(SerializationException::class.java) {
+                    runBlocking {
+                        testApi.callForResult<Map<String, String>>("GET", "/test/echo", operation = "PetApi.getPetById")
+                    }
+                }
+            assertEquals(
+                "Unexpected response Content-Type 'text/html' for PetApi.getPetById: expected a JSON body",
+                ex.message,
+            )
+        }
+
+        @Test
         @DisplayName("deserializes vendor JSON MIME types like application/problem+json")
         fun deserializesVendorJsonMimeType() {
             val client =
@@ -583,6 +632,48 @@ class BaseApiTest {
                     .ObjectMapper()
                     .readTree(response.body)
             assertEquals("Not Found", json.get("title").asText())
+        }
+    }
+
+    @Nested
+    @DisplayName("per-call authenticators")
+    inner class PerCallAuthenticators {
+        @Test
+        @DisplayName("a per-call OAuth2 authenticator is handed the API's transport for its token request")
+        fun perCallOAuth2AuthenticatorUsesTheApiTransport() {
+            val urls = mutableListOf<String>()
+            var apiAuthorization: String? = null
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiHttpResponse {
+                        urls.add(url)
+                        if (url.startsWith("https://auth.example.com/")) {
+                            return ApiHttpResponse(200, "{\"access_token\":\"per-call-token\",\"expires_in\":3600}", emptyMap())
+                        }
+                        apiAuthorization = headers["Authorization"]
+                        return ApiHttpResponse(200, "{}", mapOf("Content-Type" to "application/json"))
+                    }
+                }
+            val authenticator =
+                com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator(
+                    "http://localhost",
+                    "client-id",
+                    "client-secret",
+                    "https://auth.example.com/token",
+                    listOf(),
+                )
+            val testApi = TestableApiWithClient(client, "http://localhost")
+
+            runBlocking { testApi.call("GET", "/test/echo", auth = authenticator) }
+
+            assertEquals("Bearer per-call-token", apiAuthorization)
+            assertEquals("https://auth.example.com/token", urls.first())
         }
     }
 

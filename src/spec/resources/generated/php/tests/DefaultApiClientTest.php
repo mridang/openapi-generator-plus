@@ -485,7 +485,7 @@ test('redirect count and limit are scoped per request not shared per client', fu
                     $caught = $e;
                 }
                 expect($caught)->not->toBeNull();
-                expect((string) $caught?->getMessage())->toContain('maxRedirects=5');
+                expect((string) $caught?->getMessage())->toContain('exceeded 5');
             } else {
                 // The short request must succeed on its own redirect budget,
                 // unaffected by any prior over-limit request's hop count.

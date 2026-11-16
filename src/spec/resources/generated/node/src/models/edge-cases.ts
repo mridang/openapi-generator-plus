@@ -170,11 +170,17 @@ export class EdgeCases {
   cutoff?: Temporal.PlainTime;
   @Expose({ name: "phase" })
   phase?: EdgeCasesPhaseEnum;
+  /** @pattern /^\\d+\/[a-z]+$/ */
   @Expose({ name: "slug" })
   slug?: string;
 
   constructor(data?: Partial<EdgeCases>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (
       this.permissionsNote != null &&
       typeof this.permissionsNote !== "string"

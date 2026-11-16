@@ -145,3 +145,53 @@ pub trait ApiClient: Send + Sync {
         false
     }
 }
+
+/// Writes `name: value` into `headers`, replacing any entry whose name matches
+/// under ASCII case-folding (RFC 9110 section 5.1), so one header is never sent
+/// under two spellings. The later layer wins and its spelling is kept.
+pub(crate) fn insert_header(headers: &mut HashMap<String, String>, name: String, value: String) {
+    remove_header(headers, &name);
+    headers.insert(name, value);
+}
+
+/// Removes every entry of `headers` whose name matches `name` under ASCII
+/// case-folding.
+pub(crate) fn remove_header(headers: &mut HashMap<String, String>, name: &str) {
+    headers.retain(|k, _| !k.eq_ignore_ascii_case(name));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /* The later layer replaces an earlier spelling of the same header and
+     * keeps its own spelling, so only one line reaches the wire. */
+    #[test]
+    fn test_insert_header_replaces_a_case_variant_with_the_later_spelling() {
+        let mut headers = HashMap::new();
+        headers.insert("accept".to_string(), "text/plain".to_string());
+        headers.insert("X-Other".to_string(), "kept".to_string());
+
+        insert_header(
+            &mut headers,
+            "Accept".to_string(),
+            "application/json".to_string(),
+        );
+
+        assert_eq!(2, headers.len());
+        assert_eq!(Some(&"application/json".to_string()), headers.get("Accept"));
+        assert!(!headers.contains_key("accept"));
+        assert_eq!(Some(&"kept".to_string()), headers.get("X-Other"));
+    }
+
+    #[test]
+    fn test_remove_header_ignores_case() {
+        let mut headers = HashMap::new();
+        headers.insert("content-type".to_string(), "application/json".to_string());
+        headers.insert("Content-Type".to_string(), "text/plain".to_string());
+
+        remove_header(&mut headers, "Content-Type");
+
+        assert!(headers.is_empty());
+    }
+}

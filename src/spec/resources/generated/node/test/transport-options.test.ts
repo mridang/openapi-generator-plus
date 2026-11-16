@@ -98,9 +98,13 @@ describe("TransportOptions", () => {
     expect(opts.maxRedirects).toBeNull();
   });
 
-  test("a negative timeout throws RangeError", () => {
-    expect(() => TransportOptions.builder().timeout(-1)).toThrow(RangeError);
-    expect(TransportOptions.builder().timeout(0).build().timeout).toBe(0);
+  test("rejects a non-positive timeout with the canonical message", () => {
+    expect(() => TransportOptions.builder().timeout(-1)).toThrow(
+      new TypeError(
+        "Invalid timeout: must be a positive number of milliseconds (got -1)",
+      ),
+    );
+    expect(() => TransportOptions.builder().timeout(0)).toThrow(TypeError);
   });
 
   test("invalid proxy URL throws TypeError", () => {

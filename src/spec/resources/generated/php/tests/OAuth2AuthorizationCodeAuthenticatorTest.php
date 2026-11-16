@@ -100,7 +100,7 @@ test('exchange code rejects empty code', function (): void {
     expect(function () use ($authenticator): void {
         $authenticator->exchangeCode('');
     })
-        ->toThrow(\InvalidArgumentException::class);
+        ->toThrow(\InvalidArgumentException::class, 'Authorization code must not be empty');
     expect(function () use ($authenticator): void {
         $authenticator->exchangeCode('   ');
     })

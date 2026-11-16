@@ -256,7 +256,10 @@ All API methods are asynchronous; call them with `await`.
 Models are generated as Dart classes in the `models` directory.
 
 ```dart
-final model = Account(/* properties */);
+final model = Account(
+  username: 'value',
+);
+print(model.username);
 ```
 
 ## Binary / File Uploads

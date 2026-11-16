@@ -202,7 +202,15 @@ void main() {
           Uint8List.fromList([0xFF, 0xD8, 0xFF]),
           'application/unknown-type',
         ),
-        throwsArgumentError,
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            startsWith(
+              "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are [",
+            ),
+          ),
+        ),
       );
     });
 

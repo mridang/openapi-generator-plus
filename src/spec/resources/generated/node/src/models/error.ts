@@ -42,7 +42,12 @@ export class Error {
   message?: string;
 
   constructor(data?: Partial<Error>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (this.code != null && typeof this.code !== "number") {
       throw new TypeError(`code must be a number, got ${typeof this.code}`);
     }

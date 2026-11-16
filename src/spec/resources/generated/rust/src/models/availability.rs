@@ -34,6 +34,21 @@ pub enum Availability {
     X,
 }
 
+impl std::fmt::Display for Availability {
+    /// Writes the wire value, not the variant name.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Availability::Available => "Available",
+            Availability::Sold => "Sold",
+            Availability::OnHold => "on-hold",
+            Availability::Oclock => "o'clock",
+            Availability::AB => "a\\b",
+            Availability::Eq => "$eq",
+            Availability::X => "#{x}",
+        })
+    }
+}
+
 impl Availability {
     /// Returns all allowed values of Availability.
     pub fn all_values() -> Vec<Availability> {

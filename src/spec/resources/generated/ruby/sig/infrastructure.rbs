@@ -203,6 +203,7 @@ module Petstore::Client
 
   class DefaultApiClient < ApiClient
     EXTRA_SENSITIVE_HEADER_NAMES: Array[String]
+    STANDARD_METHODS: Array[Symbol]
     module QueryParamsEncoder
       RAW_QUERY_KEY: String
       def self.encode: (untyped) -> String?
@@ -214,6 +215,7 @@ module Petstore::Client
     def self.supported_encodings: () -> String
     private
     def run_hop: (Symbol, String, untyped, Hash[String, String], Float?) -> untyped
+    def dispatch: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
     def header?: (Hash[String, String], String) -> bool
     def network_error_class: (Faraday::Error) -> singleton(Errors::NetworkError)
     def validate_ca_cert_path: (String?) -> void
@@ -407,6 +409,8 @@ module Petstore::Client
         def resolve_delegate: () -> OAuth2AuthorizationCodeAuthenticator
         def discover_delegate: () -> OAuth2AuthorizationCodeAuthenticator
         def parse_max_age: (Hash[String, String]?) -> Integer
+        def validate_discovery!: (Hash[String, untyped], untyped, untyped) -> void
+        def secure_endpoint?: (String) -> bool
         def parse_discovery: (String?) -> Hash[String, untyped]
       end
 

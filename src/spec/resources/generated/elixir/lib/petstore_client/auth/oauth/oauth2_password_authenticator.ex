@@ -113,6 +113,15 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
     self
   end
 
+  @doc """
+  Release what the authenticator started (its token manager and, for OpenID
+  Connect, the discovery cache). Idempotent. Called by `Client.close/1`.
+  """
+  @impl PetstoreClient.Auth.HttpAwareAuthenticator
+  def close(%__MODULE__{} = self) do
+    PetstoreClient.Auth.OAuth.OAuth2TokenManager.stop(self.token_manager)
+  end
+
   @impl PetstoreClient.Auth.Authenticator
   def host(%__MODULE__{} = self), do: self.host
 

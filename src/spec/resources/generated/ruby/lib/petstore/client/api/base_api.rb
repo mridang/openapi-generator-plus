@@ -104,6 +104,11 @@ module Petstore::Client
                          else
                            auth || @authenticator
                          end
+        # A per-call authenticator that needs HTTP (OAuth2, OpenID Connect) was
+        # never handed the transport by the Client; give it this API's own.
+        # @type var per_call: untyped
+        per_call = !effective_auth.equal?(@authenticator)
+        effective_auth.api_client = @api_client if per_call && effective_auth.is_a?(::Petstore::Client::Auth::HttpAwareAuthenticator)
         effective_auth&.query_params&.each { |k, v| query_params[k] = v }
 
         query_string = build_query_string(query_params)

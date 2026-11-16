@@ -184,7 +184,9 @@ class TransportOptionsBuilder {
   /// Pass the timeout in milliseconds, or null for no timeout.
   TransportOptionsBuilder timeout(int? val) {
     if (val != null && val < 0) {
-      throw ArgumentError('Invalid timeout (must not be negative): $val');
+      throw ArgumentError(
+        'Invalid timeout: must be a positive number of milliseconds (got $val)',
+      );
     }
     _timeout = val;
     return this;

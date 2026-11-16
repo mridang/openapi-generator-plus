@@ -23,6 +23,11 @@ defmodule PetstoreClient.ApiClient do
       malicious or misconfigured server cannot replay the credentialed body to
       an attacker-controlled URL; the caller inspects and rejects the 3xx
       itself. Defaults to `false`.
+
+    * `:no_default_headers` - when `true`, the implementation must not add the
+      transport's default headers to the call. Used for token endpoints and
+      OpenID Connect discovery, which live on another host than the API.
+      Defaults to `false`.
   """
 
   @doc """

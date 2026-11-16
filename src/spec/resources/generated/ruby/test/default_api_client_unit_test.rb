@@ -51,6 +51,38 @@ describe Petstore::Client::DefaultApiClient do
     end
   end
 
+  it 'sends a method Faraday does not know, such as QUERY, with its body' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stubs.send(:new_stub, :query, '/search') do |env|
+      seen = [env.method, env.body]
+      [200, { 'content-type' => 'text/plain' }, 'found']
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:QUERY, 'http://localhost/search', {}, 'q=1')
+      _(resp.status_code).must_equal 200
+      _(resp.body).must_equal 'found'
+    end
+    _(seen).must_equal [:query, 'q=1']
+  end
+
+  it 'a caller header replaces a default header of the same name in any case' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') do |env|
+        seen = env.request_headers.to_h.select { |k, _v| k.casecmp?('x-token') }
+        [200, {}, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.default_headers({ 'x-token' => 'default' }).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/echo', { 'X-Token' => 'caller' }, nil)
+    end
+    _(seen.values).must_equal ['caller']
+  end
+
   def sent_query(query)
     sent = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -804,7 +836,7 @@ describe Petstore::Client::DefaultApiClient do
       err = assert_raises(Petstore::Client::Errors::ApiError) do
         client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
       end
-      _(err.message).must_match(/TLS downgrade/)
+      _(err.detail_message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
       # A refused redirect is a response that could not be used: an
       # ApiError with the 3xx status, never a NetworkError.
       _(err).must_be_instance_of Petstore::Client::Errors::ApiError
@@ -872,11 +904,25 @@ describe Petstore::Client::DefaultApiClient do
       err = assert_raises(Petstore::Client::Errors::ApiError) do
         client.send_request(:GET, 'http://localhost/loop', {}, nil)
       end
-      _(err.message).must_match(/redirect/i)
+      _(err.detail_message).must_equal 'Too many redirects (exceeded 2)'
       # A refused redirect is a response that could not be used: an
       # ApiError with the 3xx status, never a NetworkError.
       _(err).must_be_instance_of Petstore::Client::Errors::ApiError
       _(err.status_code).must_equal 302
+    end
+  end
+
+  it 'returns the last 3xx without a Location when the redirect budget is used up' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/a') { [302, { 'location' => 'http://localhost/b' }, ''] }
+      stub.get('/b') { [302, { 'content-type' => 'text/plain' }, 'terminal'] }
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).max_redirects(1).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/a', {}, nil)
+      _(resp.status_code).must_equal 302
+      _(resp.body).must_equal 'terminal'
     end
   end
 
@@ -923,7 +969,7 @@ describe Petstore::Client::DefaultApiClient do
       err = assert_raises(Petstore::Client::Errors::ApiError) do
         client.send_request(:GET, 'http://localhost/evil', {}, nil)
       end
-      _(err.message).must_match(/non-http/i)
+      _(err.detail_message).must_equal 'Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd'
       # A refused redirect is a response that could not be used: an
       # ApiError with the 3xx status, never a NetworkError.
       _(err).must_be_instance_of Petstore::Client::Errors::ApiError
@@ -945,7 +991,7 @@ describe Petstore::Client::DefaultApiClient do
     end
     _(err).must_be_instance_of RuntimeError
     _(err).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
-    _(err.message).must_match(/closed/i)
+    _(err.message).must_equal 'ApiClient has been closed and can no longer send requests'
   end
 
   it 'close is idempotent' do

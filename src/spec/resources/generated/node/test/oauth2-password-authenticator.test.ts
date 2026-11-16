@@ -118,7 +118,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     mockClient.responseBody = JSON.stringify({
       access_token: "tok1",
       refresh_token: "ref1",
-      expires_in: 1,
+      expires_in: 0,
     });
 
     await authenticator.getAuthHeadersAsync();
@@ -269,7 +269,7 @@ describe("OAuth2PasswordAuthenticator", () => {
     refreshClient.responseBody = JSON.stringify({
       access_token: "tok1",
       refresh_token: "ref1",
-      expires_in: 1,
+      expires_in: 0,
     });
     refreshing.setApiClient(refreshClient);
     const sendSpy = jest.spyOn(refreshClient, "sendRequest");
@@ -324,7 +324,7 @@ describe("OAuth2PasswordAuthenticator", () => {
       mockClient.queued = [
         {
           status: 200,
-          body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+          body: { access_token: "tok1", refresh_token: "ref1", expires_in: 0 },
         },
         { status: 200, body: { access_token: "tok2", expires_in: 3600 } },
       ];
@@ -347,7 +347,7 @@ describe("OAuth2PasswordAuthenticator", () => {
       mockClient.queued = [
         {
           status: 200,
-          body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+          body: { access_token: "tok1", refresh_token: "ref1", expires_in: 0 },
         },
         { status: 200, body: { access_token: "tok2", expires_in: 3600 } },
       ];
@@ -366,7 +366,7 @@ describe("OAuth2PasswordAuthenticator", () => {
       mockClient.queued = [
         {
           status: 200,
-          body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+          body: { access_token: "tok1", refresh_token: "ref1", expires_in: 0 },
         },
         { status: 400, body: { error: "invalid_grant" } },
         { status: 200, body: { access_token: "tok3", expires_in: 3600 } },

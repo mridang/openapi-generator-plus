@@ -8,36 +8,41 @@ Auto-generated Ruby SDK client for the Swagger Petstore - OpenAPI 3.0 API.
   supported and rubocop is configured with `TargetRubyVersion: 3.4`).
 - Bundler `>= 2.x` (`gem install bundler` if missing).
 
-## Install
+## Installation
 
-```bash
-bundle install
+Add the gem to your `Gemfile` and run `bundle install`:
+
+```ruby
+gem 'petstore_client'
 ```
 
-## Test
+## Usage
 
-```bash
-bundle exec rake test
+```ruby
+require 'petstore_client'
+
+client = Petstore::Client::Petstore.with_token('https://api.example.com', 'your-token')
+# Call an operation through an API group, e.g. client.<group>.<operation>(...), and read fields off the result.
+client.close
 ```
 
-## Lint / Format
+See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
 
-`rubocop` is the formatter and the linter. Lint without modifying
-files, then auto-correct in place:
+## Configuration
 
-```bash
-bundle exec rubocop          # lint only
-bundle exec rubocop -A       # auto-correct (format)
-```
+`TransportOptions.builder` sets `timeout` (milliseconds, one end-to-end budget across redirects; a non-positive value raises `ArgumentError`), `proxy`, `verify_ssl`, `ca_cert_path`, `follow_redirects`, `max_redirects`, `user_agent`, `default_headers` and `inject_request_id`. The proxy is exactly what you configure: `HTTP_PROXY` and `NO_PROXY` are ignored. Every request carries an `X-Request-ID` header unless you send one.
 
-## Static analysis
+### Custom HTTP client
 
-`steep` type-checks the gem against the bundled RBS signatures in
-`sig/`:
+`TransportOptions.builder.connection(faraday_connection)` supplies your own `Faraday::Connection`. The SDK keeps applying its timeout, user agent, redirect policy and query encoding, and never closes a connection you supplied.
 
-```bash
-bundle exec steep check
-```
+### Raw responses
+
+Every operation has a `<operation>_with_http_info` variant returning an `ApiResult` with `status_code`, `headers` (a frozen copy, lower-cased names) and `data`.
+
+### Cancellation
+
+The SDK has no cancellation API of its own. Ruby's native mechanisms (`Timeout`, killing the thread) apply; a call that exceeds the request timeout fails with `NetworkTimeoutError`.
 
 ## Gem
 
@@ -107,6 +112,22 @@ generation. If you need to receive webhook deliveries, write the
 handler yourself and use this SDK only to deserialize the incoming
 payload (e.g. by reusing the relevant request-body model).
 
+### XML bodies and `nodeType`
+
+Only JSON, form, multipart and binary bodies are generated. `application/xml` request and response bodies and the `xml` schema keywords (`nodeType`, `attribute`, `wrapped`) are not supported.
+
+### Link Objects
+
+Response Link Objects are ignored; follow links in your own code.
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes are not generated. Supply a client certificate through your own `Faraday::Connection` (see Custom HTTP client).
+
+### Automatic retries
+
+The SDK never retries a request. Wrap calls in your own retry policy.
+
 ### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
 
 JSON Schema 2019-09 keywords for "if field X is present, field Y is
@@ -124,9 +145,8 @@ constraint predicates, so Ruby does not enforce them client-side. If you want
 fast-fail validation before the network round trip, plug in a JSON Schema
 validator.
 
-`uniqueItems` arrays are modelled as `Set`. A `Set` of strings or of numbers is
-sent in ascending natural order, so the same values always produce the same
-bytes; a `Set` of objects or of mixed kinds keeps its own iteration order.
+`uniqueItems` arrays are modelled as `Set`. A `Set` is sent in its own iteration
+order: the SDK does not sort it, so do not rely on the order of the values on the wire.
 
 ### SOCKS proxies
 
@@ -138,12 +158,6 @@ HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
 
-### Per-call cancellation
-
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutError`.
-
 ### `LICENSE` file is not auto-emitted
 
 The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file
@@ -152,3 +166,36 @@ into the generated tree as part of your release pipeline before
 publishing to a registry — most registries warn or block on a missing
 file, and the GitHub license auto-detect cannot pick up a manifest-only
 declaration.
+
+## Development
+
+### Install
+
+```bash
+bundle install
+```
+
+### Test
+
+```bash
+bundle exec rake test
+```
+
+### Lint / Format
+
+`rubocop` is the formatter and the linter. Lint without modifying
+files, then auto-correct in place:
+
+```bash
+bundle exec rubocop          # lint only
+bundle exec rubocop -A       # auto-correct (format)
+```
+
+### Static analysis
+
+`steep` type-checks the gem against the bundled RBS signatures in
+`sig/`:
+
+```bash
+bundle exec steep check
+```

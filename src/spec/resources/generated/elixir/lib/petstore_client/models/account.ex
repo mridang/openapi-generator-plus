@@ -26,6 +26,9 @@ defmodule PetstoreClient.Models.Account do
   @enforce_keys [
     :username
   ]
+  # format: password fields stay out of inspect/1 and log lines.
+  @derive {Inspect, except: [:password]}
+
   defstruct [
     :id,
     :username,

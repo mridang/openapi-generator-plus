@@ -436,6 +436,62 @@ test('token response without expires_in is cached indefinitely', function (): vo
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
+test('a token with expires_in of 60 is reused once and not refetched on every call', function (int $expiresIn): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('short-lived', $expiresIn));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('short-lived');
+    expect($second)->toBe('short-lived');
+    expect($client->capturedRequests)->toHaveCount(1);
+})->with([31, 60, 90, 120]);
+
+test('a refresh response without expires_in clears the previous expiry', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old', 1, 'refresh-token'));
+    $client->enqueueResponse(new ApiHttpResponse(
+        200,
+        (string) json_encode(['access_token' => 'new']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $third = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($second)->toBe('new');
+    expect($third)->toBe('new');
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('token response that is not JSON or not an object gets the canonical message', function (
+    string $body,
+    string $message
+): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, $body, ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn (): string => $manager->getAccessToken(
+        'https://auth.example.com/token',
+        ['grant_type' => 'client_credentials']
+    ))->toThrow(OAuth2TokenException::class, $message);
+})->with([
+    'form encoded' => ['access_token=abc&token_type=bearer', 'Token response is not valid JSON'],
+    'list' => ['["tok"]', 'Token response is not a JSON object'],
+    'scalar' => ['"tok"', 'Token response is not a JSON object'],
+]);
+
 test('non string refresh token is ignored', function (mixed $refreshToken): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(

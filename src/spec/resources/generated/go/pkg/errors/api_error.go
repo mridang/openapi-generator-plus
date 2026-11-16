@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // errorBodyMaxJSONDepth caps how deeply an error-response JSON body may nest.
@@ -167,6 +168,18 @@ func (e *ApiError) Unwrap() error {
 // OpenAPIError.
 func (e *ApiError) isOpenAPIError() {}
 
+// compactHeadersJSON renders headers as compact JSON with sorted keys and no
+// HTML escaping, the form every SDK uses on the "Response headers:" line.
+func compactHeadersJSON(headers map[string]string) string {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(headers); err != nil {
+		return fmt.Sprintf("%v", headers)
+	}
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
 // Error builds a human-readable error message from the stored attributes: the
 // message, then the HTTP status code, response headers and response body where
 // present.
@@ -179,7 +192,7 @@ func (e *ApiError) Error() string {
 		msg += fmt.Sprintf("\nHTTP status code: %d", e.statusCode)
 	}
 	if len(e.responseHeaders) > 0 {
-		msg += fmt.Sprintf("\nResponse headers: %v", e.responseHeaders)
+		msg += "\nResponse headers: " + compactHeadersJSON(e.responseHeaders)
 	}
 	if e.responseBody != "" {
 		msg += fmt.Sprintf("\nResponse body: %s", e.responseBody)

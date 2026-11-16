@@ -34,6 +34,17 @@ pub enum DefaultsModeEnum {
     High,
 }
 
+impl std::fmt::Display for DefaultsModeEnum {
+    /// Writes the wire value, not the variant name.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            DefaultsModeEnum::Low => "low",
+            DefaultsModeEnum::Medium => "medium",
+            DefaultsModeEnum::High => "high",
+        })
+    }
+}
+
 /// Serde default for the optional `mode` field: when the property is
 /// ABSENT from the wire payload the schema's `default` applies, so an
 /// omitted `mode` deserializes to the declared default variant

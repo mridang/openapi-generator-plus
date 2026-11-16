@@ -11,8 +11,8 @@ use std::fmt;
 
 /// Error returned when the SDK is configured or called with an invalid value,
 /// or called in the wrong order: a proxy URL that does not parse or is not
-/// http(s), a CA certificate file that cannot be read or parsed, a negative
-/// timeout, a server variable outside its enum, a malformed argument (bad
+/// http(s), a CA certificate file that cannot be read or parsed, a zero or
+/// negative timeout, a server variable outside its enum, a malformed argument (bad
 /// credentials, a missing required parameter, a header or cookie value that
 /// would corrupt the HTTP message, a malformed request URL), or a call made in
 /// the wrong state (a closed client, an authenticator used before its API
@@ -26,7 +26,7 @@ pub enum ConfigurationError {
     InvalidProxy(String),
     /// The CA certificate file cannot be read or holds no PEM certificate.
     InvalidCaCertificate(String),
-    /// The request timeout is negative.
+    /// The request timeout is zero or negative.
     InvalidTimeout(i64),
     /// A server variable override is outside the variable's enum.
     InvalidServerVariable(String),
@@ -44,9 +44,11 @@ impl fmt::Display for ConfigurationError {
         match self {
             Self::InvalidProxy(reason) => write!(f, "invalid proxy URL: {}", reason),
             Self::InvalidCaCertificate(reason) => write!(f, "invalid CA certificate: {}", reason),
-            Self::InvalidTimeout(ms) => {
-                write!(f, "invalid timeout: {} ms; must not be negative", ms)
-            }
+            Self::InvalidTimeout(ms) => write!(
+                f,
+                "Invalid timeout: must be a positive number of milliseconds (got {})",
+                ms
+            ),
             Self::InvalidServerVariable(reason) => write!(f, "invalid server variable: {}", reason),
             Self::InvalidArgument(reason) => write!(f, "invalid argument: {}", reason),
             Self::InvalidState(reason) => write!(f, "invalid state: {}", reason),

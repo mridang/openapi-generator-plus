@@ -127,7 +127,7 @@ void main() {
 
     test('refetches token when expired', () async {
       final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok1","expires_in":1}');
+      client.enqueue('{"access_token":"tok1","expires_in":0}');
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
 
       final manager = OAuth2TokenManager();
@@ -260,11 +260,12 @@ void main() {
       expect(client.requestCount, equals(1));
     });
 
-    test('expires_in exactly buffer returns zero buffer', () async {
-      // Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
+    test('expires_in of 60 s is reused: one margin, applied once', () async {
+      // F910: a single margin capped at half the lifetime, so a short-lived
+      // token is served from cache instead of re-fetched on every call.
       final client = _FakeApiClient();
-      client.enqueue('{"access_token":"edge1","expires_in":30}');
-      client.enqueue('{"access_token":"edge2","expires_in":30}');
+      client.enqueue('{"access_token":"edge1","expires_in":60}');
+      client.enqueue('{"access_token":"edge2","expires_in":60}');
 
       final manager = OAuth2TokenManager();
       manager.setApiClient(client);
@@ -276,7 +277,25 @@ void main() {
       final second = await manager.getAccessToken(tokenUrl, params);
 
       expect(first, equals('edge1'));
-      expect(second, equals('edge2'));
+      expect(second, equals('edge1'));
+      expect(client.requestCount, equals(1));
+    });
+
+    test('a re-grant without expires_in clears the stale expiry', () async {
+      // F911: no expires_in means no expiry, so the next call is cached.
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok1","expires_in":0}');
+      client.enqueue('{"access_token":"tok2"}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      final params = {'grant_type': 'client_credentials'};
+      const tokenUrl = 'https://auth.example.com/token';
+
+      expect(await manager.getAccessToken(tokenUrl, params), equals('tok1'));
+      expect(await manager.getAccessToken(tokenUrl, params), equals('tok2'));
+      expect(await manager.getAccessToken(tokenUrl, params), equals('tok2'));
       expect(client.requestCount, equals(2));
     });
 
@@ -285,7 +304,7 @@ void main() {
       // MUST NOT clobber the cached refresh_token.
       final client = _FakeApiClient();
       client.enqueue(
-        '{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}',
+        '{"access_token":"old_access","refresh_token":"old_refresh","expires_in":0}',
       );
       client.enqueue(
         '{"access_token":"new_access","expires_in":3600,"refresh_token":""}',
@@ -500,10 +519,54 @@ void main() {
           () => manager.getAccessToken('https://auth.example.com/token', {
             'grant_type': 'client_credentials',
           }),
-          throwsA(isA<OAuth2TokenException>()),
+          throwsA(
+            isA<OAuth2TokenException>().having(
+              (e) => e.message,
+              'message',
+              'Token response missing or empty access_token field',
+            ),
+          ),
         );
       },
     );
+
+    test('a non-JSON token response carries no parser detail', () async {
+      final client = _FakeApiClient();
+      client.enqueue('<html>not json</html>');
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+      await expectLater(
+        () => manager.getAccessToken('https://auth.example.com/token', {
+          'grant_type': 'client_credentials',
+        }),
+        throwsA(
+          isA<OAuth2TokenException>().having(
+            (e) => e.message,
+            'message',
+            'Token response is not valid JSON',
+          ),
+        ),
+      );
+    });
+
+    test('a JSON array token response is not a JSON object', () async {
+      final client = _FakeApiClient();
+      client.enqueue('[1]');
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+      await expectLater(
+        () => manager.getAccessToken('https://auth.example.com/token', {
+          'grant_type': 'client_credentials',
+        }),
+        throwsA(
+          isA<OAuth2TokenException>().having(
+            (e) => e.message,
+            'message',
+            'Token response is not a JSON object',
+          ),
+        ),
+      );
+    });
 
     test(
       'a 2xx token response that is not JSON throws OAuth2TokenException',
@@ -657,7 +720,7 @@ void main() {
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"access_token":"tok2","expires_in":3600}');
         final manager = OAuth2TokenManager();
@@ -681,7 +744,7 @@ void main() {
     test('a rejected refresh falls back to the original grant', () async {
       final client = _FakeApiClient();
       client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
       );
       client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
       client.enqueue('{"access_token":"tok3","expires_in":3600}');
@@ -703,7 +766,7 @@ void main() {
     test('the refresh grant goes to the refreshUrl', () async {
       final client = _FakeApiClient();
       client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
       );
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
       final manager = OAuth2TokenManager();
@@ -721,7 +784,7 @@ void main() {
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
         final manager = OAuth2TokenManager();
@@ -797,11 +860,11 @@ void main() {
     });
 
     test(
-      'a refresh response without expires_in keeps the existing expiry',
+      'a refresh response without expires_in clears the stale expiry',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"access_token":"tok2"}');
         client.enqueue('{"access_token":"tok3","expires_in":3600}');
@@ -812,15 +875,15 @@ void main() {
         final second = await manager.getAccessToken(tokenUrl, original);
         final third = await manager.getAccessToken(tokenUrl, original);
 
-        expect([first, second, third], equals(['tok1', 'tok2', 'tok3']));
-        expect(client.requestCount, equals(3));
+        expect([first, second, third], equals(['tok1', 'tok2', 'tok2']));
+        expect(client.requestCount, equals(2));
       },
     );
 
     test('a non-string refresh_token is ignored', () async {
       final client = _FakeApiClient();
       client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
       );
       client.enqueue(
         '{"access_token":"tok2","refresh_token":12345,"expires_in":3600}',

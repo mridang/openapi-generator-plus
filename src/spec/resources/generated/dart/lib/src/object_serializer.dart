@@ -142,7 +142,7 @@ dynamic parseJson(String data) {
     return jsonDecode(data);
   } catch (e) {
     if (e is SerializationException) rethrow;
-    throw SerializationException('Failed to parse JSON: $e', e);
+    throw SerializationException('Failed to deserialize JSON: $e', e);
   }
 }
 
@@ -198,7 +198,7 @@ List<T>? deserializeList<T>(
     );
   } catch (e) {
     if (e is SerializationException) rethrow;
-    throw SerializationException('Failed to deserialize JSON list: $e', e);
+    throw SerializationException('Failed to deserialize JSON: $e', e);
   }
 }
 
@@ -226,41 +226,16 @@ List<T> deserializeArray<T>(
 
 /// Projects a model's array field to its JSON list.
 ///
-/// When [source] is a `Set` (a `uniqueItems` array) whose [encoded] wire
-/// values are all strings, all numbers or all booleans, the list is sorted in
-/// ascending natural order (numbers numerically, strings by Unicode code
-/// point, `false` before `true`) so every run and every SDK emits the same
-/// bytes. Any other array keeps its own order.
-List<E> wireList<E>(Iterable<Object?> source, Iterable<E> encoded) {
-  final list = encoded.toList();
-  if (source is! Set || list.length < 2) return list;
-  if (list.every((e) => e is String)) {
-    list.sort((a, b) => _compareCodePoints(a as String, b as String));
-  } else if (list.every((e) => e is num)) {
-    list.sort((a, b) => (a as num).compareTo(b as num));
-  } else if (list.every((e) => e is bool)) {
-    list.sort((a, b) => (a == b) ? 0 : ((a == true) ? 1 : -1));
-  }
-  return list;
-}
+/// A `Set` (a `uniqueItems` array) is written in its own iteration order
+/// (insertion order for the default `LinkedHashSet`); the order is never
+/// sorted (S6).
+List<E> wireList<E>(Iterable<Object?> source, Iterable<E> encoded) =>
+    encoded.toList();
 
 /// The nullable counterpart of [wireList] for an optional array field.
 List<E>? wireListOrNull<E>(Iterable<Object?>? source, Iterable<E>? encoded) {
   if (source == null || encoded == null) return null;
   return wireList(source, encoded);
-}
-
-/// Compares two strings by Unicode code point (not UTF-16 code unit).
-int _compareCodePoints(String a, String b) {
-  final ra = a.runes.iterator;
-  final rb = b.runes.iterator;
-  while (true) {
-    final hasA = ra.moveNext();
-    final hasB = rb.moveNext();
-    if (!hasA || !hasB) return hasA ? 1 : (hasB ? -1 : 0);
-    final cmp = ra.current.compareTo(rb.current);
-    if (cmp != 0) return cmp;
-  }
 }
 
 /// Deserialize an already-decoded JSON object into a typed `Map<String, T>`,
@@ -298,7 +273,7 @@ Map<String, T>? deserializeMapFromJson<T>(
     return deserializeMap(parseJson(data), deserializeValue);
   } catch (e) {
     if (e is SerializationException) rethrow;
-    throw SerializationException('Failed to deserialize JSON map: $e', e);
+    throw SerializationException('Failed to deserialize JSON: $e', e);
   }
 }
 
@@ -322,7 +297,7 @@ List<T>? deserializeArrayFromJson<T>(
     return deserializeArray(parseJson(data), deserializeElement);
   } catch (e) {
     if (e is SerializationException) rethrow;
-    throw SerializationException('Failed to deserialize JSON list: $e', e);
+    throw SerializationException('Failed to deserialize JSON: $e', e);
   }
 }
 

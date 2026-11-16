@@ -113,8 +113,8 @@ public class OAuth2TokenManagerTest
     public async Task RefetchesTokenWhenExpired()
     {
         var client = new FakeApiClient();
-        // First token with 0 seconds expiry (will be treated as expired due to 30s buffer)
-        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":1}");
+        // First token with a zero lifetime: stale the moment it arrives
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
 
         var manager = new OAuth2TokenManager();
@@ -123,7 +123,7 @@ public class OAuth2TokenManagerTest
         var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
         var tokenUrl = new Uri("https://auth.example.com/token");
 
-        // First call fetches tok1, but it expires immediately (expires_in=1, minus 30s buffer)
+        // First call fetches tok1, but it expires immediately (expires_in=0)
         string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
         // Second call should refetch since token is expired
         string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
@@ -278,14 +278,19 @@ public class OAuth2TokenManagerTest
         Assert.Equal("long", second);
     }
 
-    [Fact]
-    public async Task ExpiresInExactlyBufferReturnsZeroBuffer()
+    [Theory]
+    [InlineData(30)]
+    [InlineData(60)]
+    [InlineData(90)]
+    [InlineData(120)]
+    public async Task ShortLivedTokenIsReusedUnderASingleMargin(int expiresIn)
     {
-        // Gap CM: expires_in == 30 collapses expiry to now, forcing a refetch
-        // on the next call.
+        // F854/F895: one margin, capped at half the lifetime, so a token with
+        // an expires_in of 90 seconds or less is still served from cache and
+        // the second call makes no token request.
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"edge1\",\"expires_in\":30}");
-        client.Enqueue("{\"access_token\":\"edge2\",\"expires_in\":30}");
+        client.Enqueue("{\"access_token\":\"edge1\",\"expires_in\":" + expiresIn + "}");
+        client.Enqueue("{\"access_token\":\"edge2\",\"expires_in\":" + expiresIn + "}");
 
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
@@ -297,7 +302,8 @@ public class OAuth2TokenManagerTest
         string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
 
         Assert.Equal("edge1", first);
-        Assert.Equal("edge2", second);
+        Assert.Equal("edge1", second);
+        Assert.Equal(1, client.CallCount);
     }
 
     [Fact]
@@ -307,7 +313,7 @@ public class OAuth2TokenManagerTest
         // MUST NOT clobber the cached refresh_token.
         var client = new FakeApiClient();
         client.Enqueue(
-            "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}"
+            "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":0}"
         );
         client.Enqueue(
             "{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}"
@@ -338,8 +344,8 @@ public class OAuth2TokenManagerTest
         // letting the JsonException propagate.
         var client = new FakeApiClient();
         // 1) Initial grant: returns an access token + refresh token, near-expiry
-        //    (expires_in=1, minus the 30s buffer) so the next call refreshes.
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        //    (expires_in=0) so the next call refreshes.
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         // 2) Refresh attempt: malformed JSON body -> OAuth2TokenException.
         client.Enqueue("this is not json", statusCode: 200);
         // 3) Fallback original grant: succeeds.
@@ -522,6 +528,69 @@ public class OAuth2TokenManagerTest
         Assert.IsAssignableFrom<OpenAPIException>(ex);
     }
 
+    [Theory]
+    [InlineData("<html>not json</html>", "Token response is not valid JSON")]
+    [InlineData("[\"tok\"]", "Token response is not a JSON object")]
+    [InlineData("\"tok\"", "Token response is not a JSON object")]
+    [InlineData("{}", "Token response missing or empty access_token field")]
+    [InlineData("{\"access_token\":\"\"}", "Token response missing or empty access_token field")]
+    public async Task UnusableTokenResponseHasTheCanonicalMessageAndNoCause(
+        string body,
+        string expected
+    )
+    {
+        // D07: the message is byte-identical across the SDKs, with no parser
+        // detail appended and no cause that could quote the response body.
+        var client = new FakeApiClient();
+        client.Enqueue(body);
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2TokenException>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+            )
+        );
+        Assert.Equal(expected, ex.Message);
+        Assert.Null(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task ConcurrentReadersNeverSeeATokenOtherThanOneThatWasSet()
+    {
+        // F909: the token and its expiry are published as one snapshot, so a
+        // reader racing a writer sees one complete token or the other.
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(new FakeApiClient());
+        manager.SetAccessToken("alpha");
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        using var stop = new CancellationTokenSource();
+        Task writer = Task.Run(
+            () =>
+            {
+                for (int i = 0; !stop.IsCancellationRequested; i++)
+                {
+                    manager.SetAccessToken(i % 2 == 0 ? "alpha" : "beta");
+                }
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var seen = new HashSet<string>();
+        for (int i = 0; i < 2000; i++)
+        {
+            _ = seen.Add(await manager.GetAccessTokenAsync(tokenUrl, parameters));
+        }
+        await stop.CancelAsync();
+        await writer;
+
+        Assert.All(seen, token => Assert.True(token is "alpha" or "beta"));
+    }
+
     [Fact]
     public async Task TokenTransportFailurePropagatesNetworkException()
     {
@@ -633,16 +702,14 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task RefreshResponseWithoutExpiresInKeepsTheExistingExpiry()
+    public async Task RefreshResponseWithoutExpiresInClearsTheStaleExpiry()
     {
-        /* The first token is already stale (expires_in of one second sits
-           inside the safety margin). A refresh response that omits expires_in
-           must not turn it into a token cached forever, so the next call
-           fetches again. */
+        /* F896: the first token is stale at once (expires_in of zero). A
+           refresh response that omits expires_in carries no expiry, so the new
+           token is cached rather than refreshed again on every call. */
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\"}");
-        client.Enqueue("{\"access_token\":\"tok3\"}");
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
 
@@ -652,8 +719,8 @@ public class OAuth2TokenManagerTest
 
         Assert.Equal("tok1", first);
         Assert.Equal("tok2", second);
-        Assert.Equal("tok3", third);
-        Assert.Equal(3, client.CallCount);
+        Assert.Equal("tok2", third);
+        Assert.Equal(2, client.CallCount);
     }
 
     [Fact]
@@ -674,7 +741,7 @@ public class OAuth2TokenManagerTest
     public async Task NonStringRefreshTokenDoesNotReplaceTheStoredOne()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"refresh_token\":12345,\"expires_in\":3600}");
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
@@ -846,7 +913,7 @@ public class OAuth2TokenManagerTest
     public async Task RefreshGoesToTheRefreshUrlWithTheClientCredentials()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
@@ -874,7 +941,7 @@ public class OAuth2TokenManagerTest
     public async Task RefreshGrantParametersMakeExactlyOnePost()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);

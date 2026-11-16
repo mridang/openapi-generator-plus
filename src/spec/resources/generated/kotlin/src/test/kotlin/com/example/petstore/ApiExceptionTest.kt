@@ -71,8 +71,24 @@ class ApiExceptionTest {
         assertEquals(
             "boom" +
                 "\nHTTP status code: 500" +
-                "\nResponse headers: {x-request-id=abc}" +
+                "\nResponse headers: {\"x-request-id\":\"abc\"}" +
                 "\nResponse body: the body",
+            ex.toString(),
+        )
+    }
+
+    @Test
+    fun responseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
+        val ex =
+            ApiException(
+                statusCode = 404,
+                message = "gone",
+                responseHeaders = mapOf("location" to "/a/b", "content-type" to "text/plain"),
+                responseBody = null,
+            )
+
+        assertTrue(
+            ex.toString().contains("\nResponse headers: {\"content-type\":\"text/plain\",\"location\":\"/a/b\"}"),
             ex.toString(),
         )
     }

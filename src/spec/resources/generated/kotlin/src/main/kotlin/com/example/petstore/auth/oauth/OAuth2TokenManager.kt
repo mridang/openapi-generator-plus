@@ -33,10 +33,10 @@ import kotlin.time.Clock
 @OptIn(kotlin.time.ExperimentalTime::class)
 class OAuth2TokenManager {
     private companion object {
-        /** Safety margin (in milliseconds) applied to token expiry checks
-         *  so that we refresh slightly before the token actually expires,
-         *  avoiding a race against the server clock. */
-        private const val EXPIRY_SAFETY_MARGIN_MS: Long = 60_000L
+        /** The one safety margin (in seconds) applied to a token's lifetime, when the
+         *  expiry is stored, so that we refresh slightly before the token actually
+         *  expires. It is never applied a second time when the token is read. */
+        private const val EXPIRY_SAFETY_MARGIN_SECONDS: Long = 30L
 
         /** Longest token lifetime honoured (one year), so a huge `expires_in`
          *  cannot overflow the millisecond expiry arithmetic. */
@@ -77,7 +77,7 @@ class OAuth2TokenManager {
     ): Boolean {
         if (token == null) return false
         if (expiry == null) return true
-        return Clock.System.now().toEpochMilliseconds() < expiry - EXPIRY_SAFETY_MARGIN_MS
+        return Clock.System.now().toEpochMilliseconds() < expiry
     }
 
     /**
@@ -300,6 +300,18 @@ class OAuth2TokenManager {
         if (accessTokenElement == null || !accessTokenElement.isString || accessTokenElement.content.isEmpty()) {
             throw OAuth2TokenException("Token response missing or empty access_token field")
         }
+        /* RFC 6749 section 7.1: a client must not use an access token whose type
+         * it does not understand. Only `Bearer` (any letter case) is sent as a
+         * Bearer credential, so a DPoP, MAC or other token type is refused with
+         * a fixed message that does not echo the server's value. A missing or
+         * null token_type is accepted. */
+        val tokenTypeElement = jsonObject["token_type"] as? JsonPrimitive
+        if (tokenTypeElement != null &&
+            tokenTypeElement !is JsonNull &&
+            !(tokenTypeElement.isString && tokenTypeElement.content.equals("bearer", ignoreCase = true))
+        ) {
+            throw OAuth2TokenException("Unsupported token_type in token response")
+        }
         this.accessToken = accessTokenElement.content
         if (jsonObject.containsKey("refresh_token")) {
             // Require a JSON string (like access_token above): contentOrNull would
@@ -324,7 +336,7 @@ class OAuth2TokenManager {
             val expiresIn = minOf(parseExpiresIn(expiresInElement), MAX_EXPIRES_IN_SECONDS)
             this.tokenExpiryMs =
                 if (expiresIn > 0L) {
-                    val bufferSecs = minOf(expiresIn, 30L)
+                    val bufferSecs = minOf(expiresIn, EXPIRY_SAFETY_MARGIN_SECONDS)
                     Clock.System.now().toEpochMilliseconds() + (expiresIn - bufferSecs) * 1000L
                 } else {
                     Clock.System.now().toEpochMilliseconds()

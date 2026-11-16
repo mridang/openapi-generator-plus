@@ -219,7 +219,7 @@ func TestOAuth2AuthCode_IncludesRefreshTokenOnRefresh(t *testing.T) {
 	t.Parallel()
 	client := &fakeAuthCodeClient{
 		responses: []fakeAuthCodeResponse{
-			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 			{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 		},
 	}
@@ -232,7 +232,7 @@ func TestOAuth2AuthCode_IncludesRefreshTokenOnRefresh(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// AuthHeaders triggers a refresh since token is expired (expires_in=1 minus 30s buffer)
+	// AuthHeaders triggers a refresh since token is expired (expires_in=0 is stale on arrival)
 	headers := authObj.AuthHeaders()
 
 	if !strings.Contains(client.LastBody, "refresh_token=ref1") {
@@ -424,7 +424,7 @@ func TestOAuth2AuthCode_ExchangeBodyPercentEncodesReservedPunctuation(t *testing
 func TestOAuth2AuthCode_SendsTheExchangeToTokenUrlAndTheRefreshToRefreshUrl(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 	}}
 	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
@@ -461,7 +461,7 @@ func TestOAuth2AuthCode_SendsTheExchangeToTokenUrlAndTheRefreshToRefreshUrl(t *t
 func TestUserAuthWrapper_RoutesToTheDeclaredUrls(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 	}}
 	authObj := oauth.NewUserAuthAuthorizationCodeAuthenticator(
@@ -535,7 +535,7 @@ func TestOAuth2AuthCode_ExchangeBodyAndAuthorizeUrlUseTheSharedOrder(t *testing.
 func TestOAuth2AuthCode_RefreshCarriesClientCredentialsAndFailsAfterOnePost(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 		{body: `{"error":"invalid_grant"}`, statusCode: 400},
 	}}
 	authObj := createAuthCodeAuthenticator()
@@ -594,7 +594,7 @@ func TestOAuth2AuthCode_SecondExchangeWithoutRefreshTokenDropsTheOldOne(t *testi
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
-		{body: `{"access_token":"tok2","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"tok3","expires_in":3600}`, statusCode: 200},
 	}}
 	authObj := createAuthCodeAuthenticator()

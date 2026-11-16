@@ -42,7 +42,12 @@ export class RequiredNullable {
   note!: string | null;
 
   constructor(data?: Partial<RequiredNullable>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (data !== undefined) {
       if (this.note === undefined) {
         throw new TypeError("note is required");

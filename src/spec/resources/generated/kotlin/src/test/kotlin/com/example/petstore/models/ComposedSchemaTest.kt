@@ -105,7 +105,7 @@ class ComposedSchemaTest {
                     assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
                         serializer.deserialize<PetFood>(payload)
                     }
-                assertTrue(ex.message!!.startsWith("Failed to decode response body: "), ex.message)
+                assertTrue(ex.message!!.startsWith("Failed to deserialize JSON: "), ex.message)
                 assertNotNull(ex.cause, "the library failure is kept as the cause: $payload")
             }
         }

@@ -257,6 +257,49 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(err.message).must_include "OIDC discovery document is missing 'authorization_endpoint'"
   end
 
+  it 'rejects a discovery document whose issuer is not the discovery URL' do
+    client = FakeOidcClient.new([{ status: 200, body: { 'issuer' => 'https://evil.example.com',
+                                                        'authorization_endpoint' => 'https://auth.example.com/authorize',
+                                                        'token_endpoint' => 'https://auth.example.com/token' } }])
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    err = assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
+    _(err.message).must_equal 'OIDC discovery document issuer does not match the discovery URL'
+  end
+
+  it 'accepts an issuer equal to the discovery URL with a trailing slash' do
+    client = FakeOidcClient.new([{ status: 200, body: { 'issuer' => 'https://auth.example.com/',
+                                                        'authorization_endpoint' => 'https://auth.example.com/authorize',
+                                                        'token_endpoint' => 'https://auth.example.com/token' } }])
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    _(auth.build_authorization_url).must_include 'https://auth.example.com/authorize'
+  end
+
+  it 'rejects a plain http discovered endpoint on a non-loopback host' do
+    client = FakeOidcClient.new([{ status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/authorize',
+                                                        'token_endpoint' => 'http://auth.example.com/token' } }])
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    err = assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
+    _(err.message).must_equal 'OIDC discovery token_endpoint must use https'
+  end
+
   it 'raises SerializationError when discovery omits token_endpoint' do
     client = FakeOidcClient.new([{ status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/authorize' } }])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(

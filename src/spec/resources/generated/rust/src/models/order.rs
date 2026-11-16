@@ -23,6 +23,17 @@ pub enum OrderStatusEnum {
     Delivered,
 }
 
+impl std::fmt::Display for OrderStatusEnum {
+    /// Writes the wire value, not the variant name.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            OrderStatusEnum::Placed => "placed",
+            OrderStatusEnum::Approved => "approved",
+            OrderStatusEnum::Delivered => "delivered",
+        })
+    }
+}
+
 /// Serde default for the optional `status` field: when the property is
 /// ABSENT from the wire payload the schema's `default` applies, so an
 /// omitted `status` deserializes to the declared default variant

@@ -1283,6 +1283,51 @@ class TestHeaderFlowThrough:
         )
         assert client.captured_headers["Accept"] == "application/xml"
 
+    async def test_a_lower_case_default_header_replaces_the_negotiated_one(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        config = Configuration(
+            base_url="http://localhost",
+            default_headers={"accept": "application/vnd.x+json"},
+        )
+        stub = StubApi(api_client=client, config=config)
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert [k for k in client.captured_headers if k.lower() == "accept"] == [
+            "accept"
+        ]
+        assert client.captured_headers["accept"] == "application/vnd.x+json"
+
+    async def test_a_lower_case_default_content_type_is_dropped_without_a_body(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        config = Configuration(
+            base_url="http://localhost",
+            default_headers={"content-type": "application/json"},
+        )
+        stub = StubApi(api_client=client, config=config)
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert not any(k.lower() == "content-type" for k in client.captured_headers)
+
 
 class TestServerVariableOverrides:
     def test_server_variable_overrides_resolve_in_base_url(self) -> None:

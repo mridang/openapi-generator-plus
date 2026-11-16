@@ -194,7 +194,7 @@ const client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
 
 ## Testing
 
-The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+To stub responses, pass your own `fetch` through `TransportOptions` and return a canned `Response`; to control credentials, substitute a fake `Authenticator` that returns a known header map. Together they let a test run without a network.
 
 ```typescript
 import { Client, type Authenticator } from "petstore-client";
@@ -218,6 +218,20 @@ const fake: Authenticator = {
 };
 
 const client = new Client(fake);
+```
+
+Stubbing the transport so that every call receives a canned response:
+
+```typescript
+import { Client, TransportOptions } from "petstore-client";
+
+const stub: typeof fetch = async () =>
+  new Response("{}", {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+const transport = TransportOptions.builder().fetch(stub).build();
+const client = new Client(fake, transport);
 ```
 
 ## Error Handling
@@ -303,7 +317,8 @@ Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSigna
 
 ```typescript
 const controller = new AbortController();
-const perCall = api.someOperation(requiredArg, { signal: controller.signal });
+// An operation with optional parameters takes them before the signal: pass `undefined` to skip them.
+const perCall = client.pet.addPet(new Pet(), { signal: controller.signal });
 const cancellable = new Client(authenticator, undefined, {
   signal: controller.signal,
 });
@@ -315,7 +330,7 @@ const cancellable = new Client(authenticator, undefined, {
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `Buffer`. Binary response bodies are returned as `Buffer`.
+File upload parameters are typed as `Buffer | Blob` (a `File` is a `Blob`). Binary response bodies are returned as `Buffer`.
 
 ## Comment Style
 

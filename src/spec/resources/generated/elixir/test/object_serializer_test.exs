@@ -154,6 +154,20 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert decoded.password == "p"
     end
 
+    test "prepare_body passes a model without its own serialize/1 through unchanged" do
+      account = %PetstoreClient.Models.Account{username: "u", password: "p"}
+
+      assert PetstoreClient.ObjectSerializer.prepare_body(account, PetstoreClient.Models.Account) ==
+               account
+    end
+
+    test "a format: password property is left out of inspect" do
+      account = %PetstoreClient.Models.Account{username: "u", password: "hunter2"}
+
+      refute inspect(account) =~ "hunter2"
+      assert inspect(account) =~ "username"
+    end
+
     test "multipart model part is serialized through the configured serializer with wire names" do
       # Cross-SDK parity regression: addPetPhotos sends a multipart/form-data
       # body whose `metadata` part is a PhotoMetadata MODEL. That part must go
@@ -1371,9 +1385,31 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
       beyond = String.duplicate("[", 1500) <> String.duplicate("]", 1500)
 
-      assert_raise PetstoreClient.Errors.SerializationError, fn ->
-        PetstoreClient.ObjectSerializer.deserialize(beyond, "Object")
-      end
+      err =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(beyond, "Object")
+        end
+
+      assert err.message ==
+               "Failed to deserialize JSON: JSON nesting depth 1500 exceeds limit 1000"
+    end
+
+    test "a payload that is not JSON raises with the parser's detail" do
+      err =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize("{not json", "Object")
+        end
+
+      assert err.message =~ "Failed to deserialize JSON: "
+    end
+
+    test "a value the encoder rejects raises Failed to serialize object to JSON" do
+      err =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.serialize(%{"bytes" => <<255>>})
+        end
+
+      assert err.message =~ "Failed to serialize object to JSON: "
     end
   end
 

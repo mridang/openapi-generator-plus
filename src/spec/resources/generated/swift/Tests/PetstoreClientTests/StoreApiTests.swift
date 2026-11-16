@@ -37,7 +37,7 @@ import Testing
     let order = Order()
 
     let result = try await api.placeOrder(order: order)
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testPlaceOrderWithHTTPInfo() async throws {
@@ -55,7 +55,7 @@ import Testing
     let api = storeApiForIntegration()
 
     let result = try await api.getOrderById(orderId: 1)
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testGetOrderByIdWithHTTPInfo() async throws {
@@ -63,7 +63,7 @@ import Testing
 
     let result = try await api.getOrderByIdWithHTTPInfo(orderId: 1)
     #expect(result.statusCode == 200)
-    #expect(result.headers != nil)
+    _ = result.headers
   }
 
   @Test func testDeleteOrder() async throws {
@@ -76,7 +76,7 @@ import Testing
     let api = storeApiForIntegration()
 
     let result = try await api.getInventory()
-    #expect(result != nil)
+    _ = result
   }
 
   @Test func testGetInventoryWithHTTPInfo() async throws {

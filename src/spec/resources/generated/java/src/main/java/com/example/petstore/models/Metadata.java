@@ -30,13 +30,13 @@ public class Metadata {
   private java.util.Map<String, Object> additionalProperties = new java.util.LinkedHashMap<>();
 
   /**
-   * Stores an additional, undeclared property.
+   * Stores an additional, undeclared property. Callers use it to send extra keys.
    *
    * @param key the property name
    * @param value the property value
    */
   @com.fasterxml.jackson.annotation.JsonAnySetter
-  void setAdditionalProperty(String key, Object value) {
+  public void setAdditionalProperty(String key, Object value) {
     this.additionalProperties.put(key, value);
   }
 

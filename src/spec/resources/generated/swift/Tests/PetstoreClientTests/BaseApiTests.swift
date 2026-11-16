@@ -262,8 +262,8 @@ import Testing
       _ = try await api.getPetById(petId: 1)
       Issue.record("Expected error")
     } catch let error as NotFoundError {
-      #expect(error is ClientError)
-      #expect(error is ApiError)
+      let _: ClientError = error
+      let _: ApiError = error
     }
   }
 
@@ -279,8 +279,8 @@ import Testing
       _ = try await api.getPetById(petId: 1)
       Issue.record("Expected error")
     } catch let error as InternalServerError {
-      #expect(error is ServerError)
-      #expect(error is ApiError)
+      let _: ServerError = error
+      let _: ApiError = error
     }
   }
 
@@ -395,7 +395,7 @@ import Testing
     let api = PetApi(apiClient: mockClient, config: config)
 
     let result = try await api.getPetById(petId: 1)
-    #expect(result != nil)
+    _ = result
   }
 
   // MARK: - Header flow-through

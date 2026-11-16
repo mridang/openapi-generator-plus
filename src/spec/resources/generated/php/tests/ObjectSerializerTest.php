@@ -234,6 +234,18 @@ test('stringify keeps the fraction marker on a whole-number float', function (fl
     [1.0E+25, '1.0E+25'],
 ]);
 
+test('stringify keeps every significant digit whatever the precision ini says', function (): void {
+    $previous = ini_set('precision', '14');
+
+    try {
+        expect(ObjectSerializer::stringify(0.1234567890123456))->toBe('0.1234567890123456');
+        expect((float) ObjectSerializer::stringify(52.520008123456789))->toBe(52.520008123456789);
+        expect(ObjectSerializer::stringify(0.1 + 0.2))->toBe('0.30000000000000004');
+    } finally {
+        ini_set('precision', $previous === false ? '14' : $previous);
+    }
+});
+
 test('stringify array fallback', function (): void {
     $result = ObjectSerializer::stringify(['a', 'b', 'c']);
     expect($result)->not->toBe('');

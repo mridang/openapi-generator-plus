@@ -230,10 +230,14 @@ class TestPetApi:
     async def test_set_pet_avatar_rejects_unknown_content_type(self) -> None:
         # An unknown request_content_type must be rejected client-side (ValueError),
         # not passed onto the wire as an undeclared Content-Type.
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as excinfo:
             await self.api.set_pet_avatar(
                 1, b"\xff\xd8\xff", request_content_type="application/unknown-type"
             )
+        assert str(excinfo.value) == (
+            "Unsupported request content-type 'application/unknown-type' for "
+            "set_pet_avatar; declared types are [image/jpeg, image/png, application/json]"
+        )
 
     async def test_set_pet_avatar_streams_raw_bytes_with_declared_content_type(
         self,

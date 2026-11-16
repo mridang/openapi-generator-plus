@@ -1,6 +1,7 @@
 import json
 import pytest
 import urllib3
+from urllib3._collections import HTTPHeaderDict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from typing import Any, ClassVar
@@ -670,7 +671,7 @@ class _FakeResp:
 
     def __init__(self, status: int, headers: dict[str, Any]) -> None:
         self.status = status
-        self.headers = headers
+        self.headers = HTTPHeaderDict(headers)
         self.released = False
 
     def read(self) -> bytes:
@@ -805,7 +806,10 @@ class TestBodyReplayOnTlsDowngrade:
                 {"Content-Type": "application/json"},
                 '{"secret":"value"}',
             )
-        assert "downgrade" in str(excinfo.value.message or "").lower()
+        assert excinfo.value.message == (
+            "Refusing to replay request body across HTTPS->HTTP redirect: "
+            "https://example.com/secure -> http://example.com/insecure"
+        )
         # A refused redirect is a response that could not be used: an
         # ApiException with the 3xx status, never a NetworkException.
         assert type(excinfo.value) is ApiException
@@ -999,6 +1003,125 @@ class TestContentLengthStrippedOnRedirect:
         calls = self._redirect_once(307, "POST")
         assert calls[1][0] == "POST"
         assert calls[1][2]["Content-Length"] == "0"
+
+
+class TestRedirectRefusals:
+    """The three redirect refusals carry the canonical text (D16) and the real
+    response headers, lower-cased (D13)."""
+
+    def _client(self, responses: list[Any]) -> DefaultApiClient:
+        class _Pool:
+            def __init__(self) -> None:
+                self.responses = list(responses)
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return self.responses.pop(0)
+
+        return DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).max_redirects(2).build(),
+            pool_manager=_Pool(),
+        )
+
+    def test_a_non_http_target_is_refused_with_the_canonical_message(self) -> None:
+        from petstore_client.errors import ApiException
+
+        client = self._client(
+            [_FakeResp(302, {"Location": "ftp://example.com/x", "X-Request-Id": "r1"})]
+        )
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", "https://example.com/start", {}, None)
+        assert excinfo.value.message == (
+            "Refusing to follow redirect to non-HTTP(S) URL: ftp://example.com/x"
+        )
+        assert excinfo.value.response_headers == {
+            "location": "ftp://example.com/x",
+            "x-request-id": "r1",
+        }
+
+    def test_an_exhausted_budget_is_refused_with_the_canonical_message(self) -> None:
+        from petstore_client.errors import ApiException
+
+        hop = {"Location": "https://example.com/next"}
+        client = self._client([_FakeResp(302, dict(hop)) for _ in range(3)])
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", "https://example.com/start", {}, None)
+        assert excinfo.value.message == "Too many redirects (exceeded 2)"
+        assert excinfo.value.response_headers == {
+            "location": "https://example.com/next"
+        }
+
+
+class TestRedirectMessagesKeepTheQueryOut:
+    def test_the_downgrade_refusal_does_not_quote_a_query_parameter_api_key(
+        self,
+    ) -> None:
+        from petstore_client.errors import ApiException
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return _FakeResp(307, {"location": "http://example.com/insecure?t=2"})
+
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(),
+            pool_manager=_Pool(),
+        )
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request(
+                "POST",
+                "https://example.com/secure?api_key=SECRET",
+                {"Content-Type": "application/json"},
+                "{}",
+            )
+        assert excinfo.value.message == (
+            "Refusing to replay request body across HTTPS->HTTP redirect: "
+            "https://example.com/secure?*** -> http://example.com/insecure?***"
+        )
+
+
+class TestHeaderMergeIsCaseInsensitive:
+    """A header written in another case replaces the selector's, never joins it."""
+
+    def _send(
+        self, headers: dict[str, str], body: Any = None, method: str = "GET"
+    ) -> dict[str, str]:
+        class _Pool:
+            def __init__(self) -> None:
+                self.sent: dict[str, str] = {}
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.sent = dict(kwargs.get("headers") or {})
+                self.body = kwargs.get("body")
+                return _FakeResp(200, {})
+
+        pool = _Pool()
+        DefaultApiClient(pool_manager=pool).send_request(
+            method, "https://example.com/x", headers, body
+        )
+        self.body = pool.body
+        return pool.sent
+
+    def test_a_lower_case_accept_replaces_the_upper_case_one(self) -> None:
+        sent = self._send(
+            {"Accept": "application/json", "accept": "application/vnd.x+json"}
+        )
+        assert [k for k in sent if k.lower() == "accept"] == ["accept"]
+        assert sent["accept"] == "application/vnd.x+json"
+
+    def test_a_lower_case_accept_encoding_is_not_duplicated(self) -> None:
+        sent = self._send({"accept-encoding": "identity"})
+        assert [k for k in sent if k.lower() == "accept-encoding"] == [
+            "accept-encoding"
+        ]
+
+    def test_a_lower_case_content_type_is_dropped_on_a_bodyless_request(self) -> None:
+        sent = self._send({"content-type": "application/json"})
+        assert not any(k.lower() == "content-type" for k in sent)
+
+    @pytest.mark.parametrize("make", [bytearray, memoryview])
+    def test_a_byte_like_body_is_sent_verbatim(self, make: Any) -> None:
+        sent = self._send({"Content-Type": "image/png"}, make(b"\x89PNG"), "PUT")
+        assert self.body == b"\x89PNG"
+        assert sent["Content-Type"] == "image/png"
 
 
 class TestRedirectLocationResolution:
@@ -1198,6 +1321,9 @@ class TestUseAfterClose:
         with pytest.raises(RuntimeError) as excinfo:
             client.send_request("GET", "https://example.com/x", {}, None)
         assert type(excinfo.value) is RuntimeError
+        assert str(excinfo.value) == (
+            "ApiClient has been closed and can no longer send requests"
+        )
         assert not isinstance(excinfo.value, OpenAPIException)
         # The request must never have been issued against the closed client.
         assert pool.calls == 0
@@ -1325,6 +1451,27 @@ class TestNetworkErrors:
         assert isinstance(excinfo.value, NetworkException)
         assert excinfo.value.status_code == 0
         assert isinstance(excinfo.value.__cause__, urllib3.exceptions.MaxRetryError)
+
+
+class TestNetworkErrorMessageKeepsTheQueryOut:
+    def test_a_query_parameter_api_key_is_not_copied_into_the_message(self) -> None:
+        import urllib3.exceptions
+        from petstore_client.errors import NetworkException
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                no_pool: Any = None
+                raise urllib3.exceptions.MaxRetryError(
+                    no_pool,
+                    url,
+                    urllib3.exceptions.ProtocolError("Connection aborted."),
+                )
+
+        client = DefaultApiClient(pool_manager=_Pool())
+        with pytest.raises(NetworkException) as excinfo:
+            client.send_request("GET", "https://example.com/x?api_key=SECRET", {}, None)
+        assert "SECRET" not in str(excinfo.value)
+        assert "api_key" not in str(excinfo.value)
 
 
 class TestCaCertPathFailsFast:

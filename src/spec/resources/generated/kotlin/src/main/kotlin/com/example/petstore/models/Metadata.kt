@@ -26,18 +26,17 @@ data class Metadata(
     @SerialName("createdAt")
     @Contextual
     val createdAt: OffsetDateTime? = null,
-) {
     @kotlinx.serialization.Transient
-    val additionalProperties: MutableMap<String, @Contextual Any?> = mutableMapOf()
-
-  /* Kotlin's synthesized data-class equals/hashCode compare Array and
-   * ByteArray by reference identity (and List<ByteArray> bottoms out in
-   * reference-equal elements), so two instances decoded from identical JSON
-   * would not be equal and would hash differently. The overrides below route
-   * those fields through contentEquals/contentHashCode (element-wise for
-   * List<ByteArray>) and compare BigDecimal fields by numeric value (the data
-   * class would treat 1.5 and 1.50 as different) while every other field keeps
-   * ordinary == semantics. */
+    val additionalProperties: MutableMap<String, @Contextual Any?> = mutableMapOf(),
+) {
+    /* Kotlin's synthesized data-class equals/hashCode compare Array and
+     * ByteArray by reference identity (and List<ByteArray> bottoms out in
+     * reference-equal elements), so two instances decoded from identical JSON
+     * would not be equal and would hash differently. The overrides below route
+     * those fields through contentEquals/contentHashCode (element-wise for
+     * List<ByteArray>) and compare BigDecimal fields by numeric value (the data
+     * class would treat 1.5 and 1.50 as different) while every other field keeps
+     * ordinary == semantics. */
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
@@ -61,7 +60,8 @@ data class Metadata(
    * identity hash (`[B@1b6d3586`), omits the @Transient additionalProperties
    * bucket and does not look inside containers. This override keeps the
    * data-class shape but renders byte data by content, containers
-   * element-wise and appends additionalProperties. */
+   * element-wise and appends additionalProperties. A `format: password`
+   * property prints as `***`. */
     override fun toString(): String =
         listOf(
             "createdAt=" + renderForToString(createdAt),

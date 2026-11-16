@@ -42,7 +42,12 @@ export class DryFood {
   weightKg!: number;
 
   constructor(data?: Partial<DryFood>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (this.foodType === undefined) {
       this.foodType = "dry";
     }

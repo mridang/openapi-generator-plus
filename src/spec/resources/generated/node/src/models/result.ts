@@ -40,7 +40,12 @@ export class Result {
   ok?: boolean;
 
   constructor(data?: Partial<Result>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (this.ok != null && typeof this.ok !== "boolean") {
       throw new TypeError(`ok must be a boolean, got ${typeof this.ok}`);
     }

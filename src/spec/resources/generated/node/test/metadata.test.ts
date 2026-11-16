@@ -8,7 +8,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { ObjectSerializer } from "../src/object-serializer.js";
-import { Metadata } from "../src/models/index.js";
+import { Metadata, Pet } from "../src/models/index.js";
 
 describe("package.json manifest", () => {
   test("declares a non-empty description", () => {
@@ -21,6 +21,16 @@ describe("package.json manifest", () => {
     };
     expect(typeof pkg.description).toBe("string");
     expect(pkg.description!.length).toBeGreaterThan(0);
+  });
+
+  test("declares sideEffects so a bundler can drop unused operations", () => {
+    // The only module with an import-time side effect is the serializer, which
+    // loads reflect-metadata; everything else may be tree-shaken.
+    const pkgPath = path.resolve(__dirname, "..", "package.json");
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as {
+      sideEffects?: string[];
+    };
+    expect(pkg.sideEffects).toEqual(["./dist/src/object-serializer.js"]);
   });
 });
 
@@ -52,6 +62,26 @@ describe("generated model docblocks (L1 parity)", () => {
     expect(source).toContain(
       `* @see {@link https://example.com/docs/account} Account <docs> & "notes" it's here\n`,
     );
+  });
+});
+
+describe("schema constraints in model doc comments (documentation only)", () => {
+  test("a constrained property lists its pattern and bounds as doc tags", () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, "..", "src", "models", "pet.ts"),
+      "utf-8",
+    );
+
+    expect(source).toContain("@minLength 2");
+    expect(source).toContain("@maxLength 8");
+    expect(source).toMatch(/@pattern .*\(\?!admin\)/);
+  });
+
+  test("the constraints are not enforced at runtime", () => {
+    expect(
+      () =>
+        new Pet({ name: "Fido", photoUrls: new Set<string>(), nickname: "x" }),
+    ).not.toThrow();
   });
 });
 

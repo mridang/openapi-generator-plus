@@ -2260,6 +2260,40 @@ describe("ObjectSerializer", () => {
         SerializationError,
       );
     });
+
+    test("the nesting-depth and parse failures use the canonical messages", () => {
+      const beyond = "[".repeat(1001) + "]".repeat(1001);
+      expect(() => ObjectSerializer.parseJson(beyond)).toThrow(
+        "JSON nesting depth 1001 exceeds limit 1000",
+      );
+      expect(() => ObjectSerializer.parseJson("{")).toThrow(
+        /^Failed to deserialize JSON: /,
+      );
+    });
+  });
+});
+
+describe("a wire key named __proto__ is data, never a prototype", () => {
+  test("deserializeMap keeps it as an own entry and does not re-prototype the map", () => {
+    const json = JSON.parse(
+      '{"a":"1","__proto__":{"polluted":"yes"}}',
+    ) as unknown;
+    const out = ObjectSerializer.deserializeMap<unknown>(
+      json,
+      (v: unknown) => v,
+    );
+    expect(Object.keys(out)).toEqual(["a", "__proto__"]);
+    expect((out as Record<string, unknown>)["polluted"]).toBeUndefined();
+    expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
+  });
+
+  test("a model constructor ignores an own __proto__ key of its data", () => {
+    const data = JSON.parse(
+      '{"id":1,"name":"Dogs","__proto__":{"x":1}}',
+    ) as Partial<Category>;
+    const category = new Category(data);
+    expect(Object.getPrototypeOf(category)).toBe(Category.prototype);
+    expect(typeof category.equals).toBe("function");
   });
 });
 

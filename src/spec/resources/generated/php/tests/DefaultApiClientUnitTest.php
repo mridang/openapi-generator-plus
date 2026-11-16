@@ -927,11 +927,19 @@ test('https to http downgrade refuses body replay on 307', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
+            if (!$e instanceof ApiException) {
+                return;
+            }
             expect($e->getCode())->toBe(307);
+            expect($e->getMessage())->toBe(
+                'Refusing to replay request body across HTTPS->HTTP redirect: '
+                . 'https://api.example.com/secret -> http://insecure.example.com/sink'
+            );
+            expect($e->getResponseHeaders())->toHaveKey('location');
         });
 });
 
@@ -1057,12 +1065,43 @@ test('exceeding max redirects throws too many redirects', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient($loop), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
+            if (!$e instanceof ApiException) {
+                return;
+            }
             expect($e->getCode())->toBe(302);
+            expect($e->getMessage())->toBe('Too many redirects (exceeded 3)');
+            expect($e->getResponseHeaders())->toHaveKey('location');
         });
+});
+
+test('a final 3xx without a Location after the redirect budget is returned, not refused', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient([
+        new MockResponse('', ['http_code' => 302, 'response_headers' => ['Location' => '/a']]),
+        new MockResponse('', ['http_code' => 302]),
+    ]), TransportOptions::builder()->followRedirects(true)->maxRedirects(1)->build());
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe(302);
+});
+
+test('a caller accept-encoding in any casing is not duplicated', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen = $options['headers'];
+        return new MockResponse('ok', ['http_code' => 200]);
+    };
+    $transport = TransportOptions::builder()->defaultHeaders(['accept-encoding' => 'identity'])->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/x', [], null);
+
+    $lines = array_filter($seen, static fn (string $line): bool => stripos($line, 'accept-encoding:') === 0);
+    expect(array_values($lines))->toHaveCount(1);
 });
 
 // -- T-D3: redirect to a non-http(s) scheme throws --
@@ -1078,11 +1117,16 @@ test('redirect to non http scheme throws', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Exception $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
+            if (!$e instanceof ApiException) {
+                return;
+            }
             expect($e->getCode())->toBe(302);
+            expect($e->getMessage())->toBe('Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd');
+            expect($e->getResponseHeaders())->toHaveKey('location');
         });
 });
 
@@ -1099,6 +1143,7 @@ test('send after close throws logic exception', function (): void {
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
         ->toThrow(function (\Exception $e): void {
             expect($e::class)->toBe(\LogicException::class);
+            expect($e->getMessage())->toBe('ApiClient has been closed and can no longer send requests');
             expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
 });
@@ -1124,6 +1169,13 @@ test('non-existent caCertPath throws invalid argument exception at construction'
             expect($e::class)->toBe(\InvalidArgumentException::class);
             expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
+});
+
+test('non-existent caCertPath throws even when verifySsl is false', function (): void {
+    $transport = TransportOptions::builder()->verifySsl(false)->caCertPath('/nonexistent/ca.pem')->build();
+
+    expect(fn (): mixed => new DefaultApiClient($transport))
+        ->toThrow(\InvalidArgumentException::class);
 });
 
 test('a configured caCertPath replaces the system trust directory instead of adding to it', function (): void {

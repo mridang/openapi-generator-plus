@@ -70,6 +70,14 @@ class MetadataTest {
   }
 
   @Test
+  void testAdditionalPropertySetterIsPublicSoCallersCanSendExtraKeys() {
+    assertThat(
+            java.util.Arrays.stream(Metadata.class.getMethods())
+                .map(java.lang.reflect.Method::getName))
+        .contains("setAdditionalProperty");
+  }
+
+  @Test
   void testAdditionalPropertiesAreTypedAsString() {
     Metadata metadata = new Metadata();
     metadata.setAdditionalProperty("key", "value");

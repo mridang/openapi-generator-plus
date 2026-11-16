@@ -19,7 +19,6 @@ import Testing
 
     let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
     let val = food.actualInstance()
-    #expect(val != nil)
     #expect(val is DryFood)
   }
 
@@ -28,7 +27,6 @@ import Testing
 
     let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
     let val = food.actualInstance()
-    #expect(val != nil)
     #expect(val is WetFood)
   }
 
@@ -302,7 +300,7 @@ import Testing
       """.utf8)
 
     let petWithOwner = try JSONDecoder().decode(PetWithOwner.self, from: jsonData)
-    #expect(petWithOwner != nil)
+    _ = petWithOwner
   }
 
   @Test func testPetWithOwnerSerialize() throws {
@@ -332,7 +330,7 @@ import Testing
     let data = try JSONEncoder().encode(pet)
 
     let restored = try JSONDecoder().decode(PetWithOwner.self, from: data)
-    #expect(restored != nil)
+    _ = restored
   }
 
   // MARK: - C3 — unevaluatedProperties:false rejects via CATCHABLE error

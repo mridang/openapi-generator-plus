@@ -49,7 +49,12 @@ export class Account {
   password?: string;
 
   constructor(data?: Partial<Account>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (data !== undefined) {
       if (this.username == null) {
         throw new TypeError("username is required");

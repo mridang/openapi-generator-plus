@@ -74,22 +74,20 @@ class DefaultApiClient extends AbstractApiClient
     protected function createHttpClient(): HttpClientInterface
     {
         $options = [];
+        $caCertPath = null;
 
-        if (!$this->transportOptions->verifySsl) {
-            $options['verify_peer'] = false;
-            $options['verify_host'] = false;
-        } elseif ($this->transportOptions->caCertPath !== null) {
+        if ($this->transportOptions->caCertPath !== null) {
             /* Gap T4: fail fast on a user-supplied CA cert that cannot be
              * read or parsed rather than silently falling back to the
              * system trust store. If the caller explicitly asked for SSL
              * pinning we must not pretend it succeeded -- validate the PEM
              * eagerly at construction. A bad CA file is a configuration
              * mistake, so it raises \InvalidArgumentException. */
-            $caCertPath = $this->transportOptions->caCertPath;
-            $pem = @file_get_contents($caCertPath);
+            $configuredCa = $this->transportOptions->caCertPath;
+            $pem = @file_get_contents($configuredCa);
             if ($pem === false) {
                 throw new \InvalidArgumentException(
-                    sprintf('failed to read CA certificate from "%s"', $caCertPath)
+                    sprintf('failed to read CA certificate from "%s"', $configuredCa)
                 );
             }
             /* The @ keeps openssl's E_WARNING for an unparseable PEM from
@@ -100,10 +98,19 @@ class DefaultApiClient extends AbstractApiClient
                 throw new \InvalidArgumentException(
                     sprintf(
                         'failed to parse CA certificate from "%s": no PEM blocks found or unparseable',
-                        $caCertPath
+                        $configuredCa
                     )
                 );
             }
+            /* The CA is only a trust anchor when peers are verified. */
+            if ($this->transportOptions->verifySsl) {
+                $caCertPath = $configuredCa;
+            }
+        }
+        if (!$this->transportOptions->verifySsl) {
+            $options['verify_peer'] = false;
+            $options['verify_host'] = false;
+        } elseif ($caCertPath !== null) {
             $options['cafile'] = $caCertPath;
             /* The configured CA must be the only trust anchor. libcurl adds
              * its compiled-in CA directory (e.g. /etc/ssl/certs) to CAINFO
@@ -145,6 +152,25 @@ class DefaultApiClient extends AbstractApiClient
         $options['max_redirects'] = 0;
 
         return HttpClient::create($options);
+    }
+
+    /**
+     * Reads a multipart stream part completely. The caller owns the stream, so
+     * it is read but never closed.
+     *
+     * @param resource|\Psr\Http\Message\StreamInterface $stream
+     * @throws \InvalidArgumentException when a stream resource cannot be read
+     */
+    private function readPartStream(mixed $stream): string
+    {
+        if (!is_resource($stream)) {
+            return (string) $stream;
+        }
+        $contents = stream_get_contents($stream);
+        if ($contents === false) {
+            throw new \InvalidArgumentException('Failed to read multipart stream');
+        }
+        return $contents;
     }
 
     /**
@@ -306,7 +332,7 @@ class DefaultApiClient extends AbstractApiClient
                         self::validateMultipartFilename($filename);
                         $mime = $this->guessMimeType(null, $filename);
                         /* The caller owns the stream: it is read but never closed. */
-                        $parts[] = $this->binaryFormPart(is_resource($v) ? (string) stream_get_contents($v) : (string) $v, $filename, $mime);
+                        $parts[] = $this->binaryFormPart($this->readPartStream($v), $filename, $mime);
                     } else {
                         $parts[] = $this->plainFormPart('');
                     }

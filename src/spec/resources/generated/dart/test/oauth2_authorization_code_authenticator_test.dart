@@ -125,10 +125,33 @@ void main() {
       final auth = _createAuthenticator();
       auth.setApiClient(_FakeApiClient());
 
-      await expectLater(auth.exchangeCode(''), throwsA(isA<ArgumentError>()));
+      await expectLater(
+        auth.exchangeCode(''),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            'Authorization code must not be empty',
+          ),
+        ),
+      );
       await expectLater(
         auth.exchangeCode('   '),
         throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('authHeaders before exchangeCode names the precondition', () {
+      final auth = _createAuthenticator();
+      expect(
+        () => auth.authHeaders(),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'Must call exchangeCode() before making API requests',
+          ),
+        ),
       );
     });
 
@@ -148,7 +171,7 @@ void main() {
     test('includes refresh token on refresh', () async {
       final client = _FakeApiClient();
       client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
       );
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
 
@@ -167,7 +190,7 @@ void main() {
     test('the refresh grant carries the client credentials', () async {
       final client = _FakeApiClient();
       client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
       );
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
       final auth = _createAuthenticator();
@@ -190,7 +213,7 @@ void main() {
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
         final auth = _createAuthenticator();
@@ -235,7 +258,7 @@ void main() {
         client.enqueue(
           '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
         );
-        client.enqueue('{"access_token":"tok2","expires_in":1}');
+        client.enqueue('{"access_token":"tok2","expires_in":0}');
         client.enqueue('{"access_token":"tok3","expires_in":3600}');
         final auth = _createAuthenticator();
         auth.setApiClient(client);
@@ -385,7 +408,7 @@ void main() {
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"access_token":"tok2","expires_in":3600}');
         final auth = OAuth2AuthorizationCodeAuthenticator(
@@ -417,7 +440,7 @@ void main() {
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"access_token":"tok2","expires_in":3600}');
         final auth = _createAuthenticator();
@@ -452,7 +475,7 @@ void main() {
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"access_token":"tok2","expires_in":3600}');
         final auth = UserAuthAuthorizationCodeAuthenticator(

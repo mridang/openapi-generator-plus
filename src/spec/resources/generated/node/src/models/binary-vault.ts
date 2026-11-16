@@ -122,7 +122,12 @@ export class BinaryVault {
   labels?: { [key: string]: Buffer };
 
   constructor(data?: Partial<BinaryVault>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     /**
      * 2.1 — format: byte. The wire form is base64; the model field is a
      * Buffer. Lives outside the isString block because typeMapping

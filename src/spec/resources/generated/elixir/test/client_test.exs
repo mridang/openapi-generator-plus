@@ -36,6 +36,45 @@ defmodule PetstoreClient.ClientTest do
     assert %PetstoreClient.Client{} = client
   end
 
+  test "close releases the transport and the authenticator's token manager" do
+    authenticator =
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+        "/api/v3",
+        "id",
+        "secret",
+        "https://auth.example.com/token",
+        []
+      )
+
+    client = PetstoreClient.Client.new(authenticator)
+    manager = authenticator.token_manager
+    assert Process.alive?(manager)
+
+    assert PetstoreClient.Client.close(client) == :ok
+    refute Process.alive?(manager)
+    assert PetstoreClient.Client.close(client) == :ok
+
+    err =
+      assert_raise RuntimeError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client.api_client,
+          :get,
+          "http://127.0.0.1:1/never",
+          %{},
+          nil
+        )
+      end
+
+    assert err.message == "ApiClient has been closed and can no longer send requests"
+  end
+
+  test "close works for an authenticator that starts nothing" do
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
+    client = PetstoreClient.Client.new(authenticator)
+
+    assert PetstoreClient.Client.close(client) == :ok
+  end
+
   test "BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     assert_raise ArgumentError, fn ->
       PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "tok\r\nInjected: yes")

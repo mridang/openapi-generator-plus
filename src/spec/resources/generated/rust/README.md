@@ -88,6 +88,30 @@ generation. If you need to receive webhook deliveries, write the
 handler yourself and use this SDK only to deserialize the incoming
 payload (e.g. by reusing the relevant request-body model).
 
+### XML bodies and `xml.nodeType`
+
+Request and response bodies are JSON, form-urlencoded, multipart, text or
+binary. An operation that declares only `application/xml` has no typed body,
+and the `xml` object (`name`, `attribute`, `wrapped`, `nodeType`) is ignored.
+Encode and decode XML yourself and pass the bytes through a binary or text body.
+
+### Link Objects
+
+OpenAPI `links` between operations are not generated: there is no helper that
+turns a response value into the next call. Make the follow-up call yourself.
+
+### Mutual TLS security schemes
+
+A `mutualTLS` security scheme (OAS 3.1) produces no authenticator. To present a
+client certificate, build the `reqwest::Client` yourself (with an identity) and
+pass it to `with_http_client`.
+
+### Automatic retries
+
+The SDK does not retry a failed request, with or without a backoff. Wrap the
+call in your own retry policy; a `NetworkError` or a 5xx `ApiError` is the
+usual trigger.
+
 ### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
 
 JSON Schema 2019-09 keywords for "if field X is present, field Y is
@@ -136,9 +160,12 @@ built.
 
 ### Per-call cancellation
 
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutError`.
+The SDK adds no cancellation parameter and no client signal: a call is cancelled
+the way every async Rust call is, by dropping its future, or by wrapping it in
+`tokio::time::timeout` or `tokio::select!`. To bound how long a call can take
+without that, set the request timeout on `TransportOptions`; a call that
+exceeds it fails with `NetworkTimeoutError`. Cancellation is never reported as
+`NetworkTimeoutError`.
 
 ### `LICENSE` file is not auto-emitted
 

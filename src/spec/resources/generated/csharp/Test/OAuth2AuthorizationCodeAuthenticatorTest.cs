@@ -146,8 +146,14 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync(""));
+        var empty = await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync(""));
         await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync("   "));
+        // D09: the canonical message (ArgumentException appends the parameter name).
+        Assert.StartsWith(
+            "Authorization code must not be empty",
+            empty.Message,
+            StringComparison.Ordinal
+        );
         // No request should have been sent for the rejected codes.
         Assert.Null(client.LastBody);
     }
@@ -171,7 +177,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     public async Task IncludesRefreshTokenOnRefresh()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
 
         var auth = CreateAuthenticator();
@@ -192,7 +198,10 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     {
         var auth = CreateAuthenticator();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => auth.GetAuthHeadersAsync());
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            auth.GetAuthHeadersAsync()
+        );
+        Assert.Equal("Must call ExchangeCodeAsync() before making API requests", ex.Message);
     }
 
     [Fact]
@@ -403,7 +412,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     public async Task RefreshGrantGoesToTheOptionalTrailingRefreshUrl()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = new OAuth2AuthorizationCodeAuthenticator(
             "https://api.example.com",
@@ -429,7 +438,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     public async Task RefreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
@@ -445,7 +454,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     public async Task RefreshBodyCarriesTheClientCredentials()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
@@ -463,7 +472,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     public async Task RejectedRefreshSurfacesOAuth2ServerExceptionAfterOnePost()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
@@ -511,7 +520,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         client.Enqueue(
             "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
         );
-        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok3\",\"expires_in\":3600}");
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);

@@ -128,7 +128,7 @@ void main() {
     test('uses refresh token on subsequent calls', () async {
       final client = _FakeApiClient();
       client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
       );
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
 
@@ -212,7 +212,7 @@ void main() {
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"access_token":"tok2","expires_in":3600}');
         final auth = build(
@@ -238,7 +238,7 @@ void main() {
     test('a BODY mode refresh carries client_id and client_secret', () async {
       final client = _FakeApiClient();
       client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
       );
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
       final auth = build(refreshUrl: 'https://auth.example.com/oauth/refresh');
@@ -262,7 +262,7 @@ void main() {
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"access_token":"tok2","expires_in":3600}');
         final auth = OAuth2PasswordAuthenticator(
@@ -290,7 +290,7 @@ void main() {
     test('a rejected refresh re-runs the password grant', () async {
       final client = _FakeApiClient();
       client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
       );
       client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
       client.enqueue('{"access_token":"tok3","expires_in":3600}');
@@ -310,7 +310,7 @@ void main() {
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"access_token":"tok2","expires_in":3600}');
         final auth = build();
@@ -413,7 +413,7 @@ void main() {
       () async {
         final client = _FakeApiClient();
         client.enqueue(
-          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
         );
         client.enqueue('{"access_token":"tok2","expires_in":3600}');
         final auth = LegacyAuthPasswordAuthenticator(

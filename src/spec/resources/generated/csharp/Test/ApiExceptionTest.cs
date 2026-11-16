@@ -60,8 +60,29 @@ public class ApiExceptionTest
         Assert.IsAssignableFrom<Exception>(ex);
         Assert.Equal("boom", ex.Message);
         Assert.Equal(
-            "boom\nHTTP status code: 500\nResponse headers: {x-request-id=abc}\nResponse body: the body",
+            "boom\nHTTP status code: 500\nResponse headers: {\"x-request-id\":\"abc\"}\nResponse body: the body",
             ex.ToString()
+        );
+    }
+
+    [Fact]
+    public void RendersTheHeadersAsCompactSortedJsonWithSlashesUnescaped()
+    {
+        var ex = new ApiException(
+            302,
+            "moved",
+            new Dictionary<string, string>
+            {
+                { "x-b", "2" },
+                { "location", "https://example.com/a" },
+                { "x-a", "1" },
+            }
+        );
+
+        Assert.Contains(
+            "\nResponse headers: {\"location\":\"https://example.com/a\",\"x-a\":\"1\",\"x-b\":\"2\"}",
+            ex.ToString(),
+            StringComparison.Ordinal
         );
     }
 

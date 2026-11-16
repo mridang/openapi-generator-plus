@@ -131,6 +131,7 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       this.openIdConnectUrl,
       { Accept: "application/json" },
       null,
+      { noDefaultHeaders: true },
     );
     /* Guard the HTTP status before JSON-parsing: an error response (e.g.
      * a 500 HTML page) must surface as a clear discovery failure, not be

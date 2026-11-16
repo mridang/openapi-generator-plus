@@ -127,7 +127,7 @@ public class OAuth2PasswordAuthenticatorTest
     public async Task UsesRefreshTokenOnSubsequentCalls()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
 
         var auth = CreateAuthenticator();
@@ -146,7 +146,7 @@ public class OAuth2PasswordAuthenticatorTest
     public async Task RefreshGrantGoesToTheOptionalTrailingRefreshUrl()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
 
         var auth = new OAuth2PasswordAuthenticator(
@@ -312,7 +312,7 @@ public class OAuth2PasswordAuthenticatorTest
     public async Task RefreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
@@ -328,7 +328,7 @@ public class OAuth2PasswordAuthenticatorTest
     public async Task BodyModeRefreshCarriesTheClientCredentials()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = new OAuth2PasswordAuthenticator(
             "https://api.example.com",
@@ -356,7 +356,7 @@ public class OAuth2PasswordAuthenticatorTest
     public async Task BasicModeRefreshCarriesTheBasicHeaderAndNoClientIdInTheBody()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = new OAuth2PasswordAuthenticator(
             "https://api.example.com",
@@ -388,7 +388,7 @@ public class OAuth2PasswordAuthenticatorTest
     public async Task RejectedRefreshReRunsThePasswordGrantAtTheTokenUrl()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
         client.Enqueue("{\"access_token\":\"tok3\",\"expires_in\":3600}");
         var auth = new OAuth2PasswordAuthenticator(

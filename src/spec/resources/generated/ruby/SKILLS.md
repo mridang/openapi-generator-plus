@@ -204,21 +204,36 @@ transport = Petstore::Client::TransportOptions.builder.connection(connection).bu
 client = Petstore::Client::Petstore.new(authenticator, transport)
 ```
 
+### Timeouts
+
+`timeout` is in milliseconds and is one end-to-end budget for the whole call, redirects included. A non-positive value raises `ArgumentError`; an exceeded budget raises `NetworkTimeoutError`.
+
+### Request id
+
+With `inject_request_id` on (the default) every request carries an `X-Request-ID` header unless you set one yourself.
+
+### Cancellation
+
+The SDK has no cancellation API of its own. Ruby's native mechanisms (`Timeout`, killing the thread) apply; the request timeout is the only bound the SDK enforces.
+
 ## API Methods
 
-Each API group is exposed as a typed attribute on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Each API group is exposed as a typed attribute on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models. Every operation also has a `<operation>_with_http_info` variant that returns an `ApiResult` carrying `status_code`, `headers` (frozen, lower-cased names) and the typed `data`.
 
 ## Models
 
 Models are generated as Ruby classes under the `Petstore::Client::Models` namespace.
 
 ```ruby
-model = Petstore::Client::Models::Account.new
+model = Petstore::Client::Models::Account.new(username: 'example')
+model.username
 ```
+
+Required attributes must be passed to `new`; a missing one raises `Dry::Struct::Error`.
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `IO`. Binary response bodies are returned as `String`.
+File upload parameters are typed as `IO`. A `format: binary` response is returned as a `StringIO` over the response bytes.
 
 ## Comment Style
 

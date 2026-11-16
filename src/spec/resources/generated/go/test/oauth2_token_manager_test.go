@@ -242,7 +242,7 @@ func TestOAuth2TokenManager_ReturnsCachedTokenWhenNotExpired(t *testing.T) {
 func TestOAuth2TokenManager_RefetchesTokenWhenExpired(t *testing.T) {
 	t.Parallel()
 	client := newFakeTokenClient(
-		fakeResponse{body: `{"access_token":"tok1","expires_in":1}`, statusCode: 200},
+		fakeResponse{body: `{"access_token":"tok1","expires_in":0}`, statusCode: 200},
 		fakeResponse{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 	)
 
@@ -255,7 +255,7 @@ func TestOAuth2TokenManager_RefetchesTokenWhenExpired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error on first call: %v", err)
 	}
-	// Token with expires_in=1 minus 30s buffer is already expired
+	// A token with expires_in=0 is stale the moment it arrives
 	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
 	if err != nil {
 		t.Fatalf("unexpected error on second call: %v", err)
@@ -493,33 +493,26 @@ func TestOAuth2TokenManager_ExpiresInLongLivedTokenAppliesFullBuffer(t *testing.
 	}
 }
 
-func TestOAuth2TokenManager_ExpiresInExactlyBufferReturnsZeroBuffer(t *testing.T) {
+// One safety margin, capped at half the lifetime, so a short token is reused
+// for part of its life instead of being refetched on every call.
+func TestOAuth2TokenManager_ShortLivedTokensAreStillReused(t *testing.T) {
 	t.Parallel()
-	// Gap CM: expires_in == 30 collapses expiry to now, forcing refetch.
-	client := newFakeTokenClient(
-		fakeResponse{body: `{"access_token":"edge1","expires_in":30}`, statusCode: 200},
-		fakeResponse{body: `{"access_token":"edge2","expires_in":30}`, statusCode: 200},
-	)
+	for _, expiresIn := range []int{30, 60, 90, 120} {
+		client := &recordingTokenClient{responses: []fakeResponse{
+			{body: fmt.Sprintf(`{"access_token":"tok","expires_in":%d}`, expiresIn), statusCode: 200},
+		}}
+		manager := oauth.NewOAuth2TokenManager()
+		manager.SetApiClient(client)
 
-	manager := oauth.NewOAuth2TokenManager()
-	manager.SetApiClient(client)
-
-	params := map[string]string{"grant_type": "client_credentials"}
-
-	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if first != "edge1" {
-		t.Errorf("expected first token 'edge1', got %q", first)
-	}
-	if second != "edge2" {
-		t.Errorf("expected second token 'edge2', got %q", second)
+		params := map[string]string{"grant_type": "client_credentials"}
+		for i := 0; i < 3; i++ {
+			if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+				t.Fatalf("expires_in %d, call %d: unexpected error: %v", expiresIn, i+1, err)
+			}
+		}
+		if client.requestCount() != 1 {
+			t.Errorf("expires_in %d: expected 1 token request, got %d", expiresIn, client.requestCount())
+		}
 	}
 }
 
@@ -528,7 +521,7 @@ func TestOAuth2TokenManager_RefreshTokenEmptyStringPreservesExisting(t *testing.
 	// Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
 	// MUST NOT clobber the cached refresh_token.
 	client := newFakeTokenClient(
-		fakeResponse{body: `{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}`, statusCode: 200},
+		fakeResponse{body: `{"access_token":"old_access","refresh_token":"old_refresh","expires_in":0}`, statusCode: 200},
 		fakeResponse{body: `{"access_token":"new_access","expires_in":3600,"refresh_token":""}`, statusCode: 200},
 	)
 
@@ -972,7 +965,7 @@ func (c *recordingTokenClient) requestCount() int {
 func TestOAuth2TokenManager_RefreshGrantCarriesRefreshTokenAndClientCredentials(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"old_access","refresh_token":"old_refresh","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"new_access","expires_in":3600}`, statusCode: 200},
 	}}
 	manager := oauth.NewOAuth2TokenManager()
@@ -1008,7 +1001,7 @@ func TestOAuth2TokenManager_RefreshGrantCarriesRefreshTokenAndClientCredentials(
 func TestOAuth2TokenManager_RejectedRefreshFallsBackToTheOriginalGrant(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"first","refresh_token":"revoked","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"first","refresh_token":"revoked","expires_in":0}`, statusCode: 200},
 		{body: `{"error":"invalid_grant"}`, statusCode: 400},
 		{body: `{"access_token":"third","expires_in":3600}`, statusCode: 200},
 	}}
@@ -1067,13 +1060,13 @@ func TestOAuth2TokenManager_NoExpiresInCachesTheTokenIndefinitely(t *testing.T) 
 	}
 }
 
-// A refresh response that omits expires_in keeps the expiry the manager already
-// had instead of inventing one (AGENTS.md, token expiry rule): the token stays
-// expired, so the next call refreshes again.
-func TestOAuth2TokenManager_RefreshWithoutExpiresInKeepsTheExistingExpiry(t *testing.T) {
+// A refresh response that omits expires_in leaves the token no expiry, as the
+// first fetch does: the third call is served from the cache instead of running
+// another refresh grant.
+func TestOAuth2TokenManager_RefreshWithoutExpiresInCachesTheNewToken(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"a2"}`, statusCode: 200},
 		{body: `{"access_token":"a3"}`, statusCode: 200},
 	}}
@@ -1081,16 +1074,22 @@ func TestOAuth2TokenManager_RefreshWithoutExpiresInKeepsTheExistingExpiry(t *tes
 	manager.SetApiClient(client)
 
 	params := map[string]string{"grant_type": "authorization_code"}
+	var last string
 	for i := 0; i < 3; i++ {
-		if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+		token, err := manager.GetAccessToken("https://auth.example.com/token", params)
+		if err != nil {
 			t.Fatalf("call %d: unexpected error: %v", i+1, err)
 		}
+		last = token
 	}
-	if client.requestCount() != 3 {
-		t.Fatalf("expected the kept expiry to force a refresh on every call, got %d requests", client.requestCount())
+	if client.requestCount() != 2 {
+		t.Fatalf("expected the refreshed token to be cached, got %d requests", client.requestCount())
 	}
-	if got := client.requests[2].body; !strings.Contains(got, "refresh_token=r1") {
-		t.Errorf("expected the third request to refresh with the cached token, got %q", got)
+	if last != "a2" {
+		t.Errorf("expected the cached refreshed token a2, got %q", last)
+	}
+	if got := client.requests[1].body; !strings.Contains(got, "refresh_token=r1") {
+		t.Errorf("expected the second request to refresh with the cached token, got %q", got)
 	}
 }
 
@@ -1099,7 +1098,7 @@ func TestOAuth2TokenManager_RefreshWithoutExpiresInKeepsTheExistingExpiry(t *tes
 func TestOAuth2TokenManager_RefreshGoesToTheRefreshUrlWithTheSameHeaders(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"a2","expires_in":3600}`, statusCode: 200},
 	}}
 	manager := oauth.NewOAuth2TokenManager()
@@ -1133,7 +1132,7 @@ func TestOAuth2TokenManager_RefreshGoesToTheRefreshUrlWithTheSameHeaders(t *test
 func TestOAuth2TokenManager_RefreshGrantParamsSendExactlyOnePost(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":0}`, statusCode: 200},
 		{body: `{"error":"invalid_grant"}`, statusCode: 400},
 	}}
 	manager := oauth.NewOAuth2TokenManager()

@@ -99,7 +99,8 @@ data class PetPassport(
    * identity hash (`[B@1b6d3586`), omits the @Transient additionalProperties
    * bucket and does not look inside containers. This override keeps the
    * data-class shape but renders byte data by content, containers
-   * element-wise and appends additionalProperties. */
+   * element-wise and appends additionalProperties. A `format: password`
+   * property prints as `***`. */
     override fun toString(): String =
         listOf(
             "pet=" + renderForToString(pet),

@@ -21,7 +21,9 @@
  *   <li>passes primitives through unchanged;</li>
  *   <li>maps arrays element-wise;</li>
  *   <li>for objects, drops method-valued members (e.g. `equals`) and makes
- *       every remaining property optional and recursively plain.</li>
+ *       every remaining property recursively plain. Required properties stay
+ *       required and optional ones stay optional, so a request body missing a
+ *       required field is a compile error, as it is with a plain interface.</li>
  * </ul>
  *
  * A genuine model instance is still assignable to `DeepInput<Model>`, so
@@ -47,6 +49,6 @@ export type DeepInput<T> = T extends Primitive
                   K in keyof T as T[K] extends (...args: never[]) => unknown
                     ? never
                     : K
-                ]?: DeepInput<T[K]>;
+                ]: DeepInput<T[K]>;
               }
             : T;

@@ -1002,7 +1002,11 @@ void main() {
             isA<ApiException>()
                 .having((e) => e.runtimeType, 'runtimeType', ApiException)
                 .having((e) => e.statusCode, 'statusCode', 307)
-                .having((e) => e.message, 'message', contains('downgrade')),
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('HTTPS->HTTP redirect'),
+                ),
           ),
         );
         expect(
@@ -1047,13 +1051,57 @@ void main() {
             isA<ApiException>()
                 .having((e) => e.runtimeType, 'runtimeType', ApiException)
                 .having((e) => e.statusCode, 'statusCode', 302)
-                .having((e) => e.message, 'message', contains('redirect')),
+                .having(
+                  (e) => e.message,
+                  'message',
+                  equals('Too many redirects (exceeded 3)'),
+                )
+                .having(
+                  (e) => e.responseHeaders?.containsKey('location'),
+                  'lower-cased location header',
+                  isTrue,
+                ),
           ),
         );
       } finally {
         await server.close();
       }
     });
+
+    /* F916: a spent redirect budget whose last 3xx has no Location is a
+     * terminal response, not a too-many-redirects error. */
+    test(
+      'returns the last 3xx when the budget is spent and it has no Location',
+      () async {
+        var hits = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          hits++;
+          request.response.statusCode = 302;
+          if (hits == 1) {
+            request.response.headers.set(
+              'Location',
+              'http://127.0.0.1:${server.port}/second',
+            );
+          }
+          request.response.close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder().maxRedirects(1).build();
+          final client = DefaultApiClient(transportOptions: transport);
+          final resp = await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/first',
+            {},
+            null,
+          );
+          expect(resp.statusCode, equals(302));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* T-D3: a Location header pointing at a non-http(s) scheme must be
      * refused with a typed ApiException, not silently returned as a 3xx. */
@@ -1079,7 +1127,7 @@ void main() {
             isA<ApiException>()
                 .having((e) => e.runtimeType, 'runtimeType', ApiException)
                 .having((e) => e.statusCode, 'statusCode', 302)
-                .having((e) => e.message, 'message', contains('non-http(s)')),
+                .having((e) => e.message, 'message', contains('non-HTTP(S)')),
           ),
         );
       } finally {
@@ -1102,7 +1150,13 @@ void main() {
                 'not an SDK exception',
                 isNot(isA<OpenAPIException>()),
               )
-              .having((e) => e.message, 'message', contains('closed')),
+              .having(
+                (e) => e.message,
+                'message',
+                equals(
+                  'ApiClient has been closed and can no longer send requests',
+                ),
+              ),
         ),
       );
     });
@@ -1255,6 +1309,30 @@ void main() {
           resp.body,
           isNot(equals(String.fromCharCodes(<int>[0x5400, 0x6100, 0x6700]))),
         );
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('decodes a quoted charset="windows-1252" parameter', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Type', 'text/plain; charset="windows-1252"')
+          ..add(<int>[0x41, 0xE9])
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/quoted',
+          {},
+          null,
+        );
+        expect(resp.body, equals('A\u00E9'));
       } finally {
         await server.close();
       }
@@ -1686,6 +1764,14 @@ void main() {
       expect(directive, contains('%E6%97%A5%E6%9C%AC'));
       expect(directive, startsWith('filename="'));
     });
+
+    test(
+      'a non-BMP character in a multipart filename becomes one underscore',
+      () {
+        final directive = buildFilenameDirective('a\u{1F600}.png');
+        expect(directive, startsWith('filename="a_.png"'));
+      },
+    );
 
     test('ASCII-only multipart filename omits filename*', () {
       final directive = buildFilenameDirective('file.png');

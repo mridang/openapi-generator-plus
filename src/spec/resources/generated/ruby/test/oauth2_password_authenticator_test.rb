@@ -244,7 +244,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'authenticates the client in the body of the refresh grant' do
     client = FakePasswordClient.new([
-                                      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 1 } },
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 0 } },
                                       { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
                                     ])
     auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
@@ -263,7 +263,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'sends the Basic header and no body credentials on the refresh grant in BASIC mode' do
     client = FakePasswordClient.new([
-                                      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 1 } },
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 0 } },
                                       { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
                                     ])
     auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
@@ -282,7 +282,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 're-runs the password grant when the refresh is rejected' do
     client = FakePasswordClient.new([
-                                      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 1 } },
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 0 } },
                                       { status: 400, body: { 'error' => 'invalid_grant' } },
                                       { status: 200, body: { 'access_token' => 'pw_tok_again', 'expires_in' => 3600 } }
                                     ])

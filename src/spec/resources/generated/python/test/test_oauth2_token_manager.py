@@ -280,31 +280,38 @@ class TestOAuth2TokenManager:
         assert second == "long"
         assert mock_client.send_request.call_count == 1
 
-    def test_expires_in_exactly_buffer_returns_zero_buffer(self) -> None:
-        # Gap CM: when expires_in == 30 (the buffer), expiry collapses to
-        # now and the next call must refetch.
+    def test_a_sixty_second_token_is_cached_for_half_its_lifetime(self) -> None:
+        # F910: one safety margin, capped at half the lifetime. A token with
+        # expires_in=60 is reused for 30 s instead of being refetched on
+        # every call.
+        from unittest.mock import patch
+
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
             ApiHttpResponse(
                 status_code=200,
-                body=json.dumps({"access_token": "edge1", "expires_in": 30}),
+                body=json.dumps({"access_token": "edge1", "expires_in": 60}),
                 headers={"content-type": "application/json"},
             ),
             ApiHttpResponse(
                 status_code=200,
-                body=json.dumps({"access_token": "edge2", "expires_in": 30}),
+                body=json.dumps({"access_token": "edge2", "expires_in": 60}),
                 headers={"content-type": "application/json"},
             ),
         ]
         manager.set_api_client(mock_client)
 
         params = {"grant_type": "client_credentials"}
-        first = manager.get_access_token("https://auth.example.com/token", params)
-        second = manager.get_access_token("https://auth.example.com/token", params)
+        with patch("petstore_client.auth.oauth.oauth2_token_manager.time") as clock:
+            clock.time.return_value = 1000.0
+            first = manager.get_access_token("https://auth.example.com/token", params)
+            clock.time.return_value = 1029.0
+            cached = manager.get_access_token("https://auth.example.com/token", params)
+            clock.time.return_value = 1031.0
+            second = manager.get_access_token("https://auth.example.com/token", params)
 
-        assert first == "edge1"
-        assert second == "edge2"
+        assert (first, cached, second) == ("edge1", "edge1", "edge2")
         assert mock_client.send_request.call_count == 2
 
     def test_refresh_token_empty_string_preserves_existing(self) -> None:
@@ -319,7 +326,7 @@ class TestOAuth2TokenManager:
                     {
                         "access_token": "old_access",
                         "refresh_token": "old_refresh",
-                        "expires_in": 1,
+                        "expires_in": 0,
                     }
                 ),
                 headers={"content-type": "application/json"},
@@ -475,6 +482,40 @@ class TestOAuth2TokenManager:
                 {"grant_type": "client_credentials"},
             )
         assert type(exc_info.value) is OAuth2TokenException
+
+    @pytest.mark.parametrize(
+        "body, message",
+        [
+            ("<html>not json</html>", "Token response is not valid JSON"),
+            ("[1, 2]", "Token response is not a JSON object"),
+            (
+                '{"refresh_token": "x"}',
+                "Token response missing or empty access_token field",
+            ),
+            (
+                '{"access_token": ""}',
+                "Token response missing or empty access_token field",
+            ),
+        ],
+    )
+    def test_token_error_messages_are_the_canonical_text(
+        self, body: str, message: str
+    ) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=body,
+            headers={"content-type": "application/json"},
+        )
+        manager.set_api_client(mock_client)
+
+        with pytest.raises(OAuth2TokenException) as exc_info:
+            manager.get_access_token(
+                "https://auth.example.com/token",
+                {"grant_type": "client_credentials"},
+            )
+        assert str(exc_info.value) == message
 
     def test_token_endpoint_error_response_parsed_to_typed_error(self) -> None:
         # RFC 6749 §5.2: a 4xx response with a JSON error object must surface
@@ -647,7 +688,7 @@ class TestRefreshGrant:
         self,
     ) -> None:
         manager, client = _manager_replying(
-            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             _token_reply(access_token="a2", expires_in=3600),
         )
         manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
@@ -666,7 +707,7 @@ class TestRefreshGrant:
 
     def test_a_rejected_refresh_falls_back_to_the_original_grant(self) -> None:
         manager, client = _manager_replying(
-            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             ApiHttpResponse(
                 status_code=400,
                 body=json.dumps({"error": "invalid_grant"}),
@@ -684,7 +725,7 @@ class TestRefreshGrant:
         assert _form(calls[1])["grant_type"] == ["refresh_token"]
         assert _form(calls[2]) == {key: [value] for key, value in _FIRST_GRANT.items()}
 
-    def test_a_refresh_response_without_expires_in_keeps_the_existing_expiry(
+    def test_a_refresh_response_without_expires_in_clears_the_expiry(
         self,
     ) -> None:
         from unittest.mock import patch
@@ -701,15 +742,17 @@ class TestRefreshGrant:
             assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a1"
             assert client.send_request.call_count == 1
 
-            clock.time.return_value = 1011.0
+            clock.time.return_value = 1051.0
             assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a2"
-            assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a3"
+            clock.time.return_value = 9999999.0
+            assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a2"
 
-        assert client.send_request.call_count == 3
+        assert client.send_request.call_count == 2
+        assert manager.exchanged is False
 
     def test_the_refresh_goes_to_the_refresh_url_with_the_extra_headers(self) -> None:
         manager, client = _manager_replying(
-            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             _token_reply(access_token="a2", expires_in=3600),
         )
         headers = {"Authorization": "Basic abc"}
@@ -728,7 +771,7 @@ class TestRefreshGrant:
 
     def test_a_rejected_refresh_re_runs_the_grant_at_the_token_url(self) -> None:
         manager, client = _manager_replying(
-            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             _invalid_grant(),
             _token_reply(access_token="a2", expires_in=3600),
         )
@@ -744,7 +787,7 @@ class TestRefreshGrant:
 
     def test_params_that_already_are_a_refresh_grant_are_posted_once(self) -> None:
         manager, client = _manager_replying(
-            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             _invalid_grant(),
         )
         manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
@@ -842,7 +885,7 @@ class TestNonStringRefreshToken:
 
     def test_a_non_string_refresh_token_keeps_the_cached_one(self) -> None:
         manager, _ = _manager_replying(
-            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             _token_reply(access_token="a2", refresh_token=12345, expires_in=3600),
         )
         manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
@@ -870,7 +913,7 @@ class TestTokenTransportFailure:
         refresh_failure = NetworkException(message="reset during refresh")
         grant_failure = NetworkException(message="reset during grant")
         manager, _ = _manager_replying(
-            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             refresh_failure,
             grant_failure,
         )

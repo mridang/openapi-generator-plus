@@ -171,7 +171,7 @@ func TestOAuth2Password_UsesRefreshTokenOnSubsequentCalls(t *testing.T) {
 	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
-			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 			{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 		},
 	}
@@ -267,7 +267,7 @@ func TestOAuth2Password_BasicAuthUrlEncodesClientIdAndSecret(t *testing.T) {
 func TestOAuth2Password_SendsTheFirstGrantToTokenUrlAndTheRefreshToRefreshUrl(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 	}}
 	authObj := oauth.NewOAuth2PasswordAuthenticator(
@@ -300,7 +300,7 @@ func TestOAuth2Password_SendsTheFirstGrantToTokenUrlAndTheRefreshToRefreshUrl(t 
 func TestOAuth2Password_RefreshFallsBackToTokenUrlWithoutRefreshUrl(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 	}}
 	authObj := createPasswordAuthenticator()
@@ -319,7 +319,7 @@ func TestOAuth2Password_RefreshFallsBackToTokenUrlWithoutRefreshUrl(t *testing.T
 func TestLegacyAuthWrapper_RoutesGrantsToTheDeclaredUrls(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 	}}
 	authObj := oauth.NewLegacyAuthPasswordAuthenticator(
@@ -458,7 +458,7 @@ func TestOAuth2Password_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
 func TestOAuth2Password_BodyModeRefreshCarriesTheClientCredentials(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 	}}
 	authObj := newPasswordAuthenticatorWithRefreshURL()
@@ -487,7 +487,7 @@ func TestOAuth2Password_BodyModeRefreshCarriesTheClientCredentials(t *testing.T)
 func TestOAuth2Password_BasicModeRefreshSendsTheBasicHeader(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
 	}}
 	authObj := newPasswordAuthenticatorWithRefreshURL().WithClientAuthMethod(oauth.ClientAuthMethodBasic)
@@ -513,7 +513,7 @@ func TestOAuth2Password_BasicModeRefreshSendsTheBasicHeader(t *testing.T) {
 func TestOAuth2Password_RejectedRefreshReRunsThePasswordGrant(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
-		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
 		{body: `{"error":"invalid_grant"}`, statusCode: 400},
 		{body: `{"access_token":"tok3","expires_in":3600}`, statusCode: 200},
 	}}

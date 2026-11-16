@@ -42,6 +42,16 @@ public enum Availability {
   }
 
   /**
+   * Returns the wire value, so the string form of a constant is what is sent.
+   *
+   * @return the wire value as a string
+   */
+  @Override
+  public String toString() {
+    return String.valueOf(value);
+  }
+
+  /**
    * Returns the enum constant for the given wire value.
    *
    * @param value the wire value

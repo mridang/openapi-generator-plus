@@ -167,6 +167,11 @@ public class ApiException : OpenAPIException
         return new ObjectSerializer().Deserialize<T>(ResponseBody);
     }
 
+    private static readonly System.Text.Json.JsonSerializerOptions HeaderRenderingOptions = new()
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     /// <summary>
     /// Render the error as the message followed by whatever response context
     /// was captured, one labelled field per line.
@@ -187,10 +192,18 @@ public class ApiException : OpenAPIException
         }
         if (ResponseHeaders is { Count: > 0 })
         {
+            /* D17: compact JSON, keys sorted, '/' unescaped. */
             rendered
-                .Append("\nResponse headers: {")
-                .Append(string.Join(", ", ResponseHeaders.Select(h => $"{h.Key}={h.Value}")))
-                .Append('}');
+                .Append("\nResponse headers: ")
+                .Append(
+                    System.Text.Json.JsonSerializer.Serialize(
+                        new SortedDictionary<string, string>(
+                            ResponseHeaders,
+                            StringComparer.Ordinal
+                        ),
+                        HeaderRenderingOptions
+                    )
+                );
         }
         if (!string.IsNullOrEmpty(ResponseBody))
         {

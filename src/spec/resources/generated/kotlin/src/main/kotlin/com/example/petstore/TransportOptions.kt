@@ -132,7 +132,9 @@ class TransportOptions private constructor(
          */
         fun timeout(timeout: Long?): Builder =
             apply {
-                require(timeout == null || timeout >= 0) { "Invalid timeout (must not be negative): $timeout" }
+                require(timeout == null || timeout > 0) {
+                    "Invalid timeout: must be a positive number of milliseconds (got $timeout)"
+                }
                 this.timeout = timeout
             }
 
@@ -147,10 +149,16 @@ class TransportOptions private constructor(
         /**
          * Set the maximum number of redirects to follow.
          *
-         * @param maxRedirects maximum redirect hops, or `null` for client default
+         * @param maxRedirects maximum redirect hops (not negative), or `null` for client default
          * @return this builder
          */
-        fun maxRedirects(maxRedirects: Int?): Builder = apply { this.maxRedirects = maxRedirects }
+        fun maxRedirects(maxRedirects: Int?): Builder =
+            apply {
+                require(maxRedirects == null || maxRedirects >= 0) {
+                    "Invalid maxRedirects: must not be negative (got $maxRedirects)"
+                }
+                this.maxRedirects = maxRedirects
+            }
 
         /**
          * Set a custom User-Agent header value.

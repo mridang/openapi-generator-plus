@@ -44,7 +44,12 @@ export class Medication {
   notes?: string;
 
   constructor(data?: Partial<Medication>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (data !== undefined) {
       if (this.drugName == null) {
         throw new TypeError("drugName is required");

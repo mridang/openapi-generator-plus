@@ -87,7 +87,10 @@ describe Petstore::Client::TransportOptions do
 
   it 'a negative timeout raises ArgumentError' do
     assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.timeout(-1) }
-    _(Petstore::Client::TransportOptions.builder.timeout(0).build.timeout).must_equal 0
+    err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.timeout(-5) }
+    _(err.message).must_equal 'Invalid timeout: must be a positive number of milliseconds (got -5)'
+    err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.timeout(0) }
+    _(err.message).must_equal 'Invalid timeout: must be a positive number of milliseconds (got 0)'
   end
 
   it 'invalid proxy URL raises ArgumentError, not an SDK error' do

@@ -702,6 +702,23 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("an enum constant's string form is its wire value")
+    void enumStringFormIsTheWireValue() {
+      assertEquals("placed", String.valueOf(com.example.petstore.models.Order.StatusEnum.PLACED));
+    }
+
+    @Test
+    @DisplayName("a format: password field is redacted in the model's string form")
+    void passwordFieldIsRedactedInToString() {
+      com.example.petstore.models.Account account =
+          new com.example.petstore.models.Account("someone");
+      account.password = "hunter2";
+      assertFalse(account.toString().contains("hunter2"), account.toString());
+      assertTrue(account.toString().contains("password=***"), account.toString());
+      assertTrue(serializer.serialize(account).contains("hunter2"));
+    }
+
+    @Test
     @DisplayName("unknown enum value throws SerializationException")
     void unknownEnumValueThrowsSerializationException() {
       // Parity regression: deserializing a payload whose enum field holds a
@@ -1035,26 +1052,13 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("uniqueItems array of scalars is written in ascending order")
-    void uniqueScalarArrayIsSorted() {
+    @DisplayName("uniqueItems array of scalars keeps the set's insertion order (S6)")
+    void uniqueScalarArrayKeepsInsertionOrder() {
       com.example.petstore.models.Pet pet =
           new com.example.petstore.models.Pet(
               "item", new java.util.LinkedHashSet<>(List.of("c", "a", "b")));
-      String first = serializer.serialize(pet);
-      assertTrue(first.contains("\"photoUrls\":[\"a\",\"b\",\"c\"]"), first);
-      assertEquals(first, serializer.serialize(pet));
-    }
-
-    @Test
-    @DisplayName("scalar sets sort numerically and by code point")
-    void scalarSetsSortNumericallyAndByCodePoint() {
-      assertEquals(
-          List.of(2, 10, 100),
-          ObjectSerializer.sortedScalars(new java.util.LinkedHashSet<>(List.of(10, 100, 2))));
-      assertEquals(
-          List.of("B", "a", "�", "😀"),
-          ObjectSerializer.sortedScalars(
-              new java.util.LinkedHashSet<>(List.of("😀", "a", "�", "B"))));
+      String json = serializer.serialize(pet);
+      assertTrue(json.contains("\"photoUrls\":[\"c\",\"a\",\"b\"]"), json);
     }
 
     @Test
@@ -1889,9 +1893,23 @@ class ObjectSerializerTest {
       java.lang.reflect.Type objectType =
           new com.fasterxml.jackson.core.type.TypeReference<Object>() {}.getType();
       assertNotNull(serializer.deserialize("[".repeat(600) + "]".repeat(600), objectType));
-      assertThrows(
-          SerializationException.class,
-          () -> serializer.deserialize("[".repeat(1500) + "]".repeat(1500), objectType));
+      SerializationException tooDeep =
+          assertThrows(
+              SerializationException.class,
+              () -> serializer.deserialize("[".repeat(1500) + "]".repeat(1500), objectType));
+      assertEquals("JSON nesting depth 1001 exceeds limit 1000", tooDeep.getMessage());
+    }
+
+    @Test
+    @DisplayName("malformed JSON reports the canonical deserialize message")
+    void malformedJsonReportsTheCanonicalMessage() {
+      java.lang.reflect.Type objectType =
+          new com.fasterxml.jackson.core.type.TypeReference<Object>() {}.getType();
+      SerializationException ex =
+          assertThrows(
+              SerializationException.class, () -> serializer.deserialize("{\"a\":", objectType));
+      String message = String.valueOf(ex.getMessage());
+      assertTrue(message.startsWith("Failed to deserialize JSON: "), message);
     }
 
     /* Containers of byte arrays must print their content, not identity. */

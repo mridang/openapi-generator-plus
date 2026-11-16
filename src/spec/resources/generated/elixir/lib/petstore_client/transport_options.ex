@@ -59,7 +59,7 @@ defmodule PetstoreClient.TransportOptions do
     one.
   * `req_options` - Extra options handed to `Req.new/1`, for a custom transport
     such as an `:adapter` function (a test double, an instrumented adapter) or
-    a `:plug`. The SDK's own settings (timeouts, retries, redirect policy,
+    a `:plug`. The SDK's own settings (timeouts, redirect policy,
     proxy, TLS, user agent) are applied on top and win over the same key here.
     The SDK never owns what you supply: nothing in it is closed or stopped by
     `close/1`, the caller keeps the lifecycle. Supplying `:connect_options` or
@@ -159,7 +159,7 @@ defmodule PetstoreClient.TransportOptions do
   ## Raises
 
     `ArgumentError` if the proxy URL is not a valid URL with an http or https scheme and a host,
-    if `:timeout` is negative, if `:req_options` is not a keyword list, or if it carries
+    if `:timeout` is zero or negative, if `:req_options` is not a keyword list, or if it carries
     `:connect_options` or `:finch` while `proxy`, `ca_cert_path` or `verify_ssl: false` is set.
 
   """
@@ -167,8 +167,9 @@ defmodule PetstoreClient.TransportOptions do
   def new(opts \\ []) do
     result = struct!(__MODULE__, opts)
 
-    if is_integer(result.timeout) and result.timeout < 0 do
-      raise ArgumentError, "Invalid timeout (must not be negative): #{result.timeout}"
+    if is_integer(result.timeout) and result.timeout <= 0 do
+      raise ArgumentError,
+            "Invalid timeout: must be a positive number of milliseconds (got #{result.timeout})"
     end
 
     if result.proxy do

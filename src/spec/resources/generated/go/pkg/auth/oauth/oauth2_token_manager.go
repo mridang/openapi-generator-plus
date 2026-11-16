@@ -25,9 +25,11 @@ import (
 	errors_pkg "petstore/pkg/errors"
 )
 
-// expirySafetyMargin is the safety margin applied to token expiry checks so that
-// we refresh slightly before the token actually expires, avoiding a race
-// against the server clock.
+// expirySafetyMargin is the largest safety margin taken off a token's lifetime
+// so that we refresh slightly before the token actually expires, avoiding a
+// race against the server clock. It is applied once, when the token is stored,
+// and capped at half the lifetime so a short token is still reused for part of
+// its life.
 const expirySafetyMargin = 60 * time.Second
 
 // ErrApiClientNotInjected is returned when an OAuth2 or OpenID Connect
@@ -125,7 +127,7 @@ func (m *OAuth2TokenManager) GetAccessTokenWithRefresh(tokenURL, refreshURL stri
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.accessToken != "" && (m.tokenExpiry.IsZero() || time.Now().Before(m.tokenExpiry.Add(-expirySafetyMargin))) {
+	if m.accessToken != "" && (m.tokenExpiry.IsZero() || time.Now().Before(m.tokenExpiry)) {
 		return m.accessToken, nil
 	}
 
@@ -266,14 +268,17 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 	if parsed.RefreshToken != "" {
 		m.refreshToken = parsed.RefreshToken
 	}
+	/* A grant response without expires_in leaves the token no expiry (RFC 6749
+	 * section 5.1 makes it RECOMMENDED): it is cached until it is invalidated.
+	 * Clearing the old expiry matters on a refresh, which only runs because
+	 * that expiry lapsed. */
+	m.tokenExpiry = time.Time{}
 	if len(parsed.ExpiresIn) > 0 && string(parsed.ExpiresIn) != "null" {
 		expiresIn := parseExpiresIn(parsed.ExpiresIn)
 		if expiresIn > 0 {
-			bufferSecs := expiresIn
-			if bufferSecs > 30 {
-				bufferSecs = 30
-			}
-			m.tokenExpiry = time.Now().Add(time.Duration(expiresIn-bufferSecs) * time.Second)
+			lifetime := time.Duration(expiresIn) * time.Second
+			margin := min(expirySafetyMargin, lifetime/2)
+			m.tokenExpiry = time.Now().Add(lifetime - margin)
 		} else {
 			// Unparseable or non-positive expires_in: mark the token as
 			// immediately stale so the next call refetches.

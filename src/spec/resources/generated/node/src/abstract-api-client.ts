@@ -252,16 +252,36 @@ export abstract class AbstractApiClient implements ApiClient {
     /* Using a client after close() is a wrong call order: the invalid-state
      * built-in Error, not an SDK error. */
     if (this.closed) {
-      throw new Error("ApiClient has been closed and can no longer be used");
+      throw new Error(
+        "ApiClient has been closed and can no longer send requests",
+      );
     }
     if (body instanceof Blob) {
       body = Buffer.from(await body.arrayBuffer());
     }
 
-    const mergedHeaders: Record<string, string> = {
-      ...this.transportOptions.defaultHeaders,
-      ...headers,
-    };
+    /* Binary views and raw buffers are normalised to a Buffer. */
+    if (ArrayBuffer.isView(body) && !Buffer.isBuffer(body)) {
+      const view = body as unknown as ArrayBufferView;
+      body = Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+    } else if (body instanceof ArrayBuffer) {
+      body = Buffer.from(body);
+    }
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
+     * header replaces a default of the same name whatever the case, so one
+     * value goes on the wire, never two. */
+    const callerNames = new Set(
+      Object.keys(headers).map((key) => key.toLowerCase()),
+    );
+    const mergedHeaders: Record<string, string> = {};
+    const defaultHeaders =
+      options?.noDefaultHeaders === true
+        ? {}
+        : this.transportOptions.defaultHeaders;
+    for (const [key, value] of Object.entries(defaultHeaders)) {
+      if (!callerNames.has(key.toLowerCase())) mergedHeaders[key] = value;
+    }
+    Object.assign(mergedHeaders, headers);
 
     /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
      * header in any case, even with an empty value, wins and is left exactly
@@ -279,7 +299,9 @@ export abstract class AbstractApiClient implements ApiClient {
       mergedHeaders["X-Request-ID"] = globalThis.crypto.randomUUID();
     }
 
-    mergedHeaders["Accept-Encoding"] ??= this.supportedEncodings();
+    if (!hasHeader("Accept-Encoding")) {
+      mergedHeaders["Accept-Encoding"] = this.supportedEncodings();
+    }
 
     if (body != null && typeof body === "object" && !Buffer.isBuffer(body)) {
       const boundary = globalThis.crypto.randomUUID();
@@ -290,7 +312,9 @@ export abstract class AbstractApiClient implements ApiClient {
         boundary,
       );
     } else if (body == null) {
-      delete mergedHeaders["Content-Type"];
+      for (const key of Object.keys(mergedHeaders)) {
+        if (key.toLowerCase() === "content-type") delete mergedHeaders[key];
+      }
       /* Some servers / WAFs treat POST/PUT/PATCH with no body and no
        * Content-Length as malformed (411 Length Required) or behave
        * inconsistently. Set Content-Length: 0 explicitly on body-bearing
@@ -405,8 +429,8 @@ export abstract class AbstractApiClient implements ApiClient {
           ) {
             throw new ApiError(
               response.status,
-              `Refusing to follow redirect to non-HTTP(S) URL: ${nextUrl}`,
-              null,
+              `Refusing to follow redirect to non-HTTP(S) URL: ${AbstractApiClient.redactUrl(nextUrl)}`,
+              AbstractApiClient.collectHeaders(response),
               null,
               null,
             );
@@ -469,9 +493,9 @@ export abstract class AbstractApiClient implements ApiClient {
           ) {
             throw new ApiError(
               response.status,
-              "Refusing to replay request body across HTTPS -> HTTP redirect downgrade " +
-                `(from ${currentUrl} to ${nextUrl})`,
-              null,
+              "Refusing to replay request body across HTTPS->HTTP redirect: " +
+                `${AbstractApiClient.redactUrl(currentUrl)} -> ${AbstractApiClient.redactUrl(nextUrl)}`,
+              AbstractApiClient.collectHeaders(response),
               null,
               null,
             );
@@ -509,14 +533,17 @@ export abstract class AbstractApiClient implements ApiClient {
         /* T-D1: exhausting the redirect budget must fail loudly. The
          * other SDKs throw "too many redirects" rather than silently
          * returning the final 3xx as if it were a normal response. */
+        const exhaustedLocation = response.headers.get("location");
         if (
           hops >= maxRedirects &&
-          AbstractApiClient.isRedirectStatus(response.status)
+          AbstractApiClient.isRedirectStatus(response.status) &&
+          exhaustedLocation != null &&
+          exhaustedLocation.length > 0
         ) {
           await AbstractApiClient.discardBody(response);
           throw new ApiError(
             response.status,
-            `Too many redirects (exceeded maxRedirects=${maxRedirects})`,
+            `Too many redirects (exceeded ${maxRedirects})`,
             AbstractApiClient.collectHeaders(response),
             null,
             null,
@@ -825,7 +852,13 @@ export abstract class AbstractApiClient implements ApiClient {
           .replace(/^["']|["']$/g, "")
       : "utf-8";
     if (cs === "utf-16" || cs === "utf16") {
-      cs = "utf-16be";
+      /* A BOM decides the byte order; without one the RFC 2781 default is
+       * big-endian. TextDecoder('utf-16be') would not sniff a little-endian
+       * BOM, so it is checked here. */
+      cs =
+        buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe
+          ? "utf-16le"
+          : "utf-16be";
     }
     try {
       return new TextDecoder(cs, { fatal: false }).decode(buf);
@@ -984,6 +1017,26 @@ export abstract class AbstractApiClient implements ApiClient {
       await response.body?.cancel();
     } catch {
       /* nothing left to release */
+    }
+  }
+
+  /**
+   * The URL with every query value replaced by `***`, for use in messages. A
+   * query-parameter API key must not reach logs or error trackers through an
+   * error message.
+   *
+   * @param url the URL to render
+   * @returns the URL with its query values masked, or the input when it is not parseable
+   */
+  static redactUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      for (const key of [...parsed.searchParams.keys()]) {
+        parsed.searchParams.set(key, "***");
+      }
+      return parsed.toString();
+    } catch {
+      return url;
     }
   }
 

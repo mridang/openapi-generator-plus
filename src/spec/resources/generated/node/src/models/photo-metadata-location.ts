@@ -42,7 +42,12 @@ export class PhotoMetadataLocation {
   lng?: number;
 
   constructor(data?: Partial<PhotoMetadataLocation>) {
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
+      ),
+    );
     if (this.lat != null && typeof this.lat !== "number") {
       throw new TypeError(`lat must be a number, got ${typeof this.lat}`);
     }

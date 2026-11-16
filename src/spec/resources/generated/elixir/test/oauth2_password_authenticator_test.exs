@@ -170,7 +170,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -203,7 +203,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -237,7 +237,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -282,7 +282,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -322,7 +322,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{
@@ -373,7 +373,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
               Jason.encode!(%{
                 "access_token" => "tok1",
                 "refresh_token" => "ref1",
-                "expires_in" => 1
+                "expires_in" => 0
               })
           },
           %PetstoreClient.ApiHttpResponse{

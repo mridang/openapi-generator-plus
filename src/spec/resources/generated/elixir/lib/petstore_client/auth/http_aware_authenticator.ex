@@ -34,4 +34,13 @@ defmodule PetstoreClient.Auth.HttpAwareAuthenticator do
   exchange, discovery, etc.).
   """
   @callback set_api_client(term(), term()) :: term()
+
+  @doc """
+  Release the processes the authenticator started (token managers, discovery
+  caches). Optional: authenticators that start nothing do not implement it.
+  Called by `Client.close/1`.
+  """
+  @callback close(term()) :: :ok
+
+  @optional_callbacks close: 1
 end

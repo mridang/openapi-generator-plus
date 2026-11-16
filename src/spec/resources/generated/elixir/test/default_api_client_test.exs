@@ -667,7 +667,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       assert {:error, %PetstoreClient.Errors.ApiError{message: message, status_code: status}} =
                result
 
-      assert message =~ "too many redirects"
+      assert message =~ "Too many redirects (exceeded"
       # A refused redirect is a response that arrived but cannot be used: it
       # carries the redirect's real status, never 0.
       assert status == 302
@@ -810,6 +810,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
         )
       end
 
+    assert err.message == "ApiClient has been closed and can no longer send requests"
     refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
   end
 

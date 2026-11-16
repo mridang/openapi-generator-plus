@@ -33,6 +33,9 @@ enum class Separator(
     A_B_2("a_b"),
     ;
 
+    /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
+    override fun toString(): String = value.toString()
+
     companion object {
         fun fromValue(value: String): Separator =
             entries.firstOrNull { it.value == value }

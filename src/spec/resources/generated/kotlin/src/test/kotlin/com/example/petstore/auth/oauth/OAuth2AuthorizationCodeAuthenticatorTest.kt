@@ -114,12 +114,16 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        assertThrowsExactly(IllegalArgumentException::class.java) {
-            runBlocking { auth.exchangeCode("") }
-        }
-        assertThrowsExactly(IllegalArgumentException::class.java) {
-            runBlocking { auth.exchangeCode("   ") }
-        }
+        val empty =
+            assertThrowsExactly(IllegalArgumentException::class.java) {
+                runBlocking { auth.exchangeCode("") }
+            }
+        assertEquals("Authorization code must not be empty", empty.message)
+        val blank =
+            assertThrowsExactly(IllegalArgumentException::class.java) {
+                runBlocking { auth.exchangeCode("   ") }
+            }
+        assertEquals("Authorization code must not be empty", blank.message)
         // No token request should have been dispatched.
         assertNull(client.lastBody, "no token request should be sent for an empty code")
     }

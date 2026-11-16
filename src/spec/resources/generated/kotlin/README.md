@@ -8,6 +8,24 @@ Auto-generated Kotlin SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 - **JVM** 17 or newer (the build uses whichever JDK is on the `PATH`; static analysis targets 17)
 - **Gradle** 8.x (8.10+) or Gradle 9.x, installed on the `PATH` (the SDK ships no Gradle wrapper)
 
+## Installation
+
+```kotlin
+implementation("com.example.petstore:petstore-client:1.0.0")
+```
+
+## Usage
+
+Create a client from an authenticator and call the operations from a coroutine
+(every operation is a `suspend` function). `SKILLS.md` has the full reference:
+every authentication scheme, transport options, error handling and models.
+
+```kotlin
+import com.example.petstore.Client
+
+val client = Client.withToken("https://api.example.com", "your-token")
+```
+
 ## Build
 
 ```bash
@@ -46,6 +64,43 @@ gradle ktlintFormat
 - Artifact: `petstore-client`
 - Version: `1.0.0`
 
+## Cancellation
+
+Operations are `suspend` functions, so cancellation is coroutine cancellation:
+cancel the calling coroutine (or use `withTimeout`) and the request is aborted.
+The call then raises `kotlinx.coroutines.CancellationException`, never a
+`NetworkTimeoutException`; that one is only raised when the SDK's own
+`TransportOptions` timeout elapses. The SDK has no cancellation API of its own
+and needs none.
+
+```kotlin
+import kotlinx.coroutines.withTimeout
+
+withTimeout(2_000) { client.someApi.someOperation() }
+```
+
+## Custom HTTP client
+
+`TransportOptions.builder().httpClient(myKtorClient)` sends every request
+through your own Ktor `HttpClient`. The SDK keeps its timeout, redirect
+policy, user agent and header defaults applied on top of it, and never closes
+it: you own its lifecycle. It cannot be combined with `proxy`, `caCertPath` or
+`verifySsl(false)`; `build()` rejects the combination, so configure proxy and
+TLS on the client you supply.
+
+## Raw responses, timeouts and request ids
+
+Every operation has a `*WithHttpInfo` variant that returns an `ApiResult`
+holding the status code, the response headers (lower-cased names) and the
+decoded body; use it when you need to read a header.
+
+`TransportOptions.timeout` is in milliseconds (default 10000) and is one
+end-to-end budget for the whole call: connection, every redirect hop and the
+response body. When it elapses the call raises `NetworkTimeoutException`.
+Unless `injectRequestId(false)` is set, the SDK sends a generated
+`X-Request-ID` header on every request, and a header of the same name that you
+supply always wins.
+
 ## Caveats
 
 ### Decimal / `format: number` precision
@@ -69,34 +124,6 @@ yourself.
 `format: int64` is unaffected — Kotlin's `Long` natively represents the
 full 64-bit range without precision loss.
 
-### Custom HTTP client
-
-`TransportOptions.builder().httpClient(myKtorClient)` sends every request
-through your own Ktor `HttpClient`. The SDK keeps its timeout, redirect
-policy, user agent and header defaults applied on top of it, and never closes
-it: you own its lifecycle. It cannot be combined with `proxy`, `caCertPath` or
-`verifySsl(false)`; `build()` rejects the combination, so configure proxy and
-TLS on the client you supply.
-
-## Not supported
-
-### Webhooks and callbacks
-
-This SDK is **client → server** only. Spec entries describing
-server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
-per-operation `callbacks` — are intentionally skipped during code
-generation. If you need to receive webhook deliveries, write the
-handler yourself and use this SDK only to deserialize the incoming
-payload (e.g. by reusing the relevant request-body model).
-
-### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
-
-JSON Schema 2019-09 keywords for "if field X is present, field Y is
-also required" are **not enforced** by this SDK. No mainstream
-OpenAPI client codegen implements them. The server is the authoritative
-validator; if you want client-side checking, plug in a JSON Schema
-validator library for your language.
-
 ### Schema constraints
 
 The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
@@ -108,9 +135,49 @@ present), so a value that breaks one of these constraints is sent as given and
 the server decides. The server is the authoritative validator; if you want a
 fast failure before the network round trip, plug in a JSON Schema validator.
 
-`uniqueItems` arrays are `Set` properties. A set of scalars (strings, numbers,
-booleans, enums) goes on the wire in ascending natural order, so the bytes are
-the same on every run; a set of models keeps the set's own iteration order.
+`uniqueItems` arrays are `Set` properties (`LinkedHashSet`). The order of a set
+on the wire is unspecified: elements are written in the set's own iteration
+order, which for a `LinkedHashSet` is insertion order. Do not depend on it.
+
+## Not supported
+
+### Webhooks and callbacks (#53)
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType` (#70, #88)
+
+Only JSON, form, multipart and binary bodies are generated. An operation
+that offers only `application/xml` has no usable request or response
+body; encode and decode the XML yourself.
+
+### Link Objects (#78)
+
+Response `links` are ignored; build the follow-up call yourself.
+
+### Mutual TLS security schemes (#90)
+
+A `mutualTLS` security scheme is not generated. Configure the client
+certificate on the Ktor `HttpClient` you pass to
+`TransportOptions.builder().httpClient(...)`.
+
+### Automatic retries
+
+The SDK never retries a failed request. Retry in your own code, for
+example on `NetworkException` or `TooManyRequestsException`.
+
+### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
+
+JSON Schema 2019-09 keywords for "if field X is present, field Y is
+also required" are **not enforced** by this SDK. No mainstream
+OpenAPI client codegen implements them. The server is the authoritative
+validator; if you want client-side checking, plug in a JSON Schema
+validator library for your language.
 
 ### SOCKS proxies
 
@@ -121,12 +188,6 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
-
-### Per-call cancellation
-
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutException`.
 
 ### `LICENSE` file is not auto-emitted
 

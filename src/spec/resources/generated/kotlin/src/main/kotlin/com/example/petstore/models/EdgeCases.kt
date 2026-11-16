@@ -146,6 +146,9 @@ data class EdgeCases(
         OUT_OF_STOCK("OUT_OF_STOCK"),
         ;
 
+        /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
+        override fun toString(): String = value.toString()
+
         companion object {
             fun fromValue(value: String): PhaseEnum =
                 entries.firstOrNull { it.value == value }

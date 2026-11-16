@@ -53,6 +53,9 @@ module Petstore::Client
     # `type` is `apiKey` and `in` is `header`, so a malicious 302 cannot
     # leak the API key to a different host. Entries are already lowercase
     # so the cross-origin filter can compare case-insensitively.
+    # The verbs Faraday's run_request accepts.
+    STANDARD_METHODS = %i[get post put delete head patch options trace].freeze
+
     EXTRA_SENSITIVE_HEADER_NAMES = %w[x-api-key x-internal-key].freeze
 
     # BaseApi builds the query string itself, with the per-parameter style,
@@ -119,7 +122,9 @@ module Petstore::Client
       # would make close a silent no-op), matching the other SDKs.
       raise 'ApiClient has been closed and can no longer send requests' if @closed
 
-      merged = @transport_options.default_headers.dup.merge(headers)
+      # Field names are case-insensitive (RFC 9110 section 5.1): a caller's
+      # header replaces a default of the same name whatever its casing.
+      merged = @transport_options.default_headers.reject { |name, _v| header?(headers, name.to_s) }.merge(headers)
       # RFC 9110 §5.1: field names are case-insensitive, so a caller's
       # `user-agent` or `x-request-id` (any casing, even empty) wins and
       # nothing is injected alongside it.
@@ -191,7 +196,7 @@ module Petstore::Client
             # exfiltration vector. Refuse loudly with an ApiError carrying the
             # 3xx status instead of silently returning the 3xx response,
             # matching the other SDKs.
-            raise unusable_response(response, "Refusing to follow redirect to non-http(s) URL: #{next_url}") if next_uri.nil? || !%w[http https].include?(next_uri.scheme)
+            raise unusable_response(response, "Refusing to follow redirect to non-HTTP(S) URL: #{next_url}") if next_uri.nil? || !%w[http https].include?(next_uri.scheme)
 
             cross_origin = !same_origin?(original_url, next_url)
 
@@ -226,8 +231,8 @@ module Petstore::Client
             # is not a body either, so it is followed like the other SDKs do.
             replays_body = !rewrite_to_get && !next_body.nil? && !next_body.to_s.empty?
             if replays_body && https_to_http_downgrade?(url, next_url)
-              raise unusable_response(response, 'Refusing to replay body across HTTPS -> HTTP ' \
-                                                "redirect (TLS downgrade): #{next_url}")
+              raise unusable_response(response, 'Refusing to replay request body across HTTPS->HTTP ' \
+                                                "redirect: #{url} -> #{next_url}")
             end
 
             redirect_headers = current_headers.dup
@@ -263,7 +268,7 @@ module Petstore::Client
           # matching the other SDKs. A 3xx with no usable Location breaks out of
           # the loop early and is a legitimate terminal response, so the budget
           # check is gated on the hop count.
-          raise unusable_response(response, "Exceeded maximum number of redirects (#{max_redirects})") if hops >= max_redirects && redirect_status?(response.status)
+          raise unusable_response(response, "Too many redirects (exceeded #{max_redirects})") if hops >= max_redirects && redirect_status?(response.status) && !response.headers['location'].to_s.empty?
         end
       rescue Faraday::TimeoutError, Faraday::ConnectionFailed, Faraday::SSLError => e
         raise network_error_class(e).new(message: e.message)
@@ -340,9 +345,9 @@ module Petstore::Client
     # call's budget, and a hop is never started once the budget is spent.
     def run_hop(method, url, body, headers, deadline)
       if deadline.nil?
-        return connection.run_request(method, url, body, headers) unless @transport_options.connection
+        return dispatch(method, url, body, headers) unless @transport_options.connection
 
-        return connection.run_request(method, url, body, headers) do |request|
+        return dispatch(method, url, body, headers) do |request|
           request.options.params_encoder = QueryParamsEncoder
         end
       end
@@ -350,7 +355,7 @@ module Petstore::Client
       remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
       raise Errors::NetworkTimeoutError.new(message: "Request timed out after #{@transport_options.timeout} ms") if remaining <= 0
 
-      connection.run_request(method, url, body, headers) do |request|
+      dispatch(method, url, body, headers) do |request|
         # A supplied connection has its own encoder; the request-level one keeps
         # the query exactly as BaseApi built it.
         request.options.params_encoder = QueryParamsEncoder if @transport_options.connection
@@ -358,6 +363,22 @@ module Petstore::Client
         request.options.open_timeout = remaining
         request.options.write_timeout = remaining
       end
+    end
+
+    # Faraday's +run_request+ refuses any verb outside its eight fixed ones,
+    # so QUERY and other custom methods go through the same request build and
+    # middleware stack below it.
+    def dispatch(method, url, body, headers, &block)
+      conn = connection
+      return conn.run_request(method, url, body, headers, &block) if STANDARD_METHODS.include?(method)
+
+      request = conn.build_request(method) do |req|
+        req.url(url) if url
+        req.headers.update(headers) if headers
+        req.body = body if body
+        block&.call(req)
+      end
+      conn.builder.build_response(conn, request)
     end
 
     # Whether +headers+ already holds +name+ under ASCII case-folding.
