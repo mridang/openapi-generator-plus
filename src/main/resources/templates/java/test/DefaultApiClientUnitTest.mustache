@@ -273,6 +273,19 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/content-encoding-identity",
+        exchange -> {
+          // F1135: an identity-encoded body is the payload itself; the client
+          // must hand it through undecoded and keep its encoding header.
+          byte[] body = "{\"ok\":true}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Encoding", "identity");
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
         "/content-encoding-empty-gzip",
         exchange -> {
           // Gap AL: a zero-byte body that still advertises `Content-Encoding:
@@ -708,6 +721,23 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void proxyPasswordKeepsALiteralPlusSign() throws Exception {
+    // F901: userinfo is percent-decoded, but a literal '+' is not a space.
+    String credentials = "svc" + ":" + "p" + "+" + "q%20r";
+    TransportOptions transport =
+        TransportOptions.builder().proxy("http://" + credentials + "@127.0.0.1:9999").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+
+    Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
+    field.setAccessible(true);
+    String expected =
+        "Basic "
+            + Base64.getEncoder()
+                .encodeToString("svc:p+q r".getBytes(StandardCharsets.UTF_8));
+    assertEquals(expected, field.get(client));
+  }
+
+  @Test
   void leavesProxyAuthHeaderNullWhenProxyHasNoUserInfo() throws Exception {
     TransportOptions transport =
         TransportOptions.builder().proxy("http://127.0.0.1:9999").build();
@@ -917,8 +947,9 @@ class DefaultApiClientUnitTest {
         "a configuration mistake must not be an SDK error");
     assertNotNull(ex.getCause(), "original read/parse failure must be preserved as the cause");
     assertTrue(
-        String.valueOf(ex.getMessage()).toLowerCase(java.util.Locale.ROOT).contains("ca certificate"),
-        "message should name the CA certificate failure, was: " + ex.getMessage());
+        String.valueOf(ex.getMessage())
+            .startsWith("failed to read CA certificate from \"/nonexistent/ca.pem\": "),
+        "message should be the canonical read failure, was: " + ex.getMessage());
   }
 
   @Test
@@ -942,8 +973,23 @@ class DefaultApiClientUnitTest {
     IllegalArgumentException ex =
         assertThrows(IllegalArgumentException.class, () -> new DefaultApiClient(transport));
     assertTrue(
-        String.valueOf(ex.getMessage()).contains(bogus.getAbsolutePath()),
-        "message should name the offending path, was: " + ex.getMessage());
+        String.valueOf(ex.getMessage())
+            .startsWith("failed to parse CA certificate from \"" + bogus.getAbsolutePath() + "\": "),
+        "message should be the canonical parse failure, was: " + ex.getMessage());
+  }
+
+  @Test
+  void emptyCaCertFileIsReportedAsNoPemBlocks() throws Exception {
+    java.io.File empty = java.io.File.createTempFile("empty-ca", ".pem");
+    empty.deleteOnExit();
+    TransportOptions transport =
+        TransportOptions.builder().caCertPath(empty.getAbsolutePath()).build();
+    IllegalArgumentException ex =
+        assertThrowsExactly(IllegalArgumentException.class, () -> new DefaultApiClient(transport));
+    assertEquals(
+        "failed to parse CA certificate from \"" + empty.getAbsolutePath()
+            + "\": no PEM blocks found or unparseable",
+        ex.getMessage());
   }
 
   @Test
@@ -1775,6 +1821,17 @@ class DefaultApiClientUnitTest {
         client.sendRequest("GET", baseUrl + "/content-encoding-empty-gzip", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertEquals("", response.body());
+  }
+
+  @Test
+  void identityEncodedBodyPassesThroughUndecodedAndKeepsItsHeaders() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/content-encoding-identity", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("{\"ok\":true}", response.body());
+    assertEquals("identity", response.headers().get("content-encoding"));
+    assertTrue(response.headers().containsKey("content-length"));
   }
 
   {{! -- Gap 3.1: cross-origin redirect strips sensitive headers -- }}

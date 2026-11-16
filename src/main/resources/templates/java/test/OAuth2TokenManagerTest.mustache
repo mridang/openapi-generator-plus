@@ -474,6 +474,30 @@ class OAuth2TokenManagerTest {
         assertNull(ex.getCause());
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+        "<html>not json</html>|Token response is not valid JSON",
+        "[\"tok\"]|Token response is not a JSON object",
+        "\"tok\"|Token response is not a JSON object",
+        "{}|Token response missing or empty access_token field",
+        "{\"access_token\":\"\"}|Token response missing or empty access_token field"
+    })
+    void unusableTokenResponseHasTheCanonicalMessageAndNoCause(String body, String expected) {
+        // D07: the message is byte-identical across the SDKs, with no parser
+        // detail appended and no cause that could quote the response body.
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(fakeClient(200, body));
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        OAuth2TokenException ex = assertThrowsExactly(
+                OAuth2TokenException.class, () ->
+                        manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals(expected, ex.getMessage());
+        assertNull(ex.getCause());
+    }
+
     @Test
     void expiresInAsFloatIsFloored() {
         // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
@@ -609,7 +633,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    void token_response_missing_access_token_throws_typed_error() {
+    void tokenResponseMissingAccessTokenThrowsTypedError() {
         // A 2xx response whose body omits access_token (e.g. only refresh_token)
         // must surface as the typed OAuth2TokenException, not silently cache an
         // empty/null token. The typed error extends the branded
@@ -627,7 +651,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    void token_endpoint_error_response_parsed_to_typed_error() {
+    void tokenEndpointErrorResponseParsedToTypedError() {
         // RFC 6749 §5.2: a 4xx response with a JSON error object must surface
         // as a typed OAuth2ServerException carrying code/description/uri so callers
         // can branch on the OAuth2 error code without re-parsing the body.

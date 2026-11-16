@@ -110,7 +110,7 @@ public final class ServerConfiguration {
      * @throws IllegalArgumentException if an override value is not in the variable's enum
      */
     public String getUrl(Map<String, String> overrides) {
-        String url = urlTemplate;
+        Map<String, String> resolved = new HashMap<>();
         for (Map.Entry<String, ServerVariable> entry : variables.entrySet()) {
             String varName     = entry.getKey();
             ServerVariable var = entry.getValue();
@@ -122,9 +122,30 @@ public final class ServerConfiguration {
                         "Invalid value '" + value + "' for server variable '" + varName
                                 + "'. Allowed values: " + enumValues);
             }
-
-            url = url.replace("{" + varName + "}", value);
+            resolved.put(varName, value);
         }
-        return url;
+
+        /* One pass over the template: a placeholder that a substituted value
+         * introduces is never expanded again, whatever the map's iteration order. */
+        StringBuilder url = new StringBuilder(urlTemplate.length());
+        int length = urlTemplate.length();
+        int index = 0;
+        while (index < length) {
+            char current = urlTemplate.charAt(index);
+            if (current == '{') {
+                int end = urlTemplate.indexOf('}', index + 1);
+                if (end > 0) {
+                    String value = resolved.get(urlTemplate.substring(index + 1, end));
+                    if (value != null) {
+                        url.append(value);
+                        index = end + 1;
+                        continue;
+                    }
+                }
+            }
+            url.append(current);
+            index++;
+        }
+        return url.toString();
     }
 }

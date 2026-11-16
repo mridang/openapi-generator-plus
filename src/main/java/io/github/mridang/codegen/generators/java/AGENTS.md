@@ -295,7 +295,7 @@ Where: `api_error.mustache`, `object_serializer.mustache`. Test: `ApiExceptionTe
 
 ### Models (F864, F867, F869, F173, F278)
 Rule: `setAdditionalProperty` is public so callers can send extra keys; the string form of an enum constant is its wire value; a `format: password` field prints as `***` in the model's `toString` (the wire still carries the value); a schema named like a `java.lang` type (`Error`, `Exception`, `Throwable`, `String`, `Object`, the boxed numbers, `Class`, `Enum`, `Record`, `Override`, `Deprecated`, `Thread`, `System`) is prefixed `Model`; apiKey header names are escaped as Java literals in the redirect strip list.
-Where: `models/model.mustache`, `BetterJavaCodegen` (`JAVA_LANG_CLASHES`, `processOpenAPI`). Test: `MetadataTest`, `ObjectSerializerTest`, `BetterJavaCodegenTypeMappingTest`.
+Where: `models/model.mustache`, `BetterJavaCodegen` (`JAVA_LANG_CLASHES`, `processOpenAPI`). Test: `MetadataTest`, `ObjectSerializerTest`, `BetterJavaCodegenTest`.
 
 ### Per-call authenticators get the client (F856)
 Rule: `BaseApi` hands its `ApiClient` to a per-call `HttpAwareAuthenticator` before using it, so a per-call OAuth2 or OIDC authenticator works.
