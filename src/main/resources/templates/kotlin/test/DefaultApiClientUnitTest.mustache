@@ -1046,6 +1046,8 @@ class DefaultApiClientUnitTest {
                 ex.message!!.contains("non-HTTP", ignoreCase = true),
                 "exception should mention the refused non-HTTP(S) target, got: ${ex.message}",
             )
+            assertEquals("Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd", ex.message)
+            assertEquals("file:///etc/passwd", ex.responseHeaders!!["location"])
         }
 
         @Test
@@ -1074,6 +1076,65 @@ class DefaultApiClientUnitTest {
                 ex.message!!.contains("HTTPS->HTTP"),
                 "exception message should mention HTTPS->HTTP downgrade",
             )
+        }
+
+        @Test
+        @DisplayName("refuses a body replay across HTTPS->HTTP with the canonical message and the response headers")
+        fun downgradeRefusalHasCanonicalMessageAndHeaders() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.TemporaryRedirect,
+                    headers = headersOf("Location", "http://insecure.example.com/dest?next=1"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("POST", "https://secure.example.com/x?api_key=SECRET", emptyMap(), "body")
+                }
+            }
+            assertEquals(
+                "Refusing to replay request body across HTTPS->HTTP redirect: " +
+                    "https://secure.example.com/x -> http://insecure.example.com/dest",
+                ex.message,
+            )
+            assertEquals("http://insecure.example.com/dest?next=1", ex.responseHeaders!!["location"])
+            assertFalse(ex.message!!.contains("SECRET"), "a query-parameter API key must not reach the message")
+        }
+
+        @Test
+        @DisplayName("a 3xx without a Location after the redirect budget is returned, never a too-many-redirects error")
+        fun exhaustedBudgetWithoutLocationReturnsTheResponse() {
+            var hop = 0
+            val engine = MockEngine { _ ->
+                hop++
+                if (hop == 1) {
+                    respond("", HttpStatusCode.Found, headersOf("Location", "http://localhost/a"))
+                } else {
+                    respond("", HttpStatusCode.Found)
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).maxRedirects(1).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/start", emptyMap(), null)
+            }
+            assertEquals(302, response.statusCode)
+            assertEquals(2, hop)
+        }
+
+        @Test
+        @DisplayName("maxRedirects of zero returns a 3xx without a Location instead of failing")
+        fun zeroMaxRedirectsReturnsTheLocationlessRedirect() {
+            val engine = MockEngine { _ -> respond("", HttpStatusCode.Found) }
+            val transport = TransportOptions.builder().followRedirects(true).maxRedirects(0).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/start", emptyMap(), null)
+            }
+            assertEquals(302, response.statusCode)
         }
 
         @Test
@@ -1154,6 +1215,8 @@ class DefaultApiClientUnitTest {
                 ex.message!!.contains("Too many redirects"),
                 "exception should report redirect exhaustion, got: ${ex.message}",
             )
+            assertEquals("Too many redirects (exceeded 2)", ex.message)
+            assertEquals("http://localhost/loop", ex.responseHeaders!!["location"])
         }
 
         @Test
@@ -1405,6 +1468,73 @@ class DefaultApiClientUnitTest {
             }
             assertEquals("identity", acceptEncoding)
         }
+
+        @Test
+        @DisplayName("a lower-case caller accept-encoding replaces the default instead of adding a second line")
+        fun lowerCaseCallerAcceptEncodingWins() {
+            var values: List<String>? = null
+            val client = mockClient(requestCapture = { req -> values = req.headers.getAll("Accept-Encoding") })
+            runBlocking {
+                DefaultApiClient(client).sendRequest(
+                    "GET", "http://localhost/test", mapOf("accept-encoding" to "identity"), null)
+            }
+            assertEquals(listOf("identity"), values)
+        }
+    }
+
+    @Nested
+    @DisplayName("charsetFor")
+    inner class CharsetParsing {
+
+        @Test
+        @DisplayName("a charset parameter name is matched case-insensitively and may have spaces around the equals sign")
+        fun matchesTheParameterNameLeniently() {
+            assertEquals(Charsets.ISO_8859_1, charsetFor("text/plain; Charset=ISO-8859-1"))
+            assertEquals(Charsets.ISO_8859_1, charsetFor("text/plain; CHARSET = \"ISO-8859-1\""))
+            assertEquals(Charsets.ISO_8859_1, charsetFor("text/plain; format=flowed; charset=ISO-8859-1; q=1"))
+        }
+
+        @Test
+        @DisplayName("a parameter that only ends in charset is not the charset")
+        fun ignoresAParameterNameThatMerelyEndsInCharset() {
+            assertEquals(Charsets.UTF_8, charsetFor("text/plain; xcharset=ISO-8859-1"))
+        }
+
+        @Test
+        @DisplayName("a response declaring Charset=ISO-8859-1 is decoded with that charset")
+        fun decodesAMixedCaseCharsetParameter() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = byteArrayOf(0x63, 0x61, 0x66, 0xE9.toByte()),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "text/plain; Charset=ISO-8859-1"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val response = runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/charset", emptyMap(), null)
+            }
+            assertEquals("caf\u00e9", response.body)
+        }
+    }
+
+    @Nested
+    @DisplayName("buildProxyAuthHeader")
+    inner class ProxyAuthHeader {
+
+        @Test
+        @DisplayName("a literal plus in the proxy userinfo is kept, not turned into a space")
+        fun keepsALiteralPlus() {
+            val expected = java.util.Base64.getEncoder().encodeToString("svc:pa+ss".toByteArray(Charsets.UTF_8))
+            assertEquals("Basic $expected", buildProxyAuthHeader("http://svc:pa+ss@proxy.example.com:3128"))
+        }
+
+        @Test
+        @DisplayName("percent-encoded userinfo is still decoded")
+        fun decodesPercentEncodedUserinfo() {
+            val expected = java.util.Base64.getEncoder().encodeToString("svc:p@ss".toByteArray(Charsets.UTF_8))
+            assertEquals("Basic $expected", buildProxyAuthHeader("http://svc:p%40ss@proxy.example.com:3128"))
+        }
     }
 
     @Nested
@@ -1424,10 +1554,7 @@ class DefaultApiClientUnitTest {
                 }
             }
             assertFalse({{errorPrefix}}Exception::class.java.isInstance(ex), "use-after-close must not be an SDK error")
-            assertTrue(
-                ex.message!!.contains("closed"),
-                "use-after-close must mention the closed state, got: ${ex.message}",
-            )
+            assertEquals("ApiClient has been closed and can no longer send requests", ex.message)
         }
     }
 

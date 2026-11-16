@@ -31,6 +31,9 @@ enum class {{classname}}(val value: Int) {
   {{/enumVars}}
   {{/allowableValues}}
 
+  /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
+  override fun toString(): String = value.toString()
+
   companion object {
     fun fromValue(value: Int): {{classname}} =
       entries.firstOrNull { it.value == value }
@@ -65,6 +68,9 @@ enum class {{classname}}(val value: Long) {
   {{/enumVars}}
   {{/allowableValues}}
 
+  /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
+  override fun toString(): String = value.toString()
+
   companion object {
     fun fromValue(value: Long): {{classname}} =
       entries.firstOrNull { it.value == value }
@@ -98,6 +104,9 @@ enum class {{classname}}(val value: String) {
   {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
   {{/enumVars}}
   {{/allowableValues}}
+
+  /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
+  override fun toString(): String = value.toString()
 
   companion object {
     fun fromValue(value: String): {{classname}} =
@@ -816,8 +825,15 @@ data class {{classname}}(
 {{/vendorExtensions.isLocalTime}}{{#vendorExtensions.isDuration}}  @Contextual
 {{/vendorExtensions.isDuration}}{{#isDecimal}}  @Contextual
 {{/isDecimal}}{{^isDecimal}}{{#isNumber}}  @Contextual
-{{/isNumber}}{{/isDecimal}}  {{#vendorExtensions.overridesBase}}override {{/vendorExtensions.overridesBase}}val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isContainer}}{{/required}}{{^-last}},{{/-last}}
+{{/isNumber}}{{/isDecimal}}  {{#vendorExtensions.overridesBase}}override {{/vendorExtensions.overridesBase}}val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isContainer}}{{/required}},
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+  {{! The overflow bucket is a constructor parameter so that copy() carries it and
+      a caller can supply it at construction. It is not serialized: the
+      ObjectSerializer folds it into the wire form itself. }}
+  @kotlinx.serialization.Transient
+  val additionalProperties: MutableMap<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}@Contextual Any?{{/additionalPropertiesType}}> = mutableMapOf(),
+{{/isAdditionalPropertiesTrue}}
 ){{#parent}} : {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
@@ -830,6 +846,9 @@ data class {{classname}}(
     {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
     {{/enumVars}}
     {{/allowableValues}}
+
+    /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
+    override fun toString(): String = value.toString()
 
     companion object {
       fun fromValue(value: Int): {{enumName}} =
@@ -863,6 +882,9 @@ data class {{classname}}(
     {{/enumVars}}
     {{/allowableValues}}
 
+    /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
+    override fun toString(): String = value.toString()
+
     companion object {
       fun fromValue(value: Long): {{enumName}} =
         entries.firstOrNull { it.value == value }
@@ -895,6 +917,9 @@ data class {{classname}}(
     {{/enumVars}}
     {{/allowableValues}}
 
+    /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
+    override fun toString(): String = value.toString()
+
     companion object {
       fun fromValue(value: String): {{enumName}} =
         entries.firstOrNull { it.value == value }
@@ -905,11 +930,6 @@ data class {{classname}}(
 {{/isInteger}}
 {{/isEnum}}
 {{/vars}}
-{{#isAdditionalPropertiesTrue}}
-
-  @kotlinx.serialization.Transient
-  val additionalProperties: MutableMap<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}@Contextual Any?{{/additionalPropertiesType}}> = mutableMapOf()
-{{/isAdditionalPropertiesTrue}}
 {{#hasContentEqualsField}}
 
   /* Kotlin's synthesized data-class equals/hashCode compare Array and
@@ -1147,11 +1167,12 @@ data class {{classname}}(
    * identity hash (`[B@1b6d3586`), omits the @Transient additionalProperties
    * bucket and does not look inside containers. This override keeps the
    * data-class shape but renders byte data by content, containers
-   * element-wise and appends additionalProperties. */
+   * element-wise and appends additionalProperties. A `format: password`
+   * property prints as `***`. */
   override fun toString(): String =
     listOf(
 {{#vars}}
-      "{{name}}=" + renderForToString({{name}}),
+      "{{name}}=" + {{#vendorExtensions.redactInToString}}"***"{{/vendorExtensions.redactInToString}}{{^vendorExtensions.redactInToString}}renderForToString({{name}}){{/vendorExtensions.redactInToString}},
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
       "additionalProperties=" + renderForToString(additionalProperties),

@@ -131,6 +131,15 @@ class BetterKotlinCodegenTypeMappingTest {
         assertEquals("a\\\"b\\\\c", BetterKotlinCodegen.escapeKotlinString("a\"b\\c"));
     }
 
+    /* A schema named like a Kotlin built-in would shadow it in the models package. */
+    @Test
+    void prefixesModelNamesThatCollideWithBuiltInTypes() {
+        BetterKotlinCodegen codegen = new BetterKotlinCodegen();
+        assertEquals("ModelString", codegen.toModelName("String"));
+        assertEquals("ModelAny", codegen.toModelName("Any"));
+        assertEquals("Pet", codegen.toModelName("Pet"));
+    }
+
     private static final String ALL_OF_DISCRIMINATOR_SPEC =
             String.join(
                     "\n",

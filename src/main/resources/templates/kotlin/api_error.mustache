@@ -3,6 +3,8 @@
 package {{invokerPackage}}.errors
 
 import {{invokerPackage}}.ObjectSerializer
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * Exception thrown when an API call fails.
@@ -203,7 +205,7 @@ open class ApiException : {{errorPrefix}}Exception {
         }
         val headers = responseHeaders
         if (!headers.isNullOrEmpty()) {
-            rendered.append("\nResponse headers: ").append(headers)
+            rendered.append("\nResponse headers: ").append(compactJson(headers))
         }
         val body = responseBody
         if (!body.isNullOrEmpty()) {
@@ -212,3 +214,7 @@ open class ApiException : {{errorPrefix}}Exception {
         return rendered.toString()
     }
 }
+
+/** The headers as one compact JSON object with sorted keys, the same text in every SDK. */
+private fun compactJson(headers: Map<String, String>): String =
+    JsonObject(headers.toSortedMap().mapValues { JsonPrimitive(it.value) }).toString()
