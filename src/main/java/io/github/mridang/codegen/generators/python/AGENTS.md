@@ -306,7 +306,20 @@ Where: `api_info.mustache`. Test: `test_metadata.mustache`.
 ### Tests added for parity (F1111, F1126, F1127, F1068, F1166, F1169, F1075, F1121, F1148, F935)
 StrictTag extra-key rejection, the `getPetTag` byte parameters on the wire, the required header and cookie guards, `getPetSummary` (matrix date, date-array query, cookie, text/plain), ambient proxy variables ignored, the auth cookie reaching the wire, the token request headers, an explicit per-call `Accept`, D84 characters written literally, the exact dot-segment message.
 
+### Cross-origin redirects and the error tree (F1093, F1084)
+Rule: on a cross-origin hop the strip list is the fixed names plus the spec's api-key header names plus any header whose name the S15 rule calls a credential (contains `key`, `token` or `secret`), so a default header or custom authenticator header is not forwarded. SKILLS.md names the root `<prefix>Exception` and its siblings (`SerializationException`, `OAuth2ServerException`, `OAuth2TokenException`) and ends the example with a catch of the root.
+Where: `default_api_client.mustache` (`_is_sensitive_header` from `transport_options`), `skills.mustache`. Test: `test_default_api_client.mustache` (`TestRedirectSecurityGuards`).
+
+### Fixture rows now asserted (F1115, F1116, F1124, F1125, F1128, F1130, F1131, F1133, F1141, F1142, F1143, F1144, F1146, F1147, F1158, F1161, F1175, F1113, F1114, F1067, F1063)
+`test_store_api.mustache` (`TestStoreApiFixtureOperations`: createAccount, swatch, swatch groups, timestamp groups, department, tree, defaults, stock item), `test/api/test_pet_api.mustache` (PetCriteria styles, addPetTreatment, scalar multipart parts, Mirror server, matrix and label path, deepObject filter, `2ndPage`), `test_object_serializer.mustache` (`TestFixtureModelsOnTheWire`: uuid, Error and Result, hostile Availability members, phase, Separator, biometricChip, prefixItems location, keyword property names, duplicate key), `test_server_configuration.mustache` (hostile third server), `test_default_api_client.mustache` (redirect-chain budget, multi-value headers, Set-Cookie not replayed).
+Not applicable to Python: the Pet.nickname and Order.quantity rows of F1124, because Python enforces schema constraints (S3).
+
 ### Not done in batch 7 (python)
+- F1080 (bounded, redacted ApiError rendering) changes the shared D14/D17 rendering of all twelve SDKs; it needs one cross-language decision first.
+- F1058, F1060, F1055 need the shared codegen (`AbstractBetterCodegen`); F1100 is an API-shape decision.
+- F1152 (compile the README and SKILLS fences) is a gate change, F1151 is already covered for multipart parts by `test_multipart_body_leaves_a_caller_supplied_handle_open`.
+
+### Earlier not-done list (kept for the record)
 - F1056 (header parameters named Accept, Content-Type, Authorization) needs the shared codegen filter.
 - F857, F856, F855, F858, F859, F860, F1060 (per-scheme authenticators, PKCE, discovery checks) are cross-language design work.
 - F1093 (credential strip by origin), F1080 (bounded ApiError body), F1100 (pagination), F1174, F1176 are design or gate work outside the templates.

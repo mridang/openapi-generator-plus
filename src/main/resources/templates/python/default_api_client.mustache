@@ -20,7 +20,7 @@ import urllib3.exceptions
 
 from {{packageName}}.api_http_response import ApiHttpResponse
 from {{packageName}}.errors import ApiException, NetworkException, NetworkTimeoutException
-from {{packageName}}.transport_options import TransportOptions
+from {{packageName}}.transport_options import TransportOptions, _is_sensitive_header
 
 from types import ModuleType
 
@@ -921,7 +921,10 @@ class DefaultApiClient:
                 # Proxy-Authorization on cross-origin hops, including
                 # the HTTPS -> HTTP downgrade case.
                 for key in list(next_headers.keys()):
-                    if key.lower() in self._SENSITIVE_HEADERS:
+                    # Besides the fixed list, any header whose name looks like a
+                    # credential (key, token, secret: the S15 rule) is dropped, so
+                    # a default header or a custom authenticator header cannot leak.
+                    if key.lower() in self._SENSITIVE_HEADERS or _is_sensitive_header(key):
                         del next_headers[key]
 
             # Drop body-bearing headers when the follow-up carries no body
