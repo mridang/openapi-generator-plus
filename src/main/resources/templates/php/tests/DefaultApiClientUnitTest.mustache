@@ -1375,6 +1375,27 @@ test('decompresses a valid gzip-encoded response body', function (): void {
     expect($response->body)->toBe($payload);
 });
 
+test('a Set-Cookie response is never replayed on a later request', function (): void {
+    $seen = [];
+    $calls = 0;
+    $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$seen, &$calls): MockResponse {
+        $calls++;
+        /** @var array<int, string> $lines */
+        $lines = $options['headers'] ?? [];
+        $seen[$calls] = strtolower(implode("\n", $lines));
+        return new MockResponse('ok', [
+            'http_code' => 200,
+            'response_headers' => ['Set-Cookie' => 'session=abc; Path=/'],
+        ]);
+    });
+    $client = new StubbedDefaultApiClient($mock);
+
+    $client->sendRequest('GET', 'https://api.example.com/login', [], null);
+    $client->sendRequest('GET', 'https://api.example.com/items', [], null);
+
+    expect($seen[2])->not->toContain('cookie:');
+});
+
 test('a decoded body drops the Content-Encoding and Content-Length headers', function (): void {
     $gzipped = (string) gzencode('{"ok":true}');
     $mockResponse = new MockResponse($gzipped, [
