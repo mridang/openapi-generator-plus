@@ -1016,7 +1016,7 @@ import FoundationNetworking
         defer { try? FileManager.default.removeItem(at: file) }
         let transport = try TransportOptionsBuilder().caCertPath(file.path).build()
         #expect(throws: ConfigurationError.invalidCACertificate(
-            "failed to parse \"\(file.path)\": no PEM blocks found or unparseable")) {
+            "failed to parse CA certificate from \"\(file.path)\": no PEM blocks found")) {
             _ = try DefaultApiClient(transportOptions: transport)
         }
     }
@@ -1026,7 +1026,7 @@ import FoundationNetworking
        must fail loudly instead of being silently dropped. */
     @Test func testDisablingVerificationIsRefusedOnLinux() throws {
         let transport = try TransportOptionsBuilder().verifySsl(false).build()
-        #expect(throws: ConfigurationError.tlsOptionsUnsupported) {
+        #expect(throws: ConfigurationError.invalidCACertificate(DefaultApiClient.tlsOptionsUnsupportedMessage)) {
             _ = try DefaultApiClient(transportOptions: transport)
         }
     }
@@ -1037,7 +1037,7 @@ import FoundationNetworking
         try Data([0x30, 0x03, 0x02, 0x01, 0x05]).write(to: file)
         defer { try? FileManager.default.removeItem(at: file) }
         let transport = try TransportOptionsBuilder().caCertPath(file.path).build()
-        #expect(throws: ConfigurationError.tlsOptionsUnsupported) {
+        #expect(throws: ConfigurationError.invalidCACertificate(DefaultApiClient.tlsOptionsUnsupportedMessage)) {
             _ = try DefaultApiClient(transportOptions: transport)
         }
     }
@@ -1052,9 +1052,14 @@ import FoundationNetworking
         // trust store (security theater). It is a configuration mistake, not
         // an ApiError.
         let transport = try TransportOptionsBuilder().caCertPath("/nonexistent/ca.pem").build()
-        #expect(throws: ConfigurationError.invalidCACertificate("failed to read \"/nonexistent/ca.pem\"")) {
+        let error = #expect(throws: ConfigurationError.self) {
             _ = try DefaultApiClient(transportOptions: transport)
         }
+        guard case .invalidCACertificate(let message)? = error else {
+            Issue.record("expected invalidCACertificate, got \(String(describing: error))")
+            return
+        }
+        #expect(message.hasPrefix("failed to read CA certificate from \"/nonexistent/ca.pem\": "))
     }
 
     /* RFC 9110 15.4: which methods a redirect rewrites. */

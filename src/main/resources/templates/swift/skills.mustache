@@ -135,7 +135,7 @@ When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a
 
 #### Token caching
 
-The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+The token manager caches the access token in memory and refreshes it shortly before its declared expiry: one safety margin of `min(60 seconds, expires_in / 2)` is taken off the lifetime when the token is stored, so a token with a 60 second lifetime is reused for 30 seconds. The margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. A token response without `expires_in` is cached until the token is invalidated.
 
 #### Client authentication method
 

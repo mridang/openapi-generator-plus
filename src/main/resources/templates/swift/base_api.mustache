@@ -146,21 +146,15 @@ public class BaseApi: @unchecked Sendable {
         let isMultipart = params.contentType == "multipart/form-data"
         var headers = headerSelector.selectHeaders(accept: params.accepts, contentType: params.contentType, isMultipart: isMultipart)
 
-        /* Merge config default headers */
-        for (k, v) in config.defaultHeaders {
-            headers[k] = v
-        }
-
-        /* Merge operation-specific headers */
-        for (k, v) in params.headerParams {
-            headers[k] = v
-        }
+        /* Merge config default headers, then operation-specific headers, then
+         * auth headers. Names are case-insensitive (RFC 9110 section 5.1), so
+         * a later layer replaces an earlier spelling of the same header. */
+        headers = Self.mergeHeaders(headers, overriding: config.defaultHeaders)
+        headers = Self.mergeHeaders(headers, overriding: params.headerParams)
 
         /* Merge auth headers */
         if let auth = effectiveAuth {
-            for (k, v) in try await auth.authHeaders() {
-                headers[k] = v
-            }
+            headers = Self.mergeHeaders(headers, overriding: try await auth.authHeaders())
             /* Handle cookie params. RFC 6265 — don't URL-encode; most cookie
              * parsers don't URL-decode, so `=` (base64 padding) would arrive
              * as literal `%3D` and break JWT/session cookies. Validate and
@@ -488,6 +482,22 @@ public class BaseApi: @unchecked Sendable {
 
     /// Reads the form fields of a request body as an ordered map.
     ///
+    /// Lays `layer` over `base` and treats header names as case-insensitive:
+    /// a name in `layer` replaces every spelling of it already in `base`, so
+    /// two spellings of one header are never both sent. Within one layer the
+    /// names are applied in sorted order, so the winner of two spellings in
+    /// the same layer is the same on every run.
+    static func mergeHeaders(_ base: [String: String], overriding layer: [String: String]) -> [String: String] {
+        var result = base
+        for (name, value) in layer.sorted(by: { $0.key < $1.key }) {
+            for existing in result.keys where existing.caseInsensitiveCompare(name) == .orderedSame {
+                result.removeValue(forKey: existing)
+            }
+            result[name] = value
+        }
+        return result
+    }
+
     /// A generated operation builds an ``OrderedParams`` in the spec's
     /// declaration order; a plain dictionary (hand-written callers) is read in
     /// key order so its output is still deterministic.

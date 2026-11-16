@@ -83,9 +83,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// rather than silently falling back to the system trust store — if the
     /// caller explicitly asked for SSL pinning we must not pretend it
     /// succeeded. A proxy on a platform that cannot route through one throws
-    /// ``ConfigurationError/proxyUnsupported``, and so does disabling TLS
-    /// verification or pinning a CA where URLSession cannot apply either
-    /// (``ConfigurationError/tlsOptionsUnsupported``).
+    /// ``ConfigurationError/invalidProxy(_:)``, and disabling TLS verification
+    /// or pinning a CA where URLSession cannot apply either throws
+    /// ``ConfigurationError/invalidCACertificate(_:)``.
     public init(transportOptions: TransportOptions?) throws {
         let opts = transportOptions ?? TransportOptions.defaults
         try DefaultApiClient.validateCaCertPath(opts.caCertPath)
@@ -103,14 +103,26 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         self.ownsSession = true
     }
 
+    /// The message for a proxy on a platform whose URLSession cannot use one.
+    static let proxyUnsupportedMessage = "Proxy configuration is not supported on this platform"
+
+    /// The message for disabling TLS verification or pinning a CA certificate
+    /// on a platform whose URLSession cannot apply either.
+    static let tlsOptionsUnsupportedMessage =
+        "Disabling TLS verification or pinning a CA certificate is not supported on this platform"
+
     /// Validates that a user-supplied CA certificate path can be read and
     /// parsed as a DER/PEM certificate, throwing
     /// ``ConfigurationError/invalidCACertificate(_:)`` when it cannot. A nil
     /// path is a no-op (the system trust store is used).
     static func validateCaCertPath(_ caCertPath: String?) throws {
         guard let path = caCertPath else { return }
-        guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
-            throw ConfigurationError.invalidCACertificate("failed to read \"\(path)\"")
+        let certData: Data
+        do {
+            certData = try Data(contentsOf: URL(fileURLWithPath: path))
+        } catch {
+            throw ConfigurationError.invalidCACertificate(
+                "failed to read CA certificate from \"\(path)\": \(error.localizedDescription)")
         }
         let certificates = parseCaCertificates(certData)
 #if canImport(Security)
@@ -121,7 +133,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 #endif
         guard parsed else {
             throw ConfigurationError.invalidCACertificate(
-                "failed to parse \"\(path)\": no PEM blocks found or unparseable"
+                "failed to parse CA certificate from \"\(path)\": no PEM blocks found"
             )
         }
     }
@@ -268,13 +280,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             throw ConfigurationError.invalidArgument("malformed request URL: \(url)")
         }
 
-        var merged: [String: String] = [:]
-        for (k, v) in transportOptions.defaultHeaders {
-            merged[k] = v
-        }
-        for (k, v) in headers {
-            merged[k] = v
-        }
+        var merged = BaseApi.mergeHeaders(transportOptions.defaultHeaders, overriding: headers)
         /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
          * header in any case wins and nothing is injected beside it. */
         func hasHeader(_ name: String) -> Bool {
@@ -308,12 +314,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
         if let formParts = BaseApi.formFields(body) {
             let boundary = UUID().uuidString
-            merged["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
+            merged = BaseApi.mergeHeaders(
+                merged, overriding: ["Content-Type": "multipart/form-data; boundary=\(boundary)"])
             request.httpBody = try DefaultApiClient.buildMultipartBody(ordered: formParts, boundary: boundary)
         } else if let data = body as? Data {
             request.httpBody = data
         } else {
-            merged.removeValue(forKey: "Content-Type")
+            for name in merged.keys where name.caseInsensitiveCompare("Content-Type") == .orderedSame {
+                merged.removeValue(forKey: name)
+            }
             /* Some servers / WAFs treat POST/PUT/PATCH with no body and
                no Content-Length as malformed (411 Length Required) or
                behave inconsistently. Attach an empty Data on body-bearing
@@ -322,7 +331,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             let upperMethod = method.uppercased()
             if upperMethod == "POST" || upperMethod == "PUT" || upperMethod == "PATCH" {
                 request.httpBody = Data()
-                merged["Content-Length"] = "0"
+                merged = BaseApi.mergeHeaders(merged, overriding: ["Content-Length": "0"])
             }
         }
 
@@ -930,13 +939,13 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
 #if os(Linux)
         if opts.proxy != nil {
-            throw ConfigurationError.proxyUnsupported
+            throw ConfigurationError.invalidProxy(DefaultApiClient.proxyUnsupportedMessage)
         }
         /* swift-corelibs-foundation never surfaces a server-trust challenge, so
          * the delegate cannot disable verification or pin a CA here. Refuse
          * rather than silently use the system trust store. */
         if !opts.verifySsl || opts.caCertPath != nil {
-            throw ConfigurationError.tlsOptionsUnsupported
+            throw ConfigurationError.invalidCACertificate(DefaultApiClient.tlsOptionsUnsupportedMessage)
         }
 #else
         if let proxy = opts.proxy {

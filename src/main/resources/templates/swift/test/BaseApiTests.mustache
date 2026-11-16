@@ -364,6 +364,39 @@ import Testing
             "config default Accept must win over the negotiated application/json")
     }
 
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a default
+     * header spelled in another case replaces the negotiated one, so exactly
+     * one Accept goes out and it is the configured one. */
+    @Test func testDefaultHeaderInAnotherCaseReplacesTheNegotiatedHeader() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+
+        let config = ConfigurationBuilder()
+            .baseURL("https://example.com")
+            .defaultHeader(name: "accept", value: "application/xml")
+            .build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.getPetById(petId: 1)
+        let accepts = mockClient.lastHeaders.filter { $0.key.lowercased() == "accept" }
+        #expect(accepts.count == 1, "two spellings of Accept were sent: \(accepts)")
+        #expect(accepts.values.first == "application/xml")
+    }
+
+    @Test func testMergeHeadersReplacesEverySpellingOfAName() {
+        let merged = BaseApi.mergeHeaders(
+            ["Accept": "a", "ACCEPT": "b", "X-Other": "o"], overriding: ["accept": "c"])
+        #expect(merged == ["accept": "c", "X-Other": "o"])
+    }
+
+    @Test func testMergeHeadersPicksTheSameWinnerWithinOneLayer() {
+        let layer = ["authorization": "lower", "Authorization": "upper"]
+        for _ in 0..<20 {
+            let merged = BaseApi.mergeHeaders([:], overriding: layer)
+            #expect(merged == ["authorization": "lower"])
+        }
+    }
+
     // MARK: - Nil body
 
     @Test func testHandlesNilBody() async throws {
@@ -1110,7 +1143,7 @@ import Testing
     /// a request through the credentialed proxy is asserted separately, on the
     /// Apple platforms only: URLSession on Linux has no
     /// `connectionProxyDictionary`, so the SDK refuses a proxy there (see
-    /// ``ConfigurationError/proxyUnsupported``).
+    /// ``ConfigurationError/invalidProxy(_:)``).
     @Test func testProxyAuthCredentialsRoundTrip() throws {
         let proxyURL = "http://alice:s3cret@proxy.example.com:3129"
         let opts = try TransportOptionsBuilder().proxy(proxyURL).build()
