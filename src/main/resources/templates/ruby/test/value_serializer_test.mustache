@@ -629,8 +629,8 @@ describe {{moduleName}}::ValueSerializer do
     end
 
     it 'joins a non-exploded form query value into one comma-separated entry' do
-      result = {{moduleName}}::ValueSerializer.query_entries('criteriaCsv', object_model, 'Criteria', nil, 'form', false, false)
-      _(result).must_equal({ 'criteriaCsv' => 'breed,lab,min_age,3' })
+      result = {{moduleName}}::ValueSerializer.query_entries('csv_params', object_model, 'Criteria', nil, 'form', false, false)
+      _(result).must_equal({ 'csv_params' => 'breed,lab,min_age,3' })
     end
 
     it 'keeps a scalar under its own name' do

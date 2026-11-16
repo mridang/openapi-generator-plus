@@ -489,6 +489,7 @@ module {{moduleName}}
         {{/vars}}
       }
       PASSWORD_ATTRIBUTES = password_attributes.freeze
+      private_constant :PASSWORD_ATTRIBUTES
 
       # @return [String] a readable form with every +format: password+ value masked
       def inspect

@@ -305,7 +305,8 @@ module {{moduleName}}
       when 'pipeDelimited'
         pairs.flatten.join('|')
       else
-        explode ? joined.join(location == :cookie ? '&' : ',') : pairs.flatten.join(',')
+        separator = location == :cookie ? '&' : ','
+        explode ? joined.join(separator) : pairs.flatten.join(',')
       end
     end
 

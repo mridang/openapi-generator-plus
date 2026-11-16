@@ -116,6 +116,7 @@ module {{moduleName}}
 
       # Most bytes of the response body that #message renders.
       MAX_RENDERED_BODY_BYTES = 1024
+      private_constant :MAX_RENDERED_BODY_BYTES
 
       # Build a human-readable error message from the stored attributes. The
       # headers and body sections are left out when they are nil or empty. The

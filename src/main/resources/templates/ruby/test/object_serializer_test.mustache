@@ -1058,6 +1058,25 @@ describe {{moduleName}}::ObjectSerializer do
     end
   end
 
+  # F865: a typed additionalProperties schema types and checks the extra keys
+  # like a declared map, and a round trip keeps them.
+  describe 'typed additionalProperties' do
+    it 'captures string-valued extras next to the declared properties and writes them back' do
+      json = '{"createdAt":"2024-01-01T00:00:00Z","note":"x","owner":"ann"}'
+      meta = {{moduleName}}::ObjectSerializer.deserialize(json, 'Metadata')
+      _(meta.additional_properties).must_equal('note' => 'x', 'owner' => 'ann')
+      written = JSON.parse({{moduleName}}::ObjectSerializer.serialize(meta))
+      _(written['note']).must_equal('x')
+      _(written['owner']).must_equal('ann')
+    end
+
+    it 'rejects an extra whose value is not a string' do
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize('{"note":5}', 'Metadata')
+      }).must_raise({{moduleName}}::Errors::SerializationError)
+    end
+  end
+
   # D46: Availability members that are special inside a string literal keep
   # their exact wire value through decode and encode.
   describe 'Availability members with literal-special characters' do
@@ -1526,6 +1545,19 @@ describe {{moduleName}}::ObjectSerializer do
       json = {{moduleName}}::ObjectSerializer.serialize(model)
       restored = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetPassport')
       _(restored.scans).must_equal([raw])
+    end
+  end
+
+  # OAS 3.1 contentEncoding: base64 is normalised to a byte field, so the
+  # biometric chip is base64 on the wire and raw bytes in the model.
+  describe 'contentEncoding base64 property' do
+    it 'decodes and writes PetPassport.biometricChip as base64' do
+      raw = "chip\x00\xFF".dup.force_encoding(Encoding::BINARY)
+      json = %({"biometricChip":"#{Base64.strict_encode64(raw)}"})
+      passport = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetPassport')
+      _(passport.biometric_chip).must_equal(raw)
+      written = JSON.parse({{moduleName}}::ObjectSerializer.serialize(passport))
+      _(written['biometricChip']).must_equal(Base64.strict_encode64(raw))
     end
   end
 
