@@ -1,9 +1,49 @@
 {{>api_info}}
 
 import json
+import re
 from typing import Any, Dict, Mapping, Optional, Type, TypeVar
 
+from {{packageName}}.transport_options import _is_sensitive_header
+
 T = TypeVar('T')
+
+# Most bytes of the response body that ``str(error)`` renders; the full body
+# stays on ``response_body``.
+_MAX_RENDERED_BODY_BYTES = 1024
+_CONTROL_CHARACTERS = re.compile(r'[\x00-\x1f\x7f]')
+_NAMED_ESCAPES = {'\n': '\\n', '\r': '\\r', '\t': '\\t'}
+_MASKED_RESPONSE_HEADERS = frozenset(
+    ('set-cookie', 'www-authenticate', 'proxy-authenticate')
+)
+
+
+def _escape_control_character(match: 're.Match[str]') -> str:
+    char = match.group(0)
+    return _NAMED_ESCAPES.get(char) or f'\\x{ord(char):02X}'
+
+
+def _rendered_headers(headers: Mapping[str, str]) -> Dict[str, str]:
+    """The response headers with every credential value replaced by ``***``."""
+    return {
+        name: '***'
+        if name.lower() in _MASKED_RESPONSE_HEADERS or _is_sensitive_header(name)
+        else value
+        for name, value in headers.items()
+    }
+
+
+def _rendered_body(body: str) -> str:
+    """The body cut at 1 KiB, control characters escaped, and the bytes left out counted."""
+    data = body.encode('utf-8', errors='replace')
+    excess = len(data) - _MAX_RENDERED_BODY_BYTES
+    text = (
+        data[:_MAX_RENDERED_BODY_BYTES].decode('utf-8', errors='ignore')
+        if excess > 0
+        else body
+    )
+    text = _CONTROL_CHARACTERS.sub(_escape_control_character, text)
+    return f'{text}... ({excess} more bytes)' if excess > 0 else text
 
 
 class {{errorPrefix}}Exception(Exception):
@@ -174,7 +214,13 @@ class ApiException({{errorPrefix}}Exception):
         return ObjectSerializer().deserialize(self.response_body, clazz)
 
     def __str__(self) -> str:
-        """Build a human-readable error message from the stored attributes."""
+        """Build a human-readable error message from the stored attributes.
+
+        The headers have their credential values masked and the body is cut at
+        1 KiB with control characters escaped, so one error never floods or
+        forges a log line. The full values stay on ``response_headers`` and
+        ``response_body``.
+        """
         msg = self.message or 'Error message: the server returns an error'
 
         if self.status_code:
@@ -183,7 +229,7 @@ class ApiException({{errorPrefix}}Exception):
             # Compact JSON with sorted keys and literal non-ASCII (D17), so the
             # line reads the same in all twelve SDKs.
             rendered = json.dumps(
-                dict(self.response_headers),
+                _rendered_headers(self.response_headers),
                 sort_keys=True,
                 separators=(',', ':'),
                 ensure_ascii=False,
@@ -191,7 +237,7 @@ class ApiException({{errorPrefix}}Exception):
             )
             msg += f'\nResponse headers: {rendered}'
         if self.response_body:
-            msg += f'\nResponse body: {self.response_body}'
+            msg += f'\nResponse body: {_rendered_body(self.response_body)}'
 
         return msg
 
