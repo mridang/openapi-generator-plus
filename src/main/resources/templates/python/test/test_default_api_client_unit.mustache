@@ -345,6 +345,26 @@ class TestDefaultApiClientUnit:
         assert "x-multi" in lower_headers
         assert "val1" in lower_headers["x-multi"] and "val2" in lower_headers["x-multi"]
 
+    @pytest.mark.parametrize(
+        ("declared", "expected"),
+        [
+            (None, "multipart/form-data"),
+            ("multipart/mixed", "multipart/mixed"),
+            ("multipart/related", "multipart/related"),
+            ("multipart/bad\r\nX: y", "multipart/form-data"),
+        ],
+    )
+    def test_multipart_content_type_carries_the_declared_subtype(
+        self, declared: Any, expected: str
+    ) -> None:
+        request_headers = {} if declared is None else {"Content-Type": declared}
+        client = DefaultApiClient()
+        response = client.send_request(
+            "POST", f"{self.base_url}/echo", request_headers, {"field": "value"}
+        )
+        sent = json.loads(response.body)["headers"]["content-type"]
+        assert sent.startswith(f"{expected}; boundary=")
+
 
 class TestCharsetDecoding:
     """Verify response body decoding honors the Content-Type charset."""

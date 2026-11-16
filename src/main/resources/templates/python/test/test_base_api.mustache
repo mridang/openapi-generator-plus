@@ -551,6 +551,17 @@ class TestBodySerialization:
         assert client.captured_body is not None
         assert 'name=alice' in str(client.captured_body)
 
+    @pytest.mark.parametrize('declared', ['multipart/mixed', 'multipart/related'])
+    async def test_non_form_data_multipart_body_stays_a_parts_dict(self, declared: str) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        parts = {'meta': 'x', 'file': b'abc'}
+        await stub.call('POST', '/test/echo', {}, {}, parts,
+                        ['application/json'], declared, None)
+        assert client.captured_body is parts
+        assert client.captured_headers['Content-Type'] == declared
+
     async def test_form_urlencoded_body_encodes_space_as_plus(self) -> None:
         # form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
         # mandates '+' for a space (WHATWG/HTML form-encoding), not '%20'.

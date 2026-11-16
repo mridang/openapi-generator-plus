@@ -117,6 +117,17 @@ class TestModelDocstringNoExampleNull:
         assert '@example null' not in source
 
 
+    def test_the_file_header_prints_the_description_without_backslash_escapes(self) -> None:
+        import {{packageName}}.models.metadata as metadata_module
+
+        source_path = metadata_module.__file__
+        assert source_path is not None
+        with open(source_path, 'r', encoding='utf-8') as handle:
+            header = handle.read().split('\n\n', 1)[0]
+        assert '"quoted"' in header
+        assert '\\"' not in header
+
+
 class TestPackageManifest:
 
     def test_pyproject_declares_non_empty_description(self) -> None:

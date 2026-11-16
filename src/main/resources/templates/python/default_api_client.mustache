@@ -616,7 +616,14 @@ class DefaultApiClient:
 
         if isinstance(body, dict):
             boundary = str(uuid.uuid4())
-            merged_headers['Content-Type'] = f'multipart/form-data; boundary={boundary}'
+            multipart_type = 'multipart/form-data'
+            for header_name, header_value in merged_headers.items():
+                if header_name.lower() == 'content-type':
+                    declared = header_value.split(';', 1)[0].strip().lower()
+                    if re.fullmatch(r'multipart/[a-z0-9!#$&^_.+-]+', declared):
+                        multipart_type = declared
+            _remove_header(merged_headers, 'Content-Type')
+            merged_headers['Content-Type'] = f'{multipart_type}; boundary={boundary}'
             encoded_body = self._build_multipart_body(body, boundary)
         elif isinstance(body, (bytes, bytearray, memoryview)):
             # Every byte-like binary body goes out verbatim; anything else

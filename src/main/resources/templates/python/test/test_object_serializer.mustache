@@ -168,6 +168,18 @@ class TestNonAsciiSerialization:
         result = ObjectSerializer().serialize('a\tb')
         assert r'\t' in result
 
+    @pytest.mark.parametrize('char', ['\u2028', '\u2029', '\x7f', '/', '<', '>', '&'])
+    def test_d84_characters_are_written_literally_in_a_string(self, char: str) -> None:
+        assert ObjectSerializer().serialize(f'a{char}b') == f'"a{char}b"'
+
+    @pytest.mark.parametrize('char', ['\u2028', '\u2029', '\x7f', '/', '<', '>', '&'])
+    def test_d84_characters_are_written_literally_in_a_model(self, char: str) -> None:
+        result = ObjectSerializer().serialize(Category(id=1, name=f'a{char}b'))
+        assert f'"name":"a{char}b"' in result.replace(' ', '')
+
+    def test_only_quote_backslash_and_controls_are_escaped(self) -> None:
+        assert ObjectSerializer().serialize('"\\\x01') == '"\\"\\\\\\u0001"'
+
 
 class TestDeserializationErrorWrapping:
     @pytest.mark.parametrize(
