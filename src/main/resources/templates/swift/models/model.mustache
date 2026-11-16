@@ -76,7 +76,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     @available(*, deprecated, message: "This property is deprecated.")
 {{/deprecated}}
 {{#required}}
-    {{#vendorExtensions.isSelfRecursive}}@Indirect {{/vendorExtensions.isSelfRecursive}}public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}
+    {{#vendorExtensions.isSelfRecursive}}@Indirect {{/vendorExtensions.isSelfRecursive}}public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}
 {{/required}}
 {{^required}}
     {{#vendorExtensions.isSelfRecursive}}@Indirect {{/vendorExtensions.isSelfRecursive}}public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?
@@ -97,7 +97,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#isEnum}}{{#defaultValue}} = {{classname}}{{enumName}}(rawValue: {{{.}}}){{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
+    public init({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#isEnum}}{{#defaultValue}} = {{classname}}{{enumName}}(rawValue: {{{.}}}){{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
 {{#requiredVars}}
         self.{{name}} = {{name}}
 {{/requiredVars}}
@@ -128,7 +128,12 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#vars}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
+{{#isNullable}}
+        self.{{name}} = try container.decode(String?.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+{{/isNullable}}
+{{^isNullable}}
         self.{{name}} = try ObjectSerializer.decodeDuration(try container.decode(String.self, forKey: .{{name}}))
+{{/isNullable}}
 {{/required}}
 {{^required}}
 {{#defaultValue}}
@@ -152,15 +157,15 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         /* A required property that carries a default (a discriminator value, for
            one) is filled with that default when the key is absent. */
         self.{{name}} = container.contains(.{{name}})
-            ? try container.decode({{{dataType}}}.self, forKey: .{{name}})
+            ? try container.decode({{{dataType}}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
             : {{{.}}}
 {{/isEnum}}
 {{#isEnum}}
-        self.{{name}} = try container.decode({{classname}}{{enumName}}.self, forKey: .{{name}})
+        self.{{name}} = try container.decode({{classname}}{{enumName}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
 {{/isEnum}}
 {{/defaultValue}}
 {{^defaultValue}}
-        self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
+        self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
 {{/defaultValue}}
 {{/required}}
 {{^required}}
@@ -216,7 +221,12 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#vars}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
+{{#isNullable}}
+        try container.encode(try {{name}}.map { try ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
         try container.encode(try ObjectSerializer.encodeDuration({{name}}), forKey: .{{name}})
+{{/isNullable}}
 {{/required}}
 {{^required}}
         try container.encodeIfPresent(try {{name}}.map { try ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
@@ -225,7 +235,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{^vendorExtensions.isDuration}}
 {{#isUuid}}
 {{#required}}
-        try container.encode({{name}}.uuidString.lowercased(), forKey: .{{name}})
+        try container.encode({{name}}{{#isNullable}}?{{/isNullable}}.uuidString.lowercased(), forKey: .{{name}})
 {{/required}}
 {{^required}}
         try container.encodeIfPresent({{name}}?.uuidString.lowercased(), forKey: .{{name}})
@@ -234,7 +244,12 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{^isUuid}}
 {{#vendorExtensions.isUuidCollection}}
 {{#required}}
+{{#isNullable}}
+        try container.encode({{name}}.map { ObjectSerializer.lowercaseUuids($0) }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
         try container.encode(ObjectSerializer.lowercaseUuids({{name}}), forKey: .{{name}})
+{{/isNullable}}
 {{/required}}
 {{^required}}
         try container.encodeIfPresent({{name}}.map { ObjectSerializer.lowercaseUuids($0) }, forKey: .{{name}})
@@ -263,7 +278,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{name}}: {{{dataType}}}, {{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? = nil, {{/optionalVars}}additionalProperties: [String: AnyCodable] = [:]) {
+    public init({{#requiredVars}}{{name}}: {{{dataType}}}{{#isNullable}}?{{/isNullable}}, {{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? = nil, {{/optionalVars}}additionalProperties: [String: AnyCodable] = [:]) {
 {{#requiredVars}}
         self.{{name}} = {{name}}
 {{/requiredVars}}
@@ -285,7 +300,12 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#vars}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
+{{#isNullable}}
+        self.{{name}} = try container.decode(String?.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+{{/isNullable}}
+{{^isNullable}}
         self.{{name}} = try ObjectSerializer.decodeDuration(try container.decode(String.self, forKey: .{{name}}))
+{{/isNullable}}
 {{/required}}
 {{^required}}
 {{#defaultValue}}
@@ -309,15 +329,15 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         /* A required property that carries a default (a discriminator value, for
            one) is filled with that default when the key is absent. */
         self.{{name}} = container.contains(.{{name}})
-            ? try container.decode({{{dataType}}}.self, forKey: .{{name}})
+            ? try container.decode({{{dataType}}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
             : {{{.}}}
 {{/isEnum}}
 {{#isEnum}}
-        self.{{name}} = try container.decode({{classname}}{{enumName}}.self, forKey: .{{name}})
+        self.{{name}} = try container.decode({{classname}}{{enumName}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
 {{/isEnum}}
 {{/defaultValue}}
 {{^defaultValue}}
-        self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
+        self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
 {{/defaultValue}}
 {{/required}}
 {{^required}}
@@ -356,7 +376,12 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#vars}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
+{{#isNullable}}
+        try container.encode(try {{name}}.map { try ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
         try container.encode(try ObjectSerializer.encodeDuration({{name}}), forKey: .{{name}})
+{{/isNullable}}
 {{/required}}
 {{^required}}
         try container.encodeIfPresent(try {{name}}.map { try ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
@@ -365,7 +390,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{^vendorExtensions.isDuration}}
 {{#isUuid}}
 {{#required}}
-        try container.encode({{name}}.uuidString.lowercased(), forKey: .{{name}})
+        try container.encode({{name}}{{#isNullable}}?{{/isNullable}}.uuidString.lowercased(), forKey: .{{name}})
 {{/required}}
 {{^required}}
         try container.encodeIfPresent({{name}}?.uuidString.lowercased(), forKey: .{{name}})
@@ -374,7 +399,12 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{^isUuid}}
 {{#vendorExtensions.isUuidCollection}}
 {{#required}}
+{{#isNullable}}
+        try container.encode({{name}}.map { ObjectSerializer.lowercaseUuids($0) }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
         try container.encode(ObjectSerializer.lowercaseUuids({{name}}), forKey: .{{name}})
+{{/isNullable}}
 {{/required}}
 {{^required}}
         try container.encodeIfPresent({{name}}.map { ObjectSerializer.lowercaseUuids($0) }, forKey: .{{name}})

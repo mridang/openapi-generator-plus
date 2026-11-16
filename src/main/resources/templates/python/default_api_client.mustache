@@ -5,13 +5,17 @@ import base64
 import gzip
 import mimetypes
 import re
+import socket
 import ssl
+import threading
 import time
 import uuid
 import zlib
 from urllib.parse import quote as _url_quote, unquote as _url_unquote, urljoin, urlsplit
 
 import urllib3
+import urllib3.connection
+import urllib3.connectionpool
 import urllib3.exceptions
 
 from {{packageName}}.api_http_response import ApiHttpResponse
@@ -35,6 +39,100 @@ try:
     _zstandard = zstandard
 except ImportError:
     pass
+
+
+_ACTIVE = threading.local()
+"""The cancellation handle of the request the current thread is sending."""
+
+
+class RequestHandle:
+    """Lets another thread abort one in-flight request.
+
+    :meth:`DefaultApiClient.send_request` accepts one. Calling :meth:`cancel`
+    shuts the request's socket down, so a worker thread blocked in connect,
+    send or receive fails at once, its connection is discarded rather than
+    returned to the pool, and the call raises :class:`RuntimeError`.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._cancelled = False
+        self._connection: Optional[Any] = None
+
+    @property
+    def cancelled(self) -> bool:
+        """Whether :meth:`cancel` has been called."""
+        return self._cancelled
+
+    def attach(self, connection: Any) -> None:
+        """Record the connection the request is using; raise if already cancelled."""
+        with self._lock:
+            self._connection = connection
+            cancelled = self._cancelled
+        if cancelled:
+            raise RuntimeError('The request was cancelled')
+
+    def detach(self) -> None:
+        """Forget the connection once the request is finished."""
+        with self._lock:
+            self._connection = None
+
+    def cancel(self) -> None:
+        """Abort the request; safe to call from any thread, any number of times."""
+        with self._lock:
+            self._cancelled = True
+            connection = self._connection
+        sock = getattr(connection, 'sock', None) if connection is not None else None
+        if sock is not None:
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+
+def _attach_to_active_request(connection: Any) -> None:
+    handle: Optional[RequestHandle] = getattr(_ACTIVE, 'handle', None)
+    if handle is not None:
+        handle.attach(connection)
+
+
+def _abort_if_cancelled(connection: Any) -> None:
+    handle: Optional[RequestHandle] = getattr(_ACTIVE, 'handle', None)
+    if handle is not None and handle.cancelled:
+        connection.close()
+        raise RuntimeError('The request was cancelled')
+
+
+class _CancellableHTTPConnection(urllib3.connection.HTTPConnection):
+    """Plain connection that registers itself with the active request handle."""
+
+    def request(self, *args: Any, **kwargs: Any) -> None:
+        _attach_to_active_request(self)
+        super().request(*args, **kwargs)
+
+    def connect(self) -> None:
+        super().connect()
+        _abort_if_cancelled(self)
+
+
+class _CancellableHTTPSConnection(urllib3.connection.HTTPSConnection):
+    """TLS connection that registers itself with the active request handle."""
+
+    def request(self, *args: Any, **kwargs: Any) -> None:
+        _attach_to_active_request(self)
+        super().request(*args, **kwargs)
+
+    def connect(self) -> None:
+        super().connect()
+        _abort_if_cancelled(self)
+
+
+class _CancellableHTTPConnectionPool(urllib3.connectionpool.HTTPConnectionPool):
+    ConnectionCls = _CancellableHTTPConnection
+
+
+class _CancellableHTTPSConnectionPool(urllib3.connectionpool.HTTPSConnectionPool):
+    ConnectionCls = _CancellableHTTPSConnection
 
 
 def _network_exception(error: urllib3.exceptions.HTTPError) -> NetworkException:
@@ -233,16 +331,40 @@ class DefaultApiClient:
         Args:
             transport_options: Transport configuration to apply. If ``None``,
                 default transport options are used.
-            pool_manager: Pre-configured urllib3 pool manager. If provided,
-                transport_options TLS/proxy settings are ignored for pool
-                creation, but header injection settings still apply.
+            pool_manager: A urllib3 pool manager the caller owns. The SDK
+                defaults (timeout, redirect policy, user agent, request id,
+                default headers) still apply on top of it. The client never
+                closes it, so the caller manages its lifecycle.
+
+        Raises:
+            ValueError: If ``pool_manager`` is combined with a proxy, a custom
+                CA bundle or disabled TLS verification in ``transport_options``:
+                those belong to the pool manager the caller built.
         """
         if transport_options is None:
             transport_options = TransportOptions.builder().build()
         self._transport_options = transport_options
         self._closed = False
+        self._lock = threading.Lock()
+        self._inflight: set[RequestHandle] = set()
+        self._owns_pool = pool_manager is None
 
         if pool_manager is not None:
+            conflicts = [
+                name
+                for name, in_use in (
+                    ('proxy', transport_options.proxy is not None),
+                    ('ca_cert_path', transport_options.ca_cert_path is not None),
+                    ('verify_ssl=False', not transport_options.verify_ssl),
+                )
+                if in_use
+            ]
+            if conflicts:
+                raise ValueError(
+                    'A caller-supplied pool_manager owns the proxy and TLS settings; '
+                    f'remove {", ".join(conflicts)} from the transport options '
+                    'or configure it on the pool manager instead'
+                )
             self._pool_manager = pool_manager
         else:
             # urllib3's default `maxsize=1` keeps a single connection per host,
@@ -301,16 +423,28 @@ class DefaultApiClient:
                 self._pool_manager = urllib3.ProxyManager(transport_options.proxy, **kwargs)
             else:
                 self._pool_manager = urllib3.PoolManager(**kwargs)
+            self._pool_manager.pool_classes_by_scheme = {
+                'http': _CancellableHTTPConnectionPool,
+                'https': _CancellableHTTPSConnectionPool,
+            }
 
     def close(self) -> None:
-        """Close the underlying urllib3 PoolManager and release sockets.
+        """Cancel in-flight requests, then close the pool the client created.
+
+        Every request still in flight is aborted (its call raises
+        :class:`RuntimeError`) and its connection dropped. A pool manager the
+        caller supplied is left open: the caller owns its lifecycle.
 
         After calling this method the client must not be reused. Calling
         :meth:`send_request` on a closed client raises :class:`RuntimeError`.
         ``close()`` itself is idempotent.
         """
         self._closed = True
-        if self._pool_manager is not None:
+        with self._lock:
+            pending = list(self._inflight)
+        for handle in pending:
+            handle.cancel()
+        if self._owns_pool:
             self._pool_manager.clear()
 
     def __enter__(self) -> 'DefaultApiClient':
@@ -325,6 +459,56 @@ class DefaultApiClient:
         self.close()
 
     def send_request(
+        self,
+        method: str,
+        url: str,
+        headers: Dict[str, str],
+        body: Any = None,
+        no_redirect: bool = False,
+        handle: Optional[RequestHandle] = None,
+    ) -> ApiHttpResponse:
+        """Send an HTTP request and return the response.
+
+        The request is tracked so :meth:`close`, or ``handle.cancel()`` from
+        another thread, aborts it.
+
+        Args:
+            method: HTTP method.
+            url: Fully qualified URL.
+            headers: HTTP headers from the caller.
+            body: Request body.
+            no_redirect: When ``True``, a 3xx response is returned verbatim.
+            handle: Optional handle another thread can cancel.
+
+        Returns:
+            :class:`ApiHttpResponse` containing status code, body, and headers.
+
+        Raises:
+            RuntimeError: If the client is closed, or the request was cancelled.
+        """
+        if self._closed:
+            raise RuntimeError('ApiClient has been closed and can no longer be used')
+        if handle is None:
+            handle = RequestHandle()
+        with self._lock:
+            self._inflight.add(handle)
+        _ACTIVE.handle = handle
+        try:
+            response = self._send(method, url, headers, body, no_redirect)
+        except Exception as error:
+            if handle.cancelled:
+                raise RuntimeError('The request was cancelled') from error
+            raise
+        finally:
+            _ACTIVE.handle = None
+            handle.detach()
+            with self._lock:
+                self._inflight.discard(handle)
+        if handle.cancelled:
+            raise RuntimeError('The request was cancelled')
+        return response
+
+    def _send(
         self,
         method: str,
         url: str,

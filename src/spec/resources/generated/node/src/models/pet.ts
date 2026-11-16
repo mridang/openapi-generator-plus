@@ -8,7 +8,10 @@
 import { Category } from "./category.js";
 import { Tag } from "./tag.js";
 import { Expose, Type, Transform } from "class-transformer";
-import { reattachAdditionalProperties } from "../object-serializer.js";
+import {
+  reattachAdditionalProperties,
+  decodePlainNumber,
+} from "../object-serializer.js";
 import { URI } from "../brand.js";
 import { Email } from "../brand.js";
 import { Decimal } from "../brand.js";
@@ -37,6 +40,13 @@ export class Pet {
    * the caller used. Empty when the model has no uuid fields.
    */
   static readonly __uuidFields: ReadonlySet<string> = new Set([]);
+
+  /**
+   * Fields that are both required and nullable. ObjectSerializer.serialize
+   * drops a null value everywhere else; for these the key is always written,
+   * as null when the value is null. Empty when the model has no such field.
+   */
+  static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   /** @example 10 */
   @Expose({ name: "id" })
@@ -109,6 +119,11 @@ export class Pet {
    * @example 12.345
    */
   @Expose({ name: "weightKg" })
+  /* A bare `type: number` is a JSON number: decode keeps its exact text (no
+   * float coercion) and rejects a quoted string. */
+  @Transform(({ obj }) => decodePlainNumber(obj, "weightKg"), {
+    toClassOnly: true,
+  })
   weightKg?: Decimal;
   /** @example rex */
   @Expose({ name: "nickname" })

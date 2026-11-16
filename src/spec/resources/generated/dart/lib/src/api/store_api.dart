@@ -400,7 +400,9 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Map<String, int>',
       auth: noAuth,
-      deserialize: (body) => (deserializeRaw(body) as Map).cast<String, int>(),
+
+      deserialize: (body) =>
+          deserializeMapFromJson(body, (e) => e as int) as Map<String, int>,
     );
   }
 
@@ -947,8 +949,7 @@ class StoreApi extends BaseApi {
 
     final headerParams = <String, String>{};
     if (options != null && options.xFilter != null) {
-      headerParams['X-Filter'] =
-          '${serializeStyled('X-Filter', options.xFilter, 'header', 'Map<String, String>', '', '', false)}';
+      headerParams['X-Filter'] = serialize(options.xFilter);
     }
 
     final Object? requestBody = null;

@@ -26,6 +26,16 @@ defmodule PetstoreClient.ClientTest do
     assert %PetstoreClient.Client{} = client
   end
 
+  test "construct with a custom Req adapter in the transport options" do
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
+    adapter = fn request -> {request, Req.Response.new(status: 200)} end
+    transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+
+    client = PetstoreClient.Client.new(authenticator, transport)
+
+    assert %PetstoreClient.Client{} = client
+  end
+
   test "BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     assert_raise ArgumentError, fn ->
       PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "tok\r\nInjected: yes")

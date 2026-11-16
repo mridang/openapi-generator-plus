@@ -738,4 +738,37 @@ describe {{moduleName}}::DefaultApiClient do
       end
     end
   end
+
+  describe 'injected Faraday connection' do
+    def injected_connection(seen)
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.get('/ping') do |env|
+          seen << env.request_headers
+          [200, { 'content-type' => 'text/plain' }, 'pong']
+        end
+      end
+      Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+    end
+
+    it 'sends the request through the supplied connection with the SDK user agent applied' do
+      seen = [] # : Array[Hash[String, String]]
+      transport = {{moduleName}}::TransportOptions.builder.connection(injected_connection(seen)).user_agent('sdk-ua/1').build
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      resp = client.send_request(:GET, 'http://localhost/ping', {}, nil)
+      _(resp.status_code).must_equal(200)
+      _(resp.body).must_equal('pong')
+      _(seen.length).must_equal(1)
+      _(seen.first['User-Agent']).must_equal('sdk-ua/1')
+    end
+
+    it 'does not close the supplied connection when the client is closed' do
+      conn = injected_connection([])
+      closed = [] # : Array[bool]
+      conn.define_singleton_method(:close) { closed << true }
+      client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.connection(conn).build)
+      client.send_request(:GET, 'http://localhost/ping', {}, nil)
+      client.close
+      _(closed).must_be_empty
+    end
+  end
 end

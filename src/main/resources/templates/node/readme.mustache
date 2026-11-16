@@ -96,15 +96,18 @@ OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
 
-### Numeric / string constraint validation
+### Schema constraints
 
-OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
-`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
-**not enforced** by this SDK. The server is the authoritative
-validator; client-side enforcement is a DX nicety, not a correctness
-requirement. If you want fast-fail validation before the network
-round trip, plug in a JSON Schema validator library for your language.
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server. The
+generated models do not check them: the class-transformer model layer has no
+native constraint validation, so none of them is enforced client-side (only
+Python validates them natively, through pydantic). If you want fast-fail
+validation before the network round trip, plug in a JSON Schema validator
+library.
 
+`uniqueItems` arrays are sent in the natural order of the collection
+(a `Set` keeps its insertion order), not sorted.
 
 ### SOCKS proxies
 
@@ -118,9 +121,31 @@ through a local HTTP-CONNECT bridge or configure it at the OS level.
 
 ### Per-call cancellation
 
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutError`.
+Every operation takes a trailing `RequestOptions` object carrying an
+`AbortSignal`; aborting it cancels that call:
+
+```typescript
+const controller = new AbortController();
+const pending = api.someOperation(requiredArg, { signal: controller.signal });
+controller.abort();
+await pending; // rejects with the signal's reason (an AbortError by default)
+```
+
+Pass a client-level signal as the third constructor argument
+(`new Client(authenticator, undefined, { signal })`) or with
+`Configuration.builder().signal(signal)` to cancel every call made through
+the client. The client-level and the per-call signals are merged: either one
+cancels the call. Cancellation is distinct from the timeout, which still fails
+with `NetworkTimeoutError`.
+
+### Custom `fetch`
+
+`TransportOptions.builder().fetch(myFetch).fetchOptions({ ... })` routes every
+request through your own `fetch` implementation. The SDK still applies its
+timeout, user agent, redirect policy and header handling on top, and never
+closes anything you supply. Combining a custom `fetch` with `proxy`,
+`caCertPath` or `verifySsl(false)` throws a `TypeError` at `build()`, because
+those belong on the `fetch` you provide.
 
 ### `LICENSE` file is not auto-emitted
 

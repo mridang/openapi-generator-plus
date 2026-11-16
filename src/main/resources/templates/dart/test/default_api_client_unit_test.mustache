@@ -5,11 +5,70 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
 
+class _CloseTrackingClient extends http.BaseClient {
+  _CloseTrackingClient(this._inner);
+
+  final http.Client _inner;
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request);
+
+  @override
+  void close() {
+    closed = true;
+    _inner.close();
+  }
+}
+
 void main() {
   group('DefaultApiClient unit tests', () {
+    test('a caller-supplied http client receives the request with the SDK defaults', () async {
+      http.BaseRequest? seen;
+      final custom = MockClient((request) async {
+        seen = request;
+        return http.Response('ok', 200);
+      });
+      final transport = TransportOptionsBuilder()
+          .httpClient(custom)
+          .userAgent('Sdk/9.9')
+          .injectRequestId(true)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+
+      final resp = await client.sendRequest(
+        'GET',
+        'http://custom.test/ping',
+        {'X-Caller': 'yes'},
+        null,
+      );
+
+      expect(resp.statusCode, equals(200));
+      expect(resp.body, equals('ok'));
+      expect(seen, isNotNull);
+      expect(seen!.url.toString(), equals('http://custom.test/ping'));
+      expect(seen!.headers['user-agent'], equals('Sdk/9.9'));
+      expect(seen!.headers['X-Caller'], equals('yes'));
+      expect(seen!.headers.keys.map((k) => k.toLowerCase()), contains('x-request-id'));
+    });
+
+    test('close never closes a caller-supplied http client', () async {
+      final custom = _CloseTrackingClient(MockClient((_) async => http.Response('', 200)));
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().httpClient(custom).build(),
+      );
+
+      client.close();
+
+      expect(custom.closed, isFalse);
+    });
+
     test('a lower-case caller user-agent and x-request-id suppress injection',
         () async {
       List<String>? receivedUA;

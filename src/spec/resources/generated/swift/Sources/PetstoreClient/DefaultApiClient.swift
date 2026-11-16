@@ -48,6 +48,10 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
      invalidated" exception, matching the close-lifecycle behaviour of the
      other SDKs. */
   private let closedFlag = LockedFlag()
+  /* False when the caller supplied the session through
+     ``TransportOptionsBuilder/session(_:)``: the caller owns its lifecycle,
+     so ``close()`` must never invalidate it. */
+  private let ownsSession: Bool
   /* The session used for noRedirect requests (OAuth2 token calls). Built
      once, on first use, from the primary session's configuration so it
      shares the proxy, timeouts and stateless settings, and invalidated by
@@ -94,9 +98,16 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     try DefaultApiClient.validateCaCertPath(opts.caCertPath)
     self.transportOptions = opts
     self.proxyCredential = DefaultApiClient.buildProxyCredential(opts.proxy)
+    if let supplied = opts.session {
+      self.session = supplied
+      self.sessionDelegate = nil
+      self.ownsSession = false
+      return
+    }
     let (session, delegate) = try DefaultApiClient.buildSession(opts)
     self.session = session
     self.sessionDelegate = delegate
+    self.ownsSession = true
   }
 
   /// Validates that a user-supplied CA certificate path can be read and
@@ -159,6 +170,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     self.proxyCredential = DefaultApiClient.buildProxyCredential(opts.proxy)
     self.session = session
     self.sessionDelegate = nil
+    self.ownsSession = true
   }
 
   /// Creates a client whose internal URLSession uses the real
@@ -188,6 +200,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     )
     self.session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
     self.sessionDelegate = delegate
+    self.ownsSession = true
   }
 
   /// Classifies a URLSession transport failure.
@@ -300,11 +313,18 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
     var request = URLRequest(url: requestURL)
     request.httpMethod = method
+    /* A supplied session carries none of the SDK's timeouts (they are set
+       on a session the SDK builds itself), so apply the timeout to the
+       request. */
+    if !ownsSession, let timeout = transportOptions.timeout {
+      request.timeoutInterval = TimeInterval(timeout) / 1000.0
+    }
 
-    if let formParts = body as? [String: Any] {
+    if let formParts = BaseApi.formFields(body) {
       let boundary = UUID().uuidString
       merged["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
-      request.httpBody = try DefaultApiClient.buildMultipartBody(formParts, boundary: boundary)
+      request.httpBody = try DefaultApiClient.buildMultipartBody(
+        ordered: formParts, boundary: boundary)
     } else if let data = body as? Data {
       request.httpBody = data
     } else {
@@ -481,6 +501,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// Throws ``ConfigurationError/invalidArgument(_:)`` if a filename contains CR, LF, or NUL bytes
   /// (which would allow header injection).
   static func buildMultipartBody(_ formParts: [String: Any], boundary: String) throws -> Data {
+    return try buildMultipartBody(
+      ordered: OrderedParams<Any>(sorting: formParts), boundary: boundary)
+  }
+
+  /// Builds a multipart body from form fields kept in the spec's declaration
+  /// order: the parts are written in that order.
+  static func buildMultipartBody(ordered formParts: OrderedParams<Any>, boundary: String) throws
+    -> Data
+  {
     var body = Data()
     let crlf = "\r\n"
 
@@ -1033,13 +1062,17 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// Releases the underlying URLSession's connection pool / delegate queue.
   /// Calls `finishTasksAndInvalidate()` so in-flight requests can complete
   /// and the session is permanently invalidated.
+  /// A session supplied through ``TransportOptionsBuilder/session(_:)`` belongs
+  /// to the caller and is left untouched.
   /// Idempotent — safe to call multiple times. After close(), any further
   /// ``sendRequest(method:url:headers:body:noRedirect:)`` throws
   /// ``ConfigurationError/invalidState(_:)`` rather than a foreign
   /// URLSession invalidation exception.
   public func close() {
     closedFlag.set()
-    session.finishTasksAndInvalidate()
+    if ownsSession {
+      session.finishTasksAndInvalidate()
+    }
     noRedirectLock.lock()
     noRedirectSessionStorage?.finishTasksAndInvalidate()
     noRedirectLock.unlock()

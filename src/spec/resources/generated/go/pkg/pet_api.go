@@ -10,6 +10,7 @@
 package petstore
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -196,10 +197,11 @@ func NewPetApi(apiClient ApiClient, config *Configuration, authenticator Authent
 }
 
 // AddPet Add a new pet to the store
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param pet: Create a new pet in the store
 // param options: Options carrying an optional per-operation authenticator.
-func (a *PetApi) AddPet(pet Pet, options *opts.AddPetOptions) (*Pet, error) {
-	result, err := a.AddPetWithHTTPInfo(pet, options)
+func (a *PetApi) AddPet(ctx context.Context, pet Pet, options *opts.AddPetOptions) (*Pet, error) {
+	result, err := a.AddPetWithHTTPInfo(ctx, pet, options)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +215,7 @@ func (a *PetApi) AddPet(pet Pet, options *opts.AddPetOptions) (*Pet, error) {
 }
 
 // AddPetWithHTTPInfo performs the AddPet operation and returns the full API result.
-func (a *PetApi) AddPetWithHTTPInfo(pet Pet, options *opts.AddPetOptions) (*ApiResult[Pet], error) {
+func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.AddPetOptions) (*ApiResult[Pet], error) {
 	/* Per-operation auth is sourced from the Options object's Auth field. A nil
 	 * options or a nil Auth falls back to the client's configured credentials. */
 	var auth Authenticator
@@ -230,6 +232,8 @@ func (a *PetApi) AddPetWithHTTPInfo(pet Pet, options *opts.AddPetOptions) (*ApiR
 	var requestBody any = pet
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,
@@ -308,9 +312,10 @@ func (a *PetApi) AddPetWithHTTPInfo(pet Pet, options *opts.AddPetOptions) (*ApiR
 
 // AddPetPhotos Add photos to the pet's gallery
 // Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options for query, header, form, and cookie parameters.
-func (a *PetApi) AddPetPhotos(petId int64, options *opts.AddPetPhotosOptions) (*[]Photo, error) {
-	result, err := a.AddPetPhotosWithHTTPInfo(petId, options)
+func (a *PetApi) AddPetPhotos(ctx context.Context, petId int64, options *opts.AddPetPhotosOptions) (*[]Photo, error) {
+	result, err := a.AddPetPhotosWithHTTPInfo(ctx, petId, options)
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +329,7 @@ func (a *PetApi) AddPetPhotos(petId int64, options *opts.AddPetPhotosOptions) (*
 }
 
 // AddPetPhotosWithHTTPInfo performs the AddPetPhotos operation and returns the full API result.
-func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhotosOptions) (*ApiResult[[]Photo], error) {
+func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, options *opts.AddPetPhotosOptions) (*ApiResult[[]Photo], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.AddPetPhotos", err)
 	}
@@ -354,6 +359,8 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhoto
 	var requestBody any = formBody
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"files", "metadata"},
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,
@@ -431,9 +438,10 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhoto
 }
 
 // AddPetTreatment Record a treatment for a pet
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options carrying an optional per-operation authenticator.
-func (a *PetApi) AddPetTreatment(petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions) (*PetTreatment, error) {
-	result, err := a.AddPetTreatmentWithHTTPInfo(petId, petTreatment, options)
+func (a *PetApi) AddPetTreatment(ctx context.Context, petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions) (*PetTreatment, error) {
+	result, err := a.AddPetTreatmentWithHTTPInfo(ctx, petId, petTreatment, options)
 	if err != nil {
 		return nil, err
 	}
@@ -447,7 +455,7 @@ func (a *PetApi) AddPetTreatment(petId int64, petTreatment PetTreatment, options
 }
 
 // AddPetTreatmentWithHTTPInfo performs the AddPetTreatment operation and returns the full API result.
-func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions) (*ApiResult[PetTreatment], error) {
+func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions) (*ApiResult[PetTreatment], error) {
 	/* Per-operation auth is sourced from the Options object's Auth field. A nil
 	 * options or a nil Auth falls back to the client's configured credentials. */
 	var auth Authenticator
@@ -472,6 +480,8 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatm
 	var requestBody any = petTreatment
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,
@@ -549,11 +559,12 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatm
 }
 
 // DeletePet Deletes a pet
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param petId: Pet id to delete
 // param apiKey: Session cookie used for authentication
 // param options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
-func (a *PetApi) DeletePet(petId int64, options *opts.DeletePetOptions) error {
-	result, err := a.DeletePetWithHTTPInfo(petId, options)
+func (a *PetApi) DeletePet(ctx context.Context, petId int64, options *opts.DeletePetOptions) error {
+	result, err := a.DeletePetWithHTTPInfo(ctx, petId, options)
 	if err != nil {
 		return err
 	}
@@ -562,7 +573,7 @@ func (a *PetApi) DeletePet(petId int64, options *opts.DeletePetOptions) error {
 }
 
 // DeletePetWithHTTPInfo performs the DeletePet operation and returns the full API result.
-func (a *PetApi) DeletePetWithHTTPInfo(petId int64, options *opts.DeletePetOptions) (*ApiResult[any], error) {
+func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options *opts.DeletePetOptions) (*ApiResult[any], error) {
 	/* Per-operation auth is sourced from the Options object's Auth field. A nil
 	 * options or a nil Auth falls back to the client's configured credentials. */
 	var auth Authenticator
@@ -588,7 +599,8 @@ func (a *PetApi) DeletePetWithHTTPInfo(petId int64, options *opts.DeletePetOptio
 		/* Optional cookie param: same RFC 6265 validation as the required
 		 * branch above. Fail closed by returning an error so a CR/LF or
 		 * control-char value cannot be injected into the Cookie header. */
-		cookieValue := fmt.Sprintf("%v", serializeStyled("api_key", options.ApiKey, "cookie", "string", "", "form", true))
+		var cookieValue string
+		cookieValue = fmt.Sprintf("%v", serializeStyled("api_key", options.ApiKey, "cookie", "string", "", "form", true))
 		if !isValidCookieValue(cookieValue) {
 			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "api_key")
 		}
@@ -601,6 +613,8 @@ func (a *PetApi) DeletePetWithHTTPInfo(petId int64, options *opts.DeletePetOptio
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "DELETE",
 		path:         path,
 		queryParams:  queryParams,
@@ -625,8 +639,9 @@ func (a *PetApi) DeletePetWithHTTPInfo(petId int64, options *opts.DeletePetOptio
 
 // DownloadPetDocument Download a vet document
 // Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
-func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (*[]byte, error) {
-	result, err := a.DownloadPetDocumentWithHTTPInfo(petId, documentId)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *PetApi) DownloadPetDocument(ctx context.Context, petId int64, documentId int64) (*[]byte, error) {
+	result, err := a.DownloadPetDocumentWithHTTPInfo(ctx, petId, documentId)
 	if err != nil {
 		return nil, err
 	}
@@ -640,7 +655,7 @@ func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (*[]byte, er
 }
 
 // DownloadPetDocumentWithHTTPInfo performs the DownloadPetDocument operation and returns the full API result.
-func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) (*ApiResult[[]byte], error) {
+func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, documentId int64) (*ApiResult[[]byte], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.DownloadPetDocument", err)
 	}
@@ -667,6 +682,8 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -744,9 +761,10 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 }
 
 // FindPetsBornOn List pets born on a given date
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param bornOn: Date of birth to match
-func (a *PetApi) FindPetsBornOn(bornOn string) (*[]Pet, error) {
-	result, err := a.FindPetsBornOnWithHTTPInfo(bornOn)
+func (a *PetApi) FindPetsBornOn(ctx context.Context, bornOn string) (*[]Pet, error) {
+	result, err := a.FindPetsBornOnWithHTTPInfo(ctx, bornOn)
 	if err != nil {
 		return nil, err
 	}
@@ -760,7 +778,7 @@ func (a *PetApi) FindPetsBornOn(bornOn string) (*[]Pet, error) {
 }
 
 // FindPetsBornOnWithHTTPInfo performs the FindPetsBornOn operation and returns the full API result.
-func (a *PetApi) FindPetsBornOnWithHTTPInfo(bornOn string) (*ApiResult[[]Pet], error) {
+func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string) (*ApiResult[[]Pet], error) {
 	if err := requirePathParam("bornOn", bornOn); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.FindPetsBornOn", err)
 	}
@@ -775,6 +793,8 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(bornOn string) (*ApiResult[[]Pet], e
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -853,6 +873,7 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(bornOn string) (*ApiResult[[]Pet], e
 
 // FindPetsByStatus Finds Pets by status
 // See https://example.com/docs/filtering Find out more about filtering
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param status: Status values that need to be considered for filter
 // param filter: Filter criteria as key-value pairs
 // param bornAfter: Only return pets born on or after this date
@@ -862,8 +883,8 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(bornOn string) (*ApiResult[[]Pet], e
 // Example for `status` — Sold pets: sold
 //
 // Deprecated: This operation is deprecated.
-func (a *PetApi) FindPetsByStatus(options *opts.FindPetsByStatusOptions) (*[]Pet, error) {
-	result, err := a.FindPetsByStatusWithHTTPInfo(options)
+func (a *PetApi) FindPetsByStatus(ctx context.Context, options *opts.FindPetsByStatusOptions) (*[]Pet, error) {
+	result, err := a.FindPetsByStatusWithHTTPInfo(ctx, options)
 	if err != nil {
 		return nil, err
 	}
@@ -879,7 +900,7 @@ func (a *PetApi) FindPetsByStatus(options *opts.FindPetsByStatusOptions) (*[]Pet
 // FindPetsByStatusWithHTTPInfo performs the FindPetsByStatus operation and returns the full API result.
 //
 // Deprecated: This operation is deprecated.
-func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOptions) (*ApiResult[[]Pet], error) {
+func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts.FindPetsByStatusOptions) (*ApiResult[[]Pet], error) {
 
 	path := "/pet/findByStatus"
 
@@ -912,6 +933,8 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"status", "filter", "bornAfter", "2ndPage"},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -989,8 +1012,9 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 }
 
 // GetExternalPetInfo Get external pet info
-func (a *PetApi) GetExternalPetInfo(petId int64, server GetExternalPetInfoServer) (*Pet, error) {
-	result, err := a.GetExternalPetInfoWithHTTPInfo(petId, server)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *PetApi) GetExternalPetInfo(ctx context.Context, petId int64, server GetExternalPetInfoServer) (*Pet, error) {
+	result, err := a.GetExternalPetInfoWithHTTPInfo(ctx, petId, server)
 	if err != nil {
 		return nil, err
 	}
@@ -1004,7 +1028,7 @@ func (a *PetApi) GetExternalPetInfo(petId int64, server GetExternalPetInfoServer
 }
 
 // GetExternalPetInfoWithHTTPInfo performs the GetExternalPetInfo operation and returns the full API result.
-func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalPetInfoServer) (*ApiResult[Pet], error) {
+func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetExternalPetInfoServer) (*ApiResult[Pet], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetExternalPetInfo", err)
 	}
@@ -1029,6 +1053,8 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1106,8 +1132,9 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 }
 
 // GetMultiServerPetInfo Get multi-server pet info
-func (a *PetApi) GetMultiServerPetInfo(petId int64, server GetMultiServerPetInfoServer) (*Pet, error) {
-	result, err := a.GetMultiServerPetInfoWithHTTPInfo(petId, server)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *PetApi) GetMultiServerPetInfo(ctx context.Context, petId int64, server GetMultiServerPetInfoServer) (*Pet, error) {
+	result, err := a.GetMultiServerPetInfoWithHTTPInfo(ctx, petId, server)
 	if err != nil {
 		return nil, err
 	}
@@ -1121,7 +1148,7 @@ func (a *PetApi) GetMultiServerPetInfo(petId int64, server GetMultiServerPetInfo
 }
 
 // GetMultiServerPetInfoWithHTTPInfo performs the GetMultiServerPetInfo operation and returns the full API result.
-func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiServerPetInfoServer) (*ApiResult[Pet], error) {
+func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetMultiServerPetInfoServer) (*ApiResult[Pet], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetMultiServerPetInfo", err)
 	}
@@ -1146,6 +1173,8 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1224,8 +1253,9 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 
 // GetPetAvatar Get the pet's profile photo
 // Returns the raw image bytes of the pet's current avatar.
-func (a *PetApi) GetPetAvatar(petId int64) (*[]byte, error) {
-	result, err := a.GetPetAvatarWithHTTPInfo(petId)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *PetApi) GetPetAvatar(ctx context.Context, petId int64) (*[]byte, error) {
+	result, err := a.GetPetAvatarWithHTTPInfo(ctx, petId)
 	if err != nil {
 		return nil, err
 	}
@@ -1239,7 +1269,7 @@ func (a *PetApi) GetPetAvatar(petId int64) (*[]byte, error) {
 }
 
 // GetPetAvatarWithHTTPInfo performs the GetPetAvatar operation and returns the full API result.
-func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], error) {
+func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64) (*ApiResult[[]byte], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetPetAvatar", err)
 	}
@@ -1258,6 +1288,8 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], erro
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1336,8 +1368,9 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], erro
 
 // GetPetAvatarThumbnail Get the pet's avatar thumbnail as base64
 // Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
-func (a *PetApi) GetPetAvatarThumbnail(petId int64) (*[]byte, error) {
-	result, err := a.GetPetAvatarThumbnailWithHTTPInfo(petId)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *PetApi) GetPetAvatarThumbnail(ctx context.Context, petId int64) (*[]byte, error) {
+	result, err := a.GetPetAvatarThumbnailWithHTTPInfo(ctx, petId)
 	if err != nil {
 		return nil, err
 	}
@@ -1351,7 +1384,7 @@ func (a *PetApi) GetPetAvatarThumbnail(petId int64) (*[]byte, error) {
 }
 
 // GetPetAvatarThumbnailWithHTTPInfo performs the GetPetAvatarThumbnail operation and returns the full API result.
-func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]byte], error) {
+func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId int64) (*ApiResult[[]byte], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetPetAvatarThumbnail", err)
 	}
@@ -1370,6 +1403,8 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1448,13 +1483,14 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 
 // GetPetById Find pet by ID
 // Returns a single pet
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param petId: ID of pet to return
 // Example for `petId` — Small breed ID: 1
 // Example for `petId` — Large breed ID: 42
 //
 // Deprecated: This operation is deprecated.
-func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) {
-	result, err := a.GetPetByIdWithHTTPInfo(petId, server)
+func (a *PetApi) GetPetById(ctx context.Context, petId int64, server GetPetByIdServer) (*Pet, error) {
+	result, err := a.GetPetByIdWithHTTPInfo(ctx, petId, server)
 	if err != nil {
 		return nil, err
 	}
@@ -1470,7 +1506,7 @@ func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) 
 // GetPetByIdWithHTTPInfo performs the GetPetById operation and returns the full API result.
 //
 // Deprecated: This operation is deprecated.
-func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*ApiResult[Pet], error) {
+func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server GetPetByIdServer) (*ApiResult[Pet], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetPetById", err)
 	}
@@ -1495,6 +1531,8 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1572,9 +1610,10 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 }
 
 // GetPetByName Look up a pet by name (simple string path param + required query)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options for query, header, form, and cookie parameters.
-func (a *PetApi) GetPetByName(name string, options *opts.GetPetByNameOptions) (*Pet, error) {
-	result, err := a.GetPetByNameWithHTTPInfo(name, options)
+func (a *PetApi) GetPetByName(ctx context.Context, name string, options *opts.GetPetByNameOptions) (*Pet, error) {
+	result, err := a.GetPetByNameWithHTTPInfo(ctx, name, options)
 	if err != nil {
 		return nil, err
 	}
@@ -1588,7 +1627,7 @@ func (a *PetApi) GetPetByName(name string, options *opts.GetPetByNameOptions) (*
 }
 
 // GetPetByNameWithHTTPInfo performs the GetPetByName operation and returns the full API result.
-func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNameOptions) (*ApiResult[Pet], error) {
+func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, options *opts.GetPetByNameOptions) (*ApiResult[Pet], error) {
 	if err := requirePathParam("name", name); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetPetByName", err)
 	}
@@ -1621,6 +1660,8 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNam
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"category"},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1699,8 +1740,9 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNam
 
 // GetPetPassport Get the pet's passport
 // Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
-func (a *PetApi) GetPetPassport(petId int64) (*PetPassport, error) {
-	result, err := a.GetPetPassportWithHTTPInfo(petId)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *PetApi) GetPetPassport(ctx context.Context, petId int64) (*PetPassport, error) {
+	result, err := a.GetPetPassportWithHTTPInfo(ctx, petId)
 	if err != nil {
 		return nil, err
 	}
@@ -1714,7 +1756,7 @@ func (a *PetApi) GetPetPassport(petId int64) (*PetPassport, error) {
 }
 
 // GetPetPassportWithHTTPInfo performs the GetPetPassport operation and returns the full API result.
-func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport], error) {
+func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64) (*ApiResult[PetPassport], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetPetPassport", err)
 	}
@@ -1733,6 +1775,8 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1811,8 +1855,9 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 
 // GetPetPhoto Get a photo or its metadata
 // Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
-func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (*[]byte, error) {
-	result, err := a.GetPetPhotoWithHTTPInfo(petId, photoId)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *PetApi) GetPetPhoto(ctx context.Context, petId int64, photoId int64) (*[]byte, error) {
+	result, err := a.GetPetPhotoWithHTTPInfo(ctx, petId, photoId)
 	if err != nil {
 		return nil, err
 	}
@@ -1826,7 +1871,7 @@ func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (*[]byte, error) {
 }
 
 // GetPetPhotoWithHTTPInfo performs the GetPetPhoto operation and returns the full API result.
-func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult[[]byte], error) {
+func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photoId int64) (*ApiResult[[]byte], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetPetPhoto", err)
 	}
@@ -1853,6 +1898,8 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1931,12 +1978,13 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 
 // GetPetSummary Get a <plain> \"text\" summary & it's short
 // Returns ”'plain”' text for /pets/#{id} and <b> & \"c\" it's done
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param asOf: Summary date, sent as a matrix-style path segment
 // param session: Session token: \"a<b>\" & it's required
 // param days: Extra dates to summarise
 // param options: Options for query, header, form, and cookie parameters.
-func (a *PetApi) GetPetSummary(petId int64, asOf string, options *opts.GetPetSummaryOptions) (*string, error) {
-	result, err := a.GetPetSummaryWithHTTPInfo(petId, asOf, options)
+func (a *PetApi) GetPetSummary(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions) (*string, error) {
+	result, err := a.GetPetSummaryWithHTTPInfo(ctx, petId, asOf, options)
 	if err != nil {
 		return nil, err
 	}
@@ -1950,7 +1998,7 @@ func (a *PetApi) GetPetSummary(petId int64, asOf string, options *opts.GetPetSum
 }
 
 // GetPetSummaryWithHTTPInfo performs the GetPetSummary operation and returns the full API result.
-func (a *PetApi) GetPetSummaryWithHTTPInfo(petId int64, asOf string, options *opts.GetPetSummaryOptions) (*ApiResult[string], error) {
+func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions) (*ApiResult[string], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetPetSummary", err)
 	}
@@ -1987,7 +2035,8 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(petId int64, asOf string, options *op
 	 * the auth path, it fails closed by returning ErrInvalidCookie, matching
 	 * how this function reports every other invalid-parameter condition. */
 	{
-		cookieValue := fmt.Sprintf("%v", serializeStyled("session", options.Session, "cookie", "string", "", "form", true))
+		var cookieValue string
+		cookieValue = fmt.Sprintf("%v", serializeStyled("session", options.Session, "cookie", "string", "", "form", true))
 		if !isValidCookieValue(cookieValue) {
 			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "session")
 		}
@@ -2000,6 +2049,8 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(petId int64, asOf string, options *op
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"days"},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -2077,12 +2128,13 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(petId int64, asOf string, options *op
 }
 
 // GetPetTag Get a tag for a pet
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param revision: Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
 // param criteria: Object-valued query parameter, form style exploded (the OAS default for query)
 // param fingerprint: Opaque bytes, base64 on the wire (OAS format byte)
 // param options: Options for query, header, form, and cookie parameters.
-func (a *PetApi) GetPetTag(petId int64, tagName string, options *opts.GetPetTagOptions) (*Pet, error) {
-	result, err := a.GetPetTagWithHTTPInfo(petId, tagName, options)
+func (a *PetApi) GetPetTag(ctx context.Context, petId int64, tagName string, options *opts.GetPetTagOptions) (*Pet, error) {
+	result, err := a.GetPetTagWithHTTPInfo(ctx, petId, tagName, options)
 	if err != nil {
 		return nil, err
 	}
@@ -2096,7 +2148,7 @@ func (a *PetApi) GetPetTag(petId int64, tagName string, options *opts.GetPetTagO
 }
 
 // GetPetTagWithHTTPInfo performs the GetPetTag operation and returns the full API result.
-func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opts.GetPetTagOptions) (*ApiResult[Pet], error) {
+func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName string, options *opts.GetPetTagOptions) (*ApiResult[Pet], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetPetTag", err)
 	}
@@ -2160,6 +2212,8 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"colors", "sizes", "filter", "revision", "criteria", "criteriaCsv", "criteriaDeep", "fingerprint"},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -2237,8 +2291,9 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 }
 
 // GetStagingPetInfo Get staging pet info
-func (a *PetApi) GetStagingPetInfo(petId int64, server GetStagingPetInfoServer) (*Pet, error) {
-	result, err := a.GetStagingPetInfoWithHTTPInfo(petId, server)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *PetApi) GetStagingPetInfo(ctx context.Context, petId int64, server GetStagingPetInfoServer) (*Pet, error) {
+	result, err := a.GetStagingPetInfoWithHTTPInfo(ctx, petId, server)
 	if err != nil {
 		return nil, err
 	}
@@ -2252,7 +2307,7 @@ func (a *PetApi) GetStagingPetInfo(petId int64, server GetStagingPetInfoServer) 
 }
 
 // GetStagingPetInfoWithHTTPInfo performs the GetStagingPetInfo operation and returns the full API result.
-func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPetInfoServer) (*ApiResult[Pet], error) {
+func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetStagingPetInfoServer) (*ApiResult[Pet], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetStagingPetInfo", err)
 	}
@@ -2277,6 +2332,8 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -2355,8 +2412,9 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 
 // SetPetAvatar Set the pet's profile photo
 // Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
-func (a *PetApi) SetPetAvatar(petId int64, body *os.File, requestContentType ...string) error {
-	result, err := a.SetPetAvatarWithHTTPInfo(petId, body, requestContentType...)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *PetApi) SetPetAvatar(ctx context.Context, petId int64, body *os.File, requestContentType ...string) error {
+	result, err := a.SetPetAvatarWithHTTPInfo(ctx, petId, body, requestContentType...)
 	if err != nil {
 		return err
 	}
@@ -2365,7 +2423,7 @@ func (a *PetApi) SetPetAvatar(petId int64, body *os.File, requestContentType ...
 }
 
 // SetPetAvatarWithHTTPInfo performs the SetPetAvatar operation and returns the full API result.
-func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestContentType ...string) (*ApiResult[any], error) {
+func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body *os.File, requestContentType ...string) (*ApiResult[any], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.SetPetAvatar", err)
 	}
@@ -2420,6 +2478,8 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestCon
 	}
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "PUT",
 		path:         path,
 		queryParams:  queryParams,
@@ -2445,8 +2505,9 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestCon
 
 // SetPetAvatarThumbnail Set the pet's avatar thumbnail as base64
 // Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
-func (a *PetApi) SetPetAvatarThumbnail(petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) error {
-	result, err := a.SetPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *PetApi) SetPetAvatarThumbnail(ctx context.Context, petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) error {
+	result, err := a.SetPetAvatarThumbnailWithHTTPInfo(ctx, petId, setPetAvatarThumbnailRequest)
 	if err != nil {
 		return err
 	}
@@ -2455,7 +2516,7 @@ func (a *PetApi) SetPetAvatarThumbnail(petId int64, setPetAvatarThumbnailRequest
 }
 
 // SetPetAvatarThumbnailWithHTTPInfo performs the SetPetAvatarThumbnail operation and returns the full API result.
-func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) (*ApiResult[any], error) {
+func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) (*ApiResult[any], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.SetPetAvatarThumbnail", err)
 	}
@@ -2474,6 +2535,8 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThum
 	var requestBody any = setPetAvatarThumbnailRequest
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "PUT",
 		path:         path,
 		queryParams:  queryParams,
@@ -2498,9 +2561,10 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThum
 
 // SetPetPreferences Update a pet's notification preferences
 // Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options for query, header, form, and cookie parameters.
-func (a *PetApi) SetPetPreferences(petId int64, options *opts.SetPetPreferencesOptions) (*ApiResponse, error) {
-	result, err := a.SetPetPreferencesWithHTTPInfo(petId, options)
+func (a *PetApi) SetPetPreferences(ctx context.Context, petId int64, options *opts.SetPetPreferencesOptions) (*ApiResponse, error) {
+	result, err := a.SetPetPreferencesWithHTTPInfo(ctx, petId, options)
 	if err != nil {
 		return nil, err
 	}
@@ -2514,7 +2578,7 @@ func (a *PetApi) SetPetPreferences(petId int64, options *opts.SetPetPreferencesO
 }
 
 // SetPetPreferencesWithHTTPInfo performs the SetPetPreferences operation and returns the full API result.
-func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPetPreferencesOptions) (*ApiResult[ApiResponse], error) {
+func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64, options *opts.SetPetPreferencesOptions) (*ApiResult[ApiResponse], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.SetPetPreferences", err)
 	}
@@ -2555,6 +2619,8 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPet
 	var requestBody any = formBody
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"nickname", "tags", "note", "renewalDate", "reminder"},
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,
@@ -2632,10 +2698,11 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPet
 }
 
 // UpdatePet Update an existing pet
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param petId: ID of pet to update
 // param pet: Pet object that needs to be updated
-func (a *PetApi) UpdatePet(petId int64, pet Pet) (*Pet, error) {
-	result, err := a.UpdatePetWithHTTPInfo(petId, pet)
+func (a *PetApi) UpdatePet(ctx context.Context, petId int64, pet Pet) (*Pet, error) {
+	result, err := a.UpdatePetWithHTTPInfo(ctx, petId, pet)
 	if err != nil {
 		return nil, err
 	}
@@ -2649,7 +2716,7 @@ func (a *PetApi) UpdatePet(petId int64, pet Pet) (*Pet, error) {
 }
 
 // UpdatePetWithHTTPInfo performs the UpdatePet operation and returns the full API result.
-func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], error) {
+func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet) (*ApiResult[Pet], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.UpdatePet", err)
 	}
@@ -2668,6 +2735,8 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 	var requestBody any = pet
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "PUT",
 		path:         path,
 		queryParams:  queryParams,
@@ -2746,9 +2815,10 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 
 // UploadPetCertificate Upload the pet's adoption certificate
 // Attaches a single adoption certificate document. No metadata fields are required alongside the file.
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options for query, header, form, and cookie parameters.
-func (a *PetApi) UploadPetCertificate(petId int64, options *opts.UploadPetCertificateOptions) (*ApiResponse, error) {
-	result, err := a.UploadPetCertificateWithHTTPInfo(petId, options)
+func (a *PetApi) UploadPetCertificate(ctx context.Context, petId int64, options *opts.UploadPetCertificateOptions) (*ApiResponse, error) {
+	result, err := a.UploadPetCertificateWithHTTPInfo(ctx, petId, options)
 	if err != nil {
 		return nil, err
 	}
@@ -2762,7 +2832,7 @@ func (a *PetApi) UploadPetCertificate(petId int64, options *opts.UploadPetCertif
 }
 
 // UploadPetCertificateWithHTTPInfo performs the UploadPetCertificate operation and returns the full API result.
-func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.UploadPetCertificateOptions) (*ApiResult[ApiResponse], error) {
+func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int64, options *opts.UploadPetCertificateOptions) (*ApiResult[ApiResponse], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.UploadPetCertificate", err)
 	}
@@ -2791,6 +2861,8 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.Upl
 	var requestBody any = formBody
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"file"},
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,
@@ -2869,9 +2941,10 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.Upl
 
 // UploadPetDocument Attach a vet document or health record
 // Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options for query, header, form, and cookie parameters.
-func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentOptions, requestContentType ...string) (*ApiResponse, error) {
-	result, err := a.UploadPetDocumentWithHTTPInfo(petId, options, requestContentType...)
+func (a *PetApi) UploadPetDocument(ctx context.Context, petId int64, options *opts.UploadPetDocumentOptions, requestContentType ...string) (*ApiResponse, error) {
+	result, err := a.UploadPetDocumentWithHTTPInfo(ctx, petId, options, requestContentType...)
 	if err != nil {
 		return nil, err
 	}
@@ -2885,7 +2958,7 @@ func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentO
 }
 
 // UploadPetDocumentWithHTTPInfo performs the UploadPetDocument operation and returns the full API result.
-func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.UploadPetDocumentOptions, requestContentType ...string) (*ApiResult[ApiResponse], error) {
+func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, options *opts.UploadPetDocumentOptions, requestContentType ...string) (*ApiResult[ApiResponse], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.UploadPetDocument", err)
 	}
@@ -2977,6 +3050,8 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 	}
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"file", "documentType", "notes", "isPrimary", "pageCount", "takenAt", "swatch"},
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,

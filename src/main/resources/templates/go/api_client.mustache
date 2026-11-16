@@ -1,6 +1,19 @@
 {{>api_info}}
 package {{packageName}}
 
+import (
+	"context"
+	"net/http"
+)
+
+// HttpDoer is the minimal HTTP abstraction the SDK can send requests through:
+// *http.Client satisfies it. Supply one with TransportOptionsBuilder.HttpClient
+// to route every request through your own client; the SDK still applies its
+// user agent, headers, timeout and other defaults on top, and never closes it.
+type HttpDoer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 // RequestOptions carries per-request transport overrides for SendRequest.
 //
 // Fields default to their zero value, which means "use the transport's
@@ -16,6 +29,12 @@ type RequestOptions struct {
 	 * Implementations that follow 3xx by default MUST short-circuit when
 	 * this flag is set rather than rely on origin checks alone. */
 	NoRedirect bool
+
+	/* Context is the per-call context. Cancelling it aborts the request; the
+	 * error then satisfies errors.Is(err, context.Canceled) and is never a
+	 * *NetworkTimeoutError. A nil Context means context.Background(). It is
+	 * merged with the client's base context, which Close cancels. */
+	Context context.Context
 }
 
 // ApiClient is the interface for API HTTP transport.

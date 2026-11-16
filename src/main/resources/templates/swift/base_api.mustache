@@ -72,7 +72,7 @@ public class BaseApi: @unchecked Sendable {
     struct InvokeAPIParams {
         let method: String
         let path: String
-        let queryParams: [String: Any?]
+        let queryParams: OrderedParams<Any?>
         let headerParams: [String: String]
         let body: Any?
         let accepts: [String]
@@ -194,10 +194,10 @@ public class BaseApi: @unchecked Sendable {
         /* Serialize body -- multipart/form-data is handled separately so that
          * the boundary can be injected into the Content-Type header. */
         let serializedBody: Data?
-        if params.contentType == "multipart/form-data", let formFields = params.body as? [String: Any] {
+        if params.contentType == "multipart/form-data", let formFields = Self.formFields(params.body) {
             let boundary = UUID().uuidString
             headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
-            serializedBody = try Self.buildMultipartBody(formFields, boundary: boundary)
+            serializedBody = try Self.buildMultipartBody(ordered: formFields, boundary: boundary)
         } else {
             serializedBody = try Self.serializeBody(
                 params.body, contentType: params.contentType, rawBody: params.rawBody)
@@ -344,7 +344,7 @@ public class BaseApi: @unchecked Sendable {
     ///
     /// - Parameter queryParams: The query parameters.
     /// - Returns: Encoded query string, or an empty string when there are none.
-    static func buildQueryString(_ queryParams: [String: Any?]) -> String {
+    static func buildQueryString(_ queryParams: OrderedParams<Any?>) -> String {
         guard !queryParams.isEmpty else { return "" }
 
         var parts: [String] = []
@@ -419,7 +419,7 @@ public class BaseApi: @unchecked Sendable {
         }
 
         if contentType == "application/x-www-form-urlencoded" {
-            if let params = body as? [String: Any] {
+            if let params = formFields(body) {
                 /* application/x-www-form-urlencoded is defined by the WHATWG
                  * URL / HTML form-encoding standard, which encodes a space as
                  * `+` (not `%20`). Percent-encode with the unreserved set —
@@ -483,6 +483,27 @@ public class BaseApi: @unchecked Sendable {
     ///   - boundary: the multipart boundary string
     /// - Returns: the assembled multipart body as `Data`
     static func buildMultipartBody(_ formFields: [String: Any], boundary: String) throws -> Data {
+        return try buildMultipartBody(ordered: OrderedParams<Any>(sorting: formFields), boundary: boundary)
+    }
+
+    /// Reads the form fields of a request body as an ordered map.
+    ///
+    /// A generated operation builds an ``OrderedParams`` in the spec's
+    /// declaration order; a plain dictionary (hand-written callers) is read in
+    /// key order so its output is still deterministic.
+    static func formFields(_ body: Any?) -> OrderedParams<Any>? {
+        if let ordered = body as? OrderedParams<Any> {
+            return ordered
+        }
+        if let dictionary = body as? [String: Any] {
+            return OrderedParams<Any>(sorting: dictionary)
+        }
+        return nil
+    }
+
+    /// Build a multipart/form-data request body from form fields kept in the
+    /// spec's declaration order: the parts are written in that order.
+    static func buildMultipartBody(ordered formFields: OrderedParams<Any>, boundary: String) throws -> Data {
         var body = Data()
 
         for (name, value) in formFields {
@@ -645,6 +666,62 @@ public class BaseApi: @unchecked Sendable {
                 || (0x2D...0x3A).contains(v)
                 || (0x3C...0x5B).contains(v)
                 || (0x5D...0x7E).contains(v)
+        }
+    }
+}
+
+/// A string-keyed map that remembers the order its keys were first set in.
+///
+/// Query parameters, form fields and multipart parts are written in the order
+/// the spec declares them, so the same call produces the same bytes on every
+/// run; a plain `Dictionary` iterates in a per-process random order. It reads
+/// and iterates like a dictionary and is built from a dictionary literal
+/// (whose order it keeps).
+struct OrderedParams<Value>: ExpressibleByDictionaryLiteral, Sequence {
+    private var orderedKeys: [String] = []
+    private var storage: [String: Value] = [:]
+
+    init() {}
+
+    init(dictionaryLiteral elements: (String, Value)...) {
+        for (key, value) in elements {
+            self[key] = value
+        }
+    }
+
+    /// Builds a map from a dictionary, in key order.
+    init(sorting dictionary: [String: Value]) {
+        for key in dictionary.keys.sorted() {
+            self[key] = dictionary[key]
+        }
+    }
+
+    var isEmpty: Bool { return orderedKeys.isEmpty }
+
+    var keys: [String] { return orderedKeys }
+
+    /// The value for `key`. Setting an existing key keeps its position;
+    /// setting nil removes it.
+    subscript(key: String) -> Value? {
+        get { return storage[key] }
+        set {
+            if let value = newValue {
+                if storage[key] == nil {
+                    orderedKeys.append(key)
+                }
+                storage[key] = value
+            } else if storage.removeValue(forKey: key) != nil {
+                orderedKeys.removeAll { $0 == key }
+            }
+        }
+    }
+
+    func makeIterator() -> AnyIterator<(key: String, value: Value)> {
+        var remaining = orderedKeys[...]
+        let values = storage
+        return AnyIterator {
+            guard let key = remaining.popFirst(), let value = values[key] else { return nil }
+            return (key: key, value: value)
         }
     }
 }

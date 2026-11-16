@@ -102,7 +102,7 @@ pub(crate) struct InvokeApiParams<'a> {
     /// Serialization (boundary, per-part Content-Type from the field-name
     /// extension, RFC 5987 filename handling, non-ASCII field-name UTF-8
     /// preservation) is performed by the API client's `serialize_multipart_body`.
-    pub multipart: Option<HashMap<String, MultipartValue>>,
+    pub multipart: Option<Vec<(String, MultipartValue)>>,
     pub accepts: Vec<&'a str>,
     pub content_type: &'a str,
     pub return_type: &'a str,
@@ -456,7 +456,7 @@ fn build_query_string(query_params: &[(String, String, bool)]) -> String {
  * field-name extension, RFC 5987 filename handling, non-ASCII field-name UTF-8
  * preservation, repeated-field expansion, field-name validation/escaping) lives
  * in `default_api_client::serialize_multipart_body`. `invoke_api` hands the
- * structured `HashMap<String, MultipartValue>` to the client as
+ * structured `Vec<(String, MultipartValue)>` to the client as
  * `RequestBody::Multipart`; the client owns the wire format so the same bytes
  * and boundary can be replayed across 307/308 redirects. */
 

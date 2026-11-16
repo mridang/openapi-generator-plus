@@ -11,6 +11,7 @@ package petstore_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"go/ast"
@@ -96,7 +97,7 @@ func TestPetApi_AddPet(t *testing.T) {
 
 	pet := models.NewPet("Fido", models.Set[string]{"http://example.com/fido.jpg"})
 
-	result, err := api.AddPet(*pet, &options.AddPetOptions{Auth: auth})
+	result, err := api.AddPet(context.Background(), *pet, &options.AddPetOptions{Auth: auth})
 	if err != nil {
 		t.Fatalf("AddPet failed: %v", err)
 	}
@@ -112,7 +113,7 @@ func TestPetApi_AddPetWithHTTPInfo(t *testing.T) {
 
 	pet := models.NewPet("Buddy", models.Set[string]{"http://example.com/buddy.jpg"})
 
-	result, err := api.AddPetWithHTTPInfo(*pet, &options.AddPetOptions{Auth: auth})
+	result, err := api.AddPetWithHTTPInfo(context.Background(), *pet, &options.AddPetOptions{Auth: auth})
 	if err != nil {
 		t.Fatalf("AddPetWithHTTPInfo failed: %v", err)
 	}
@@ -134,7 +135,7 @@ func TestPetApi_GetPetById(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	result, err := api.GetPetById(int64(1), nil)
+	result, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err != nil {
 		t.Fatalf("GetPetById failed: %v", err)
 	}
@@ -147,7 +148,7 @@ func TestPetApi_GetPetByIdWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	result, err := api.GetPetByIdWithHTTPInfo(int64(1), nil)
+	result, err := api.GetPetByIdWithHTTPInfo(context.Background(), int64(1), nil)
 	if err != nil {
 		t.Fatalf("GetPetByIdWithHTTPInfo failed: %v", err)
 	}
@@ -171,7 +172,7 @@ func TestPetApi_UpdatePet(t *testing.T) {
 
 	pet := models.NewPet("UpdatedFido", models.Set[string]{"http://example.com/fido-updated.jpg"})
 
-	result, err := api.UpdatePet(int64(1), *pet)
+	result, err := api.UpdatePet(context.Background(), int64(1), *pet)
 	if err != nil {
 		t.Fatalf("UpdatePet failed: %v", err)
 	}
@@ -186,7 +187,7 @@ func TestPetApi_UpdatePetWithHTTPInfo(t *testing.T) {
 
 	pet := models.NewPet("UpdatedFido", models.Set[string]{"http://example.com/fido-updated.jpg"})
 
-	result, err := api.UpdatePetWithHTTPInfo(int64(1), *pet)
+	result, err := api.UpdatePetWithHTTPInfo(context.Background(), int64(1), *pet)
 	if err != nil {
 		t.Fatalf("UpdatePetWithHTTPInfo failed: %v", err)
 	}
@@ -203,7 +204,7 @@ func TestPetApi_DeletePet(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
-	err := api.DeletePet(int64(1), &options.DeletePetOptions{Auth: auth})
+	err := api.DeletePet(context.Background(), int64(1), &options.DeletePetOptions{Auth: auth})
 	if err != nil {
 		t.Fatalf("DeletePet failed: %v", err)
 	}
@@ -214,7 +215,7 @@ func TestPetApi_DeletePetWithHTTPInfo(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
-	result, err := api.DeletePetWithHTTPInfo(int64(1), &options.DeletePetOptions{Auth: auth})
+	result, err := api.DeletePetWithHTTPInfo(context.Background(), int64(1), &options.DeletePetOptions{Auth: auth})
 	if err != nil {
 		t.Fatalf("DeletePetWithHTTPInfo failed: %v", err)
 	}
@@ -231,7 +232,7 @@ func TestPetApi_FindPetsByStatus(t *testing.T) {
 	api := newPetApiForIntegration(t)
 
 	status := "available"
-	result, err := api.FindPetsByStatus(&options.FindPetsByStatusOptions{Status: &status})
+	result, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &status})
 	if err != nil {
 		t.Fatalf("FindPetsByStatus failed: %v", err)
 	}
@@ -245,7 +246,7 @@ func TestPetApi_FindPetsByStatusWithHTTPInfo(t *testing.T) {
 	api := newPetApiForIntegration(t)
 
 	status := "available"
-	result, err := api.FindPetsByStatusWithHTTPInfo(&options.FindPetsByStatusOptions{Status: &status})
+	result, err := api.FindPetsByStatusWithHTTPInfo(context.Background(), &options.FindPetsByStatusOptions{Status: &status})
 	if err != nil {
 		t.Fatalf("FindPetsByStatusWithHTTPInfo failed: %v", err)
 	}
@@ -277,7 +278,7 @@ func TestPetApi_FindPetsByStatusOmitsKeyWhenUnset(t *testing.T) {
 	api := newPetApiForMock(t, server)
 
 	// (a) status omitted: the key must not appear on the wire.
-	if _, err := api.FindPetsByStatus(&options.FindPetsByStatusOptions{}); err != nil {
+	if _, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{}); err != nil {
 		t.Fatalf("FindPetsByStatus with omitted status failed: %v", err)
 	}
 	if strings.Contains(capturedQuery, "status=") {
@@ -287,7 +288,7 @@ func TestPetApi_FindPetsByStatusOmitsKeyWhenUnset(t *testing.T) {
 	// (b) explicit empty value: the bare key "status=" must appear.
 	capturedQuery = ""
 	empty := ""
-	if _, err := api.FindPetsByStatus(&options.FindPetsByStatusOptions{Status: &empty}); err != nil {
+	if _, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &empty}); err != nil {
 		t.Fatalf("FindPetsByStatus with explicit empty status failed: %v", err)
 	}
 	if !strings.Contains(capturedQuery, "status=") {
@@ -310,7 +311,7 @@ func TestPetApi_FindPetsByStatusSendsTheDigitLeadingParam(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 	page := int32(2)
-	if _, err := api.FindPetsByStatus(&options.FindPetsByStatusOptions{N2ndPage: &page}); err != nil {
+	if _, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{N2ndPage: &page}); err != nil {
 		t.Fatalf("FindPetsByStatus failed: %v", err)
 	}
 	if capturedQuery != "2ndPage=2" {
@@ -330,7 +331,7 @@ func TestPetApi_GetPetSummaryReturnsTheTextPlainBodyVerbatim(t *testing.T) {
 	defer server.Close()
 
 	api := newPetApiForMock(t, server)
-	result, err := api.GetPetSummary(int64(1), "2024-01-15", &options.GetPetSummaryOptions{Session: "abc"})
+	result, err := api.GetPetSummary(context.Background(), int64(1), "2024-01-15", &options.GetPetSummaryOptions{Session: "abc"})
 	if err != nil {
 		t.Fatalf("GetPetSummary failed: %v", err)
 	}
@@ -343,7 +344,7 @@ func TestPetApi_GetPetPassport(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	result, err := api.GetPetPassport(int64(1))
+	result, err := api.GetPetPassport(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetPetPassport failed: %v", err)
 	}
@@ -356,7 +357,7 @@ func TestPetApi_GetPetPassportWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	result, err := api.GetPetPassportWithHTTPInfo(int64(1))
+	result, err := api.GetPetPassportWithHTTPInfo(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetPetPassportWithHTTPInfo failed: %v", err)
 	}
@@ -373,7 +374,7 @@ func TestPetApi_SetPetAvatar(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
 
-	if err := api.SetPetAvatar(int64(1), f); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), f); err != nil {
 		t.Fatalf("SetPetAvatar failed: %v", err)
 	}
 }
@@ -387,7 +388,7 @@ func TestPetApi_SetPetAvatarRejectsUnknownContentType(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
 
-	err := api.SetPetAvatar(int64(1), f, "application/unknown-type")
+	err := api.SetPetAvatar(context.Background(), int64(1), f, "application/unknown-type")
 	if err == nil {
 		t.Fatal("expected an error for an undeclared request content-type, got nil")
 	}
@@ -404,7 +405,7 @@ func TestPetApi_UploadPetDocumentRejectsUnknownContentType(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-document-data")
 
-	_, err := api.UploadPetDocument(int64(1), &options.UploadPetDocumentOptions{File: f}, "application/unknown-type")
+	_, err := api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: f}, "application/unknown-type")
 	if err == nil {
 		t.Fatal("expected an error for an undeclared request content-type, got nil")
 	}
@@ -421,7 +422,7 @@ func TestPetApi_SetPetAvatarRejectsMoreThanOneContentType(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
 
-	err := api.SetPetAvatar(int64(1), f, "image/jpeg", "image/png")
+	err := api.SetPetAvatar(context.Background(), int64(1), f, "image/jpeg", "image/png")
 	if err == nil {
 		t.Fatal("expected an error for two request content-types, got nil")
 	}
@@ -468,7 +469,7 @@ func TestPetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentType(t *testing.T)
 		t.Fatalf("seek temp failed: %v", err)
 	}
 
-	if err := api.SetPetAvatar(int64(1), f); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), f); err != nil {
 		t.Fatalf("SetPetAvatar failed: %v", err)
 	}
 
@@ -526,7 +527,7 @@ func TestPetApi_SetPetAvatarHonoursSelectedRequestContentType(t *testing.T) {
 	}
 
 	// (1) No selector -> first declared content-type (image/jpeg).
-	if err := api.SetPetAvatar(int64(1), makeFile()); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), makeFile()); err != nil {
 		t.Fatalf("SetPetAvatar (default content-type) failed: %v", err)
 	}
 	if capturedContentType != "image/jpeg" {
@@ -535,7 +536,7 @@ func TestPetApi_SetPetAvatarHonoursSelectedRequestContentType(t *testing.T) {
 
 	// (2) Selector "image/png" -> Content-Type: image/png (NOT image/jpeg).
 	capturedContentType = ""
-	if err := api.SetPetAvatar(int64(1), makeFile(), "image/png"); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), makeFile(), "image/png"); err != nil {
 		t.Fatalf("SetPetAvatar (image/png selector) failed: %v", err)
 	}
 	if capturedContentType != "image/png" {
@@ -562,7 +563,7 @@ func TestPetApi_SetPetAvatarSendsBinaryBytesVerbatimUnderTheJsonSelector(t *test
 	api := newPetApiForMock(t, server)
 	f := newTempFile(t, string(payload))
 
-	if err := api.SetPetAvatar(int64(1), f, "application/json"); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), f, "application/json"); err != nil {
 		t.Fatalf("SetPetAvatar (application/json selector) failed: %v", err)
 	}
 	if !bytes.Equal(capturedBody, payload) {
@@ -586,7 +587,7 @@ func TestPetApi_SetPetAvatarThumbnailStillSendsBase64Json(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 	thumbnail := models.NewSetPetAvatarThumbnailRequest([]byte{0xFF, 0xD8, 0xFF, 0xE0})
-	if err := api.SetPetAvatarThumbnail(int64(1), thumbnail); err != nil {
+	if err := api.SetPetAvatarThumbnail(context.Background(), int64(1), thumbnail); err != nil {
 		t.Fatalf("SetPetAvatarThumbnail failed: %v", err)
 	}
 	if got, want := string(capturedBody), `"/9j/4A=="`; got != want {
@@ -598,7 +599,7 @@ func TestPetApi_GetPetAvatar(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	_, err := api.GetPetAvatar(int64(1))
+	_, err := api.GetPetAvatar(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetPetAvatar failed: %v", err)
 	}
@@ -608,7 +609,7 @@ func TestPetApi_GetPetAvatarThumbnail(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	result, err := api.GetPetAvatarThumbnail(int64(1))
+	result, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetPetAvatarThumbnail failed: %v", err)
 	}
@@ -622,7 +623,7 @@ func TestPetApi_SetPetAvatarThumbnail(t *testing.T) {
 	api := newPetApiForIntegration(t)
 
 	thumbnail := models.NewSetPetAvatarThumbnailRequest([]byte{0xFF, 0xD8, 0xFF, 0xE0})
-	if err := api.SetPetAvatarThumbnail(int64(1), thumbnail); err != nil {
+	if err := api.SetPetAvatarThumbnail(context.Background(), int64(1), thumbnail); err != nil {
 		t.Fatalf("SetPetAvatarThumbnail failed: %v", err)
 	}
 }
@@ -632,7 +633,7 @@ func TestPetApi_UploadPetCertificate(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "certificate-content")
 
-	result, err := api.UploadPetCertificate(int64(1), &options.UploadPetCertificateOptions{File: f})
+	result, err := api.UploadPetCertificate(context.Background(), int64(1), &options.UploadPetCertificateOptions{File: f})
 	if err != nil {
 		t.Fatalf("UploadPetCertificate failed: %v", err)
 	}
@@ -648,7 +649,7 @@ func TestPetApi_UploadPetDocument(t *testing.T) {
 	docType := "vaccination_record"
 	notes := "Annual checkup"
 
-	result, err := api.UploadPetDocument(int64(1), &options.UploadPetDocumentOptions{
+	result, err := api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{
 		File:         f,
 		DocumentType: &docType,
 		Notes:        &notes,
@@ -693,7 +694,7 @@ func TestPetApi_UploadPetDocumentSendsTypedScalarsAsTextParts(t *testing.T) {
 	pageCount := int64(3)
 	takenAt := models.DateTime(time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC))
 	swatch := models.SwatchRed
-	_, _ = api.UploadPetDocument(int64(1), &options.UploadPetDocumentOptions{
+	_, _ = api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{
 		File:      newTempFile(t, "document-content"),
 		IsPrimary: &isPrimary,
 		PageCount: &pageCount,
@@ -747,7 +748,7 @@ func TestPetApi_UploadPetDocumentOctetStreamSendsRawBytes(t *testing.T) {
 	api := newPetApiForMock(t, server)
 	f := newTempFile(t, string(payload))
 
-	if _, err := api.UploadPetDocument(int64(1), &options.UploadPetDocumentOptions{File: f}, "application/octet-stream"); err != nil {
+	if _, err := api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: f}, "application/octet-stream"); err != nil {
 		t.Fatalf("UploadPetDocument (octet-stream) failed: %v", err)
 	}
 
@@ -784,7 +785,7 @@ func TestPetApi_UploadPetDocumentDefaultSendsMultipart(t *testing.T) {
 	api := newPetApiForMock(t, server)
 	f := newTempFile(t, "document-content")
 
-	if _, err := api.UploadPetDocument(int64(1), &options.UploadPetDocumentOptions{File: f}); err != nil {
+	if _, err := api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: f}); err != nil {
 		t.Fatalf("UploadPetDocument (default) failed: %v", err)
 	}
 
@@ -805,7 +806,7 @@ func TestPetApi_AddPetPhotos(t *testing.T) {
 	metadata.Caption = &caption
 	metadata.IsPrimary = &isPrimary
 
-	result, err := api.AddPetPhotos(int64(1), &options.AddPetPhotosOptions{
+	result, err := api.AddPetPhotos(context.Background(), int64(1), &options.AddPetPhotosOptions{
 		Files:    []*os.File{f},
 		Metadata: *metadata,
 	})
@@ -821,7 +822,7 @@ func TestPetApi_DownloadPetDocument(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	_, err := api.DownloadPetDocument(int64(1), int64(1))
+	_, err := api.DownloadPetDocument(context.Background(), int64(1), int64(1))
 	if err != nil {
 		t.Fatalf("DownloadPetDocument failed: %v", err)
 	}
@@ -831,7 +832,7 @@ func TestPetApi_GetPetPhoto(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	result, err := api.GetPetPhoto(int64(1), int64(1))
+	result, err := api.GetPetPhoto(context.Background(), int64(1), int64(1))
 	if err != nil {
 		t.Fatalf("GetPetPhoto failed: %v", err)
 	}
@@ -864,7 +865,7 @@ func TestPetApi_GetPetTagSendsByteParametersAsBase64(t *testing.T) {
 		}))
 		api := newPetApiForMock(t, server)
 		value := tc.value
-		_, _ = api.GetPetTag(int64(5), "cute", &options.GetPetTagOptions{
+		_, _ = api.GetPetTag(context.Background(), int64(5), "cute", &options.GetPetTagOptions{
 			Fingerprint:  &value,
 			XFingerprint: &value,
 		})
@@ -884,7 +885,7 @@ func TestPetApi_GetPetTag(t *testing.T) {
 
 	colors := []string{"blue", "black"}
 	sizes := []string{"S", "M"}
-	result, err := api.GetPetTag(int64(5), "cute", &options.GetPetTagOptions{
+	result, err := api.GetPetTag(context.Background(), int64(5), "cute", &options.GetPetTagOptions{
 		Colors: &colors,
 		Sizes:  &sizes,
 	})
@@ -906,7 +907,7 @@ func TestPetApi_GetExternalPetInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	result, err := api.GetExternalPetInfo(int64(1), mockExternalPetInfoServer{})
+	result, err := api.GetExternalPetInfo(context.Background(), int64(1), mockExternalPetInfoServer{})
 	if err != nil {
 		t.Fatalf("GetExternalPetInfo failed: %v", err)
 	}
@@ -927,7 +928,7 @@ func TestPetApi_DownloadBinaryMock(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, _ = api.GetPetAvatarWithHTTPInfo(int64(1))
+	_, _ = api.GetPetAvatarWithHTTPInfo(context.Background(), int64(1))
 }
 
 func TestPetApi_UploadMultipartMock(t *testing.T) {
@@ -941,7 +942,7 @@ func TestPetApi_UploadMultipartMock(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, _ = api.UploadPetCertificate(int64(1), nil)
+	_, _ = api.UploadPetCertificate(context.Background(), int64(1), nil)
 }
 
 // multipart-object-part-contenttype-go: an object/model form field serialised
@@ -981,7 +982,7 @@ func TestPetApi_MultipartObjectPartHasJSONContentType(t *testing.T) {
 	metadata := models.NewPhotoMetadata()
 	metadata.Caption = &caption
 
-	_, _ = api.AddPetPhotos(int64(1), &options.AddPetPhotosOptions{
+	_, _ = api.AddPetPhotos(context.Background(), int64(1), &options.AddPetPhotosOptions{
 		Files:    []*os.File{f},
 		Metadata: *metadata,
 	})
@@ -1042,7 +1043,7 @@ func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
 	metadata.TakenAt = &takenAt
 	metadata.Caption = &caption
 
-	_, _ = api.AddPetPhotos(int64(1), &options.AddPetPhotosOptions{
+	_, _ = api.AddPetPhotos(context.Background(), int64(1), &options.AddPetPhotosOptions{
 		Files:    []*os.File{f},
 		Metadata: *metadata,
 	})
@@ -1144,7 +1145,7 @@ func TestPetApi_MultipartFilePartContentTypeFromExtension(t *testing.T) {
 	})
 
 	metadata := models.NewPhotoMetadata()
-	_, _ = api.AddPetPhotos(int64(1), &options.AddPetPhotosOptions{
+	_, _ = api.AddPetPhotos(context.Background(), int64(1), &options.AddPetPhotosOptions{
 		Files:    []*os.File{f},
 		Metadata: *metadata,
 	})
@@ -1168,7 +1169,7 @@ func TestPetApi_ErrorHandling_NotFound(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, err := api.GetPetById(int64(99999), nil)
+	_, err := api.GetPetById(context.Background(), int64(99999), nil)
 	if err == nil {
 		t.Fatal("expected error for non-existent pet")
 	}
@@ -1196,7 +1197,7 @@ func TestPetApi_EmptyBodyConvenienceReturnsApiError(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, err := api.GetPetById(int64(1), nil)
+	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
 		t.Fatal("expected a typed ApiError when the body-returning operation receives an empty body")
 	}
@@ -1208,7 +1209,7 @@ func TestPetApi_EmptyBodyConvenienceReturnsApiError(t *testing.T) {
 		t.Errorf("expected the empty-body message naming the operation, got %q", err.Error())
 	}
 
-	result, infoErr := api.GetPetByIdWithHTTPInfo(int64(1), nil)
+	result, infoErr := api.GetPetByIdWithHTTPInfo(context.Background(), int64(1), nil)
 	if infoErr != nil {
 		t.Fatalf("WithHTTPInfo unexpected error: %v", infoErr)
 	}
@@ -1242,7 +1243,7 @@ func TestPetApi_AddPetPerCallAuthOverride(t *testing.T) {
 	perCallAuth := &perCallPetAuth{}
 	pet := models.NewPet("OverrideDog", models.Set[string]{"http://example.com/p.jpg"})
 
-	_, err := api.AddPet(*pet, &options.AddPetOptions{Auth: perCallAuth})
+	_, err := api.AddPet(context.Background(), *pet, &options.AddPetOptions{Auth: perCallAuth})
 	if err != nil {
 		t.Fatalf("AddPet failed: %v", err)
 	}
@@ -1267,7 +1268,7 @@ func TestPetApi_DeserializeUnknownEnumValueErrors(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, err := api.GetPetById(int64(1), nil)
+	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
 		t.Fatal("expected a deserialization error for an unknown enum value, got nil")
 	}
@@ -1287,7 +1288,7 @@ func TestPetApi_ErrorHandling_ServerError(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, err := api.GetPetById(int64(1), nil)
+	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
 		t.Fatal("expected error for server error response")
 	}
@@ -1323,7 +1324,7 @@ func TestPetApi_AddPetAuthInOptionsAppliesToWire(t *testing.T) {
 
 	pet := models.NewPet("AuthDog", models.Set[string]{"http://example.com/a.jpg"})
 
-	_, err := api.AddPet(*pet, &options.AddPetOptions{Auth: &perCallPetAuth{}})
+	_, err := api.AddPet(context.Background(), *pet, &options.AddPetOptions{Auth: &perCallPetAuth{}})
 	if err != nil {
 		t.Fatalf("AddPet failed: %v", err)
 	}
@@ -1356,7 +1357,7 @@ func TestPetApi_AddPetNilOptionsUsesConfiguredCredentials(t *testing.T) {
 	pet := models.NewPet("DefaultDog", models.Set[string]{"http://example.com/d.jpg"})
 
 	// nil Options: must not panic and must use the configured default credentials.
-	if _, err := api.AddPet(*pet, nil); err != nil {
+	if _, err := api.AddPet(context.Background(), *pet, nil); err != nil {
 		t.Fatalf("AddPet with nil options failed: %v", err)
 	}
 	if capturedAuth != "Bearer default-token" {
@@ -1365,7 +1366,7 @@ func TestPetApi_AddPetNilOptionsUsesConfiguredCredentials(t *testing.T) {
 
 	// Options present but Auth left nil: same fallback behaviour.
 	capturedAuth = ""
-	if _, err := api.AddPet(*pet, &options.AddPetOptions{}); err != nil {
+	if _, err := api.AddPet(context.Background(), *pet, &options.AddPetOptions{}); err != nil {
 		t.Fatalf("AddPet with nil Auth failed: %v", err)
 	}
 	if capturedAuth != "Bearer default-token" {
@@ -1395,7 +1396,7 @@ func TestPetApi_GetPetByIdUnsecuredHasNoAuthField(t *testing.T) {
 	api := petstore.NewPetApi(client, config, nil)
 
 	// Compiles only because GetPetById takes (petId, server) — no Options/Auth.
-	result, err := api.GetPetById(int64(1), nil)
+	result, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err != nil {
 		t.Fatalf("GetPetById failed: %v", err)
 	}
@@ -1423,7 +1424,7 @@ func TestPetApi_CookieParamWithCRLFFailsClosed(t *testing.T) {
 
 	for _, bad := range []string{"abc\r\ndef", "abc\ndef", "abc\rdef", "abc\x00def"} {
 		injected := bad
-		err := api.DeletePet(int64(1), &options.DeletePetOptions{ApiKey: &injected})
+		err := api.DeletePet(context.Background(), int64(1), &options.DeletePetOptions{ApiKey: &injected})
 		if err == nil {
 			t.Fatalf("expected DeletePet to fail closed for cookie value %q", bad)
 		}
@@ -1452,7 +1453,7 @@ func TestPetApi_CookieParamValidValuePasses(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 	good := "session-abc123"
-	if err := api.DeletePet(int64(1), &options.DeletePetOptions{ApiKey: &good}); err != nil {
+	if err := api.DeletePet(context.Background(), int64(1), &options.DeletePetOptions{ApiKey: &good}); err != nil {
 		t.Fatalf("DeletePet failed for a valid cookie value: %v", err)
 	}
 	if !strings.Contains(sawCookie, "api_key=session-abc123") {
@@ -1477,7 +1478,7 @@ func TestPetApi_Malformed2xxBodyFailsLoud(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, err := api.GetPetById(int64(1), nil)
+	_, err := api.GetPetById(context.Background(), int64(1), nil)
 	if err == nil {
 		t.Fatal("expected a deserialization error to propagate for a malformed 2xx body, got nil")
 	}
@@ -1634,7 +1635,7 @@ func TestPetApi_AddPetTreatmentSendsTheChosenVariantAsTheBody(t *testing.T) {
 		t.Fatalf("failed to build the request body: %v", err)
 	}
 	api := newPetApiForMock(t, server)
-	result, err := api.AddPetTreatment(int64(7), treatment, nil)
+	result, err := api.AddPetTreatment(context.Background(), int64(7), treatment, nil)
 	if err != nil {
 		t.Fatalf("AddPetTreatment failed: %v", err)
 	}

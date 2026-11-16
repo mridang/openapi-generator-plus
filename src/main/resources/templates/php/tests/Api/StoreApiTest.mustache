@@ -236,6 +236,20 @@ test('content json query param is the object serializer output', function (): vo
     expect($captured->url)->toContain('q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22%7D');
 });
 
+test('content json header param is the object serializer output', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    try {
+        $api->searchStore(new \{{invokerPackage}}\Api\Options\SearchStoreOptions(
+            xFilter: ['k' => 'a/b<'],
+        ));
+    } catch (\Throwable) {
+        /* The canned reply is not the operation's model; only the headers matter. */
+    }
+
+    expect($captured->headers['X-Filter'] ?? null)->toBe('{"k":"a/b<"}');
+});
+
 test('content json query param that cannot be serialized sends no request', function (): void {
     [$api, $captured] = newCapturingStoreApi();
 

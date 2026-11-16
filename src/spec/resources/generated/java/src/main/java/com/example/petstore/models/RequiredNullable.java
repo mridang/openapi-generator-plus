@@ -9,12 +9,16 @@
 package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import javax.annotation.Nullable;
 
 /** RequiredNullable. */
 public class RequiredNullable {
 
   /** The {@code note} property. */
   @JsonProperty("note")
+  @Nullable
+  @com.fasterxml.jackson.annotation.JsonInclude(
+      com.fasterxml.jackson.annotation.JsonInclude.Include.ALWAYS)
   public String note;
 
   /* No-arg constructor required by deserialization/test tooling. It
@@ -36,8 +40,8 @@ public class RequiredNullable {
    * @param note the {@code note} property
    */
   @com.fasterxml.jackson.annotation.JsonCreator
-  public RequiredNullable(@JsonProperty(value = "note", required = true) String note) {
-    this.note = java.util.Objects.requireNonNull(note, "note is required");
+  public RequiredNullable(@JsonProperty(value = "note", required = true) @Nullable String note) {
+    this.note = note;
   }
 
   /* Value-equality based on all declared fields. Generated so model

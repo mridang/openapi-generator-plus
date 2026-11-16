@@ -1,6 +1,6 @@
 {{>api_info}}
 
-import type { ApiClient } from '../api-client{{importFileExtension}}';
+import type { ApiClient, RequestOptions } from '../api-client{{importFileExtension}}';
 import { ApiError } from '../errors/api-error{{importFileExtension}}';
 import type { ApiResult } from '../api-result{{importFileExtension}}';
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
@@ -152,6 +152,7 @@ export class {{classname}} extends BaseApi {
 {{#vendorExtensions.op.hasContentTypeSelector}}
    * @param requestContentType optional request Content-Type; one of {{#vendorExtensions.op.contentTypeOptions}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.contentTypeOptions}}. Defaults to the first declared type ({{vendorExtensions.op.effectiveConsumes}}) when omitted.
 {{/vendorExtensions.op.hasContentTypeSelector}}
+   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
 {{#returnType}}
    * @return {{{returnType}}}
 {{/returnType}}
@@ -187,6 +188,7 @@ export class {{classname}} extends BaseApi {
 
   /**
    * {{&summary}} (with HTTP info)
+   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
    * @throws {ApiError} if fails to make API call
 {{#isDeprecated}}
    * @deprecated This operation is deprecated.
@@ -248,7 +250,7 @@ export class {{classname}} extends BaseApi {
         a%252Fb). Encode once, in the serializer. A format date value is cut
         to its date part first and then styled like any other value, so a
         matrix or label style still applies. }}
-    path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string);
+    path = path.replace(`{${'{{baseName}}'}}`, {{#vendorExtensions.param.queryContent}}ValueSerializer.encodePathSegment(ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string{{/vendorExtensions.param.queryContent}});
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
@@ -282,14 +284,14 @@ export class {{classname}} extends BaseApi {
     const headerParams: Record<string, string> = {};
 {{#headerParams}}
     if (options?.{{paramName}} != null) {
-      headerParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'header', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string;
+      headerParams['{{baseName}}'] = {{#vendorExtensions.param.queryContent}}ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'header', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string{{/vendorExtensions.param.queryContent}};
     }
 {{/headerParams}}
 {{#hasCookieParams}}
     const cookieParts: string[] = [];
 {{#cookieParams}}
     if (options?.{{paramName}} != null) {
-      const {{paramName}}CookieValue = `${ ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) }`;
+      const {{paramName}}CookieValue = {{#vendorExtensions.param.queryContent}}ValueSerializer.encodeQueryComponent(ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}`${ ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) }`{{/vendorExtensions.param.queryContent}};
       /* RFC 6265 — reject CR/LF and other control characters in the
        * serialized cookie value before it is joined into the Cookie
        * header. This mirrors the validation the auth-cookie path applies
@@ -358,11 +360,11 @@ export class {{classname}} extends BaseApi {
       [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
       {{#vendorExtensions.op.hasContentTypeSelector}}requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}},
       {{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isArray}}{{#isMap}}(json: unknown) => ObjectSerializer.deserializeMap(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}{{#returnProperty}}{{#isByteArray}}{{^isBinary}}(json: unknown) => ObjectSerializer.decodeBase64(json as string){{/isBinary}}{{#isBinary}}(json: unknown) => ObjectSerializer.toBinary(json){{/isBinary}}{{/isByteArray}}{{^isByteArray}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => json as {{{returnType}}}{{/isEnumRef}}{{/isByteArray}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}{{#returnProperty}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/isEnumRef}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},
-      {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.auth{{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}undefined{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{#returnType}},
+      {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.auth{{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}undefined{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
       {{#bodyParam}}{{#isBinary}}true{{/isBinary}}{{^isBinary}}false{{/isBinary}}{{/bodyParam}}{{^bodyParam}}false{{/bodyParam}},
-      '{{#returnProperty}}{{#isBinary}}binary{{/isBinary}}{{^isBinary}}{{#isFile}}binary{{/isFile}}{{^isFile}}{{#isByteArray}}model{{/isByteArray}}{{^isByteArray}}{{#isString}}{{^isEnumRef}}string{{/isEnumRef}}{{#isEnumRef}}model{{/isEnumRef}}{{/isString}}{{^isString}}model{{/isString}}{{/isByteArray}}{{/isFile}}{{/isBinary}}{{/returnProperty}}{{^returnProperty}}model{{/returnProperty}}',
-      '{{nickname}}'{{/returnType}}{{^returnType}}{{#bodyParam}}{{#isBinary}},
-      true{{/isBinary}}{{/bodyParam}}{{/returnType}}
+      {{#returnType}}'{{#returnProperty}}{{#isBinary}}binary{{/isBinary}}{{^isBinary}}{{#isFile}}binary{{/isFile}}{{^isFile}}{{#isByteArray}}model{{/isByteArray}}{{^isByteArray}}{{#isString}}{{^isEnumRef}}string{{/isEnumRef}}{{#isEnumRef}}model{{/isEnumRef}}{{/isString}}{{^isString}}model{{/isString}}{{/isByteArray}}{{/isFile}}{{/isBinary}}{{/returnProperty}}{{^returnProperty}}model{{/returnProperty}}'{{/returnType}}{{^returnType}}undefined{{/returnType}},
+      '{{nickname}}',
+      requestOptions
     );
   }
   {{/operation}}

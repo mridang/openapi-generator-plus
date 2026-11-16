@@ -75,14 +75,20 @@ OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
 
-### Numeric / string constraint validation
+### Schema constraints
 
-OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
-`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
-**not enforced** by this SDK. The server is the authoritative
-validator; client-side enforcement is a DX nicety, not a correctness
-requirement. If you want fast-fail validation before the network
-round trip, plug in a JSON Schema validator library for your language.
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server, and by
+the generated models only where Go's model layer does it natively. Go's
+`encoding/json` validates types, and the generated models additionally check
+that required properties are present, that enum values are declared members
+and that `format: uri` and `format: byte` values are well formed. The numeric,
+string and array constraints above are not checked on the client; if you want
+fast-fail validation before the network round trip, plug in a JSON Schema
+validator library.
+
+`uniqueItems` arrays are sent in the order the slice holds them, which is
+Go's natural collection order: they are not sorted.
 
 ### SOCKS proxies
 
@@ -94,11 +100,25 @@ HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
 
-### Per-call cancellation
+### Cancellation
 
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutError`.
+Every operation takes a `ctx context.Context` as its first parameter.
+Cancelling it aborts the request, and the error satisfies
+`errors.Is(err, context.Canceled)`; it is distinct from the
+`NetworkTimeoutError` raised when the transport timeout elapses. The client
+also holds a base context that `Close()` cancels, which aborts every request
+still in flight; either context cancels a request.
+
+### Bringing your own HTTP client
+
+`TransportOptionsBuilder.HttpClient(doer)` accepts anything with a
+`Do(*http.Request) (*http.Response, error)` method (an `*http.Client`
+qualifies) and `TransportOptionsBuilder.RoundTripper(rt)` wraps your
+`http.RoundTripper`. The SDK keeps its defaults on top (user agent, headers,
+timeout and, around a RoundTripper or an `*http.Client`'s transport, its
+redirect policy) and never closes what you supply. Combining a supplied
+transport with `Proxy`, `CACertPath` or `VerifySsl(false)` is rejected by
+`Build()` with `ErrTransportConflict`: configure those on your own transport.
 
 ### `LICENSE` file is not auto-emitted
 

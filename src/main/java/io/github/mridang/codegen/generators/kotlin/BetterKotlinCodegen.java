@@ -25,6 +25,7 @@ import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -990,25 +991,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             final CodegenModel model = modelMap.getModel();
             boolean hasContentEqualsField = false;
             for (final CodegenProperty prop : model.vars) {
-                final String dataType = prop.dataType == null ? "" : prop.dataType;
-                final boolean byteArray = "ByteArray".equals(dataType);
-                final boolean array = dataType.startsWith("Array<");
-                final boolean listByteArray =
-                        dataType.startsWith("List<") && dataType.contains("ByteArray");
-                // A MAP whose values are byte arrays needs the same treatment as a
-                // list of them. Kotlin's Map.equals compares values with ==, which
-                // for ByteArray is identity, so two maps holding equal bytes under
-                // equal keys would compare unequal. Compare per key instead.
-                final boolean mapByteArray =
-                        dataType.startsWith("Map<") && dataType.contains("ByteArray");
-                prop.vendorExtensions.put("eqByteArray", byteArray || array);
-                prop.vendorExtensions.put("eqListByteArray", listByteArray);
-                prop.vendorExtensions.put("eqMapByteArray", mapByteArray);
-                // BigDecimal.equals/hashCode depend on the scale (1.5 != 1.50), unlike
-                // the decimal types of the other SDKs: compare by numeric value.
-                final boolean decimal = "BigDecimal".equals(dataType);
-                prop.vendorExtensions.put("eqDecimal", decimal);
-                if (byteArray || array || listByteArray || mapByteArray || decimal) {
+                if (markEquality(prop)) {
                     hasContentEqualsField = true;
                 }
             }
@@ -1023,6 +1006,164 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             }
         }
         dropSamePackageImports(result);
+        return result;
+    }
+
+    /**
+     * Puts the per-operation server before the optional-parameters object in
+     * every operation signature: required parameters, then server, then the
+     * options object. Adding security (which adds the options object) never
+     * moves an existing argument.
+     *
+     * @param objs the operations of one API class
+     * @param allModels every model
+     * @return the processed operations
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        if (result.getOperations() != null) {
+            for (final CodegenOperation op : result.getOperations().getOperation()) {
+                if (op.vendorExtensions == null) {
+                    continue;
+                }
+                final Object deco = op.vendorExtensions.get("op");
+                if (deco instanceof Map) {
+                    final Map<String, Object> opDeco = (Map<String, Object>) deco;
+                    final Object sigArgs = opDeco.get("signatureArgs");
+                    if (sigArgs instanceof List) {
+                        opDeco.put(
+                                "signatureArgs",
+                                serverBeforeOptions((List<Map<String, Object>>) sigArgs));
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Moves the server entry directly before the options entry.
+     *
+     * @param args the shared signature arguments (path, body, options, server)
+     * @return a new list with the server entry directly before the options entry
+     */
+    static List<Map<String, Object>> serverBeforeOptions(final List<Map<String, Object>> args) {
+        final List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Object> options = null;
+        for (final Map<String, Object> arg : args) {
+            if (Boolean.TRUE.equals(arg.get("isOptions"))) {
+                options = arg;
+            } else if (Boolean.TRUE.equals(arg.get("isServer"))) {
+                result.add(arg);
+                if (options != null) {
+                    result.add(options);
+                    options = null;
+                }
+            } else {
+                result.add(arg);
+            }
+        }
+        if (options != null) {
+            result.add(options);
+        }
+        return result;
+    }
+
+    /**
+     * Records the per-property equality strategy on {@code prop} and reports
+     * whether the property forces hand-written {@code equals}/{@code hashCode}.
+     *
+     * @param prop the property to classify
+     * @return true when the property needs content-based comparison
+     */
+    private static boolean markEquality(CodegenProperty prop) {
+        final String dataType = prop.dataType == null ? "" : prop.dataType;
+        final boolean byteArray = "ByteArray".equals(dataType);
+        final boolean array = dataType.startsWith("Array<");
+        final boolean listByteArray =
+                dataType.startsWith("List<") && dataType.contains("ByteArray");
+        // A MAP whose values are byte arrays needs the same treatment as a
+        // list of them. Kotlin's Map.equals compares values with ==, which
+        // for ByteArray is identity, so two maps holding equal bytes under
+        // equal keys would compare unequal. Compare per key instead.
+        final boolean mapByteArray = dataType.startsWith("Map<") && dataType.contains("ByteArray");
+        prop.vendorExtensions.put("eqByteArray", byteArray || array);
+        prop.vendorExtensions.put("eqListByteArray", listByteArray);
+        prop.vendorExtensions.put("eqMapByteArray", mapByteArray);
+        // BigDecimal.equals/hashCode depend on the scale (1.5 != 1.50), unlike
+        // the decimal types of the other SDKs: compare by numeric value.
+        final boolean decimal = "BigDecimal".equals(dataType);
+        prop.vendorExtensions.put("eqDecimal", decimal);
+        return byteArray || array || listByteArray || mapByteArray || decimal;
+    }
+
+    /**
+     * Turns an {@code allOf} family with a discriminator into a sealed
+     * interface plus data-class subtypes.
+     *
+     * <p>A discriminated base (a discriminator on a plain object schema, not a
+     * {@code oneOf} wrapper) is flagged {@code isDiscriminatedBase}: the model
+     * template emits it as a {@code sealed interface} whose serializer picks the
+     * subtype by the discriminator value. Each subtype that names such a base
+     * keeps its parent and gets the base fields flattened into its own
+     * constructor, with {@code overridesBase} set on the ones the interface
+     * declares. A subtype whose parent is not a discriminated base drops the
+     * parent, so it stays an ordinary data class.
+     *
+     * @param objs every model, by schema name
+     * @return the processed models
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        final Map<String, CodegenModel> bases = new HashMap<>();
+        for (final ModelsMap models : result.values()) {
+            for (final ModelMap modelMap : models.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                final boolean wrapper =
+                        (model.oneOf != null && !model.oneOf.isEmpty())
+                                || (model.anyOf != null && !model.anyOf.isEmpty());
+                if (model.discriminator != null && model.parent == null && !model.isEnum && !wrapper) {
+                    modelMap.put("isDiscriminatedBase", true);
+                    bases.put(model.classname, model);
+                }
+            }
+        }
+        for (final ModelsMap models : result.values()) {
+            for (final ModelMap modelMap : models.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (model.parent == null) {
+                    continue;
+                }
+                final CodegenModel base = bases.get(model.parent);
+                if (base == null) {
+                    model.parent = null;
+                    continue;
+                }
+                final Set<String> declared = new HashSet<>();
+                for (final CodegenProperty prop : base.vars) {
+                    if (!prop.isEnum) {
+                        declared.add(prop.name);
+                    }
+                }
+                final List<CodegenProperty> flattened = new ArrayList<>(model.allVars);
+                boolean hasContentEqualsField = false;
+                for (final CodegenProperty prop : flattened) {
+                    postProcessModelProperty(model, prop);
+                    prop.vendorExtensions.put("overridesBase", declared.contains(prop.name));
+                    if (markEquality(prop)) {
+                        hasContentEqualsField = true;
+                    }
+                }
+                model.vars = flattened;
+                if (hasContentEqualsField) {
+                    modelMap.put("hasContentEqualsField", true);
+                }
+            }
+        }
         return result;
     }
 

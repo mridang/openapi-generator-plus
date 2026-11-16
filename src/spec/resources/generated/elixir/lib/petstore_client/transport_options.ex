@@ -57,6 +57,15 @@ defmodule PetstoreClient.TransportOptions do
     unique UUID on every request. Useful for distributed tracing and log
     correlation. The header is only injected if the caller has not already set
     one.
+  * `req_options` - Extra options handed to `Req.new/1`, for a custom transport
+    such as an `:adapter` function (a test double, an instrumented adapter) or
+    a `:plug`. The SDK's own settings (timeouts, retries, redirect policy,
+    proxy, TLS, user agent) are applied on top and win over the same key here.
+    The SDK never owns what you supply: nothing in it is closed or stopped by
+    `close/1`, the caller keeps the lifecycle. Supplying `:connect_options` or
+    `:finch` together with `proxy`, `ca_cert_path` or `verify_ssl: false`
+    raises `ArgumentError`, because both would configure the same connection
+    pool.
   """
   @type t :: %__MODULE__{
           verify_ssl: boolean(),
@@ -67,7 +76,8 @@ defmodule PetstoreClient.TransportOptions do
           max_redirects: non_neg_integer() | nil,
           user_agent: String.t() | nil,
           default_headers: %{optional(String.t()) => String.t()},
-          inject_request_id: boolean()
+          inject_request_id: boolean(),
+          req_options: keyword()
         }
 
   defstruct verify_ssl: true,
@@ -78,7 +88,8 @@ defmodule PetstoreClient.TransportOptions do
             max_redirects: nil,
             user_agent: "petstore_client/1.0.0 (elixir)",
             default_headers: %{},
-            inject_request_id: false
+            inject_request_id: false,
+            req_options: []
 
   # The proxy URL may carry `user:pass@` credentials and the default headers
   # may carry credentials too, so the Inspect representation masks both as
@@ -143,11 +154,13 @@ defmodule PetstoreClient.TransportOptions do
     * `:user_agent` - Custom User-Agent header value, or `nil` to omit.
     * `:default_headers` - Transport-level default headers.
     * `:inject_request_id` - Whether to auto-inject an X-Request-ID header.
+    * `:req_options` - Extra `Req.new/1` options (a custom `:adapter` or `:plug`); the SDK's own settings win.
 
   ## Raises
 
     `ArgumentError` if the proxy URL is not a valid URL with an http or https scheme and a host,
-    or if `:timeout` is negative.
+    if `:timeout` is negative, if `:req_options` is not a keyword list, or if it carries
+    `:connect_options` or `:finch` while `proxy`, `ca_cert_path` or `verify_ssl: false` is set.
 
   """
   @spec new(keyword()) :: t()
@@ -172,6 +185,26 @@ defmodule PetstoreClient.TransportOptions do
       end
     end
 
+    validate_req_options!(result)
+
     result
+  end
+
+  defp validate_req_options!(%__MODULE__{req_options: req_options} = result) do
+    unless Keyword.keyword?(req_options) do
+      raise ArgumentError, "Invalid req_options (must be a keyword list): #{inspect(req_options)}"
+    end
+
+    own_pool_settings? =
+      result.proxy != nil or result.ca_cert_path != nil or result.verify_ssl == false
+
+    if own_pool_settings? and
+         (Keyword.has_key?(req_options, :connect_options) or Keyword.has_key?(req_options, :finch)) do
+      raise ArgumentError,
+            "req_options :connect_options/:finch conflicts with the SDK's own proxy/TLS settings; " <>
+              "configure the connection pool in one place"
+    end
+
+    :ok
   end
 end

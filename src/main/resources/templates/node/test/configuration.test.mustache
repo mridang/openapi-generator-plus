@@ -204,4 +204,19 @@ describe('Configuration', () => {
     expect(text).toContain('visible');
     expect(text).toContain('***');
   });
+
+  test('signal is undefined by default', () => {
+    expect(Configuration.builder().build().signal).toBeUndefined();
+  });
+
+  test('the builder stores the client-level signal', () => {
+    const controller = new AbortController();
+    const config = Configuration.builder().signal(controller.signal).build();
+    expect(config.signal).toBe(controller.signal);
+  });
+
+  test('the signal is not part of the printable form', () => {
+    const config = Configuration.builder().signal(new AbortController().signal).build();
+    expect(Object.keys(config.toJSON())).toEqual(['baseUrl', 'defaultHeaders']);
+  });
 });

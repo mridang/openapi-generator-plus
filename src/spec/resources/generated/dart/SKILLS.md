@@ -236,6 +236,14 @@ final client = Client(
 );
 ```
 
+### Custom HTTP Client
+
+```dart
+final transport = TransportOptions.builder()
+  .httpClient(myHttpClient) // a package:http Client you own; the SDK never closes it
+  .build();
+```
+
 ## API Methods
 
 Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

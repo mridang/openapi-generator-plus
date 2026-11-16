@@ -1,5 +1,8 @@
 {{>api_info}}
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Immutable HTTP transport configuration for ``DefaultApiClient``.
 ///
@@ -84,6 +87,17 @@ public final class TransportOptions: Sendable {
     /// injected if the caller has not already set one.
     public let injectRequestID: Bool
 
+    /// A caller-supplied `URLSession` to send requests through, or `nil` to
+    /// have the SDK build its own.
+    ///
+    /// The SDK keeps applying its defaults on top of a supplied session: the
+    /// timeout, the `User-Agent`, the default headers and the request id are
+    /// set per request. The caller owns the session's lifecycle, so
+    /// ``DefaultApiClient/close()`` never invalidates it. A session cannot be
+    /// combined with the SDK's own proxy, TLS or redirect settings;
+    /// ``TransportOptionsBuilder/build()`` rejects that combination.
+    public let session: URLSession?
+
     fileprivate init(
         verifySsl: Bool,
         caCertPath: String?,
@@ -93,7 +107,8 @@ public final class TransportOptions: Sendable {
         maxRedirects: Int?,
         userAgent: String?,
         defaultHeaders: [String: String],
-        injectRequestID: Bool
+        injectRequestID: Bool,
+        session: URLSession?
     ) {
         self.verifySsl = verifySsl
         self.caCertPath = caCertPath
@@ -104,6 +119,7 @@ public final class TransportOptions: Sendable {
         self.userAgent = userAgent
         self._defaultHeaders = defaultHeaders
         self.injectRequestID = injectRequestID
+        self.session = session
     }
 
     /// Create a new builder for constructing ``TransportOptions`` instances.
@@ -139,6 +155,7 @@ public final class TransportOptionsBuilder {
     private var userAgent: String? = "{{userAgentDefault}}"
     private var defaultHeaders: [String: String] = [:]
     private var injectRequestID: Bool = false
+    private var session: URLSession? = nil
 
     public init() {}
 
@@ -222,10 +239,27 @@ public final class TransportOptionsBuilder {
         return self
     }
 
+    /// Send requests through a caller-supplied `URLSession`.
+    ///
+    /// The SDK keeps its timeout, `User-Agent`, default headers and request id
+    /// on top of the session, and never invalidates it: the caller owns its
+    /// lifecycle. Do not combine it with ``proxy(_:)``, ``caCertPath(_:)``,
+    /// ``verifySsl(_:)`` set to false, ``followRedirects(_:)`` set to false or
+    /// ``maxRedirects(_:)``: those are properties of the session itself, and
+    /// ``build()`` rejects the conflict.
+    @discardableResult
+    public func session(_ val: URLSession?) -> TransportOptionsBuilder {
+        self.session = val
+        return self
+    }
+
     /// Build and return an immutable ``TransportOptions`` instance.
     ///
     /// - Throws: ``ConfigurationError/invalidProxy(_:)`` if the proxy URL is
-    ///   not valid or does not use the http or https scheme.
+    ///   not valid or does not use the http or https scheme, and
+    ///   ``ConfigurationError/invalidArgument(_:)`` if a supplied session is
+    ///   combined with a proxy, a CA certificate, disabled TLS verification
+    ///   or a redirect policy.
     public func build() throws -> TransportOptions {
         var parsedProxy: URL? = nil
         if let val = proxy {
@@ -241,6 +275,20 @@ public final class TransportOptionsBuilder {
             }
             parsedProxy = parsed
         }
+        if session != nil {
+            var conflicts: [String] = []
+            if parsedProxy != nil { conflicts.append("proxy") }
+            if caCertPath != nil { conflicts.append("caCertPath") }
+            if !verifySsl { conflicts.append("verifySsl(false)") }
+            if !followRedirects { conflicts.append("followRedirects(false)") }
+            if maxRedirects != nil { conflicts.append("maxRedirects") }
+            if !conflicts.isEmpty {
+                throw ConfigurationError.invalidArgument(
+                    "a supplied URLSession conflicts with the SDK's own settings: "
+                        + conflicts.joined(separator: ", ")
+                        + "; configure them on the session instead")
+            }
+        }
         return assemble(proxy: parsedProxy)
     }
 
@@ -254,7 +302,8 @@ public final class TransportOptionsBuilder {
             maxRedirects: maxRedirects,
             userAgent: userAgent,
             defaultHeaders: defaultHeaders,
-            injectRequestID: injectRequestID
+            injectRequestID: injectRequestID,
+            session: session
         )
     }
 }

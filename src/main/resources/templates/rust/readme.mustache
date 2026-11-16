@@ -96,15 +96,20 @@ OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
 
-### Numeric / string constraint validation
+### Schema constraints
 
-OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
-`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
-**not enforced** by this SDK. The server is the authoritative
-validator; client-side enforcement is a DX nicety, not a correctness
-requirement. If you want fast-fail validation before the network
-round trip, plug in a JSON Schema validator library for your language.
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server. The
+generated models do not enforce them: the Rust model layer is plain `serde`
+structs, which check types and required keys but have no native support for
+these keywords, so a value outside a constraint is sent as given and the
+server rejects it. If you want fast-fail validation before the network round
+trip, plug in a JSON Schema validator crate.
 
+`uniqueItems` arrays are modelled as `HashSet`, which has no collection order
+of its own. The SDK does not promise any particular order for them on the
+wire; when every member is a number, string or boolean it writes them in
+ascending order only so that repeated runs produce the same bytes.
 
 ### SOCKS proxies
 
@@ -115,6 +120,19 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### Custom HTTP client
+
+The client's `with_http_client(authenticator, client, transport_options)` constructor sends
+every request through a `reqwest::Client` you built yourself (a custom
+connector, a shared pool, a test double). The SDK defaults (timeout,
+`User-Agent`, request ids, default headers, redirect handling) still apply on
+top. Build the client with `reqwest::redirect::Policy::none()` so the SDK's own
+redirect handling stays in charge. You own the client's lifecycle: the SDK never
+shuts it down. Setting a proxy, a CA certificate or `verify_ssl(false)` on
+`TransportOptions` together with a supplied client fails with
+`ConfigurationError::InvalidArgument`, because those belong to the client you
+built.
 
 ### Per-call cancellation
 

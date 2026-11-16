@@ -8,11 +8,14 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.request.get
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -22,6 +25,40 @@ import org.junit.jupiter.api.Test
 class DefaultApiClientTest {
 
     private val caCertPath = "/app/src/test/resources/certs/ca.pem"
+
+    @Nested
+    @DisplayName("injected transport")
+    inner class InjectedTransport {
+
+        @Test
+        @DisplayName("a caller-supplied HttpClient receives the request with the SDK user agent, and is never closed")
+        fun callerSuppliedClientReceivesTheRequest() {
+            var seenUserAgent: String? = null
+            var seenUrl: String? = null
+            val engine = MockEngine { req ->
+                seenUserAgent = req.headers[HttpHeaders.UserAgent]
+                seenUrl = req.url.toString()
+                respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+            }
+            val custom = HttpClient(engine)
+            try {
+                val transport = TransportOptions.builder().httpClient(custom).userAgent("sdk-agent/1").build()
+                val apiClient = DefaultApiClient(transport)
+                val response = runBlocking {
+                    apiClient.sendRequest("GET", "https://h.example.com/v1/ping", emptyMap(), null)
+                }
+                assertEquals(200, response.statusCode)
+                assertEquals("https://h.example.com/v1/ping", seenUrl)
+                assertEquals("sdk-agent/1", seenUserAgent)
+                apiClient.close()
+                assertTrue(custom.isActive, "the SDK must not close a caller-supplied client")
+                val again = runBlocking { custom.get("https://h.example.com/v1/ping") }
+                assertEquals(HttpStatusCode.OK, again.status)
+            } finally {
+                custom.close()
+            }
+        }
+    }
 
     @Nested
     @DisplayName("TLS verification disabled")

@@ -1449,6 +1449,22 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         final Map<String, Object> processedOps =
                 (Map<String, Object>) processed.get("operations");
         if (processedOps != null) {
+            final List<CodegenOperation> orderedOps =
+                    (List<CodegenOperation>) processedOps.get("operation");
+            if (orderedOps != null) {
+                for (final CodegenOperation op : orderedOps) {
+                    final Object deco = op.vendorExtensions == null
+                            ? null : op.vendorExtensions.get("op");
+                    if (deco instanceof Map) {
+                        final Map<String, Object> decoMap = (Map<String, Object>) deco;
+                        final Object sigArgs = decoMap.get("signatureArgs");
+                        if (sigArgs instanceof List) {
+                            decoMap.put("signatureArgs",
+                                    serverBeforeOptions((List<Map<String, Object>>) sigArgs));
+                        }
+                    }
+                }
+            }
             processed.put("hasServerTypeDefs", processedOps.get("hasServerTypeDefs"));
             final List<Map<String, Object>> serverTypeDefs =
                     (List<Map<String, Object>>) processedOps.get("serverTypeDefs");
@@ -1457,6 +1473,43 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             }
         }
         return processed;
+    }
+
+    /**
+     * Returns the operation signature arguments with the per-operation server placed before the
+     * optional-parameters object: required parameters, then server, then options. A required
+     * options object stays before the server, because PHP deprecates an optional argument that
+     * precedes a required one.
+     *
+     * @param args the shared signature arguments (path, body, options, server)
+     * @return a new list with the server entry directly before the options entry
+     */
+    static List<Map<String, Object>> serverBeforeOptions(final List<Map<String, Object>> args) {
+        for (final Map<String, Object> arg : args) {
+            if (Boolean.TRUE.equals(arg.get("isOptions"))
+                    && !Boolean.TRUE.equals(arg.get("nullable"))) {
+                return new ArrayList<>(args);
+            }
+        }
+        final List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Object> options = null;
+        for (final Map<String, Object> arg : args) {
+            if (Boolean.TRUE.equals(arg.get("isOptions"))) {
+                options = arg;
+            } else if (Boolean.TRUE.equals(arg.get("isServer"))) {
+                result.add(arg);
+                if (options != null) {
+                    result.add(options);
+                    options = null;
+                }
+            } else {
+                result.add(arg);
+            }
+        }
+        if (options != null) {
+            result.add(options);
+        }
+        return result;
     }
 
     /**

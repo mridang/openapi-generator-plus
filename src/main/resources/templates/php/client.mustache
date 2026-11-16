@@ -4,6 +4,9 @@ namespace {{invokerPackage}};
 use {{invokerPackage}}\Auth\Authenticator;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
 use {{invokerPackage}}\Auth\HttpAwareAuthenticator;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
@@ -126,5 +129,51 @@ class {{clientClassName}}
         ?ApiClient $apiClient = null
     ): self {
         return new self($authenticator, $transportOptions, $apiClient);
+    }
+
+    /**
+     * Creates a client that sends every request through a caller-supplied PSR-18
+     * HTTP client.
+     *
+     * The SDK keeps its own defaults on top of the supplied client (User-Agent,
+     * default headers, request id, redirect handling and the typed error
+     * mapping) and never closes or otherwise manages the lifecycle of
+     * $httpClient: the caller owns it. PSR-18 carries no transport settings, so
+     * TLS verification, a custom CA bundle and a proxy belong on $httpClient;
+     * supplying any of them in $transportOptions as well is a conflict and is
+     * rejected up front rather than being silently ignored.
+     *
+     * @param Authenticator           $authenticator    Provides host URL and auth headers.
+     * @param ClientInterface         $httpClient       PSR-18 client performing the wire send (redirects disabled).
+     * @param RequestFactoryInterface $requestFactory   PSR-17 factory used to build requests.
+     * @param StreamFactoryInterface  $streamFactory    PSR-17 factory used to build request bodies.
+     * @param TransportOptions|null   $transportOptions Request-level options (default headers, User-Agent, request id).
+     * @return self Configured client instance.
+     * @throws \InvalidArgumentException when $transportOptions sets a proxy, a CA bundle or disables TLS
+     *                                   verification, which the supplied client owns.
+     */
+    public static function withHttpClient(
+        Authenticator $authenticator,
+        ClientInterface $httpClient,
+        RequestFactoryInterface $requestFactory,
+        StreamFactoryInterface $streamFactory,
+        ?TransportOptions $transportOptions = null
+    ): self {
+        $transportOptions ??= TransportOptions::builder()->build();
+        $conflicts = $transportOptions->proxy !== null
+            || $transportOptions->caCertPath !== null
+            || !$transportOptions->verifySsl;
+        if ($conflicts) {
+            throw new \InvalidArgumentException(
+                'TransportOptions proxy, caCertPath and verifySsl conflict with a supplied PSR-18 client: '
+                . 'configure proxy and TLS on the client you pass in, not on TransportOptions.'
+            );
+        }
+
+        return new self(
+            $authenticator,
+            $transportOptions,
+            new Psr18ApiClient($httpClient, $requestFactory, $streamFactory, $transportOptions)
+        );
     }
 }

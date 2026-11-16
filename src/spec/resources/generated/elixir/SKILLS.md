@@ -216,6 +216,16 @@ transport = PetstoreClient.TransportOptions.new(
 client = PetstoreClient.Client.new(authenticator, transport)
 ```
 
+### Custom HTTP Transport
+
+Pass Req options such as an `:adapter` function or a `:plug` through `req_options`. The SDK's own settings (timeouts, retries, redirect policy, proxy, TLS, user agent) are applied on top, and the SDK never closes anything you supply. Combining `:connect_options` or `:finch` with `proxy`, `ca_cert_path` or `verify_ssl: false` raises `ArgumentError`.
+
+```elixir
+transport = PetstoreClient.TransportOptions.new(req_options: [adapter: &MyApp.Http.adapter/1])
+
+client = PetstoreClient.Client.new(authenticator, transport)
+```
+
 ## API Methods
 
 Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

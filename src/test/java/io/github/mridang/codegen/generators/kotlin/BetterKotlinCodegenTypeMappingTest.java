@@ -1,15 +1,22 @@
 package io.github.mridang.codegen.generators.kotlin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.mridang.codegen.generators.ProbeGenerator;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Validates Bucket 4.8 ({@code format:time} -&gt; {@code LocalTime},
@@ -122,5 +129,111 @@ class BetterKotlinCodegenTypeMappingTest {
         assertEquals("X-Api'Key", BetterKotlinCodegen.escapeKotlinString("X-Api'Key"));
         assertEquals("X-\\$ident", BetterKotlinCodegen.escapeKotlinString("X-$ident"));
         assertEquals("a\\\"b\\\\c", BetterKotlinCodegen.escapeKotlinString("a\"b\\c"));
+    }
+
+    private static final String ALL_OF_DISCRIMINATOR_SPEC =
+            String.join(
+                    "\n",
+                    "openapi: 3.0.3",
+                    "info: {title: t, version: '1'}",
+                    "paths:",
+                    "  /animal:",
+                    "    get:",
+                    "      operationId: getAnimal",
+                    "      responses:",
+                    "        '200':",
+                    "          description: ok",
+                    "          content:",
+                    "            application/json:",
+                    "              schema: {$ref: '#/components/schemas/Animal'}",
+                    "components:",
+                    "  schemas:",
+                    "    Animal:",
+                    "      type: object",
+                    "      required: [petType]",
+                    "      properties:",
+                    "        petType: {type: string}",
+                    "        name: {type: string}",
+                    "      discriminator:",
+                    "        propertyName: petType",
+                    "        mapping:",
+                    "          cat: '#/components/schemas/Cat'",
+                    "          dog: '#/components/schemas/Dog'",
+                    "    Cat:",
+                    "      allOf:",
+                    "        - $ref: '#/components/schemas/Animal'",
+                    "        - type: object",
+                    "          properties:",
+                    "            indoor: {type: boolean}",
+                    "    Dog:",
+                    "      allOf:",
+                    "        - $ref: '#/components/schemas/Animal'",
+                    "        - type: object",
+                    "          properties:",
+                    "            barkVolume: {type: integer, format: int32}",
+                    "");
+
+    private static String generated(Path out, String fileName) throws IOException {
+        try (Stream<Path> files = Files.walk(out)) {
+            final Path found =
+                    files.filter(p -> p.getFileName().toString().equals(fileName))
+                            .findFirst()
+                            .orElseThrow(() -> new AssertionError(fileName + " was not generated"));
+            return Files.readString(found);
+        }
+    }
+
+    /*
+     * An allOf with a discriminator is a sealed interface for the base and
+     * data-class subtypes with the base fields flattened in, never an
+     * `open data class` (which Kotlin rejects).
+     */
+    @Test
+    void allOfWithDiscriminatorIsASealedInterfaceWithDataClassSubtypes(@TempDir Path dir)
+            throws IOException {
+        final Path spec = dir.resolve("openapi.yaml");
+        Files.writeString(spec, ALL_OF_DISCRIMINATOR_SPEC);
+        final Path out = dir.resolve("out");
+        ProbeGenerator.generate(
+                "kotlin-plus",
+                Map.of(
+                        "modelPackage", "com.example.models",
+                        "apiPackage", "com.example.api",
+                        "invokerPackage", "com.example"),
+                out,
+                spec.toString());
+
+        final String animal = generated(out, "Animal.kt");
+        assertTrue(animal.contains("sealed interface Animal"), animal);
+        assertTrue(animal.contains("\"cat\" ->"), "decoded by the discriminator value");
+
+        final String cat = generated(out, "Cat.kt");
+        assertFalse(cat.contains("open data class"), cat);
+        assertTrue(cat.contains("data class Cat("), cat);
+        assertTrue(cat.contains(") : Animal"), cat);
+        assertTrue(cat.contains("override val petType"), "base field flattened and overridden");
+        assertTrue(cat.contains("val indoor"), cat);
+    }
+
+    /* Required parameters, then server, then the options object. */
+    @Test
+    void placesTheServerBeforeTheOptionsObject() {
+        final Map<String, Object> path = Map.of("paramName", "petId");
+        final Map<String, Object> options = Map.of("paramName", "options", "isOptions", true);
+        final Map<String, Object> server = Map.of("paramName", "server", "isServer", true);
+
+        assertEquals(
+                List.of(path, server, options),
+                BetterKotlinCodegen.serverBeforeOptions(List.of(path, options, server)));
+    }
+
+    @Test
+    void keepsASignatureWithoutAServerUnchanged() {
+        final Map<String, Object> path = Map.of("paramName", "petId");
+        final Map<String, Object> options = Map.of("paramName", "options", "isOptions", true);
+
+        assertEquals(
+                List.of(path, options),
+                BetterKotlinCodegen.serverBeforeOptions(List.of(path, options)));
     }
 }

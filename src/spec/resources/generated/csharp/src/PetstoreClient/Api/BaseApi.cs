@@ -87,7 +87,8 @@ public abstract class BaseApi
         string contentType,
         Type? returnType,
         IAuthenticator? auth = null,
-        bool rawBody = false
+        bool rawBody = false,
+        CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(queryParams);
@@ -306,7 +307,7 @@ public abstract class BaseApi
         }
 
         ApiHttpResponse response = await ApiClient
-            .SendRequestAsync(method, new Uri(url), headers, requestBody)
+            .SendRequestAsync(method, new Uri(url), headers, requestBody, false, cancellationToken)
             .ConfigureAwait(false);
 
         if (response.StatusCode is < 200 or >= 300)
@@ -401,6 +402,38 @@ public abstract class BaseApi
         if (value is null)
         {
             throw new ArgumentNullException(paramName, message);
+        }
+    }
+
+    /// <summary>
+    /// Serializes a parameter declared with <c>content: application/json</c>
+    /// through the SDK's own object serializer, then encodes the resulting JSON
+    /// text once by the parameter's location: a path segment is
+    /// percent-encoded, a header is sent verbatim after a CR/LF check, and a
+    /// cookie value is percent-encoded. A serialization failure is a
+    /// <see cref="SerializationException"/>, never a dropped or empty value.
+    /// </summary>
+    /// <param name="value">The parameter value.</param>
+    /// <param name="location">One of <c>path</c>, <c>header</c> or <c>cookie</c>.</param>
+    /// <returns>The encoded parameter text.</returns>
+    protected string SerializeContentParameter(object value, string location)
+    {
+        string json = Serializer.Serialize(value);
+        switch (location)
+        {
+            case "path":
+                return ValueSerializer.EncodePathSegment(json);
+            case "cookie":
+                return Uri.EscapeDataString(json);
+            default:
+                if (
+                    json.Contains('\r', StringComparison.Ordinal)
+                    || json.Contains('\n', StringComparison.Ordinal)
+                )
+                {
+                    throw new ArgumentException("Header value contains a CR or LF character");
+                }
+                return json;
         }
     }
 

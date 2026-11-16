@@ -734,6 +734,124 @@ import FoundationNetworking
             #expect(none.body.contains("ok"))
         }
     }
+
+    // MARK: - Cancellation
+
+    /* Cancelling the Swift task of an in-flight request aborts the underlying
+       URLSession task and surfaces the platform's CancellationError. */
+    @Test func testCancellingInFlightRequestAbortsSessionTask() async throws {
+        HangingURLProtocol.reset()
+        let client = DefaultApiClient(transportOptions: nil, protocolClasses: [HangingURLProtocol.self])
+        let task = Task {
+            try await client.sendRequest(
+                method: "GET", url: "https://example.com/slow", headers: [:], body: nil)
+        }
+        for _ in 0..<300 where !HangingURLProtocol.started {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        #expect(HangingURLProtocol.started)
+        task.cancel()
+        await #expect(throws: CancellationError.self) {
+            _ = try await task.value
+        }
+        for _ in 0..<300 where !HangingURLProtocol.stopped {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        #expect(HangingURLProtocol.stopped)
+    }
+
+    // MARK: - Caller-supplied session
+
+    /* A supplied session receives the request, with the SDK's own user agent
+       and timeout applied on top. */
+    @Test func testSuppliedSessionReceivesRequestWithSdkDefaults() async throws {
+        let seen = LockedRequests()
+        let session = StubURLProtocol.session { req in
+            seen.append(req)
+            return (Data("{}".utf8), 200, [:])
+        }
+        let transport = try TransportOptionsBuilder()
+            .session(session)
+            .userAgent("Custom/1.0")
+            .timeout(4000)
+            .build()
+        let client = try DefaultApiClient(transportOptions: transport)
+        let resp = try await client.sendRequest(
+            method: "GET", url: "https://example.com/x", headers: [:], body: nil)
+        #expect(resp.statusCode == 200)
+        let requests = seen.all
+        #expect(requests.count == 1)
+        #expect(requests.first?.url?.absoluteString == "https://example.com/x")
+        #expect(requests.first?.value(forHTTPHeaderField: "User-Agent") == "Custom/1.0")
+        #expect(requests.first?.timeoutInterval == 4.0)
+    }
+
+    /* close() never invalidates a session the caller supplied. */
+    @Test func testCloseLeavesSuppliedSessionUsable() async throws {
+        let session = StubURLProtocol.session { _ in (Data("ok".utf8), 200, [:]) }
+        let transport = try TransportOptionsBuilder().session(session).build()
+        let client = try DefaultApiClient(transportOptions: transport)
+        client.close()
+        let (data, _) = try await session.data(from: URL(string: "https://example.com/after")!)
+        #expect(String(data: data, encoding: .utf8) == "ok")
+    }
+}
+
+/// A URLProtocol that accepts a request and never answers it, so a test can
+/// cancel the call while it is in flight.
+private final class HangingURLProtocol: URLProtocol {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var startedFlag = false
+    nonisolated(unsafe) private static var stoppedFlag = false
+
+    static func reset() {
+        lock.lock()
+        startedFlag = false
+        stoppedFlag = false
+        lock.unlock()
+    }
+
+    static var started: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return startedFlag
+    }
+
+    static var stopped: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return stoppedFlag
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { return true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
+
+    override func startLoading() {
+        HangingURLProtocol.lock.lock()
+        HangingURLProtocol.startedFlag = true
+        HangingURLProtocol.lock.unlock()
+    }
+
+    override func stopLoading() {
+        HangingURLProtocol.lock.lock()
+        HangingURLProtocol.stoppedFlag = true
+        HangingURLProtocol.lock.unlock()
+    }
+}
+
+private final class LockedRequests: @unchecked Sendable {
+    private let lock = NSLock()
+    private var items: [URLRequest] = []
+    func append(_ request: URLRequest) {
+        lock.lock()
+        items.append(request)
+        lock.unlock()
+    }
+    var all: [URLRequest] {
+        lock.lock()
+        defer { lock.unlock() }
+        return items
+    }
 }
 
 /// Thread-safe hop counter for multi-request stub handlers (e.g. redirect tests).

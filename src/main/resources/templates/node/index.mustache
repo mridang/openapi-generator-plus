@@ -14,6 +14,7 @@
  * inline-enum types, re-exported transitively through the api barrel).
  */
 export { {{clientClassName}} } from './{{clientClassFile}}{{importFileExtension}}';
+export type { {{clientClassName}}Options } from './{{clientClassFile}}{{importFileExtension}}';
 export * from './api/index{{importFileExtension}}';
 
 /* Model types. */
@@ -29,7 +30,7 @@ export * from './models/index{{importFileExtension}}';
  * happens to be named `ApiResponse` (the model wins via the `./models` star
  * export).
  */
-export type { ApiClient, SendRequestOptions } from './api-client{{importFileExtension}}';
+export type { ApiClient, RequestOptions, SendRequestOptions } from './api-client{{importFileExtension}}';
 export type { ApiResult } from './api-result{{importFileExtension}}';
 export { DefaultApiClient } from '#transport';
 

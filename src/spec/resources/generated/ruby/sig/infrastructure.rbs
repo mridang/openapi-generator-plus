@@ -51,9 +51,11 @@ module Petstore::Client
     attr_reader user_agent: String?
     attr_reader default_headers: Hash[String, String]
     attr_reader inject_request_id: bool
-    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Integer?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool) -> void
+    attr_reader connection: untyped
+    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Integer?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool, ?connection: untyped) -> void
     def self.builder: () -> TransportOptions::Builder
     def self.validate_proxy!: (String?) -> void
+    def self.validate_connection!: (untyped, bool, String?, String?) -> void
     def self.redact_headers: (Hash[String, String]) -> Hash[String, String]
     def self.redact_url: (String?) -> String?
     def inspect: () -> String
@@ -70,6 +72,7 @@ module Petstore::Client
       def default_header: (String, String) -> Builder
       def default_headers: (Hash[String, String]) -> Builder
       def inject_request_id: (bool) -> Builder
+      def connection: (untyped) -> Builder
       def build: () -> TransportOptions
     end
   end
@@ -239,6 +242,7 @@ module Petstore::Client
     def self.serialize_deep_object: (String, untyped) -> Hash[String, String]
     def self.encode_query_allowing_reserved: (String?) -> String
     def self.maybe_allow_reserved: (untyped, bool) -> untyped
+    def self.encode_path_segment: (String str) -> String
 
     PRESERVE_ENCODED: Hash[String, String]
     RESERVED_PRESERVED: Hash[String, String]
@@ -253,7 +257,6 @@ module Petstore::Client
     def self.serialize_nil: (Symbol) -> untyped
     def self.serialize_array: (Array[untyped], Symbol, Symbol?) -> untyped
     def self.serialize_query_array: (Array[untyped], Symbol?) -> untyped
-    def self.encode_path_segment: (String str) -> String
     def self.encode_item: (untyped value, Symbol location) -> String
   end
 

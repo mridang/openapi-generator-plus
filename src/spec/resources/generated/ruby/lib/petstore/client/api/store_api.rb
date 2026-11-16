@@ -741,7 +741,7 @@ module Petstore::Client
         end
         # @type var header_params: Hash[String, String]
         header_params = {}
-        header_params['X-Filter'] = ::Petstore::Client::ValueSerializer.serialize_styled('X-Filter', options.x_filter, :header, 'Hash<String, String>', nil, '', false).to_s unless options.nil? || options.x_filter.nil?
+        header_params['X-Filter'] = ::Petstore::Client::ObjectSerializer.serialize(options.x_filter) unless options.nil? || options.x_filter.nil?
         request_body = nil
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,

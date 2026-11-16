@@ -72,6 +72,30 @@ yourself.
 `format: int64` is unaffected — Java's `long` natively represents the
 full 64-bit range without precision loss.
 
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server. The
+generated models do not check them: Java has no validation in its model layer
+(the models are plain Jackson-bound classes), so a value outside a constraint
+is sent as given and rejected by the server. The only client-side checks are
+the type checks the models make while decoding and the presence of required
+properties. If you want fast-fail validation before the network round trip,
+plug in a Bean Validation or JSON Schema library.
+
+`uniqueItems` arrays are held in a `java.util.Set`. Arrays of scalars are
+written in ascending order so the bytes do not depend on insertion order;
+arrays of objects keep the set's own (insertion) order.
+
+### Custom HTTP client
+
+`TransportOptions.builder().httpClient(client)` makes the SDK send every
+request through your own `java.net.http.HttpClient`. The SDK keeps its request
+timeout, retries, user agent and redirect handling on top and never closes the
+client; you own its lifecycle. Because the client carries its own proxy and TLS
+settings, combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails
+at `build()`, as does a client whose redirect policy is not `Redirect.NEVER`.
+
 ## Not supported
 
 ### Webhooks and callbacks
@@ -90,15 +114,6 @@ also required" are **not enforced** by this SDK. No mainstream
 OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
-
-### Numeric / string constraint validation
-
-OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
-`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
-**not enforced** by this SDK. The server is the authoritative
-validator; client-side enforcement is a DX nicety, not a correctness
-requirement. If you want fast-fail validation before the network
-round trip, plug in a JSON Schema validator library for your language.
 
 ### SOCKS proxies
 

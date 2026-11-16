@@ -185,13 +185,14 @@ All API errors derive from `ApiError`. The error hierarchy is:
 
 ```go
 import (
+    "context"
     "errors"
     "fmt"
 
     "petstore/pkg"
 )
 
-_, err := client.Pet.AddPet(pet, nil)
+_, err := client.Pet.AddPet(context.Background(), pet, nil)
 if err != nil {
     var notFound *petstore.NotFoundError
     var clientErr *petstore.ClientError
@@ -228,7 +229,7 @@ client := petstore.NewClient(authenticator, transport)
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client (e.g., `client.Pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request (`errors.Is(err, context.Canceled)`), and `client.Close()` cancels every request in flight. Each API group is exposed as a typed field on the client (e.g., `client.Pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 

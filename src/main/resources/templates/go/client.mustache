@@ -29,6 +29,13 @@ import (
 //		return err
 //	}
 //	client := {{packageName}}.New{{clientClassName}}(authenticator, transport)
+//
+//	// Bring your own HTTP client (the SDK keeps its defaults on top and never
+//	// closes it); every operation takes a context.Context first.
+//
+//	transport, err = {{packageName}}.NewTransportOptionsBuilder().
+//		HttpClient(myHTTPClient).
+//		Build()
 type {{clientClassName}} struct {
 {{#apiInfo}}
 {{#apis}}
@@ -38,6 +45,17 @@ type {{clientClassName}} struct {
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+
+	apiClient ApiClient
+}
+
+// Close releases the client's transport and cancels its base context, which
+// aborts every request still in flight (they fail with an error satisfying
+// errors.Is(err, context.Canceled)). A transport the caller supplied through
+// TransportOptionsBuilder.HttpClient or RoundTripper is never closed: the
+// caller owns its lifecycle.
+func (c *{{clientClassName}}) Close() error {
+	return c.apiClient.Close()
 }
 
 // New{{clientClassName}} creates a new client with the given authenticator and transport options.
@@ -64,6 +82,7 @@ func New{{clientClassName}}(authenticator Authenticator, transportOptions *Trans
 		Build()
 
 	return &{{clientClassName}}{
+		apiClient: apiClient,
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}

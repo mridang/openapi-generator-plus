@@ -184,6 +184,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 // `<pkg>.models.OffsetDateTime`. Its real import
                                 // comes from getPropertyTypeImportMap.
                                 "OffsetDateTime",
+                                // TimeOfDay (format: time) is the `<pkg>._types`
+                                // alias over datetime.time that writes an RFC 3339
+                                // partial-time; its import comes from
+                                // getPropertyTypeImportMap.
+                                "TimeOfDay",
                                 // PasswordStr (format: password) is the
                                 // `<pkg>._types` SecretStr alias that writes the
                                 // real value on the JSON wire; its import comes
@@ -895,6 +900,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // untouched (they still carry `AwareDatetime`, which the ObjectSerializer
         // name-keyed stringify/_deserialize fallback already handles correctly).
         promoteOffsetDateTime(property);
+        promoteTimeOfDay(property);
 
         final String fmt = property.dataFormat;
         if (fmt == null) {
@@ -981,6 +987,34 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         }
     }
 
+
+    /**
+     * Rewrites a {@code format: time} model field's {@code datetime.time} token
+     * to the {@code <pkg>._types} {@code TimeOfDay} alias, whose JSON serializer
+     * writes an RFC 3339 partial-time ({@code HH:MM:SS}, plus {@code .SSS} only
+     * when the millisecond part is non-zero). Applied only to model properties.
+     *
+     * @param property the model property to inspect and possibly rewrite
+     */
+    private static void promoteTimeOfDay(CodegenProperty property) {
+        final boolean scalarIsTime = "time".equals(property.dataFormat);
+        final boolean itemsAreTime =
+                property.items != null && "time".equals(property.items.dataFormat);
+        if (!scalarIsTime && !itemsAreTime) {
+            return;
+        }
+        if (property.dataType != null) {
+            property.dataType = property.dataType.replaceAll("\\bdatetime\\.time\\b", "TimeOfDay");
+        }
+        if (property.datatypeWithEnum != null) {
+            property.datatypeWithEnum =
+                    property.datatypeWithEnum.replaceAll("\\bdatetime\\.time\\b", "TimeOfDay");
+        }
+        if (itemsAreTime && property.items.dataType != null) {
+            property.items.dataType =
+                    property.items.dataType.replaceAll("\\bdatetime\\.time\\b", "TimeOfDay");
+        }
+    }
 
     /** {@inheritDoc} */
     @Override
@@ -1078,6 +1112,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // Base64Bytes (format: byte) is the `<pkg>._types` alias that keeps raw
         // bytes in memory and base64 only on the wire; it replaces pydantic's.
         map.put("Base64Bytes", "from " + packageName + "._types import Base64Bytes");
+        map.put("TimeOfDay", "from " + packageName + "._types import TimeOfDay");
         // PasswordStr (format: password) is the `<pkg>._types` SecretStr alias
         // whose JSON serializer writes the real value instead of the mask.
         map.put("PasswordStr", "from " + packageName + "._types import PasswordStr");

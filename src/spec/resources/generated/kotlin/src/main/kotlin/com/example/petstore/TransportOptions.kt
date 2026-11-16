@@ -7,6 +7,8 @@
 
 package com.example.petstore
 
+import io.ktor.client.HttpClient
+
 /**
  * Immutable HTTP transport configuration for [DefaultApiClient].
  *
@@ -48,6 +50,11 @@ package com.example.petstore
  * @property injectRequestId Whether to auto-inject an `X-Request-ID` header with a unique UUID on
  *   every request. Useful for distributed tracing and log correlation. The header is only injected
  *   if the caller has not already set one.
+ * @property httpClient Optional caller-supplied Ktor [HttpClient]. When set, the SDK sends every
+ *   request through it, keeps its own timeout, redirect, user-agent and header defaults applied on
+ *   top, and never closes it: the caller owns its lifecycle. It cannot be combined with
+ *   [proxy], [caCertPath] or `verifySsl=false`; configure those on the supplied client instead.
+ *   `null` makes the SDK build its own client.
  */
 class TransportOptions private constructor(
     val verifySsl: Boolean,
@@ -59,6 +66,7 @@ class TransportOptions private constructor(
     val userAgent: String?,
     val defaultHeaders: Map<String, String>,
     val injectRequestId: Boolean,
+    val httpClient: HttpClient?,
 ) {
     companion object {
         /**
@@ -90,6 +98,7 @@ class TransportOptions private constructor(
         private var userAgent: String? = "petstore-client/1.0.0 (kotlin)"
         private val defaultHeaders: MutableMap<String, String> = mutableMapOf()
         private var injectRequestId: Boolean = false
+        private var httpClient: HttpClient? = null
 
         /**
          * Enable or disable TLS certificate verification.
@@ -179,6 +188,19 @@ class TransportOptions private constructor(
          */
         fun injectRequestId(injectRequestId: Boolean): Builder = apply { this.injectRequestId = injectRequestId }
 
+        /**
+         * Use a caller-supplied Ktor [HttpClient] as the transport.
+         *
+         * The SDK layers its timeout, redirect policy, user agent and default
+         * headers on top of it and never closes it. It conflicts with
+         * [proxy], [caCertPath] and `verifySsl(false)`, which configure the
+         * SDK's own client: [build] rejects the combination.
+         *
+         * @param httpClient the client to send requests through, or `null` for the SDK's own
+         * @return this builder
+         */
+        fun httpClient(httpClient: HttpClient?): Builder = apply { this.httpClient = httpClient }
+
         private fun canonicalProxy(proxy: String?): String? {
             if (proxy == null) {
                 return null
@@ -221,19 +243,28 @@ class TransportOptions private constructor(
          * Build and return an immutable [TransportOptions] instance.
          *
          * @return the configured transport options
-         * @throws IllegalArgumentException if the proxy URL is not a valid http or https URL
+         * @throws IllegalArgumentException if the proxy URL is not a valid http or https URL, or if
+         *   a custom [httpClient] is combined with a proxy, a CA certificate path or
+         *   `verifySsl(false)`
          */
-        fun build(): TransportOptions =
-            TransportOptions(
+        fun build(): TransportOptions {
+            val canonical = canonicalProxy(proxy)
+            require(httpClient == null || (canonical == null && caCertPath == null && verifySsl)) {
+                "A custom httpClient cannot be combined with proxy, caCertPath or verifySsl=false: " +
+                    "configure the supplied client instead"
+            }
+            return TransportOptions(
                 verifySsl,
                 caCertPath,
-                canonicalProxy(proxy),
+                canonical,
                 timeout,
                 followRedirects,
                 maxRedirects,
                 userAgent,
                 defaultHeaders.toMap(),
                 injectRequestId,
+                httpClient,
             )
+        }
     }
 }

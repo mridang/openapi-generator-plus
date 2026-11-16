@@ -1,6 +1,6 @@
 {{>api_info}}
 
-from typing import Optional
+from typing import Any, Optional
 
 from {{packageName}}.auth.authenticator import Authenticator
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
@@ -37,12 +37,16 @@ class {{clientClassName}}:
             .timeout(5000) \\
             .build()
         client = {{clientClassName}}(authenticator, transport)
+
+        # Your own urllib3 pool manager (you keep ownership and close it)
+        client = {{clientClassName}}(authenticator, pool_manager=urllib3.PoolManager())
     """
 
     def __init__(
         self,
         authenticator: Authenticator,
         transport_options: Optional[TransportOptions] = None,
+        pool_manager: Optional[Any] = None,
     ) -> None:
         """Creates a new client with the given authenticator and transport options.
 
@@ -54,11 +58,17 @@ class {{clientClassName}}:
             authenticator: Provides host URL and auth headers.
             transport_options: HTTP transport configuration (proxy, TLS,
                 timeouts, etc.).
+            pool_manager: A ``urllib3.PoolManager`` you own. The SDK defaults
+                (timeout, redirects, user agent, default headers) are applied
+                on top of it and the SDK never closes it. It cannot be
+                combined with a proxy or TLS setting in ``transport_options``;
+                a conflict raises :class:`ValueError`.
         """
         if transport_options is None:
             transport_options = TransportOptions.builder().build()
 
-        api_client = DefaultApiClient(transport_options)
+        api_client = DefaultApiClient(transport_options, pool_manager)
+        self._api_client = api_client
 
         if isinstance(authenticator, HttpAwareAuthenticator):
             authenticator.set_api_client(api_client)
@@ -83,6 +93,7 @@ class {{clientClassName}}:
         host: str,
         access_token: str,
         transport_options: Optional[TransportOptions] = None,
+        pool_manager: Optional[Any] = None,
     ) -> '{{clientClassName}}':
         """Creates a client authenticated with a static Bearer token.
 
@@ -91,17 +102,19 @@ class {{clientClassName}}:
             access_token: Bearer token.
             transport_options: Optional HTTP transport configuration (proxy,
                 TLS, timeouts, etc.).
+            pool_manager: Optional caller-owned ``urllib3.PoolManager``.
 
         Returns:
             Configured client instance.
         """
-        return cls(BearerAuthenticator(host, access_token), transport_options)
+        return cls(BearerAuthenticator(host, access_token), transport_options, pool_manager)
 
     @classmethod
     def with_authenticator(
         cls,
         authenticator: Authenticator,
         transport_options: Optional[TransportOptions] = None,
+        pool_manager: Optional[Any] = None,
     ) -> '{{clientClassName}}':
         """Creates a client from a ready-made authenticator.
 
@@ -116,8 +129,22 @@ class {{clientClassName}}:
             authenticator: Provides host URL and auth headers.
             transport_options: Optional HTTP transport configuration (proxy,
                 TLS, timeouts, etc.).
+            pool_manager: Optional caller-owned ``urllib3.PoolManager``.
 
         Returns:
             Configured client instance.
         """
-        return cls(authenticator, transport_options)
+        return cls(authenticator, transport_options, pool_manager)
+
+    def close(self) -> None:
+        """Cancels in-flight requests and closes the pool this client created.
+
+        A ``pool_manager`` you supplied is left open. Idempotent.
+        """
+        self._api_client.close()
+
+    def __enter__(self) -> '{{clientClassName}}':
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.close()

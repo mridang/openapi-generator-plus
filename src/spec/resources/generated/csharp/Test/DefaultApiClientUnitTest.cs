@@ -1730,6 +1730,186 @@ public class DefaultApiClientUnitTest
         );
     }
 
+    [Fact]
+    public async Task CallTokenAbortsAnInFlightRequest()
+    {
+        var handler = new SignallingHangingHandler();
+        var client = new DefaultApiClient(new HttpClient(handler));
+        using var cts = new CancellationTokenSource();
+        Task<ApiHttpResponse> pending = client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null,
+            false,
+            cts.Token
+        );
+        await handler.Entered.Task;
+        await cts.CancelAsync();
+
+        var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        Assert.False(
+            typeof(OpenAPIException).IsInstanceOfType(ex),
+            "cancellation must not be rewrapped as an SDK error"
+        );
+    }
+
+    [Fact]
+    public async Task ClientLevelTokenAbortsAnInFlightRequest()
+    {
+        var handler = new SignallingHangingHandler();
+        using var clientSource = new CancellationTokenSource();
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().CancellationToken(clientSource.Token).Build()
+        );
+        Task<ApiHttpResponse> pending = client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null,
+            false,
+            CancellationToken.None
+        );
+        await handler.Entered.Task;
+        await clientSource.CancelAsync();
+
+        var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        Assert.False(
+            typeof(OpenAPIException).IsInstanceOfType(ex),
+            "cancellation must not be rewrapped as an SDK error"
+        );
+    }
+
+    [Fact]
+    public async Task AlreadyCancelledTokenSendsNoRequest()
+    {
+        var handler = new SignallingHangingHandler();
+        var client = new DefaultApiClient(new HttpClient(handler));
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/slow"),
+                new Dictionary<string, string>(),
+                null,
+                false,
+                cts.Token
+            )
+        );
+        Assert.False(handler.Entered.Task.IsCompleted);
+    }
+
+    [Fact]
+    public async Task TimeoutStaysDistinctFromCancellationWhenATokenIsSupplied()
+    {
+        var client = new DefaultApiClient(
+            new HttpClient(new HangingHandler()),
+            TransportOptions.Builder().Timeout(50).Build()
+        );
+        using var cts = new CancellationTokenSource();
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkTimeoutException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/slow"),
+                new Dictionary<string, string>(),
+                null,
+                false,
+                cts.Token
+            )
+        );
+    }
+
+    [Fact]
+    public async Task InjectedHttpClientReceivesTheRequestWithSdkDefaultsApplied()
+    {
+        HttpRequestMessage? seen = null;
+        var injected = new HttpClient(
+            new CapturingHandler(request =>
+            {
+                seen = request;
+                return Task.CompletedTask;
+            })
+        );
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().HttpClient(injected).UserAgent("injected-agent/1").Build()
+        );
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(seen);
+        Assert.Equal("injected-agent/1", string.Join(" ", seen!.Headers.GetValues("User-Agent")));
+    }
+
+    [Fact]
+    public async Task InjectedHttpClientIsNeverDisposedByTheSdk()
+    {
+        var injected = new HttpClient(new MockHandler(HttpStatusCode.OK, "ok"));
+        var client = new DefaultApiClient(TransportOptions.Builder().HttpClient(injected).Build());
+
+        client.Dispose();
+
+        using HttpResponseMessage direct = await injected.GetAsync(
+            new Uri("http://example.com/still-open"),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(HttpStatusCode.OK, direct.StatusCode);
+    }
+
+    [Fact]
+    public async Task InjectedHandlerReceivesTheRequestAndOutlivesTheSdkClient()
+    {
+        var handler = new DisposeTrackingHandler();
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().HttpMessageHandler(handler).Build()
+        );
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+        client.Dispose();
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(1, handler.Requests);
+        Assert.False(handler.Disposed);
+    }
+
+    private sealed class DisposeTrackingHandler : HttpMessageHandler
+    {
+        public int Requests { get; private set; }
+
+        public bool Disposed { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            Requests++;
+            return Task.FromResult(
+                new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("ok") }
+            );
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
+        }
+    }
+
     private sealed class SignallingHangingHandler : HttpMessageHandler
     {
         public TaskCompletionSource Entered { get; } =

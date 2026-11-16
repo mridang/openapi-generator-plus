@@ -204,13 +204,14 @@ All API errors derive from `ApiError`. The error hierarchy is:
 
 ```go
 import (
+    "context"
     "errors"
     "fmt"
 
     "{{packageName}}/pkg"
 )
 
-{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#returnType}}_, {{/returnType}}{{/-first}}{{/operation}}err := client.{{baseName}}.{{#operation}}{{#-first}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}{{/isPath}}{{#isBody}}{{paramName}}{{/isBody}}{{#isOptions}}nil{{/isOptions}}{{#isServer}}nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#returnType}}_, {{/returnType}}{{/-first}}{{/operation}}err := client.{{baseName}}.{{#operation}}{{#-first}}{{operationId}}(context.Background(){{#vendorExtensions.op.signatureArgs}}, {{#isPath}}{{paramName}}{{/isPath}}{{#isBody}}{{paramName}}{{/isBody}}{{#isOptions}}nil{{/isOptions}}{{#isServer}}nil{{/isServer}}{{/vendorExtensions.op.signatureArgs}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 if err != nil {
     var notFound *{{packageName}}.NotFoundError
     var clientErr *{{packageName}}.ClientError
@@ -247,7 +248,7 @@ client := {{packageName}}.New{{clientClassName}}(authenticator, transport)
 
 ## API Methods
 
-Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{baseName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request (`errors.Is(err, context.Canceled)`), and `client.Close()` cancels every request in flight. Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{baseName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 

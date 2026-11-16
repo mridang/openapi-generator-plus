@@ -499,6 +499,22 @@ test('query date time without date marker keeps time', function (): void {
     expect(ValueSerializer::serialize($dt, 'query', '\\DateTime'))->toContain('10:30:45');
 });
 
+test('format time param keeps non zero milliseconds and drops zero ones', function (string $input, string $expected): void {
+    $time = new \DateTimeImmutable($input);
+    expect(ValueSerializer::serialize($time, 'query', '\\DateTimeImmutable'))->toBe($expected);
+    expect(ValueSerializer::serializeStyled('at', $time, 'query', '\\DateTimeImmutable', null, 'form', true))->toBe($expected);
+})->with([
+    'whole seconds' => ['2024-01-01T10:30:00+00:00', '10:30:00'],
+    'milliseconds' => ['2024-01-01T10:30:00.123456+00:00', '10:30:00.123'],
+    'truncated not rounded' => ['2024-01-01T10:30:00.9996+00:00', '10:30:00.999'],
+    'sub millisecond only' => ['2024-01-01T10:30:00.0004+00:00', '10:30:00'],
+]);
+
+test('format time path param is never a full date-time', function (): void {
+    $time = new \DateTimeImmutable('2024-01-01T10:30:00.5+00:00');
+    expect(ValueSerializer::serialize($time, 'path', '\\DateTimeImmutable'))->toBe('10%3A30%3A00.500');
+});
+
 test('format date only helper drops the time component', function (): void {
     expect(ValueSerializer::formatDateOnly(new \DateTime('2024-01-01T10:30:45+00:00')))->toBe('2024-01-01');
     expect(ValueSerializer::formatDateOnly(new \DateTimeImmutable('2024-12-31T23:59:59+00:00')))->toBe('2024-12-31');

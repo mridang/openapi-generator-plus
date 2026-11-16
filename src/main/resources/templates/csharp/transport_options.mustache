@@ -94,6 +94,31 @@ public sealed class TransportOptions
     public bool InjectRequestId { get; }
 
     /// <summary>
+    /// Client-level cancellation token. Cancelling it aborts every in-flight
+    /// request of the client; it is linked with the per-call token of each
+    /// operation, so either one cancels the request. Cancellation surfaces as
+    /// <see cref="OperationCanceledException"/>, distinct from the timeout
+    /// error. <c>default</c> (the default) never cancels.
+    /// </summary>
+    public CancellationToken CancellationToken { get; }
+
+    /// <summary>
+    /// Caller-supplied <see cref="System.Net.Http.HttpClient"/> that carries
+    /// the requests, or <c>null</c> for the SDK's own client. The caller owns
+    /// its lifecycle: the SDK never disposes it. SDK defaults (timeout,
+    /// <c>User-Agent</c>, default headers, redirect policy) are applied on top.
+    /// </summary>
+    public HttpClient? HttpClient { get; }
+
+    /// <summary>
+    /// Caller-supplied <see cref="System.Net.Http.HttpMessageHandler"/>, or
+    /// <c>null</c> for the SDK's own handler. The SDK wraps it in its own
+    /// <see cref="System.Net.Http.HttpClient"/> and never disposes the handler:
+    /// the caller owns its lifecycle.
+    /// </summary>
+    public HttpMessageHandler? HttpMessageHandler { get; }
+
+    /// <summary>
     /// Creates a new <see cref="TransportOptions"/> with the specified values.
     /// </summary>
     internal TransportOptions(
@@ -105,9 +130,15 @@ public sealed class TransportOptions
         int? maxRedirects,
         string? userAgent,
         Dictionary<string, string> defaultHeaders,
-        bool injectRequestId
+        bool injectRequestId,
+        HttpClient? httpClient,
+        HttpMessageHandler? httpMessageHandler,
+        CancellationToken cancellationToken
     )
     {
+        CancellationToken = cancellationToken;
+        HttpClient = httpClient;
+        HttpMessageHandler = httpMessageHandler;
         VerifySsl = verifySsl;
         CaCertPath = caCertPath;
         Proxy = proxy;
@@ -155,6 +186,9 @@ public sealed class TransportOptionsBuilder
     private string? _userAgent = "{{userAgentDefault}}";
     private readonly Dictionary<string, string> _defaultHeaders = [];
     private bool _injectRequestId;
+    private CancellationToken _cancellationToken;
+    private HttpClient? _httpClient;
+    private HttpMessageHandler? _httpMessageHandler;
 
     /// <summary>Enable or disable TLS certificate verification.</summary>
     /// <param name="verifySsl"><c>true</c> to verify (default), <c>false</c> to skip.</param>
@@ -259,11 +293,93 @@ public sealed class TransportOptionsBuilder
         return this;
     }
 
+    /// <summary>
+    /// Set a client-level cancellation token. Cancelling it aborts every
+    /// in-flight request of the client; it is linked with each call's own token.
+    /// </summary>
+    /// <param name="cancellationToken">The token to link with every call.</param>
+    /// <returns>This builder.</returns>
+    public TransportOptionsBuilder CancellationToken(CancellationToken cancellationToken)
+    {
+        _cancellationToken = cancellationToken;
+        return this;
+    }
+
+    /// <summary>
+    /// Use a caller-supplied <see cref="System.Net.Http.HttpClient"/> as the
+    /// transport. The SDK keeps its timeout, <c>User-Agent</c>, default
+    /// headers and redirect policy on top, and never disposes the client: the
+    /// caller owns its lifecycle. The client owns its proxy, TLS and
+    /// connection pool, so combining it with <see cref="Proxy"/>,
+    /// <see cref="CaCertPath"/> or <c>VerifySsl(false)</c> fails in
+    /// <see cref="Build"/>. Disable automatic redirects on the client's handler
+    /// so the SDK's redirect policy can apply.
+    /// </summary>
+    /// <param name="httpClient">The client, or <c>null</c> for the SDK's own.</param>
+    /// <returns>This builder.</returns>
+    public TransportOptionsBuilder HttpClient(HttpClient? httpClient)
+    {
+        _httpClient = httpClient;
+        return this;
+    }
+
+    /// <summary>
+    /// Use a caller-supplied <see cref="System.Net.Http.HttpMessageHandler"/>
+    /// as the transport. The SDK wraps it in its own client, keeps its timeout,
+    /// <c>User-Agent</c>, default headers and redirect policy on top, and never
+    /// disposes the handler. The handler owns its proxy, TLS and connection
+    /// pool, so combining it with <see cref="Proxy"/>, <see cref="CaCertPath"/>
+    /// or <c>VerifySsl(false)</c> fails in <see cref="Build"/>. A stock
+    /// <see cref="System.Net.Http.HttpClientHandler"/> or
+    /// <see cref="System.Net.Http.SocketsHttpHandler"/> must have
+    /// <c>AllowAutoRedirect</c> turned off so the SDK's redirect policy can apply.
+    /// </summary>
+    /// <param name="httpMessageHandler">The handler, or <c>null</c> for the SDK's own.</param>
+    /// <returns>This builder.</returns>
+    public TransportOptionsBuilder HttpMessageHandler(HttpMessageHandler? httpMessageHandler)
+    {
+        _httpMessageHandler = httpMessageHandler;
+        return this;
+    }
+
     /// <summary>Build and return an immutable <see cref="TransportOptions"/> instance.</summary>
     /// <returns>The configured transport options.</returns>
-    /// <exception cref="ArgumentException">Thrown when the proxy URL is not valid.</exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the proxy URL is not valid, or when a supplied client or
+    /// handler conflicts with the SDK's own proxy, TLS or redirect settings.
+    /// </exception>
     public TransportOptions Build()
     {
+        if (_httpClient != null && _httpMessageHandler != null)
+        {
+            throw new ArgumentException(
+                "Supply either an HttpClient or an HttpMessageHandler, not both.");
+        }
+        if (_httpClient != null || _httpMessageHandler != null)
+        {
+            string supplied = _httpClient != null ? "HttpClient" : "HttpMessageHandler";
+            if (_proxy != null)
+            {
+                throw new ArgumentException(
+                    $"A supplied {supplied} owns its proxy settings and conflicts with Proxy; configure the proxy on the {supplied}.");
+            }
+            if (_caCertPath != null || !_verifySsl)
+            {
+                throw new ArgumentException(
+                    $"A supplied {supplied} owns its TLS settings and conflicts with CaCertPath/VerifySsl; configure TLS on the {supplied}.");
+            }
+            bool autoRedirects = _httpMessageHandler switch
+            {
+                HttpClientHandler h => h.AllowAutoRedirect,
+                SocketsHttpHandler h => h.AllowAutoRedirect,
+                _ => false,
+            };
+            if (autoRedirects)
+            {
+                throw new ArgumentException(
+                    "The supplied HttpMessageHandler follows redirects itself, which conflicts with the SDK's redirect policy; set AllowAutoRedirect to false.");
+            }
+        }
         if (_proxy != null)
         {
             if (!Uri.TryCreate(_proxy, UriKind.Absolute, out Uri? uri))
@@ -290,7 +406,10 @@ public sealed class TransportOptionsBuilder
             maxRedirects: _maxRedirects,
             userAgent: _userAgent,
             defaultHeaders: new Dictionary<string, string>(_defaultHeaders),
-            injectRequestId: _injectRequestId
+            injectRequestId: _injectRequestId,
+            httpClient: _httpClient,
+            httpMessageHandler: _httpMessageHandler,
+            cancellationToken: _cancellationToken
         );
     }
 }

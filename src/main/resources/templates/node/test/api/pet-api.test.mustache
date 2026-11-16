@@ -268,6 +268,27 @@ describe('PetApi', () => {
     expect(result).toBeDefined();
   });
 
+  test('the per-call request options follow the server argument', async () => {
+    class MockServer extends GetExternalPetInfoServer {
+      getUrl(): string {
+        return baseUrl;
+      }
+    }
+    const result = await api.getExternalPetInfo(1, new MockServer(), {
+      signal: new AbortController().signal,
+    });
+
+    expect(result).toBeDefined();
+  });
+
+  test('an aborted per-call signal rejects the call with an AbortError', async () => {
+    const error = await api
+      .getPetById(1, undefined, { signal: AbortSignal.abort() })
+      .catch((e: unknown) => e);
+
+    expect((error as Error).name).toBe('AbortError');
+  });
+
   test('getPetPassport', async () => {
     const result = await api.getPetPassport(1);
 

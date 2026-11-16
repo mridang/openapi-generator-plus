@@ -316,11 +316,16 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="pet">Create a new pet in the store</param>
     /// <param name="options">Options carrying an optional per-operation authenticator.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Pet> AddPetAsync(Pet pet, AddPetOptions? options = null)
+    public async Task<Pet> AddPetAsync(
+        Pet pet,
+        AddPetOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Pet>> task = AddPetWithHttpInfoAsync(pet, options);
+        Task<ApiResult<Pet>> task = AddPetWithHttpInfoAsync(pet, options, cancellationToken);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -351,11 +356,13 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="pet">Create a new pet in the store</param>
     /// <param name="options">Options carrying an optional per-operation authenticator.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Pet>> AddPetWithHttpInfoAsync(
         Pet pet,
-        AddPetOptions? options = null
+        AddPetOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet";
@@ -372,7 +379,8 @@ public class PetApi : BaseApi
                 AddPetAccepts,
                 "application/json",
                 typeof(Pet),
-                options?.Auth
+                options?.Auth,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -383,11 +391,20 @@ public class PetApi : BaseApi
     /// <remarks>Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.</remarks>
     /// <param name="petId"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Photo>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<List<Photo>> AddPetPhotosAsync(long petId, AddPetPhotosOptions options)
+    public async Task<List<Photo>> AddPetPhotosAsync(
+        long petId,
+        AddPetPhotosOptions options,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<List<Photo>>> task = AddPetPhotosWithHttpInfoAsync(petId, options);
+        Task<ApiResult<List<Photo>>> task = AddPetPhotosWithHttpInfoAsync(
+            petId,
+            options,
+            cancellationToken
+        );
         ApiResult<List<Photo>> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -419,11 +436,13 @@ public class PetApi : BaseApi
     /// <remarks>Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.</remarks>
     /// <param name="petId"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<List<Photo>>> AddPetPhotosWithHttpInfoAsync(
         long petId,
-        AddPetPhotosOptions options
+        AddPetPhotosOptions options,
+        CancellationToken cancellationToken = default
     )
     {
         if (options is null)
@@ -484,7 +503,8 @@ public class PetApi : BaseApi
                 AddPetPhotosAccepts,
                 "multipart/form-data",
                 typeof(List<Photo>),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -495,18 +515,21 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="petTreatment"></param>
     /// <param name="options">Options carrying an optional per-operation authenticator.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[PetTreatment]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<PetTreatment> AddPetTreatmentAsync(
         long petId,
         PetTreatment petTreatment,
-        AddPetTreatmentOptions? options = null
+        AddPetTreatmentOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
         Task<ApiResult<PetTreatment>> task = AddPetTreatmentWithHttpInfoAsync(
             petId,
             petTreatment,
-            options
+            options,
+            cancellationToken
         );
         ApiResult<PetTreatment> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
@@ -539,12 +562,14 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="petTreatment"></param>
     /// <param name="options">Options carrying an optional per-operation authenticator.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<PetTreatment>> AddPetTreatmentWithHttpInfoAsync(
         long petId,
         PetTreatment petTreatment,
-        AddPetTreatmentOptions? options = null
+        AddPetTreatmentOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}/treatment";
@@ -576,7 +601,8 @@ public class PetApi : BaseApi
                 AddPetTreatmentAccepts,
                 "application/json",
                 typeof(PetTreatment),
-                options?.Auth
+                options?.Auth,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -586,10 +612,19 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId">Pet id to delete</param>
     /// <param name="options">Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task DeletePetAsync(long petId, DeletePetOptions? options = null)
+    public async Task DeletePetAsync(
+        long petId,
+        DeletePetOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<object?>> task = DeletePetWithHttpInfoAsync(petId, options);
+        Task<ApiResult<object?>> task = DeletePetWithHttpInfoAsync(
+            petId,
+            options,
+            cancellationToken
+        );
         _ = await task.ConfigureAwait(false);
     }
 
@@ -598,11 +633,13 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId">Pet id to delete</param>
     /// <param name="options">Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<object?>> DeletePetWithHttpInfoAsync(
         long petId,
-        DeletePetOptions? options = null
+        DeletePetOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}";
@@ -673,7 +710,8 @@ public class PetApi : BaseApi
                 [],
                 "application/json",
                 null,
-                options?.Auth
+                options?.Auth,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -684,13 +722,19 @@ public class PetApi : BaseApi
     /// <remarks>Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.</remarks>
     /// <param name="petId"></param>
     /// <param name="documentId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<System.IO.Stream> DownloadPetDocumentAsync(long petId, long documentId)
+    public async Task<System.IO.Stream> DownloadPetDocumentAsync(
+        long petId,
+        long documentId,
+        CancellationToken cancellationToken = default
+    )
     {
         Task<ApiResult<System.IO.Stream>> task = DownloadPetDocumentWithHttpInfoAsync(
             petId,
-            documentId
+            documentId,
+            cancellationToken
         );
         ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
@@ -723,11 +767,13 @@ public class PetApi : BaseApi
     /// <remarks>Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.</remarks>
     /// <param name="petId"></param>
     /// <param name="documentId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<System.IO.Stream>> DownloadPetDocumentWithHttpInfoAsync(
         long petId,
-        long documentId
+        long documentId,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}/documents/{documentId}";
@@ -774,7 +820,8 @@ public class PetApi : BaseApi
                 DownloadPetDocumentAccepts,
                 "application/json",
                 typeof(System.IO.Stream),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -783,11 +830,18 @@ public class PetApi : BaseApi
     /// List pets born on a given date
     /// </summary>
     /// <param name="bornOn">Date of birth to match</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Pet>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<List<Pet>> FindPetsBornOnAsync(DateOnly bornOn)
+    public async Task<List<Pet>> FindPetsBornOnAsync(
+        DateOnly bornOn,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<List<Pet>>> task = FindPetsBornOnWithHttpInfoAsync(bornOn);
+        Task<ApiResult<List<Pet>>> task = FindPetsBornOnWithHttpInfoAsync(
+            bornOn,
+            cancellationToken
+        );
         ApiResult<List<Pet>> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -817,9 +871,13 @@ public class PetApi : BaseApi
     /// List pets born on a given date (with HTTP info)
     /// </summary>
     /// <param name="bornOn">Date of birth to match</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<List<Pet>>> FindPetsBornOnWithHttpInfoAsync(DateOnly bornOn)
+    public async Task<ApiResult<List<Pet>>> FindPetsBornOnWithHttpInfoAsync(
+        DateOnly bornOn,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/pet/born-on/{bornOn}";
 
@@ -850,7 +908,8 @@ public class PetApi : BaseApi
                 FindPetsBornOnAccepts,
                 "application/json",
                 typeof(List<Pet>),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -859,13 +918,20 @@ public class PetApi : BaseApi
     /// Finds Pets by status
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Pet>]]></returns>
     /// <seealso href="https://example.com/docs/filtering">Find out more about filtering</seealso>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     [Obsolete("This operation is deprecated.")]
-    public async Task<List<Pet>> FindPetsByStatusAsync(FindPetsByStatusOptions? options = null)
+    public async Task<List<Pet>> FindPetsByStatusAsync(
+        FindPetsByStatusOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<List<Pet>>> task = FindPetsByStatusWithHttpInfoAsync(options);
+        Task<ApiResult<List<Pet>>> task = FindPetsByStatusWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
         ApiResult<List<Pet>> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -895,11 +961,13 @@ public class PetApi : BaseApi
     /// Finds Pets by status (with HTTP info)
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     [Obsolete("This operation is deprecated.")]
     public async Task<ApiResult<List<Pet>>> FindPetsByStatusWithHttpInfoAsync(
-        FindPetsByStatusOptions? options = null
+        FindPetsByStatusOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/findByStatus";
@@ -985,7 +1053,8 @@ public class PetApi : BaseApi
                 FindPetsByStatusAccepts,
                 "application/json",
                 typeof(List<Pet>),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -995,14 +1064,20 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="server">Optional per-operation server override.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Pet> GetExternalPetInfoAsync(
         long petId,
-        GetExternalPetInfoServer? server = null
+        GetExternalPetInfoServer? server = null,
+        CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<Pet>> task = GetExternalPetInfoWithHttpInfoAsync(petId, server);
+        Task<ApiResult<Pet>> task = GetExternalPetInfoWithHttpInfoAsync(
+            petId,
+            server,
+            cancellationToken
+        );
         ApiResult<Pet> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1033,11 +1108,13 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="server">Optional per-operation server override.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Pet>> GetExternalPetInfoWithHttpInfoAsync(
         long petId,
-        GetExternalPetInfoServer? server = null
+        GetExternalPetInfoServer? server = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}/external";
@@ -1080,7 +1157,8 @@ public class PetApi : BaseApi
                 GetExternalPetInfoAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1090,14 +1168,20 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="server">Optional per-operation server override.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Pet> GetMultiServerPetInfoAsync(
         long petId,
-        GetMultiServerPetInfoServer? server = null
+        GetMultiServerPetInfoServer? server = null,
+        CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<Pet>> task = GetMultiServerPetInfoWithHttpInfoAsync(petId, server);
+        Task<ApiResult<Pet>> task = GetMultiServerPetInfoWithHttpInfoAsync(
+            petId,
+            server,
+            cancellationToken
+        );
         ApiResult<Pet> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1128,11 +1212,13 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="server">Optional per-operation server override.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Pet>> GetMultiServerPetInfoWithHttpInfoAsync(
         long petId,
-        GetMultiServerPetInfoServer? server = null
+        GetMultiServerPetInfoServer? server = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}/multi";
@@ -1175,7 +1261,8 @@ public class PetApi : BaseApi
                 GetMultiServerPetInfoAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1185,11 +1272,18 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Returns the raw image bytes of the pet's current avatar.</remarks>
     /// <param name="petId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<System.IO.Stream> GetPetAvatarAsync(long petId)
+    public async Task<System.IO.Stream> GetPetAvatarAsync(
+        long petId,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<System.IO.Stream>> task = GetPetAvatarWithHttpInfoAsync(petId);
+        Task<ApiResult<System.IO.Stream>> task = GetPetAvatarWithHttpInfoAsync(
+            petId,
+            cancellationToken
+        );
         ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1220,9 +1314,13 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Returns the raw image bytes of the pet's current avatar.</remarks>
     /// <param name="petId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<System.IO.Stream>> GetPetAvatarWithHttpInfoAsync(long petId)
+    public async Task<ApiResult<System.IO.Stream>> GetPetAvatarWithHttpInfoAsync(
+        long petId,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/pet/{petId}/avatar";
 
@@ -1253,7 +1351,8 @@ public class PetApi : BaseApi
                 GetPetAvatarAccepts,
                 "application/json",
                 typeof(System.IO.Stream),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1263,11 +1362,18 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.</remarks>
     /// <param name="petId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[byte[]]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<byte[]> GetPetAvatarThumbnailAsync(long petId)
+    public async Task<byte[]> GetPetAvatarThumbnailAsync(
+        long petId,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<byte[]>> task = GetPetAvatarThumbnailWithHttpInfoAsync(petId);
+        Task<ApiResult<byte[]>> task = GetPetAvatarThumbnailWithHttpInfoAsync(
+            petId,
+            cancellationToken
+        );
         ApiResult<byte[]> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1298,9 +1404,13 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.</remarks>
     /// <param name="petId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<byte[]>> GetPetAvatarThumbnailWithHttpInfoAsync(long petId)
+    public async Task<ApiResult<byte[]>> GetPetAvatarThumbnailWithHttpInfoAsync(
+        long petId,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/pet/{petId}/avatar/thumbnail";
 
@@ -1331,7 +1441,8 @@ public class PetApi : BaseApi
                 GetPetAvatarThumbnailAccepts,
                 "application/json",
                 typeof(byte[]),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1344,12 +1455,17 @@ public class PetApi : BaseApi
     /// <example>Small breed ID: 1</example>
     /// <example>Large breed ID: 42</example>
     /// <param name="server">Optional per-operation server override.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     [Obsolete("This operation is deprecated.")]
-    public async Task<Pet> GetPetByIdAsync(long petId, GetPetByIdServer? server = null)
+    public async Task<Pet> GetPetByIdAsync(
+        long petId,
+        GetPetByIdServer? server = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Pet>> task = GetPetByIdWithHttpInfoAsync(petId, server);
+        Task<ApiResult<Pet>> task = GetPetByIdWithHttpInfoAsync(petId, server, cancellationToken);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1381,12 +1497,14 @@ public class PetApi : BaseApi
     /// <remarks>Returns a single pet</remarks>
     /// <param name="petId">ID of pet to return</param>
     /// <param name="server">Optional per-operation server override.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     [Obsolete("This operation is deprecated.")]
     public async Task<ApiResult<Pet>> GetPetByIdWithHttpInfoAsync(
         long petId,
-        GetPetByIdServer? server = null
+        GetPetByIdServer? server = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}";
@@ -1429,7 +1547,8 @@ public class PetApi : BaseApi
                 GetPetByIdAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1439,11 +1558,16 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="name"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Pet> GetPetByNameAsync(string name, GetPetByNameOptions options)
+    public async Task<Pet> GetPetByNameAsync(
+        string name,
+        GetPetByNameOptions options,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Pet>> task = GetPetByNameWithHttpInfoAsync(name, options);
+        Task<ApiResult<Pet>> task = GetPetByNameWithHttpInfoAsync(name, options, cancellationToken);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1474,11 +1598,13 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="name"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Pet>> GetPetByNameWithHttpInfoAsync(
         string name,
-        GetPetByNameOptions options
+        GetPetByNameOptions options,
+        CancellationToken cancellationToken = default
     )
     {
         if (options is null)
@@ -1586,7 +1712,8 @@ public class PetApi : BaseApi
                 GetPetByNameAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1596,11 +1723,18 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.</remarks>
     /// <param name="petId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[PetPassport]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<PetPassport> GetPetPassportAsync(long petId)
+    public async Task<PetPassport> GetPetPassportAsync(
+        long petId,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<PetPassport>> task = GetPetPassportWithHttpInfoAsync(petId);
+        Task<ApiResult<PetPassport>> task = GetPetPassportWithHttpInfoAsync(
+            petId,
+            cancellationToken
+        );
         ApiResult<PetPassport> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1631,9 +1765,13 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.</remarks>
     /// <param name="petId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<PetPassport>> GetPetPassportWithHttpInfoAsync(long petId)
+    public async Task<ApiResult<PetPassport>> GetPetPassportWithHttpInfoAsync(
+        long petId,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/pet/{petId}/passport";
 
@@ -1664,7 +1802,8 @@ public class PetApi : BaseApi
                 GetPetPassportAccepts,
                 "application/json",
                 typeof(PetPassport),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1675,11 +1814,20 @@ public class PetApi : BaseApi
     /// <remarks>Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.</remarks>
     /// <param name="petId"></param>
     /// <param name="photoId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<System.IO.Stream> GetPetPhotoAsync(long petId, long photoId)
+    public async Task<System.IO.Stream> GetPetPhotoAsync(
+        long petId,
+        long photoId,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<System.IO.Stream>> task = GetPetPhotoWithHttpInfoAsync(petId, photoId);
+        Task<ApiResult<System.IO.Stream>> task = GetPetPhotoWithHttpInfoAsync(
+            petId,
+            photoId,
+            cancellationToken
+        );
         ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1711,11 +1859,13 @@ public class PetApi : BaseApi
     /// <remarks>Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.</remarks>
     /// <param name="petId"></param>
     /// <param name="photoId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<System.IO.Stream>> GetPetPhotoWithHttpInfoAsync(
         long petId,
-        long photoId
+        long photoId,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}/photos/{photoId}";
@@ -1762,7 +1912,8 @@ public class PetApi : BaseApi
                 GetPetPhotoAccepts,
                 "application/json",
                 typeof(System.IO.Stream),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1774,15 +1925,22 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="asOf">Summary date, sent as a matrix-style path segment</param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[string]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<string> GetPetSummaryAsync(
         long petId,
         DateOnly asOf,
-        GetPetSummaryOptions options
+        GetPetSummaryOptions options,
+        CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<string>> task = GetPetSummaryWithHttpInfoAsync(petId, asOf, options);
+        Task<ApiResult<string>> task = GetPetSummaryWithHttpInfoAsync(
+            petId,
+            asOf,
+            options,
+            cancellationToken
+        );
         ApiResult<string> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1815,12 +1973,14 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="asOf">Summary date, sent as a matrix-style path segment</param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<string>> GetPetSummaryWithHttpInfoAsync(
         long petId,
         DateOnly asOf,
-        GetPetSummaryOptions options
+        GetPetSummaryOptions options,
+        CancellationToken cancellationToken = default
     )
     {
         if (options is null)
@@ -1944,7 +2104,8 @@ public class PetApi : BaseApi
                 GetPetSummaryAccepts,
                 "application/json",
                 typeof(string),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1955,15 +2116,22 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="tagName"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Pet> GetPetTagAsync(
         long petId,
         string tagName,
-        GetPetTagOptions? options = null
+        GetPetTagOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<Pet>> task = GetPetTagWithHttpInfoAsync(petId, tagName, options);
+        Task<ApiResult<Pet>> task = GetPetTagWithHttpInfoAsync(
+            petId,
+            tagName,
+            options,
+            cancellationToken
+        );
         ApiResult<Pet> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1995,12 +2163,14 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="tagName"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Pet>> GetPetTagWithHttpInfoAsync(
         long petId,
         string tagName,
-        GetPetTagOptions? options = null
+        GetPetTagOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}/tag/{tagName}";
@@ -2197,7 +2367,8 @@ public class PetApi : BaseApi
                 GetPetTagAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -2207,14 +2378,20 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="server">Optional per-operation server override.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Pet> GetStagingPetInfoAsync(
         long petId,
-        GetStagingPetInfoServer? server = null
+        GetStagingPetInfoServer? server = null,
+        CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<Pet>> task = GetStagingPetInfoWithHttpInfoAsync(petId, server);
+        Task<ApiResult<Pet>> task = GetStagingPetInfoWithHttpInfoAsync(
+            petId,
+            server,
+            cancellationToken
+        );
         ApiResult<Pet> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -2245,11 +2422,13 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="server">Optional per-operation server override.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Pet>> GetStagingPetInfoWithHttpInfoAsync(
         long petId,
-        GetStagingPetInfoServer? server = null
+        GetStagingPetInfoServer? server = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}/staging";
@@ -2292,7 +2471,8 @@ public class PetApi : BaseApi
                 GetStagingPetInfoAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -2304,17 +2484,20 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="body"></param>
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types (image/jpeg, image/png, application/json). Defaults to the first declared type when null.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task SetPetAvatarAsync(
         long petId,
         System.IO.Stream body,
-        string? requestContentType = null
+        string? requestContentType = null,
+        CancellationToken cancellationToken = default
     )
     {
         Task<ApiResult<object?>> task = SetPetAvatarWithHttpInfoAsync(
             petId,
             body,
-            requestContentType
+            requestContentType,
+            cancellationToken
         );
         _ = await task.ConfigureAwait(false);
     }
@@ -2326,12 +2509,14 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="body"></param>
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types (image/jpeg, image/png, application/json). Defaults to the first declared type when null.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<object?>> SetPetAvatarWithHttpInfoAsync(
         long petId,
         System.IO.Stream body,
-        string? requestContentType = null
+        string? requestContentType = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}/avatar";
@@ -2381,7 +2566,8 @@ public class PetApi : BaseApi
                 effectiveRequestContentType,
                 null,
                 null,
-                rawBody: true
+                rawBody: true,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -2392,15 +2578,18 @@ public class PetApi : BaseApi
     /// <remarks>Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.</remarks>
     /// <param name="petId"></param>
     /// <param name="setPetAvatarThumbnailRequest"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task SetPetAvatarThumbnailAsync(
         long petId,
-        SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest
+        SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+        CancellationToken cancellationToken = default
     )
     {
         Task<ApiResult<object?>> task = SetPetAvatarThumbnailWithHttpInfoAsync(
             petId,
-            setPetAvatarThumbnailRequest
+            setPetAvatarThumbnailRequest,
+            cancellationToken
         );
         _ = await task.ConfigureAwait(false);
     }
@@ -2411,11 +2600,13 @@ public class PetApi : BaseApi
     /// <remarks>Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.</remarks>
     /// <param name="petId"></param>
     /// <param name="setPetAvatarThumbnailRequest"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<object?>> SetPetAvatarThumbnailWithHttpInfoAsync(
         long petId,
-        SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest
+        SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/pet/{petId}/avatar/thumbnail";
@@ -2447,7 +2638,8 @@ public class PetApi : BaseApi
                 [],
                 "application/json",
                 null,
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -2458,14 +2650,20 @@ public class PetApi : BaseApi
     /// <remarks>Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.</remarks>
     /// <param name="petId"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResponse> SetPetPreferencesAsync(
         long petId,
-        SetPetPreferencesOptions options
+        SetPetPreferencesOptions options,
+        CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<ApiResponse>> task = SetPetPreferencesWithHttpInfoAsync(petId, options);
+        Task<ApiResult<ApiResponse>> task = SetPetPreferencesWithHttpInfoAsync(
+            petId,
+            options,
+            cancellationToken
+        );
         ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -2497,11 +2695,13 @@ public class PetApi : BaseApi
     /// <remarks>Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.</remarks>
     /// <param name="petId"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<ApiResponse>> SetPetPreferencesWithHttpInfoAsync(
         long petId,
-        SetPetPreferencesOptions options
+        SetPetPreferencesOptions options,
+        CancellationToken cancellationToken = default
     )
     {
         if (options is null)
@@ -2574,7 +2774,8 @@ public class PetApi : BaseApi
                 SetPetPreferencesAccepts,
                 "application/x-www-form-urlencoded",
                 typeof(ApiResponse),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -2584,11 +2785,16 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId">ID of pet to update</param>
     /// <param name="pet">Pet object that needs to be updated</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Pet> UpdatePetAsync(long petId, Pet pet)
+    public async Task<Pet> UpdatePetAsync(
+        long petId,
+        Pet pet,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Pet>> task = UpdatePetWithHttpInfoAsync(petId, pet);
+        Task<ApiResult<Pet>> task = UpdatePetWithHttpInfoAsync(petId, pet, cancellationToken);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -2619,9 +2825,14 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId">ID of pet to update</param>
     /// <param name="pet">Pet object that needs to be updated</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Pet>> UpdatePetWithHttpInfoAsync(long petId, Pet pet)
+    public async Task<ApiResult<Pet>> UpdatePetWithHttpInfoAsync(
+        long petId,
+        Pet pet,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/pet/{petId}";
 
@@ -2652,7 +2863,8 @@ public class PetApi : BaseApi
                 UpdatePetAccepts,
                 "application/json",
                 typeof(Pet),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -2663,14 +2875,20 @@ public class PetApi : BaseApi
     /// <remarks>Attaches a single adoption certificate document. No metadata fields are required alongside the file.</remarks>
     /// <param name="petId"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResponse> UploadPetCertificateAsync(
         long petId,
-        UploadPetCertificateOptions options
+        UploadPetCertificateOptions options,
+        CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<ApiResponse>> task = UploadPetCertificateWithHttpInfoAsync(petId, options);
+        Task<ApiResult<ApiResponse>> task = UploadPetCertificateWithHttpInfoAsync(
+            petId,
+            options,
+            cancellationToken
+        );
         ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -2702,11 +2920,13 @@ public class PetApi : BaseApi
     /// <remarks>Attaches a single adoption certificate document. No metadata fields are required alongside the file.</remarks>
     /// <param name="petId"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<ApiResponse>> UploadPetCertificateWithHttpInfoAsync(
         long petId,
-        UploadPetCertificateOptions options
+        UploadPetCertificateOptions options,
+        CancellationToken cancellationToken = default
     )
     {
         if (options is null)
@@ -2756,7 +2976,8 @@ public class PetApi : BaseApi
                 UploadPetCertificateAccepts,
                 "multipart/form-data",
                 typeof(ApiResponse),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -2768,18 +2989,21 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types (multipart/form-data, application/octet-stream). Defaults to the first declared type when null.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResponse> UploadPetDocumentAsync(
         long petId,
         UploadPetDocumentOptions options,
-        string? requestContentType = null
+        string? requestContentType = null,
+        CancellationToken cancellationToken = default
     )
     {
         Task<ApiResult<ApiResponse>> task = UploadPetDocumentWithHttpInfoAsync(
             petId,
             options,
-            requestContentType
+            requestContentType,
+            cancellationToken
         );
         ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
@@ -2813,12 +3037,14 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types (multipart/form-data, application/octet-stream). Defaults to the first declared type when null.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<ApiResponse>> UploadPetDocumentWithHttpInfoAsync(
         long petId,
         UploadPetDocumentOptions options,
-        string? requestContentType = null
+        string? requestContentType = null,
+        CancellationToken cancellationToken = default
     )
     {
         if (options is null)
@@ -2909,7 +3135,8 @@ public class PetApi : BaseApi
                 UploadPetDocumentAccepts,
                 effectiveRequestContentType,
                 typeof(ApiResponse),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }

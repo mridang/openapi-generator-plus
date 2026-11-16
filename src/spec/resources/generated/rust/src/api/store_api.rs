@@ -107,7 +107,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body = Some(object_serializer::serialize(&account)?.into_bytes());
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "POST",
@@ -186,7 +186,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "DELETE",
@@ -322,7 +322,7 @@ impl StoreApi {
         }
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -392,7 +392,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -464,7 +464,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -545,7 +545,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -626,7 +626,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -700,7 +700,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -795,7 +795,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -887,7 +887,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -990,7 +990,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1060,7 +1060,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1141,7 +1141,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1224,7 +1224,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1294,7 +1294,7 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1377,7 +1377,7 @@ impl StoreApi {
         if let Some(body) = &order {
             request_body = Some(object_serializer::serialize(body)?.into_bytes());
         }
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "POST",
@@ -1507,23 +1507,12 @@ impl StoreApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
         if let Some(opts) = options {
             if let Some(ref val) = opts.x_filter {
-                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
-                    "X-Filter",
-                    Some(&object_serializer::stringify(val)),
-                    None,
-                    "header",
-                    "std::collections::HashMap<String, String>",
-                    "",
-                    "",
-                    false,
-                ) {
-                    header_params.insert("X-Filter".to_string(), v);
-                }
+                header_params.insert("X-Filter".to_string(), object_serializer::serialize(val)?);
             }
         }
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",

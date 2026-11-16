@@ -349,6 +349,52 @@ class TestDecimalNumberSerializesUnquoted:
         assert '"weightKg":"1.5"' not in reserialized
 
 
+class TestNumberIsLossless:
+    """A `type: number` field decodes and encodes without float rounding and
+    rejects a quoted string."""
+
+    def test_decode_keeps_every_digit(self) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "weightKg": 0.1234567890123456789}'
+        restored = ObjectSerializer().deserialize(wire, "Pet")
+        assert restored is not None
+        assert restored.weight_kg == Decimal("0.1234567890123456789")
+
+    def test_decode_keeps_a_large_magnitude_with_a_fraction(self) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "weightKg": 12345678901234567890.5}'
+        restored = ObjectSerializer().deserialize(wire, "Pet")
+        assert restored is not None
+        assert restored.weight_kg == Decimal("12345678901234567890.5")
+
+    def test_encode_writes_every_digit_unquoted(self) -> None:
+        pet = Pet(
+            name="Fido", photoUrls=set(), weightKg=Decimal("0.1234567890123456789")
+        )
+        assert '"weightKg":0.1234567890123456789' in ObjectSerializer().serialize(pet)
+
+    def test_round_trip_is_exact(self) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "weightKg": 12345678901234567890.5}'
+        restored = ObjectSerializer().deserialize(wire, "Pet")
+        assert restored is not None
+        assert '"weightKg":12345678901234567890.5' in ObjectSerializer().serialize(
+            restored
+        )
+
+    def test_a_list_of_models_keeps_the_exact_digits(self) -> None:
+        pet = Pet(
+            name="Fido", photoUrls=set(), weightKg=Decimal("0.1234567890123456789")
+        )
+        assert '"weightKg":0.1234567890123456789' in ObjectSerializer().serialize([pet])
+
+    def test_decode_rejects_a_quoted_number(self) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "weightKg": "12.345"}'
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(wire, "Pet")
+
+    def test_constructor_rejects_a_string(self) -> None:
+        with pytest.raises(ValidationError):
+            Pet.model_validate({"name": "Fido", "photoUrls": [], "weightKg": "12.345"})
+
+
 class TestSetSanitization:
     """`_sanitize_for_serialization` emits a set/frozenset as a JSON array.
 
@@ -359,16 +405,16 @@ class TestSetSanitization:
     def test_set_serializes_as_json_array(self) -> None:
         result = ObjectSerializer().serialize({"values": {3, 1, 2}})
         # Sorted for determinism, emitted as a JSON array (not '{1, 2, 3}').
-        assert '"values": [1, 2, 3]' in result
+        assert '"values":[1,2,3]' in result
         assert "{1, 2, 3}" not in result
 
     def test_frozenset_serializes_as_json_array(self) -> None:
         result = ObjectSerializer().serialize({"values": frozenset({"b", "a"})})
-        assert '"values": ["a", "b"]' in result
+        assert '"values":["a","b"]' in result
 
     def test_top_level_set_serializes_as_json_array(self) -> None:
         result = ObjectSerializer().serialize({2, 1, 3})
-        assert result == "[1, 2, 3]"
+        assert result == "[1,2,3]"
 
     def test_sanitize_set_returns_list(self) -> None:
         sanitized = ObjectSerializer._sanitize_for_serialization({1, 2, 3})
@@ -807,10 +853,13 @@ class TestNanInfinityRejection:
                 '{"lat":1e999,"lng":0}', "PhotoMetadataLocation"
             )
 
-    def test_serialize_decimal_number_beyond_double_range_raises(self) -> None:
+    def test_serialize_non_finite_decimal_number_raises(self) -> None:
+        with pytest.raises(ValidationError, match="finite JSON number"):
+            Pet(name="Fido", photoUrls=set(), weightKg=Decimal("Infinity"))
+
+    def test_serialize_decimal_number_beyond_double_range_is_exact(self) -> None:
         pet = Pet(name="Fido", photoUrls=set(), weightKg=Decimal("1e400"))
-        with pytest.raises(SerializationException, match="finite JSON number"):
-            ObjectSerializer().serialize(pet)
+        assert '"weightKg":1E+400' in ObjectSerializer().serialize(pet)
 
 
 class TestTimeFormat:
@@ -820,12 +869,34 @@ class TestTimeFormat:
         t = datetime.time(13, 45, 30)
         assert ObjectSerializer.stringify(t) == "13:45:30"
 
-    def test_stringify_time_drops_microseconds(self) -> None:
-        # ``format: time`` serializes with second precision so the wire format
-        # matches the other 11 SDKs which all emit HH:MM:SS. (date-time keeps
-        # millisecond precision; this whole-second rule applies to time only.)
+    def test_stringify_time_keeps_a_non_zero_millisecond_part(self) -> None:
         t = datetime.time(13, 45, 30, 123456)
-        assert ObjectSerializer.stringify(t) == "13:45:30"
+        assert ObjectSerializer.stringify(t) == "13:45:30.123"
+
+    def test_stringify_time_truncates_instead_of_rounding(self) -> None:
+        assert (
+            ObjectSerializer.stringify(datetime.time(10, 30, 0, 999600))
+            == "10:30:00.999"
+        )
+
+    def test_stringify_time_drops_a_sub_millisecond_part(self) -> None:
+        assert ObjectSerializer.stringify(datetime.time(13, 45, 30, 400)) == "13:45:30"
+
+    def test_serialize_time_in_dict_keeps_milliseconds(self) -> None:
+        result = ObjectSerializer().serialize(
+            {"opens_at": datetime.time(9, 0, 0, 250000)}
+        )
+        assert "09:00:00.250" in result
+
+    def test_time_model_field_writes_a_partial_time(self) -> None:
+        from petstore_client.models.edge_cases import EdgeCases
+
+        whole = ObjectSerializer().serialize(EdgeCases(cutoff=datetime.time(10, 30)))
+        assert '"cutoff":"10:30:00"' in whole
+        fractional = ObjectSerializer().serialize(
+            EdgeCases(cutoff=datetime.time(10, 30, 0, 123456))
+        )
+        assert '"cutoff":"10:30:00.123"' in fractional
 
     def test_serialize_time_in_dict(self) -> None:
         t = datetime.time(9, 0, 0)
@@ -1410,6 +1481,15 @@ class TestResponseLeavesAreStrict:
     def test_nested_array_of_integers_rejects_a_quoted_leaf(self) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('[[1,2],["3"]]', "List[List[StrictInt]]")
+
+    @pytest.mark.parametrize("payload", ["[[1],null]", "[null]"])
+    def test_nested_array_rejects_a_null_element(self, payload: str) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(payload, "List[List[StrictInt]]")
+
+    def test_map_of_integers_rejects_a_null_element(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":null}', "Dict[str, StrictInt]")
 
     def test_integers_are_still_accepted(self) -> None:
         assert ObjectSerializer().deserialize(

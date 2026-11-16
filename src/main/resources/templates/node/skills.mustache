@@ -263,6 +263,20 @@ Models are generated as TypeScript classes in the `src/models/` directory.
 const model = new {{classname}}();{{/-first}}{{/model}}{{/models}}
 ```
 
+## Cancellation
+
+Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSignal }`). A client-level signal goes in the third constructor argument and is merged with the per-call signal; either one cancels the call. Cancellation rejects with the signal's reason (an `AbortError` by default), never `NetworkTimeoutError`.
+
+```typescript
+const controller = new AbortController();
+const perCall = api.someOperation(requiredArg, { signal: controller.signal });
+const cancellable = new {{clientClassName}}(authenticator, undefined, { signal: controller.signal });
+```
+
+## Custom fetch
+
+`TransportOptions.builder().fetch(myFetch).fetchOptions({ keepalive: true })` sends every request through your own `fetch`. SDK defaults (timeout, user agent, redirect policy) still apply; the SDK never closes what you supply, and a custom `fetch` combined with `proxy`, `caCertPath` or `verifySsl(false)` throws a `TypeError`.
+
 ## Binary / File Uploads
 
 File upload parameters are typed as `Buffer`. Binary response bodies are returned as `Buffer`.

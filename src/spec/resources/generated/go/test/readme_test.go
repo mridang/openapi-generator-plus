@@ -64,3 +64,21 @@ func TestReadme_LintCommandChecksTheGeneratedSources(t *testing.T) {
 		t.Errorf("expected .golangci.yml to set linters.exclusions.generated: disable, got %q", config)
 	}
 }
+
+func TestReadme_SchemaConstraintsSectionSaysWhatGoValidatesAndThatUniqueItemsAreNotSorted(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	for _, want := range []string{"### Schema constraints", "validated by the server", "uniqueItems", "not sorted"} {
+		if !strings.Contains(readme, want) {
+			t.Errorf("expected the README to contain %q", want)
+		}
+	}
+}
+
+func TestReadme_CancellationSectionDescribesTheContextParameter(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	if !strings.Contains(readme, "`ctx context.Context` as its first parameter") {
+		t.Errorf("expected the README to document the ctx parameter")
+	}
+}

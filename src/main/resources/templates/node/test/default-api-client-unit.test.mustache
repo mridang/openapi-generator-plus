@@ -1384,3 +1384,68 @@ describe('Content-Encoding lie surfaces ApiError (canonical AL)', () => {
     expect(out.length).toBe(0);
   });
 });
+
+describe('injected fetch (TransportOptions.fetch)', () => {
+  it('sends the request through the supplied fetch with the SDK defaults on top', async () => {
+    const calls: Array<{ url: string; init: Record<string, unknown> }> = [];
+    const customFetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      calls.push({ url: String(input), init: (init ?? {}) as Record<string, unknown> });
+      return new Response('{"ok":true}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .fetch(customFetch)
+        .fetchOptions({ keepalive: true, method: 'DELETE' })
+        .userAgent('custom-agent/1.0')
+        .build()
+    );
+    const response = await client.sendRequest('GET', 'http://example.invalid/thing', { 'X-Test': '1' }, null);
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe('{"ok":true}');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe('http://example.invalid/thing');
+    expect(calls[0].init['keepalive']).toBe(true);
+    expect(calls[0].init['method']).toBe('GET');
+    expect(calls[0].init['redirect']).toBe('manual');
+    expect(calls[0].init['signal']).toBeInstanceOf(AbortSignal);
+    expect((calls[0].init['headers'] as Record<string, string>)['User-Agent']).toBe('custom-agent/1.0');
+    expect((calls[0].init['headers'] as Record<string, string>)['X-Test']).toBe('1');
+    await client.close();
+  });
+
+  it('does not touch the supplied fetch when the client is closed', async () => {
+    let called = 0;
+    const customFetch = (async (): Promise<Response> => {
+      called++;
+      return new Response('{}');
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().fetch(customFetch).build());
+    await client.close();
+    await expect(client.sendRequest('GET', 'http://example.invalid/', {}, null)).rejects.toThrow();
+    expect(called).toBe(0);
+  });
+});
+
+describe('SendRequestOptions.signal', () => {
+  it('rejects with the AbortError, not a timeout, when the signal fires', async () => {
+    const customFetch = ((_input: string | URL | Request, init?: RequestInit): Promise<Response> =>
+      new Promise<Response>((_resolve, reject) => {
+        if (init?.signal?.aborted) {
+          reject(init.signal.reason);
+          return;
+        }
+        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+      })) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().fetch(customFetch).timeout(60000).build());
+    const controller = new AbortController();
+    const pending = client
+      .sendRequest('GET', 'http://example.invalid/slow', {}, null, { signal: controller.signal })
+      .catch((e: unknown) => e);
+    controller.abort();
+    const error = await pending;
+    expect((error as Error).name).toBe('AbortError');
+    expect(error).not.toBeInstanceOf(NetworkTimeoutError);
+    expect(error).not.toBeInstanceOf(NetworkError);
+    await client.close();
+  });
+});

@@ -36,9 +36,19 @@ export class Configuration {
    */
   public readonly defaultHeaders: Readonly<Record<string, string>>;
 
-  constructor(options?: Partial<{ baseUrl: string; defaultHeaders: Record<string, string> }>) {
+  /**
+   * Client-level cancellation signal. When it fires every in-flight and every
+   * later call made through this configuration is aborted; it is merged with
+   * the per-call `signal` of each operation (either one cancels the call).
+   */
+  public readonly signal: AbortSignal | undefined;
+
+  constructor(
+    options?: Partial<{ baseUrl: string; defaultHeaders: Record<string, string>; signal: AbortSignal }>
+  ) {
     this.baseUrl = options?.baseUrl ?? '{{{basePath}}}';
     this.defaultHeaders = Object.freeze({ ...(options?.defaultHeaders ?? {}) });
+    this.signal = options?.signal;
   }
 
   /**
@@ -87,6 +97,20 @@ export class Configuration {
 export class ConfigurationBuilder {
   private _baseUrl: string = '{{{basePath}}}';
   private _defaultHeaders: Record<string, string> = {};
+  private _signal: AbortSignal | undefined;
+
+  /**
+   * Set the client-level cancellation signal. Aborting it cancels every call
+   * made through the built configuration; it is merged with each call's own
+   * `signal` (either one cancels the call).
+   *
+   * @param signal the client-level abort signal
+   * @returns this builder
+   */
+  signal(signal: AbortSignal | undefined): this {
+    this._signal = signal;
+    return this;
+  }
 
   /**
    * Set the base URL for all API requests.
@@ -146,7 +170,8 @@ export class ConfigurationBuilder {
   build(): Configuration {
     return new Configuration({
       baseUrl: this._baseUrl,
-      defaultHeaders: this._defaultHeaders
+      defaultHeaders: this._defaultHeaders,
+      signal: this._signal
     });
   }
 }

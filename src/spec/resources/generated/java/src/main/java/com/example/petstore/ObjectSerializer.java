@@ -542,7 +542,7 @@ public final class ObjectSerializer {
               CollectionType type,
               BeanDescription beanDesc,
               JsonDeserializer<?> deserializer) {
-            return isModelType(type.getContentType())
+            return isStrictElementType(type.getContentType())
                 ? new NullModelElementDeserializer(deserializer)
                 : deserializer;
           }
@@ -553,7 +553,7 @@ public final class ObjectSerializer {
               MapType type,
               BeanDescription beanDesc,
               JsonDeserializer<?> deserializer) {
-            return isModelType(type.getContentType())
+            return isStrictElementType(type.getContentType())
                 ? new NullModelElementDeserializer(deserializer)
                 : deserializer;
           }
@@ -656,6 +656,17 @@ public final class ObjectSerializer {
   private static boolean isModelType(JavaType type) {
     Class<?> raw = type.getRawClass();
     return !raw.isEnum() && "com.example.petstore.models".equals(raw.getPackageName());
+  }
+
+  /* An element type that must never be null: a generated model, a number, a
+  boolean or a nested array or map. Strings keep a null element. */
+  private static boolean isStrictElementType(JavaType type) {
+    Class<?> raw = type.getRawClass();
+    return isModelType(type)
+        || Number.class.isAssignableFrom(raw)
+        || Boolean.class.equals(raw)
+        || java.util.Collection.class.isAssignableFrom(raw)
+        || java.util.Map.class.isAssignableFrom(raw);
   }
 
   /**

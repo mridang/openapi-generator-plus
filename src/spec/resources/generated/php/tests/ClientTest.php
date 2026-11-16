@@ -8,7 +8,10 @@ use PetstoreClient\Client;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Auth\BearerAuthenticator;
+use PetstoreClient\Psr18ApiClient;
 use PetstoreClient\TransportOptions;
+use PetstoreClient\Test\StubPsr18Client;
+use Nyholm\Psr7\Factory\Psr17Factory;
 
 beforeEach(function (): void {
     $this->authenticator = new BearerAuthenticator('/api/v3', 'test-token');
@@ -109,3 +112,42 @@ test('injected api client is wired into every api group', function (): void {
     $property = new \ReflectionClass(\PetstoreClient\Api\StoreApi::class)->getProperty('apiClient');
     expect($property->getValue($client->store))->toBe($stub);
 });
+
+test('a supplied psr18 client receives the request from every api group', function (): void {
+    $factory = new Psr17Factory();
+    $responses = [];
+    for ($i = 0; $i < 50; $i++) {
+        $responses[] = $factory->createResponse(200)->withBody($factory->createStream('{}'));
+    }
+    $stub = new StubPsr18Client(...$responses);
+
+    $client = Client::withHttpClient($this->authenticator, $stub, $factory, $factory);
+
+    $clients = [];
+    $clients[] = new \ReflectionClass(\PetstoreClient\Api\PetApi::class)
+        ->getProperty('apiClient')
+        ->getValue($client->pet);
+    $clients[] = new \ReflectionClass(\PetstoreClient\Api\StoreApi::class)
+        ->getProperty('apiClient')
+        ->getValue($client->store);
+
+    foreach ($clients as $apiClient) {
+        expect($apiClient)->toBeInstanceOf(Psr18ApiClient::class);
+        if ($apiClient instanceof Psr18ApiClient) {
+            $apiClient->sendRequest('GET', 'http://example.com/ping', [], null);
+        }
+    }
+    expect($stub->requests)->toHaveCount(count($clients));
+});
+
+test('a supplied psr18 client conflicts with sdk proxy and tls settings', function (TransportOptions $options): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+
+    expect(fn () => Client::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'conflict');
+})->with([
+    'proxy' => [fn () => TransportOptions::builder()->proxy('http://proxy:3128')->build()],
+    'ca bundle' => [fn () => TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build()],
+    'tls verification off' => [fn () => TransportOptions::builder()->verifySsl(false)->build()],
+]);

@@ -181,7 +181,14 @@ type {{classname}} struct {
 	// and received like any other property.
 {{/isWriteOnly}}
 {{#required}}
+{{#isNullable}}
+	{{! Required AND nullable: the key must be present, null is a legal value and
+	    is written back as null. A pointer holds null; no omitempty keeps the key. }}
+	{{name}} *{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}}"`
+{{/isNullable}}
+{{^isNullable}}
 	{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}}"`
+{{/isNullable}}
 {{/required}}
 {{^required}}
 {{#isNullable}}
@@ -218,7 +225,7 @@ func (o {{classname}}) Equal(other {{classname}}) bool {
 
 {{#hasVars}}
 // New{{classname}} creates a new {{classname}} instance.
-func New{{classname}}({{#requiredVars}}{{nameInCamelCase}} {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredVars}}) *{{classname}} {
+func New{{classname}}({{#requiredVars}}{{nameInCamelCase}} {{#isNullable}}*{{/isNullable}}{{{dataType}}}{{^-last}}, {{/-last}}{{/requiredVars}}) *{{classname}} {
 {{#optionalVars}}
 {{#defaultValue}}
 	var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
@@ -335,6 +342,15 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
 	}
 {{/isNullable}}
+{{#isNullable}}
+{{^defaultValue}}
+	/* Required AND nullable: the key must be present; an explicit null is a
+	 * legal value and decodes to a nil pointer. */
+	if _, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	}
+{{/defaultValue}}
+{{/isNullable}}
 {{/required}}
 {{/vars}}
 	return nil
@@ -405,6 +421,15 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
 	}
 {{/isNullable}}
+{{#isNullable}}
+{{^defaultValue}}
+	/* Required AND nullable: the key must be present; an explicit null is a
+	 * legal value and decodes to a nil pointer. */
+	if _, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	}
+{{/defaultValue}}
+{{/isNullable}}
 {{/required}}
 {{/vars}}
 	*o = {{classname}}(*aux)
@@ -465,6 +490,15 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{/defaultValue}}
 		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
 	}
+{{/isNullable}}
+{{#isNullable}}
+{{^defaultValue}}
+	/* Required AND nullable: the key must be present; an explicit null is a
+	 * legal value and decodes to a nil pointer. */
+	if _, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	}
+{{/defaultValue}}
 {{/isNullable}}
 {{/required}}
 {{/vars}}

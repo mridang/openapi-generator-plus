@@ -1061,6 +1061,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     protected void markRecursiveProperty(CodegenProperty property) {
         if (property.required
+                && !property.isNullable
                 && property.dataType != null
                 && !property.dataType.startsWith("*")) {
             property.dataType = "*" + property.dataType;
@@ -1145,10 +1146,93 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             op.consumes != null && op.consumes.size() > 1;
                     op.vendorExtensions.put(
                             "hasMultipleConsumes", hasMultipleConsumes);
+                    stampContentParams(op);
                 }
             }
         }
-        return super.postProcessOperationsWithModels(objs, allModels);
+        final OperationsMap processed = super.postProcessOperationsWithModels(objs, allModels);
+        reorderServerBeforeOptions(processed);
+        return processed;
+    }
+
+    /**
+     * Moves the per-operation {@code server} argument in front of the
+     * {@code options} argument of every operation's {@code signatureArgs}, so
+     * the argument order is required parameters, then server, then the
+     * optional-parameters object (decision F803): adding security to an
+     * operation, which adds an options argument, never moves an existing
+     * argument. The shared list is built path, body, options, server; this
+     * rewrites it in place after the shared decorator pass has run.
+     *
+     * @param objs the processed operations map
+     */
+    @SuppressWarnings("unchecked")
+    private static void reorderServerBeforeOptions(final OperationsMap objs) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations == null) {
+            return;
+        }
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        for (final CodegenOperation op : ops) {
+            final Object decorator = op.vendorExtensions.get("op");
+            if (!(decorator instanceof Map)) {
+                continue;
+            }
+            for (final String key : Arrays.asList("signatureArgs", "signatureArgsNoOptions")) {
+                final Object list = ((Map<String, Object>) decorator).get(key);
+                if (list instanceof List) {
+                    moveServerBeforeOptions((List<Map<String, Object>>) list);
+                }
+            }
+        }
+    }
+
+    static void moveServerBeforeOptions(final List<Map<String, Object>> args) {
+        int optionsAt = -1;
+        int serverAt = -1;
+        for (int i = 0; i < args.size(); i++) {
+            if (Boolean.TRUE.equals(args.get(i).get("isOptions"))) {
+                optionsAt = i;
+            } else if (Boolean.TRUE.equals(args.get(i).get("isServer"))) {
+                serverAt = i;
+            }
+        }
+        if (optionsAt >= 0 && serverAt > optionsAt) {
+            final Map<String, Object> server = args.remove(serverAt);
+            args.add(optionsAt, server);
+        }
+    }
+
+    /**
+     * Marks every parameter declared with {@code content} (instead of
+     * {@code schema}) so the api template encodes it through the SDK's own
+     * object serializer in every location (decision F054). The per-location
+     * lists hold copies, so each list is stamped.
+     *
+     * @param op the operation whose parameters to stamp
+     */
+    private static void stampContentParams(final CodegenOperation op) {
+        for (final List<CodegenParameter> params :
+                Arrays.asList(
+                        op.allParams,
+                        op.pathParams,
+                        op.queryParams,
+                        op.headerParams,
+                        op.cookieParams)) {
+            if (params == null) {
+                continue;
+            }
+            for (final CodegenParameter p : params) {
+                final boolean hasContent = p.getContent() != null && !p.getContent().isEmpty();
+                if (p.vendorExtensions == null) {
+                    p.vendorExtensions = new HashMap<>();
+                }
+                p.vendorExtensions.put("goContent", hasContent);
+            }
+        }
     }
 
     /**

@@ -128,6 +128,88 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return "swift-plus";
     }
 
+    /**
+     * Builds the operation decorators, then puts the per-operation server
+     * ahead of the options object in every signature-argument list. The order
+     * of an operation's arguments is required parameters, server, options, so
+     * adding security (which mints an options argument) never moves an
+     * existing argument.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    protected void populateOperationDecorators(CodegenOperation op) {
+        super.populateOperationDecorators(op);
+        if (op == null || op.vendorExtensions == null) {
+            return;
+        }
+        markContentParameters(op.pathParams);
+        markContentParameters(op.headerParams);
+        markContentParameters(op.cookieParams);
+        final Object decorator = op.vendorExtensions.get("op");
+        if (!(decorator instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorator;
+        for (final String key : List.of(
+                "signatureArgs", "signatureArgsNoOptions")) {
+            final Object value = d.get(key);
+            if (value instanceof List) {
+                d.put(key, serverBeforeOptions((List<Map<String, Object>>) value));
+            }
+        }
+    }
+
+    /**
+     * Flags every parameter declared with a JSON {@code content} entry (rather
+     * than a {@code schema}) as {@code vendorExtensions.swiftContent}, so the
+     * template encodes it through the SDK's own object serializer.
+     *
+     * @param params the parameters of one location; may be null
+     */
+    private static void markContentParameters(@Nullable List<CodegenParameter> params) {
+        if (params == null) {
+            return;
+        }
+        for (final CodegenParameter p : params) {
+            final Map<String, ?> content = p.getContent();
+            if (content == null) {
+                continue;
+            }
+            for (final String mediaType : content.keySet()) {
+                if (mediaType.toLowerCase(Locale.ROOT).contains("json")) {
+                    p.vendorExtensions.put("swiftContent", true);
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns a copy of the signature-argument list with the server entry
+     * moved directly ahead of the options entry. A list that lacks either one
+     * is returned in its original order.
+     *
+     * @param args the ordered signature arguments of one operation
+     * @return the arguments with the server before the options object
+     */
+    static List<Map<String, Object>> serverBeforeOptions(List<Map<String, Object>> args) {
+        final List<Map<String, Object>> out = new ArrayList<>(args);
+        int optionsAt = -1;
+        int serverAt = -1;
+        for (int i = 0; i < out.size(); i++) {
+            if (Boolean.TRUE.equals(out.get(i).get("isOptions"))) {
+                optionsAt = i;
+            }
+            if (Boolean.TRUE.equals(out.get(i).get("isServer"))) {
+                serverAt = i;
+            }
+        }
+        if (optionsAt >= 0 && serverAt > optionsAt) {
+            out.add(optionsAt, out.remove(serverAt));
+        }
+        return out;
+    }
+
     /** Returns a short description shown in the help output. */
     @Override
     public String getHelp() {

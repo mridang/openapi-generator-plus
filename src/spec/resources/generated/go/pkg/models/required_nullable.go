@@ -11,11 +11,12 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // RequiredNullable is a model class generated from the OpenAPI schema.
 type RequiredNullable struct {
-	Note string `json:"note"`
+	Note *string `json:"note"`
 }
 
 // Equal reports whether this RequiredNullable is value-equal to other.
@@ -34,7 +35,7 @@ func (o RequiredNullable) Equal(other RequiredNullable) bool {
 }
 
 // NewRequiredNullable creates a new RequiredNullable instance.
-func NewRequiredNullable(note string) *RequiredNullable {
+func NewRequiredNullable(note *string) *RequiredNullable {
 	return &RequiredNullable{
 		Note: note,
 	}
@@ -60,6 +61,11 @@ func (o *RequiredNullable) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
+	}
+	/* Required AND nullable: the key must be present; an explicit null is a
+	 * legal value and decodes to a nil pointer. */
+	if _, ok := raw["note"]; !ok {
+		return fmt.Errorf("required field 'note' is missing in RequiredNullable")
 	}
 	/* An absent field carrying a schema default is populated with that default
 	 * so the deserialized model matches the spec, consistent with the other

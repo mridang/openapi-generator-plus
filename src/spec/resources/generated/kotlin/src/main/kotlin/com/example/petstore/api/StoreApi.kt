@@ -695,8 +695,7 @@ class StoreApi : BaseApi {
         }
         val headerParams = mutableMapOf<String, String>()
         if (options?.xFilter != null) {
-            headerParams["X-Filter"] =
-                ValueSerializer.serializeStyled("X-Filter", options!!.xFilter, "header", "Map<String, String>", null, "", false) as String
+            headerParams["X-Filter"] = ValueSerializer.serializeContent("X-Filter", options!!.xFilter, "header") as String
         }
 
         return invokeApiForResult<List<Order>>(

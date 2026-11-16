@@ -729,4 +729,48 @@ class ValueSerializerTest {
             assertNull(ValueSerializer.maybeAllowReserved(null, true))
         }
     }
+
+    @Nested
+    @DisplayName("serializeContent - content: application/json parameters")
+    inner class ContentParameterTests {
+
+        private val model = {{modelPackage}}.EdgeCases(cutoff = java.time.LocalTime.of(10, 30, 0, 123_456_789))
+
+        @Test
+        @DisplayName("header carries the SDK JSON verbatim")
+        fun headerCarriesTheJsonVerbatim() {
+            assertEquals("{\"cutoff\":\"10:30:00.123\"}", ValueSerializer.serializeContent("p", model, "header"))
+        }
+
+        @Test
+        @DisplayName("path is segment-encoded once")
+        fun pathIsSegmentEncoded() {
+            assertEquals(
+                "%7B%22cutoff%22:%2210:30:00.123%22%7D",
+                ValueSerializer.serializeContent("p", model, "path"),
+            )
+        }
+
+        @Test
+        @DisplayName("cookie is fully percent-encoded")
+        fun cookieIsPercentEncoded() {
+            assertEquals(
+                "%7B%22cutoff%22%3A%2210%3A30%3A00.123%22%7D",
+                ValueSerializer.serializeContent("p", model, "cookie"),
+            )
+        }
+
+        @Test
+        @DisplayName("query returns the raw JSON for the query builder to encode")
+        fun queryReturnsTheRawJson() {
+            assertEquals("{\"cutoff\":\"10:30:00.123\"}", ValueSerializer.serializeContent("p", model, "query"))
+        }
+
+        @Test
+        @DisplayName("absent value is null in a query and empty elsewhere")
+        fun absentValue() {
+            assertNull(ValueSerializer.serializeContent("p", null, "query"))
+            assertEquals("", ValueSerializer.serializeContent("p", null, "header"))
+        }
+    }
 }

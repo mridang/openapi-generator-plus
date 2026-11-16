@@ -1,18 +1,24 @@
 """Integration tests for the Store API endpoints."""
 
+import datetime as dt
 import pytest
 import threading
 from datetime import datetime, timezone
+from urllib.parse import parse_qs, urlsplit
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any
+from petstore_client.api.options.search_store_options import SearchStoreOptions
 from petstore_client.api.store_api import StoreApi
 from petstore_client.configuration import Configuration
+from petstore_client.errors import SerializationException
 from petstore_client.errors.internal_server_error_exception import (
     InternalServerErrorException,
 )
 from petstore_client.errors.not_found_exception import NotFoundException
 from petstore_client.models.category import Category
 from petstore_client.models.order import Order, OrderStatusEnum
+from petstore_client.models.photo_metadata import PhotoMetadata
+from petstore_client.models.photo_metadata_location import PhotoMetadataLocation
 
 
 class TestStoreApi:
@@ -161,3 +167,76 @@ class TestStoreApiNestedContainer:
         assert isinstance(result[0]["a"], Category)
         assert result[0]["a"].id == 1
         assert result[0]["a"].name == "Dogs"
+
+
+def _capture_server() -> tuple[StoreApi, dict[str, Any]]:
+    seen: dict[str, Any] = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            seen["path"] = self.path
+            seen["x_filter"] = self.headers.get("X-Filter")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b"[]")
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.handle_request)
+    thread.daemon = True
+    thread.start()
+    config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
+    return StoreApi(config=config), seen
+
+
+class TestStoreApiContentParameters:
+    """A `content: application/json` parameter goes through the SDK's own
+    object serializer in every location."""
+
+    async def test_query_content_uses_the_wire_form(self) -> None:
+        api, seen = _capture_server()
+        photo = PhotoMetadata(
+            caption="a<b>&c",
+            takenAt=datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc),
+            location=PhotoMetadataLocation(lat=1.5),
+        )
+
+        await api.search_store(SearchStoreOptions(q=photo))
+
+        query = parse_qs(urlsplit(seen["path"]).query)
+        assert query["q"] == [
+            '{"caption":"a<b>&c","takenAt":"2024-01-02T03:04:05.000+00:00","location":{"lat":1.5}}'
+        ]
+
+    async def test_header_content_is_sent_not_ignored(self) -> None:
+        api, seen = _capture_server()
+
+        await api.search_store(SearchStoreOptions(x_filter={"k": "v"}))
+
+        assert seen["x_filter"] == '{"k":"v"}'
+
+    async def test_content_that_cannot_be_serialized_sends_no_request(self) -> None:
+        api, seen = _capture_server()
+
+        with pytest.raises(SerializationException):
+            await api.search_store(SearchStoreOptions(x_filter={"k": float("nan")}))  # type: ignore[dict-item]
+
+        assert seen == {}
+
+    async def test_time_parameter_keeps_a_non_zero_millisecond_part(self) -> None:
+        api, seen = _capture_server()
+
+        await api.search_store(SearchStoreOptions(at=dt.time(10, 30, 0, 123456)))
+
+        assert parse_qs(urlsplit(seen["path"]).query)["at"] == ["10:30:00.123"]
+
+    async def test_time_parameter_drops_a_zero_fraction(self) -> None:
+        api, seen = _capture_server()
+
+        await api.search_store(SearchStoreOptions(at=dt.time(10, 30, 0)))
+
+        assert parse_qs(urlsplit(seen["path"]).query)["at"] == ["10:30:00"]

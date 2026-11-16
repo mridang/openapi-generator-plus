@@ -441,6 +441,66 @@ function jsonMaxDepth(s: string): number {
 }
 
 /**
+ * Source text of the JSON numbers whose canonical double text differs from what
+ * the document wrote (`12.345678901234567890123`, `1.50`, `1e2`). Recorded by
+ * the JSON.parse reviver on the object (or array) that holds the number, under
+ * this non-enumerable symbol, so a `type: number` Decimal field can decode
+ * losslessly instead of through a rounded double.
+ */
+const NUMBER_SOURCE_TEXT: unique symbol = Symbol('numberSourceText');
+
+/**
+ * JSON.parse reviver that keeps the source text of every number that a double
+ * cannot hold exactly. Needs the JSON.parse source-text access of Node 21 or
+ * newer; without it nothing is recorded and a number decodes from its double.
+ */
+function recordNumberSource(this: unknown, key: string, value: unknown, context?: { source?: string }): unknown {
+  if (
+    typeof value === 'number' &&
+    context?.source !== undefined &&
+    context.source !== String(value) &&
+    this !== null &&
+    typeof this === 'object'
+  ) {
+    const holder = this as { [NUMBER_SOURCE_TEXT]?: Map<string, string> };
+    let texts = holder[NUMBER_SOURCE_TEXT];
+    if (texts === undefined) {
+      texts = new Map<string, string>();
+      Object.defineProperty(holder, NUMBER_SOURCE_TEXT, { value: texts, enumerable: false });
+    }
+    texts.set(key, context.source);
+  }
+  return value;
+}
+
+/**
+ * Decode a bare `type: number` field of a wire object into its Decimal text.
+ * A JSON number keeps its exact source text (no float coercion); a quoted
+ * string, an array, an object or a boolean is rejected. Used by the model
+ * `@Transform` of such a field.
+ *
+ * @param obj the wire object that holds the field
+ * @param wireName the field's wire name
+ * @returns the number's text, or the value itself when it is null or absent
+ * @throws SerializationError when the value is not a JSON number
+ */
+export function decodePlainNumber(obj: unknown, wireName: string): unknown {
+  if (obj === null || typeof obj !== 'object') {
+    return undefined;
+  }
+  const raw = (obj as Record<string, unknown>)[wireName];
+  if (raw === null || raw === undefined) {
+    return raw;
+  }
+  if (typeof raw === 'number') {
+    return (obj as { [NUMBER_SOURCE_TEXT]?: Map<string, string> })[NUMBER_SOURCE_TEXT]?.get(wireName) ?? String(raw);
+  }
+  throw new SerializationError(
+    `Expected a JSON number for '${wireName}' but received ${typeof raw === 'string' ? 'a quoted string' : typeof raw}`
+  );
+}
+
+/**
  * Handles JSON serialization and deserialization for API requests and responses.
  *
  * All serde operations in the generated client route through this class.
@@ -470,7 +530,7 @@ export class ObjectSerializer {
       );
     }
     try {
-      return JSON.parse(json);
+      return JSON.parse(json, recordNumberSource);
     } catch (e) {
       throw new SerializationError(
         `Failed to parse JSON: ${e instanceof Error ? e.message : String(e)}`,
@@ -597,7 +657,17 @@ export class ObjectSerializer {
             }
           }
         }
-        if (value === null && _key !== '') return undefined;
+        if (value === null && _key !== '') {
+          /* A required and nullable field keeps its key: it is written as
+           * null, never dropped. */
+          const nullableCtor = (this as { constructor?: unknown }).constructor as
+            | { __requiredNullableFields?: ReadonlySet<string> }
+            | undefined;
+          if (nullableCtor?.__requiredNullableFields instanceof Set && nullableCtor.__requiredNullableFields.has(_key)) {
+            return null;
+          }
+          return undefined;
+        }
         return value;
       });
     } catch (e) {
@@ -968,13 +1038,15 @@ export class ObjectSerializer {
    * (a map or array element). A plain `as number` cast is erased at compile
    * time, so `{"a": "5"}` for a `Record<string, number>` would be returned as
    * the string "5" and `"garbage"` for a date element would become an Invalid
-   * Date. A `null` element is passed through unchanged: a nullable element is
-   * legitimate and a non-nullable one is not distinguished here. The error
-   * names the expected and received types only, never the value.
+   * Date. The error names the expected and received types only, never the
+   * value.
    *
    * `int32` (also used for a format-less integer) must be an integer inside
    * [-2^31, 2^31-1]. `int64` must be an integer; values beyond 2^53 cannot be
    * checked because JSON.parse has already rounded them.
+   *
+   * A `null` element is rejected for an integer or boolean leaf unless the
+   * element schema is nullable (`nullable`).
    *
    * A date leaf must be an RFC 3339 date-time with an explicit offset or a
    * bare `YYYY-MM-DD` date; anything else (no offset, free text) is rejected
@@ -987,8 +1059,15 @@ export class ObjectSerializer {
   static deserializeLeaf<T>(
     value: unknown,
     kind: 'int32' | 'int64' | 'boolean' | 'date',
+    nullable = false,
   ): T {
     if (value === null || value === undefined) {
+      /* A null element of a container of integers or booleans is a wrong-typed
+       * element unless the element schema is nullable. Date leaves keep their
+       * null so a nullable timestamp container is not corrupted. */
+      if (kind !== 'date' && !nullable) {
+        throw new SerializationError(`Expected ${kind} but received: null`);
+      }
       return null as T;
     }
     const valid =

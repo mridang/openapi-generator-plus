@@ -1766,3 +1766,26 @@ class TestOperationServerVariants:
         )
 
         assert client.captured_url == "https://ap.example.com/v1/pet/7/multi"
+
+
+class TestQueryParameterOrder:
+    async def test_allow_reserved_parameter_keeps_its_declared_position(self) -> None:
+        from petstore_client.value_serializer import AllowReservedValue
+
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await stub.call(
+            "GET",
+            "/x",
+            {"a": "1", "r": AllowReservedValue("p/q"), "z": "3 4"},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+
+        assert client.captured_url == "http://localhost/x?a=1&r=p/q&z=3%204"

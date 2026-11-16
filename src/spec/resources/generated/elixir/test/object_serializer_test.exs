@@ -918,9 +918,52 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
   end
 
+  describe "required and nullable property" do
+    test "an explicit null decodes to nil" do
+      model = PetstoreClient.ObjectSerializer.deserialize(~s({"note":null}), "RequiredNullable")
+      assert model.note == nil
+    end
+
+    test "a value decodes as given" do
+      model = PetstoreClient.ObjectSerializer.deserialize(~s({"note":"x"}), "RequiredNullable")
+      assert model.note == "x"
+    end
+
+    test "an absent key raises SerializationError" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize("{}", "RequiredNullable")
+      end
+    end
+
+    test "a nil value is written as an explicit null" do
+      model = %PetstoreClient.Models.RequiredNullable{note: nil}
+      assert PetstoreClient.ObjectSerializer.serialize(model) == ~s({"note":null})
+    end
+
+    test "a value is written as given" do
+      model = %PetstoreClient.Models.RequiredNullable{note: "x"}
+      assert PetstoreClient.ObjectSerializer.serialize(model) == ~s({"note":"x"})
+    end
+  end
+
   describe "format: time round-tripping" do
     test "stringify emits HH:MM:SS for a Time" do
       assert PetstoreClient.ObjectSerializer.stringify(~T[13:45:30]) == "13:45:30"
+    end
+
+    test "stringify keeps a non-zero millisecond part and truncates finer precision" do
+      assert PetstoreClient.ObjectSerializer.stringify(~T[10:30:00.123456]) == "10:30:00.123"
+      assert PetstoreClient.ObjectSerializer.stringify(~T[10:30:00.9996]) == "10:30:00.999"
+    end
+
+    test "stringify drops a zero fractional part" do
+      assert PetstoreClient.ObjectSerializer.stringify(~T[10:30:00.000000]) == "10:30:00"
+      assert PetstoreClient.ObjectSerializer.stringify(~T[10:30:00.000999]) == "10:30:00"
+    end
+
+    test "serialize keeps the millisecond part of a Time inside a map" do
+      json = PetstoreClient.ObjectSerializer.serialize(%{"opens_at" => ~T[09:00:00.250]})
+      assert Jason.decode!(json)["opens_at"] == "09:00:00.250"
     end
 
     test "serialize emits HH:MM:SS for a Time inside a map" do

@@ -391,7 +391,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     /// serializer, so they are safe to trim.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
-    public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{nameInCamelCase}}{{^-last}}, {{/-last}}{{/requiredVars}})
+    public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}} {{nameInCamelCase}}{{^-last}}, {{/-last}}{{/requiredVars}})
     {
         {{#requiredVars}}
         this.{{name}} = {{nameInCamelCase}};
@@ -496,6 +496,18 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}} { get; set; } = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};
 {{/defaultValue}}
 {{^defaultValue}}
+{{#isNullable}}
+{{! Required AND nullable (D66): the key must be present when decoding
+    ([JsonRequired]), an explicit null is a legal value and is kept, and the
+    key is always written, as null when the value is null
+    ([JsonIgnore] with Never overrides the serializer-wide
+    WhenWritingNull default). }}
+    [JsonRequired]
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    [JsonPropertyName("{{baseName}}")]
+    public required {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}} { get; init; }
+{{/isNullable}}
+{{^isNullable}}
 {{#isEnum}}
     [JsonRequired]
     [JsonPropertyName("{{baseName}}")]
@@ -531,6 +543,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{/isContainer}}
 {{/isEnumRef}}
 {{/isEnum}}
+{{/isNullable}}
 {{/defaultValue}}
 {{/required}}
 {{^required}}
@@ -555,7 +568,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     {
         return other is not null
             && (ReferenceEquals(this, other)
-                || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
+                || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
                     && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
                     && global::{{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
     }

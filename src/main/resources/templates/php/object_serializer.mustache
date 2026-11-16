@@ -17,6 +17,7 @@ use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer;
 use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\UidNormalizer;
 use Symfony\Component\Serializer\Serializer;
 
@@ -127,6 +128,60 @@ class ObjectSerializer
                     public function getSupportedTypes(?string $format): array
                     {
                         return [\DateTime::class => true];
+                    }
+                },
+                /* A `format: time` model field (\DateTimeImmutable) is an RFC 3339
+                 * partial-time on the wire (H:i:s, plus .SSS only when the
+                 * milliseconds are non-zero), never a full date-time. Registered
+                 * before DateTimeNormalizer so it wins for both directions. */
+                new class implements NormalizerInterface, DenormalizerInterface {
+                    /** @param array<string, mixed> $context */
+                    public function normalize(mixed $data, ?string $format = null, array $context = []): string
+                    {
+                        \assert($data instanceof \DateTimeInterface);
+
+                        return ObjectSerializer::formatTime($data);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsNormalization(
+                        mixed $data,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return $data instanceof \DateTimeImmutable;
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function denormalize(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): \DateTimeImmutable {
+                        if (!is_string($data)) {
+                            throw new \InvalidArgumentException(
+                                'Expected an RFC 3339 time string but got ' . get_debug_type($data)
+                            );
+                        }
+
+                        return ObjectSerializer::parseTime($data);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsDenormalization(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return ltrim($type, '\\') === \DateTimeImmutable::class;
+                    }
+
+                    /** @return array<string, bool> */
+                    public function getSupportedTypes(?string $format): array
+                    {
+                        return [\DateTimeImmutable::class => true];
                     }
                 },
                 new DateTimeNormalizer([DateTimeNormalizer::FORMAT_KEY => self::DATE_TIME_FORMAT]),
@@ -458,6 +513,40 @@ class ObjectSerializer
     }
 
     /**
+     * Format a `format: time` value as an RFC 3339 partial-time: `H:i:s`, plus
+     * a `.SSS` millisecond fraction only when the milliseconds are non-zero.
+     * Finer digits are truncated, never rounded, and the value is never a full
+     * date-time.
+     *
+     * @param \DateTimeInterface $time the time-of-day value
+     * @return string e.g. `10:30:00` or `10:30:00.123`
+     */
+    public static function formatTime(\DateTimeInterface $time): string
+    {
+        $text = $time->format('H:i:s');
+        $millis = substr($time->format('u'), 0, 3);
+
+        return $millis === '000' ? $text : $text . '.' . $millis;
+    }
+
+    /**
+     * Parse a `format: time` wire string (e.g. `14:30:00` or
+     * `14:30:00.123456789`) into a \DateTimeImmutable with today's date
+     * implied.
+     *
+     * @throws \Exception when the text is not a time
+     */
+    public static function parseTime(string $text): \DateTimeImmutable
+    {
+        try {
+            return new \DateTimeImmutable($text);
+        } catch (\Exception) {
+            $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $text);
+            return new \DateTimeImmutable((string) $cleaned);
+        }
+    }
+
+    /**
      * Convert a value to its string representation.
      *
      * This is the canonical scalar-to-string conversion method. All parameter
@@ -606,8 +695,10 @@ class ObjectSerializer
     /**
      * Rejects a null element of an array, list or map whose element type is a
      * generated model. Model-typed items are non-nullable, so a null is a wire
-     * violation rather than a value to keep or drop. Elements of any other
-     * type (scalars, dates, mixed) are unaffected.
+     * violation rather than a value to keep or drop. A null element of a
+     * numeric or boolean type is rejected the same way, because it is checked
+     * exactly like a single primitive of that type. Elements of any other
+     * type (strings, dates, mixed) are unaffected.
      *
      * @param mixed  $element      the decoded element
      * @param string $elementClass the qualified element type
@@ -616,7 +707,12 @@ class ObjectSerializer
      */
     private static function assertModelElementPresent(mixed $element, string $elementClass): void
     {
-        if ($element === null && str_starts_with(ltrim($elementClass, '\\'), '{{modelPackage}}\\')) {
+        if ($element !== null) {
+            return;
+        }
+        $bare = ltrim($elementClass, '\\');
+        $strictPrimitive = in_array($bare, ['int', 'integer', 'float', 'number', 'bool', 'boolean'], true);
+        if ($strictPrimitive || str_starts_with($bare, '{{modelPackage}}\\')) {
             throw new \InvalidArgumentException("Null is not a valid '$elementClass' element");
         }
     }
@@ -868,12 +964,7 @@ class ObjectSerializer
                 }
             }
             if (is_string($data) && $data !== '') {
-                try {
-                    return new \DateTimeImmutable($data);
-                } catch (\Exception) {
-                    $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data);
-                    return new \DateTimeImmutable((string) $cleaned);
-                }
+                return self::parseTime($data);
             }
             return null;
         }

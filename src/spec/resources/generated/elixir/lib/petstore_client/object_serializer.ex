@@ -309,7 +309,7 @@ defmodule PetstoreClient.ObjectSerializer do
   # ISO-8601 wire formatting for format:time (HH:MM:SS); protobuf-JSON wire
   # formatting for format:duration ("<seconds>s"). Both round-trip through the
   # matching `convert_to_type/2` clauses below.
-  def stringify(%Time{} = t), do: t |> Time.truncate(:second) |> Time.to_iso8601()
+  def stringify(%Time{} = t), do: format_time(t)
   def stringify(%Duration{} = d), do: format_protobuf_duration(d)
 
   def stringify(value), do: to_string(value)
@@ -477,9 +477,7 @@ defmodule PetstoreClient.ObjectSerializer do
 
   # Serialize stdlib Time as an ISO-8601 string and Duration as a
   # protobuf-JSON "<seconds>s" string on the wire.
-  def sanitize_for_serialization(%Time{} = t),
-    do: t |> Time.truncate(:second) |> Time.to_iso8601()
-
+  def sanitize_for_serialization(%Time{} = t), do: format_time(t)
   def sanitize_for_serialization(%Duration{} = d), do: format_protobuf_duration(d)
 
   # uniqueItems array fields are typed `MapSet.t(...)` and deserialize into a
@@ -525,12 +523,19 @@ defmodule PetstoreClient.ObjectSerializer do
           %{}
         end
 
+      required_nullable =
+        if function_exported?(module, :required_nullable_fields, 0) do
+          module.required_nullable_fields()
+        else
+          []
+        end
+
       declared =
         Enum.reduce(attr_map, %{}, fn {attr, json_key}, acc ->
           value = Map.get(struct, attr)
 
           if is_nil(value) do
-            acc
+            if json_key in required_nullable, do: Map.put(acc, json_key, nil), else: acc
           else
             Map.put(acc, json_key, sanitize_field_value(value, Map.get(types, attr)))
           end
@@ -1004,6 +1009,17 @@ defmodule PetstoreClient.ObjectSerializer do
 
   defp decode_inline_enum_token(token), do: URI.decode(token)
 
+  # Format a Time as HH:MM:SS, plus .mmm only when the millisecond part is
+  # non-zero (finer precision is truncated, never rounded).
+  @spec format_time(Time.t()) :: String.t()
+  defp format_time(%Time{microsecond: {microsecond, _precision}} = t) do
+    if div(microsecond, 1000) == 0 do
+      t |> Time.truncate(:second) |> Time.to_iso8601()
+    else
+      t |> Time.truncate(:millisecond) |> Time.to_iso8601()
+    end
+  end
+
   # Format a DateTime as YYYY-MM-DDTHH:MM:SS.mmm±HH:MM: the sub-second part is
   # always exactly three digits (truncated, never rounded) and the offset is
   # always numeric, so a UTC instant renders as "+00:00" and never as "Z"
@@ -1340,6 +1356,16 @@ defmodule PetstoreClient.ObjectSerializer do
 
           true ->
             :ok
+        end
+      end)
+    end
+
+    # A required, nullable property must be present (an explicit null is fine).
+    if function_exported?(module, :required_nullable_fields, 0) do
+      Enum.each(module.required_nullable_fields(), fn json_key ->
+        unless Map.has_key?(data, json_key) do
+          raise PetstoreClient.Errors.SerializationError,
+            message: "Missing required field '#{json_key}' for #{inspect(module)}"
         end
       end)
     end

@@ -113,4 +113,17 @@ class BetterJavaCodegenTypeMappingTest {
         assertEquals("X-Api\\\"Key\\\\", BetterJavaCodegen.escapeJavaLiteral("X-Api\"Key\\"));
         assertEquals("X-Api'Key$", BetterJavaCodegen.escapeJavaLiteral("X-Api'Key$"));
     }
+
+    /* F803 — the server argument comes before the options object. */
+    @Test
+    void serverArgumentPrecedesTheOptionsObject() {
+        Map<String, Object> path = Map.of("kind", "path", "paramName", "petId");
+        Map<String, Object> options = Map.of("kind", "options", "isOptions", true, "paramName", "options");
+        Map<String, Object> server = Map.of("kind", "server", "isServer", true, "paramName", "server");
+        List<Map<String, Object>> reordered =
+                BetterJavaCodegen.serverBeforeOptions(List.of(path, options, server));
+        assertEquals(List.of(path, server, options), reordered);
+        assertEquals(List.of(path, options), BetterJavaCodegen.serverBeforeOptions(List.of(path, options)));
+        assertEquals(List.of(path, server), BetterJavaCodegen.serverBeforeOptions(List.of(path, server)));
+    }
 }

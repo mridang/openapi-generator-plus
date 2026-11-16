@@ -193,7 +193,8 @@ internal partial class ObjectSerializer
     /// <summary>
     /// Convert a scalar value to its canonical string representation.
     /// Booleans are lowercased, date/time values use ISO 8601 round-trip format,
-    /// <see cref="TimeOnly"/> uses HH:mm:ss (OAS <c>format:time</c>),
+    /// <see cref="TimeOnly"/> uses HH:mm:ss, plus .fff only when the millisecond
+    /// part is non-zero (OAS <c>format:time</c>),
     /// <see cref="TimeSpan"/> uses protobuf-JSON duration form (OAS <c>format:duration</c>),
     /// and null values return an empty string.
     /// </summary>
@@ -208,7 +209,7 @@ internal partial class ObjectSerializer
                 "yyyy-MM-dd",
                 System.Globalization.CultureInfo.InvariantCulture
             ),
-            TimeOnly t => t.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
+            TimeOnly t => FormatTime(t),
             TimeSpan ts => ProtobufDurationConverter.Format(ts),
             DateTimeOffset dto => dto.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.fffzzz",
@@ -234,6 +235,24 @@ internal partial class ObjectSerializer
             IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
+    }
+
+    /// <summary>
+    /// Formats a <see cref="TimeOnly"/> as the RFC 3339 partial-time
+    /// <c>HH:mm:ss</c>, with <c>.fff</c> appended only when the millisecond
+    /// part is non-zero. Sub-millisecond digits are truncated, never rounded.
+    /// </summary>
+    /// <param name="value">The time of day.</param>
+    /// <returns>The wire text.</returns>
+    internal static string FormatTime(TimeOnly value)
+    {
+        string text = value.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+        long milliseconds = value.Ticks / TimeSpan.TicksPerMillisecond % 1000;
+        return milliseconds == 0
+            ? text
+            : text
+                + "."
+                + milliseconds.ToString("D3", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -442,6 +461,7 @@ internal partial class ObjectSerializer
          * ("Available") instead of the wire value. The per-enum converters
          * cover every enum, so no global fallback is needed. */
         options.Converters.Add(new DateTimeOffsetJsonConverter());
+        options.Converters.Add(new TimeOnlyJsonConverter());
         /* 4.8: TimeSpan's default System.Text.Json form is the .NET
          * "[d.]hh:mm:ss[.fff]" string, which would not round-trip with
          * any other language SDK. Register the protobuf-JSON duration
@@ -609,6 +629,57 @@ internal partial class ObjectSerializer
             writer.WriteStringValue(
                 value.ToString(Format, System.Globalization.CultureInfo.InvariantCulture)
             );
+        }
+    }
+
+    /// <summary>
+    /// Serializes <see cref="TimeOnly"/> values (OAS <c>format:time</c>) as
+    /// <c>HH:mm:ss</c>, plus <c>.fff</c> only when the millisecond part is
+    /// non-zero, the same text as a time parameter. A fraction of any length
+    /// is accepted on read; digits below the millisecond are dropped on write.
+    /// </summary>
+    private sealed class TimeOnlyJsonConverter
+        : System.Text.Json.Serialization.JsonConverter<TimeOnly>
+    {
+        private static readonly string[] ReadFormats = ["HH:mm:ss", "HH:mm:ss.FFFFFFF"];
+
+        public override TimeOnly Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options
+        )
+        {
+            if (reader.TokenType != JsonTokenType.String)
+            {
+                throw new JsonException(
+                    $"Expected a JSON string for a time but got {reader.TokenType}."
+                );
+            }
+            string text = reader.GetString()!;
+            int dot = text.IndexOf('.', StringComparison.Ordinal);
+            string normalized = dot >= 0 && text.Length - dot - 1 > 7 ? text[..(dot + 8)] : text;
+            if (
+                !TimeOnly.TryParseExact(
+                    normalized,
+                    ReadFormats,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,
+                    out TimeOnly value
+                )
+            )
+            {
+                throw new JsonException($"Invalid time: {text}");
+            }
+            return value;
+        }
+
+        public override void Write(
+            Utf8JsonWriter writer,
+            TimeOnly value,
+            JsonSerializerOptions options
+        )
+        {
+            writer.WriteStringValue(FormatTime(value));
         }
     }
 

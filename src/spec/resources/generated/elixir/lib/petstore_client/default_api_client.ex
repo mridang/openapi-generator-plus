@@ -61,10 +61,27 @@ defmodule PetstoreClient.DefaultApiClient do
 
     %__MODULE__{
       transport_options: opts,
-      base_req: Req.new(request_options(opts)),
+      base_req: Req.new(merge_req_options(opts.req_options, request_options(opts))),
       proxy_auth_header: build_proxy_auth_header(opts.proxy),
       closed: :atomics.new(1, signed: false)
     }
+  end
+
+  # The caller's `req_options` (a custom adapter or plug) form the base; the
+  # SDK's own settings are applied on top and win on a shared key. The
+  # connection options are merged key by key so the SDK's connect deadline does
+  # not discard a caller's own connect settings.
+  defp merge_req_options(caller_options, sdk_options) do
+    merged = Keyword.merge(caller_options, sdk_options)
+
+    case {Keyword.get(caller_options, :connect_options),
+          Keyword.get(sdk_options, :connect_options)} do
+      {caller, sdk} when is_list(caller) and is_list(sdk) ->
+        Keyword.put(merged, :connect_options, Keyword.merge(caller, sdk))
+
+      _ ->
+        merged
+    end
   end
 
   # Fail fast on a user-supplied CA cert that cannot be read or parsed rather
@@ -1064,6 +1081,16 @@ defmodule PetstoreClient.DefaultApiClient do
   defp prepare_body(nil, headers), do: {nil, Map.delete(headers, "Content-Type")}
 
   defp prepare_body(body, headers) when is_map(body) do
+    boundary = generate_uuid()
+    content_type = "multipart/form-data; boundary=#{boundary}"
+    headers = Map.put(headers, "Content-Type", content_type)
+    serialized = build_multipart_body(body, boundary)
+    {serialized, headers}
+  end
+
+  # An ordered list of `{name, value}` parts (the order the spec declares the
+  # form fields in) is a multipart body too.
+  defp prepare_body(body, headers) when is_list(body) do
     boundary = generate_uuid()
     content_type = "multipart/form-data; boundary=#{boundary}"
     headers = Map.put(headers, "Content-Type", content_type)

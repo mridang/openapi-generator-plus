@@ -36,6 +36,41 @@ function assertValidProxy(proxy: string | null): void {
 }
 
 /**
+ * Reject a caller-supplied `fetch` that the SDK's own proxy, TLS or CA
+ * settings would silently bypass: a custom fetch owns its connections, so the
+ * SDK cannot apply those settings to it. Fail fast instead of ignoring them.
+ *
+ * @param options the transport settings to check
+ * @throws TypeError when a custom fetch is combined with a proxy, a custom CA or disabled TLS verification
+ */
+function assertFetchCompatible(options: {
+  fetch?: typeof fetch | null;
+  proxy: string | null;
+  caCertPath: string | null;
+  verifySsl: boolean;
+}): void {
+  if (options.fetch == null) {
+    return;
+  }
+  const conflicts: string[] = [];
+  if (options.proxy != null) {
+    conflicts.push("proxy");
+  }
+  if (options.caCertPath != null) {
+    conflicts.push("caCertPath");
+  }
+  if (!options.verifySsl) {
+    conflicts.push("verifySsl(false)");
+  }
+  if (conflicts.length > 0) {
+    throw new TypeError(
+      `A custom fetch conflicts with the SDK's own ${conflicts.join(", ")} setting: ` +
+        "configure it on the fetch implementation you supply instead.",
+    );
+  }
+}
+
+/**
  * Whether a header's value must never appear in a string representation:
  * Authorization, Proxy-Authorization, Cookie, and any name containing key,
  * token or secret (case-insensitive).
@@ -158,6 +193,23 @@ export class TransportOptions {
   public readonly injectRequestId: boolean;
 
   /**
+   * Caller-supplied `fetch` implementation, or `null` for the SDK's own.
+   *
+   * Every SDK default (timeout, user agent, redirect
+   * policy) is applied on top of it. The caller owns its lifecycle: the SDK
+   * never closes it. Cannot be combined with `proxy`, `caCertPath` or
+   * `verifySsl(false)`.
+   */
+  public readonly fetch: typeof fetch | null;
+
+  /**
+   * Extra options merged into every `fetch` call (for example `credentials`
+   * or `keepalive`); the SDK's own method, headers, body, redirect policy and
+   * signal always take precedence.
+   */
+  public readonly fetchOptions: Readonly<Record<string, unknown>> | null;
+
+  /**
    * Create transport options directly. Prefer {@link TransportOptions.builder}; the
    * constructor applies the same proxy validation, so an invalid proxy URL is
    * rejected up front however the instance is created.
@@ -175,8 +227,11 @@ export class TransportOptions {
     userAgent: string | null;
     defaultHeaders: Record<string, string>;
     injectRequestId: boolean;
+    fetch?: typeof fetch | null;
+    fetchOptions?: Record<string, unknown> | null;
   }) {
     assertValidProxy(options.proxy);
+    assertFetchCompatible(options);
     this.verifySsl = options.verifySsl;
     this.caCertPath = options.caCertPath;
     this.proxy = options.proxy;
@@ -186,6 +241,11 @@ export class TransportOptions {
     this.userAgent = options.userAgent;
     this.defaultHeaders = Object.freeze({ ...options.defaultHeaders });
     this.injectRequestId = options.injectRequestId;
+    this.fetch = options.fetch ?? null;
+    this.fetchOptions =
+      options.fetchOptions == null
+        ? null
+        : Object.freeze({ ...options.fetchOptions });
   }
 
   /**
@@ -212,6 +272,9 @@ export class TransportOptions {
       userAgent: this.userAgent,
       defaultHeaders: redactHeaders(this.defaultHeaders),
       injectRequestId: this.injectRequestId,
+      fetch: this.fetch != null,
+      fetchOptions:
+        this.fetchOptions == null ? null : Object.keys(this.fetchOptions),
     };
   }
 
@@ -249,6 +312,8 @@ export class TransportOptionsBuilder {
   private _userAgent: string | null = "petstore-client/1.0.0 (node)";
   private _defaultHeaders: Record<string, string> = {};
   private _injectRequestId: boolean = false;
+  private _fetch: typeof fetch | null = null;
+  private _fetchOptions: Record<string, unknown> | null = null;
 
   /**
    * Enable or disable TLS certificate verification.
@@ -369,6 +434,36 @@ export class TransportOptionsBuilder {
   }
 
   /**
+   * Use a caller-supplied `fetch` implementation instead of the global one.
+   *
+   * The SDK still applies its timeout, user agent, redirect policy and header
+   * handling on top of it, and never closes it. Building fails with a
+   * TypeError when combined with a proxy, a custom CA certificate or
+   * `verifySsl(false)`, because the SDK cannot apply those to a fetch it does
+   * not own.
+   *
+   * @param fetchFunction the fetch implementation, or null for the default
+   * @returns this builder
+   */
+  fetch(fetchFunction: typeof fetch | null): this {
+    this._fetch = fetchFunction;
+    return this;
+  }
+
+  /**
+   * Set extra options merged into every `fetch` call (for example
+   * `credentials` or `keepalive`). The SDK's own method, headers, body,
+   * redirect policy and signal take precedence.
+   *
+   * @param fetchOptions options passed through to `fetch`, or null for none
+   * @returns this builder
+   */
+  fetchOptions(fetchOptions: Record<string, unknown> | null): this {
+    this._fetchOptions = fetchOptions;
+    return this;
+  }
+
+  /**
    * Build and return an immutable TransportOptions instance.
    *
    * @returns the configured transport options
@@ -384,6 +479,9 @@ export class TransportOptionsBuilder {
       userAgent: this._userAgent,
       defaultHeaders: { ...this._defaultHeaders },
       injectRequestId: this._injectRequestId,
+      fetch: this._fetch,
+      fetchOptions:
+        this._fetchOptions == null ? null : { ...this._fetchOptions },
     });
   }
 }

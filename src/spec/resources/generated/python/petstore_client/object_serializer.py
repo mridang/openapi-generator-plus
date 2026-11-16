@@ -26,7 +26,15 @@ from petstore_client._duration import (
     _format_timedelta_protobuf,
     _parse_timedelta_protobuf,
 )
-from petstore_client._types import RFC3339_DATE_TIME_PATTERN, LaxFloat
+from petstore_client._types import (
+    EXACT_NUMBER_CONTEXT,
+    RFC3339_DATE_TIME_PATTERN,
+    JsonNumber,
+    LaxFloat,
+    PreciseFloat,
+    format_time_of_day,
+    resolve_exact_numbers,
+)
 
 # The errors package imports ObjectSerializer lazily (inside a method), so this
 # top-level import does not create a cycle.
@@ -78,6 +86,7 @@ _STRICT_LEAF_TYPES: dict[str, Any] = {
     "StrictBool": StrictBool,
     "StrictStr": StrictStr,
     "LaxFloat": LaxFloat,
+    "JsonNumber": JsonNumber,
 }
 _STRICT_LEAF_ADAPTERS: dict[str, TypeAdapter[Any]] = {
     name: TypeAdapter(leaf) for name, leaf in _STRICT_LEAF_TYPES.items()
@@ -185,7 +194,14 @@ class ObjectSerializer:
         never the snake_case attribute names) and the model's declared
         date-time / duration serializers, so the multipart model part is
         byte-identical to a JSON request body for the same model.
+
+        A ``type: number`` field is written with its exact decimal digits, never
+        rounded through a binary float.
         """
+        return resolve_exact_numbers(self._serialize_marked(obj))
+
+    def _serialize_marked(self, obj: Any) -> str:
+        """Serialize ``obj``; exact numbers are left as markers for :func:`serialize`."""
         try:
             if isinstance(obj, BaseModel):
                 if hasattr(obj, "anyof_merged_dump"):
@@ -193,19 +209,23 @@ class ObjectSerializer:
                     # variant's fields so co-satisfied data round-trips
                     # losslessly instead of dropping all but the first variant.
                     return json.dumps(
-                        obj.anyof_merged_dump(),
+                        obj.anyof_merged_dump(exact_numbers=True),
                         default=str,
                         ensure_ascii=False,
                         allow_nan=False,
+                        separators=(",", ":"),
                     )
                 if hasattr(obj, "actual_instance"):
-                    return self.serialize(obj.actual_instance)
-                return obj.model_dump_json(by_alias=True, exclude_none=True)
+                    return self._serialize_marked(obj.actual_instance)
+                return obj.model_dump_json(
+                    by_alias=True, exclude_none=True, context=EXACT_NUMBER_CONTEXT
+                )
             return json.dumps(
                 ObjectSerializer._sanitize_for_serialization(obj),
                 default=str,
                 ensure_ascii=False,
                 allow_nan=False,
+                separators=(",", ":"),
             )
         except Exception as e:
             raise SerializationException(f"Failed to serialize object to JSON: {e}", e)
@@ -245,6 +265,7 @@ class ObjectSerializer:
             return json.loads(
                 json_string,
                 parse_constant=ObjectSerializer._reject_nonfinite_constant,
+                parse_float=PreciseFloat,
             )
         except SerializationException:
             raise
@@ -299,7 +320,7 @@ class ObjectSerializer:
         if obj is None:
             return None
         elif isinstance(obj, BaseModel):
-            return json.loads(cls().serialize(obj))
+            return json.loads(cls()._serialize_marked(obj))
         elif isinstance(obj, Enum):
             return obj.value
         elif isinstance(obj, SecretStr):
@@ -323,7 +344,7 @@ class ObjectSerializer:
             # types for readability.
             return _format_timedelta_protobuf(obj)
         elif isinstance(obj, datetime.time):
-            return obj.isoformat(timespec="seconds")
+            return format_time_of_day(obj)
         elif isinstance(obj, datetime.date):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
@@ -416,6 +437,17 @@ class ObjectSerializer:
             return resolved
         return None
 
+    def _deserialize_element(self, item: Any, klass: str) -> Any:
+        """Deserialize one element of a list or map; a ``null`` element is an error.
+
+        The typed-adapter path already rejects a ``null`` element, so the
+        element-wise path of a nested container (``List[List[StrictInt]]``)
+        must too, instead of letting ``null`` through untouched.
+        """
+        if item is None:
+            raise ValueError(f"a null element is not allowed in {klass}")
+        return self._deserialize(item, klass)
+
     def _deserialize(self, data: Any, klass: Any) -> Any:
         """Deserialize parsed data to the target type.
 
@@ -453,7 +485,7 @@ class ObjectSerializer:
                     raise ValueError(
                         f"Expected a list for {klass}, got {type(data).__name__}"
                     )
-                return [self._deserialize(item, sub_kls) for item in data]
+                return [self._deserialize_element(item, sub_kls) for item in data]
 
             if klass.startswith("Dict["):
                 m = re.match(r"Dict\[([^,]*), (.*)]", klass)
@@ -467,7 +499,9 @@ class ObjectSerializer:
                         by_name=False,
                         context=_WIRE_DECODE_CONTEXT,
                     )
-                return {k: self._deserialize(v, sub_kls) for k, v in data.items()}
+                return {
+                    k: self._deserialize_element(v, sub_kls) for k, v in data.items()
+                }
 
             if klass in _STRICT_LEAF_TYPES:
                 return _STRICT_LEAF_ADAPTERS[klass].validate_python(data)
@@ -633,7 +667,7 @@ class ObjectSerializer:
         if isinstance(value, datetime.timedelta):
             return _format_timedelta_protobuf(value)
         if isinstance(value, datetime.time):
-            return value.isoformat(timespec="seconds")
+            return format_time_of_day(value)
         if isinstance(value, datetime.date):
             return value.isoformat()
         if isinstance(value, uuid.UUID):

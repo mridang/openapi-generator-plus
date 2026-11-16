@@ -572,6 +572,54 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("content-encoded parameter JSON keeps angle brackets and ampersands literal")
+        void contentParameterJsonIsLiteral() {
+            assertEquals(
+                    "{\"caption\":\"a<b>&c\"}",
+                    serializer.serialize(java.util.Map.of("caption", "a<b>&c")));
+        }
+
+        @Test
+        @DisplayName("required nullable property keeps an explicit null and writes the key")
+        void requiredNullableKeepsExplicitNull() {
+            {{modelPackage}}.RequiredNullable decoded = java.util.Objects.requireNonNull(
+                serializer.deserialize(
+                    "{\"note\":null}", {{modelPackage}}.RequiredNullable.class));
+            assertNull(decoded.note);
+            assertEquals("{\"note\":null}", serializer.serialize(decoded));
+        }
+
+        @Test
+        @DisplayName("required nullable property rejects a missing key")
+        void requiredNullableRejectsMissingKey() {
+            assertThrows(SerializationException.class, () ->
+                serializer.deserialize("{}", {{modelPackage}}.RequiredNullable.class));
+        }
+
+        @Test
+        @DisplayName("null value in a map of integers throws SerializationException")
+        void nullValueInIntegerMapThrows() {
+            SerializationException ex = assertThrowsExactly(SerializationException.class, () ->
+                serializer.deserialize(
+                    "{\"a\":null,\"b\":2}",
+                    new com.fasterxml.jackson.core.type.TypeReference<
+                        java.util.Map<String, Integer>>() {}.getType()));
+            assertNullElementCause(ex);
+        }
+
+        @Test
+        @DisplayName("quoted and fractional elements in a matrix of integers throw SerializationException")
+        void wrongTypedMatrixElementThrows() {
+            for (String body : new String[] {"[[1,\"2\"]]", "[[1,2.5]]", "[[1],null]", "[[1,null]]"}) {
+                assertThrows(SerializationException.class, () ->
+                    serializer.deserialize(
+                        body,
+                        new com.fasterxml.jackson.core.type.TypeReference<List<List<Integer>>>() {}.getType()),
+                    body);
+            }
+        }
+
+        @Test
         @DisplayName("null element in an array of strings is still decoded")
         void nullElementInScalarArrayIsKept() {
             List<String> values = serializer.deserialize(

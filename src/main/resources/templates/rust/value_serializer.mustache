@@ -138,16 +138,18 @@ pub fn serialize_array_value(
 
 /// Serializes a deepObject-style query parameter.
 ///
-/// Produces a map of flattened keys in the form `param_name[key]` to stringified values.
+/// Produces a list of flattened `(param_name[key], value)` pairs. A hash map
+/// has no declared order, so the keys are sorted lexicographically to give the
+/// same bytes on every run.
 pub fn serialize_deep_object(
     param_name: &str,
     value: &HashMap<String, String>,
 ) -> Vec<(String, String)> {
-    let mut result = Vec::new();
-    for (key, val) in value {
-        result.push((format!("{}[{}]", param_name, key), val.clone()));
-    }
-    result
+    let mut keys: Vec<&String> = value.keys().collect();
+    keys.sort();
+    keys.into_iter()
+        .map(|key| (format!("{}[{}]", param_name, key), value[key].clone()))
+        .collect()
 }
 
 /// Serializes a parameter value according to OAS 3.0 style and explode rules.
@@ -839,6 +841,30 @@ mod tests {
 
         assert_eq!(result_map.get("filter[status]").unwrap(), "active");
         assert_eq!(result_map.get("filter[type]").unwrap(), "dog");
+    }
+
+    #[test]
+    fn test_serialize_deep_object_sorts_keys() {
+        let mut obj = std::collections::HashMap::new();
+        for key in ["m", "z", "a", "q", "b"] {
+            obj.insert(key.to_string(), "v".to_string());
+        }
+        for _ in 0..20 {
+            let names: Vec<String> = super::serialize_deep_object("f", &obj)
+                .into_iter()
+                .map(|(k, _)| k)
+                .collect();
+            assert_eq!(names, vec!["f[a]", "f[b]", "f[m]", "f[q]", "f[z]"]);
+        }
+    }
+
+    /* F054: a `content: application/json` path parameter is serialized to JSON
+     * by the SDK serializer and then segment-encoded exactly once. */
+    #[test]
+    fn test_content_param_json_path_segment_encoded_once() {
+        let json = r#"{"a":"b c"}"#;
+        let result = super::serialize_styled("q", Some(json), None, "path", "", "", "simple", false);
+        assert_eq!(unwrap_single(result), "%7B%22a%22:%22b%20c%22%7D");
     }
 
     #[test]

@@ -207,7 +207,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#pathParams}}
         path = path.replacingOccurrences(
             of: "{" + "{{baseName}}" + "}",
-            with: "\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")")
+            with: {{#vendorExtensions.swiftContent}}ValueSerializer.encodePathSegment(try ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}})
 {{/pathParams}}
 {{#servers.0}}
         if let server = server {
@@ -233,7 +233,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/servers.0}}
 {{/pathParams.0}}
 
-        {{#queryParams.0}}var{{/queryParams.0}}{{^queryParams.0}}let{{/queryParams.0}} queryParams: [String: Any?] = [:]
+        {{#queryParams.0}}var{{/queryParams.0}}{{^queryParams.0}}let{{/queryParams.0}} queryParams: OrderedParams<Any?> = [:]
 {{#queryParams}}
 {{#isAllowEmptyValue}}
 {{#vendorExtensions.op.optionsParamRequired}}
@@ -272,9 +272,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
              * emits RFC 3339 via the shared date-strategy encoder, matching every
              * other serialization path (a bare JSONEncoder would default to
              * .deferredToDate and emit epoch-seconds doubles instead). */
-            if let json = try? ObjectSerializer.serialize(val) {
-                queryParams["{{baseName}}"] = json
-            }
+            queryParams["{{baseName}}"] = try ObjectSerializer.serialize(val)
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}
 {{^vendorExtensions.param.queryContent}}
@@ -297,9 +295,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
              * emits RFC 3339 via the shared date-strategy encoder, matching every
              * other serialization path (a bare JSONEncoder would default to
              * .deferredToDate and emit epoch-seconds doubles instead). */
-            if let json = try? ObjectSerializer.serialize(val) {
-                queryParams["{{baseName}}"] = json
-            }
+            queryParams["{{baseName}}"] = try ObjectSerializer.serialize(val)
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}
 {{^vendorExtensions.param.queryContent}}
@@ -323,9 +319,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
              * emits RFC 3339 via the shared date-strategy encoder, matching every
              * other serialization path (a bare JSONEncoder would default to
              * .deferredToDate and emit epoch-seconds doubles instead). */
-            if let json = try? ObjectSerializer.serialize(val) {
-                queryParams["{{baseName}}"] = json
-            }
+            queryParams["{{baseName}}"] = try ObjectSerializer.serialize(val)
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}
 {{^vendorExtensions.param.queryContent}}
@@ -341,17 +335,17 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#headerParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-        headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+        headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
 {{/required}}
 {{^required}}
         if let val = options.{{paramName}} {
-            headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
         }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/headerParams}}
@@ -368,7 +362,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#cookieParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-        let {{paramName}}CookieValue = "\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+        let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
         if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
             throw ConfigurationError.invalidArgument(
                 "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
@@ -378,7 +372,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/required}}
 {{^required}}
         if let val = options.{{paramName}} {
-            let {{paramName}}CookieValue = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+            let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
             if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
                 throw ConfigurationError.invalidArgument(
                     "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
@@ -390,7 +384,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            let {{paramName}}CookieValue = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+            let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
             if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
                 throw ConfigurationError.invalidArgument(
                     "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
@@ -411,7 +405,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
          * can be emitted as repeated keys by the form/multipart encoder.
          * Optional nil fields are omitted entirely — never sent as an empty
          * `name=` pair. */
-        var formBody: [String: Any] = [:]
+        var formBody: OrderedParams<Any> = [:]
 {{#formParams}}
 {{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}

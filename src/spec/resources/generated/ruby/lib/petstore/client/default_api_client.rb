@@ -311,6 +311,9 @@ module Petstore::Client
     # marks the client closed. Subsequent calls to {#send_request} raise a
     # RuntimeError rather than silently rebuilding a connection. It is safe
     # to call this method repeatedly (idempotent).
+    #
+    # A connection supplied through {TransportOptions::Builder#connection}
+    # belongs to the caller and is never closed here.
     def close
       conn = @connection
       @connection = nil
@@ -333,12 +336,21 @@ module Petstore::Client
     # the hop's connect, write and read timeouts are what remains of the
     # call's budget, and a hop is never started once the budget is spent.
     def run_hop(method, url, body, headers, deadline)
-      return connection.run_request(method, url, body, headers) if deadline.nil?
+      if deadline.nil?
+        return connection.run_request(method, url, body, headers) unless @transport_options.connection
+
+        return connection.run_request(method, url, body, headers) do |request|
+          request.options.params_encoder = QueryParamsEncoder
+        end
+      end
 
       remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
       raise Errors::NetworkTimeoutError.new(message: "Request timed out after #{@transport_options.timeout} ms") if remaining <= 0
 
       connection.run_request(method, url, body, headers) do |request|
+        # A supplied connection has its own encoder; the request-level one keeps
+        # the query exactly as BaseApi built it.
+        request.options.params_encoder = QueryParamsEncoder if @transport_options.connection
         request.options.timeout = remaining
         request.options.open_timeout = remaining
         request.options.write_timeout = remaining
@@ -486,6 +498,9 @@ module Petstore::Client
     # The connection is built once per ApiClient instance; the build step is
     # delegated to {#build_connection} so tests can stub it per-instance.
     def connection
+      supplied = @transport_options.connection
+      return supplied if supplied
+
       @connection ||= build_connection
     end
 

@@ -268,6 +268,46 @@ func TestDeserialize_DefaultsAbsentVersusNull(t *testing.T) {
 	}
 }
 
+// Required AND nullable: the key must be present, an explicit null is a legal
+// value and is kept, and encoding always writes the key (null when nil).
+func TestDeserialize_RequiredNullableKeyMustBePresentAndNullIsKept(t *testing.T) {
+	t.Parallel()
+
+	var withValue models.RequiredNullable
+	if err := deserialize([]byte(`{"note":"hello"}`), &withValue); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if withValue.Note == nil || *withValue.Note != "hello" {
+		t.Errorf("expected note hello, got %v", withValue.Note)
+	}
+
+	var withNull models.RequiredNullable
+	if err := deserialize([]byte(`{"note":null}`), &withNull); err != nil {
+		t.Fatalf("an explicit null must be accepted: %v", err)
+	}
+	if withNull.Note != nil {
+		t.Errorf("expected the explicit null to be kept as nil, got %q", *withNull.Note)
+	}
+
+	var missing models.RequiredNullable
+	err := deserialize([]byte(`{}`), &missing)
+	if err == nil || !strings.Contains(err.Error(), "required field 'note' is missing") {
+		t.Errorf("expected the missing-required error for an absent key, got %v", err)
+	}
+}
+
+func TestSerialize_RequiredNullableWritesTheKeyAsNullWhenNil(t *testing.T) {
+	t.Parallel()
+
+	encoded, err := serialize(models.NewRequiredNullable(nil))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(encoded) != `{"note":null}` {
+		t.Errorf("expected {\"note\":null}, got %s", encoded)
+	}
+}
+
 func TestDeserialize_EmptyData(t *testing.T) {
 	t.Parallel()
 	var result map[string]any

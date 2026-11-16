@@ -245,7 +245,12 @@ module {{moduleName}}
         path = '{{{path}}}'
 {{#pathParams}}
 {{=<% %>=}}
+<%#vendorExtensions.param.queryContent%>
+        path = path.gsub('{<%baseName%>}', ::<%moduleName%>::ValueSerializer.encode_path_segment(::<%moduleName%>::ObjectSerializer.serialize(<%paramName%>)))
+<%/vendorExtensions.param.queryContent%>
+<%^vendorExtensions.param.queryContent%>
         path = path.gsub('{<%baseName%>}', ::<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%#isByteArray%>::<%moduleName%>::ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#isUuid%>::<%moduleName%>::ObjectSerializer.validate_uuid(<%paramName%>)<%/isUuid%><%^isUuid%><%paramName%><%/isUuid%><%/isByteArray%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s)
+<%/vendorExtensions.param.queryContent%>
 <%={{ }}=%>
 {{/pathParams}}
 {{#servers}}
@@ -287,7 +292,12 @@ module {{moduleName}}
         # @type var header_params: Hash[String, String]
         header_params = {}
 {{#headerParams}}
+{{#vendorExtensions.param.queryContent}}
+        header_params['{{baseName}}'] = ::{{moduleName}}::ObjectSerializer.serialize(options.{{paramName}}) unless options.nil? || options.{{paramName}}.nil?
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
         header_params['{{baseName}}'] = ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, :header, '{{{dataType}}}', nil, '{{style}}', {{isExplode}}).to_s unless options.nil? || options.{{paramName}}.nil?
+{{/vendorExtensions.param.queryContent}}
 {{/headerParams}}
 {{#hasCookieParams}}
         cookie_parts = [] # : Array[String]
@@ -299,7 +309,12 @@ module {{moduleName}}
           # control character fails closed instead of being injected into the
           # Cookie request header. Pass the raw value through without
           # URL-encoding, mirroring the auth path.
+<%#vendorExtensions.param.queryContent%>
+          cookie_value = URI.encode_www_form_component(::<%moduleName%>::ObjectSerializer.serialize(options.<%paramName%>)).gsub('+', '%20')
+<%/vendorExtensions.param.queryContent%>
+<%^vendorExtensions.param.queryContent%>
           cookie_value = ::<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', options.<%paramName%>, :cookie, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s
+<%/vendorExtensions.param.queryContent%>
           unless cookie_value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
             raise ArgumentError, "Cookie value for '<%baseName%>' contains characters forbidden by RFC 6265"
           end

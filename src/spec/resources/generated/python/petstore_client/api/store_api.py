@@ -56,7 +56,9 @@ class StoreApi(BaseApi):
         :return: Account
         :raises ApiException: if fails to make API call
         """
-        result = await self.create_account_with_http_info(account)
+        result = await self.create_account_with_http_info(
+            account,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -112,7 +114,9 @@ class StoreApi(BaseApi):
 
         :raises ApiException: if fails to make API call
         """
-        result = await self.delete_order_with_http_info(order_id)
+        result = await self.delete_order_with_http_info(
+            order_id,
+        )
 
         return result.data
 
@@ -168,7 +172,10 @@ class StoreApi(BaseApi):
         :return: Category
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_by_swatch_with_http_info(path_swatch, options)
+        result = await self.get_by_swatch_with_http_info(
+            path_swatch,
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -500,7 +507,9 @@ class StoreApi(BaseApi):
         :return: Order
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_order_by_id_with_http_info(order_id)
+        result = await self.get_order_by_id_with_http_info(
+            order_id,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -565,7 +574,9 @@ class StoreApi(BaseApi):
         :return: Order
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_order_by_tracking_id_with_http_info(tracking_id)
+        result = await self.get_order_by_tracking_id_with_http_info(
+            tracking_id,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -636,7 +647,9 @@ class StoreApi(BaseApi):
         :return: StockItem
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_stock_item_with_http_info(options)
+        result = await self.get_stock_item_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -887,7 +900,9 @@ class StoreApi(BaseApi):
         :return: Order
         :raises ApiException: if fails to make API call
         """
-        result = await self.place_order_with_http_info(order)
+        result = await self.place_order_with_http_info(
+            order,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -939,7 +954,9 @@ class StoreApi(BaseApi):
         :return: List[Order]
         :raises ApiException: if fails to make API call
         """
-        result = await self.search_store_with_http_info(options)
+        result = await self.search_store_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -967,9 +984,9 @@ class StoreApi(BaseApi):
         path = "/store/search"
         query_params: Dict[str, Any] = {}
         if options is not None and options.q is not None:
-            import json
-
-            query_params["q"] = json.dumps(options.q)
+            query_params["q"] = ValueSerializer.encode_content(
+                "q", self._object_serializer.serialize(options.q), "query"
+            )
         if options is not None and options.labels is not None:
             query_params["labels"] = ValueSerializer.maybe_allow_reserved(
                 ValueSerializer.serialize_styled(
@@ -992,16 +1009,10 @@ class StoreApi(BaseApi):
             )
         header_params: Dict[str, str] = {}
         if options is not None and options.x_filter is not None:
-            header_params["X-Filter"] = str(
-                ValueSerializer.serialize_styled(
-                    "X-Filter",
-                    options.x_filter,
-                    "header",
-                    "Dict[str, StrictStr]",
-                    None,
-                    "",
-                    False,
-                )
+            header_params["X-Filter"] = ValueSerializer.encode_content(
+                "X-Filter",
+                self._object_serializer.serialize(options.x_filter),
+                "header",
             )
         body = None
 

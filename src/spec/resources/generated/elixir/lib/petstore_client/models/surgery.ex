@@ -69,6 +69,19 @@ defmodule PetstoreClient.Models.Surgery do
     |> List.insert_at(-1, "procedureName")
   end
 
+  @doc """
+  JSON keys of the required, nullable properties.
+
+  These keys must be present in the wire payload (an absent key is a
+  missing-required error) but an explicit `null` is a legal value, kept as
+  `nil`. When encoding, the key is always written, as `null` when the value
+  is `nil`.
+  """
+  @spec required_nullable_fields() :: [String.t()]
+  def required_nullable_fields do
+    []
+  end
+
   @doc "Attribute type mapping."
   @spec openapi_types() :: %{atom() => String.t()}
   def openapi_types do

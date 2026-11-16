@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 )
@@ -21,6 +22,13 @@ var ErrInvalidTimeout = errors.New("invalid timeout")
 // CA certificate file cannot be read or contains no PEM certificate. Match it
 // with errors.Is.
 var ErrInvalidCACertificate = errors.New("invalid CA certificate")
+
+// ErrTransportConflict is returned by TransportOptionsBuilder.Build when a
+// caller-supplied HttpClient or RoundTripper is combined with the SDK's own
+// proxy, TLS verification or CA bundle settings (the supplied transport owns
+// those), or when both an HttpClient and a RoundTripper are supplied. Match it
+// with errors.Is.
+var ErrTransportConflict = errors.New("conflicting transport options")
 
 // TransportOptions holds immutable HTTP transport configuration for DefaultApiClient.
 //
@@ -54,6 +62,8 @@ type TransportOptions struct {
 	userAgent       *string
 	defaultHeaders  map[string]string
 	injectRequestID bool
+	httpClient      HttpDoer
+	roundTripper    http.RoundTripper
 }
 
 // NewTransportOptionsBuilder creates a new builder for constructing TransportOptions
@@ -160,6 +170,28 @@ type TransportOptionsBuilder struct {
 	userAgent       *string
 	defaultHeaders  map[string]string
 	injectRequestID bool
+	httpClient      HttpDoer
+	roundTripper    http.RoundTripper
+}
+
+// HttpClient routes every request through the caller's own HTTP client (any
+// type with a Do(*http.Request) method; *http.Client qualifies). The SDK keeps
+// its defaults on top: user agent, default headers, request id, timeout and,
+// for an *http.Client, the redirect policy applied around its Transport. The
+// caller owns the client's lifecycle: the SDK never closes it. It conflicts
+// with Proxy, CACertPath and VerifySsl(false), which belong to the supplied
+// client; Build then returns ErrTransportConflict.
+func (b *TransportOptionsBuilder) HttpClient(doer HttpDoer) *TransportOptionsBuilder {
+	b.httpClient = doer
+	return b
+}
+
+// RoundTripper wraps the caller's http.RoundTripper with the SDK's defaults and
+// redirect policy and sends every request through it. The caller owns its
+// lifecycle: the SDK never closes it. The same conflicts as HttpClient apply.
+func (b *TransportOptionsBuilder) RoundTripper(rt http.RoundTripper) *TransportOptionsBuilder {
+	b.roundTripper = rt
+	return b
 }
 
 // VerifySsl enables or disables TLS certificate verification.
@@ -273,6 +305,18 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 	if b.timeout != nil && *b.timeout < 0 {
 		return nil, fmt.Errorf("%w: must not be negative: %d", ErrInvalidTimeout, *b.timeout)
 	}
+	if b.httpClient != nil || b.roundTripper != nil {
+		switch {
+		case b.httpClient != nil && b.roundTripper != nil:
+			return nil, fmt.Errorf("%w: supply either an HttpClient or a RoundTripper, not both", ErrTransportConflict)
+		case b.proxy != nil:
+			return nil, fmt.Errorf("%w: Proxy cannot be combined with a supplied transport; configure the proxy on it", ErrTransportConflict)
+		case b.caCertPath != "":
+			return nil, fmt.Errorf("%w: CACertPath cannot be combined with a supplied transport; configure TLS on it", ErrTransportConflict)
+		case !b.verifySsl:
+			return nil, fmt.Errorf("%w: VerifySsl(false) cannot be combined with a supplied transport; configure TLS on it", ErrTransportConflict)
+		}
+	}
 	var caCertPool *x509.CertPool
 	if b.caCertPath != "" {
 		caCert, err := os.ReadFile(b.caCertPath)
@@ -299,6 +343,8 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 		userAgent:       b.userAgent,
 		defaultHeaders:  headers,
 		injectRequestID: b.injectRequestID,
+		httpClient:      b.httpClient,
+		roundTripper:    b.roundTripper,
 	}, nil
 }
 

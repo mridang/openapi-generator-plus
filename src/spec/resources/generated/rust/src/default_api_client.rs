@@ -78,6 +78,53 @@ impl DefaultApiClient {
         }
     }
 
+    /// Creates a client that sends through a caller-supplied
+    /// [`reqwest::Client`] (a custom connector, a test double, shared pool).
+    ///
+    /// Every SDK default is still applied on top of the supplied client: the
+    /// end-to-end timeout, `User-Agent`, `X-Request-ID`, default headers, and
+    /// the SDK's own redirect handling. For that last one the supplied client
+    /// should be built with `reqwest::redirect::Policy::none()`, otherwise
+    /// reqwest follows redirects before the SDK sees them.
+    ///
+    /// The caller owns the supplied client's lifecycle: [`DefaultApiClient::close`]
+    /// only stops this wrapper from sending and drops its own handle, it never
+    /// shuts the caller's client or its connection pool down.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidArgument`] when `transport_options`
+    /// sets a proxy, a CA certificate or `verify_ssl(false)`: those are
+    /// properties of the HTTP client itself, which the SDK cannot change on a
+    /// client it did not build, so the conflict is reported instead of ignored.
+    pub fn with_client(
+        client: Client,
+        transport_options: Option<TransportOptions>,
+    ) -> Result<Self, ConfigurationError> {
+        let opts = transport_options.unwrap_or_default();
+        let conflict = if opts.proxy().is_some() {
+            Some("a proxy")
+        } else if opts.ca_cert_pem().is_some() {
+            Some("a CA certificate")
+        } else if !opts.verify_ssl() {
+            Some("verify_ssl(false)")
+        } else {
+            None
+        };
+        if let Some(setting) = conflict {
+            return Err(ConfigurationError::InvalidArgument(format!(
+                "TransportOptions sets {} but a custom reqwest::Client was supplied; \
+                 configure proxy and TLS on that client instead",
+                setting
+            )));
+        }
+        Ok(Self {
+            transport_options: opts,
+            http_client: Mutex::new(Some(client)),
+            closed: Arc::new(AtomicBool::new(false)),
+        })
+    }
+
     /// Explicit close hook. Marks the client closed so that any
     /// subsequent request fails fast with a uniform SDK `ApiError`
     /// ("client is closed"), and drops the underlying `reqwest::Client` so its
@@ -718,7 +765,7 @@ pub(crate) fn same_origin(a: &reqwest::Url, b: &reqwest::Url) -> bool {
 /// Returns [`ConfigurationError::InvalidArgument`] when a field name holds CR,
 /// LF or NUL characters that would corrupt the Content-Disposition header.
 pub fn serialize_multipart_body(
-    fields: &HashMap<String, MultipartValue>,
+    fields: &[(String, MultipartValue)],
     boundary: &str,
 ) -> Result<Vec<u8>, ConfigurationError> {
     let mut out: Vec<u8> = Vec::new();
@@ -1173,13 +1220,37 @@ mod tests {
      * application/octet-stream when the extension is unknown/missing. The field
      * name doubles as the filename, mirroring the other 11 SDKs. */
 
+    /* F087: multipart parts are written in the order the operation pushed
+     * them (the spec's property declaration order), never hash order. The
+     * names are deliberately unsorted (z, a, m) so a sorting or hashing
+     * container would fail this test. */
+    #[test]
+    fn test_multipart_parts_keep_declaration_order() {
+        let fields: [(String, MultipartValue); 3] = [
+            ("z".to_string(), MultipartValue::Text("1".to_string())),
+            ("a".to_string(), MultipartValue::Text("2".to_string())),
+            ("m".to_string(), MultipartValue::Text("3".to_string())),
+        ];
+        for _ in 0..20 {
+            let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
+            let text = String::from_utf8_lossy(&body).into_owned();
+            let z = text.find("name=\"z\"").unwrap();
+            let a = text.find("name=\"a\"").unwrap();
+            let m = text.find("name=\"m\"").unwrap();
+            assert!(
+                z < a && a < m,
+                "parts must keep declaration order, got: {}",
+                text
+            );
+        }
+    }
+
     #[test]
     fn test_multipart_file_part_content_type_png_from_extension() {
-        let mut fields = std::collections::HashMap::new();
-        fields.insert(
+        let fields = [(
             "avatar.png".to_string(),
             MultipartValue::Bytes(vec![0x89, 0x50, 0x4e, 0x47]),
-        );
+        )];
         let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
         assert!(
@@ -1191,11 +1262,10 @@ mod tests {
 
     #[test]
     fn test_multipart_file_part_content_type_json_from_extension() {
-        let mut fields = std::collections::HashMap::new();
-        fields.insert(
+        let fields = [(
             "data.json".to_string(),
             MultipartValue::Bytes(b"{}".to_vec()),
-        );
+        )];
         let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
         assert!(
@@ -1207,8 +1277,7 @@ mod tests {
 
     #[test]
     fn test_multipart_file_part_content_type_unknown_extension_falls_back() {
-        let mut fields = std::collections::HashMap::new();
-        fields.insert("file".to_string(), MultipartValue::Bytes(vec![1, 2, 3]));
+        let fields = [("file".to_string(), MultipartValue::Bytes(vec![1, 2, 3]))];
         let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
         assert!(
@@ -1224,11 +1293,10 @@ mod tests {
      * contract already implemented by go, node, and java. */
     #[test]
     fn test_multipart_raw_bytes_part_reuses_field_name_as_filename_and_octet_stream() {
-        let mut fields = std::collections::HashMap::new();
-        fields.insert(
+        let fields = [(
             "file".to_string(),
             MultipartValue::Bytes(vec![0x00, 0x01, 0x02]),
-        );
+        )];
         let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
         assert!(
@@ -1281,8 +1349,7 @@ mod tests {
          * object part the operation hands to the multipart writer. */
         let part_json = object_serializer::serialize(&metadata)
             .expect("model part must serialize through the configured serializer");
-        let mut fields = std::collections::HashMap::new();
-        fields.insert("metadata".to_string(), MultipartValue::Json(part_json));
+        let fields = [("metadata".to_string(), MultipartValue::Json(part_json))];
         let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
         let body_str = String::from_utf8_lossy(&body);
 
@@ -1345,11 +1412,10 @@ mod tests {
     #[test]
     fn test_multipart_non_ascii_field_name_preserved_as_utf8_text_part() {
         let field_name = "café"; // 'é' is U+00E9 -> UTF-8 0xC3 0xA9
-        let mut fields = std::collections::HashMap::new();
-        fields.insert(
+        let fields = [(
             field_name.to_string(),
             MultipartValue::Text("v".to_string()),
-        );
+        )];
         let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
 
         /* The raw UTF-8 bytes for "café" must appear verbatim in the body. */
@@ -1369,8 +1435,7 @@ mod tests {
     fn test_multipart_non_ascii_field_name_preserved_as_utf8_file_part() {
         /* CJK field name on a bytes (file) part — must also survive as UTF-8. */
         let field_name = "日本.png"; // emits image/png too (behavior 4 cross-check)
-        let mut fields = std::collections::HashMap::new();
-        fields.insert(field_name.to_string(), MultipartValue::Bytes(vec![0, 1, 2]));
+        let fields = [(field_name.to_string(), MultipartValue::Bytes(vec![0, 1, 2]))];
         let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
 
         let nihon = "日本".as_bytes(); // E6 97 A5 E6 9C AC
@@ -1518,11 +1583,10 @@ mod tests {
          * name, serialize_multipart_body refuses the whole body with
          * ConfigurationError::InvalidArgument rather than emitting the bad name
          * into Content-Disposition or silently dropping the field. */
-        let mut fields = std::collections::HashMap::new();
-        fields.insert(
+        let fields = [(
             "name\r\nInjected: yes".to_string(),
             MultipartValue::Text("value".to_string()),
-        );
+        )];
         match serialize_multipart_body(&fields, "boundary") {
             Err(crate::errors::configuration_error::ConfigurationError::InvalidArgument(_)) => {}
             other => panic!(

@@ -273,7 +273,7 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
     public override Dictionary<string, string> GetAuthHeaders()
     {
         throw new InvalidOperationException(
-            "OpenIdConnectAuthenticator requires async discovery and token exchange; "
+            "OAuth2 authenticators require async token exchange; "
                 + "use GetAuthHeadersAsync() instead."
         );
     }

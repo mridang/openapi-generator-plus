@@ -75,6 +75,19 @@ describe Petstore::Client::Api::StoreApi do
     end
   end
 
+  describe '#search_store content-encoded header' do
+    it 'encodes the X-Filter value through the SDK serializer as compact JSON' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.search_store(Petstore::Client::Api::Options::SearchStoreOptions.new(x_filter: { 'k' => 'v' }))
+        _(captured.pop[:headers]['x-filter']).must_equal('{"k":"v"}')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
   describe '#search_store uniqueItems query' do
     it 'expands a Set of labels into one pair per element' do
       api, server, thread, captured = capture_wire_request('[]')

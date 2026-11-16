@@ -527,6 +527,62 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "an ordered query list is sent in the given order, not sorted" do
+    {:ok, name} = CapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        [{"z", "1"}, {"a", "2"}, {"z", "3"}],
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = CapturingApiClient.captured_url(name)
+    assert url |> String.split("?") |> List.last() == "z=1&a=2&z=3"
+
+    Agent.stop(name)
+  end
+
+  test "authenticator query params are appended after an ordered query list" do
+    {:ok, name} = CapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    auth = %TestAuthenticator{host_url: "http://localhost", query: %{"api_key" => "k"}}
+    state = %{config: config, api_client: CapturingApiClient, authenticator: auth}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        [{"z", "1"}, {"a", "2"}],
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = CapturingApiClient.captured_url(name)
+    assert url |> String.split("?") |> List.last() == "z=1&a=2&api_key=k"
+
+    Agent.stop(name)
+  end
+
+  test "an ordered multipart list is rendered in the given order, not sorted" do
+    body =
+      PetstoreClient.DefaultApiClient.build_multipart_body([{"z", "1"}, {"a", "2"}], "BOUNDARY")
+
+    assert elem(:binary.match(body, "name=\"z\""), 0) < elem(:binary.match(body, "name=\"a\""), 0)
+  end
+
   test "serializes number query params" do
     {:ok, name} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
@@ -1865,6 +1921,29 @@ defmodule PetstoreClient.Api.BaseApiTest do
         headers: %{"Content-Type" => "application/json"}
       }
     end
+  end
+
+  test "an ordered form list is sent in the given order, not sorted" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: BodyCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/test/echo",
+        %{},
+        %{},
+        [{"z", "1"}, {"a", "2"}],
+        ["application/json"],
+        "application/x-www-form-urlencoded",
+        nil
+      )
+
+    assert BodyCapturingApiClient.captured_body(name) == "z=1&a=2"
+
+    Agent.stop(name)
   end
 
   # Behavior #1: a form array serializes to repeated keys (tags=a&tags=b),

@@ -10,6 +10,7 @@
 package petstore_test
 
 import (
+	"context"
 	"errors"
 	"math"
 	"net/http"
@@ -46,7 +47,7 @@ func TestStoreApi_PlaceOrder(t *testing.T) {
 
 	order := models.NewOrder()
 
-	result, err := api.PlaceOrder(order)
+	result, err := api.PlaceOrder(context.Background(), order)
 	if err != nil {
 		t.Fatalf("PlaceOrder failed: %v", err)
 	}
@@ -61,7 +62,7 @@ func TestStoreApi_PlaceOrderWithHTTPInfo(t *testing.T) {
 
 	order := models.NewOrder()
 
-	result, err := api.PlaceOrderWithHTTPInfo(order)
+	result, err := api.PlaceOrderWithHTTPInfo(context.Background(), order)
 	if err != nil {
 		t.Fatalf("PlaceOrderWithHTTPInfo failed: %v", err)
 	}
@@ -83,7 +84,7 @@ func TestStoreApi_GetOrderById(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
-	result, err := api.GetOrderById(int64(1))
+	result, err := api.GetOrderById(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetOrderById failed: %v", err)
 	}
@@ -96,7 +97,7 @@ func TestStoreApi_GetOrderByIdWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
-	result, err := api.GetOrderByIdWithHTTPInfo(int64(1))
+	result, err := api.GetOrderByIdWithHTTPInfo(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetOrderByIdWithHTTPInfo failed: %v", err)
 	}
@@ -115,7 +116,7 @@ func TestStoreApi_DeleteOrder(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
-	err := api.DeleteOrder(int64(1))
+	err := api.DeleteOrder(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("DeleteOrder failed: %v", err)
 	}
@@ -125,7 +126,7 @@ func TestStoreApi_GetInventory(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
-	result, err := api.GetInventory()
+	result, err := api.GetInventory(context.Background())
 	if err != nil {
 		t.Fatalf("GetInventory failed: %v", err)
 	}
@@ -138,7 +139,7 @@ func TestStoreApi_GetInventoryWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
-	result, err := api.GetInventoryWithHTTPInfo()
+	result, err := api.GetInventoryWithHTTPInfo(context.Background())
 	if err != nil {
 		t.Fatalf("GetInventoryWithHTTPInfo failed: %v", err)
 	}
@@ -164,7 +165,7 @@ func TestStoreApi_GetOrderNotFound(t *testing.T) {
 
 	api := newStoreApiForMock(t, server)
 
-	_, err := api.GetOrderById(int64(99999))
+	_, err := api.GetOrderById(context.Background(), int64(99999))
 	if err == nil {
 		t.Fatal("expected error for non-existent order")
 	}
@@ -189,7 +190,7 @@ func TestStoreApi_PlaceOrderServerError(t *testing.T) {
 	api := newStoreApiForMock(t, server)
 
 	order := models.NewOrder()
-	_, err := api.PlaceOrder(order)
+	_, err := api.PlaceOrder(context.Background(), order)
 	if err == nil {
 		t.Fatal("expected error for server error response")
 	}
@@ -217,7 +218,7 @@ func TestStoreApi_GetGroupedCategoriesDeserializesTypedLeaves(t *testing.T) {
 
 	api := newStoreApiForMock(t, server)
 
-	result, err := api.GetGroupedCategories()
+	result, err := api.GetGroupedCategories(context.Background())
 	if err != nil {
 		t.Fatalf("GetGroupedCategories failed: %v", err)
 	}
@@ -258,7 +259,7 @@ func TestStoreApi_DeleteOrderNotFound(t *testing.T) {
 
 	api := newStoreApiForMock(t, server)
 
-	err := api.DeleteOrder(int64(99999))
+	err := api.DeleteOrder(context.Background(), int64(99999))
 	if err == nil {
 		t.Fatal("expected error for deleting non-existent order")
 	}
@@ -295,7 +296,7 @@ func TestStoreApi_GetBySwatchSendsTheEnumWireValueInPathQueryAndHeader(t *testin
 	api := newStoreApiForMock(t, server)
 	querySwatch := models.SwatchGreen
 	preferred := models.SwatchBlue
-	result, err := api.GetBySwatch(models.SwatchRed, &options.GetBySwatchOptions{
+	result, err := api.GetBySwatch(context.Background(), models.SwatchRed, &options.GetBySwatchOptions{
 		QuerySwatch:     &querySwatch,
 		PreferredSwatch: &preferred,
 	})
@@ -327,7 +328,7 @@ func TestStoreApi_GetBySwatchOmitsUnsetOptionalEnumParameters(t *testing.T) {
 	defer server.Close()
 
 	api := newStoreApiForMock(t, server)
-	if _, err := api.GetBySwatch(models.SwatchRed, nil); err != nil {
+	if _, err := api.GetBySwatch(context.Background(), models.SwatchRed, nil); err != nil {
 		t.Fatalf("GetBySwatch failed: %v", err)
 	}
 	if query != "" {
@@ -347,7 +348,7 @@ func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 		t.Parallel()
 		server := jsonStoreServer(`[[1,2],[3,4]]`, func(*http.Request) {})
 		defer server.Close()
-		result, err := newStoreApiForMock(t, server).GetMatrix()
+		result, err := newStoreApiForMock(t, server).GetMatrix(context.Background())
 		if err != nil {
 			t.Fatalf("GetMatrix failed: %v", err)
 		}
@@ -361,7 +362,7 @@ func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 		t.Parallel()
 		server := jsonStoreServer(`"green"`, func(*http.Request) {})
 		defer server.Close()
-		result, err := newStoreApiForMock(t, server).GetSwatch()
+		result, err := newStoreApiForMock(t, server).GetSwatch(context.Background())
 		if err != nil {
 			t.Fatalf("GetSwatch failed: %v", err)
 		}
@@ -374,7 +375,7 @@ func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 		t.Parallel()
 		server := jsonStoreServer(`[{"warm":"red"},{"cool":"blue"}]`, func(*http.Request) {})
 		defer server.Close()
-		result, err := newStoreApiForMock(t, server).GetSwatchGroups()
+		result, err := newStoreApiForMock(t, server).GetSwatchGroups(context.Background())
 		if err != nil {
 			t.Fatalf("GetSwatchGroups failed: %v", err)
 		}
@@ -388,7 +389,7 @@ func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 		t.Parallel()
 		server := jsonStoreServer(`[{"created":"2024-01-02T03:04:05.000Z"}]`, func(*http.Request) {})
 		defer server.Close()
-		result, err := newStoreApiForMock(t, server).GetTimestampGroups()
+		result, err := newStoreApiForMock(t, server).GetTimestampGroups(context.Background())
 		if err != nil {
 			t.Fatalf("GetTimestampGroups failed: %v", err)
 		}
@@ -405,7 +406,7 @@ func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 		t.Parallel()
 		server := jsonStoreServer(`{"value":"root","child":{"value":"leaf"}}`, func(*http.Request) {})
 		defer server.Close()
-		result, err := newStoreApiForMock(t, server).GetTree()
+		result, err := newStoreApiForMock(t, server).GetTree(context.Background())
 		if err != nil {
 			t.Fatalf("GetTree failed: %v", err)
 		}
@@ -422,7 +423,7 @@ func TestStoreApi_GetDepartmentDecodesTheMutualReference(t *testing.T) {
 	server := jsonStoreServer(`{"name":"eng","lead":{"name":"ada","department":{"name":"inner"}}}`, func(*http.Request) {})
 	defer server.Close()
 
-	result, err := newStoreApiForMock(t, server).GetDepartment()
+	result, err := newStoreApiForMock(t, server).GetDepartment(context.Background())
 	if err != nil {
 		t.Fatalf("GetDepartment failed: %v", err)
 	}
@@ -444,7 +445,7 @@ func TestStoreApi_GetStockItemSendsTheAsOfInstantAsDateTime(t *testing.T) {
 	defer server.Close()
 
 	asOf := models.DateTime(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC))
-	if _, err := newStoreApiForMock(t, server).GetStockItem(&options.GetStockItemOptions{AsOf: &asOf}); err != nil {
+	if _, err := newStoreApiForMock(t, server).GetStockItem(context.Background(), &options.GetStockItemOptions{AsOf: &asOf}); err != nil {
 		t.Fatalf("GetStockItem failed: %v", err)
 	}
 	if want := "asOf=2024-01-02T03%3A04%3A05.000%2B00%3A00"; query != want {
@@ -464,7 +465,7 @@ func TestStoreApi_SearchStoreSerializesTheContentQueryLikeABody(t *testing.T) {
 
 	api := newStoreApiForMock(t, server)
 	caption := "a/b<\u00e9"
-	if _, err := api.SearchStore(&options.SearchStoreOptions{Q: &models.PhotoMetadata{Caption: &caption}}); err != nil {
+	if _, err := api.SearchStore(context.Background(), &options.SearchStoreOptions{Q: &models.PhotoMetadata{Caption: &caption}}); err != nil {
 		t.Fatalf("SearchStore failed: %v", err)
 	}
 	if want := "q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22%7D"; query != want {
@@ -484,7 +485,7 @@ func TestStoreApi_SearchStoreRejectsAnUnserializableContentQuery(t *testing.T) {
 
 	api := newStoreApiForMock(t, server)
 	lat := math.NaN()
-	_, err := api.SearchStore(&options.SearchStoreOptions{
+	_, err := api.SearchStore(context.Background(), &options.SearchStoreOptions{
 		Q: &models.PhotoMetadata{Location: &models.PhotoMetadataLocation{Lat: &lat}},
 	})
 

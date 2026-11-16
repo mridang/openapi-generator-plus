@@ -70,11 +70,19 @@ module Petstore::Client
     # @return [Boolean]
     attr_reader :inject_request_id
 
+    # A caller-supplied Faraday connection used instead of a self-built one,
+    # or +nil+ when the SDK builds its own. The caller owns its lifecycle: the
+    # SDK never closes it. Timeouts, retries, the user agent, the redirect
+    # policy and the query encoding are still applied by the SDK on top.
+    # @return [Faraday::Connection, nil]
+    attr_reader :connection
+
     # @api private
     def initialize(verify_ssl:, ca_cert_path:, proxy:, timeout:,
                    follow_redirects:, max_redirects:, user_agent:,
-                   default_headers:, inject_request_id:)
+                   default_headers:, inject_request_id:, connection: nil)
       self.class.validate_proxy!(proxy)
+      self.class.validate_connection!(connection, verify_ssl, ca_cert_path, proxy)
       @verify_ssl = verify_ssl
       @ca_cert_path = ca_cert_path
       @proxy = proxy
@@ -84,6 +92,7 @@ module Petstore::Client
       @user_agent = user_agent
       @default_headers = default_headers.freeze
       @inject_request_id = inject_request_id
+      @connection = connection
       freeze
     end
 
@@ -109,6 +118,32 @@ module Petstore::Client
       end
       raise ArgumentError, "Invalid proxy URL (must use http or https scheme): #{val}" unless uri.scheme && %w[http https].include?(uri.scheme.downcase)
       raise ArgumentError, "Invalid proxy URL (missing host): #{val}" unless uri.host && !uri.host.empty?
+    end
+
+    # Fail fast when a caller-supplied connection is combined with the SDK's own
+    # proxy or TLS settings: the SDK would otherwise ignore them silently, as the
+    # connection already carries its own.
+    # @api private
+    # @param connection [Faraday::Connection, nil] the supplied connection, or +nil+
+    # @param verify_ssl [Boolean] the TLS verification setting
+    # @param ca_cert_path [String, nil] the custom CA bundle path
+    # @param proxy [String, nil] the proxy URL
+    # @return [void]
+    # @raise [ArgumentError] if the connection is unusable or conflicts with a setting
+    def self.validate_connection!(connection, verify_ssl, ca_cert_path, proxy)
+      return if connection.nil?
+
+      raise ArgumentError, 'connection must be a Faraday::Connection' unless connection.respond_to?(:run_request)
+
+      conflicts = [] # : Array[String]
+      conflicts << 'proxy' if proxy
+      conflicts << 'ca_cert_path' if ca_cert_path
+      conflicts << 'verify_ssl(false)' unless verify_ssl
+      return if conflicts.empty?
+
+      raise ArgumentError,
+            "A custom connection conflicts with the SDK's own #{conflicts.join(', ')} setting; " \
+            'configure it on the connection instead'
     end
 
     # Header names whose values never appear in a string representation:
@@ -165,6 +200,19 @@ module Petstore::Client
         @user_agent = 'petstore_client/1.0.0 (ruby)'
         @default_headers = {} # : Hash[String, String]
         @inject_request_id = false
+        @connection = nil
+      end
+
+      # Use a caller-supplied Faraday connection as the transport. The SDK keeps
+      # applying its timeouts, user agent, redirect policy and query encoding on
+      # top, and never closes the connection: the caller owns its lifecycle.
+      # Combining it with {#proxy}, {#ca_cert_path} or +verify_ssl(false)+ is
+      # rejected by {#build}, since the connection carries its own.
+      # @param val [Faraday::Connection, nil] the connection, or +nil+ for the SDK's own
+      # @return [self]
+      def connection(val)
+        @connection = val
+        self
       end
 
       # Enable or disable TLS certificate verification.
@@ -264,7 +312,8 @@ module Petstore::Client
           max_redirects: @max_redirects,
           user_agent: @user_agent,
           default_headers: @default_headers.dup,
-          inject_request_id: @inject_request_id
+          inject_request_id: @inject_request_id,
+          connection: @connection
         )
       end
     end

@@ -102,6 +102,33 @@ class ValueSerializer:
         return quote(value, safe=";=,:@!$&'()*+")
 
     @staticmethod
+    def encode_content(name: str, json_text: str, location: str) -> str:
+        """Encodes the JSON text of a ``content: application/json`` parameter.
+
+        The text comes from the SDK's own object serializer and is encoded
+        once, by the rule of its location: a path or cookie value is
+        percent-encoded in full, a header value is sent verbatim after a CR/LF
+        check, and a query value is returned untouched because the query
+        builder encodes it.
+
+        Args:
+            name: The parameter name, for the error message.
+            json_text: The serialized JSON text.
+            location: ``'path'``, ``'query'``, ``'header'`` or ``'cookie'``.
+
+        Returns:
+            The value to place in its location.
+
+        Raises:
+            ValueError: If a header value carries a CR or LF.
+        """
+        if location in ('path', 'cookie'):
+            return quote(json_text, safe='')
+        if location == 'header' and ('\r' in json_text or '\n' in json_text):
+            raise ValueError(f"Header parameter '{name}' must not contain CR or LF")
+        return json_text
+
+    @staticmethod
     def maybe_allow_reserved(
         value: Union[str, List[str], None],
         allow_reserved: bool,

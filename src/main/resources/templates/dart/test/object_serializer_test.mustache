@@ -19,6 +19,20 @@ void main() {
       expect(parsed['name'], equals('Fido'));
     });
 
+    test('a required nullable property keeps an explicit null and always writes the key', () {
+      final decoded = deserialize<RequiredNullable>('{"note":null}', RequiredNullable.fromJson);
+      expect(decoded!.note, isNull);
+      expect(serialize(decoded), equals('{"note":null}'));
+      expect(serialize(const RequiredNullable(note: 'hi')), equals('{"note":"hi"}'));
+    });
+
+    test('a required nullable property rejects an absent key', () {
+      expect(
+        () => deserialize<RequiredNullable>('{}', RequiredNullable.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
     test('deserializeRaw JSON to map', () {
       final input = '{"name":"Fido","age":3}';
 

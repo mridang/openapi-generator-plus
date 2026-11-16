@@ -32,25 +32,15 @@ public class RequiredNullable : IEquatable<RequiredNullable>
     /// serializer, so they are safe to trim.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
-    public RequiredNullable(string note)
+    public RequiredNullable(string? note)
     {
         this.Note = note;
     }
 
     [JsonRequired]
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     [JsonPropertyName("note")]
-    public required string Note
-    {
-        get => _note;
-        init =>
-            _note =
-                value
-                ?? throw new System.Text.Json.JsonException(
-                    "Required property 'note' on RequiredNullable was null"
-                );
-    }
-
-    private readonly string _note = null!;
+    public required string? Note { get; init; }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
@@ -60,7 +50,7 @@ public class RequiredNullable : IEquatable<RequiredNullable>
         return other is not null
             && (
                 ReferenceEquals(this, other)
-                || EqualityComparer<string>.Default.Equals(this.Note, other.Note)
+                || EqualityComparer<string?>.Default.Equals(this.Note, other.Note)
             );
     }
 

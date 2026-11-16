@@ -66,6 +66,17 @@ internal enum ValueSerializer {
     return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
   }
 
+  /// Percent-encodes a value for use as a cookie value.
+  ///
+  /// Only the RFC 3986 unreserved characters stay literal, so the quotes,
+  /// commas, semicolons and spaces of a JSON text never reach the `Cookie`
+  /// header, where RFC 6265 forbids them.
+  static func encodeCookieValue(_ value: String) -> String {
+    var allowed = CharacterSet.alphanumerics
+    allowed.insert(charactersIn: "-._~")
+    return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+  }
+
   /// Wraps a query value so the query-string builder preserves RFC 3986
   /// reserved characters (OAS `allowReserved: true`) instead of
   /// percent-encoding them. Produced by ``maybeAllowReserved(_:allowReserved:)``

@@ -8,15 +8,16 @@ use crate::api_http_response::ApiHttpResponse;
 
 /// Represents the body of an HTTP request.
 ///
-/// Supports raw bytes, multipart form data (as a map of field names to values),
+/// Supports raw bytes, multipart form data (as ordered (field name, value) parts),
 /// or no body.
 #[derive(Debug, Clone)]
 pub enum RequestBody {
     /// Raw bytes body.
     Bytes(Vec<u8>),
-    /// Multipart form data: field names to values. Values may be raw bytes
+    /// Multipart form data: ordered (field name, value) parts in
+    /// declaration order. Values may be raw bytes
     /// (for file uploads), strings, or JSON-serializable objects.
-    Multipart(HashMap<String, MultipartValue>),
+    Multipart(Vec<(String, MultipartValue)>),
 }
 
 /// A single value in a multipart form data body.

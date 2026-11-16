@@ -69,6 +69,15 @@ yourself.
 `format: int64` is unaffected — Kotlin's `Long` natively represents the
 full 64-bit range without precision loss.
 
+### Custom HTTP client
+
+`TransportOptions.builder().httpClient(myKtorClient)` sends every request
+through your own Ktor `HttpClient`. The SDK keeps its timeout, redirect
+policy, user agent and header defaults applied on top of it, and never closes
+it: you own its lifecycle. It cannot be combined with `proxy`, `caCertPath` or
+`verifySsl(false)`; `build()` rejects the combination, so configure proxy and
+TLS on the client you supply.
+
 ## Not supported
 
 ### Webhooks and callbacks
@@ -88,14 +97,20 @@ OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
 
-### Numeric / string constraint validation
+### Schema constraints
 
-OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
-`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
-**not enforced** by this SDK. The server is the authoritative
-validator; client-side enforcement is a DX nicety, not a correctness
-requirement. If you want fast-fail validation before the network
-round trip, plug in a JSON Schema validator library for your language.
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server, not by
+this SDK. The generated models are kotlinx.serialization data classes: their
+model layer checks only the JSON type of each field (an integer must be an
+in-range integer, a string must be a string, a required field must be
+present), so a value that breaks one of these constraints is sent as given and
+the server decides. The server is the authoritative validator; if you want a
+fast failure before the network round trip, plug in a JSON Schema validator.
+
+`uniqueItems` arrays are `Set` properties. A set of scalars (strings, numbers,
+booleans, enums) goes on the wire in ascending natural order, so the bytes are
+the same on every run; a set of models keeps the set's own iteration order.
 
 ### SOCKS proxies
 

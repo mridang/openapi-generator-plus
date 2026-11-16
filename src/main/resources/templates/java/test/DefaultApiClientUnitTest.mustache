@@ -320,6 +320,107 @@ class DefaultApiClientUnitTest {
     server.stop(0);
   }
 
+  /** Forwards every call to a real client and records the requests it was asked to send. */
+  private static final class RecordingHttpClient extends java.net.http.HttpClient {
+    private final java.net.http.HttpClient delegate = java.net.http.HttpClient.newHttpClient();
+    private final List<java.net.http.HttpRequest> requests =
+        new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    @Override
+    public java.util.Optional<java.net.CookieHandler> cookieHandler() {
+      return delegate.cookieHandler();
+    }
+
+    @Override
+    public java.util.Optional<java.time.Duration> connectTimeout() {
+      return delegate.connectTimeout();
+    }
+
+    @Override
+    public Redirect followRedirects() {
+      return Redirect.NEVER;
+    }
+
+    @Override
+    public java.util.Optional<java.net.ProxySelector> proxy() {
+      return delegate.proxy();
+    }
+
+    @Override
+    public javax.net.ssl.SSLContext sslContext() {
+      return delegate.sslContext();
+    }
+
+    @Override
+    public javax.net.ssl.SSLParameters sslParameters() {
+      return delegate.sslParameters();
+    }
+
+    @Override
+    public java.util.Optional<java.net.Authenticator> authenticator() {
+      return delegate.authenticator();
+    }
+
+    @Override
+    public Version version() {
+      return delegate.version();
+    }
+
+    @Override
+    public java.util.Optional<java.util.concurrent.Executor> executor() {
+      return delegate.executor();
+    }
+
+    @Override
+    public <T> java.net.http.HttpResponse<T> send(
+        java.net.http.HttpRequest request,
+        java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler)
+        throws IOException, InterruptedException {
+      requests.add(request);
+      return delegate.send(request, responseBodyHandler);
+    }
+
+    @Override
+    public <T> java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<T>> sendAsync(
+        java.net.http.HttpRequest request,
+        java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler) {
+      requests.add(request);
+      return delegate.sendAsync(request, responseBodyHandler);
+    }
+
+    @Override
+    public <T> java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<T>> sendAsync(
+        java.net.http.HttpRequest request,
+        java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler,
+        java.net.http.HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
+      requests.add(request);
+      return delegate.sendAsync(request, responseBodyHandler, pushPromiseHandler);
+    }
+  }
+
+  @Test
+  void injectedHttpClientReceivesTheRequestWithSdkDefaultsApplied() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals(1, transport.requests.size());
+    assertTrue(transport.requests.get(0).headers().firstValue("User-Agent").isPresent());
+    assertTrue(transport.requests.get(0).timeout().isPresent());
+  }
+
+  @Test
+  void closingTheClientNeverClosesAnInjectedHttpClient() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+    client.close();
+    DefaultApiClient reuse =
+        new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+    assertEquals(200, reuse.sendRequest("GET", baseUrl + "/echo", Map.of(), null).statusCode());
+  }
+
   @Test
   void sendsGetRequestAndReturnsResponse() throws Exception {
     DefaultApiClient client = new DefaultApiClient();

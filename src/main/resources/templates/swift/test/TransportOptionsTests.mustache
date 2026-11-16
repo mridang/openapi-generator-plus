@@ -1,6 +1,10 @@
 {{>api_info}}
 import Foundation
 import Testing
+
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import {{packageName}}
 
 @Suite final class TransportOptionsTests {
@@ -48,6 +52,33 @@ import Testing
     @Test func testInjectRequestIdDefaultsToFalse() throws {
         let opts = try TransportOptionsBuilder().build()
         #expect(!(opts.injectRequestID))
+    }
+
+    @Test func testSessionDefaultsToNil() throws {
+        #expect(try TransportOptionsBuilder().build().session == nil)
+    }
+
+    @Test func testSessionIsKept() throws {
+        let session = URLSession(configuration: .ephemeral)
+        let opts = try TransportOptionsBuilder().session(session).build()
+        #expect(opts.session === session)
+    }
+
+    /* A supplied session cannot be combined with the SDK's own proxy, TLS or
+       redirect settings: build() fails fast. */
+    @Test(arguments: ["proxy", "caCertPath", "verifySsl", "followRedirects", "maxRedirects"])
+    func testSessionConflictsWithOwnSettings(setting: String) {
+        let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
+        switch setting {
+        case "proxy": builder.proxy("http://proxy.example.com:8080")
+        case "caCertPath": builder.caCertPath("/path/to/ca.pem")
+        case "verifySsl": builder.verifySsl(false)
+        case "followRedirects": builder.followRedirects(false)
+        default: builder.maxRedirects(3)
+        }
+        #expect(throws: ConfigurationError.self) {
+            _ = try builder.build()
+        }
     }
 
     @Test func testBuilderSetsAllFields() throws {

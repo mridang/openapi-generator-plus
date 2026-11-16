@@ -72,11 +72,15 @@ public class StoreApi : BaseApi
     /// Create an account
     /// </summary>
     /// <param name="account"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Account]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Account> CreateAccountAsync(Account account)
+    public async Task<Account> CreateAccountAsync(
+        Account account,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Account>> task = CreateAccountWithHttpInfoAsync(account);
+        Task<ApiResult<Account>> task = CreateAccountWithHttpInfoAsync(account, cancellationToken);
         ApiResult<Account> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -106,9 +110,13 @@ public class StoreApi : BaseApi
     /// Create an account (with HTTP info)
     /// </summary>
     /// <param name="account"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Account>> CreateAccountWithHttpInfoAsync(Account account)
+    public async Task<ApiResult<Account>> CreateAccountWithHttpInfoAsync(
+        Account account,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/account";
 
@@ -124,7 +132,8 @@ public class StoreApi : BaseApi
                 CreateAccountAccepts,
                 "application/json",
                 typeof(Account),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -133,10 +142,11 @@ public class StoreApi : BaseApi
     /// Delete purchase order by ID
     /// </summary>
     /// <param name="orderId">ID of the order to delete</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task DeleteOrderAsync(long orderId)
+    public async Task DeleteOrderAsync(long orderId, CancellationToken cancellationToken = default)
     {
-        Task<ApiResult<object?>> task = DeleteOrderWithHttpInfoAsync(orderId);
+        Task<ApiResult<object?>> task = DeleteOrderWithHttpInfoAsync(orderId, cancellationToken);
         _ = await task.ConfigureAwait(false);
     }
 
@@ -144,9 +154,13 @@ public class StoreApi : BaseApi
     /// Delete purchase order by ID (with HTTP info)
     /// </summary>
     /// <param name="orderId">ID of the order to delete</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<object?>> DeleteOrderWithHttpInfoAsync(long orderId)
+    public async Task<ApiResult<object?>> DeleteOrderWithHttpInfoAsync(
+        long orderId,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/order/{orderId}";
 
@@ -177,7 +191,8 @@ public class StoreApi : BaseApi
                 [],
                 "application/json",
                 null,
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -187,14 +202,20 @@ public class StoreApi : BaseApi
     /// </summary>
     /// <param name="pathSwatch"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Category]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Category> GetBySwatchAsync(
         Swatch pathSwatch,
-        GetBySwatchOptions? options = null
+        GetBySwatchOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<Category>> task = GetBySwatchWithHttpInfoAsync(pathSwatch, options);
+        Task<ApiResult<Category>> task = GetBySwatchWithHttpInfoAsync(
+            pathSwatch,
+            options,
+            cancellationToken
+        );
         ApiResult<Category> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -225,11 +246,13 @@ public class StoreApi : BaseApi
     /// </summary>
     /// <param name="pathSwatch"></param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Category>> GetBySwatchWithHttpInfoAsync(
         Swatch pathSwatch,
-        GetBySwatchOptions? options = null
+        GetBySwatchOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/store/by-swatch/{pathSwatch}";
@@ -289,7 +312,8 @@ public class StoreApi : BaseApi
                 GetBySwatchAccepts,
                 "application/json",
                 typeof(Category),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -297,11 +321,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a model exercising schema defaults on deserialize.
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Defaults]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Defaults> GetDefaultsAsync()
+    public async Task<Defaults> GetDefaultsAsync(CancellationToken cancellationToken = default)
     {
-        Task<ApiResult<Defaults>> task = GetDefaultsWithHttpInfoAsync();
+        Task<ApiResult<Defaults>> task = GetDefaultsWithHttpInfoAsync(cancellationToken);
         ApiResult<Defaults> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -330,9 +355,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a model exercising schema defaults on deserialize. (with HTTP info)
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Defaults>> GetDefaultsWithHttpInfoAsync()
+    public async Task<ApiResult<Defaults>> GetDefaultsWithHttpInfoAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/defaults";
 
@@ -348,7 +376,8 @@ public class StoreApi : BaseApi
                 GetDefaultsAccepts,
                 "application/json",
                 typeof(Defaults),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -356,11 +385,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a department (mutual-recursion codegen fixture).
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Department]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Department> GetDepartmentAsync()
+    public async Task<Department> GetDepartmentAsync(CancellationToken cancellationToken = default)
     {
-        Task<ApiResult<Department>> task = GetDepartmentWithHttpInfoAsync();
+        Task<ApiResult<Department>> task = GetDepartmentWithHttpInfoAsync(cancellationToken);
         ApiResult<Department> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -389,9 +419,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a department (mutual-recursion codegen fixture). (with HTTP info)
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Department>> GetDepartmentWithHttpInfoAsync()
+    public async Task<ApiResult<Department>> GetDepartmentWithHttpInfoAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/department";
 
@@ -407,7 +440,8 @@ public class StoreApi : BaseApi
                 GetDepartmentAccepts,
                 "application/json",
                 typeof(Department),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -415,12 +449,15 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns categories grouped into an array of string-keyed maps.
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Dictionary<string, Category>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<List<Dictionary<string, Category>>> GetGroupedCategoriesAsync()
+    public async Task<List<Dictionary<string, Category>>> GetGroupedCategoriesAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         Task<ApiResult<List<Dictionary<string, Category>>>> task =
-            GetGroupedCategoriesWithHttpInfoAsync();
+            GetGroupedCategoriesWithHttpInfoAsync(cancellationToken);
         ApiResult<List<Dictionary<string, Category>>> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -449,11 +486,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns categories grouped into an array of string-keyed maps. (with HTTP info)
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<
         ApiResult<List<Dictionary<string, Category>>>
-    > GetGroupedCategoriesWithHttpInfoAsync()
+    > GetGroupedCategoriesWithHttpInfoAsync(CancellationToken cancellationToken = default)
     {
         string path = "/store/grouped-categories";
 
@@ -469,7 +507,8 @@ public class StoreApi : BaseApi
                 GetGroupedCategoriesAccepts,
                 "application/json",
                 typeof(List<Dictionary<string, Category>>),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -477,11 +516,16 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns pet inventories by status
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Dictionary<string, int>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Dictionary<string, int>> GetInventoryAsync()
+    public async Task<Dictionary<string, int>> GetInventoryAsync(
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Dictionary<string, int>>> task = GetInventoryWithHttpInfoAsync();
+        Task<ApiResult<Dictionary<string, int>>> task = GetInventoryWithHttpInfoAsync(
+            cancellationToken
+        );
         ApiResult<Dictionary<string, int>> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -510,9 +554,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns pet inventories by status (with HTTP info)
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Dictionary<string, int>>> GetInventoryWithHttpInfoAsync()
+    public async Task<ApiResult<Dictionary<string, int>>> GetInventoryWithHttpInfoAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/inventory";
 
@@ -528,7 +575,8 @@ public class StoreApi : BaseApi
                 GetInventoryAccepts,
                 "application/json",
                 typeof(Dictionary<string, int>),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -536,11 +584,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a matrix as an array of integer arrays.
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<List<int>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<List<List<int>>> GetMatrixAsync()
+    public async Task<List<List<int>>> GetMatrixAsync(CancellationToken cancellationToken = default)
     {
-        Task<ApiResult<List<List<int>>>> task = GetMatrixWithHttpInfoAsync();
+        Task<ApiResult<List<List<int>>>> task = GetMatrixWithHttpInfoAsync(cancellationToken);
         ApiResult<List<List<int>>> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -569,9 +618,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a matrix as an array of integer arrays. (with HTTP info)
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<List<List<int>>>> GetMatrixWithHttpInfoAsync()
+    public async Task<ApiResult<List<List<int>>>> GetMatrixWithHttpInfoAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/matrix";
 
@@ -587,7 +639,8 @@ public class StoreApi : BaseApi
                 GetMatrixAccepts,
                 "application/json",
                 typeof(List<List<int>>),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -596,11 +649,15 @@ public class StoreApi : BaseApi
     /// Find purchase order by ID
     /// </summary>
     /// <param name="orderId">ID of order to return</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Order> GetOrderByIdAsync(long orderId)
+    public async Task<Order> GetOrderByIdAsync(
+        long orderId,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Order>> task = GetOrderByIdWithHttpInfoAsync(orderId);
+        Task<ApiResult<Order>> task = GetOrderByIdWithHttpInfoAsync(orderId, cancellationToken);
         ApiResult<Order> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -630,9 +687,13 @@ public class StoreApi : BaseApi
     /// Find purchase order by ID (with HTTP info)
     /// </summary>
     /// <param name="orderId">ID of order to return</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Order>> GetOrderByIdWithHttpInfoAsync(long orderId)
+    public async Task<ApiResult<Order>> GetOrderByIdWithHttpInfoAsync(
+        long orderId,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/order/{orderId}";
 
@@ -663,7 +724,8 @@ public class StoreApi : BaseApi
                 GetOrderByIdAccepts,
                 "application/json",
                 typeof(Order),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -672,11 +734,18 @@ public class StoreApi : BaseApi
     /// Find purchase order by tracking id
     /// </summary>
     /// <param name="trackingId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Order> GetOrderByTrackingIdAsync(Guid trackingId)
+    public async Task<Order> GetOrderByTrackingIdAsync(
+        Guid trackingId,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Order>> task = GetOrderByTrackingIdWithHttpInfoAsync(trackingId);
+        Task<ApiResult<Order>> task = GetOrderByTrackingIdWithHttpInfoAsync(
+            trackingId,
+            cancellationToken
+        );
         ApiResult<Order> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -706,9 +775,13 @@ public class StoreApi : BaseApi
     /// Find purchase order by tracking id (with HTTP info)
     /// </summary>
     /// <param name="trackingId"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Order>> GetOrderByTrackingIdWithHttpInfoAsync(Guid trackingId)
+    public async Task<ApiResult<Order>> GetOrderByTrackingIdWithHttpInfoAsync(
+        Guid trackingId,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/order/by-tracking/{trackingId}";
 
@@ -739,7 +812,8 @@ public class StoreApi : BaseApi
                 GetOrderByTrackingIdAccepts,
                 "application/json",
                 typeof(Order),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -748,11 +822,15 @@ public class StoreApi : BaseApi
     /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[StockItem]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<StockItem> GetStockItemAsync(GetStockItemOptions? options = null)
+    public async Task<StockItem> GetStockItemAsync(
+        GetStockItemOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<StockItem>> task = GetStockItemWithHttpInfoAsync(options);
+        Task<ApiResult<StockItem>> task = GetStockItemWithHttpInfoAsync(options, cancellationToken);
         ApiResult<StockItem> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -782,10 +860,12 @@ public class StoreApi : BaseApi
     /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields. (with HTTP info)
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<StockItem>> GetStockItemWithHttpInfoAsync(
-        GetStockItemOptions? options = null
+        GetStockItemOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/store/stock-item";
@@ -817,7 +897,8 @@ public class StoreApi : BaseApi
                 GetStockItemAccepts,
                 "application/json",
                 typeof(StockItem),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -825,11 +906,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a bare enum (value-type response codegen fixture).
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Swatch]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Swatch> GetSwatchAsync()
+    public async Task<Swatch> GetSwatchAsync(CancellationToken cancellationToken = default)
     {
-        Task<ApiResult<Swatch>> task = GetSwatchWithHttpInfoAsync();
+        Task<ApiResult<Swatch>> task = GetSwatchWithHttpInfoAsync(cancellationToken);
         ApiResult<Swatch> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -858,9 +940,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a bare enum (value-type response codegen fixture). (with HTTP info)
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Swatch>> GetSwatchWithHttpInfoAsync()
+    public async Task<ApiResult<Swatch>> GetSwatchWithHttpInfoAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/swatch";
 
@@ -876,7 +961,8 @@ public class StoreApi : BaseApi
                 GetSwatchAccepts,
                 "application/json",
                 typeof(Swatch),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -884,11 +970,16 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns swatches grouped as an array of string-keyed enum maps.
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Dictionary<string, Swatch>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<List<Dictionary<string, Swatch>>> GetSwatchGroupsAsync()
+    public async Task<List<Dictionary<string, Swatch>>> GetSwatchGroupsAsync(
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<List<Dictionary<string, Swatch>>>> task = GetSwatchGroupsWithHttpInfoAsync();
+        Task<ApiResult<List<Dictionary<string, Swatch>>>> task = GetSwatchGroupsWithHttpInfoAsync(
+            cancellationToken
+        );
         ApiResult<List<Dictionary<string, Swatch>>> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -917,11 +1008,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns swatches grouped as an array of string-keyed enum maps. (with HTTP info)
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<
-        ApiResult<List<Dictionary<string, Swatch>>>
-    > GetSwatchGroupsWithHttpInfoAsync()
+    public async Task<ApiResult<List<Dictionary<string, Swatch>>>> GetSwatchGroupsWithHttpInfoAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/swatch-groups";
 
@@ -937,7 +1029,8 @@ public class StoreApi : BaseApi
                 GetSwatchGroupsAccepts,
                 "application/json",
                 typeof(List<Dictionary<string, Swatch>>),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -945,12 +1038,15 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns timestamps grouped as an array of string-keyed maps.
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Dictionary<string, DateTimeOffset>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<List<Dictionary<string, DateTimeOffset>>> GetTimestampGroupsAsync()
+    public async Task<List<Dictionary<string, DateTimeOffset>>> GetTimestampGroupsAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         Task<ApiResult<List<Dictionary<string, DateTimeOffset>>>> task =
-            GetTimestampGroupsWithHttpInfoAsync();
+            GetTimestampGroupsWithHttpInfoAsync(cancellationToken);
         ApiResult<List<Dictionary<string, DateTimeOffset>>> result = await task.ConfigureAwait(
             false
         );
@@ -981,11 +1077,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns timestamps grouped as an array of string-keyed maps. (with HTTP info)
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<
         ApiResult<List<Dictionary<string, DateTimeOffset>>>
-    > GetTimestampGroupsWithHttpInfoAsync()
+    > GetTimestampGroupsWithHttpInfoAsync(CancellationToken cancellationToken = default)
     {
         string path = "/store/timestamp-groups";
 
@@ -1001,7 +1098,8 @@ public class StoreApi : BaseApi
                 GetTimestampGroupsAccepts,
                 "application/json",
                 typeof(List<Dictionary<string, DateTimeOffset>>),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1009,11 +1107,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a self-referential tree (recursive-type codegen fixture)
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[TreeNode]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<TreeNode> GetTreeAsync()
+    public async Task<TreeNode> GetTreeAsync(CancellationToken cancellationToken = default)
     {
-        Task<ApiResult<TreeNode>> task = GetTreeWithHttpInfoAsync();
+        Task<ApiResult<TreeNode>> task = GetTreeWithHttpInfoAsync(cancellationToken);
         ApiResult<TreeNode> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1042,9 +1141,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a self-referential tree (recursive-type codegen fixture) (with HTTP info)
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<TreeNode>> GetTreeWithHttpInfoAsync()
+    public async Task<ApiResult<TreeNode>> GetTreeWithHttpInfoAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/tree";
 
@@ -1060,7 +1162,8 @@ public class StoreApi : BaseApi
                 GetTreeAccepts,
                 "application/json",
                 typeof(TreeNode),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1069,11 +1172,15 @@ public class StoreApi : BaseApi
     /// Place an order for a pet
     /// </summary>
     /// <param name="order"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Order> PlaceOrderAsync(Order? order = null)
+    public async Task<Order> PlaceOrderAsync(
+        Order? order = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Order>> task = PlaceOrderWithHttpInfoAsync(order);
+        Task<ApiResult<Order>> task = PlaceOrderWithHttpInfoAsync(order, cancellationToken);
         ApiResult<Order> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1103,9 +1210,13 @@ public class StoreApi : BaseApi
     /// Place an order for a pet (with HTTP info)
     /// </summary>
     /// <param name="order"></param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Order>> PlaceOrderWithHttpInfoAsync(Order? order = null)
+    public async Task<ApiResult<Order>> PlaceOrderWithHttpInfoAsync(
+        Order? order = null,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/order";
 
@@ -1121,7 +1232,8 @@ public class StoreApi : BaseApi
                 PlaceOrderAccepts,
                 "application/json",
                 typeof(Order),
-                null
+                null,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }
@@ -1130,11 +1242,18 @@ public class StoreApi : BaseApi
     /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Order>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<List<Order>> SearchStoreAsync(SearchStoreOptions? options = null)
+    public async Task<List<Order>> SearchStoreAsync(
+        SearchStoreOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<List<Order>>> task = SearchStoreWithHttpInfoAsync(options);
+        Task<ApiResult<List<Order>>> task = SearchStoreWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
         ApiResult<List<Order>> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1164,10 +1283,12 @@ public class StoreApi : BaseApi
     /// Searches the store; exercises content-encoded, Set and time-of-day parameters. (with HTTP info)
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<List<Order>>> SearchStoreWithHttpInfoAsync(
-        SearchStoreOptions? options = null
+        SearchStoreOptions? options = null,
+        CancellationToken cancellationToken = default
     )
     {
         string path = "/store/search";
@@ -1213,16 +1334,7 @@ public class StoreApi : BaseApi
         Dictionary<string, string> headerParams = [];
         if (options != null && options.XFilter != null)
         {
-            headerParams["X-Filter"] = (string)
-                ValueSerializer.SerializeStyled(
-                    "X-Filter",
-                    options.XFilter,
-                    "header",
-                    "Dictionary<string, string>",
-                    null,
-                    "",
-                    false
-                )!;
+            headerParams["X-Filter"] = SerializeContentParameter(options.XFilter, "header");
         }
 
         return await InvokeApiForResultAsync<List<Order>>(
@@ -1234,7 +1346,8 @@ public class StoreApi : BaseApi
                 SearchStoreAccepts,
                 "application/json",
                 typeof(List<Order>),
-                NoAuth.Instance
+                NoAuth.Instance,
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }

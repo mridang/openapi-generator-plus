@@ -65,6 +65,13 @@ $apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
 $client = {{clientClassName}}::withToken('{{basePath}}', $token, null, $apiClient);
 ```
 
+The facade also offers a shortcut that builds the adapter for you:
+`{{clientClassName}}::withHttpClient($authenticator, $httpClient, $psr17, $psr17, $transportOptions)`.
+The SDK never closes or manages your client; you own its lifecycle. Setting a
+proxy, a CA bundle or `verifySsl(false)` on `TransportOptions` together with a
+supplied client is rejected with an `InvalidArgumentException`, because those
+settings belong on your client.
+
 Redirect handling, response decompression, charset decoding, and User-Agent /
 X-Request-ID injection are applied uniformly regardless of the transport, so the
 injected client gets the same behaviour as the bundled one. Two consequences
@@ -79,6 +86,16 @@ follow from PSR-18 being a deliberately minimal, send-only contract:
   timeout settings are not applied to an injected client; configure those when
   you build it. The options still honoured are the request-data ones: default
   headers, User-Agent, and X-Request-ID.
+
+## Schema constraints
+
+The constraint keywords `pattern`, `minLength`, `maxLength`, `minimum`,
+`maximum`, `multipleOf`, `minItems` and `maxItems` are validated by the server.
+The generated PHP models do not enforce them: the model layer only checks the
+declared types, required properties and `format: byte` base64 on decode, so a
+value that violates a constraint is sent as given and a response that violates
+one is decoded as given. Arrays declared `uniqueItems` are sent in the order of
+the collection the caller holds (insertion order of the `\Ds\Set`), not sorted.
 
 ## Caveats
 

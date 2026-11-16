@@ -1,5 +1,7 @@
 {{>api_info}}
 {{#generateTests}}
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
 
@@ -24,6 +26,17 @@ void main() {
     test('construct with authenticator and transport options', () {
       final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
       final transport = TransportOptionsBuilder().build();
+
+      final client = {{clientClassName}}(authenticator: authenticator, transportOptions: transport);
+
+      expect(client, isNotNull);
+    });
+
+    test('construct with a caller-supplied http client in the transport options', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+      final transport = TransportOptionsBuilder()
+          .httpClient(MockClient((_) async => http.Response('', 200)))
+          .build();
 
       final client = {{clientClassName}}(authenticator: authenticator, transportOptions: transport);
 

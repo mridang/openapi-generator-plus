@@ -145,6 +145,28 @@ export abstract class AbstractApiClient implements ApiClient {
   }
 
   /**
+   * Whether a failure is the caller's own cancellation: the caller's signal
+   * has fired and the error is not the timeout deadline.
+   *
+   * @param error the value `fetch` or the body read rejected with
+   * @param signal the caller's cancellation signal, if any
+   * @returns true when the error is the caller's cancellation
+   */
+  private static isCallerAbort(
+    error: unknown,
+    signal: AbortSignal | undefined,
+  ): boolean {
+    if (signal == null || !signal.aborted) {
+      return false;
+    }
+    const name =
+      error != null && typeof error === "object"
+        ? String((error as { name?: unknown }).name ?? "")
+        : "";
+    return name !== "TimeoutError";
+  }
+
+  /**
    * The status a proxy refused the CONNECT tunnel with, found anywhere in the
    * error's cause chain (undici reports it only in the message), or null.
    *
@@ -296,12 +318,35 @@ export abstract class AbstractApiClient implements ApiClient {
       redirect: "manual",
     };
 
+    /* Caller-supplied fetch options sit under the SDK's own: the method,
+     * headers, body, redirect policy, timeout and signal set here always win. */
+    const injectedFetch = this.transportOptions.fetch;
+    const doFetch: typeof fetch = injectedFetch ?? fetch;
+    if (this.transportOptions.fetchOptions != null) {
+      Object.assign(fetchOptions, {
+        ...this.transportOptions.fetchOptions,
+        ...fetchOptions,
+      });
+    }
+
+    /* The timeout and the caller's cancellation signal are merged: either one
+     * aborts the request. A timeout surfaces as NetworkTimeoutError, a
+     * cancellation as the signal's own reason (an AbortError by default). */
+    const signals: AbortSignal[] = [];
     if (this.transportOptions.timeout != null) {
-      fetchOptions.signal = AbortSignal.timeout(this.transportOptions.timeout);
+      signals.push(AbortSignal.timeout(this.transportOptions.timeout));
+    }
+    const callerSignal = options?.signal;
+    if (callerSignal != null) {
+      signals.push(callerSignal);
+    }
+    if (signals.length > 0) {
+      fetchOptions.signal =
+        signals.length === 1 ? signals[0] : AbortSignal.any(signals);
     }
 
     const dispatcher = await this.getDispatcher();
-    if (dispatcher) {
+    if (dispatcher && injectedFetch == null) {
       fetchOptions.dispatcher = dispatcher;
     }
 
@@ -317,7 +362,10 @@ export abstract class AbstractApiClient implements ApiClient {
     let currentUrl = url;
     const originalUrl = url;
     try {
-      response = await fetch(url, fetchOptions as Parameters<typeof fetch>[1]);
+      response = await doFetch(
+        url,
+        fetchOptions as Parameters<typeof fetch>[1],
+      );
       const noRedirect = options?.noRedirect === true;
       if (this.transportOptions.followRedirects && !noRedirect) {
         const maxRedirects = this.transportOptions.maxRedirects ?? 20;
@@ -445,7 +493,7 @@ export abstract class AbstractApiClient implements ApiClient {
           currentMethod = nextMethod;
           currentBody = nextBody;
           currentHeaders = redirectHeaders;
-          response = await fetch(
+          response = await doFetch(
             nextUrl,
             redirectOptions as Parameters<typeof fetch>[1],
           );
@@ -469,6 +517,11 @@ export abstract class AbstractApiClient implements ApiClient {
         }
       }
     } catch (error) {
+      /* A cancellation the caller asked for is raised as is (an AbortError by
+       * default), never as a timeout or a network failure. */
+      if (AbstractApiClient.isCallerAbort(error, callerSignal)) {
+        throw error;
+      }
       /* ApiError already carries the response's status + message
        * (e.g. the HTTPS -> HTTP downgrade refusal). Propagate it
        * unchanged so callers can match on the original cause. */
@@ -509,6 +562,9 @@ export abstract class AbstractApiClient implements ApiClient {
         AbstractApiClient.collectHeaders(response),
       );
     } catch (error) {
+      if (AbstractApiClient.isCallerAbort(error, callerSignal)) {
+        throw error;
+      }
       if (error instanceof ApiError) {
         throw error;
       }

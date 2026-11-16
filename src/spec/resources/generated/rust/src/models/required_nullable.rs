@@ -10,13 +10,18 @@
 /// RequiredNullable is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct RequiredNullable {
-    #[serde(rename = "note")]
-    pub note: String,
+    /* Required AND nullable: the key must be present on decode (null is a legal
+     * value) and is always written on encode, as null when the value is None. */
+    #[serde(
+        rename = "note",
+        deserialize_with = "crate::object_serializer::required_nullable::deserialize"
+    )]
+    pub note: Option<String>,
 }
 
 impl RequiredNullable {
     /// Creates a new RequiredNullable instance with required parameters.
-    pub fn new(note: String) -> Self {
+    pub fn new(note: Option<String>) -> Self {
         Self { note }
     }
 }

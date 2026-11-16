@@ -268,6 +268,50 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task CancellingTheCallTokenAbortsTheSlowEndpoint()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().Timeout(30000).Build());
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+
+        var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null,
+                false,
+                cts.Token
+            )
+        );
+        Assert.False(
+            typeof(OpenAPIException).IsInstanceOfType(ex),
+            "cancellation must not be rewrapped as an SDK error"
+        );
+    }
+
+    [Fact]
+    public async Task CancellingTheClientTokenAbortsTheSlowEndpoint()
+    {
+        using var clientSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().Timeout(30000).CancellationToken(clientSource.Token).Build()
+        );
+
+        var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+        Assert.False(
+            typeof(OpenAPIException).IsInstanceOfType(ex),
+            "cancellation must not be rewrapped as an SDK error"
+        );
+    }
+
+    [Fact]
     public async Task TimeoutIsOneBudgetAcrossRedirectHops()
     {
         var transport = TransportOptions.Builder().Timeout(1200).Build();

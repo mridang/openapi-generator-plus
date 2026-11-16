@@ -303,7 +303,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     path = "{{{path}}}"
 {{#pathParams}}
 {{=<% %>=}}
-    path = String.replace(path, "{<%baseName%>}", <%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/items.isUuid%><%^items.isUuid%><%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string())
+    path = String.replace(path, "{<%baseName%>}", <%#vendorExtensions.param.queryContent%>URI.encode(<%moduleName%>.ObjectSerializer.serialize(<%paramName%>), &URI.char_unreserved?/1)<%/vendorExtensions.param.queryContent%><%^vendorExtensions.param.queryContent%><%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/items.isUuid%><%^items.isUuid%><%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string()<%/vendorExtensions.param.queryContent%>)
 <%={{ }}=%>
 {{/pathParams}}
 {{#servers}}
@@ -326,12 +326,12 @@ defmodule {{moduleName}}.Api.{{classname}} do
     end
 {{/-first}}
 {{/servers}}
-    query_params = %{}
+    query_params = []
 {{#queryParams}}
 {{#vendorExtensions.param.queryDeepObject}}
     query_params =
       if not is_nil(options) and options.{{paramName}} do
-        Map.merge(query_params, {{moduleName}}.ValueSerializer.serialize_deep_object("{{baseName}}", options.{{paramName}}))
+        query_params ++ Enum.sort(Enum.to_list({{moduleName}}.ValueSerializer.serialize_deep_object("{{baseName}}", options.{{paramName}})))
       else
         query_params
       end
@@ -339,7 +339,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{#vendorExtensions.param.queryContent}}
     query_params =
       if not is_nil(options) and options.{{paramName}} do
-        Map.put(query_params, "{{baseName}}", Jason.encode!(options.{{paramName}}))
+        query_params ++ [{"{{baseName}}", {{moduleName}}.ObjectSerializer.serialize(options.{{paramName}})}]
       else
         query_params
       end
@@ -352,10 +352,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
     # explicit empty string still serialises through to a present empty value.
     query_params =
       if not is_nil(options) and not is_nil(options.{{paramName}}) do
-        Map.put(query_params, "{{baseName}}",
+        query_params ++ [{"{{baseName}}",
           {{moduleName}}.ValueSerializer.maybe_allow_reserved(
             {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}{{#isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/isUuid}}{{^isUuid}}{{#items.isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/items.isUuid}}{{^items.isUuid}}options.{{paramName}}{{/items.isUuid}}{{/isUuid}}{{/items.isByteArray}}{{/isByteArray}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
-            {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
+            {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})}]
       else
         query_params
       end
@@ -363,10 +363,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{#vendorExtensions.param.queryStyled}}
     query_params =
       if not is_nil(options) and not is_nil(options.{{paramName}}){{#isExplode}} and options.{{paramName}} != []{{/isExplode}} do
-        Map.put(query_params, "{{baseName}}",
+        query_params ++ [{"{{baseName}}",
           {{moduleName}}.ValueSerializer.maybe_allow_reserved(
             {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}{{#isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/isUuid}}{{^isUuid}}{{#items.isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/items.isUuid}}{{^items.isUuid}}options.{{paramName}}{{/items.isUuid}}{{/isUuid}}{{/items.isByteArray}}{{/isByteArray}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
-            {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
+            {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})}]
       else
         query_params
       end
@@ -376,7 +376,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{#headerParams}}
     header_params =
       if not is_nil(options) and not is_nil(options.{{paramName}}) do
-        Map.put(header_params, "{{baseName}}", {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}{{#isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/isUuid}}{{^isUuid}}{{#items.isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/items.isUuid}}{{^items.isUuid}}options.{{paramName}}{{/items.isUuid}}{{/isUuid}}{{/items.isByteArray}}{{/isByteArray}}, :header, "{{{dataType}}}", nil, "{{style}}", {{isExplode}}) |> to_string())
+        Map.put(header_params, "{{baseName}}", {{#vendorExtensions.param.queryContent}}{{moduleName}}.ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}{{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}{{#isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/isUuid}}{{^isUuid}}{{#items.isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/items.isUuid}}{{^items.isUuid}}options.{{paramName}}{{/items.isUuid}}{{/isUuid}}{{/items.isByteArray}}{{/isByteArray}}, :header, "{{{dataType}}}", nil, "{{style}}", {{isExplode}}) |> to_string(){{/vendorExtensions.param.queryContent}})
       else
         header_params
       end
@@ -393,7 +393,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
         # programmer error and would otherwise enable header injection; fail
         # closed with the identical ArgumentError the auth-cookie path raises.
         cookie_value =
-          <%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/items.isUuid%><%^items.isUuid%>options.<%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, :cookie, "<%& dataType%>", nil, "<%style%>", <%isExplode%>)
+          <%#vendorExtensions.param.queryContent%>URI.encode(<%moduleName%>.ObjectSerializer.serialize(options.<%paramName%>), &URI.char_unreserved?/1)<%/vendorExtensions.param.queryContent%><%^vendorExtensions.param.queryContent%><%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/items.isUuid%><%^items.isUuid%>options.<%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, :cookie, "<%& dataType%>", nil, "<%style%>", <%isExplode%>)<%/vendorExtensions.param.queryContent%>
           |> to_string()
 
         unless cookie_value =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do
@@ -410,7 +410,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     header_params = if cookie_parts != [], do: Map.put(header_params, "Cookie", Enum.join(cookie_parts, "; ")), else: header_params
 {{/hasCookieParams}}
 {{#hasFormParams}}
-    request_body = %{}
+    request_body = []
 {{#formParams}}
 {{! Binary multipart parts are tagged with the {:raw, ...} marker (each array
     element individually) so the body builder emits a FILE part — reusing the
@@ -418,10 +418,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
     than a plain text part. A string is indistinguishable from raw bytes at
     runtime in Elixir, so binary-ness must be tagged here at generation time. }}
 {{#required}}
-    request_body = Map.put(request_body, "{{baseName}}", {{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}})
+    request_body = request_body ++ [{"{{baseName}}", {{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}}]
 {{/required}}
 {{^required}}
-    request_body = if not is_nil(options) and not is_nil(options.{{paramName}}), do: Map.put(request_body, "{{baseName}}", {{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}), else: request_body
+    request_body = if not is_nil(options) and not is_nil(options.{{paramName}}), do: request_body ++ [{"{{baseName}}", {{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}}], else: request_body
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}

@@ -474,6 +474,27 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void RequiredNullableKeepsAnExplicitNull()
+        {
+            var model = _serializer.Deserialize<RequiredNullable>("{\"note\":null}");
+
+            Assert.Null(model!.Note);
+        }
+
+        [Fact]
+        public void RequiredNullableRejectsAMissingKey()
+        {
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<RequiredNullable>("{}"));
+        }
+
+        [Fact]
+        public void RequiredNullableAlwaysWritesTheKey()
+        {
+            Assert.Equal("{\"note\":null}", _serializer.Serialize(new RequiredNullable(null)));
+            Assert.Equal("{\"note\":\"x\"}", _serializer.Serialize(new RequiredNullable("x")));
+        }
+
+        [Fact]
         public void ThrownSerializationExceptionHasMessage()
         {
             var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("{"));
@@ -966,6 +987,40 @@ public static class ObjectSerializerTest
         {
             var t = new TimeOnly(9, 30, 15);
             Assert.Equal("09:30:15", ObjectSerializer.Stringify(t));
+        }
+
+        [Fact]
+        public void TimeOnlyKeepsMillisecondsOnlyWhenNonZero()
+        {
+            Assert.Equal("10:30:00", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0)));
+            Assert.Equal("10:30:00.123", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0, 123)));
+            Assert.Equal("10:30:00.050", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0, 50)));
+        }
+
+        [Fact]
+        public void TimeOnlyTruncatesBelowTheMillisecond()
+        {
+            Assert.Equal("10:30:00.123", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0, 123, 456)));
+            Assert.Equal("10:30:00.999", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0, 999, 600)));
+            Assert.Equal("10:30:00", ObjectSerializer.Stringify(new TimeOnly(10, 30, 0, 0, 900)));
+        }
+
+        [Fact]
+        public void TimeOnlyBodyPropertyUsesTheSameWireText()
+        {
+            var edgeCases = new EdgeCases { Cutoff = new TimeOnly(10, 30, 0, 123, 456) };
+
+            string json = _serializer.Serialize(edgeCases);
+
+            Assert.Contains("\"cutoff\":\"10:30:00.123\"", json, StringComparison.Ordinal);
+            Assert.Equal(new TimeOnly(10, 30, 0, 123), _serializer.Deserialize<EdgeCases>(json)!.Cutoff);
+            Assert.Equal(new TimeOnly(10, 30, 0), _serializer.Deserialize<EdgeCases>("{\"cutoff\":\"10:30:00\"}")!.Cutoff);
+        }
+
+        [Fact]
+        public void TimeOnlyBodyPropertyRejectsAMalformedTime()
+        {
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<EdgeCases>("{\"cutoff\":\"not-a-time\"}"));
         }
 
         [Fact]

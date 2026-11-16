@@ -2,6 +2,7 @@
 package {{packageName}}
 
 import (
+	"context"
 	"fmt"
 {{#hasOsImport}}
 	"os"
@@ -100,6 +101,7 @@ func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator 
 {{#externalDocs}}
 // See {{url}} {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/externalDocs}}
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 {{#allParams}}
 {{#description}}
 // param {{paramName}}: {{#goLineComment}}{{{description}}}{{/goLineComment}}
@@ -124,8 +126,8 @@ func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator 
 //
 // Deprecated: This operation is deprecated.
 {{/isDeprecated}}
-func (a *{{classname}}) {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
-	result, err := a.{{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType...{{/vendorExtensions.hasMultipleConsumes}})
+func (a *{{classname}}) {{operationId}}(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
+	result, err := a.{{operationId}}WithHTTPInfo(ctx, {{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType...{{/vendorExtensions.hasMultipleConsumes}})
 	if err != nil {
 		return {{#returnType}}nil, {{/returnType}}err
 	}
@@ -149,7 +151,7 @@ func (a *{{classname}}) {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{
 //
 // Deprecated: This operation is deprecated.
 {{/isDeprecated}}
-func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
+func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
 {{#hasAuthMethods}}
 	/* Per-operation auth is sourced from the Options object's Auth field. A nil
 	 * options or a nil Auth falls back to the client's configured credentials. */
@@ -237,6 +239,18 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 
 	path := "{{{path}}}"
 {{#pathParams}}
+{{#vendorExtensions.goContent}}
+	/* A parameter declared with content (not schema) is encoded through the
+	 * SDK's own object serializer, exactly like a request body. */
+	{
+		contentBytes, err := serialize({{paramName}})
+		if err != nil {
+			return nil, err
+		}
+		path = replacePathParam(path, "{{baseName}}", encodePathSegment(string(contentBytes)))
+	}
+{{/vendorExtensions.goContent}}
+{{^vendorExtensions.goContent}}
 {{#isDate}}
 	path = replacePathParam(path, "{{baseName}}", encodePathSegment(stringifyDate({{paramName}})))
 {{/isDate}}
@@ -247,6 +261,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	 * preserves the OAS sub-delimiters). */
 	path = replacePathParam(path, "{{baseName}}", fmt.Sprintf("%v", serializeStyled("{{baseName}}", {{paramName}}, "path", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
 {{/isDate}}
+{{/vendorExtensions.goContent}}
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
@@ -306,6 +321,28 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 
 	headerParams := make(map[string]string)
 {{#headerParams}}
+{{#vendorExtensions.goContent}}
+{{#required}}
+	/* Required content header param: encoded by the SDK's own serializer. */
+	{
+		contentBytes, err := serialize(options.{{nameInPascalCase}})
+		if err != nil {
+			return nil, err
+		}
+		headerParams["{{baseName}}"] = string(contentBytes)
+	}
+{{/required}}
+{{^required}}
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		contentBytes, err := serialize(options.{{nameInPascalCase}})
+		if err != nil {
+			return nil, err
+		}
+		headerParams["{{baseName}}"] = string(contentBytes)
+	}
+{{/required}}
+{{/vendorExtensions.goContent}}
+{{^vendorExtensions.goContent}}
 {{#required}}
 	/* Required header param: non-pointer Options field, always present. */
 	headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
@@ -315,6 +352,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 		headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
 	}
 {{/required}}
+{{/vendorExtensions.goContent}}
 {{/headerParams}}
 {{#hasCookieParams}}
 	var cookieParts []string
@@ -328,7 +366,19 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	 * the auth path, it fails closed by returning ErrInvalidCookie, matching
 	 * how this function reports every other invalid-parameter condition. */
 	{
-		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+		var cookieValue string
+{{#vendorExtensions.goContent}}
+		{
+			contentBytes, cerr := serialize(options.{{nameInPascalCase}})
+			if cerr != nil {
+				return nil, cerr
+			}
+			cookieValue = string(contentBytes)
+		}
+{{/vendorExtensions.goContent}}
+{{^vendorExtensions.goContent}}
+		cookieValue = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+{{/vendorExtensions.goContent}}
 		if !isValidCookieValue(cookieValue) {
 			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "{{baseName}}")
 		}
@@ -340,7 +390,19 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 		/* Optional cookie param: same RFC 6265 validation as the required
 		 * branch above. Fail closed by returning an error so a CR/LF or
 		 * control-char value cannot be injected into the Cookie header. */
-		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+		var cookieValue string
+{{#vendorExtensions.goContent}}
+		{
+			contentBytes, cerr := serialize(options.{{nameInPascalCase}})
+			if cerr != nil {
+				return nil, cerr
+			}
+			cookieValue = string(contentBytes)
+		}
+{{/vendorExtensions.goContent}}
+{{^vendorExtensions.goContent}}
+		cookieValue = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+{{/vendorExtensions.goContent}}
 		if !isValidCookieValue(cookieValue) {
 			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "{{baseName}}")
 		}
@@ -433,6 +495,8 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{/vendorExtensions.hasMultipleConsumes}}
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{ {{#queryParams}}"{{baseName}}", {{/queryParams}}{{#formParams}}"{{baseName}}", {{/formParams}}},
 		method:       "{{httpMethod}}",
 		path:         path,
 		queryParams:  queryParams,

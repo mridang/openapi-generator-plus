@@ -203,6 +203,40 @@ import Testing
     #expect(result == [[1, 2], [3, 4, 5]])
   }
 
+  /* A content-encoded parameter goes through the SDK's own serializer in
+     every location: the query value is the JSON text, the header is the
+     JSON text verbatim, and neither is dropped. */
+  @Test func testSearchStoreEncodesContentParametersAsJson() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "[]"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+
+    _ = try await api.searchStore(
+      options: SearchStoreOptions(
+        q: PhotoMetadata(caption: "a<b>&c"), xFilter: ["k": "v"]))
+
+    let components = URLComponents(string: mockClient.lastURL)
+    let q = components?.queryItems?.first { $0.name == "q" }?.value
+    #expect(q == "{\"caption\":\"a<b>&c\"}")
+    #expect(mockClient.lastHeaders["X-Filter"] == "{\"k\":\"v\"}")
+  }
+
+  /* A content-encoded parameter that cannot be serialized is an error and
+     no request is sent. */
+  @Test func testSearchStoreRejectsUnserializableContentParameter() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+
+    await #expect(throws: SerializationError.self) {
+      _ = try await api.searchStore(
+        options: SearchStoreOptions(
+          q: PhotoMetadata(location: PhotoMetadataLocation(lat: Double.nan))))
+    }
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
   @Test func testGetSwatchGroupsDeserializesEnumLeaves() async throws {
     let mockApi = storeApiForMock(
       statusCode: 200, body: "[{\"a\":\"red\"},{\"b\":\"blue\",\"c\":\"green\"}]")

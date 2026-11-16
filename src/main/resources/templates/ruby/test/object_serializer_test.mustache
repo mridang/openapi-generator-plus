@@ -960,6 +960,11 @@ describe {{moduleName}}::ObjectSerializer do
       _(result.second).must_equal(30)
     end
 
+    it 'accepts a fractional time and keeps whole seconds, since Tod::TimeOfDay cannot carry a fraction' do
+      result = {{moduleName}}::ObjectSerializer.convert_to_type('10:30:00.123', 'Tod::TimeOfDay')
+      _({{moduleName}}::ObjectSerializer.stringify(result)).must_equal('10:30:00')
+    end
+
     it 'convert_to_type passes through an existing Tod::TimeOfDay' do
       original = Tod::TimeOfDay.new(7, 30, 15)
       result = {{moduleName}}::ObjectSerializer.convert_to_type(original, 'Tod::TimeOfDay')

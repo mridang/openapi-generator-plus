@@ -1,5 +1,6 @@
 import json
 import pytest
+import urllib3
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from typing import Any, ClassVar
@@ -1724,3 +1725,95 @@ class TestResponseContentEncoding:
         )
 
         assert response.body == "gzip, deflate, br, zstd"
+
+
+class _RecordingPool(urllib3.PoolManager):
+    """A caller-owned pool manager that records what it is asked to do."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.requests: list[str] = []
+        self.cleared = False
+
+    def request(self, method: str, url: str, *args: Any, **kwargs: Any) -> Any:
+        self.requests.append(url)
+        return super().request(method, url, *args, **kwargs)
+
+    def clear(self) -> None:
+        self.cleared = True
+        super().clear()
+
+
+class TestInjectedPoolManager:
+    """A caller-supplied urllib3 pool manager carries the requests, keeps every
+    SDK default on top, is never closed by the SDK, and may not be combined
+    with the SDK's own proxy or TLS settings."""
+
+    server: HTTPServer
+    base_url: str
+
+    @classmethod
+    def setup_class(cls) -> None:
+        cls.server = HTTPServer(("127.0.0.1", 0), _EchoHandler)
+        cls.base_url = f"http://127.0.0.1:{cls.server.server_address[1]}"
+        Thread(target=cls.server.serve_forever, daemon=True).start()
+
+    @classmethod
+    def teardown_class(cls) -> None:
+        cls.server.shutdown()
+
+    def test_the_supplied_pool_manager_receives_the_request(self) -> None:
+        pool = _RecordingPool()
+        client = DefaultApiClient(pool_manager=pool)
+
+        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+
+        assert response.status_code == 200
+        assert pool.requests == [f"{self.base_url}/echo"]
+
+    def test_sdk_defaults_still_apply_on_top_of_the_supplied_pool_manager(self) -> None:
+        transport = (
+            TransportOptions.builder()
+            .user_agent("Injected/1.0")
+            .default_header("X-Default", "d")
+            .build()
+        )
+        client = DefaultApiClient(transport, pool_manager=_RecordingPool())
+
+        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+
+        headers = json.loads(response.body)["headers"]
+        assert headers["user-agent"] == "Injected/1.0"
+        assert headers["x-default"] == "d"
+
+    def test_close_leaves_the_supplied_pool_manager_open(self) -> None:
+        pool = _RecordingPool()
+        client = DefaultApiClient(pool_manager=pool)
+
+        client.close()
+
+        assert pool.cleared is False
+
+    def test_close_clears_the_pool_manager_the_client_created(self) -> None:
+        client = DefaultApiClient()
+        pool = _RecordingPool()
+        client._pool_manager = pool
+        client._owns_pool = True
+
+        client.close()
+
+        assert pool.cleared is True
+
+    @pytest.mark.parametrize(
+        "transport",
+        [
+            TransportOptions.builder().proxy("http://proxy.example.com:3128").build(),
+            TransportOptions.builder().verify_ssl(False).build(),
+            TransportOptions.builder().ca_cert_path("/tmp/ca.pem").build(),
+        ],
+    )
+    def test_a_supplied_pool_manager_conflicts_with_proxy_and_tls_settings(
+        self, transport: TransportOptions
+    ) -> None:
+        with pytest.raises(ValueError, match="pool_manager"):
+            DefaultApiClient(transport, pool_manager=_RecordingPool())

@@ -85,6 +85,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private bool _closed;
 
     /// <summary>
+    /// Whether this instance owns <c>_httpClient</c> and so disposes it. False
+    /// when the caller supplied the client through
+    /// <see cref="TransportOptions.HttpClient"/>: the caller owns its lifecycle.
+    /// </summary>
+    private bool _ownsHttpClient = true;
+
+    /// <summary>
     /// The <c>Basic [base64]</c> Proxy-Authorization value extracted from
     /// userinfo embedded in the proxy URL, or <c>null</c> when no proxy
     /// credentials are configured. Exposed for tests and HTTP-aware
@@ -147,6 +154,35 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 nameof(transportOptions),
                 "Timeout must be greater than zero"
             );
+        }
+
+        if (transportOptions.HttpClient != null)
+        {
+            /* A caller-supplied client carries the requests; the caller owns
+               its lifecycle, so Dispose never closes it. The SDK's timeout,
+               headers, redirect policy and cancellation still apply in
+               SendRequestAsync. */
+            _httpClient = transportOptions.HttpClient;
+            _ownsHttpClient = false;
+            ProxyAuthorizationHeader = null;
+            return;
+        }
+
+        if (transportOptions.HttpMessageHandler != null)
+        {
+            /* A caller-supplied handler is wrapped in the SDK's own client.
+               The wrapper is ours to dispose; the handler stays the caller's
+               (disposeHandler: false). */
+            _httpClient = new HttpClient(
+                transportOptions.HttpMessageHandler,
+                disposeHandler: false
+            );
+            if (transportOptions.Timeout.HasValue)
+            {
+                _httpClient.Timeout = Timeout.InfiniteTimeSpan;
+            }
+            ProxyAuthorizationHeader = null;
+            return;
         }
 
         HttpClientHandler handler = new()
@@ -313,12 +349,25 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     }
 
     /// <inheritdoc/>
-    public async Task<ApiHttpResponse> SendRequestAsync(
+    public Task<ApiHttpResponse> SendRequestAsync(
         string method,
         Uri url,
         Dictionary<string, string> headers,
         object? body,
         bool noRedirect
+    )
+    {
+        return SendRequestAsync(method, url, headers, body, noRedirect, CancellationToken.None);
+    }
+
+    /// <inheritdoc/>
+    public async Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        CancellationToken cancellationToken
     )
     {
         ArgumentNullException.ThrowIfNull(method);
@@ -449,7 +498,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             && !noRedirect
         )
         {
-            replayBytes = await request.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            replayBytes = await request
+                .Content.ReadAsByteArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
             replayType = request.Content.Headers.ContentType;
             request.Content.Dispose();
             request.Content = CreateReplayContent(replayBytes, replayType);
@@ -462,7 +513,18 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 TimeSpan.FromMilliseconds(_transportOptions.Timeout.Value)
             )
             : null;
-        CancellationToken timeoutToken = timeoutSource?.Token ?? CancellationToken.None;
+        /* The caller's per-call token and the client-level token from
+           TransportOptions are linked with the timeout, so any of the three
+           aborts the in-flight request. Only the timeout source maps to the
+           timeout error below; a caller or client cancellation propagates as
+           OperationCanceledException. */
+        using CancellationTokenSource linkedSource =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                timeoutSource?.Token ?? CancellationToken.None,
+                _transportOptions.CancellationToken,
+                cancellationToken
+            );
+        CancellationToken timeoutToken = linkedSource.Token;
 
         HttpResponseMessage response;
         try
@@ -1367,7 +1429,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     public void Dispose()
     {
         _closed = true;
-        _httpClient.Dispose();
+        if (_ownsHttpClient)
+        {
+            _httpClient.Dispose();
+        }
     }
 
     /// <summary>

@@ -27,6 +27,16 @@ defmodule {{moduleName}}.ClientTest do
     assert %{{moduleName}}.{{clientClassName}}{} = client
   end
 
+  test "construct with a custom Req adapter in the transport options" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+    adapter = fn request -> {request, Req.Response.new(status: 200)} end
+    transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter])
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+
+    assert %{{moduleName}}.{{clientClassName}}{} = client
+  end
+
   test "BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     assert_raise ArgumentError, fn ->
       {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "tok\r\nInjected: yes")

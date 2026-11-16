@@ -94,6 +94,42 @@ Supporting AOT would require regenerating the serialization layer with
 the System.Text.Json source generator. Use the (default, interpreted or
 trimmed) JIT/IL runtime instead.
 
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server, and by
+the generated models only where the C# model layer does it natively:
+System.Text.Json enforces required members, integer ranges and wire types,
+and nothing else. The SDK does not check the remaining keywords before the
+request is sent. `uniqueItems` arrays are modelled as `HashSet<T>` and sent in
+the set's natural enumeration order, not sorted.
+
+### Cancellation
+
+Every operation takes a trailing `CancellationToken cancellationToken = default`.
+Cancelling it aborts the in-flight request and raises
+`OperationCanceledException`, which is distinct from the
+`NetworkTimeoutException` raised when the request timeout elapses.
+`TransportOptionsBuilder.CancellationToken(...)` sets a client-level token that
+is linked with every call's token, so either one cancels the request.
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+var transport = TransportOptions.Builder().CancellationToken(clientToken).Build();
+await client.Store.GetInventoryAsync(cancellationToken: cts.Token);
+```
+
+### Custom HTTP transport
+
+`TransportOptionsBuilder.HttpClient(...)` carries requests on your own
+`HttpClient`, and `TransportOptionsBuilder.HttpMessageHandler(...)` wraps your
+own handler in the SDK's client. The SDK keeps its timeout, `User-Agent`,
+default headers and redirect policy on top and never disposes what you
+supplied: you own its lifecycle. The supplied client or handler owns its proxy,
+TLS and connection pool, so combining it with `Proxy`, `CaCertPath` or
+`VerifySsl(false)` fails in `Build()` with an `ArgumentException`, and so does
+a stock handler with `AllowAutoRedirect` turned on.
+
 ## Not supported
 
 ### Webhooks and callbacks
@@ -113,15 +149,6 @@ OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
 
-### Numeric / string constraint validation
-
-OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
-`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
-**not enforced** by this SDK. The server is the authoritative
-validator; client-side enforcement is a DX nicety, not a correctness
-requirement. If you want fast-fail validation before the network
-round trip, plug in a JSON Schema validator library for your language.
-
 ### SOCKS proxies
 
 `TransportOptionsBuilder.Proxy(...)` accepts only `http://` and `https://` URLs.
@@ -131,12 +158,6 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
-
-### Per-call cancellation
-
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutException`.
 
 ### `LICENSE` file is not auto-emitted
 

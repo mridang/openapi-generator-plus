@@ -677,6 +677,17 @@ test('a null model element in a container is rejected', function (string $json, 
     'typed array' => ['[null]', 'Pet[]'],
 ]);
 
+test('a null numeric or boolean element in a container is rejected', function (string $json, string $class): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, $class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class, 'Null is not a valid');
+})->with([
+    'int map' => ['{"a":null}', 'Ds\Map<int>'],
+    'nested int vector' => ['[[1,null]]', 'Ds\Vector<Ds\Vector<int>>'],
+    'typed int array' => ['[null]', 'int[]'],
+    'float vector' => ['[null]', 'Ds\Vector<float>'],
+    'bool vector' => ['[null]', 'Ds\Vector<bool>'],
+]);
+
 test('a null scalar element in a container is kept', function (): void {
     expect(ObjectSerializer::deserialize('["a",null]', 'string[]'))->toBe(['a', null]);
 });
@@ -1176,6 +1187,25 @@ test('unknown availability wire value is rejected on deserialize', function (): 
     $json = '{"priority":1,"availability":"available"}';
     expect(fn (): mixed => ObjectSerializer::deserialize($json, StockItem::class))
         ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('format time values are partial-times with milliseconds only when non zero', function (): void {
+    expect(ObjectSerializer::formatTime(new \DateTimeImmutable('2024-01-01T10:30:00+00:00')))->toBe('10:30:00');
+    expect(ObjectSerializer::formatTime(new \DateTimeImmutable('2024-01-01T10:30:00.123456789+00:00')))->toBe('10:30:00.123');
+    expect(ObjectSerializer::formatTime(new \DateTimeImmutable('2024-01-01T10:30:00.9996+00:00')))->toBe('10:30:00.999');
+});
+
+test('a format time model field is a partial-time on the wire and round trips', function (): void {
+    $model = new \{{modelPackage}}\EdgeCases(cutoff: new \DateTimeImmutable('2024-01-01T10:30:00.123+00:00'));
+
+    $json = ObjectSerializer::serialize($model);
+    /** @var array<string, mixed> $data */
+    $data = json_decode($json, true);
+    expect($data['cutoff'])->toBe('10:30:00.123');
+
+    /** @var \{{modelPackage}}\EdgeCases $back */
+    $back = ObjectSerializer::deserialize($json, \{{modelPackage}}\EdgeCases::class);
+    expect($back->cutoff?->format('H:i:s.v'))->toBe('10:30:00.123');
 });
 
 // -- Canonical #3: format:byte fields hold raw bytes, base64 only on the wire --

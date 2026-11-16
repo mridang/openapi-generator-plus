@@ -42,12 +42,18 @@ class DefaultApiClient extends AbstractApiClient {
     }
     return DefaultApiClient._(
       options,
-      BrowserClient(),
+      options.httpClient ?? BrowserClient(),
       AbstractApiClient.buildProxyAuthHeader(options.proxy),
+      options.httpClient == null,
     );
   }
 
-  DefaultApiClient._(super.options, super.client, super.proxyAuth);
+  DefaultApiClient._(
+    super.options,
+    super.client,
+    super.proxyAuth, [
+    super.ownsClient,
+  ]);
 
   /// On the web the browser's fetch layer has already decoded any declared
   /// `Content-Encoding`, so the bytes here are plaintext and are returned

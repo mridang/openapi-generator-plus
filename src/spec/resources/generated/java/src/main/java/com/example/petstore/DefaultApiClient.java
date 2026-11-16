@@ -131,6 +131,10 @@ public final class DefaultApiClient implements ApiClient {
       };
 
   private final HttpClient httpClient;
+
+  /** True when the caller supplied the {@link HttpClient}; the SDK then never closes it. */
+  private final boolean callerOwnsClient;
+
   private final TransportOptions transportOptions;
 
   /**
@@ -150,6 +154,7 @@ public final class DefaultApiClient implements ApiClient {
     this.transportOptions = TransportOptions.builder().build();
     this.proxyAuthHeader = null;
     this.httpClient = buildHttpClient(this.transportOptions);
+    this.callerOwnsClient = false;
   }
 
   /**
@@ -170,7 +175,9 @@ public final class DefaultApiClient implements ApiClient {
   public DefaultApiClient(TransportOptions transportOptions) {
     this.transportOptions = transportOptions;
     this.proxyAuthHeader = computeProxyAuthHeader(transportOptions);
-    this.httpClient = buildHttpClient(transportOptions);
+    HttpClient supplied = transportOptions.getHttpClient();
+    this.callerOwnsClient = supplied != null;
+    this.httpClient = supplied != null ? supplied : buildHttpClient(transportOptions);
   }
 
   /**
@@ -186,6 +193,7 @@ public final class DefaultApiClient implements ApiClient {
    */
   DefaultApiClient(HttpClient httpClient) {
     this.httpClient = httpClient;
+    this.callerOwnsClient = false;
     this.transportOptions = TransportOptions.builder().build();
     this.proxyAuthHeader = null;
   }
@@ -1318,7 +1326,10 @@ public final class DefaultApiClient implements ApiClient {
       return;
     }
     this.closed = true;
-    httpClient.close();
+    /* A caller-supplied client belongs to the caller; only the SDK's own is closed. */
+    if (!callerOwnsClient) {
+      httpClient.close();
+    }
   }
 
   private volatile boolean closed = false;

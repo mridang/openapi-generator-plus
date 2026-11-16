@@ -746,7 +746,8 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @Deprecated
   {{/deprecated}}
   @JsonProperty("{{baseName}}")
-  {{^required}}@Nullable{{/required}}
+  {{^required}}@Nullable{{/required}}{{#required}}{{#isNullable}}@Nullable
+  @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.ALWAYS){{/isNullable}}{{/required}}
   public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}}{{^isContainer}} = {{{.}}}{{/isContainer}}{{#isContainer}}{{#required}} = {{{.}}}{{/required}}{{/isContainer}}{{/defaultValue}};
 
 {{/vars}}
@@ -828,9 +829,9 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/requiredVars}}
    */
   @com.fasterxml.jackson.annotation.JsonCreator
-  public {{classname}}({{#requiredVars}}@JsonProperty(value = "{{baseName}}", required = true) {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}) {
+  public {{classname}}({{#requiredVars}}@JsonProperty(value = "{{baseName}}", required = true) {{#isNullable}}@Nullable {{/isNullable}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}) {
 {{#requiredVars}}
-    this.{{name}} = java.util.Objects.requireNonNull({{name}}, "{{name}} is required");
+    this.{{name}} = {{#isNullable}}{{name}}{{/isNullable}}{{^isNullable}}java.util.Objects.requireNonNull({{name}}, "{{name}} is required"){{/isNullable}};
 {{/requiredVars}}
   }
 {{/hasRequired}}

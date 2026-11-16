@@ -1198,16 +1198,7 @@ class StoreApi extends BaseApi
         }
         $headerParams = [];
         if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->xFilter !== null) {
-            /** @var string $headerValue */
-            $headerValue = ValueSerializer::serializeStyled(
-                'X-Filter',
-                $options->xFilter,
-                'header',
-                \Ds\Map::class,
-                null,
-                '',
-                false,
-            );
+            $headerValue = \PetstoreClient\ObjectSerializer::serialize($options->xFilter);
             $headerParams['X-Filter'] = $headerValue;
         }
         $requestBody = null;

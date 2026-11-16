@@ -111,6 +111,11 @@ public class BaseApiTest
                 auth
             );
         }
+
+        public string ContentParameter(object value, string location)
+        {
+            return SerializeContentParameter(value, location);
+        }
     }
 
     private sealed class CapturingApiClient : IApiClient
@@ -1378,5 +1383,36 @@ public class BaseApiTest
         Assert.Empty(noAuth.GetAuthHeaders());
         Assert.Empty(noAuth.GetQueryParams());
         Assert.Empty(noAuth.GetCookieParams());
+    }
+
+    [Theory]
+    [InlineData("path", "%7B%22a%20b%22:%22c%2Fd%22%7D")]
+    [InlineData("header", "{\"a b\":\"c/d\"}")]
+    [InlineData("cookie", "%7B%22a%20b%22%3A%22c%2Fd%22%7D")]
+    public void ContentParameterIsSdkJsonEncodedOnceByLocation(string location, string expected)
+    {
+        var api = new TestableApi("http://localhost");
+
+        var encoded = api.ContentParameter(
+            new Dictionary<string, string> { ["a b"] = "c/d" },
+            location
+        );
+
+        Assert.Equal(expected, encoded);
+    }
+
+    [Theory]
+    [InlineData("path")]
+    [InlineData("header")]
+    [InlineData("cookie")]
+    public void ContentParameterFailureIsASerializationException(string location)
+    {
+        var api = new TestableApi("http://localhost");
+        var unserializable = new PetstoreClient.Models.PhotoMetadata
+        {
+            Location = new PetstoreClient.Models.PhotoMetadataLocation { Lat = double.NaN },
+        };
+
+        Assert.Throws<SerializationException>(() => api.ContentParameter(unserializable, location));
     }
 }

@@ -15,6 +15,12 @@ describe 'README' do
     _(readme).wont_include 'TransportOptions.proxy()'
   end
 
+  it 'documents the schema constraints and uniqueItems ordering' do
+    _(readme).must_include '### Schema constraints'
+    _(readme).must_include '`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,'
+    _(readme).must_include '`uniqueItems` arrays'
+  end
+
   it 'makes no claim about how the other SDKs treat a discriminator no-match' do
     _(readme).must_include 'raises'
     _(readme).wont_include 'This matches Python'

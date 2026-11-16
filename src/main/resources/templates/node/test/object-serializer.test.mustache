@@ -8,7 +8,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { Category, EdgeCases, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag } from '../src/models/index{{importFileExtension}}';
+import { Category, EdgeCases, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag, RequiredNullable } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -780,7 +780,66 @@ describe('ObjectSerializer', () => {
     });
   });
 
+  describe('RequiredNullable', () => {
+    test('decode keeps an explicit null', () => {
+      const model = ObjectSerializer.deserialize({ note: null }, RequiredNullable)!;
+      expect(model.note).toBeNull();
+    });
+
+    test('decode rejects a missing key', () => {
+      expect(() => ObjectSerializer.deserialize({}, RequiredNullable)).toThrow(
+        /^Failed to deserialize object: note is required$/,
+      );
+    });
+
+    test('encode writes the key as null when the value is null', () => {
+      expect(ObjectSerializer.serialize(new RequiredNullable({ note: null }))).toBe('{"note":null}');
+    });
+
+    test('encode writes the value when it is set', () => {
+      expect(ObjectSerializer.serialize(new RequiredNullable({ note: 'hi' }))).toBe('{"note":"hi"}');
+    });
+
+    test('an optional nullable field still drops its null', () => {
+      const defaults = new Defaults();
+      (defaults as unknown as Record<string, unknown>)['label'] = null;
+      expect(ObjectSerializer.serialize(defaults)).not.toContain('"label"');
+    });
+  });
+
   describe('WireScalarStrictness', () => {
+    test('decodes a type:number field losslessly and writes the same digits back', () => {
+      const text = '{"name":"x","photoUrls":[],"weightKg":12.34567890123456789012}';
+      const pet = ObjectSerializer.deserialize(ObjectSerializer.parseJson(text), Pet)!;
+      expect(pet.weightKg).toBe('12.34567890123456789012');
+      expect(ObjectSerializer.serialize(pet)).toContain('"weightKg":12.34567890123456789012');
+    });
+
+    test('keeps the written scale of a type:number field', () => {
+      const pet = ObjectSerializer.deserialize(
+        ObjectSerializer.parseJson('{"name":"x","photoUrls":[],"weightKg":1.50}'),
+        Pet,
+      )!;
+      expect(pet.weightKg).toBe('1.50');
+    });
+
+    test('decodes a nested type:number field losslessly', () => {
+      const text = '{"pet":{"name":"x","photoUrls":[],"weightKg":0.1000000000000000055511151231257827}}';
+      const passport = ObjectSerializer.deserialize(ObjectSerializer.parseJson(text), PetPassport)!;
+      expect(passport.pet!.weightKg).toBe('0.1000000000000000055511151231257827');
+    });
+
+    test('rejects a quoted string for a type:number field', () => {
+      const json = { name: 'x', photoUrls: [], weightKg: '12.5' };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(/weightKg.*quoted string/);
+    });
+
+    test('rejects a quoted string for a nested type:number field', () => {
+      const json = { pet: { name: 'x', photoUrls: [], weightKg: '12.5' } };
+      expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(/weightKg.*quoted string/);
+    });
+
     test('rejects a fractional number for an int64 field', () => {
       const json = { id: 1.5, name: 'x', photoUrls: [] };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
@@ -897,8 +956,23 @@ describe('ObjectSerializer', () => {
       );
     });
 
-    test('maps a null leaf to null and parses a date string', () => {
-      expect(ObjectSerializer.deserializeLeaf(null, 'int32')).toBeNull();
+    test.each(['int32', 'int64', 'boolean'] as const)('rejects a null %s leaf unless the element is nullable', (kind) => {
+      expect(() => ObjectSerializer.deserializeLeaf(null, kind)).toThrow(
+        new SerializationError(`Expected ${kind} but received: null`),
+      );
+      expect(ObjectSerializer.deserializeLeaf(null, kind, true)).toBeNull();
+    });
+
+    test('rejects a null element of a map of int32 and of a nested array of int32', () => {
+      const int32Leaf = (x: unknown) => ObjectSerializer.deserializeLeaf<number>(x, 'int32');
+      expect(() => ObjectSerializer.deserializeMap({ a: null }, int32Leaf)).toThrow(SerializationError);
+      expect(() =>
+        ObjectSerializer.deserializeArray([[null]], (x: unknown) => ObjectSerializer.deserializeArray(x, int32Leaf)),
+      ).toThrow(SerializationError);
+    });
+
+    test('maps a null date leaf to null and parses a date string', () => {
+      expect(ObjectSerializer.deserializeLeaf(null, 'date')).toBeNull();
       expect(ObjectSerializer.deserializeLeaf<Date>('2024-01-02T03:04:05.000Z', 'date').getTime()).toBe(
         new Date('2024-01-02T03:04:05.000Z').getTime(),
       );

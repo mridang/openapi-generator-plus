@@ -77,14 +77,19 @@ OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
 
-### Numeric / string constraint validation
+### Schema constraints
 
-OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
-`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
-**not enforced** by this SDK. The server is the authoritative
-validator; client-side enforcement is a DX nicety, not a correctness
-requirement. If you want fast-fail validation before the network
-round trip, plug in a JSON Schema validator library for your language.
+Schema constraints (`pattern`, `minLength`, `maxLength`, `minimum`,
+`maximum`, `multipleOf`, `minItems`, `maxItems`) are validated by the server
+and by the generated models only where the language's model layer does it
+natively. Elixir structs and typespecs carry no constraint checking, so this
+SDK enforces none of them: the model layer only checks that required
+properties are present and that values have the declared type. The server is
+the authoritative validator. If you want fast-fail validation before the
+network round trip, plug in a JSON Schema validator library.
+
+`uniqueItems` arrays are held as a `MapSet` and sent in the `MapSet`'s own
+enumeration order, not sorted.
 
 ### SOCKS proxies
 

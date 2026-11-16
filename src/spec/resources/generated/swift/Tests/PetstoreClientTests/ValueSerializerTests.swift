@@ -695,4 +695,14 @@ import Testing
 
     #expect(ValueSerializer.maybeAllowReserved(nil, allowReserved: true) == nil)
   }
+
+  /* A cookie value keeps only the RFC 3986 unreserved characters literal, so
+     a JSON text never carries a quote, comma, semicolon or space into the
+     Cookie header. */
+  @Test func testEncodeCookieValueEscapesJsonPunctuation() {
+    #expect(
+      ValueSerializer.encodeCookieValue("{\"a\": \"b;c,d\"}")
+        == "%7B%22a%22%3A%20%22b%3Bc%2Cd%22%7D")
+    #expect(ValueSerializer.encodeCookieValue("a-b._~9") == "a-b._~9")
+  }
 }

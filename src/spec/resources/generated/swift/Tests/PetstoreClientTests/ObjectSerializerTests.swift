@@ -1477,4 +1477,44 @@ import Testing
         "{\"thumbnail\":\"!!!!\"}", as: PetPassport.self)
     }
   }
+
+  // MARK: - Required and nullable property
+
+  /* A required nullable property accepts an explicit null and keeps it. */
+  @Test func testRequiredNullableDecodesExplicitNull() throws {
+    let decoded = try ObjectSerializer.deserialize("{\"note\":null}", as: RequiredNullable.self)
+    #expect(decoded != nil)
+    #expect(decoded?.note == nil)
+  }
+
+  /* A required nullable property with the key absent is an error. */
+  @Test func testRequiredNullableRejectsMissingKey() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{}", as: RequiredNullable.self)
+    }
+  }
+
+  /* A required nullable property is always written, as null when unset. */
+  @Test func testRequiredNullableEncodesNullKey() throws {
+    #expect(try ObjectSerializer.serialize(RequiredNullable(note: nil)) == "{\"note\":null}")
+    #expect(try ObjectSerializer.serialize(RequiredNullable(note: "n")) == "{\"note\":\"n\"}")
+  }
+
+  // MARK: - Container elements
+
+  /* A container of integers is checked element by element like a single
+     integer: a quoted, fractional or null element is rejected. */
+  @Test(arguments: ["{\"a\":\"5\"}", "{\"a\":1.5}", "{\"a\":null}"])
+  func testMapOfIntegersRejectsWrongTypedElement(json: String) {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(json, as: [String: Int].self)
+    }
+  }
+
+  @Test(arguments: ["[[\"5\"]]", "[[1.5]]", "[[null]]"])
+  func testNestedArrayOfIntegersRejectsWrongTypedElement(json: String) {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(json, as: [[Int]].self)
+    }
+  }
 }

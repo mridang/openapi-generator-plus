@@ -44,6 +44,45 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public async Task InjectedHandlerReceivesTheRequestAndSurvivesClientDispose()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+
+        using (var client = new {{clientClassName}}(_authenticator, transport))
+        {
+            _ = await client.Store.GetInventoryAsync();
+        }
+
+        Assert.Equal(1, handler.Requests);
+        Assert.False(handler.Disposed);
+    }
+
+    private sealed class RecordingHandler : HttpMessageHandler
+    {
+        public int Requests { get; private set; }
+
+        public bool Disposed { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Requests++;
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"available\":1}", System.Text.Encoding.UTF8, "application/json"),
+            });
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
+        }
+    }
+
+    [Fact]
     public void BearerRejectsCrlfAndNonAscii()
     {
         // auth-validation-timing: the token is validated eagerly at

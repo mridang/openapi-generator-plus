@@ -2,6 +2,7 @@
 package {{packageName}}
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -111,6 +113,8 @@ type invokeApiParams struct {
 	returnType   string            // return type for deserialization (empty for void)
 	auth         Authenticator     // optional authenticator for operation-specific auth
 	rawBody      bool              // body is a format:binary value sent verbatim under any contentType
+	ctx          context.Context   // per-call context; cancelling it aborts the request (nil means Background)
+	order        []string          // spec declaration order of the query and form parameter names
 }
 
 // invokeApiForResult invokes an API operation and returns the full response,
@@ -160,7 +164,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	}
 
 	/* Build query string */
-	queryString := buildQueryString(params.queryParams)
+	queryString := buildQueryStringOrdered(params.queryParams, params.order)
 	if queryString != "" {
 		requestURL = requestURL + "?" + queryString
 	}
@@ -240,13 +244,13 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		boundary := uuid.New().String()
 		headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
 		var merr error
-		serializedBody, merr = buildMultipartBody(formFields, boundary)
+		serializedBody, merr = buildMultipartBodyOrdered(formFields, boundary, params.order)
 		if merr != nil {
 			return nil, fmt.Errorf("failed to build multipart body: %w", merr)
 		}
 	} else {
 		var err error
-		serializedBody, err = serializeBody(params.body, params.contentType, params.rawBody)
+		serializedBody, err = serializeBodyOrdered(params.body, params.contentType, params.rawBody, params.order)
 		if err != nil {
 			return nil, fmt.Errorf("failed to serialize request body: %w", err)
 		}
@@ -259,7 +263,11 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	}
 
 	/* Send request */
-	response, err := b.apiClient.SendRequest(params.method, requestURL, headers, serializedBody)
+	ctx := params.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	response, err := b.apiClient.SendRequestWithOptions(params.method, requestURL, headers, serializedBody, &RequestOptions{Context: ctx})
 	if err != nil {
 		return nil, err
 	}
@@ -283,12 +291,47 @@ func (b *baseApi) invokeApi(params invokeApiParams) (*ApiHttpResponse, error) {
 //
 // Returns the encoded query string.
 func buildQueryString(queryParams map[string]any) string {
+	return buildQueryStringOrdered(queryParams, nil)
+}
+
+// orderedKeys returns the keys of m in the spec declaration order given by
+// order, so the wire bytes never depend on Go's randomised map iteration.
+// A key is placed at the position of the declared name it equals, or of the
+// declared name it extends as a deepObject member (name[member]); every other
+// key follows, and keys sharing a position are sorted lexicographically.
+func orderedKeys(m map[string]any, order []string) []string {
+	position := func(key string) int {
+		for i, name := range order {
+			if key == name || strings.HasPrefix(key, name+"[") {
+				return i
+			}
+		}
+		return len(order)
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.SliceStable(keys, func(i, j int) bool {
+		pi, pj := position(keys[i]), position(keys[j])
+		if pi != pj {
+			return pi < pj
+		}
+		return keys[i] < keys[j]
+	})
+	return keys
+}
+
+// buildQueryStringOrdered builds a query string with the parameters in the
+// given declaration order (see orderedKeys).
+func buildQueryStringOrdered(queryParams map[string]any, order []string) string {
 	if len(queryParams) == 0 {
 		return ""
 	}
 
 	var parts []string
-	for k, v := range queryParams {
+	for _, k := range orderedKeys(queryParams, order) {
+		v := queryParams[k]
 		if v == nil {
 			continue
 		}
@@ -341,6 +384,12 @@ func encodeQueryValue(value string, allowReserved bool) string {
 // unchanged under whichever declared Content-Type was selected, including
 // application/json, and never through the JSON serializer.
 func serializeBody(body any, contentType string, rawBody bool) ([]byte, error) {
+	return serializeBodyOrdered(body, contentType, rawBody, nil)
+}
+
+// serializeBodyOrdered is serializeBody with the form-urlencoded pairs written
+// in the given declaration order (see orderedKeys).
+func serializeBodyOrdered(body any, contentType string, rawBody bool, order []string) ([]byte, error) {
 	if body == nil {
 		return nil, nil
 	}
@@ -398,8 +447,12 @@ func serializeBody(body any, contentType string, rawBody bool) ([]byte, error) {
 			 *  - url.Values.Encode percent-encodes per RFC 3986 and emits
 			 *    `+` for spaces (HTML form-encoding), matching every other SDK.
 			 * url.Values.Encode also sorts keys for deterministic output. */
-			values := url.Values{}
-			for k, v := range params {
+			var pairs []string
+			add := func(k, v string) {
+				pairs = append(pairs, url.QueryEscape(k)+"="+url.QueryEscape(v))
+			}
+			for _, k := range orderedKeys(params, order) {
+				v := params[k]
 				if v == nil {
 					continue
 				}
@@ -409,13 +462,13 @@ func serializeBody(body any, contentType string, rawBody bool) ([]byte, error) {
 				}
 				if items, isArray := toStringSlice(v); isArray {
 					for _, item := range items {
-						values.Add(k, item)
+						add(k, item)
 					}
 					continue
 				}
-				values.Set(k, stringify(v))
+				add(k, stringify(v))
 			}
-			return []byte(values.Encode()), nil
+			return []byte(strings.Join(pairs, "&")), nil
 		}
 	}
 
@@ -466,11 +519,18 @@ func isFormScalarStruct(rv reflect.Value) bool {
 // form fields. Each value may be a string, number, boolean, slice (repeated
 // field), map (serialized as JSON part), or nil (skipped).
 func buildMultipartBody(formFields map[string]any, boundary string) ([]byte, error) {
+	return buildMultipartBodyOrdered(formFields, boundary, nil)
+}
+
+// buildMultipartBodyOrdered is buildMultipartBody with the parts written in the
+// given declaration order (see orderedKeys), never in map iteration order.
+func buildMultipartBodyOrdered(formFields map[string]any, boundary string, order []string) ([]byte, error) {
 	var buf strings.Builder
 	writer := multipart.NewWriter(&buf)
 	_ = writer.SetBoundary(boundary)
 
-	for name, value := range formFields {
+	for _, name := range orderedKeys(formFields, order) {
+		value := formFields[name]
 		if value == nil {
 			continue
 		}

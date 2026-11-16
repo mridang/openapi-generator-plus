@@ -217,6 +217,49 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
+  # A parameter declared with `content: application/json` goes through the
+  # SDK's own object serializer, so a model is encoded with its wire names and
+  # canonical date-time and a map keeps its keys.
+  test "search_store sends content-encoded query and header parameters through the object serializer" do
+    {:ok, name} = StubApiClient.start("")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    photo = %PetstoreClient.Models.PhotoMetadata{
+      caption: "a<b",
+      taken_at: ~U[2024-01-15 10:30:00Z]
+    }
+
+    options = %PetstoreClient.Api.Options.SearchStoreOptions{
+      q: photo,
+      x_filter: %{"k" => "v"}
+    }
+
+    _result = PetstoreClient.Api.StoreApi.search_store(api, options)
+
+    captured = StubApiClient.captured(name)
+    query = captured.url |> String.split("?") |> List.last() |> URI.decode_query()
+    assert query["q"] == PetstoreClient.ObjectSerializer.serialize(photo)
+    assert query["q"] =~ ~s("takenAt":"2024-01-15T10:30:00.000+00:00")
+    assert query["q"] =~ ~s("caption":"a<b")
+    assert captured.headers["X-Filter"] == ~s({"k":"v"})
+
+    Agent.stop(name)
+  end
+
+  test "search_store keeps the fractional seconds of a time parameter when non-zero" do
+    {:ok, name} = StubApiClient.start("")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    options = %PetstoreClient.Api.Options.SearchStoreOptions{at: ~T[10:30:00.123456]}
+    _result = PetstoreClient.Api.StoreApi.search_store(api, options)
+
+    assert StubApiClient.captured(name).url =~ "at=10%3A30%3A00.123"
+
+    Agent.stop(name)
+  end
+
   # readOnly and writeOnly have no wire effect: the writeOnly password is sent
   # and the readOnly id of the response is decoded.
   test "create_account sends the writeOnly property and decodes the readOnly one" do

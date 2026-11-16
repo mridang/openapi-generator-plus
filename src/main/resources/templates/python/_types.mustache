@@ -1,8 +1,10 @@
 {{>api_info}}
 
 import base64
+import datetime
 import math
 import re
+import secrets
 from decimal import Decimal
 from typing import Annotated, Any
 
@@ -14,6 +16,7 @@ from pydantic import (
     PlainSerializer,
     PlainValidator,
     SecretStr,
+    SerializationInfo,
     Strict,
 )
 
@@ -50,20 +53,97 @@ def _coerce_int_to_float(value: Any) -> Any:
         return value
     if isinstance(value, int):
         return float(value)
+    if isinstance(value, float):
+        return float(value)
     return value
 
 
-def _decimal_to_json_number(value: Decimal) -> float:
-    """Widen a ``Decimal`` to the ``float`` written on the wire.
+class PreciseFloat(float):
+    """A ``float`` that remembers the JSON text it was parsed from.
 
-    A ``Decimal`` beyond the double range (``Decimal('1e400')``) widens to
-    infinity, which pydantic would silently write as ``null``. Reject it so a
+    ``json.loads`` is given this class as ``parse_float`` so a ``type: number``
+    field can rebuild its ``Decimal`` from the original digits instead of from
+    the already-rounded binary float. Everywhere else it is an ordinary float.
+    """
+
+    text: str
+
+    def __new__(cls, text: str) -> 'PreciseFloat':
+        instance = super().__new__(cls, text)
+        instance.text = text
+        return instance
+
+
+# Serialization context key that asks a `type: number` field to write its exact
+# decimal text. `ObjectSerializer.serialize` sets it, then swaps the marker
+# strings below for bare JSON numbers. A plain `model_dump_json()` does not set
+# it and keeps writing a float.
+EXACT_NUMBER_CONTEXT: dict[str, Any] = {'exact_numbers': True}
+
+# A per-process random marker, so no payload can collide with it.
+_EXACT_NUMBER_PREFIX = f'~exact-number-{secrets.token_hex(8)}:'
+_EXACT_NUMBER_PATTERN = re.compile(
+    '"' + re.escape(_EXACT_NUMBER_PREFIX) + r'(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"'
+)
+
+
+def resolve_exact_numbers(text: str) -> str:
+    """Replace every exact-number marker in serialized JSON by its bare number."""
+    return _EXACT_NUMBER_PATTERN.sub(r'\1', text)
+
+
+def _validate_json_number(value: Any) -> Any:
+    """Build the ``Decimal`` of a ``type: number`` field without any float rounding.
+
+    A JSON number is accepted (an ``int``, a ``Decimal``, or a float parsed by
+    ``PreciseFloat`` which keeps its source digits). A string or a boolean is
+    rejected: a quoted number is not a JSON number.
+    """
+    if isinstance(value, bool) or isinstance(value, str):
+        raise ValueError(f'a number must be a JSON number, not {type(value).__name__}')
+    if isinstance(value, Decimal):
+        number = value
+    elif isinstance(value, PreciseFloat):
+        number = Decimal(value.text)
+    elif isinstance(value, int):
+        number = Decimal(value)
+    elif isinstance(value, float):
+        number = Decimal(repr(value))
+    else:
+        raise ValueError(f'a number must be a JSON number, not {type(value).__name__}')
+    if not number.is_finite():
+        raise ValueError(f'{value} is not a finite JSON number')
+    return number
+
+
+def _decimal_to_json_number(value: Decimal, info: SerializationInfo) -> Any:
+    """Write a ``Decimal`` as a JSON number.
+
+    With the exact-number context the full decimal text is written, so nothing
+    is rounded. Without it the value is widened to a ``float``. A value that is
+    not finite (or does not fit a double in that second form) is rejected so a
     non-finite number never reaches the wire.
     """
+    if not value.is_finite():
+        raise ValueError(f'{value} is not representable as a finite JSON number')
+    context = info.context
+    if isinstance(context, dict) and context.get('exact_numbers') is True:
+        return _EXACT_NUMBER_PREFIX + str(value)
     number = float(value)
     if not math.isfinite(number):
         raise ValueError(f'{value} is not representable as a finite JSON number')
     return number
+
+
+def format_time_of_day(value: datetime.time) -> str:
+    """Write a ``format: time`` value as an RFC 3339 partial-time.
+
+    Whole seconds are written as ``HH:MM:SS``; a non-zero millisecond part adds
+    ``.SSS`` (truncated, never rounded). It is never a full date-time.
+    """
+    if value.microsecond // 1000:
+        return value.isoformat(timespec='milliseconds')
+    return value.isoformat(timespec='seconds')
 
 
 def _validate_url_preserving(value: Any) -> Any:
@@ -146,15 +226,24 @@ UrlStr = Annotated[str, AfterValidator(_validate_url_preserving)]
 # Decode keeps `decimal.Decimal` for arbitrary-precision fidelity (matching
 # BigDecimal in Java/Kotlin and the branded Decimal in Node), but pydantic's
 # default Decimal serializer emits a JSON STRING, which violates `type: number`
-# and diverges from the SDKs that emit a bare number. The PlainSerializer widens
-# the value to `float` ONLY on the JSON encode path (`when_used='json'`) so
-# model_dump_json renders an unquoted number; in-Python access and the validated
-# field value remain a full-precision Decimal. The JSON number type is itself an
-# IEEE-754 double in practically every consumer, so the float widening matches
-# what any number-emitting SDK already puts on the wire.
+# and diverges from the SDKs that emit a bare number. The validator rebuilds the
+# Decimal from the source digits (no float rounding) and rejects a quoted string;
+# the PlainSerializer writes an unquoted number on the JSON encode path
+# (`when_used='json'`): the exact decimal text when ObjectSerializer asks for it,
+# a float for a plain model_dump_json().
 JsonNumber = Annotated[
     Decimal,
-    PlainSerializer(_decimal_to_json_number, return_type=float, when_used='json'),
+    BeforeValidator(_validate_json_number),
+    PlainSerializer(_decimal_to_json_number, return_type=Any, when_used='json'),
+]
+
+
+# `format: time` model fields: a `datetime.time` written as an RFC 3339
+# partial-time (`HH:MM:SS`, plus `.SSS` only when the millisecond part is
+# non-zero) instead of pydantic's microsecond form.
+TimeOfDay = Annotated[
+    datetime.time,
+    PlainSerializer(format_time_of_day, return_type=str, when_used='json'),
 ]
 
 

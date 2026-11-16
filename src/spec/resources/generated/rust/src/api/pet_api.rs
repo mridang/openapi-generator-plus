@@ -310,7 +310,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body = Some(object_serializer::serialize(&pet)?.into_bytes());
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "POST",
@@ -414,7 +414,7 @@ impl PetApi {
          *   - objects / scalars         -> Text;
          *   - absent optional fields    -> omitted entirely.
          * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
-        let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
+        let mut multipart: Vec<(String, MultipartValue)> = Vec::new();
         /* Required multipart request body: the parts come from the Options
          * struct, so a missing Options would emit a body-less request. Reject it
          * up front (matching the required path/query/header param validation)
@@ -427,7 +427,7 @@ impl PetApi {
                 )),
             )
         })?;
-        multipart.insert(
+        multipart.push((
             "files".to_string(),
             MultipartValue::List(
                 opts.files
@@ -435,11 +435,11 @@ impl PetApi {
                     .map(|b| MultipartValue::Bytes(b.clone()))
                     .collect(),
             ),
-        );
-        multipart.insert(
+        ));
+        multipart.push((
             "metadata".to_string(),
             MultipartValue::Json(object_serializer::serialize(&opts.metadata)?),
-        );
+        ));
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);
 
@@ -544,7 +544,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body = Some(object_serializer::serialize(&pet_treatment)?.into_bytes());
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "POST",
@@ -679,7 +679,7 @@ impl PetApi {
         }
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "DELETE",
@@ -791,7 +791,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -881,7 +881,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1073,7 +1073,7 @@ impl PetApi {
         }
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1173,7 +1173,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1274,7 +1274,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1363,7 +1363,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1454,7 +1454,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1566,7 +1566,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1750,7 +1750,7 @@ impl PetApi {
         }
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1840,7 +1840,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -1949,7 +1949,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -2153,7 +2153,7 @@ impl PetApi {
         }
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -2508,7 +2508,7 @@ impl PetApi {
         }
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -2608,7 +2608,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body: Option<Vec<u8>> = None;
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "GET",
@@ -2718,7 +2718,7 @@ impl PetApi {
          * (image/jpeg) preserved; serialize_body
          * passes image/\* and application/octet-stream bodies through verbatim. */
         let request_body = Some(body);
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "PUT",
@@ -2805,7 +2805,7 @@ impl PetApi {
 
         let request_body =
             Some(object_serializer::serialize(&set_pet_avatar_thumbnail_request)?.into_bytes());
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "PUT",
@@ -2927,7 +2927,7 @@ impl PetApi {
             }
         }
         let request_body = Some(serde_json::to_vec(&form_pairs)?);
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "POST",
@@ -3021,7 +3021,7 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         let request_body = Some(object_serializer::serialize(&pet)?.into_bytes());
-        let multipart: Option<HashMap<String, MultipartValue>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
             method: "PUT",
@@ -3126,7 +3126,7 @@ impl PetApi {
          *   - objects / scalars         -> Text;
          *   - absent optional fields    -> omitted entirely.
          * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
-        let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
+        let mut multipart: Vec<(String, MultipartValue)> = Vec::new();
         /* Required multipart request body: the parts come from the Options
          * struct, so a missing Options would emit a body-less request. Reject it
          * up front (matching the required path/query/header param validation)
@@ -3134,7 +3134,7 @@ impl PetApi {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling PetApi.upload_pet_certificate", "file")))
         })?;
-        multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
+        multipart.push(("file".to_string(), MultipartValue::Bytes(opts.file.clone())));
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);
 
@@ -3266,7 +3266,7 @@ impl PetApi {
          *   - objects / scalars         -> Text;
          *   - absent optional fields    -> omitted entirely.
          * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
-        let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
+        let mut multipart: Vec<(String, MultipartValue)> = Vec::new();
         /* Required multipart request body: the parts come from the Options
          * struct, so a missing Options would emit a body-less request. Reject it
          * up front (matching the required path/query/header param validation)
@@ -3279,42 +3279,42 @@ impl PetApi {
                 )),
             )
         })?;
-        multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
+        multipart.push(("file".to_string(), MultipartValue::Bytes(opts.file.clone())));
         if let Some(ref val) = opts.document_type {
-            multipart.insert(
+            multipart.push((
                 "documentType".to_string(),
                 MultipartValue::Text(object_serializer::stringify(val)),
-            );
+            ));
         }
         if let Some(ref val) = opts.notes {
-            multipart.insert(
+            multipart.push((
                 "notes".to_string(),
                 MultipartValue::Text(object_serializer::stringify(val)),
-            );
+            ));
         }
         if let Some(ref val) = opts.is_primary {
-            multipart.insert(
+            multipart.push((
                 "isPrimary".to_string(),
                 MultipartValue::Text(object_serializer::stringify(val)),
-            );
+            ));
         }
         if let Some(ref val) = opts.page_count {
-            multipart.insert(
+            multipart.push((
                 "pageCount".to_string(),
                 MultipartValue::Text(object_serializer::stringify(val)),
-            );
+            ));
         }
         if let Some(ref val) = opts.taken_at {
-            multipart.insert(
+            multipart.push((
                 "takenAt".to_string(),
                 MultipartValue::Text(object_serializer::stringify(val)),
-            );
+            ));
         }
         if let Some(ref val) = opts.swatch {
-            multipart.insert(
+            multipart.push((
                 "swatch".to_string(),
                 MultipartValue::Json(object_serializer::serialize(val)?),
-            );
+            ));
         }
         /* multi-content-type-multipart-or-raw: this operation also declares a
          * non-multipart binary request content-type (e.g.
@@ -3326,7 +3326,7 @@ impl PetApi {
          * otherwise discard it and stream the file part's raw octets so the
          * request body is NOT wrapped in a multipart boundary. */
         let mut request_body: Option<Vec<u8>> = None;
-        let mut multipart: Option<HashMap<String, MultipartValue>> = Some(multipart);
+        let mut multipart: Option<Vec<(String, MultipartValue)>> = Some(multipart);
         if request_content_type != "multipart/form-data" {
             /* A non-multipart binary content-type was selected: stream the single
              * required file part as the raw body and drop the multipart map so the

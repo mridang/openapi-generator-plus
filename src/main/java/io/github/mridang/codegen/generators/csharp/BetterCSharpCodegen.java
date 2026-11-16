@@ -27,6 +27,7 @@ import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.SupportingFile;
 import org.slf4j.Logger;
@@ -973,6 +974,130 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             org.openapitools.codegen.CodegenProperty property) {
         super.postProcessModelProperty(model, property);
         keepStringForUriSubformats(property, "string");
+    }
+
+    /**
+     * Shapes the per-operation signature for C#: the per-operation server comes before the options
+     * object (required parameters, then server, then options, then the trailing cancellation
+     * token), so adding security to an operation never moves an existing argument; the trailing
+     * {@code CancellationToken} needs a leading comma exactly when an argument precedes it; and
+     * header, path and cookie parameters declared with a JSON {@code content} media type carry a
+     * {@code contentJson} flag so the template routes them through the SDK serializer.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
+        if (operations == null) {
+            return result;
+        }
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return result;
+        }
+        for (final CodegenOperation op : ops) {
+            if (op.vendorExtensions == null) {
+                op.vendorExtensions = new HashMap<>();
+            }
+            final Object existing = op.vendorExtensions.get("op");
+            final Map<String, Object> deco =
+                    existing instanceof Map ? (Map<String, Object>) existing : new HashMap<>();
+            final Object sigArgs = deco.get("signatureArgs");
+            boolean hasArgs = false;
+            if (sigArgs instanceof List) {
+                final List<Map<String, Object>> reordered =
+                        serverBeforeOptions((List<Map<String, Object>>) sigArgs);
+                deco.put("signatureArgs", reordered);
+                hasArgs = !reordered.isEmpty();
+            }
+            final boolean multiConsume = op.consumes != null && op.consumes.size() > 1;
+            deco.put("cancellationLeadComma", hasArgs || multiConsume);
+            op.vendorExtensions.put("op", deco);
+            flagJsonContent(op.pathParams);
+            flagJsonContent(op.headerParams);
+            flagJsonContent(op.cookieParams);
+        }
+        return result;
+    }
+
+    /**
+     * Returns the operation signature arguments with the per-operation server placed before the
+     * optional-parameters object: required parameters, then server, then options. A required
+     * options object stays before the server, because C# optional arguments must come last.
+     *
+     * @param args the shared signature arguments (path, body, options, server)
+     * @return a new list with the server entry directly before the options entry
+     */
+    static List<Map<String, Object>> serverBeforeOptions(final List<Map<String, Object>> args) {
+        for (final Map<String, Object> arg : args) {
+            if (Boolean.TRUE.equals(arg.get("isOptions"))
+                    && !Boolean.TRUE.equals(arg.get("nullable"))) {
+                /* A required options object (it holds a required parameter) is a required
+                 * argument, and C# requires every optional argument to come after it. */
+                return new ArrayList<>(args);
+            }
+        }
+        final List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Object> options = null;
+        for (final Map<String, Object> arg : args) {
+            if (Boolean.TRUE.equals(arg.get("isOptions"))) {
+                options = arg;
+            } else if (Boolean.TRUE.equals(arg.get("isServer"))) {
+                result.add(arg);
+                if (options != null) {
+                    result.add(options);
+                    options = null;
+                }
+            } else {
+                result.add(arg);
+            }
+        }
+        if (options != null) {
+            result.add(options);
+        }
+        return result;
+    }
+
+    /**
+     * Sets {@code vendorExtensions.contentJson} on each parameter that is declared with a JSON
+     * {@code content} media type instead of a {@code schema}.
+     */
+    private static void flagJsonContent(@Nullable final List<CodegenParameter> params) {
+        if (params == null) {
+            return;
+        }
+        for (final CodegenParameter param : params) {
+            if (isJsonContent(param)) {
+                param.vendorExtensions.put("contentJson", true);
+            }
+        }
+    }
+
+    /**
+     * Reports whether {@code param} is declared with {@code content} holding a JSON media type
+     * ({@code application/json} or any {@code +json} type).
+     *
+     * @param param the parameter
+     * @return true for a JSON content-encoded parameter
+     */
+    @SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only media type names")
+    static boolean isJsonContent(final CodegenParameter param) {
+        if (param.getContent() == null) {
+            return false;
+        }
+        for (final String mediaType : param.getContent().keySet()) {
+            final String lower = mediaType.toLowerCase(Locale.ROOT);
+            final int semicolon = lower.indexOf(';');
+            final String bare = (semicolon < 0 ? lower : lower.substring(0, semicolon)).trim();
+            if ("application/json".equals(bare) || bare.endsWith("+json")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -37,6 +37,15 @@ class ValueSerializerTest {
     }
 
     @Test
+    @DisplayName("a content-encoded JSON value is segment-encoded once")
+    void contentEncodedJsonIsSegmentEncoded() {
+      assertEquals(
+          "%7B%22k%22:%22v%22%7D",
+          ValueSerializer.encodePathSegment(
+              new com.example.petstore.ObjectSerializer().serialize(java.util.Map.of("k", "v"))));
+    }
+
+    @Test
     @DisplayName("a dot segment value is rejected")
     void dotSegmentValueIsRejected() {
       for (String dots : List.of(".", "..")) {

@@ -9,14 +9,14 @@ import Foundation
 
 /// RequiredNullable is a model class generated from the OpenAPI schema.
 public struct RequiredNullable: Codable, Sendable, Equatable, Hashable {
-  public var note: String
+  public var note: String?
 
   enum CodingKeys: String, CodingKey {
     case note = "note"
   }
 
   /// Creates a new RequiredNullable instance.
-  public init(note: String) {
+  public init(note: String?) {
     self.note = note
   }
 
@@ -32,7 +32,7 @@ public struct RequiredNullable: Codable, Sendable, Equatable, Hashable {
   /// "discard extras on deserialise" expectation.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.note = try container.decode(String.self, forKey: .note)
+    self.note = try container.decode(String?.self, forKey: .note)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.

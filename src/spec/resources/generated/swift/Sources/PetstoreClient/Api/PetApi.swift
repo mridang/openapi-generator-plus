@@ -186,7 +186,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     let path = "/pet"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -237,7 +237,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -246,7 +246,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
      * can be emitted as repeated keys by the form/multipart encoder.
      * Optional nil fields are omitted entirely — never sent as an empty
      * `name=` pair. */
-    var formBody: [String: Any] = [:]
+    var formBody: OrderedParams<Any> = [:]
     formBody["files"] = options.files
     formBody["metadata"] = options.metadata
 
@@ -299,7 +299,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -343,7 +343,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     var headerParams: [String: String] = [:]
     var cookieParts: [String] = []
@@ -420,7 +420,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("documentId", value: documentId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -469,7 +469,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("bornOn", value: bornOn, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -533,7 +533,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     let path = "/pet/findByStatus"
 
-    var queryParams: [String: Any?] = [:]
+    var queryParams: OrderedParams<Any?> = [:]
     if let options = options, let val = options.status {
       queryParams["status"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
@@ -620,7 +620,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       }
     }
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -678,7 +678,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       }
     }
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -726,7 +726,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -774,7 +774,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -846,7 +846,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       }
     }
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -906,7 +906,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("name", value: name, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    var queryParams: [String: Any?] = [:]
+    var queryParams: OrderedParams<Any?> = [:]
     do {
       let val = options.category
       queryParams["category"] = ValueSerializer.maybeAllowReserved(
@@ -963,7 +963,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -1017,7 +1017,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("photoId", value: photoId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -1083,7 +1083,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("asOf", value: asOf, location: "path", schemaType: "String", collectionFormat: "", style: "matrix", explode: false) ?? "")"
     )
 
-    var queryParams: [String: Any?] = [:]
+    var queryParams: OrderedParams<Any?> = [:]
     if let val = options.days {
       queryParams["days"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
@@ -1171,7 +1171,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("tagName", value: tagName, location: "path", schemaType: "String", collectionFormat: "", style: "label", explode: false) ?? "")"
     )
 
-    var queryParams: [String: Any?] = [:]
+    var queryParams: OrderedParams<Any?> = [:]
     if let options = options, let val = options.colors {
       queryParams["colors"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
@@ -1286,7 +1286,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       }
     }
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -1331,7 +1331,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -1396,7 +1396,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -1453,7 +1453,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -1462,7 +1462,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
      * can be emitted as repeated keys by the form/multipart encoder.
      * Optional nil fields are omitted entirely — never sent as an empty
      * `name=` pair. */
-    var formBody: [String: Any] = [:]
+    var formBody: OrderedParams<Any> = [:]
     formBody["nickname"] = options.nickname
     if let val = options.tags {
       formBody["tags"] = val
@@ -1522,7 +1522,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -1575,7 +1575,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -1584,7 +1584,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
      * can be emitted as repeated keys by the form/multipart encoder.
      * Optional nil fields are omitted entirely — never sent as an empty
      * `name=` pair. */
-    var formBody: [String: Any] = [:]
+    var formBody: OrderedParams<Any> = [:]
     formBody["file"] = options.file
 
     let requestBody: Any? = formBody
@@ -1638,7 +1638,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -1647,7 +1647,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
      * can be emitted as repeated keys by the form/multipart encoder.
      * Optional nil fields are omitted entirely — never sent as an empty
      * `name=` pair. */
-    var formBody: [String: Any] = [:]
+    var formBody: OrderedParams<Any> = [:]
     formBody["file"] = options.file
     if let val = options.documentType {
       formBody["documentType"] = val

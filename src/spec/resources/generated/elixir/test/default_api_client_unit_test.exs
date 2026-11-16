@@ -114,6 +114,45 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert String.contains?(response.body, "GET")
   end
 
+  test "a custom adapter in req_options receives the request with the SDK defaults on top" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:adapter_request, request})
+
+      {request,
+       Req.Response.new(
+         status: 200,
+         body: ~s({"ok":true}),
+         headers: [{"content-type", "application/json"}]
+       )}
+    end
+
+    transport =
+      PetstoreClient.TransportOptions.new(
+        req_options: [adapter: adapter, retry: :transient],
+        user_agent: "Custom/1.0"
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "http://custom.invalid/echo",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert_receive {:adapter_request, request}
+    assert request.url.host == "custom.invalid"
+    assert Req.Request.get_header(request, "user-agent") == ["Custom/1.0"]
+    assert request.options.retry == false
+    assert request.options.redirect == false
+  end
+
   test "sends POST with JSON body" do
     base_url = start_server(200, "application/json", ~s({"method":"POST","body":"key"}))
     client = PetstoreClient.DefaultApiClient.new()

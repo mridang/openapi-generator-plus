@@ -1,5 +1,7 @@
 {{>api_info}}
 {{#generateTests}}
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
 
@@ -9,6 +11,28 @@ void main() {
       final builder = TransportOptions.builder();
       expect(builder, isA<TransportOptionsBuilder>());
       expect(TransportOptions.builder().timeout(5000).build().timeout, equals(5000));
+    });
+
+    test('httpClient defaults to null and round-trips when set', () {
+      expect(TransportOptionsBuilder().build().httpClient, isNull);
+      final custom = MockClient((_) async => http.Response('', 200));
+      expect(TransportOptionsBuilder().httpClient(custom).build().httpClient, same(custom));
+    });
+
+    test('httpClient conflicts with proxy, caCertPath and verifySsl(false)', () {
+      final custom = MockClient((_) async => http.Response('', 200));
+      expect(
+        () => TransportOptionsBuilder().httpClient(custom).proxy('http://proxy:3128').build(),
+        throwsArgumentError,
+      );
+      expect(
+        () => TransportOptionsBuilder().httpClient(custom).caCertPath('/tmp/ca.pem').build(),
+        throwsArgumentError,
+      );
+      expect(
+        () => TransportOptionsBuilder().httpClient(custom).verifySsl(false).build(),
+        throwsArgumentError,
+      );
     });
 
     test('verifySsl defaults to true', () {

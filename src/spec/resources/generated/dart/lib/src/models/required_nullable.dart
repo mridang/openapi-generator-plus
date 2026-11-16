@@ -9,31 +9,31 @@ import '../object_serializer.dart';
 
 /// RequiredNullable is a model class generated from the OpenAPI schema.
 class RequiredNullable {
-  final String note;
+  final String? note;
 
   const RequiredNullable({required this.note});
 
   /// Creates a [RequiredNullable] from a JSON map.
   factory RequiredNullable.fromJson(Map<String, dynamic> json) {
-    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
-       non-null on the wire. An absent key reads as null in Dart, so this
-       single guard covers both the missing and explicitly-null cases. We
-       raise the SDK's own SerializationException (not an incidental cast/TypeError)
-       so callers see a uniform, catchable wire-shape failure. */
-    if (json['note'] == null) {
+    /* A REQUIRED, nullable field must have its key present on the wire; an
+       explicit null is a legal value and is kept. */
+    if (!json.containsKey('note')) {
       throw SerializationException(
         "Missing required field 'note' for RequiredNullable",
       );
     }
-    return RequiredNullable(note: json['note'] as String);
+    return RequiredNullable(note: json['note'] as String?);
   }
 
   /// Converts this [RequiredNullable] to a JSON map.
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
-
-    json['note'] = note;
-
+    if (note == null) {
+      json['note'] = null;
+    }
+    if (note != null) {
+      json['note'] = note;
+    }
     return json;
   }
 

@@ -12,6 +12,9 @@ using PetstoreClient.Api.Options;
 using PetstoreClient.Models;
 using Xunit;
 
+/* These tests exercise the operations without a cancellation token on purpose. */
+#pragma warning disable xUnit1051
+
 namespace Test.Api;
 
 [Collection("Chasm")]
@@ -408,9 +411,44 @@ public class StoreApiTest
         }
     }
 
+    private sealed class TokenCapturingApiClient : IApiClient
+    {
+        public CancellationToken Token { get; private set; }
+
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            return Task.FromResult(
+                new PetstoreClient.ApiHttpResponse(
+                    200,
+                    "{}",
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }
+                )
+            );
+        }
+
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect,
+            CancellationToken cancellationToken
+        )
+        {
+            Token = cancellationToken;
+            return SendRequestAsync(method, url, headers, body);
+        }
+    }
+
     private sealed class ListCapturingApiClient : IApiClient
     {
         public Uri? Url { get; private set; }
+        public Dictionary<string, string> Headers { get; private set; } = new();
         public int CallCount { get; private set; }
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
@@ -422,6 +460,7 @@ public class StoreApiTest
         {
             CallCount++;
             Url = url;
+            Headers = new Dictionary<string, string>(headers);
             return Task.FromResult(
                 new PetstoreClient.ApiHttpResponse(
                     200,
@@ -430,6 +469,61 @@ public class StoreApiTest
                 )
             );
         }
+    }
+
+    [Fact]
+    public async Task OperationPassesTheCancellationTokenToTheTransport()
+    {
+        var client = new TokenCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        using var cts = new CancellationTokenSource();
+
+        await api.GetInventoryWithHttpInfoAsync(cancellationToken: cts.Token);
+
+        Assert.Equal(cts.Token, client.Token);
+    }
+
+    [Fact]
+    public async Task OperationWithACancelledTokenSendsNoRequest()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            api.SearchStoreAsync(cancellationToken: cts.Token)
+        );
+
+        Assert.Equal(0, client.CallCount);
+    }
+
+    [Fact]
+    public async Task SearchStoreTimeQueryKeepsNonZeroMilliseconds()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync(
+            new SearchStoreOptions { At = new TimeOnly(10, 30, 0, 123, 456) }
+        );
+        Assert.Equal("?at=10%3A30%3A00.123", client.Url!.Query);
+
+        await api.SearchStoreAsync(new SearchStoreOptions { At = new TimeOnly(10, 30, 0) });
+        Assert.Equal("?at=10%3A30%3A00", client.Url!.Query);
+    }
+
+    [Fact]
+    public async Task SearchStoreContentHeaderUsesTheSdkSerializer()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync(
+            new SearchStoreOptions { XFilter = new Dictionary<string, string> { ["k"] = "v" } }
+        );
+
+        Assert.Equal("{\"k\":\"v\"}", client.Headers["X-Filter"]);
     }
 
     [Fact]

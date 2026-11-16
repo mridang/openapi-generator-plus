@@ -19,6 +19,7 @@
  * inline-enum types, re-exported transitively through the api barrel).
  */
 export { Client } from "./client.js";
+export type { ClientOptions } from "./client.js";
 export * from "./api/index.js";
 
 /* Model types. */
@@ -34,7 +35,11 @@ export * from "./models/index.js";
  * happens to be named `ApiResponse` (the model wins via the `./models` star
  * export).
  */
-export type { ApiClient, SendRequestOptions } from "./api-client.js";
+export type {
+  ApiClient,
+  RequestOptions,
+  SendRequestOptions,
+} from "./api-client.js";
 export type { ApiResult } from "./api-result.js";
 export { DefaultApiClient } from "#transport";
 

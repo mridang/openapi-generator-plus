@@ -48,6 +48,34 @@ describe("Client", () => {
     expect(client).toBeDefined();
   });
 
+  test("construct with authenticator, default transport and a client-level signal", () => {
+    const controller = new AbortController();
+
+    const client = new Client(authenticator, undefined, {
+      signal: controller.signal,
+    });
+
+    expect(client).toBeDefined();
+    expect(
+      Client.withToken("/api/v3", "test-token", undefined, {
+        signal: controller.signal,
+      }),
+    ).toBeDefined();
+    expect(
+      Client.withAuthenticator(authenticator, undefined, {
+        signal: controller.signal,
+      }),
+    ).toBeDefined();
+  });
+
+  test("construct with a custom fetch in the transport options", () => {
+    const transport = TransportOptions.builder()
+      .fetch((async () => new Response("{}")) as typeof fetch)
+      .build();
+
+    expect(new Client(authenticator, transport)).toBeDefined();
+  });
+
   test("BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
     expect(
       () => new BearerAuthenticator("/api/v3", "tok\r\nInjected: yes"),
@@ -396,6 +424,24 @@ describe("generated documentation", () => {
     expect(call?.[3]).not.toBe("");
     expect(call?.[3]).not.toContain("/*");
     expect(skills).toContain("} else if (error instanceof ApiError) {");
+  });
+
+  test("README documents schema constraints, uniqueItems order, cancellation and the custom fetch", () => {
+    const readme = fs.readFileSync(
+      path.join(process.cwd(), "README.md"),
+      "utf8",
+    );
+
+    expect(readme).toContain("### Schema constraints");
+    expect(readme).toContain("validated by the server");
+    expect(readme).toContain("pydantic");
+    expect(readme).toContain(
+      "`uniqueItems` arrays are sent in the natural order",
+    );
+    expect(readme).toContain("### Per-call cancellation");
+    expect(readme).toContain("RequestOptions");
+    expect(readme).toContain("### Custom `fetch`");
+    expect(readme).not.toContain("no cancellation API");
   });
 
   test("README names the builder setter that rejects a SOCKS proxy", () => {

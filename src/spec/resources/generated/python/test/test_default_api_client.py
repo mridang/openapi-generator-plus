@@ -1,11 +1,15 @@
+import asyncio
 import json
 import socket
+import time
 
 import pytest
 import urllib3
 from typing import Any
 from urllib.parse import urlsplit
 
+from petstore_client.api.base_api import BaseApi
+from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.errors import NetworkException
 from petstore_client.transport_options import TransportOptions
@@ -880,3 +884,56 @@ class TestTlsVerificationEnforced:
 
         assert response.status_code == 200
         assert '"method"' in response.body
+
+
+class TestCancellation:
+    """Cancelling an in-flight request really aborts it: the connection is
+    dropped instead of the call running on in a worker thread."""
+
+    async def test_cancelling_the_task_aborts_the_request(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient(TransportOptions.builder().timeout(20000).build())
+        api = BaseApi(api_client=client, config=Configuration(base_url=chasm_http_url))
+        task = asyncio.ensure_future(
+            api._invoke_api(
+                "GET",
+                "/test/slow",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                None,
+            )
+        )
+        await asyncio.sleep(0.5)
+        assert len(client._inflight) == 1
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        # The slow endpoint answers after 5 seconds; the worker is gone long before.
+        deadline = time.monotonic() + 2
+        while client._inflight and time.monotonic() < deadline:
+            await asyncio.sleep(0.05)
+        assert client._inflight == set()
+
+    async def test_closing_the_client_cancels_the_request_in_flight(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient(TransportOptions.builder().timeout(20000).build())
+        task = asyncio.ensure_future(
+            asyncio.to_thread(
+                client.send_request, "GET", chasm_http_url + "/test/slow", {}, None
+            )
+        )
+        await asyncio.sleep(0.5)
+
+        started = time.monotonic()
+        client.close()
+        with pytest.raises(RuntimeError, match="cancelled"):
+            await task
+
+        assert time.monotonic() - started < 2

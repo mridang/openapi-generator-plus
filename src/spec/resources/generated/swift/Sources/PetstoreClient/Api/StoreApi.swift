@@ -38,7 +38,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/account"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -78,7 +78,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -130,7 +130,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("pathSwatch", value: pathSwatch, location: "path", schemaType: "Swatch", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    var queryParams: [String: Any?] = [:]
+    var queryParams: OrderedParams<Any?> = [:]
     if let options = options, let val = options.querySwatch {
       queryParams["querySwatch"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
@@ -180,7 +180,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/defaults"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -220,7 +220,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/department"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -260,7 +260,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/grouped-categories"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -300,7 +300,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/inventory"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -340,7 +340,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/matrix"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -388,7 +388,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("orderId", value: orderId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -437,7 +437,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
         "\(ValueSerializer.serializeStyled("trackingId", value: trackingId, location: "path", schemaType: "UUID", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -483,7 +483,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/stock-item"
 
-    var queryParams: [String: Any?] = [:]
+    var queryParams: OrderedParams<Any?> = [:]
     if let options = options, let val = options.asOf {
       queryParams["asOf"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
@@ -529,7 +529,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/swatch"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -569,7 +569,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/swatch-groups"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -609,7 +609,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/timestamp-groups"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -649,7 +649,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/tree"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -691,7 +691,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/order"
 
-    let queryParams: [String: Any?] = [:]
+    let queryParams: OrderedParams<Any?> = [:]
 
     let headerParams: [String: String] = [:]
 
@@ -737,15 +737,13 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     let path = "/store/search"
 
-    var queryParams: [String: Any?] = [:]
+    var queryParams: OrderedParams<Any?> = [:]
     if let options = options, let val = options.q {
       /* Serialize through ObjectSerializer so a Date-bearing content param
        * emits RFC 3339 via the shared date-strategy encoder, matching every
        * other serialization path (a bare JSONEncoder would default to
        * .deferredToDate and emit epoch-seconds doubles instead). */
-      if let json = try? ObjectSerializer.serialize(val) {
-        queryParams["q"] = json
-      }
+      queryParams["q"] = try ObjectSerializer.serialize(val)
     }
     if let options = options, let val = options.labels {
       queryParams["labels"] = ValueSerializer.maybeAllowReserved(
@@ -762,8 +760,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     var headerParams: [String: String] = [:]
     if let options = options, let val = options.xFilter {
-      headerParams["X-Filter"] =
-        "\(ValueSerializer.serializeStyled("X-Filter", value: val, location: "header", schemaType: "[String: String]", collectionFormat: "", style: "", explode: false) ?? "")"
+      headerParams["X-Filter"] = try ObjectSerializer.serialize(val)
     }
 
     let requestBody: Any? = nil

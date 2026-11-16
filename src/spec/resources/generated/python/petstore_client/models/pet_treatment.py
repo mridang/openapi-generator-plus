@@ -84,7 +84,7 @@ class PetTreatment(BaseModel):
             )
         return v
 
-    def anyof_merged_dump(self) -> Dict[str, Any]:
+    def anyof_merged_dump(self, exact_numbers: bool = False) -> Dict[str, Any]:
         """Merge every retained variant into one wire dict (lossless encode).
 
         Each variant that the payload satisfied contributes its own WIRE
@@ -92,7 +92,8 @@ class PetTreatment(BaseModel):
         silent drop. Variants are merged in declared order, so a later
         variant's value wins on the (rare) shared key and each key appears
         exactly once. Falls back to the single `actual_instance` when no
-        retain-all set was recorded.
+        retain-all set was recorded. ``exact_numbers`` is set by the
+        ObjectSerializer so a ``type: number`` field keeps its exact digits.
         """
         instances = self.matched_instances or (
             [self.actual_instance] if self.actual_instance is not None else []
@@ -101,7 +102,10 @@ class PetTreatment(BaseModel):
         for instance in instances:
             if isinstance(instance, BaseModel):
                 part = instance.model_dump(
-                    mode="json", by_alias=True, exclude_none=True
+                    mode="json",
+                    by_alias=True,
+                    exclude_none=True,
+                    context={"exact_numbers": True} if exact_numbers else None,
                 )
             else:
                 part = instance

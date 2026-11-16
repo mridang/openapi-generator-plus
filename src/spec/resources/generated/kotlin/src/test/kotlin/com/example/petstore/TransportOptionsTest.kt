@@ -8,6 +8,9 @@
 package com.example.petstore
 
 import com.example.petstore.errors.OpenAPIException
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respondOk
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -418,6 +421,62 @@ class TransportOptionsTest {
             // Proxy configuration must not throw on any JVM platform.
             assertDoesNotThrow {
                 TransportOptions.builder().proxy("http://proxy.example.com:8080").build()
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("custom httpClient")
+    inner class CustomHttpClient {
+        @Test
+        @DisplayName("httpClient defaults to null and is kept when set")
+        fun httpClientIsKept() {
+            assertNull(TransportOptions.builder().build().httpClient)
+            val custom = HttpClient(MockEngine { respondOk() })
+            try {
+                assertSame(
+                    custom,
+                    TransportOptions
+                        .builder()
+                        .httpClient(custom)
+                        .build()
+                        .httpClient,
+                )
+            } finally {
+                custom.close()
+            }
+        }
+
+        @Test
+        @DisplayName("httpClient conflicts with proxy, caCertPath and verifySsl=false")
+        fun httpClientConflictsWithSdkTransportSettings() {
+            val custom = HttpClient(MockEngine { respondOk() })
+            try {
+                val proxy =
+                    assertThrows(IllegalArgumentException::class.java) {
+                        TransportOptions
+                            .builder()
+                            .httpClient(custom)
+                            .proxy("http://proxy.example.com:8080")
+                            .build()
+                    }
+                assertTrue(proxy.message!!.contains("custom httpClient"))
+                assertThrows(IllegalArgumentException::class.java) {
+                    TransportOptions
+                        .builder()
+                        .httpClient(custom)
+                        .caCertPath("/tmp/ca.pem")
+                        .build()
+                }
+                assertThrows(IllegalArgumentException::class.java) {
+                    TransportOptions
+                        .builder()
+                        .httpClient(custom)
+                        .verifySsl(false)
+                        .build()
+                }
+            } finally {
+                custom.close()
             }
         }
     }

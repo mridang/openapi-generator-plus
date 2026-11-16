@@ -212,6 +212,84 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Puts the per-operation server argument before the options argument, so an
+     * operation takes its required parameters, then the server, then the
+     * optional-parameters object. Adding security (which adds the options
+     * object) never moves an existing argument. Also publishes
+     * {@code callArgsNullServer}: the server-less argument list with a literal
+     * {@code null} standing in for the server, used by the overloads that omit
+     * the server.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    protected void populateOperationDecorators(CodegenOperation op) {
+        super.populateOperationDecorators(op);
+        if (op == null || op.vendorExtensions == null) {
+            return;
+        }
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        for (final String key : new String[] {"signatureArgs", "signatureArgsNoOptions"}) {
+            final Object list = d.get(key);
+            if (list instanceof List) {
+                d.put(key, serverBeforeOptions((List<Map<String, Object>>) list));
+            }
+        }
+        final Object noServer = d.get("signatureArgsNoServer");
+        if (noServer instanceof List) {
+            final List<Map<String, Object>> withNullServer = new ArrayList<>();
+            boolean placed = false;
+            for (final Map<String, Object> arg : (List<Map<String, Object>>) noServer) {
+                if (Boolean.TRUE.equals(arg.get("isOptions"))) {
+                    withNullServer.add(nullServerArg());
+                    placed = true;
+                }
+                withNullServer.add(arg);
+            }
+            if (!placed) {
+                withNullServer.add(nullServerArg());
+            }
+            d.put("callArgsNullServer", withNullServer);
+        }
+    }
+
+    private static Map<String, Object> nullServerArg() {
+        final Map<String, Object> arg = new HashMap<>();
+        arg.put("kind", "server");
+        arg.put("isServer", true);
+        arg.put("isOptions", false);
+        arg.put("paramName", "null");
+        return arg;
+    }
+
+    /** Returns a copy of the list with the server entry moved before the options entry. */
+    static List<Map<String, Object>> serverBeforeOptions(List<Map<String, Object>> args) {
+        final List<Map<String, Object>> out = new ArrayList<>();
+        Map<String, Object> server = null;
+        for (final Map<String, Object> arg : args) {
+            if (Boolean.TRUE.equals(arg.get("isServer"))) {
+                server = arg;
+            }
+        }
+        for (final Map<String, Object> arg : args) {
+            if (arg == server) {
+                continue;
+            }
+            if (server != null && Boolean.TRUE.equals(arg.get("isOptions"))) {
+                out.add(server);
+            }
+            out.add(arg);
+        }
+        if (server != null && !out.contains(server)) {
+            out.add(server);
+        }
+        return out;
+    }
+
+    /**
      * Prefixes a model named {@code Error} with {@code Model}: {@code Error}
      * would shadow {@code java.lang.Error} (error-prone JavaLangClash).
      * {@code Result} has no java.lang counterpart and keeps its own name.

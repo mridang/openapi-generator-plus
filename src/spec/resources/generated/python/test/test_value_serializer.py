@@ -625,3 +625,29 @@ class TestPathSegmentCharacterSet:
     )
     def test_everything_else_is_percent_encoded(self, raw: str, encoded: str) -> None:
         assert ValueSerializer.serialize(raw, "path", "string") == encoded
+
+
+class TestEncodeContent:
+    """A `content` parameter's JSON text is encoded once, by its location."""
+
+    def test_path_value_is_fully_percent_encoded(self) -> None:
+        assert (
+            ValueSerializer.encode_content("p", '{"a":"b/c"}', "path")
+            == "%7B%22a%22%3A%22b%2Fc%22%7D"
+        )
+
+    def test_cookie_value_is_fully_percent_encoded(self) -> None:
+        assert (
+            ValueSerializer.encode_content("c", '{"a":1}', "cookie")
+            == "%7B%22a%22%3A1%7D"
+        )
+
+    def test_header_value_is_sent_verbatim(self) -> None:
+        assert ValueSerializer.encode_content("h", '{"a":1}', "header") == '{"a":1}'
+
+    def test_header_value_with_a_line_break_is_rejected(self) -> None:
+        with pytest.raises(ValueError):
+            ValueSerializer.encode_content("h", '{"a":"x\ny"}', "header")
+
+    def test_query_value_is_left_for_the_query_builder(self) -> None:
+        assert ValueSerializer.encode_content("q", '{"a":1}', "query") == '{"a":1}'

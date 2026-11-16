@@ -54,6 +54,32 @@ void main() {
       }
     });
 
+    test('searchStore sends a content-encoded header as the SDK JSON', () async {
+      String? header;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        header = request.headers.value('X-Filter');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.searchStore(const SearchStoreOptions(xFilter: {'k': 'v'}));
+
+        expect(header, equals('{"k":"v"}'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('placeOrder', () async {
       final api = _newStoreApiForIntegration();
 
@@ -232,6 +258,63 @@ void main() {
         await server.close();
       }
     });
+
+    /* Strict containers: a container of primitives is checked element by
+     * element like a single primitive; a quoted number, a fractional for an
+     * integer or a null raises the SDK SerializationException. */
+    for (final bad in const [
+      '{"available":"abc"}',
+      '{"available":"5"}',
+      '{"available":1.9}',
+      '{"available":null}',
+      '{"available":true}',
+    ]) {
+      test('getInventory rejects the wrong-typed element $bad', () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write(bad)
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(api.getInventory(), throwsA(isA<SerializationException>()));
+        } finally {
+          await server.close();
+        }
+      });
+    }
+
+    for (final bad in const ['[[1,"2"]]', '[[1.5]]', '[[null]]']) {
+      test('getMatrix rejects the wrong-typed element $bad', () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write(bad)
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(api.getMatrix(), throwsA(isA<SerializationException>()));
+        } finally {
+          await server.close();
+        }
+      });
+    }
 
     /* recursive-container-deserialize: getSwatchGroups returns
      * List<Map<String, Swatch>> — an enum leaf. The leaf must go through the

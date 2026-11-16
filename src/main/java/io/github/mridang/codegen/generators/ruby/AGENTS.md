@@ -1,0 +1,292 @@
+# Ruby SDK generator
+
+This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an OpenAPI document: a `Client` entry class, `Configuration` and `TransportOptions` builders, one API class per tag with an Options object per operation, dry-struct models, an authenticator per security scheme, the error hierarchy, and the minitest suite, README, SKILLS.md, RBS signatures and lint/type-check config that ship with it. HTTP goes through Faraday 2 (`faraday-follow_redirects` for redirects, `DefaultApiClient` on top); models use `dry-struct` and `dry-types`; `format: time` uses `tod`, `format: duration` uses `iso8601`; `brotli` and `zstd-ruby` are an optional gem group. Tests run with minitest (`bundle exec rake test`), style with RuboCop (`rubocop-minitest`, `rubocop-rake`), types with Steep over hand-generated `.rbs` files. The floor is Ruby 3.4 (`ruby '>= 3.4'`, `required_ruby_version >= 3.4`, test image `ruby:3.4-alpine`, formatter image `ruby:3.4`).
+
+## Read first
+
+- Shared cross-language rules: [../AGENTS.md](../AGENTS.md)
+- Repository root: [../../../../../../../../../AGENTS.md](../../../../../../../../../AGENTS.md)
+- Codegen class: [BetterRubyCodegen.java](BetterRubyCodegen.java)
+- Templates: [../../../../../../../resources/templates/ruby/](../../../../../../../resources/templates/ruby/)
+- Spec classes: [../../../../../../../spec/java/io/github/mridang/codegen/spec/ruby/](../../../../../../../spec/java/io/github/mridang/codegen/spec/ruby/) (`RubySpec` is the shared interface; `RubyClientSpec` runs `rake test`, `RubyLintingSpec` RuboCop, `RubyFormattingSpec` Layout cops, `RubyTypeCheckSpec` Steep, `RubyReservedWordsSpec` the keyword list)
+- Golden: [../../../../../../../spec/resources/generated/ruby/](../../../../../../../spec/resources/generated/ruby/) (never hand-edit; regenerate)
+- API-surface allow rules for ruby: `etc/api-surface-allow.json` (each states its reason); canonical surface: `API_SURFACE.md`
+
+## Layout
+
+| Path (under `src/main/resources/templates/ruby/` unless noted) | What lives there | Edit this to change |
+|---|---|---|
+| `errors/*.mustache`, `errors/error_parent.mustache` | The error hierarchy, one class per file under `lib/<module>/errors/` | Error classes, messages, the `apiErrorParent` root |
+| `auth/*.mustache`, `auth/oauth/*.mustache` | Authenticator base, mixin `HttpAwareAuthenticator`, api-key, bearer, basic, per-scheme wrappers, OAuth2 flows, token manager, OIDC | Auth behaviour; scheme wrappers are rendered by `renderSchemeAuthenticator` in the codegen |
+| `default_api_client.mustache`, `transport_options.mustache` | Faraday transport: TLS, proxy, timeouts, redirects, decompression, injected connection | Transport options and wire behaviour |
+| `base_api.mustache`, `object_serializer.mustache`, `value_serializer.mustache`, `header_selector.mustache` | Parameter styles, query/form/multipart encoding, JSON (de)serialization, content negotiation | Anything about bytes on the wire |
+| `api/api.mustache`, `api/api_rbs.mustache`, `api/options*.mustache` | Per-tag API classes, their RBS, per-operation Options objects (also generated in `generateOptionsFileContent`) | Operation signatures and doc comments |
+| `models/model.mustache`, `models/model_rbs.mustache`, `types.mustache` | dry-struct models, enums as constant classes, oneOf/anyOf modules, `Types::Required` | Models and unions |
+| `configuration.mustache`, `servers.mustache`, `server_*.mustache`, `client.mustache`, `gem.mustache` | Builder, servers, entry class, the Zeitwerk-style entry file | Public entry surface |
+| `readme.mustache`, `skills.mustache` | README (Caveats, Not supported) and SKILLS.md | Docs |
+| `gemfile.mustache`, `gemspec.mustache`, `rubocop.mustache`, `steepfile.mustache`, `makefile.mustache`, `rakefile.mustache`, `vendor_rbs.mustache`, `infrastructure_rbs.mustache`, `faraday_rbs.mustache` | Manifest, lint and type-check config, signatures for third-party libraries | Dependencies, cops, Steep targets |
+| `test/*.mustache`, `test/api/` | The generated minitest suite (extend these, never add a new file) | Tests |
+| `src/main/java/.../generators/ruby/BetterRubyCodegen.java` | Type mapping, naming, enum/default literals, supporting-file list, formatter commands, RBS type lambdas | Type mapping, reserved words, escaping, file layout |
+| `src/main/resources/reserved-words/ruby.txt` | Keyword list (checked against `Ripper` by `RubyReservedWordsSpec`) | Reserved words |
+
+## Idioms (deliberate differences from the other eleven)
+
+| Topic | What ruby does | Why |
+|---|---|---|
+| Models | `dry-struct` classes with `Types::*` attributes; enums are constant classes with `VALUES`/`validate!` | Ruby has no typed fields; dry-types is the library integration point |
+| oneOf/anyOf | Module functions `actual_instance(value)` and `matched_instances(value)`, a `build` returning the variant or a `*Composite` struct; no wrapper object | dry-struct has no wrapper to hold a variant; allow rules in `etc/api-surface-allow.json` |
+| One constant per file | `ServerVariable` is its own file, and the golden test `declares exactly the constant each lib file path names` enforces path-to-constant | Zeitwerk-style autoloading (the same rule as java and php); see root AGENTS.md "Forced divergences" |
+| Compact module form | Every file opens `module A::B` | Nested form re-indents and changes constant lookup, the failure the constant-resolution regression covers |
+| Auth host mixin | `HttpAwareAuthenticator` is a mixin module beside the `Authenticator` superclass | A module cannot inherit the class's methods |
+| Visibility | `BaseApi::NO_AUTH`, `OAuth2AuthorizationCodeAuthenticator#token_manager`, `OAuth2TokenManager#mark_exchanged` and `BaseApi#config` are public | Ruby has no package-private or cross-file protected visibility |
+| Cause | `ApiError`, `NetworkError`, `NetworkTimeoutError` take no `cause` argument | Ruby records it with the built-in `Exception#cause` |
+| Builders | Setter parameter is named `val`; `Configuration` and `TransportOptions` keyword constructors take every value, defaults come from the builder | Positional setter style; the builder supplies defaults |
+| Entry class | `Petstore::Client::Client` (a class may share its namespace's name) | API_SURFACE D05 |
+| Servers list | `Servers::ALL` | Constant naming |
+| Numbers | `format: number` is `Float`; `Integer` is arbitrary precision so int64 is exact | Ruby JSON parsing yields `Float` (see D83, F075) |
+| Binary responses | `File`/`StringIO` stream | Matches java/csharp stream typing (F332) |
+| Case of names | snake_case operations, variables and files; enum constants upper case | Ruby convention |
+
+## Settled decisions (do not re-open in review)
+
+Ids D01-D94 are from `PARITY_DECISIONS.md`; Fnnn are ledger findings; S1-S16 are the 2026-11-16 session decisions; "Forced" and "Resolved" entries come from the root `AGENTS.md`. The shared rule is written once in `../AGENTS.md`; each entry here is how ruby realises it.
+
+### Cancellation: no new parameter (S7, 2026-11-16)
+Rule: Ruby has no cancellation API of its own; a deadline is the only bound and it raises `NetworkTimeoutError`.
+Why: Ruby's native mechanisms (`Timeout`, thread kill) are not a per-call handle callers pass, so a wrapper object would be less natural.
+Where: `readme.mustache` ("Per-call cancellation"), `default_api_client.mustache`.
+Test: `default_api_client_test`, `default_api_client_unit_test`.
+
+### Parameter order (S8, F803, 2026-11-16, owner confirmation pending)
+Rule: required parameters, then server, then the Options object, always, whether or not the operation has security.
+Why: adding security must never move an argument.
+Where: `api/api.mustache`, `api/api_rbs.mustache`, `api/options.mustache`.
+Test: `test/api/` and the golden RBS under Steep.
+
+### Injected transport is a Faraday connection (S9, F405, 2026-11-16)
+Rule: `TransportOptions.builder.connection(conn)` takes a `Faraday::Connection`, keeps the SDK defaults applied, never closes it, and rejects a non-connection with `ArgumentError`.
+Why: Faraday is the ecosystem's standard client; the other SDKs' standard client object is accepted the same way.
+Where: `transport_options.mustache` (`connection`, line about `respond_to?(:run_request)`), `default_api_client.mustache`.
+Test: `transport_options_test.mustache`, `default_api_client_test.mustache`.
+
+### Content parameters use the SDK serializer (S2, D80, D50, F054)
+Rule: `content: application/json` parameters in query, header, path and cookie go through `::<Module>::ObjectSerializer.serialize`, not `JSON.generate`.
+Why: one byte-identical encoder in all twelve (wire names, `.SSS+00:00` date-times, null fields omitted, NaN rejected).
+Where: `base_api.mustache`, `object_serializer.mustache`.
+Test: `base_api_test.mustache`, `object_serializer_test.mustache`.
+
+### Strict containers (S1, F006, D54)
+Rule: an array or map of primitives is checked element by element in `convert_to_type`; an integer leaf must be an integer token inside the int32 or int64 range, a fractional, quoted or out-of-range value raises `Errors::SerializationError`.
+Why: a container is decoded exactly like a single primitive in all twelve.
+Where: `object_serializer.mustache`, `models/model.mustache` (the dry attribute is constrained for construction).
+Test: `object_serializer_test.mustache`.
+
+### Schema constraints are not enforced (S3, D55, F056)
+Rule: pattern, minLength, maxLength, minimum, maximum, multipleOf, minItems, maxItems and `dependentRequired`/`dependentSchemas` are not checked by the client; the server owns validation. The README says so under "Numeric / string constraint validation".
+Why: only python enforces them natively and cheaply (pydantic); Ruby's dry-types could, but the decision is uniform.
+Where: `readme.mustache`, `models/model.mustache`.
+Test: `readme_test.mustache`.
+
+### allOf with a discriminator uses inheritance (S4, F057, F802)
+Rule: the allOf+discriminator parent is a base class and subtypes inherit; a model reused in two unions is not re-parented, unions use modules.
+Why: Ruby has single inheritance, so inheritance is reserved for the one parent.
+Where: `models/model.mustache`, `BetterRubyCodegen.setsDiscriminatorDefaultOnChildren` and `formatDiscriminatorDefaultValue`.
+Test: `composed_schema_test.mustache`, `metadata_test.mustache`.
+
+### Required plus nullable (S5, D66, F215)
+Rule: the key must be present on decode (absent raises), an explicit `nil` is kept, and encode always writes the key (`null` when unset); the attribute is `Types::X.optional` with the key required.
+Why: the one uniform rule in all twelve.
+Where: `models/model.mustache`, `object_serializer.mustache`.
+Test: `object_serializer_test.mustache`, `metadata_test.mustache`.
+
+### uniqueItems order is unspecified (S6, F319, D69)
+Rule: a `Set` is sent in its own iteration order; the SDK does not sort, and `Set` parameters expand like arrays (`value.to_a` at entry).
+Why: decided not to sort; the READMEs document it. Supersedes the sorted-scalars proposal in D69.
+Where: `base_api.mustache`, `getUniqueItemsSetType` in the codegen (`Set<`).
+Test: `base_api_test.mustache`.
+
+### Dependencies (S10)
+Rule: small pure gems (`tod`, `iso8601`) are accepted; a gem needing a native binary is not a runtime dependency.
+Why: `brotli` and `zstd-ruby` are C extensions, so they sit in the `:optional` Gemfile group and are `require`d under `begin/rescue LoadError`; Accept-Encoding advertises `br`/`zstd` only when the constant is defined.
+Where: `gemfile.mustache`, `gemspec.mustache`, `default_api_client.mustache`.
+Test: `default_api_client_unit_test.mustache` (codec present and absent paths).
+
+### Scope order, UUID case, blank keys, error cause (S14)
+Rule: OAuth scopes keep the spec's declared order (D04, `SchemeAuthSpec` stores a LinkedHashMap); uuid is validated and written lowercase (D67, `validate_uuid` plus `downcase` on encode and decode); an api key or bearer token is blank only for empty or ASCII whitespace (`/\A[ \t\n\v\f\r]*\z/`, not `strip`, which also strips NUL; D19) and a leading `Bearer ` is stripped once in `initialize`; every status-specific error accepts an optional cause through `Exception#cause`.
+Why: byte-identical behaviour in all twelve.
+Where: `auth/api_key_authenticator.mustache`, `auth/bearer_authenticator.mustache`, `value_serializer.mustache`, `BetterRubyCodegen.formatRubyScopes`.
+Test: `api_key_authenticator_test`, `bearer_authenticator_test`, `scheme_authenticator_test`, `value_serializer_test`.
+
+### Secrets are redacted (S15)
+Rule: `Configuration` and `TransportOptions` string forms replace the proxy password and any default header named Authorization, Proxy-Authorization, Cookie or containing key, token or secret with `***`.
+Why: logging a client must not leak credentials.
+Where: `configuration.mustache`, `transport_options.mustache`.
+Test: `configuration_test`, `transport_options_test`.
+
+### Timeouts, redirects, proxy validation (S16, D76, D77, D73, D79)
+Rule: `timeout` is one end-to-end monotonic budget across redirect hops (each hop gets the remaining time, none left raises `NetworkTimeoutError`); a non-positive timeout raises `ArgumentError` in `Builder#timeout`; proxy URL validation happens in `build`, not in the setter; `caCertPath` is validated even with `verify_ssl` false; error text is `Invalid proxy URL: <url>` with credentials redacted; a caller-supplied stream or file is never closed.
+Why: one grammar and one budget in all twelve.
+Where: `default_api_client.mustache`, `transport_options.mustache`.
+Test: `default_api_client_unit_test`, `transport_options_test`.
+
+### Query space encoding is %20 (Resolved cross-language fix, D49, D78)
+Rule: `DefaultApiClient::QueryParamsEncoder` carries the query `BaseApi` built as one opaque string under `__raw_query__`; any params Faraday encodes itself get `+` normalised to `%20`. allowReserved leaves the RFC 3986 reserved set literal except `#`, `[`, `]`.
+Why: Faraday would otherwise decode the query into a Hash, sort and re-encode it. Fixing it in `build_query_string` was rejected; the custom `params_encoder` is the working path (it needs RBS declarations in `faraday_rbs.mustache` or Steep crashes). Ruby's `URI` class rewrites `'` in allowReserved values: documented FORCED residual for node, rust and ruby, not worked around.
+Where: `default_api_client.mustache`, `base_api.mustache`, `faraday_rbs.mustache`.
+Test: `default_api_client_test`, `base_api_test`.
+
+### Ambient proxy settings are ignored (D74, F090)
+Rule: the proxy is exactly `TransportOptions.proxy`; Faraday's `proxy` is assigned unconditionally (nil when unset) and `http.proxy_from_env = false` in the adapter block.
+Why: one policy in all twelve.
+Where: `default_api_client.mustache`.
+Test: `default_api_client_test.mustache`.
+
+### Redirect, serializer and error wording (D15, D16, D17, D18, D20, D21)
+Rule: serialize errors read `Failed to serialize object to JSON: <detail>`, deserialize `Failed to deserialize JSON: <detail>`, depth `JSON nesting depth <N> exceeds limit 1000`; redirects read `Refusing to follow redirect to non-HTTP(S) URL: <url>`, `Refusing to replay request body across HTTPS->HTTP redirect: <from> -> <to>`, `Too many redirects (exceeded <N>)`; `Response headers:` is `JSON.generate(response_headers.sort.to_h)`; one leading BOM is stripped inside `parse_json`; lists render `[a, b, c]`; User-Agent and X-Request-ID injection is case-insensitive (`casecmp?`), the caller's header wins.
+Why: one wording and one byte form in all twelve; the BOM strip must live in the helper both the success path and `from_response` call.
+Where: `object_serializer.mustache`, `default_api_client.mustache`, `errors/api_error.mustache`, `server_configuration.mustache`, `api/api.mustache`.
+Test: `object_serializer_test`, `default_api_client_unit_test`, `api_error_test`, `server_configuration_test`.
+
+### Auth precondition messages and OIDC rediscovery (D01, D02, D03, D05, D06, D07, D08, D09, D11)
+Rule: messages are `Authorization code must not be empty` and `Must call exchange_code() before making API requests`; the OIDC delegate is rebuilt around the existing token manager (constructor takes a trailing `token_manager:`), with a `Mutex` around `resolve_delegate` and an expiry re-check inside; the `exchanged` flag lives in the manager; refresh carries client authentication through a `refresh_url:` keyword; `exchange_code` always POSTs the authorization_code grant under the manager mutex and restores state on failure; `openid` is always requested; an empty implicit access token is unset; an empty `state` is omitted; `expires_in` and `max-age` have a one-year ceiling; discovery errors drop the parser detail and keep the cause.
+Why: the session must survive a discovery refresh and the text must be identical everywhere.
+Where: `auth/oauth/*.mustache`.
+Test: `openid_connect_authenticator_test`, `oauth2_*_authenticator_test`, `oauth2_token_manager_test`.
+
+### Sync auth-header accessor on token flows (D12)
+Rule: nothing to change; ruby's accessor is synchronous and token fetching happens inside it.
+Why: ruby is a sync-only language (root AGENTS.md: auth-header method shape tracks the concurrency model).
+Where: `authenticator.mustache`, `auth/*.mustache`.
+Test: `*_authenticator_test`.
+
+### Error contract tests and ApiError details (D13, D14, D27, F325)
+Rule: an unusable response attaches `response.headers.to_h` to the `ApiError`; `api_error_test.rb` carries the empty-headers, empty-body and `OAuth2ServerError` rows; `ApiResult#headers` is `headers.dup.freeze`.
+Why: the transport-failure signal (`nil` headers means no response) must stay distinct from an empty map.
+Where: `errors/api_error.mustache`, `api_result.mustache`.
+Test: `api_error_test`, `api_result_test`.
+
+### Content negotiation and bodies (D30, D32, D35, D36, D39, D90)
+Rule: a `format: binary` response is raw bytes, base64 failures wrap `ArgumentError` into `SerializationError`; a non-JSON 2xx on a non-binary return raises `SerializationError` naming the Content-Type unless the return type is `String` and the Content-Type is text-class; a binary request body is sent verbatim under any selected Content-Type; multipart scalar parts use `ObjectSerializer.stringify`; form-urlencoded rejects Hash, Struct and model items; the multipart filename has a `_` ASCII fallback per code point and a `filename*` that keeps only `A-Za-z0-9-._~`.
+Why: one rule across the twelve; the multipart filename form is the go/php/rust form. The multi-consumes content-type selector rejects an unrecognised value with `ArgumentError`.
+Where: `base_api.mustache`, `object_serializer.mustache`.
+Test: `base_api_test`, `object_serializer_test`.
+
+### Literals, doc prose and escaping (D40, D41, D44, D45, D46, D43)
+Rule: spec strings in code are single-quoted literals with only `\\` and `\'` escaped (`toDefaultValue`, `toRubyStringLiteral`); enum string values escape only `\\` and `\'` and keep control characters raw (`escapesEnumControlCharacters`); the `escapeUnsafeCharacters` override that rewrote `#{` is removed and the gemspec description uses `lambda.stringLiteral`; enum arrays are emitted as quoted arrays, not `%w[]`; model docs use `lambda.unescapeDocComment`/`rubyDocComment` so `"` is not JSON-escaped; digit-leading names get an `n` prefix; properties keep `and`, `or`, `not`, `return` plain (`PLAIN_PROPERTY_KEYWORDS`) while parameters escape every keyword; the model-name collision set includes `Types`.
+Why: a literal must evaluate to the spec's bytes; a keyword is legal as an attribute reader but not as a keyword argument.
+Where: `BetterRubyCodegen.java`, `reserved-words/ruby.txt`, `servers.mustache`, `gemspec.mustache`.
+Test: `RubyReservedWordsSpec`, `model_doc_test`, `readme_test`.
+
+### Per-operation servers (D42)
+Rule: server enums are emitted once per operation with a matching RBS declaration; server variants are named uniquely.
+Why: duplicate variable types per variant broke the build.
+Where: `api/api.mustache`, `api/api_rbs.mustache`.
+Test: `server_configuration_test`, `server_variable_test`.
+
+### Parameter value rules (D47, D48, D51, D81, D82, D62, D63)
+Rule: object-valued query/header parameters convert through `JSON.parse(ObjectSerializer.serialize(v))` then expand by style; a path value of `.` or `..` raises `ArgumentError`; `format: byte` parameters are wrapped in `Base64.strict_encode64`; `format: time` is `strftime('%H:%M:%S')` plus `.%L` when non-zero; `format: uri` is checked in the `apply_format` hook while staying a `String`; an additionalProperties key colliding with a declared property is not written twice.
+Why: one rule in all twelve.
+Where: `base_api.mustache`, `value_serializer.mustache`, `models/model.mustache`.
+Test: `value_serializer_test`, `base_api_test`, `object_serializer_test`.
+
+### Decoding strictness (D57, D65)
+Rule: `date-time` decode requires RFC 3339 (regex gate, then `Time.iso8601`; `Date.parse` is never used for date-time); a nil element in an array or map of models raises `SerializationError`.
+Why: no host clock or locale dependence; no incidental NoMethodError later.
+Where: `object_serializer.mustache`.
+Test: `object_serializer_test`.
+
+### Default of a `$ref` enum (D60)
+Rule: the rendered default is the enum's wire value inside `Types::String.enum(...).default(...)`; if a constant name is rendered it is a defect.
+Why: dry-types enums compare wire values.
+Where: `fixEnumDefaultValue`, `fixEnumRefDefault` in the codegen.
+Test: `metadata_test`.
+
+### Resolved: compressed responses (Resolved cross-language fixes, D92)
+Rule: when `brotli`/`zstd-ruby` is absent and a `br` or `zstd` response arrives, ruby raises rather than returning still-encoded bytes; an unsupported Content-Encoding raises; an empty body passes through for any Content-Encoding; the returned headers drop `Content-Encoding` and `Content-Length` once the body was decoded.
+Why: the "unsupported Content-Encoding raises" contract.
+Where: `default_api_client.mustache`.
+Test: `default_api_client_unit_test`.
+
+### Resolved: deprecation marker on every variant
+Rule: a deprecated operation carries the doc-comment `@deprecated` on the data method and on `*_with_http_info`.
+Why: ruby has no deprecation attribute.
+Where: `api/api.mustache`.
+Test: `model_doc_test`.
+
+### Forced: `format: number` is native Float (D83)
+Rule: bare `format: number` and `decimal` map to `Float` and the README carries the "Decimal / `format: number` precision" caveat; `JSON.generate(BigDecimal)` would emit scientific or quoted text and break the unquoted wire form, which the `object_serializer` test asserts (`weightKg:1.5` unquoted).
+Why: documented and consistent with the seven native-float languages. Making it lossless is not decided.
+Where: `typeMapping` in the codegen, `readme.mustache`.
+Test: `object_serializer_test`, `readme_test`.
+
+### Forced: free-form null retention (F314, Second parity-audit tail)
+Rule: ruby strips `null` entries nested in free-form model values, as kotlin does; node and the others differ.
+Why: reachable only through a petstore free-form fixture edge; aligning needs per-field metadata the schema does not carry.
+Where: `object_serializer.mustache`.
+Test: `object_serializer_test`.
+
+### Forced: multipart filename file-handle Options (Second parity-audit tail)
+Rule: ruby (with go and php) sends a real filename and sniffed MIME through file-handle Options types.
+Why: aligning to the other nine would break the published client Options API of ruby and php.
+Where: `api/options.mustache`, `base_api.mustache`.
+Test: `base_api_test`.
+
+### Known-thin gates: Steep (Known-thin gates)
+Rule: Steep's `:lib` target is full strength; the `:test` target disables NoMethod, UnknownConstant, UndeclaredMethodDefinition and UnannotatedEmptyCollection because the minitest DSL has no signatures.
+Why: accepted; do not over-strengthen it.
+Where: `steepfile.mustache`.
+Test: `RubyTypeCheckSpec`.
+
+### RuboCop: only named cops are off (Guardrails, linting rule)
+Rule: no generated file carries `# rubocop:disable`; `.rubocop.yml` turns off only the cops it names with a reason (LineLength, the Metrics cops, `Minitest/MultipleAssertions` and `EmptyLineBeforeAssertionMethods`, `Naming/AccessorMethodName`, `Lint/InterpolationCheck`, `Naming/MethodParameterName`, `Style/ArgumentsForwarding`, `Style/ClassAndModuleChildren`, `Lint/EmptyClass`, `Style/Documentation`, `Style/RedundantConstantBase`).
+Why: Ruby passed its linters vacuously before this was enforced. Do not remove `Minitest/MultipleAssertions`: real clients' hand-written suites rely on it.
+Where: `rubocop.mustache`, the allowlist in `getFormatterCommands`.
+Test: `RubyLintingSpec`, `RubyFormattingSpec`.
+
+### Constant resolution regression
+Rule: the petstore configuration uses a client-like module (`Petstore::Client`, class `Petstore`) so a constant that resolves wrongly inside a nested namespace fails the golden.
+Why: that is how the Ruby constant-resolution bug was caught.
+Where: `RubySpec.getCodegenProperties`, `test/client_test.mustache`.
+Test: `RubyClientSpec`.
+
+### API surface allow rules (etc/api-surface-allow.json)
+Rule: the ruby entries are idiom only: `Types` module and the Faraday params encoder, `*Composite` structs, the `HttpAwareAuthenticator` mixin, no `actual_instance` wrapper, `Servers::ALL`, `resolve_oneof/anyof` inside model code, nested `Client`, public `NO_AUTH`/`token_manager`/`mark_exchanged`/`config`, ctor without `cause`, positional `val` setters, `Configuration`/`TransportOptions` keyword constructors.
+Why: each states the Ruby feature that forces it in its `reason`.
+Where: `etc/api-surface-allow.json`.
+Test: `python3 etc/api-surface.py check`.
+
+## Known limitations and out of scope
+
+- No per-call cancellation handle; a timeout is the only bound (S7 realisation above).
+- No SOCKS proxy: `proxy` accepts `http://` and `https://` only.
+- Webhooks, callbacks, XML bodies, Link Objects and mutual TLS are out of scope (S11, closed issues #53, #70, #78, #88, #90); the README says so.
+- OpenAPI 3.2 and 3.1 loading is tracked in epics #49 and #96, 3.2 documents in #50.
+- `format: number` precision is lossy (Float); lossless parsing is undecided.
+- Connection reuse is open for ruby: it never keeps a connection alive (F229).
+- `ruby` models do no type or enum validation on construction beyond dry-types `Any` for untyped fields (F316, parked).
+- An overflowing double literal such as `1e400` decodes to Infinity (F390, parked).
+- The apiKey scheme name is pasted into a string literal without escaping (F278, open).
+- Docs build (`yard --fail-on-warning`) is shipped in the Makefile but run by no spec (F191, deferred).
+- No `LICENSE` file is generated.
+- Reserved-word narrowing (D44) is conditional on Steep/RBS passing; otherwise it is recorded as forced.
+
+## Build-breaking rules
+
+- Do not add `# rubocop:disable` anywhere in generated code; name the cop in `rubocop.mustache` with a reason.
+- Do not hand-edit the golden under `src/spec/resources/generated/ruby/`; regenerate.
+- Comment syntax: a mustache `{{! ... }}` comment must never contain a literal `{{tag}}`; use `#` comments in generated Ruby and keep `=begin`/`=end` out of text (`escapeUnsafeCharacters` renames them).
+- Every file opens `module A::B` in compact form, and a lib file must declare exactly the constant its path names.
+- Steep must pass over `lib` with the committed `.rbs` signatures; a new Faraday hook needs an RBS declaration.
+- Do not use `strip` for credential blankness (it strips NUL); use the ASCII whitespace regex.
+- `bigdecimal` is pinned to `3.1.8` in the Gemfile so Bundler uses the precompiled default gem; the test image installs a compiler toolchain without `build-base` (fortify-headers breaks the zstd build on musl).
+- The test image must not set `BUNDLE_WITHOUT`; the `:optional` group is installed so the br/zstd tests run.
+- Add dependencies to a generated test only if every client's keep-listed manifest gets them too.
+- No `.github` workflow edits from this repo (S13); RuboCop cache lives under `/root/.cache/ruby/rubocop`.
+
+## Verify
+
+- `etc/ci-local.sh check Ruby` (add `--quick` on a clean tree for the main session)
+- `mvn verify -Dgroups=ruby` for the language end to end
+- Regenerate the golden: `mvn test -Dtest='Generate*ClientTest,FixtureVocabularyLeakTest' -DforkCount=0 -Djacoco.skip=true -DfailIfNoTests=false`, then commit all twelve goldens current
+- `python3 etc/api-surface.py check` must not get worse after a change
+- Inside a generated tree: `bundle exec rake test`, `bundle exec rubocop`, `bundle exec steep check`, `bundle exec yard doc --fail-on-warning`

@@ -250,4 +250,42 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert shown =~ "application/json"
     assert opts.proxy == "http://user:hunter2@proxy.example.com:8080"
   end
+
+  test "req_options defaults to an empty list" do
+    assert PetstoreClient.TransportOptions.new().req_options == []
+  end
+
+  test "req_options carries the caller's Req options" do
+    adapter = fn request -> {request, Req.Response.new(status: 200)} end
+    opts = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+
+    assert opts.req_options == [adapter: adapter]
+  end
+
+  test "req_options must be a keyword list" do
+    assert_raise ArgumentError, ~r/req_options/, fn ->
+      PetstoreClient.TransportOptions.new(req_options: %{adapter: :none})
+    end
+  end
+
+  test "req_options connect_options conflicts with the SDK's own proxy settings" do
+    assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
+      PetstoreClient.TransportOptions.new(
+        proxy: "http://proxy:8080",
+        req_options: [connect_options: [timeout: 1]]
+      )
+    end
+  end
+
+  test "req_options finch conflicts with verify_ssl false" do
+    assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
+      PetstoreClient.TransportOptions.new(verify_ssl: false, req_options: [finch: MyFinch])
+    end
+  end
+
+  test "req_options connect_options is accepted when the SDK sets no proxy or TLS option" do
+    opts = PetstoreClient.TransportOptions.new(req_options: [connect_options: [timeout: 1]])
+
+    assert opts.req_options == [connect_options: [timeout: 1]]
+  end
 end

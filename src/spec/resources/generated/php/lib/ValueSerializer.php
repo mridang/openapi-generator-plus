@@ -64,11 +64,13 @@ final class ValueSerializer
             return $location === 'path' ? rawurlencode($formatted) : $formatted;
         }
 
-        $stringifier = str_ends_with($schemaType, '|date')
-            ? static fn (mixed $v): string => $v instanceof \DateTimeInterface
-                ? $v->format('Y-m-d')
-                : ObjectSerializer::stringify($v)
-            : ObjectSerializer::stringify(...);
+        if (self::isTimeType($schemaType) && $value instanceof \DateTimeInterface) {
+            $formatted = ObjectSerializer::formatTime($value);
+
+            return $location === 'path' ? rawurlencode($formatted) : $formatted;
+        }
+
+        $stringifier = self::stringifierFor($schemaType);
 
         if (is_array($value)) {
             if ($location === 'query') {
@@ -254,12 +256,7 @@ final class ValueSerializer
             return '';
         }
 
-        $isDateOnly = str_ends_with($schemaType, '|date');
-        $stringifier = $isDateOnly
-            ? static fn (mixed $v): string => $v instanceof \DateTimeInterface
-                ? $v->format('Y-m-d')
-                : ObjectSerializer::stringify($v)
-            : ObjectSerializer::stringify(...);
+        $stringifier = self::stringifierFor($schemaType);
 
         /* Whether the incoming value is a multi-valued collection drives the
          * branching below: only arrays/objects explode into repeated params or
@@ -305,6 +302,39 @@ final class ValueSerializer
             'simple' => $isList ? implode(',', $items) : $scalar,
             default => self::serialize($value, $location, $schemaType, $collectionFormat),
         };
+    }
+
+    /**
+     * Whether a schema type tag names a `format: time` value (mapped to
+     * \DateTimeImmutable; `format: date-time` is \DateTime).
+     */
+    private static function isTimeType(string $schemaType): bool
+    {
+        return ltrim($schemaType, '\\') === \DateTimeImmutable::class;
+    }
+
+    /**
+     * Picks the scalar-to-string conversion for a schema type tag: date-only
+     * values are Y-m-d, time-of-day values are H:i:s with a millisecond
+     * fraction only when it is non-zero, everything else is the canonical
+     * stringify.
+     *
+     * @return callable(mixed): string
+     */
+    private static function stringifierFor(string $schemaType): callable
+    {
+        if (str_ends_with($schemaType, '|date')) {
+            return static fn (mixed $v): string => $v instanceof \DateTimeInterface
+                ? $v->format('Y-m-d')
+                : ObjectSerializer::stringify($v);
+        }
+        if (self::isTimeType($schemaType)) {
+            return static fn (mixed $v): string => $v instanceof \DateTimeInterface
+                ? ObjectSerializer::formatTime($v)
+                : ObjectSerializer::stringify($v);
+        }
+
+        return ObjectSerializer::stringify(...);
     }
 
     /**

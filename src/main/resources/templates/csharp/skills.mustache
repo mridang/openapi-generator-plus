@@ -249,6 +249,14 @@ var client = new global::{{packageName}}.{{clientClassName}}(authenticator, tran
 
 The client implements `IDisposable`. Use `using` statements or call `Dispose()` when done.
 
+### Cancellation
+
+Every operation takes a trailing `CancellationToken cancellationToken = default`. Cancelling it raises `OperationCanceledException` (not `NetworkTimeoutException`). `TransportOptions.Builder().CancellationToken(token)` adds a client-level token linked with each call's token.
+
+### Custom HTTP transport
+
+`TransportOptions.Builder().HttpClient(httpClient)` or `.HttpMessageHandler(handler)` carries requests on your own transport. SDK defaults (timeout, user agent, default headers, redirect policy) still apply, the SDK never disposes it, and combining it with `Proxy`, `CaCertPath` or `VerifySsl(false)` throws `ArgumentException` in `Build()`.
+
 ## API Methods
 
 Each API group is exposed as a typed property on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

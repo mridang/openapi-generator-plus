@@ -643,6 +643,26 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         /* format: uri stays a String but is decoded through
          * object_serializer::absolute_uri, which rejects relative references. */
         property.vendorExtensions.put("isUri", "uri".equals(property.dataFormat));
+        /* A required AND nullable property is an Option whose key must be
+         * present on decode (null is legal) and is always written on encode.
+         * serde treats a missing Option field as None, so a plain Option needs
+         * a deserialize_with helper to reject a missing key. A field that
+         * already carries a custom with/deserialize_with adapter rejects a
+         * missing key on its own (those adapters are used without `default`),
+         * so the helper is only needed for the remaining plain fields. */
+        final boolean itemsAreBytes = property.items != null && property.items.isByteArray;
+        final String format = property.dataFormat;
+        final boolean customAdapter =
+                property.isByteArray
+                        || (property.isArray && itemsAreBytes)
+                        || (property.isMap && itemsAreBytes)
+                        || (!property.isArray
+                                && ("duration".equals(format)
+                                        || "time".equals(format)
+                                        || "uri".equals(format)));
+        property.vendorExtensions.put(
+                "requiredNullablePlain",
+                property.required && property.isNullable && !customAdapter);
         // A property referencing a model renamed by toModelName (prelude clash)
         // still carries the raw schema name; point it at the renamed type.
         final String complex = property.complexType;

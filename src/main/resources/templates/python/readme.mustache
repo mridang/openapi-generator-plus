@@ -65,7 +65,7 @@ This SDK leans on pydantic 2's native typed surfaces:
 | `string`, `format: password`       | `pydantic.SecretStr`              |
 | `string`, `format: date-time`      | `pydantic.AwareDatetime` (tz-aware) |
 | `string`, `format: date`           | `datetime.date`                   |
-| `string`, `format: time`           | `datetime.time`                   |
+| `string`, `format: time`           | `datetime.time` (written `HH:MM:SS`, plus `.SSS` only when the millisecond part is non-zero) |
 | `string`, `format: duration`       | `datetime.timedelta`              |
 | `string`, `format: uuid`           | `uuid.UUID`                       |
 | `string`, `format: byte/binary`    | `bytes`                           |
@@ -83,10 +83,9 @@ A bare `type: number` (no `format`) maps to `decimal.Decimal`, which
 preserves exact decimal representation in Python — safe for in-process
 arithmetic on monetary values. On the wire it serializes as an UNQUOTED
 JSON number (`1.5`, never the quoted string `"1.5"`) because the spec
-types it as a JSON number; that JSON-encode step widens the value through
-a 64-bit IEEE-754 `float`, so a digit count beyond a double's precision is
-not preserved across a serialize round-trip even though the in-Python value
-is a full-precision `Decimal`. `format: float` and `format: double` map to
+types it as a JSON number; the exact decimal digits are written, never
+rounded through a binary `float`, and the digits of a response number are
+read back exactly. A quoted string is rejected for a `type: number` field. `format: float` and `format: double` map to
 `pydantic.StrictFloat`, i.e. Python's native `float`, which is a 64-bit
 IEEE-754 binary float. Values such fields carry cannot represent every
 decimal fraction exactly: `0.1 + 0.2` in Python is `0.30000000000000004`.
@@ -133,6 +132,26 @@ authoritative validator; the client-side check is a fast-fail
 convenience before the network round trip.
 
 
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server and, in
+this SDK, by the generated models: Python validates them through pydantic
+(`Field(...)` constraints), and a violation raises `pydantic.ValidationError`.
+Request parameters outside a model are not checked client-side. `uniqueItems`
+arrays are sent in the collection's natural order (a Python `set` in iteration
+order), never sorted.
+
+### Your own HTTP transport
+
+Pass a `urllib3.PoolManager` you built to the client
+(`Client(authenticator, pool_manager=pool)`; `with_token` and
+`with_authenticator` take it too). The SDK defaults (timeout, redirect policy,
+user agent, request id, default headers) are applied on top of it, and the SDK
+never closes it: you own its lifecycle. Combining it with a proxy, a CA bundle
+or `verify_ssl(False)` in `TransportOptions` raises `ValueError`, because those
+settings belong to the pool manager you built.
+
 ### SOCKS proxies
 
 `TransportOptions.builder().proxy()` accepts only `http://` and `https://` URLs.
@@ -145,9 +164,12 @@ through a local HTTP-CONNECT bridge or configure it at the OS level.
 
 ### Per-call cancellation
 
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutException`.
+Cancelling the asyncio task that awaits an operation aborts the request
+itself: its socket is shut down and the connection dropped, instead of the
+call running on in a worker thread. `Client.close()` (also `with Client(...)`)
+cancels every request still in flight; those calls raise `RuntimeError`. To
+bound how long a call can take, set the request timeout on `TransportOptions`;
+a call that exceeds it fails with `NetworkTimeoutException`.
 
 ### `LICENSE` file is not auto-emitted
 

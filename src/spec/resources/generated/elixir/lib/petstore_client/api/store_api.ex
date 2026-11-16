@@ -122,7 +122,7 @@ defmodule PetstoreClient.Api.StoreApi do
     end
 
     path = "/store/account"
-    query_params = %{}
+    query_params = []
     header_params = %{}
 
     request_body =
@@ -216,7 +216,7 @@ defmodule PetstoreClient.Api.StoreApi do
         |> to_string()
       )
 
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -345,26 +345,26 @@ defmodule PetstoreClient.Api.StoreApi do
         |> to_string()
       )
 
-    query_params = %{}
+    query_params = []
 
     query_params =
       if not is_nil(options) and not is_nil(options.query_swatch) and options.query_swatch != [] do
-        Map.put(
-          query_params,
-          "querySwatch",
-          PetstoreClient.ValueSerializer.maybe_allow_reserved(
-            PetstoreClient.ValueSerializer.serialize_styled(
-              "querySwatch",
-              options.query_swatch,
-              :query,
-              "Swatch",
-              nil,
-              "form",
-              true
-            ),
-            false
-          )
-        )
+        query_params ++
+          [
+            {"querySwatch",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "querySwatch",
+                 options.query_swatch,
+                 :query,
+                 "Swatch",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
       else
         query_params
       end
@@ -477,7 +477,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/defaults"
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -565,7 +565,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/department"
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -653,7 +653,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/grouped-categories"
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -741,7 +741,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/inventory"
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -829,7 +829,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/matrix"
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -937,7 +937,7 @@ defmodule PetstoreClient.Api.StoreApi do
         |> to_string()
       )
 
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -1049,7 +1049,7 @@ defmodule PetstoreClient.Api.StoreApi do
         |> to_string()
       )
 
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -1143,26 +1143,26 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/stock-item"
-    query_params = %{}
+    query_params = []
 
     query_params =
       if not is_nil(options) and not is_nil(options.as_of) and options.as_of != [] do
-        Map.put(
-          query_params,
-          "asOf",
-          PetstoreClient.ValueSerializer.maybe_allow_reserved(
-            PetstoreClient.ValueSerializer.serialize_styled(
-              "asOf",
-              options.as_of,
-              :query,
-              "DateTime.t()",
-              nil,
-              "form",
-              true
-            ),
-            false
-          )
-        )
+        query_params ++
+          [
+            {"asOf",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "asOf",
+                 options.as_of,
+                 :query,
+                 "DateTime.t()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
       else
         query_params
       end
@@ -1254,7 +1254,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/swatch"
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -1342,7 +1342,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/swatch-groups"
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -1430,7 +1430,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/timestamp-groups"
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -1518,7 +1518,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/tree"
-    query_params = %{}
+    query_params = []
     header_params = %{}
     request_body = nil
 
@@ -1603,7 +1603,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # falls back to the client-level authenticator.
     auth = nil
     path = "/store/order"
-    query_params = %{}
+    query_params = []
     header_params = %{}
 
     request_body =
@@ -1699,55 +1699,55 @@ defmodule PetstoreClient.Api.StoreApi do
     # operation.
     auth = PetstoreClient.Api.BaseApi.no_auth()
     path = "/store/search"
-    query_params = %{}
+    query_params = []
 
     query_params =
       if not is_nil(options) and options.q do
-        Map.put(query_params, "q", Jason.encode!(options.q))
+        query_params ++ [{"q", PetstoreClient.ObjectSerializer.serialize(options.q)}]
       else
         query_params
       end
 
     query_params =
       if not is_nil(options) and not is_nil(options.labels) and options.labels != [] do
-        Map.put(
-          query_params,
-          "labels",
-          PetstoreClient.ValueSerializer.maybe_allow_reserved(
-            PetstoreClient.ValueSerializer.serialize_styled(
-              "labels",
-              options.labels,
-              :query,
-              "[String.t()]",
-              :multi,
-              "form",
-              true
-            ),
-            false
-          )
-        )
+        query_params ++
+          [
+            {"labels",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "labels",
+                 options.labels,
+                 :query,
+                 "[String.t()]",
+                 :multi,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
       else
         query_params
       end
 
     query_params =
       if not is_nil(options) and not is_nil(options.at) and options.at != [] do
-        Map.put(
-          query_params,
-          "at",
-          PetstoreClient.ValueSerializer.maybe_allow_reserved(
-            PetstoreClient.ValueSerializer.serialize_styled(
-              "at",
-              options.at,
-              :query,
-              "Time.t()",
-              nil,
-              "form",
-              true
-            ),
-            false
-          )
-        )
+        query_params ++
+          [
+            {"at",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "at",
+                 options.at,
+                 :query,
+                 "Time.t()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
       else
         query_params
       end
@@ -1759,16 +1759,7 @@ defmodule PetstoreClient.Api.StoreApi do
         Map.put(
           header_params,
           "X-Filter",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "X-Filter",
-            options.x_filter,
-            :header,
-            "%{String.t() => String.t()}",
-            nil,
-            "",
-            false
-          )
-          |> to_string()
+          PetstoreClient.ObjectSerializer.serialize(options.x_filter)
         )
       else
         header_params

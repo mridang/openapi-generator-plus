@@ -351,6 +351,21 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
   ]);
 
+  /**
+   * Fields that are both required and nullable. ObjectSerializer.serialize
+   * drops a null value everywhere else; for these the key is always written,
+   * as null when the value is null. Empty when the model has no such field.
+   */
+  static readonly __requiredNullableFields: ReadonlySet<string> = new Set([
+{{#vars}}
+{{#required}}
+{{#isNullable}}
+    '{{name}}',
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+  ]);
+
 {{#vars}}
 {{#description}}
   /**
@@ -392,6 +407,11 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/deprecated}}
 {{/description}}
   @Expose({ name: '{{baseName}}' })
+{{#vendorExtensions.isPlainNumberDecimal}}
+  /* A bare `type: number` is a JSON number: decode keeps its exact text (no
+   * float coercion) and rejects a quoted string. */
+  @Transform(({ obj }) => decodePlainNumber(obj, '{{baseName}}'), { toClassOnly: true })
+{{/vendorExtensions.isPlainNumberDecimal}}
 {{#vendorExtensions.isTimeFormat}}
   /* 4.8 — `format: time` round-trips via Temporal.PlainTime. */
   @Transform(({ value }) => (typeof value === 'string' ? Temporal.PlainTime.from(value) : value), { toClassOnly: true })
@@ -564,7 +584,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isMap}}
 {{/isDate}}
 {{/isDateTime}}
-  {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}!{{/defaultValue}}{{/required}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+  {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}!{{/defaultValue}}{{/required}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#required}}{{#isNullable}} | null{{/isNullable}}{{/required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{^-last}}
 {{/-last}}
 {{/vars}}

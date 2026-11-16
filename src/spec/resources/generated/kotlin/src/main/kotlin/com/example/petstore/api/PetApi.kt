@@ -560,10 +560,10 @@ class PetApi : BaseApi {
     }
 
     /** Same as [getExternalPetInfo] but sends the request to the default server. */
-    suspend fun getExternalPetInfo(petId: Long): Pet = getExternalPetInfo(petId, null)
+    suspend fun getExternalPetInfo(petId: Long): Pet = getExternalPetInfo(petId = petId, server = null)
 
     /** Same as [getExternalPetInfoWithHttpInfo] but sends the request to the default server. */
-    suspend fun getExternalPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getExternalPetInfoWithHttpInfo(petId, null)
+    suspend fun getExternalPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getExternalPetInfoWithHttpInfo(petId = petId, server = null)
 
     /**
      * Get external pet info
@@ -622,10 +622,11 @@ class PetApi : BaseApi {
     }
 
     /** Same as [getMultiServerPetInfo] but sends the request to the default server. */
-    suspend fun getMultiServerPetInfo(petId: Long): Pet = getMultiServerPetInfo(petId, null)
+    suspend fun getMultiServerPetInfo(petId: Long): Pet = getMultiServerPetInfo(petId = petId, server = null)
 
     /** Same as [getMultiServerPetInfoWithHttpInfo] but sends the request to the default server. */
-    suspend fun getMultiServerPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getMultiServerPetInfoWithHttpInfo(petId, null)
+    suspend fun getMultiServerPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> =
+        getMultiServerPetInfoWithHttpInfo(petId = petId, server = null)
 
     /**
      * Get multi-server pet info
@@ -773,11 +774,11 @@ class PetApi : BaseApi {
 
     /** Same as [getPetById] but sends the request to the default server. */
     @Deprecated("This operation is deprecated.")
-    suspend fun getPetById(petId: Long): Pet = getPetById(petId, null)
+    suspend fun getPetById(petId: Long): Pet = getPetById(petId = petId, server = null)
 
     /** Same as [getPetByIdWithHttpInfo] but sends the request to the default server. */
     @Deprecated("This operation is deprecated.")
-    suspend fun getPetByIdWithHttpInfo(petId: Long): ApiResult<Pet> = getPetByIdWithHttpInfo(petId, null)
+    suspend fun getPetByIdWithHttpInfo(petId: Long): ApiResult<Pet> = getPetByIdWithHttpInfo(petId = petId, server = null)
 
     /**
      * Find pet by ID
@@ -1249,10 +1250,10 @@ class PetApi : BaseApi {
     }
 
     /** Same as [getStagingPetInfo] but sends the request to the default server. */
-    suspend fun getStagingPetInfo(petId: Long): Pet = getStagingPetInfo(petId, null)
+    suspend fun getStagingPetInfo(petId: Long): Pet = getStagingPetInfo(petId = petId, server = null)
 
     /** Same as [getStagingPetInfoWithHttpInfo] but sends the request to the default server. */
-    suspend fun getStagingPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getStagingPetInfoWithHttpInfo(petId, null)
+    suspend fun getStagingPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getStagingPetInfoWithHttpInfo(petId = petId, server = null)
 
     /**
      * Get staging pet info

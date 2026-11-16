@@ -97,7 +97,7 @@ class DefaultApiClient internal constructor(
      * @param transportOptions transport configuration to apply
      */
     constructor(transportOptions: TransportOptions) : this(
-        buildPlatformHttpClient(transportOptions),
+        resolveHttpClient(transportOptions),
         transportOptions,
     )
 
@@ -505,9 +505,11 @@ class DefaultApiClient internal constructor(
     }
 
     /**
-     * Closes the underlying Ktor [HttpClient] and releases its connection
-     * pool / engine threads. After calling this method the client must not
-     * be reused.
+     * Closes the Ktor [HttpClient] this SDK built and releases its connection
+     * pool / engine threads. A client supplied through
+     * [TransportOptions.httpClient] is never closed: only the SDK's derived view
+     * of it is released, and the caller's client and engine stay open. After
+     * calling this method the client must not be reused.
      */
     override fun close() {
         closed = true
@@ -912,6 +914,26 @@ internal fun rfc5987EncodeValue(s: String): String {
         }
     }
     return out.toString()
+}
+
+/**
+ * Picks the transport for [options]: the SDK's own client, or a derived view of the
+ * caller-supplied one. The derived view shares the caller's engine (closing it never
+ * closes that engine) and gets the SDK's defaults on top: redirects are handled by
+ * [DefaultApiClient] itself, and the end-to-end timeout is armed when one is set.
+ */
+internal fun resolveHttpClient(options: TransportOptions): HttpClient {
+    val supplied = options.httpClient ?: return buildPlatformHttpClient(options)
+    return supplied.config {
+        followRedirects = false
+        if (options.timeout != null) {
+            install(io.ktor.client.plugins.HttpTimeout) {
+                requestTimeoutMillis = options.timeout.toLong()
+                connectTimeoutMillis = options.timeout.toLong()
+                socketTimeoutMillis = options.timeout.toLong()
+            }
+        }
+    }
 }
 
 /** Platform-specific [HttpClient] factory; configured with engine, TLS, proxy, and common plugins. */

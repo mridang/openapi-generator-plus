@@ -255,12 +255,12 @@ class {{classname}} {
 {{#deprecated}}
   @Deprecated('This property is deprecated.')
 {{/deprecated}}
-{{#required}}
+{{#vendorExtensions.strictRequired}}
   final {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}};
-{{/required}}
-{{^required}}
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
   final {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}};
-{{/required}}
+{{/vendorExtensions.strictRequired}}
 
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
@@ -392,6 +392,15 @@ class {{classname}} {
 {{/vars}}
 {{#vars}}
 {{#required}}
+{{#vendorExtensions.requiredNullable}}
+    /* A REQUIRED, nullable field must have its key present on the wire; an
+       explicit null is a legal value and is kept. */
+    if (!json.containsKey('{{baseName}}')) {
+      throw SerializationException(
+          "Missing required field '{{baseName}}' for {{classname}}");
+    }
+{{/vendorExtensions.requiredNullable}}
+{{^vendorExtensions.requiredNullable}}
     /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
        non-null on the wire. An absent key reads as null in Dart, so this
        single guard covers both the missing and explicitly-null cases. We
@@ -401,11 +410,12 @@ class {{classname}} {
       throw SerializationException(
           "Missing required field '{{baseName}}' for {{classname}}");
     }
+{{/vendorExtensions.requiredNullable}}
 {{/required}}
 {{/vars}}
     return {{classname}}(
 {{#vars}}
-{{#required}}
+{{#vendorExtensions.strictRequired}}
 {{#isEnum}}
 {{#isInteger}}
       {{name}}: json['{{baseName}}'] != null ? {{classname}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : throw ArgumentError('Missing required enum field {{baseName}}'),
@@ -508,8 +518,8 @@ class {{classname}} {
 {{/isMap}}
 {{/isArray}}
 {{/isEnum}}
-{{/required}}
-{{^required}}
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
 {{#isEnum}}
 {{#isInteger}}
 {{#defaultValue}}
@@ -656,7 +666,7 @@ class {{classname}} {
 {{/isMap}}
 {{/isArray}}
 {{/isEnum}}
-{{/required}}
+{{/vendorExtensions.strictRequired}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
       additionalProperties: additionalProperties,
@@ -668,7 +678,7 @@ class {{classname}} {
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
 {{#vars}}
-{{#required}}
+{{#vendorExtensions.strictRequired}}
 {{#isEnum}}
     json['{{baseName}}'] = {{name}}.toJson();
 {{/isEnum}}
@@ -757,8 +767,13 @@ class {{classname}} {
 {{/isByteArray}}
 {{/isArray}}
 {{/isEnum}}
-{{/required}}
-{{^required}}
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+{{#vendorExtensions.requiredNullable}}
+    if ({{name}} == null) {
+      json['{{baseName}}'] = null;
+    }
+{{/vendorExtensions.requiredNullable}}
     if ({{name}} != null) {
 {{#isEnum}}
       json['{{baseName}}'] = {{name}}?.toJson();
@@ -847,7 +862,7 @@ class {{classname}} {
 {{/isArray}}
 {{/isEnum}}
     }
-{{/required}}
+{{/vendorExtensions.strictRequired}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
     /* A declared property is authoritative: an additionalProperties entry

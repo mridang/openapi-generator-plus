@@ -67,6 +67,17 @@ type noRedirectContextKey struct{}
 type DefaultApiClient struct {
 	transportOptions *TransportOptions
 	httpClient       *http.Client
+	/* doer sends the request: the SDK's policy client, or the caller's own
+	 * HttpDoer when one was injected that is not an *http.Client. */
+	doer HttpDoer
+	/* owned is the transport this client created and therefore closes; nil
+	 * when the caller supplied the transport, which the caller owns. */
+	owned *http.Transport
+	/* baseCtx is the client's base context. Close cancels it, which aborts every
+	 * in-flight request; it is merged with each call's own context so either
+	 * one cancels the request. */
+	baseCtx context.Context
+	cancel  context.CancelFunc
 	/* closed is set by Close(). Once closed, any further SendRequest must fail
 	 * with a uniform SDK error rather than silently succeeding (or leaking a
 	 * foreign library error), matching the use-after-close contract of the
@@ -81,12 +92,57 @@ func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
 		transportOptions = defaultTransportOptions()
 	}
 
-	httpClient := buildHTTPClient(transportOptions)
+	c := &DefaultApiClient{transportOptions: transportOptions}
+	c.baseCtx, c.cancel = context.WithCancel(context.Background())
 
-	return &DefaultApiClient{
-		transportOptions: transportOptions,
-		httpClient:       httpClient,
+	/* A caller-supplied transport is wrapped, never replaced: the SDK keeps its
+	 * redirect policy, timeout, user agent and headers on top of it, and never
+	 * closes it. A bare *http.Client contributes only its Transport; any other
+	 * HttpDoer is called as given. */
+	supplied := transportOptions.roundTripper
+	if supplied == nil {
+		switch hc := transportOptions.httpClient.(type) {
+		case nil:
+		case *http.Client:
+			supplied = hc.Transport
+		default:
+			c.doer = hc
+		}
 	}
+	switch {
+	case c.doer != nil:
+	case supplied != nil:
+		c.httpClient = newPolicyClient(transportOptions, &locationGuardTransport{inner: supplied})
+		c.doer = c.httpClient
+	default:
+		c.owned = newOwnedTransport(transportOptions)
+		c.httpClient = newPolicyClient(transportOptions, &locationGuardTransport{inner: c.owned})
+		c.doer = c.httpClient
+	}
+	return c
+}
+
+// mergeContexts returns a context cancelled when either the call context or
+// the client's base context is cancelled. The returned cancel function must be
+// called to release the link to the base context.
+func mergeContexts(call, base context.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(call)
+	stop := context.AfterFunc(base, cancel)
+	return ctx, func() {
+		stop()
+		cancel()
+	}
+}
+
+// cancellationError reports a request aborted by context cancellation. It
+// wraps context.Canceled, so errors.Is(err, context.Canceled) holds, and it is
+// never a *NetworkTimeoutError. A cancellation caused by Close also wraps
+// ErrClientClosed.
+func (c *DefaultApiClient) cancellationError() error {
+	if c.closed.Load() {
+		return fmt.Errorf("request cancelled: %w: %w", ErrClientClosed, context.Canceled)
+	}
+	return fmt.Errorf("request cancelled: %w", context.Canceled)
 }
 
 // SendRequest sends an HTTP request and returns the response, with
@@ -169,7 +225,19 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		}
 	}
 
-	ctx := context.Background()
+	callCtx := context.Background()
+	if opts != nil && opts.Context != nil {
+		callCtx = opts.Context
+	}
+	ctx, release := mergeContexts(callCtx, c.baseCtx)
+	defer release()
+	if c.httpClient == nil && c.transportOptions.Timeout() != nil && *c.transportOptions.Timeout() > 0 {
+		/* An injected HttpDoer has no client-level timeout, so the SDK's
+		 * end-to-end budget is a deadline on the request context. */
+		var stop context.CancelFunc
+		ctx, stop = context.WithTimeout(ctx, time.Duration(*c.transportOptions.Timeout())*time.Millisecond)
+		defer stop()
+	}
 	if opts != nil && opts.NoRedirect {
 		ctx = context.WithValue(ctx, noRedirectContextKey{}, true)
 	}
@@ -182,7 +250,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		req.Header.Set(k, v)
 	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doer.Do(req)
 	if err != nil {
 		if resp != nil {
 			// A refused redirect (too many hops, a non-HTTP scheme, an
@@ -194,6 +262,9 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 				fmt.Sprintf("redirect refused: %s", err.Error()),
 				"", lowerCaseHeaders(resp.Header), nil, err,
 			)
+		}
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return nil, c.cancellationError()
 		}
 		// No HTTP response: a timeout surfaces as *NetworkTimeoutError, any
 		// other transport failure (connection refused, DNS, TLS, reset) as
@@ -208,6 +279,9 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	// send-phase one.
 	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return nil, c.cancellationError()
+		}
 		return nil, newTransportError(fmt.Sprintf("failed to read response body: %s", err.Error()), err)
 	}
 
@@ -263,7 +337,7 @@ func lowerCaseHeaders(header http.Header) map[string]string {
 // cut short by it — becomes *NetworkTimeoutError; anything else *NetworkError.
 func newTransportError(msg string, err error) error {
 	var timeout interface{ Timeout() bool }
-	if errors.As(err, &timeout) && timeout.Timeout() {
+	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeout) && timeout.Timeout()) {
 		return errors_pkg.NewNetworkTimeoutError(msg, err)
 	}
 	return errors_pkg.NewNetworkError(msg, err)
@@ -271,15 +345,15 @@ func newTransportError(msg string, err error) error {
 
 // Close releases any resources held by this client: the idle TCP/TLS
 // connections of the underlying http.Transport (connection pool, sockets).
-// After Close the client cannot be reused; a further request returns
-// ErrClientClosed.
+// Close also cancels the client's base context, which aborts every request
+// still in flight. A transport supplied by the caller is never closed: the
+// caller owns its lifecycle. After Close the client cannot be reused; a
+// further request returns ErrClientClosed.
 func (c *DefaultApiClient) Close() error {
 	c.closed.Store(true)
-	switch transport := c.httpClient.Transport.(type) {
-	case *locationGuardTransport:
-		transport.inner.CloseIdleConnections()
-	case *http.Transport:
-		transport.CloseIdleConnections()
+	c.cancel()
+	if c.owned != nil {
+		c.owned.CloseIdleConnections()
 	}
 	return nil
 }
@@ -294,7 +368,7 @@ func (c *DefaultApiClient) Close() error {
 // canonically and so sees none, while the response keeps the header (headers
 // reach callers lowercased) and its body.
 type locationGuardTransport struct {
-	inner *http.Transport
+	inner http.RoundTripper
 }
 
 // RoundTrip sends the request on the inner transport and hides an
@@ -319,7 +393,14 @@ func (t *locationGuardTransport) RoundTrip(req *http.Request) (*http.Response, e
 	return resp, nil
 }
 
+// buildHTTPClient builds the policy client over a transport the SDK owns.
 func buildHTTPClient(opts *TransportOptions) *http.Client {
+	return newPolicyClient(opts, &locationGuardTransport{inner: newOwnedTransport(opts)})
+}
+
+// newOwnedTransport builds the net/http transport the SDK itself owns, with
+// the TLS, CA bundle and proxy settings of the transport options.
+func newOwnedTransport(opts *TransportOptions) *http.Transport {
 	/* Mirror the standard library's default transport limits rather than a
 	 * zero-value Transport, which has no idle-connection timeout, no dial or
 	 * TLS-handshake timeout and no TCP keep-alive. Built literally (not cloned
@@ -356,8 +437,14 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 		transport.Proxy = http.ProxyURL(opts.Proxy())
 	}
 
+	return transport
+}
+
+// newPolicyClient wraps a RoundTripper with the SDK's timeout and redirect
+// policy, whether the transport is the SDK's own or the caller's.
+func newPolicyClient(opts *TransportOptions, transport http.RoundTripper) *http.Client {
 	client := &http.Client{
-		Transport: &locationGuardTransport{inner: transport},
+		Transport: transport,
 	}
 
 	if opts.Timeout() != nil {
@@ -690,7 +777,8 @@ func buildTransportMultipartBody(formFields map[string]any) (*bytes.Buffer, stri
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	for fieldName, value := range formFields {
+	for _, fieldName := range orderedKeys(formFields, nil) {
+		value := formFields[fieldName]
 		// Gap W2: every Content-Disposition header below interpolates
 		// fieldName into a quoted name="..." parameter, so the name
 		// must be validated for CR/LF/NUL and quote-escaped exactly

@@ -36,6 +36,7 @@ public final class TransportOptions {
     @Nullable private final String          userAgent;
     private final Map<String, String> defaultHeaders;
     private final boolean         injectRequestId;
+    @Nullable private final java.net.http.HttpClient httpClient;
 
     TransportOptions(
             boolean         verifySsl,
@@ -46,7 +47,8 @@ public final class TransportOptions {
             @Nullable Integer         maxRedirects,
             @Nullable String          userAgent,
             Map<String, String> defaultHeaders,
-            boolean         injectRequestId) {
+            boolean         injectRequestId,
+            @Nullable java.net.http.HttpClient httpClient) {
         this.verifySsl       = verifySsl;
         this.caCertPath      = caCertPath;
         this.proxy           = proxy;
@@ -56,6 +58,7 @@ public final class TransportOptions {
         this.userAgent       = userAgent;
         this.defaultHeaders  = Collections.unmodifiableMap(new HashMap<>(defaultHeaders));
         this.injectRequestId = injectRequestId;
+        this.httpClient      = httpClient;
     }
 
     /**
@@ -180,6 +183,21 @@ public final class TransportOptions {
     }
 
     /**
+     * The caller-supplied {@link java.net.http.HttpClient}, if any.
+     *
+     * <p>When set, the SDK sends every request through this client and never
+     * closes it: the caller owns its lifecycle. The SDK defaults for the
+     * request timeout, retries, user agent and redirect handling are still
+     * applied on top of it.
+     *
+     * @return the injected client, or {@code null} to let the SDK build its own
+     */
+    @Nullable
+    public java.net.http.HttpClient getHttpClient() {
+        return httpClient;
+    }
+
+    /**
      * Builder for creating immutable {@link TransportOptions} instances.
      *
      * <p>All fields have sensible defaults:
@@ -203,8 +221,30 @@ public final class TransportOptions {
         @Nullable private String       userAgent       = "{{userAgentDefault}}";
         private final Map<String, String> defaultHeaders  = new HashMap<>();
         private boolean                injectRequestId = false;
+        @Nullable private java.net.http.HttpClient httpClient = null;
 
         Builder() {}
+
+        /**
+         * Use a caller-supplied {@link java.net.http.HttpClient} as the transport.
+         *
+         * <p>The SDK keeps its own wrapper and applies its defaults (request
+         * timeout, retries, user agent, redirect policy) on top, but never
+         * closes the supplied client. Proxy, TLS verification and CA
+         * certificate settings belong to the supplied client, so combining it
+         * with {@link #proxy}, {@link #caCertPath} or {@code verifySsl(false)}
+         * makes {@link #build()} fail. The supplied client must not follow
+         * redirects itself (its redirect policy must be
+         * {@link java.net.http.HttpClient.Redirect#NEVER}), because the SDK
+         * drives the redirect loop.
+         *
+         * @param httpClient the client to send requests through, or {@code null} for the default
+         * @return this builder
+         */
+        public Builder httpClient(@Nullable java.net.http.HttpClient httpClient) {
+            this.httpClient = httpClient;
+            return this;
+        }
 
         /**
          * Enable or disable TLS certificate verification.
@@ -344,6 +384,18 @@ public final class TransportOptions {
          * @return the configured transport options
          */
         public TransportOptions build() {
+            if (httpClient != null) {
+                if (proxy != null || caCertPath != null || !verifySsl) {
+                    throw new IllegalArgumentException(
+                            "A caller-supplied HttpClient owns its own proxy and TLS settings; "
+                                    + "do not combine it with proxy, caCertPath or verifySsl(false)");
+                }
+                if (httpClient.followRedirects() != java.net.http.HttpClient.Redirect.NEVER) {
+                    throw new IllegalArgumentException(
+                            "A caller-supplied HttpClient must use Redirect.NEVER; "
+                                    + "the SDK follows redirects itself");
+                }
+            }
             return new TransportOptions(
                     verifySsl,
                     caCertPath,
@@ -353,7 +405,8 @@ public final class TransportOptions {
                     maxRedirects,
                     userAgent,
                     new HashMap<>(defaultHeaders),
-                    injectRequestId);
+                    injectRequestId,
+                    httpClient);
         }
     }
 }

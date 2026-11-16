@@ -169,8 +169,16 @@ pub struct {{classname}} {
 {{/isDiscriminator}}
 {{^isDiscriminator}}
 {{#required}}
+{{#isNullable}}
+    /* Required AND nullable: the key must be present on decode (null is a legal
+     * value) and is always written on encode, as null when the value is None. */
+    #[serde(rename = "{{baseName}}"{{#vendorExtensions.requiredNullablePlain}}, deserialize_with = "crate::object_serializer::required_nullable::deserialize"{{/vendorExtensions.requiredNullablePlain}}{{#isByteArray}}, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{#isMap}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::map_option"{{/isByteArray}}{{/items}}{{/isMap}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, with = "crate::proto_duration::option"{{/isArray}}{{/vendorExtensions.isDuration}}{{#vendorExtensions.isTime}}{{^isArray}}, with = "crate::object_serializer::naive_time::option"{{/isArray}}{{/vendorExtensions.isTime}}{{#vendorExtensions.isUri}}{{^isArray}}, deserialize_with = "crate::object_serializer::absolute_uri::option"{{/isArray}}{{/vendorExtensions.isUri}}{{#uniqueItems}}{{#isArray}}{{#items}}{{^isByteArray}}, serialize_with = "crate::object_serializer::sorted_set::option"{{/isByteArray}}{{/items}}{{/isArray}}{{/uniqueItems}})]
+    pub {{name}}: Option<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>,
+{{/isNullable}}
+{{^isNullable}}
     #[serde(rename = "{{baseName}}"{{#isByteArray}}, with = "super::base64_serde"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec"{{/isByteArray}}{{/items}}{{/isArray}}{{#isMap}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::map"{{/isByteArray}}{{/items}}{{/isMap}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, with = "crate::proto_duration"{{/isArray}}{{/vendorExtensions.isDuration}}{{#vendorExtensions.isTime}}{{^isArray}}, with = "crate::object_serializer::naive_time"{{/isArray}}{{/vendorExtensions.isTime}}{{#vendorExtensions.isUri}}{{^isArray}}, deserialize_with = "crate::object_serializer::absolute_uri::deserialize"{{/isArray}}{{/vendorExtensions.isUri}}{{#uniqueItems}}{{#isArray}}{{#items}}{{^isByteArray}}, serialize_with = "crate::object_serializer::sorted_set::serialize"{{/isByteArray}}{{/items}}{{/isArray}}{{/uniqueItems}})]
     pub {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}},
+{{/isNullable}}
 {{/required}}
 {{^required}}
     {{! An optional field with a custom `with =` (de)serializer needs `default`
@@ -212,7 +220,7 @@ fn serialize_additional_properties<S: serde::Serializer>(
 {{#hasVars}}
 impl {{classname}} {
     /// Creates a new {{classname}} instance with required parameters.
-    pub fn new({{#requiredVars}}{{^isDiscriminator}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}, {{/isDiscriminator}}{{/requiredVars}}) -> Self {
+    pub fn new({{#requiredVars}}{{^isDiscriminator}}{{name}}: {{#isNullable}}Option<{{/isNullable}}{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}>{{/isNullable}}, {{/isDiscriminator}}{{/requiredVars}}) -> Self {
         Self {
 {{#requiredVars}}
 {{#isDiscriminator}}

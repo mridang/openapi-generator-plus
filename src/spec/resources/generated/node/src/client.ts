@@ -16,6 +16,18 @@ import { PetApi } from "./api/pet-api.js";
 import { StoreApi } from "./api/store-api.js";
 
 /**
+ * Client-level options for Client.
+ *
+ * - `signal` -- cancels every call made through the client when it fires. It
+ *   is merged with the per-call `signal` of each operation (either one
+ *   cancels the call) and raises the signal's reason (an `AbortError` by
+ *   default), never a timeout error.
+ */
+export interface ClientOptions {
+  readonly signal?: AbortSignal;
+}
+
+/**
  * Unified entry point for all API services.
  *
  * Takes an {@link Authenticator} and optionally {@link TransportOptions},
@@ -36,6 +48,13 @@ import { StoreApi } from "./api/store-api.js";
  *   .timeout(5000)
  *   .build();
  * const client = new Client(authenticator, transport);
+ *
+ * // Custom fetch (the caller owns it; the SDK never closes it)
+ * const injected = TransportOptions.builder().fetch(myFetch).build();
+ *
+ * // Client-level cancellation
+ * const controller = new AbortController();
+ * const cancellable = new Client(authenticator, undefined, { signal: controller.signal });
  * ```
  */
 export class Client {
@@ -63,9 +82,24 @@ export class Client {
    */
   constructor(authenticator: Authenticator, transportOptions: TransportOptions);
 
+  /**
+   * Creates a new client with the given authenticator, transport options and
+   * client-level options such as a cancellation signal.
+   *
+   * @param authenticator provides host URL and auth headers
+   * @param transportOptions HTTP transport configuration, or `undefined` for the defaults
+   * @param clientOptions client-level options (e.g. a `signal` that cancels every call)
+   */
+  constructor(
+    authenticator: Authenticator,
+    transportOptions: TransportOptions | undefined,
+    clientOptions: ClientOptions,
+  );
+
   constructor(
     authenticator: Authenticator,
     transportOptions?: TransportOptions,
+    clientOptions?: ClientOptions,
   ) {
     const transport = transportOptions ?? TransportOptions.builder().build();
     const apiClient: ApiClient = new DefaultApiClient(transport);
@@ -76,6 +110,7 @@ export class Client {
 
     const config = Configuration.builder()
       .baseUrl(authenticator.getHost())
+      .signal(clientOptions?.signal)
       .build();
     this.pet = new PetApi(apiClient, config, authenticator);
     this.store = new StoreApi(apiClient, config, authenticator);
@@ -87,16 +122,20 @@ export class Client {
    * @param host API base URL
    * @param accessToken Bearer token
    * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   * @param clientOptions optional client-level options (e.g. a cancellation `signal`)
    * @returns configured client instance
    */
   static withToken(
     host: string,
     accessToken: string,
     transportOptions?: TransportOptions,
+    clientOptions?: ClientOptions,
   ): Client {
-    return transportOptions
-      ? new Client(new BearerAuthenticator(host, accessToken), transportOptions)
-      : new Client(new BearerAuthenticator(host, accessToken));
+    return new Client(
+      new BearerAuthenticator(host, accessToken),
+      transportOptions,
+      clientOptions ?? {},
+    );
   }
 
   /**
@@ -110,14 +149,14 @@ export class Client {
    *
    * @param authenticator provides host URL and auth headers
    * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   * @param clientOptions optional client-level options (e.g. a cancellation `signal`)
    * @returns configured client instance
    */
   static withAuthenticator(
     authenticator: Authenticator,
     transportOptions?: TransportOptions,
+    clientOptions?: ClientOptions,
   ): Client {
-    return transportOptions
-      ? new Client(authenticator, transportOptions)
-      : new Client(authenticator);
+    return new Client(authenticator, transportOptions, clientOptions ?? {});
   }
 }

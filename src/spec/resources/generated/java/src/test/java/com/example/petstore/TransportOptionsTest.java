@@ -27,6 +27,43 @@ import org.junit.jupiter.api.Test;
 class TransportOptionsTest {
 
   @Test
+  @DisplayName(
+      "a caller-supplied HttpClient conflicts with proxy, CA certificate and verifySsl(false)")
+  void suppliedHttpClientConflictsWithSdkProxyAndTlsSettings() {
+    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+    try {
+      org.junit.jupiter.api.Assertions.assertThrows(
+          IllegalArgumentException.class,
+          () -> TransportOptions.builder().httpClient(supplied).proxy("http://proxy:3128").build());
+      org.junit.jupiter.api.Assertions.assertThrows(
+          IllegalArgumentException.class,
+          () -> TransportOptions.builder().httpClient(supplied).caCertPath("/tmp/ca.pem").build());
+      org.junit.jupiter.api.Assertions.assertThrows(
+          IllegalArgumentException.class,
+          () -> TransportOptions.builder().httpClient(supplied).verifySsl(false).build());
+      assertSame(supplied, TransportOptions.builder().httpClient(supplied).build().getHttpClient());
+    } finally {
+      supplied.close();
+    }
+  }
+
+  @Test
+  @DisplayName("a caller-supplied HttpClient that follows redirects is rejected")
+  void suppliedHttpClientThatFollowsRedirectsIsRejected() {
+    java.net.http.HttpClient supplied =
+        java.net.http.HttpClient.newBuilder()
+            .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
+            .build();
+    try {
+      org.junit.jupiter.api.Assertions.assertThrows(
+          IllegalArgumentException.class,
+          () -> TransportOptions.builder().httpClient(supplied).build());
+    } finally {
+      supplied.close();
+    }
+  }
+
+  @Test
   @DisplayName("verifySsl defaults to true")
   void verifySslDefaultsToTrue() {
     TransportOptions opts = TransportOptions.builder().build();

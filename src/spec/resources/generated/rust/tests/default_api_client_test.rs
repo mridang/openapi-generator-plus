@@ -576,15 +576,16 @@ async fn test_default_api_client_multipart_body_replayed_on_307_redirect() {
         .expect("valid transport options");
     let client = DefaultApiClient::new(Some(transport));
 
-    let mut fields: HashMap<String, petstore::api_client::MultipartValue> = HashMap::new();
-    fields.insert(
-        "description".to_string(),
-        petstore::api_client::MultipartValue::Text("hello".to_string()),
-    );
-    fields.insert(
-        "file".to_string(),
-        petstore::api_client::MultipartValue::Bytes(b"file-content-bytes".to_vec()),
-    );
+    let fields: Vec<(String, petstore::api_client::MultipartValue)> = vec![
+        (
+            "description".to_string(),
+            petstore::api_client::MultipartValue::Text("hello".to_string()),
+        ),
+        (
+            "file".to_string(),
+            petstore::api_client::MultipartValue::Bytes(b"file-content-bytes".to_vec()),
+        ),
+    ];
     let body = petstore::api_client::RequestBody::Multipart(fields);
 
     /* chasm's /test/redirect/307-multipart redirects to /test/echo, which echoes
@@ -852,4 +853,105 @@ async fn test_default_api_client_post_with_null_body_sends_content_length_zero()
         Some(0),
         "POST with null body must emit Content-Length: 0"
     );
+}
+
+/* F405: a caller-supplied reqwest::Client is the transport. The mock server
+ * below records the raw request, so the test proves the request went through
+ * the supplied client (its default header is on the wire) while the SDK's own
+ * defaults (User-Agent) are still applied on top. */
+#[tokio::test]
+async fn test_default_api_client_with_client_sends_through_supplied_client() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+    std::thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n = std::io::Read::read(&mut stream, &mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+            let response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    let mut default_headers = reqwest::header::HeaderMap::new();
+    default_headers.insert(
+        "x-supplied-client",
+        reqwest::header::HeaderValue::from_static("yes"),
+    );
+    let supplied = reqwest::Client::builder()
+        .default_headers(default_headers)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("client builds");
+    let transport = TransportOptionsBuilder::new()
+        .user_agent("sdk-agent/1.0")
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::with_client(supplied, Some(transport)).expect("no conflict");
+
+    let resp = client
+        .send_request(
+            "GET",
+            &format!("http://{}/probe", addr),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("request through the supplied client");
+    assert_eq!(resp.status_code(), 200);
+
+    let raw = rx
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("request captured")
+        .to_lowercase();
+    assert!(
+        raw.contains("x-supplied-client: yes"),
+        "supplied client header missing: {}",
+        raw
+    );
+    assert!(
+        raw.contains("user-agent: sdk-agent/1.0"),
+        "SDK user agent missing: {}",
+        raw
+    );
+}
+
+/* F405: closing the SDK client never shuts down a caller-supplied client; the
+ * caller's handle keeps working afterwards. */
+#[tokio::test]
+async fn test_default_api_client_close_leaves_supplied_client_usable() {
+    let supplied = reqwest::Client::new();
+    let client = DefaultApiClient::with_client(supplied.clone(), None).expect("no conflict");
+    client.close();
+    assert!(client.is_closed());
+    assert!(supplied.get("http://127.0.0.1:1/").build().is_ok());
+}
+
+/* F405: TransportOptions that configure what only the HTTP client can
+ * (proxy, TLS verification, CA) conflict with a supplied client and fail fast. */
+#[test]
+fn test_default_api_client_with_client_rejects_conflicting_transport_options() {
+    let with_proxy = TransportOptionsBuilder::new()
+        .proxy("http://proxy.invalid:3128")
+        .build()
+        .expect("valid transport options");
+    let no_verify = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .build()
+        .expect("valid transport options");
+    for options in [with_proxy, no_verify] {
+        match DefaultApiClient::with_client(reqwest::Client::new(), Some(options)) {
+            Err(ConfigurationError::InvalidArgument(message)) => {
+                assert!(
+                    message.contains("custom reqwest::Client"),
+                    "unexpected message: {}",
+                    message
+                );
+            }
+            Err(other) => panic!("expected InvalidArgument, got {:?}", other),
+            Ok(_) => panic!("expected a conflict error, got a client"),
+        }
+    }
 }

@@ -1,6 +1,6 @@
 {{>api_info}}
 
-import type { ApiClient } from '../api-client{{importFileExtension}}';
+import type { ApiClient, RequestOptions } from '../api-client{{importFileExtension}}';
 import type { ApiResult } from '../api-result{{importFileExtension}}';
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
 import { isNoAuth } from '../auth/authenticator{{importFileExtension}}';
@@ -66,6 +66,8 @@ export abstract class BaseApi {
    * @param returnKind how a non-JSON success body is read: `string` for a plain
    *   string return, `binary` for a `format: binary` return, `model` otherwise
    * @param operationName the operation name, used in error messages
+   * @param requestOptions per-call options; its `signal` cancels this call and is
+   *   merged with the client-level signal of the {@link Configuration}
    * @returns ApiResult containing deserialized data, status code, raw body, and headers
    */
   protected async invokeApiForResult<T>(
@@ -80,7 +82,8 @@ export abstract class BaseApi {
     auth?: Authenticator | null,
     rawBody = false,
     returnKind?: 'model' | 'string' | 'binary',
-    operationName = ''
+    operationName = '',
+    requestOptions?: RequestOptions
   ): Promise<ApiResult<T>> {
     let url: string;
     if (path.startsWith('http://') || path.startsWith('https://')) {
@@ -176,7 +179,15 @@ export abstract class BaseApi {
       delete headers['Content-Type'];
     }
 
-    const response = await this.apiClient.sendRequest(method, url, headers, serializedBody);
+    /* The client-level signal and the per-call signal are merged: either one
+     * cancels the request. */
+    const signals = [this.config.signal, requestOptions?.signal].filter(
+      (s): s is AbortSignal => s != null
+    );
+    const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
+    const response = signal
+      ? await this.apiClient.sendRequest(method, url, headers, serializedBody, { signal })
+      : await this.apiClient.sendRequest(method, url, headers, serializedBody);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       this.throwApiError(response);
@@ -255,6 +266,8 @@ export abstract class BaseApi {
    * @param returnKind how a non-JSON success body is read: `string` for a plain
    *   string return, `binary` for a `format: binary` return, `model` otherwise
    * @param operationName the operation name, used in error messages
+   * @param requestOptions per-call options; its `signal` cancels this call and is
+   *   merged with the client-level signal of the {@link Configuration}
    * @returns deserialized response or void
    */
   protected async invokeApi<T>(
@@ -269,7 +282,8 @@ export abstract class BaseApi {
     auth?: Authenticator | null,
     rawBody = false,
     returnKind?: 'model' | 'string' | 'binary',
-    operationName = ''
+    operationName = '',
+    requestOptions?: RequestOptions
   ): Promise<T | void> {
     const result = await this.invokeApiForResult(
       method,
@@ -283,7 +297,8 @@ export abstract class BaseApi {
       auth,
       rawBody,
       returnKind,
-      operationName
+      operationName,
+      requestOptions
     );
     return result.data;
   }

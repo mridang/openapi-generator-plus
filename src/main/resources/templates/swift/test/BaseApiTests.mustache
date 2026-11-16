@@ -720,6 +720,45 @@ import Testing
             "unmarked values must percent-encode reserved characters, got: \(encoded)")
     }
 
+    // MARK: - Declaration order
+
+    /* Query pairs, form fields and multipart parts are written in the order
+       the spec declares them, not in a per-process random hash order. */
+    @Test func testQueryStringKeepsDeclarationOrder() {
+        var params: OrderedParams<Any?> = [:]
+        let names = ["zulu", "alpha", "mike", "bravo", "yankee", "charlie", "x", "delta", "kilo"]
+        for (index, name) in names.enumerated() {
+            params[name] = "\(index)"
+        }
+        let expected = names.enumerated().map { "\($1)=\($0)" }.joined(separator: "&")
+        #expect(BaseApi.buildQueryString(params) == expected)
+    }
+
+    @Test func testFormBodyKeepsDeclarationOrder() throws {
+        var fields: OrderedParams<Any> = [:]
+        let names = ["zulu", "alpha", "mike", "bravo", "yankee", "charlie", "x", "delta", "kilo"]
+        for (index, name) in names.enumerated() {
+            fields[name] = index
+        }
+        let body = try BaseApi.serializeBody(
+            fields, contentType: "application/x-www-form-urlencoded")
+        let expected = names.enumerated().map { "\($1)=\($0)" }.joined(separator: "&")
+        #expect(String(data: body ?? Data(), encoding: .utf8) == expected)
+    }
+
+    @Test func testMultipartPartsKeepDeclarationOrder() throws {
+        var fields: OrderedParams<Any> = [:]
+        let names = ["zulu", "alpha", "mike", "bravo", "yankee", "charlie", "x", "delta", "kilo"]
+        for name in names {
+            fields[name] = "v"
+        }
+        let body = try BaseApi.buildMultipartBody(ordered: fields, boundary: "B")
+        let text = String(data: body, encoding: .utf8) ?? ""
+        let found = text.components(separatedBy: "name=\"").dropFirst()
+            .map { String($0.prefix { $0 != "\"" }) }
+        #expect(found == names)
+    }
+
     // MARK: - Returns nil for void operations
 
     @Test func testReturnsNilForVoidOperation() async throws {

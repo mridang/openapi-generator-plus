@@ -2,9 +2,11 @@
 package {{packageName}}_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -12,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	. "{{packageName}}/pkg"
 	pkgerrors "{{packageName}}/pkg/errors"
@@ -949,6 +952,167 @@ func TestDefaultApiClient_RedirectLimitFollowsExactlyMaxRedirects(t *testing.T) 
 		}
 		if resp.StatusCode != 200 {
 			t.Errorf("max %d, %d hops: expected status 200, got %d", tc.maxRedirects, tc.hops, resp.StatusCode)
+		}
+	}
+}
+
+func TestDefaultApiClient_CancellingTheCallContextAbortsTheRequest(t *testing.T) {
+	t.Parallel()
+	client := NewDefaultApiClient(nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(200*time.Millisecond, cancel)
+	started := time.Now()
+	_, err := client.SendRequestWithOptions("GET", chasmHTTPURL+"/test/slow", map[string]string{}, nil, &RequestOptions{Context: ctx})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected an error satisfying errors.Is(err, context.Canceled), got %T: %v", err, err)
+	}
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if errors.As(err, &timeoutErr) {
+		t.Fatalf("a cancellation must not be reported as a timeout: %v", err)
+	}
+	if time.Since(started) > 5*time.Second {
+		t.Errorf("the request was not aborted promptly: %v", time.Since(started))
+	}
+}
+
+func TestDefaultApiClient_CloseCancelsTheRequestsInFlight(t *testing.T) {
+	t.Parallel()
+	client := NewDefaultApiClient(nil)
+	time.AfterFunc(200*time.Millisecond, func() { _ = client.Close() })
+	_, err := client.SendRequest("GET", chasmHTTPURL+"/test/slow", map[string]string{}, nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected an error satisfying errors.Is(err, context.Canceled), got %T: %v", err, err)
+	}
+	if !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected the cancellation to name the closed client, got %v", err)
+	}
+}
+
+func TestDefaultApiClient_AnAlreadyCancelledContextSendsNothing(t *testing.T) {
+	t.Parallel()
+	var hits int
+	var mu sync.Mutex
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		hits++
+		mu.Unlock()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	client := NewDefaultApiClient(nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := client.SendRequestWithOptions("GET", server.URL, map[string]string{}, nil, &RequestOptions{Context: ctx})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %T: %v", err, err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if hits != 0 {
+		t.Errorf("expected no request on the wire, got %d", hits)
+	}
+}
+
+type recordingRoundTripper struct {
+	mu       sync.Mutex
+	requests []*http.Request
+	inner    http.RoundTripper
+}
+
+func (r *recordingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.mu.Lock()
+	r.requests = append(r.requests, req)
+	r.mu.Unlock()
+	return r.inner.RoundTrip(req)
+}
+
+type closeTrackingTransport struct {
+	recordingRoundTripper
+	closed bool
+}
+
+func (c *closeTrackingTransport) CloseIdleConnections() { c.closed = true }
+
+func TestDefaultApiClient_CustomRoundTripperReceivesTheRequestWithSdkDefaults(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) }))
+	defer server.Close()
+	recorder := &closeTrackingTransport{recordingRoundTripper: recordingRoundTripper{inner: http.DefaultTransport.(*http.Transport).Clone()}}
+	userAgent := "Injected/1.0"
+	transport, err := NewTransportOptionsBuilder().RoundTripper(recorder).UserAgent(&userAgent).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequest("GET", server.URL+"/x", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	recorder.mu.Lock()
+	defer recorder.mu.Unlock()
+	if len(recorder.requests) != 1 {
+		t.Fatalf("expected the custom transport to receive 1 request, got %d", len(recorder.requests))
+	}
+	if got := recorder.requests[0].Header.Get("User-Agent"); got != "Injected/1.0" {
+		t.Errorf("expected the SDK User-Agent on top of the custom transport, got %q", got)
+	}
+	_ = client.Close()
+	if recorder.closed {
+		t.Error("the SDK must never close a caller-supplied transport")
+	}
+}
+
+type recordingDoer struct {
+	requests []*http.Request
+}
+
+func (d *recordingDoer) Do(req *http.Request) (*http.Response, error) {
+	d.requests = append(d.requests, req)
+	return &http.Response{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader("{}")),
+		Request:    req,
+	}, nil
+}
+
+func TestDefaultApiClient_CustomHttpDoerReceivesTheRequest(t *testing.T) {
+	t.Parallel()
+	doer := &recordingDoer{}
+	transport, err := NewTransportOptionsBuilder().HttpClient(doer).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", "http://example.invalid/pets", map[string]string{"X-Test": "1"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 || resp.Body != "{}" {
+		t.Errorf("unexpected response %d %q", resp.StatusCode, resp.Body)
+	}
+	if len(doer.requests) != 1 {
+		t.Fatalf("expected the custom doer to receive 1 request, got %d", len(doer.requests))
+	}
+	req := doer.requests[0]
+	if req.URL.String() != "http://example.invalid/pets" || req.Header.Get("X-Test") != "1" {
+		t.Errorf("unexpected request %s %v", req.URL, req.Header)
+	}
+	if req.Header.Get("User-Agent") == "" {
+		t.Error("expected the SDK default User-Agent on the request")
+	}
+}
+
+func TestTransportOptionsBuilder_SuppliedTransportConflictsWithSdkProxyAndTlsSettings(t *testing.T) {
+	t.Parallel()
+	cases := map[string]*TransportOptionsBuilder{
+		"proxy":         NewTransportOptionsBuilder().HttpClient(&recordingDoer{}).Proxy("http://proxy:3128"),
+		"verify ssl":    NewTransportOptionsBuilder().HttpClient(&recordingDoer{}).VerifySsl(false),
+		"ca bundle":     NewTransportOptionsBuilder().RoundTripper(http.DefaultTransport).CACertPath("/tmp/ca.pem"),
+		"both supplied": NewTransportOptionsBuilder().HttpClient(&recordingDoer{}).RoundTripper(http.DefaultTransport),
+	}
+	for name, builder := range cases {
+		if _, err := builder.Build(); !errors.Is(err, ErrTransportConflict) {
+			t.Errorf("%s: expected ErrTransportConflict, got %v", name, err)
 		}
 	}
 }

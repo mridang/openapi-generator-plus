@@ -64,7 +64,7 @@ defmodule PetstoreClient.Api.BaseApi do
           map(),
           atom(),
           String.t(),
-          map(),
+          map() | [{String.t(), term()}],
           map(),
           term(),
           [String.t()] | nil,
@@ -116,7 +116,7 @@ defmodule PetstoreClient.Api.BaseApi do
           map(),
           atom(),
           String.t(),
-          map(),
+          map() | [{String.t(), term()}],
           map(),
           term(),
           [String.t()] | nil,
@@ -171,7 +171,7 @@ defmodule PetstoreClient.Api.BaseApi do
     query_params =
       case auth_credentials(effective_auth, :query_params) do
         nil -> query_params
-        params -> Map.merge(query_params, params)
+        params -> merge_query_params(query_params, params)
       end
 
     query_string = build_query_string(query_params)
@@ -425,6 +425,19 @@ defmodule PetstoreClient.Api.BaseApi do
 
   defp auth_credentials(_effective_auth, _callback), do: nil
 
+  # Query parameters keep their declaration order: the operation hands over an
+  # ordered list of `{name, value}` tuples (a map is also accepted and then
+  # iterates in key order). Authenticator-contributed parameters are appended
+  # after the operation's own and replace an operation parameter of the same
+  # name, as a map merge would.
+  defp merge_query_params(query_params, auth_params) do
+    auth_pairs = Enum.to_list(auth_params)
+    auth_names = Enum.map(auth_pairs, fn {name, _value} -> name end)
+
+    Enum.reject(Enum.to_list(query_params), fn {name, _value} -> name in auth_names end) ++
+      auth_pairs
+  end
+
   defp build_query_string(query_params) do
     query_params
     |> Enum.flat_map(&query_string_pairs/1)
@@ -497,7 +510,8 @@ defmodule PetstoreClient.Api.BaseApi do
   # (exploded, e.g. tags=a&tags=b - never tags=a,b or tags[]=); null/absent
   # fields are omitted entirely; URI.encode_www_form uses
   # application/x-www-form-urlencoded rules, so a space becomes '+'.
-  defp serialize_body(body, "application/x-www-form-urlencoded") when is_map(body) do
+  defp serialize_body(body, "application/x-www-form-urlencoded")
+       when is_map(body) or is_list(body) do
     body
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Enum.flat_map(&encode_form_pair/1)

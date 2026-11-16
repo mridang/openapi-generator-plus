@@ -55,12 +55,19 @@ impl Client {
     /// so that token exchange and discovery requests use the same proxy, TLS,
     /// and timeout settings.
     pub fn new(
-        mut authenticator: Box<dyn Authenticator>,
+        authenticator: Box<dyn Authenticator>,
         transport_options: Option<TransportOptions>,
     ) -> Self {
         let transport = transport_options.unwrap_or_default();
         let api_client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(Some(transport)));
+        Self::from_api_client(authenticator, api_client)
+    }
 
+    /// Wires the API groups to an already-built [`ApiClient`].
+    fn from_api_client(
+        mut authenticator: Box<dyn Authenticator>,
+        api_client: Arc<dyn ApiClient>,
+    ) -> Self {
         if let Some(http_aware) = authenticator.as_http_aware_mut() {
             http_aware.set_api_client(api_client.clone());
         }
@@ -83,6 +90,32 @@ impl Client {
                 Some(authenticator.clone()),
             ),
         }
+    }
+
+    /// Creates a client that sends every request through a caller-supplied
+    /// [`reqwest::Client`].
+    ///
+    /// The SDK defaults (timeout, `User-Agent`, redirect handling, default
+    /// headers) are applied on top of the supplied client. The caller owns the
+    /// client's lifecycle: the SDK never shuts it down. Build the client with
+    /// `reqwest::redirect::Policy::none()` so the SDK's own redirect handling
+    /// stays in charge.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidArgument`] when `transport_options`
+    /// sets a proxy, a CA certificate or `verify_ssl(false)`, which conflict
+    /// with a client the SDK did not build.
+    pub fn with_http_client(
+        authenticator: Box<dyn Authenticator>,
+        http_client: reqwest::Client,
+        transport_options: Option<TransportOptions>,
+    ) -> Result<Self, ConfigurationError> {
+        let api_client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::with_client(
+            http_client,
+            transport_options,
+        )?);
+        Ok(Self::from_api_client(authenticator, api_client))
     }
 
     /// Creates a client authenticated with a static Bearer token.

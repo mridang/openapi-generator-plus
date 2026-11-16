@@ -286,4 +286,84 @@ public class TransportOptionsTest
             TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build());
         Assert.Null(exception);
     }
+
+    // Injected transport and cancellation
+
+    [Fact]
+    public void CancellationTokenDefaultsToNone()
+    {
+        Assert.Equal(CancellationToken.None, TransportOptions.Builder().Build().CancellationToken);
+    }
+
+    [Fact]
+    public void CancellationTokenIsPreservedOnReadBack()
+    {
+        using var cts = new CancellationTokenSource();
+        var opts = TransportOptions.Builder().CancellationToken(cts.Token).Build();
+        Assert.Equal(cts.Token, opts.CancellationToken);
+    }
+
+    [Fact]
+    public void SuppliedHttpClientIsPreservedOnReadBack()
+    {
+        using var client = new HttpClient();
+        var opts = TransportOptions.Builder().HttpClient(client).Build();
+        Assert.Same(client, opts.HttpClient);
+        Assert.Null(opts.HttpMessageHandler);
+    }
+
+    [Fact]
+    public void SuppliedHandlerIsPreservedOnReadBack()
+    {
+        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        var opts = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Assert.Same(handler, opts.HttpMessageHandler);
+        Assert.Null(opts.HttpClient);
+    }
+
+    [Fact]
+    public void SuppliedClientAndHandlerTogetherFailFast()
+    {
+        using var client = new HttpClient();
+        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpClient(client).HttpMessageHandler(handler).Build());
+    }
+
+    [Fact]
+    public void SuppliedClientConflictsWithProxy()
+    {
+        using var client = new HttpClient();
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpClient(client).Proxy("http://proxy.example.com:8080").Build());
+        Assert.Contains("Proxy", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SuppliedClientConflictsWithTlsSettings()
+    {
+        using var client = new HttpClient();
+        Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpClient(client).VerifySsl(false).Build());
+        Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpClient(client).CaCertPath("/tmp/ca.pem").Build());
+    }
+
+    [Fact]
+    public void SuppliedHandlerConflictsWithProxyAndTlsSettings()
+    {
+        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpMessageHandler(handler).Proxy("http://proxy.example.com:8080").Build());
+        Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpMessageHandler(handler).VerifySsl(false).Build());
+    }
+
+    [Fact]
+    public void SuppliedStockHandlerThatFollowsRedirectsConflictsWithTheRedirectPolicy()
+    {
+        using var handler = new HttpClientHandler { AllowAutoRedirect = true };
+        Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpMessageHandler(handler).Build());
+    }
 }

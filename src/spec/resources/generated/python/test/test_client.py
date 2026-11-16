@@ -1,4 +1,5 @@
 import pytest
+import urllib3
 
 from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
 from petstore_client.auth.api_key_location import ApiKeyLocation
@@ -72,3 +73,39 @@ class TestClient:
 
         assert client.pet is not None
         assert client.store is not None
+
+
+class _OwnedPool(urllib3.PoolManager):
+    cleared = False
+
+    def clear(self) -> None:
+        self.cleared = True
+        super().clear()
+
+
+class TestClientPoolManager:
+    def test_client_never_closes_a_supplied_pool_manager(self) -> None:
+        pool = _OwnedPool()
+        client = Client(BearerAuthenticator("/api/v3", "test-token"), pool_manager=pool)
+
+        client.close()
+
+        assert pool.cleared is False
+
+    def test_with_token_accepts_a_pool_manager(self) -> None:
+        pool = _OwnedPool()
+
+        with Client.with_token("/api/v3", "test-token", pool_manager=pool):
+            pass
+
+        assert pool.cleared is False
+
+    def test_supplied_pool_manager_conflicts_with_a_proxy(self) -> None:
+        transport = (
+            TransportOptions.builder().proxy("http://proxy.example.com:3128").build()
+        )
+
+        with pytest.raises(ValueError, match="pool_manager"):
+            Client(
+                BearerAuthenticator("/api/v3", "test-token"), transport, _OwnedPool()
+            )

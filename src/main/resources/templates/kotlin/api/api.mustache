@@ -89,7 +89,7 @@ class {{classname}} : BaseApi {
     @Deprecated("This operation is deprecated.")
 {{/isDeprecated}}
     suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
-        {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}}){{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}}){{/returnType}}
+        {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}} = {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, server = null{{#consumes}}{{#-last}}{{^-first}}, requestContentType = requestContentType{{/-first}}{{/-last}}{{/consumes}}){{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}} = {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, server = null{{#consumes}}{{#-last}}{{^-first}}, requestContentType = requestContentType{{/-first}}{{/-last}}{{/consumes}}){{/returnType}}
     }
 
     /** Same as [{{operationId}}WithHttpInfo] but sends the request to the default server. */
@@ -97,7 +97,7 @@ class {{classname}} : BaseApi {
     @Deprecated("This operation is deprecated.")
 {{/isDeprecated}}
     suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
-        return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, null{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}})
+        return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}} = {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, server = null{{#consumes}}{{#-last}}{{^-first}}, requestContentType = requestContentType{{/-first}}{{/-last}}{{/consumes}})
     }
 {{/-first}}{{/servers}}
 
@@ -261,7 +261,7 @@ class {{classname}} : BaseApi {
                 "{{{path}}}"{{/-first}}
                         .replace(
                                 "{" + "{{baseName}}" + "}",
-                                ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String){{/pathParams}}{{#pathParams}}{{#-last}}{{/-last}}{{/pathParams}}
+                                {{#vendorExtensions.param.queryContent}}ValueSerializer.serializeContent("{{baseName}}", {{{paramName}}}, "path") as String{{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String{{/vendorExtensions.param.queryContent}}){{/pathParams}}{{#pathParams}}{{#-last}}{{/-last}}{{/pathParams}}
 {{#servers}}
 {{#-first}}
         if (server != null) {
@@ -301,7 +301,12 @@ class {{classname}} : BaseApi {
         val headerParams = mutableMapOf<String, String>()
 {{#headerParams}}
         if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+{{#vendorExtensions.param.queryContent}}
+            headerParams["{{baseName}}"] = ValueSerializer.serializeContent("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "header") as String
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
             headerParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "header", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String
+{{/vendorExtensions.param.queryContent}}
         }
 {{/headerParams}}
 {{#hasCookieParams}}
@@ -314,7 +319,12 @@ class {{classname}} : BaseApi {
             // value must fail closed here to prevent request-header injection,
             // rather than being interpolated raw into the Cookie header.
             val cookieName = "{{baseName}}"
+{{#vendorExtensions.param.queryContent}}
+            val cookieValue = ValueSerializer.serializeContent("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "cookie") as String
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
             val cookieValue = ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String
+{{/vendorExtensions.param.queryContent}}
             require(isValidCookieName(cookieName)) {
                 "Cookie name '$cookieName' contains characters forbidden by RFC 6265"
             }

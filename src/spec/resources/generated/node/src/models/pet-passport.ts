@@ -34,6 +34,13 @@ export class PetPassport {
    */
   static readonly __uuidFields: ReadonlySet<string> = new Set([]);
 
+  /**
+   * Fields that are both required and nullable. ObjectSerializer.serialize
+   * drops a null value everywhere else; for these the key is always written,
+   * as null when the value is null. Empty when the model has no such field.
+   */
+  static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
+
   @Expose({ name: "pet" })
   @Type(() => Pet)
   /* A nested model that declares additionalProperties keeps its free-form

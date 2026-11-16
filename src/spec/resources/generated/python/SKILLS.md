@@ -218,6 +218,18 @@ transport = (
 client = Client(authenticator, transport)
 ```
 
+### Your own pool manager and cancellation
+
+```python
+import urllib3
+
+pool = urllib3.PoolManager()
+client = Client(authenticator, pool_manager=pool)  # you close the pool
+client.close()  # cancels in-flight requests; the SDK never closes your pool
+```
+
+Cancelling the asyncio task awaiting an operation aborts its request.
+
 ## API Methods
 
 Each API group is exposed as a typed attribute on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

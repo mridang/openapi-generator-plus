@@ -1418,7 +1418,10 @@ func TestBuildHTTPClient_TransportHasStandardTimeoutsAndNoImplicitProxy(t *testi
 	if !ok {
 		t.Fatal("expected the Location guard around the *http.Transport")
 	}
-	transport := guard.inner
+	transport, ok := guard.inner.(*http.Transport)
+	if !ok {
+		t.Fatal("expected the guard to wrap an *http.Transport")
+	}
 	if transport.IdleConnTimeout != 90*time.Second {
 		t.Errorf("expected IdleConnTimeout 90s, got %v", transport.IdleConnTimeout)
 	}

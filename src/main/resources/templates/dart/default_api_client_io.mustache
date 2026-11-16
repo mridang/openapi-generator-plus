@@ -34,12 +34,18 @@ class DefaultApiClient extends AbstractApiClient {
     final options = transportOptions ?? TransportOptionsBuilder().build();
     return DefaultApiClient._(
       options,
-      _createClient(options),
+      options.httpClient ?? _createClient(options),
       AbstractApiClient.buildProxyAuthHeader(options.proxy),
+      options.httpClient == null,
     );
   }
 
-  DefaultApiClient._(super.options, super.client, super.proxyAuth);
+  DefaultApiClient._(
+    super.options,
+    super.client,
+    super.proxyAuth, [
+    super.ownsClient,
+  ]);
 
   /// A raw `dart:io` socket, TLS or HTTP error means no HTTP response
   /// arrived, so it surfaces as a `NetworkException`.

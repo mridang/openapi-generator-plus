@@ -93,8 +93,32 @@ class {{classname}}(BaseApi):
     async def {{operationId}}(
         self,
 {{#vendorExtensions.op.signatureArgs}}
-        {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}Optional[{{{dataType}}}] = None{{/nullable}}{{^nullable}}{{{dataType}}}{{/nullable}}{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
+{{#isPath}}
+        {{paramName}}: {{{dataType}}},
+{{/isPath}}
+{{#isBody}}
+        {{paramName}}: {{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}},
+{{/isBody}}
 {{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: {{{dataType}}},
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isServer}}
+        {{paramName}}: Optional['{{{dataType}}}'] = None,
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{^vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: Optional[{{{dataType}}}] = None,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
 {{#vendorExtensions.hasMultipleConsumes}}
         request_content_type: Optional[str] = None,
 {{/vendorExtensions.hasMultipleConsumes}}
@@ -143,7 +167,27 @@ class {{classname}}(BaseApi):
             `{{{description}}} <{{{url}}}>`_
 {{/externalDocs}}
         """
-        result = await self.{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type=request_content_type{{/vendorExtensions.hasMultipleConsumes}})
+        result = await self.{{operationId}}_with_http_info(
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isPath}}
+            {{paramName}},
+{{/isPath}}
+{{#isBody}}
+            {{paramName}},
+{{/isBody}}
+{{#isOptions}}
+            options=options,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+{{#servers}}
+{{#-first}}
+            server=server,
+{{/-first}}
+{{/servers}}
+{{#vendorExtensions.hasMultipleConsumes}}
+            request_content_type=request_content_type,
+{{/vendorExtensions.hasMultipleConsumes}}
+        )
 
 {{#returnType}}
         if result.data is None:
@@ -163,8 +207,32 @@ class {{classname}}(BaseApi):
     async def {{operationId}}_with_http_info(
         self,
 {{#vendorExtensions.op.signatureArgs}}
-        {{paramName}}: {{#isPath}}{{{dataType}}}{{/isPath}}{{#isBody}}{{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}Optional[{{{dataType}}}] = None{{/nullable}}{{^nullable}}{{{dataType}}}{{/nullable}}{{/isOptions}}{{#isServer}}Optional['{{{dataType}}}'] = None{{/isServer}},
+{{#isPath}}
+        {{paramName}}: {{{dataType}}},
+{{/isPath}}
+{{#isBody}}
+        {{paramName}}: {{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}},
+{{/isBody}}
 {{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: {{{dataType}}},
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isServer}}
+        {{paramName}}: Optional['{{{dataType}}}'] = None,
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{^vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: Optional[{{{dataType}}}] = None,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
 {{#vendorExtensions.hasMultipleConsumes}}
         request_content_type: Optional[str] = None,
 {{/vendorExtensions.hasMultipleConsumes}}
@@ -238,8 +306,15 @@ class {{classname}}(BaseApi):
 
 {{/required}}
 {{/cookieParams}}
-        path = '{{{path}}}'{{#pathParams}}
-        path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}}))){{/pathParams}}
+        path = '{{{path}}}'
+{{#pathParams}}
+{{#vendorExtensions.param.queryContent}}
+        path = path.replace('{' + '{{baseName}}' + '}', ValueSerializer.encode_content('{{baseName}}', self._object_serializer.serialize({{paramName}}), 'path'))
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
+        path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}})))
+{{/vendorExtensions.param.queryContent}}
+{{/pathParams}}
 {{#servers}}
 {{#-first}}
         if server is not None:
@@ -256,8 +331,7 @@ class {{classname}}(BaseApi):
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
         if options is not None and options.{{paramName}} is not None:
-            import json
-            query_params['{{baseName}}'] = json.dumps(options.{{paramName}})
+            query_params['{{baseName}}'] = ValueSerializer.encode_content('{{baseName}}', self._object_serializer.serialize(options.{{paramName}}), 'query')
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if options is not None and options.{{paramName}} is not None:
@@ -270,8 +344,14 @@ class {{classname}}(BaseApi):
 {{/queryParams}}
         header_params: Dict[str, str] = {}
 {{#headerParams}}
+{{#vendorExtensions.param.queryContent}}
+        if options is not None and options.{{paramName}} is not None:
+            header_params['{{baseName}}'] = ValueSerializer.encode_content('{{baseName}}', self._object_serializer.serialize(options.{{paramName}}), 'header')
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
         if options is not None and options.{{paramName}} is not None:
             header_params['{{baseName}}'] = str(ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'header', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}}))
+{{/vendorExtensions.param.queryContent}}
 {{/headerParams}}
 {{#hasCookieParams}}
         cookie_parts = []
@@ -283,7 +363,12 @@ class {{classname}}(BaseApi):
             # A CR/LF or control char here would otherwise allow header
             # injection; fail closed with the same error the auth-cookie path
             # raises rather than emitting a malformed header.
+{{#vendorExtensions.param.queryContent}}
+            cookie_value = ValueSerializer.encode_content("{{baseName}}", self._object_serializer.serialize(options.{{paramName}}), "cookie")
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
             cookie_value = str(ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, "cookie", "{{dataType}}", None, "{{style}}", {{vendorExtensions.isExplodeStrCap}}))
+{{/vendorExtensions.param.queryContent}}
             if not _is_valid_cookie_value(cookie_value):
                 raise ValueError(
                     "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"

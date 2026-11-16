@@ -192,7 +192,9 @@ module Petstore::Client
       when Time, DateTime
         value.strftime(DEFAULT_DATETIME_FORMAT)
       when Tod::TimeOfDay
-        # 4.8: format: time → HH:MM:SS wire form (seconds precision).
+        # 4.8: format: time → HH:MM:SS wire form. Forced seconds-only exception
+        # to the cross-SDK rule (.SSS when the millisecond part is non-zero):
+        # Tod::TimeOfDay stores whole seconds, so a fraction cannot be carried.
         value.strftime('%H:%M:%S')
       when ISO8601::Duration
         # format: duration → protobuf-JSON duration ("3600s"), the wire
@@ -298,7 +300,8 @@ module Petstore::Client
         # #duration_to_protobuf_json; the native ISO-8601 form is rejected.
         duration_to_protobuf_json(object)
       when Tod::TimeOfDay
-        # 4.8: format: time — emit HH:MM:SS for JSON wire form.
+        # 4.8: format: time — emit HH:MM:SS for JSON wire form. Seconds-only:
+        # Tod::TimeOfDay cannot carry a fraction (see #stringify).
         object.strftime('%H:%M:%S')
       when Array, Set, Hash
         visited ||= Set.new
@@ -459,7 +462,8 @@ module Petstore::Client
       when 'Date'
         Date.parse(data.to_s)
       when 'Tod::TimeOfDay'
-        # 4.8: format: time — parse HH:MM[:SS] from the wire.
+        # 4.8: format: time — parse HH:MM[:SS] from the wire. A fractional
+        # part is accepted and dropped, since Tod::TimeOfDay holds whole seconds.
         # Tod::TimeOfDay.parse raises ArgumentError on malformed input,
         # which is wrapped into Errors::SerializationError by the outer rescue.
         return data if data.is_a?(Tod::TimeOfDay)

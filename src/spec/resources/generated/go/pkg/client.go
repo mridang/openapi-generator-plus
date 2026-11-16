@@ -37,11 +37,29 @@ import (
 //		return err
 //	}
 //	client := petstore.NewClient(authenticator, transport)
+//
+//	// Bring your own HTTP client (the SDK keeps its defaults on top and never
+//	// closes it); every operation takes a context.Context first.
+//
+//	transport, err = petstore.NewTransportOptionsBuilder().
+//		HttpClient(myHTTPClient).
+//		Build()
 type Client struct {
 	/* Pet holds the API operations for the PetApi group. */
 	Pet *PetApi
 	/* Store holds the API operations for the StoreApi group. */
 	Store *StoreApi
+
+	apiClient ApiClient
+}
+
+// Close releases the client's transport and cancels its base context, which
+// aborts every request still in flight (they fail with an error satisfying
+// errors.Is(err, context.Canceled)). A transport the caller supplied through
+// TransportOptionsBuilder.HttpClient or RoundTripper is never closed: the
+// caller owns its lifecycle.
+func (c *Client) Close() error {
+	return c.apiClient.Close()
 }
 
 // NewClient creates a new client with the given authenticator and transport options.
@@ -68,8 +86,9 @@ func NewClient(authenticator Authenticator, transportOptions *TransportOptions) 
 		Build()
 
 	return &Client{
-		Pet:   NewPetApi(apiClient, config, authenticator),
-		Store: NewStoreApi(apiClient, config, authenticator),
+		apiClient: apiClient,
+		Pet:       NewPetApi(apiClient, config, authenticator),
+		Store:     NewStoreApi(apiClient, config, authenticator),
 	}
 }
 

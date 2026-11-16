@@ -130,6 +130,11 @@ public class {{classname}} : BaseApi
     /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{{value}}}{{/lambda.escapeXml}}</example>
     {{/vendorExtensions.pluralExamples}}
     {{/bodyParam}}
+{{#servers}}
+{{#-first}}
+    /// <param name="server">Optional per-operation server override.</param>
+{{/-first}}
+{{/servers}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
 {{! The Options object holds the operation's query, header, form and cookie
@@ -148,11 +153,6 @@ public class {{classname}} : BaseApi
 {{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
-{{#servers}}
-{{#-first}}
-    /// <param name="server">Optional per-operation server override.</param>
-{{/-first}}
-{{/servers}}
 {{! Multi-consume selector: when an operation declares more than one request
     content-type, the last consume is "not first" (the not-first gate fires
     exactly once for two-or-more types and never for a single type), so this
@@ -163,6 +163,7 @@ public class {{classname}} : BaseApi
 {{#consumes}}{{#-last}}{{^-first}}
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type when null.</param>
 {{/-first}}{{/-last}}{{/consumes}}
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     {{#returnType}}
     /// <returns><![CDATA[{{{returnType}}}]]></returns>
     {{/returnType}}
@@ -173,10 +174,10 @@ public class {{classname}} : BaseApi
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
-    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}})
+    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}CancellationToken cancellationToken = default)
     {
         {{#returnType}}
-        Task<ApiResult<{{{returnType}}}>> task = {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}});
+        Task<ApiResult<{{{returnType}}}>> task = {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}cancellationToken);
         ApiResult<{{{returnType}}}> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -201,7 +202,7 @@ public class {{classname}} : BaseApi
         return result.Data!;
         {{/returnType}}
         {{^returnType}}
-        Task<ApiResult<object?>> task = {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}});
+        Task<ApiResult<object?>> task = {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}cancellationToken);
         _ = await task.ConfigureAwait(false);
         {{/returnType}}
     }
@@ -218,6 +219,11 @@ public class {{classname}} : BaseApi
     {{#bodyParam}}
     /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{/bodyParam}}
+{{#servers}}
+{{#-first}}
+    /// <param name="server">Optional per-operation server override.</param>
+{{/-first}}
+{{/servers}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
 {{! The Options object holds the operation's query, header, form and cookie
@@ -236,20 +242,16 @@ public class {{classname}} : BaseApi
 {{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
-{{#servers}}
-{{#-first}}
-    /// <param name="server">Optional per-operation server override.</param>
-{{/-first}}
-{{/servers}}
 {{#consumes}}{{#-last}}{{^-first}}
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type when null.</param>
 {{/-first}}{{/-last}}{{/consumes}}
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
-    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}})
+    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}CancellationToken cancellationToken = default)
     {
 {{! L10: only guard `options` against null when the Options arg is non-nullable
     (i.e. the operation has at least one REQUIRED query/header/form/cookie
@@ -347,11 +349,20 @@ public class {{classname}} : BaseApi
             throw new ArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof({{paramName}}));
         }
 {{/isUuid}}{{/isString}}
+{{#vendorExtensions.contentJson}}
+        path = path.Replace(
+            "{" + nameof({{paramName}}) + "}",
+            SerializeContentParameter({{paramName}}, "path"),
+            StringComparison.Ordinal
+        );
+{{/vendorExtensions.contentJson}}
+{{^vendorExtensions.contentJson}}
         path = path.Replace(
             "{" + nameof({{paramName}}) + "}",
             (string)ValueSerializer.SerializeStyled(nameof({{paramName}}), {{paramName}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})!,
             StringComparison.Ordinal
         );
+{{/vendorExtensions.contentJson}}
         {{/pathParams}}
 {{#servers}}
 {{#-first}}
@@ -439,6 +450,13 @@ public class {{classname}} : BaseApi
 {{#headerParams}}
         if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
+{{#vendorExtensions.contentJson}}
+            headerParams["{{baseName}}"] = SerializeContentParameter(
+                options.{{vendorExtensions.pascalName}},
+                "header"
+            );
+{{/vendorExtensions.contentJson}}
+{{^vendorExtensions.contentJson}}
             headerParams["{{baseName}}"] = (string)
                 ValueSerializer.SerializeStyled(
                     "{{baseName}}",
@@ -449,6 +467,7 @@ public class {{classname}} : BaseApi
                     "{{style}}",
                     {{isExplode}}
                 )!;
+{{/vendorExtensions.contentJson}}
         }
 {{/headerParams}}
 {{#hasCookieParams}}
@@ -464,6 +483,13 @@ public class {{classname}} : BaseApi
                splice an extra header into the request — fail closed with
                the identical ArgumentException the auth-cookie path raises. */
             string cookieName = "{{baseName}}";
+{{#vendorExtensions.contentJson}}
+            string cookieValue = SerializeContentParameter(
+                options.{{vendorExtensions.pascalName}},
+                "cookie"
+            );
+{{/vendorExtensions.contentJson}}
+{{^vendorExtensions.contentJson}}
             string cookieValue = (string)
                 ValueSerializer.SerializeStyled(
                     "{{baseName}}",
@@ -474,6 +500,7 @@ public class {{classname}} : BaseApi
                     "{{style}}",
                     {{isExplode}}
                 )!;
+{{/vendorExtensions.contentJson}}
             if (!IsValidCookieName(cookieName))
             {
                 throw new ArgumentException(
@@ -544,7 +571,8 @@ public class {{classname}} : BaseApi
     BaseApi suppresses the client-level authenticator and attaches no credential
     (passing null here would WRONGLY re-acquire it and leak the credential). }}
                 {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
-                rawBody: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}}
+                rawBody: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
+                cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
     }

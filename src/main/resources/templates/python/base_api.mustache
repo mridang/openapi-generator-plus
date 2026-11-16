@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from ..api_client import ApiClient
 from ..api_http_response import ApiHttpResponse
 from ..api_result import ApiResult
-from ..default_api_client import DefaultApiClient
+from ..default_api_client import DefaultApiClient, RequestHandle
 from ..configuration import Configuration
 from ..object_serializer import ObjectSerializer
 from ..value_serializer import ValueSerializer, AllowReservedValue
@@ -186,45 +186,35 @@ class BaseApi:
             if filtered:
                 # OAS allowReserved: a value wrapped in AllowReservedValue keeps
                 # RFC 3986 reserved characters literal instead of percent-encoding
-                # them. Such values are encoded separately, with a
-                # reserved-preserving quoter, from the default-encoded parameters.
-                # When no parameter opts in, `reserved` stays empty and the output
-                # is byte-identical to encoding every parameter with the default
-                # quoter.
-                normalized: dict[str, str | list[str]] = {}
-                reserved: dict[str, str | list[str]] = {}
+                # them. Each parameter is encoded by its own rule, in the order
+                # the parameters were declared (the dict keeps insertion order),
+                # so a reserved-preserving parameter never moves after the rest.
+                parts: list[str] = []
                 for k, v in filtered.items():
-                    target = normalized
+                    allow_reserved = isinstance(v, AllowReservedValue)
                     if isinstance(v, AllowReservedValue):
                         v = v.value
-                        target = reserved
-                    if isinstance(v, list):
-                        target[k] = [self._object_serializer.stringify(item) for item in v]
-                    else:
-                        target[k] = self._object_serializer.stringify(v)
-                parts: list[str] = []
-                if normalized:
-                    # quote_via=quote emits %20 for a space (not '+'); RFC 3986
-                    # requires %20 in a query component, and the other SDKs
-                    # encode query spaces as %20 too. The form-urlencoded body
-                    # path below keeps the default '+' via quote_plus.
-                    parts.append(urlencode(normalized, doseq=True, quote_via=quote))
-                if reserved:
-                    reserved_parts: list[str] = []
-                    for reserved_key, reserved_value in reserved.items():
-                        reserved_items = (
-                            reserved_value
-                            if isinstance(reserved_value, list)
-                            else [reserved_value]
-                        )
-                        encoded_key = quote(reserved_key, safe='')
-                        for reserved_item in reserved_items:
-                            reserved_parts.append(
+                    items = (
+                        [self._object_serializer.stringify(item) for item in v]
+                        if isinstance(v, list)
+                        else [self._object_serializer.stringify(v)]
+                    )
+                    if allow_reserved:
+                        encoded_key = quote(k, safe='')
+                        for item in items:
+                            parts.append(
                                 encoded_key
                                 + '='
-                                + ValueSerializer.encode_query_allowing_reserved(reserved_item)
+                                + ValueSerializer.encode_query_allowing_reserved(item)
                             )
-                    parts.append('&'.join(reserved_parts))
+                    else:
+                        # quote_via=quote emits %20 for a space (not '+'); RFC 3986
+                        # requires %20 in a query component, and the other SDKs
+                        # encode query spaces as %20 too. The form-urlencoded body
+                        # path below keeps the default '+' via quote_plus.
+                        encoded = urlencode({k: items}, doseq=True, quote_via=quote)
+                        if encoded:
+                            parts.append(encoded)
                 query_string = '&'.join(parts)
                 if query_string:
                     url += '?' + query_string
@@ -345,7 +335,7 @@ class BaseApi:
             else:
                 serialized_body = self._object_serializer.serialize(body)
 
-        response = await asyncio.to_thread(self._api_client.send_request, method, url, headers, serialized_body)
+        response = await self._send(method, url, headers, serialized_body)
 
         if response.status_code < 200 or response.status_code >= 300:
             self._throw_api_exception(response)
@@ -383,6 +373,28 @@ class BaseApi:
             raw_body=response.body,
             headers=response.headers,
         )
+
+    async def _send(
+        self, method: str, url: str, headers: Dict[str, str], body: Any
+    ) -> ApiHttpResponse:
+        """Send the request on a worker thread without stranding it.
+
+        Cancelling the awaiting task aborts the request itself: the socket the
+        worker thread is using is shut down, so the thread ends and its
+        connection is dropped instead of the call running on in the background.
+        """
+        client = self._api_client
+        if not isinstance(client, DefaultApiClient):
+            return await asyncio.to_thread(client.send_request, method, url, headers, body)
+        handle = RequestHandle()
+        pending = asyncio.ensure_future(
+            asyncio.to_thread(client.send_request, method, url, headers, body, False, handle)
+        )
+        try:
+            return await pending
+        except asyncio.CancelledError:
+            handle.cancel()
+            raise
 
     async def _invoke_api(
         self,

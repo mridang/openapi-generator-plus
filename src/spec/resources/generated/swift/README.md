@@ -99,14 +99,19 @@ OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
 
-### Numeric / string constraint validation
+### Schema constraints
 
-OpenAPI keywords like `minLength`, `maxLength`, `minimum`, `maximum`,
-`pattern`, `minItems`, `maxItems`, `uniqueItems`, `multipleOf` are
-**not enforced** by this SDK. The server is the authoritative
-validator; client-side enforcement is a DX nicety, not a correctness
-requirement. If you want fast-fail validation before the network
-round trip, plug in a JSON Schema validator library for your language.
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server. The
+generated models do not check them: a model is a `Codable` struct, and Swift's
+decoder enforces only the declared types (a quoted number, a fractional value
+for an integer or an out-of-range integer is rejected), not the value
+constraints. The one value check the models make themselves is that a
+`format: uri` property is an absolute URI. If you want fast-fail validation
+before the network round trip, plug in a JSON Schema validator library.
+
+`uniqueItems` arrays are sent in the collection's natural order and are not
+sorted.
 
 ### SOCKS proxies
 
@@ -120,9 +125,20 @@ through a local HTTP-CONNECT bridge or configure it at the OS level.
 
 ### Per-call cancellation
 
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutError`.
+The SDK has no cancellation API of its own: cancel the Swift `Task` that made
+the call and the in-flight `URLSession` task is cancelled with it, the call
+throwing `CancellationError`. To bound how long a call can take, set the
+request timeout on `TransportOptions`; a call that exceeds it fails with
+`NetworkTimeoutError`.
+
+### Bringing your own `URLSession`
+
+`TransportOptionsBuilder.session(_:)` sends every request through a `URLSession`
+you supply. The timeout, `User-Agent`, default headers and request id still
+apply on top. You own the session: `close()` never invalidates it. A session
+cannot be combined with the SDK's own `proxy`, `caCertPath`, `verifySsl(false)`,
+`followRedirects(false)` or `maxRedirects`, because those are properties of the
+session itself; `build()` throws a `ConfigurationError` naming the conflict.
 
 ### `LICENSE` file is not auto-emitted
 

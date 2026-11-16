@@ -57,14 +57,20 @@ abstract class AbstractApiClient implements ApiClient {
    * "Client is already closed" ClientException. */
   bool _closed = false;
 
+  /* True when the SDK built the [http.Client] itself; a caller-supplied client
+   * (TransportOptions.httpClient) stays open because the caller owns it. */
+  final bool _ownsClient;
+
   /// Creates the base from the resolved transport settings, the platform
   /// [http.Client] built by the subclass, and the proxy-auth header derived
-  /// from the proxy URL's userinfo.
+  /// from the proxy URL's userinfo. [ownsClient] is false when the client was
+  /// supplied by the caller, in which case [close] leaves it open.
   AbstractApiClient(
     this._transportOptions,
     this._httpClient,
-    this._proxyAuthHeader,
-  );
+    this._proxyAuthHeader, [
+    this._ownsClient = true,
+  ]);
 
   /// Returns the Proxy-Authorization header value extracted from the proxy
   /// URL's userinfo, or null when no credentials are configured. Exposed
@@ -689,12 +695,15 @@ abstract class AbstractApiClient implements ApiClient {
     }
   }
 
-  /// Closes the underlying HTTP client. After this call any further
+  /// Closes the underlying HTTP client, unless the caller supplied it through
+  /// [TransportOptions.httpClient]: the caller owns that one. After this call any further
   /// [sendRequest] raises a typed [ApiException] rather than the underlying
   /// `http` package's closed-client exception. Idempotent.
   void close() {
     _closed = true;
-    _httpClient.close();
+    if (_ownsClient) {
+      _httpClient.close();
+    }
   }
 
   /// Code points of windows-1252 bytes 0x80..0x9F. The five bytes it leaves

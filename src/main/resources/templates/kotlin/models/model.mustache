@@ -646,6 +646,68 @@ class {{classname}}(
 {{/-first}}
 {{/anyOf}}
 {{^anyOf}}
+{{#isDiscriminatedBase}}
+/**
+ * Base of the `{{discriminator.propertyBaseName}}`-discriminated family
+ * ({{#discriminator.mappedModels}}{{modelName}}{{^-last}}, {{/-last}}{{/discriminator.mappedModels}}). Each subtype is a data class that
+ * implements this interface and carries the base fields itself; the serializer
+ * picks the subtype by the discriminator value.
+ */
+@Serializable(with = {{classname}}.Serializer::class)
+sealed interface {{classname}} {
+{{#vars}}
+{{^isEnum}}
+
+  /** The `{{name}}` property. */
+  val {{name}}: {{{dataType}}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}
+{{/isEnum}}
+{{/vars}}
+
+  object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
+
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) {
+      val jsonEncoder = encoder as? kotlinx.serialization.json.JsonEncoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be serialized to JSON")
+      when (value) {
+        {{#discriminator.mappedModels}}
+        is {{modelName}} ->
+          jsonEncoder.encodeSerializableValue({{modelName}}.serializer(), value)
+        {{/discriminator.mappedModels}}
+      }
+    }
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} {
+      val jsonDecoder = decoder as? kotlinx.serialization.json.JsonDecoder
+        ?: throw kotlinx.serialization.SerializationException(
+          "{{classname}} can only be deserialized from JSON")
+      val element = jsonDecoder.decodeJsonElement()
+      val obj = element as? kotlinx.serialization.json.JsonObject
+        ?: throw kotlinx.serialization.SerializationException(
+          "Expected a JSON object for {{classname}} but found ${element::class.simpleName}")
+      val discriminator =
+        (obj["{{discriminator.propertyBaseName}}"]
+          as? kotlinx.serialization.json.JsonPrimitive)?.content
+          ?: throw kotlinx.serialization.SerializationException(
+            "{{classname}} is missing the '{{discriminator.propertyBaseName}}' discriminator property")
+      return when (discriminator) {
+        {{#discriminator.mappedModels}}
+        "{{mappingName}}" ->
+          jsonDecoder.json.decodeFromJsonElement({{modelName}}.serializer(), obj)
+        {{/discriminator.mappedModels}}
+        else -> throw kotlinx.serialization.SerializationException(
+          "Unknown {{classname}} discriminator value: '$discriminator'")
+      }
+    }
+  }
+}
+{{/isDiscriminatedBase}}
+{{^isDiscriminatedBase}}
 {{#isDeprecated}}
 {{#description}}
 /**
@@ -694,7 +756,7 @@ class {{classname}}(
 @{{invokerPackage}}.UnevaluatedPropertiesFalse
 {{/isUnevaluatedPropertiesFalse}}
 @Serializable
-{{#parent}}open {{/parent}}data class {{classname}}(
+data class {{classname}}(
 {{#vars}}
   {{! One KDoc per property. The description, the singular example, the plural
       x-examples and the deprecation note all belong to the same comment: the
@@ -754,9 +816,9 @@ class {{classname}}(
 {{/vendorExtensions.isLocalTime}}{{#vendorExtensions.isDuration}}  @Contextual
 {{/vendorExtensions.isDuration}}{{#isDecimal}}  @Contextual
 {{/isDecimal}}{{^isDecimal}}{{#isNumber}}  @Contextual
-{{/isNumber}}{{/isDecimal}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isContainer}}{{/required}}{{^-last}},{{/-last}}
+{{/isNumber}}{{/isDecimal}}  {{#vendorExtensions.overridesBase}}override {{/vendorExtensions.overridesBase}}val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isContainer}}{{/required}}{{^-last}},{{/-last}}
 {{/vars}}
-){{#parent}} : {{{.}}}(){{/parent}} {
+){{#parent}} : {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
 {{#isInteger}}
@@ -1105,6 +1167,7 @@ class {{classname}}(
     }
 {{/hasContentEqualsField}}
 }
+{{/isDiscriminatedBase}}
 {{/anyOf}}
 {{/oneOf}}
 {{/isEnum}}

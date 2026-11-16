@@ -11,9 +11,25 @@ import type { ApiHttpResponse } from './api-http-response{{importFileExtension}}
  *   exchange, where blindly following a 307/308 to an attacker-controlled
  *   host would replay the body (containing client_secret / refresh_token)
  *   to that host.
+ * - `signal` -- aborts the request when it fires. The transport rejects with
+ *   the signal's reason (an `AbortError` by default), which is distinct from
+ *   the timeout error.
  */
 export interface SendRequestOptions {
   readonly noRedirect?: boolean;
+  readonly signal?: AbortSignal;
+}
+
+/**
+ * Per-call options accepted as the trailing argument of every operation.
+ *
+ * - `signal` -- cancels this call when it fires, in addition to any
+ *   client-level signal set on the {@link Configuration}. Aborting rejects the
+ *   call with the signal's reason (an `AbortError` by default), never with a
+ *   timeout error.
+ */
+export interface RequestOptions {
+  readonly signal?: AbortSignal;
 }
 
 /**

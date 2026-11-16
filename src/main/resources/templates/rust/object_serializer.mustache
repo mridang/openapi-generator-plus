@@ -531,6 +531,24 @@ pub mod absolute_uri {
     }
 }
 
+/// Decode adapter for a property that is both required and nullable. The key
+/// must be present (an absent key is a decode error, unlike a plain optional
+/// field), and an explicit `null` is a legal value that decodes to `None`.
+/// serde treats a missing `Option` field as `None`, but any field that names a
+/// `deserialize_with` function is required, so naming this one makes the key
+/// mandatory while still accepting `null`.
+pub mod required_nullable {
+    use serde::{Deserialize, Deserializer};
+
+    pub fn deserialize<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+    where
+        D: Deserializer<'de>,
+        T: Deserialize<'de>,
+    {
+        Option::<T>::deserialize(deserializer)
+    }
+}
+
 /// Writes a model's additional properties, leaving out every key that is the
 /// wire name of one of its `declared` properties: the declared value wins and
 /// no key is ever written twice.
@@ -686,6 +704,7 @@ mod tests {
     use crate::models::Category;
     use crate::models::EdgeCases;
     use crate::models::Pet;
+    use crate::models::RequiredNullable;
     use crate::models::{DryFood, PetFood, WetFood};
 {{/generateTests}}
 
@@ -1305,6 +1324,35 @@ mod tests {
         assert!(object_serializer::serialize(&Holder { weight: 1.5 }).is_ok());
     }
 
+    /* F215: a required AND nullable property must be present when decoding
+     * (missing is an error), an explicit null is a legal value that is kept,
+     * and encoding always writes the key, as null when the value is None. */
+    {{#generateTests}}
+    #[test]
+    fn test_required_nullable_null_is_kept() {
+        let decoded: Option<RequiredNullable> =
+            object_serializer::deserialize(br#"{"note":null}"#).expect("null is a legal value");
+        assert_eq!(decoded, Some(RequiredNullable::new(None)));
+    }
+
+    #[test]
+    fn test_required_nullable_missing_key_rejected() {
+        let result: Result<Option<RequiredNullable>, SerializationError> =
+            object_serializer::deserialize(br#"{}"#);
+        assert!(result.is_err(), "a missing required nullable key must be rejected");
+    }
+
+    #[test]
+    fn test_required_nullable_writes_null_key() {
+        let json = object_serializer::serialize(&RequiredNullable::new(None))
+            .expect("serialize must succeed");
+        assert_eq!(json, r#"{"note":null}"#);
+        let json = object_serializer::serialize(&RequiredNullable::new(Some("x".to_string())))
+            .expect("serialize must succeed");
+        assert_eq!(json, r#"{"note":"x"}"#);
+    }
+
+    {{/generateTests}}
     /* serialize of a None option emits the literal JSON null. */
     #[test]
     fn test_serialize_none_emits_null() {

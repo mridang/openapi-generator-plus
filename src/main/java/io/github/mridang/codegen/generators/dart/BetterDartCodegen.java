@@ -616,6 +616,21 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         super.postProcessModelProperty(model, property);
         tagDuration(property);
         propagateEnumRefBackingType(property);
+        tagRequiredNullable(property);
+    }
+
+    /**
+     * Splits the {@code required} flag for the model template: a property that is both required
+     * and nullable keeps its key mandatory on the wire but accepts and writes an explicit null,
+     * so it is typed {@code T?}, decoded through the nullable branch, and always written. Every
+     * other required property stays strict.
+     *
+     * @param property the model property to tag
+     */
+    static void tagRequiredNullable(final CodegenProperty property) {
+        final boolean requiredNullable = property.required && property.isNullable;
+        property.vendorExtensions.put("requiredNullable", requiredNullable);
+        property.vendorExtensions.put("strictRequired", property.required && !requiredNullable);
     }
 
     /**
@@ -819,6 +834,37 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return "dartImports";
     }
 
+    /**
+     * Returns the operation signature arguments with the per-operation server placed before the
+     * optional-parameters object: required parameters, then server, then options. Adding security
+     * to an operation adds the options argument, and it must never move an existing server
+     * argument.
+     *
+     * @param args the shared signature arguments (path, body, options, server)
+     * @return a new list with the server entry directly before the options entry
+     */
+    static List<Map<String, Object>> serverBeforeOptions(final List<Map<String, Object>> args) {
+        final List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Object> options = null;
+        for (final Map<String, Object> arg : args) {
+            if (Boolean.TRUE.equals(arg.get("isOptions"))) {
+                options = arg;
+            } else if (Boolean.TRUE.equals(arg.get("isServer"))) {
+                result.add(arg);
+                if (options != null) {
+                    result.add(options);
+                    options = null;
+                }
+            } else {
+                result.add(arg);
+            }
+        }
+        if (options != null) {
+            result.add(options);
+        }
+        return result;
+    }
+
     /** Reports whether {@code name} is the generated class name of a component schema. */
     private boolean isComponentModelName(final String name) {
         if (openAPI == null
@@ -880,6 +926,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                     final boolean hasMultipleConsumes =
                             op.consumes != null && op.consumes.size() > 1;
                     opDeco.put("hasMultipleConsumes", hasMultipleConsumes);
+                    final Object sigArgs = opDeco.get("signatureArgs");
+                    if (sigArgs instanceof List) {
+                        opDeco.put(
+                                "signatureArgs",
+                                serverBeforeOptions((List<Map<String, Object>>) sigArgs));
+                    }
                     op.vendorExtensions.put("op", opDeco);
                 }
             }

@@ -10,6 +10,7 @@
 package petstore
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -32,8 +33,9 @@ func NewStoreApi(apiClient ApiClient, config *Configuration, authenticator Authe
 }
 
 // CreateAccount Create an account
-func (a *StoreApi) CreateAccount(account Account) (*Account, error) {
-	result, err := a.CreateAccountWithHTTPInfo(account)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) CreateAccount(ctx context.Context, account Account) (*Account, error) {
+	result, err := a.CreateAccountWithHTTPInfo(ctx, account)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +49,7 @@ func (a *StoreApi) CreateAccount(account Account) (*Account, error) {
 }
 
 // CreateAccountWithHTTPInfo performs the CreateAccount operation and returns the full API result.
-func (a *StoreApi) CreateAccountWithHTTPInfo(account Account) (*ApiResult[Account], error) {
+func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Account) (*ApiResult[Account], error) {
 
 	path := "/store/account"
 
@@ -58,6 +60,8 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(account Account) (*ApiResult[Accoun
 	var requestBody any = account
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,
@@ -135,9 +139,10 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(account Account) (*ApiResult[Accoun
 }
 
 // DeleteOrder Delete purchase order by ID
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param orderId: ID of the order to delete
-func (a *StoreApi) DeleteOrder(orderId int64) error {
-	result, err := a.DeleteOrderWithHTTPInfo(orderId)
+func (a *StoreApi) DeleteOrder(ctx context.Context, orderId int64) error {
+	result, err := a.DeleteOrderWithHTTPInfo(ctx, orderId)
 	if err != nil {
 		return err
 	}
@@ -146,7 +151,7 @@ func (a *StoreApi) DeleteOrder(orderId int64) error {
 }
 
 // DeleteOrderWithHTTPInfo performs the DeleteOrder operation and returns the full API result.
-func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], error) {
+func (a *StoreApi) DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64) (*ApiResult[any], error) {
 	if err := requirePathParam("orderId", orderId); err != nil {
 		return nil, fmt.Errorf("%w when calling StoreApi.DeleteOrder", err)
 	}
@@ -165,6 +170,8 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], erro
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "DELETE",
 		path:         path,
 		queryParams:  queryParams,
@@ -188,9 +195,10 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], erro
 }
 
 // GetBySwatch Echoes a swatch supplied via path, query and header parameters.
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param options: Options for query, header, form, and cookie parameters.
-func (a *StoreApi) GetBySwatch(pathSwatch Swatch, options *opts.GetBySwatchOptions) (*Category, error) {
-	result, err := a.GetBySwatchWithHTTPInfo(pathSwatch, options)
+func (a *StoreApi) GetBySwatch(ctx context.Context, pathSwatch Swatch, options *opts.GetBySwatchOptions) (*Category, error) {
+	result, err := a.GetBySwatchWithHTTPInfo(ctx, pathSwatch, options)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +212,7 @@ func (a *StoreApi) GetBySwatch(pathSwatch Swatch, options *opts.GetBySwatchOptio
 }
 
 // GetBySwatchWithHTTPInfo performs the GetBySwatch operation and returns the full API result.
-func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetBySwatchOptions) (*ApiResult[Category], error) {
+func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatch, options *opts.GetBySwatchOptions) (*ApiResult[Category], error) {
 	if err := requirePathParam("pathSwatch", pathSwatch); err != nil {
 		return nil, fmt.Errorf("%w when calling StoreApi.GetBySwatch", err)
 	}
@@ -229,6 +237,8 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetB
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"querySwatch"},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -306,8 +316,9 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetB
 }
 
 // GetDefaults Returns a model exercising schema defaults on deserialize.
-func (a *StoreApi) GetDefaults() (*Defaults, error) {
-	result, err := a.GetDefaultsWithHTTPInfo()
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) GetDefaults(ctx context.Context) (*Defaults, error) {
+	result, err := a.GetDefaultsWithHTTPInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +332,7 @@ func (a *StoreApi) GetDefaults() (*Defaults, error) {
 }
 
 // GetDefaultsWithHTTPInfo performs the GetDefaults operation and returns the full API result.
-func (a *StoreApi) GetDefaultsWithHTTPInfo() (*ApiResult[Defaults], error) {
+func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context) (*ApiResult[Defaults], error) {
 
 	path := "/store/defaults"
 
@@ -332,6 +343,8 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo() (*ApiResult[Defaults], error) {
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -409,8 +422,9 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo() (*ApiResult[Defaults], error) {
 }
 
 // GetDepartment Returns a department (mutual-recursion codegen fixture).
-func (a *StoreApi) GetDepartment() (*Department, error) {
-	result, err := a.GetDepartmentWithHTTPInfo()
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) GetDepartment(ctx context.Context) (*Department, error) {
+	result, err := a.GetDepartmentWithHTTPInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -424,7 +438,7 @@ func (a *StoreApi) GetDepartment() (*Department, error) {
 }
 
 // GetDepartmentWithHTTPInfo performs the GetDepartment operation and returns the full API result.
-func (a *StoreApi) GetDepartmentWithHTTPInfo() (*ApiResult[Department], error) {
+func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context) (*ApiResult[Department], error) {
 
 	path := "/store/department"
 
@@ -435,6 +449,8 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo() (*ApiResult[Department], error) {
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -512,8 +528,9 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo() (*ApiResult[Department], error) {
 }
 
 // GetGroupedCategories Returns categories grouped into an array of string-keyed maps.
-func (a *StoreApi) GetGroupedCategories() (*[]map[string]Category, error) {
-	result, err := a.GetGroupedCategoriesWithHTTPInfo()
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) GetGroupedCategories(ctx context.Context) (*[]map[string]Category, error) {
+	result, err := a.GetGroupedCategoriesWithHTTPInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +544,7 @@ func (a *StoreApi) GetGroupedCategories() (*[]map[string]Category, error) {
 }
 
 // GetGroupedCategoriesWithHTTPInfo performs the GetGroupedCategories operation and returns the full API result.
-func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo() (*ApiResult[[]map[string]Category], error) {
+func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context) (*ApiResult[[]map[string]Category], error) {
 
 	path := "/store/grouped-categories"
 
@@ -538,6 +555,8 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo() (*ApiResult[[]map[string]C
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -615,8 +634,9 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo() (*ApiResult[[]map[string]C
 }
 
 // GetInventory Returns pet inventories by status
-func (a *StoreApi) GetInventory() (*map[string]int32, error) {
-	result, err := a.GetInventoryWithHTTPInfo()
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) GetInventory(ctx context.Context) (*map[string]int32, error) {
+	result, err := a.GetInventoryWithHTTPInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -630,7 +650,7 @@ func (a *StoreApi) GetInventory() (*map[string]int32, error) {
 }
 
 // GetInventoryWithHTTPInfo performs the GetInventory operation and returns the full API result.
-func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], error) {
+func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context) (*ApiResult[map[string]int32], error) {
 
 	path := "/store/inventory"
 
@@ -641,6 +661,8 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -718,8 +740,9 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 }
 
 // GetMatrix Returns a matrix as an array of integer arrays.
-func (a *StoreApi) GetMatrix() (*[][]int32, error) {
-	result, err := a.GetMatrixWithHTTPInfo()
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) GetMatrix(ctx context.Context) (*[][]int32, error) {
+	result, err := a.GetMatrixWithHTTPInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -733,7 +756,7 @@ func (a *StoreApi) GetMatrix() (*[][]int32, error) {
 }
 
 // GetMatrixWithHTTPInfo performs the GetMatrix operation and returns the full API result.
-func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
+func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context) (*ApiResult[[][]int32], error) {
 
 	path := "/store/matrix"
 
@@ -744,6 +767,8 @@ func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -821,9 +846,10 @@ func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
 }
 
 // GetOrderById Find purchase order by ID
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param orderId: ID of order to return
-func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
-	result, err := a.GetOrderByIdWithHTTPInfo(orderId)
+func (a *StoreApi) GetOrderById(ctx context.Context, orderId int64) (*Order, error) {
+	result, err := a.GetOrderByIdWithHTTPInfo(ctx, orderId)
 	if err != nil {
 		return nil, err
 	}
@@ -837,7 +863,7 @@ func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
 }
 
 // GetOrderByIdWithHTTPInfo performs the GetOrderById operation and returns the full API result.
-func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], error) {
+func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64) (*ApiResult[Order], error) {
 	if err := requirePathParam("orderId", orderId); err != nil {
 		return nil, fmt.Errorf("%w when calling StoreApi.GetOrderById", err)
 	}
@@ -856,6 +882,8 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -933,8 +961,9 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 }
 
 // GetOrderByTrackingId Find purchase order by tracking id
-func (a *StoreApi) GetOrderByTrackingId(trackingId uuid.UUID) (*Order, error) {
-	result, err := a.GetOrderByTrackingIdWithHTTPInfo(trackingId)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) GetOrderByTrackingId(ctx context.Context, trackingId uuid.UUID) (*Order, error) {
+	result, err := a.GetOrderByTrackingIdWithHTTPInfo(ctx, trackingId)
 	if err != nil {
 		return nil, err
 	}
@@ -948,7 +977,7 @@ func (a *StoreApi) GetOrderByTrackingId(trackingId uuid.UUID) (*Order, error) {
 }
 
 // GetOrderByTrackingIdWithHTTPInfo performs the GetOrderByTrackingId operation and returns the full API result.
-func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(trackingId uuid.UUID) (*ApiResult[Order], error) {
+func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackingId uuid.UUID) (*ApiResult[Order], error) {
 	if err := requirePathParam("trackingId", trackingId); err != nil {
 		return nil, fmt.Errorf("%w when calling StoreApi.GetOrderByTrackingId", err)
 	}
@@ -967,6 +996,8 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(trackingId uuid.UUID) (*ApiR
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1044,10 +1075,11 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(trackingId uuid.UUID) (*ApiR
 }
 
 // GetStockItem Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param asOf: Only consider stock as of this instant
 // param options: Options for query, header, form, and cookie parameters.
-func (a *StoreApi) GetStockItem(options *opts.GetStockItemOptions) (*StockItem, error) {
-	result, err := a.GetStockItemWithHTTPInfo(options)
+func (a *StoreApi) GetStockItem(ctx context.Context, options *opts.GetStockItemOptions) (*StockItem, error) {
+	result, err := a.GetStockItemWithHTTPInfo(ctx, options)
 	if err != nil {
 		return nil, err
 	}
@@ -1061,7 +1093,7 @@ func (a *StoreApi) GetStockItem(options *opts.GetStockItemOptions) (*StockItem, 
 }
 
 // GetStockItemWithHTTPInfo performs the GetStockItem operation and returns the full API result.
-func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (*ApiResult[StockItem], error) {
+func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.GetStockItemOptions) (*ApiResult[StockItem], error) {
 
 	path := "/store/stock-item"
 
@@ -1075,6 +1107,8 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"asOf"},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1152,8 +1186,9 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 }
 
 // GetSwatch Returns a bare enum (value-type response codegen fixture).
-func (a *StoreApi) GetSwatch() (*Swatch, error) {
-	result, err := a.GetSwatchWithHTTPInfo()
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) GetSwatch(ctx context.Context) (*Swatch, error) {
+	result, err := a.GetSwatchWithHTTPInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1167,7 +1202,7 @@ func (a *StoreApi) GetSwatch() (*Swatch, error) {
 }
 
 // GetSwatchWithHTTPInfo performs the GetSwatch operation and returns the full API result.
-func (a *StoreApi) GetSwatchWithHTTPInfo() (*ApiResult[Swatch], error) {
+func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context) (*ApiResult[Swatch], error) {
 
 	path := "/store/swatch"
 
@@ -1178,6 +1213,8 @@ func (a *StoreApi) GetSwatchWithHTTPInfo() (*ApiResult[Swatch], error) {
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1255,8 +1292,9 @@ func (a *StoreApi) GetSwatchWithHTTPInfo() (*ApiResult[Swatch], error) {
 }
 
 // GetSwatchGroups Returns swatches grouped as an array of string-keyed enum maps.
-func (a *StoreApi) GetSwatchGroups() (*[]map[string]Swatch, error) {
-	result, err := a.GetSwatchGroupsWithHTTPInfo()
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) GetSwatchGroups(ctx context.Context) (*[]map[string]Swatch, error) {
+	result, err := a.GetSwatchGroupsWithHTTPInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1270,7 +1308,7 @@ func (a *StoreApi) GetSwatchGroups() (*[]map[string]Swatch, error) {
 }
 
 // GetSwatchGroupsWithHTTPInfo performs the GetSwatchGroups operation and returns the full API result.
-func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch], error) {
+func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context) (*ApiResult[[]map[string]Swatch], error) {
 
 	path := "/store/swatch-groups"
 
@@ -1281,6 +1319,8 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1358,8 +1398,9 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch
 }
 
 // GetTimestampGroups Returns timestamps grouped as an array of string-keyed maps.
-func (a *StoreApi) GetTimestampGroups() (*[]map[string]DateTime, error) {
-	result, err := a.GetTimestampGroupsWithHTTPInfo()
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) GetTimestampGroups(ctx context.Context) (*[]map[string]DateTime, error) {
+	result, err := a.GetTimestampGroupsWithHTTPInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1373,7 +1414,7 @@ func (a *StoreApi) GetTimestampGroups() (*[]map[string]DateTime, error) {
 }
 
 // GetTimestampGroupsWithHTTPInfo performs the GetTimestampGroups operation and returns the full API result.
-func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]DateTime], error) {
+func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context) (*ApiResult[[]map[string]DateTime], error) {
 
 	path := "/store/timestamp-groups"
 
@@ -1384,6 +1425,8 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]Dat
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1461,8 +1504,9 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]Dat
 }
 
 // GetTree Returns a self-referential tree (recursive-type codegen fixture)
-func (a *StoreApi) GetTree() (*TreeNode, error) {
-	result, err := a.GetTreeWithHTTPInfo()
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) GetTree(ctx context.Context) (*TreeNode, error) {
+	result, err := a.GetTreeWithHTTPInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1476,7 +1520,7 @@ func (a *StoreApi) GetTree() (*TreeNode, error) {
 }
 
 // GetTreeWithHTTPInfo performs the GetTree operation and returns the full API result.
-func (a *StoreApi) GetTreeWithHTTPInfo() (*ApiResult[TreeNode], error) {
+func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context) (*ApiResult[TreeNode], error) {
 
 	path := "/store/tree"
 
@@ -1487,6 +1531,8 @@ func (a *StoreApi) GetTreeWithHTTPInfo() (*ApiResult[TreeNode], error) {
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
@@ -1564,8 +1610,9 @@ func (a *StoreApi) GetTreeWithHTTPInfo() (*ApiResult[TreeNode], error) {
 }
 
 // PlaceOrder Place an order for a pet
-func (a *StoreApi) PlaceOrder(order *Order) (*Order, error) {
-	result, err := a.PlaceOrderWithHTTPInfo(order)
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) PlaceOrder(ctx context.Context, order *Order) (*Order, error) {
+	result, err := a.PlaceOrderWithHTTPInfo(ctx, order)
 	if err != nil {
 		return nil, err
 	}
@@ -1579,7 +1626,7 @@ func (a *StoreApi) PlaceOrder(order *Order) (*Order, error) {
 }
 
 // PlaceOrderWithHTTPInfo performs the PlaceOrder operation and returns the full API result.
-func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], error) {
+func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order) (*ApiResult[Order], error) {
 
 	path := "/store/order"
 
@@ -1590,6 +1637,8 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 	var requestBody any = order
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,
@@ -1667,10 +1716,11 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 }
 
 // SearchStore Searches the store; exercises content-encoded, Set and time-of-day parameters.
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param q: JSON-encoded query parameter (OAS `content`, not `schema`)
 // param options: Options for query, header, form, and cookie parameters.
-func (a *StoreApi) SearchStore(options *opts.SearchStoreOptions) (*[]Order, error) {
-	result, err := a.SearchStoreWithHTTPInfo(options)
+func (a *StoreApi) SearchStore(ctx context.Context, options *opts.SearchStoreOptions) (*[]Order, error) {
+	result, err := a.SearchStoreWithHTTPInfo(ctx, options)
 	if err != nil {
 		return nil, err
 	}
@@ -1684,7 +1734,7 @@ func (a *StoreApi) SearchStore(options *opts.SearchStoreOptions) (*[]Order, erro
 }
 
 // SearchStoreWithHTTPInfo performs the SearchStore operation and returns the full API result.
-func (a *StoreApi) SearchStoreWithHTTPInfo(options *opts.SearchStoreOptions) (*ApiResult[[]Order], error) {
+func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.SearchStoreOptions) (*ApiResult[[]Order], error) {
 
 	path := "/store/search"
 
@@ -1708,12 +1758,18 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(options *opts.SearchStoreOptions) (*A
 
 	headerParams := make(map[string]string)
 	if options != nil && options.XFilter != nil {
-		headerParams["X-Filter"] = fmt.Sprintf("%v", serializeStyled("X-Filter", options.XFilter, "header", "map[string]string", "", "", false))
+		contentBytes, err := serialize(options.XFilter)
+		if err != nil {
+			return nil, err
+		}
+		headerParams["X-Filter"] = string(contentBytes)
 	}
 
 	var requestBody any
 
 	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{"q", "labels", "at"},
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,

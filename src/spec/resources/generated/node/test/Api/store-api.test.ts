@@ -15,7 +15,11 @@ import {
   PhotoMetadata,
   Swatch,
 } from "../../src/models/index.js";
-import { InternalServerError, NotFoundError } from "../../src/errors/index.js";
+import {
+  InternalServerError,
+  NotFoundError,
+  SerializationError,
+} from "../../src/errors/index.js";
 import { uuid, type UUID } from "../../src/brand.js";
 import { Temporal } from "temporal-polyfill";
 
@@ -177,6 +181,44 @@ describe("StoreApi nested container deserialization", () => {
     }
   });
 
+  test.each([
+    ["a quoted number", '[[1,"2"]]'],
+    ["a fractional number", "[[1,2.5]]"],
+    ["a null", "[[1,null]]"],
+  ])("getMatrix rejects %s element", async (_label, body) => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      body,
+    );
+    try {
+      await expect(mockApi.getMatrix()).rejects.toBeInstanceOf(
+        SerializationError,
+      );
+    } finally {
+      close();
+    }
+  });
+
+  test.each([
+    ["a quoted number", '{"available":"5"}'],
+    ["a fractional number", '{"available":5.5}'],
+    ["a null", '{"available":null}'],
+  ])("getInventory rejects %s element", async (_label, body) => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      body,
+    );
+    try {
+      await expect(mockApi.getInventory()).rejects.toBeInstanceOf(
+        SerializationError,
+      );
+    } finally {
+      close();
+    }
+  });
+
   test("getSwatchGroups decodes enum leaves into Swatch values", async () => {
     // nested-container-deserialise: Array<Record<string, Swatch>> — an enum
     // leaf must be carried through as its enum value, not run through a model
@@ -327,6 +369,31 @@ describe("StoreApi content-encoded query parameters", () => {
       ),
     );
     expect(hits).toBe(0);
+  });
+
+  test("searchStore sends the content header X-Filter as the ObjectSerializer JSON", async () => {
+    let capturedHeader: string | string[] | undefined;
+    const server = http.createServer((req, res) => {
+      capturedHeader = req.headers["x-filter"];
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end("[]");
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const addr = server.address() as { port: number };
+      await new StoreApi(
+        undefined,
+        Configuration.builder()
+          .baseUrl(`http://127.0.0.1:${addr.port}`)
+          .build(),
+      ).searchStore({ xFilter: { colour: "red", size: "a b" } });
+    } finally {
+      server.close();
+    }
+
+    expect(capturedHeader).toBe('{"colour":"red","size":"a b"}');
   });
 
   test("searchStore sends a date-time inside q in the canonical +00:00 form", async () => {

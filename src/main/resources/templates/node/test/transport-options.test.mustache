@@ -295,4 +295,33 @@ describe('TransportOptions', () => {
       expect(opts.toString()).toContain('http://proxy.example.com:8080');
     });
   });
+
+  describe('custom fetch', () => {
+    const customFetch = (async () => new Response('{}')) as typeof fetch;
+
+    test('fetch and fetchOptions default to null', () => {
+      const opts = TransportOptions.builder().build();
+      expect(opts.fetch).toBeNull();
+      expect(opts.fetchOptions).toBeNull();
+    });
+
+    test('the builder stores the supplied fetch and fetchOptions', () => {
+      const opts = TransportOptions.builder().fetch(customFetch).fetchOptions({ keepalive: true }).build();
+      expect(opts.fetch).toBe(customFetch);
+      expect(opts.fetchOptions).toEqual({ keepalive: true });
+    });
+
+    test.each([
+      ['a proxy', TransportOptions.builder().proxy('http://proxy.example.com:8080')],
+      ['a custom CA certificate', TransportOptions.builder().caCertPath('/etc/ca.pem')],
+      ['disabled TLS verification', TransportOptions.builder().verifySsl(false)],
+    ])('a custom fetch combined with %s fails fast', (_name, builder) => {
+      expect(() => builder.fetch(customFetch).build()).toThrow(TypeError);
+    });
+
+    test('the printable form never includes the fetch function or option values', () => {
+      const opts = TransportOptions.builder().fetch(customFetch).fetchOptions({ credentials: 'secret-mode' }).build();
+      expect(opts.toString()).not.toContain('secret-mode');
+    });
+  });
 });

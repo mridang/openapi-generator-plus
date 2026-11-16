@@ -277,6 +277,48 @@ internal object ValueSerializer {
         }
     }
 
+    /**
+     * Serializes a parameter declared with `content: application/json` (not
+     * `schema`) through the SDK's own [ObjectSerializer], so the JSON text is
+     * identical in every location. The text is then encoded once by the
+     * location's normal rule: a path value is segment-encoded, a cookie value
+     * is percent-encoded, a header value is sent verbatim (the transport
+     * rejects CR/LF), and a query value is returned for the query builder to
+     * encode. Any serialization failure surfaces as the SDK's
+     * [SerializationException]; nothing is swallowed.
+     *
+     * @param paramName the parameter name
+     * @param value the value to serialize (may be null)
+     * @param location "path", "query", "header" or "cookie"
+     * @return the encoded JSON text, or `null` for an absent query value
+     */
+    @JvmStatic
+    fun serializeContent(
+        paramName: String,
+        value: Any?,
+        location: String,
+    ): String? {
+        if (value == null) {
+            return if ("query" == location) null else ""
+        }
+        val json = serializer.serialize(value)
+        return when (location) {
+            "path" -> {
+                val encoded = encodePathSegment(json)
+                if (encoded == "." || encoded == "..") {
+                    throw IllegalArgumentException("Path parameter '$paramName' must not be '.' or '..'")
+                }
+                encoded
+            }
+            "cookie" ->
+                URLEncoder.encode(json, StandardCharsets.UTF_8)
+                    .replace("+", "%20")
+                    .replace("*", "%2A")
+                    .replace("%7E", "~")
+            else -> json
+        }
+    }
+
     private fun toStringList(value: Any?): List<String> {
         if (value is Collection<*>) {
             return value.map { serializer.stringify(it) }

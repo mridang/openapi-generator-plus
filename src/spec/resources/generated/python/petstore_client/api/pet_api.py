@@ -214,7 +214,10 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        result = await self.add_pet_with_http_info(pet, options)
+        result = await self.add_pet_with_http_info(
+            pet,
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -277,7 +280,10 @@ class PetApi(BaseApi):
         :return: List[Photo]
         :raises ApiException: if fails to make API call
         """
-        result = await self.add_pet_photos_with_http_info(pet_id, options)
+        result = await self.add_pet_photos_with_http_info(
+            pet_id,
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -365,7 +371,9 @@ class PetApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         result = await self.add_pet_treatment_with_http_info(
-            pet_id, pet_treatment, options
+            pet_id,
+            pet_treatment,
+            options=options,
         )
 
         if result.data is None:
@@ -442,7 +450,10 @@ class PetApi(BaseApi):
 
         :raises ApiException: if fails to make API call
         """
-        result = await self.delete_pet_with_http_info(pet_id, options)
+        result = await self.delete_pet_with_http_info(
+            pet_id,
+            options=options,
+        )
 
         return result.data
 
@@ -527,7 +538,10 @@ class PetApi(BaseApi):
         :return: bytes
         :raises ApiException: if fails to make API call
         """
-        result = await self.download_pet_document_with_http_info(pet_id, document_id)
+        result = await self.download_pet_document_with_http_info(
+            pet_id,
+            document_id,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -614,7 +628,9 @@ class PetApi(BaseApi):
         :return: List[Pet]
         :raises ApiException: if fails to make API call
         """
-        result = await self.find_pets_born_on_with_http_info(born_on)
+        result = await self.find_pets_born_on_with_http_info(
+            born_on,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -685,7 +701,9 @@ class PetApi(BaseApi):
         .. seealso::
             `Find out more about filtering <https://example.com/docs/filtering>`_
         """
-        result = await self.find_pets_by_status_with_http_info(options)
+        result = await self.find_pets_by_status_with_http_info(
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -784,7 +802,10 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_external_pet_info_with_http_info(pet_id, server=server)
+        result = await self.get_external_pet_info_with_http_info(
+            pet_id,
+            server=server,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -856,7 +877,8 @@ class PetApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         result = await self.get_multi_server_pet_info_with_http_info(
-            pet_id, server=server
+            pet_id,
+            server=server,
         )
 
         if result.data is None:
@@ -928,7 +950,9 @@ class PetApi(BaseApi):
         :return: bytes
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_pet_avatar_with_http_info(pet_id)
+        result = await self.get_pet_avatar_with_http_info(
+            pet_id,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -995,7 +1019,9 @@ class PetApi(BaseApi):
         :return: bytes
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_pet_avatar_thumbnail_with_http_info(pet_id)
+        result = await self.get_pet_avatar_thumbnail_with_http_info(
+            pet_id,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1072,7 +1098,10 @@ class PetApi(BaseApi):
         .. deprecated::
             This operation is deprecated.
         """
-        result = await self.get_pet_by_id_with_http_info(pet_id, server=server)
+        result = await self.get_pet_by_id_with_http_info(
+            pet_id,
+            server=server,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1148,7 +1177,10 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_pet_by_name_with_http_info(name, options)
+        result = await self.get_pet_by_name_with_http_info(
+            name,
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1255,7 +1287,9 @@ class PetApi(BaseApi):
         :return: PetPassport
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_pet_passport_with_http_info(pet_id)
+        result = await self.get_pet_passport_with_http_info(
+            pet_id,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1324,7 +1358,10 @@ class PetApi(BaseApi):
         :return: bytes
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_pet_photo_with_http_info(pet_id, photo_id)
+        result = await self.get_pet_photo_with_http_info(
+            pet_id,
+            photo_id,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1410,7 +1447,11 @@ class PetApi(BaseApi):
         :return: StrictStr
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_pet_summary_with_http_info(pet_id, as_of, options)
+        result = await self.get_pet_summary_with_http_info(
+            pet_id,
+            as_of,
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1535,7 +1576,11 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_pet_tag_with_http_info(pet_id, tag_name, options)
+        result = await self.get_pet_tag_with_http_info(
+            pet_id,
+            tag_name,
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1733,7 +1778,10 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_staging_pet_info_with_http_info(pet_id, server=server)
+        result = await self.get_staging_pet_info_with_http_info(
+            pet_id,
+            server=server,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1808,7 +1856,9 @@ class PetApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         result = await self.set_pet_avatar_with_http_info(
-            pet_id, body, request_content_type=request_content_type
+            pet_id,
+            body,
+            request_content_type=request_content_type,
         )
 
         return result.data
@@ -1893,7 +1943,8 @@ class PetApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         result = await self.set_pet_avatar_thumbnail_with_http_info(
-            pet_id, set_pet_avatar_thumbnail_request
+            pet_id,
+            set_pet_avatar_thumbnail_request,
         )
 
         return result.data
@@ -1959,7 +2010,10 @@ class PetApi(BaseApi):
         :return: ApiResponse
         :raises ApiException: if fails to make API call
         """
-        result = await self.set_pet_preferences_with_http_info(pet_id, options)
+        result = await self.set_pet_preferences_with_http_info(
+            pet_id,
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -2044,7 +2098,10 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        result = await self.update_pet_with_http_info(pet_id, pet)
+        result = await self.update_pet_with_http_info(
+            pet_id,
+            pet,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -2119,7 +2176,10 @@ class PetApi(BaseApi):
         :return: ApiResponse
         :raises ApiException: if fails to make API call
         """
-        result = await self.upload_pet_certificate_with_http_info(pet_id, options)
+        result = await self.upload_pet_certificate_with_http_info(
+            pet_id,
+            options=options,
+        )
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -2200,7 +2260,9 @@ class PetApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         result = await self.upload_pet_document_with_http_info(
-            pet_id, options, request_content_type=request_content_type
+            pet_id,
+            options=options,
+            request_content_type=request_content_type,
         )
 
         if result.data is None:

@@ -832,11 +832,7 @@ public class StoreApi extends BaseApi {
     }
     Map<String, String> headerParams = new HashMap<>();
     if (options != null && options.xFilter() != null) {
-      headerParams.put(
-          "X-Filter",
-          (String)
-              ValueSerializer.serializeStyled(
-                  "X-Filter", options.xFilter(), "header", "Map<String, String>", null, "", false));
+      headerParams.put("X-Filter", objectSerializer.serialize(options.xFilter()));
     }
     return invokeApiForResult(
         "GET",

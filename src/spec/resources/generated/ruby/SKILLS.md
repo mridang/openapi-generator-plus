@@ -192,6 +192,17 @@ transport = Petstore::Client::TransportOptions.builder
 client = Petstore::Client::Petstore.new(authenticator, transport)
 ```
 
+### Custom Faraday Connection
+
+Supply your own `Faraday::Connection` to control the adapter or middleware. The SDK still applies its timeouts, user agent, redirect policy and query encoding on top, and never closes a connection you supplied. Combining it with `proxy`, `ca_cert_path` or `verify_ssl(false)` raises `ArgumentError`; configure those on the connection instead.
+
+```ruby
+connection = Faraday.new { |f| f.adapter :net_http }
+transport = Petstore::Client::TransportOptions.builder.connection(connection).build
+
+client = Petstore::Client::Petstore.new(authenticator, transport)
+```
+
 ## API Methods
 
 Each API group is exposed as a typed attribute on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

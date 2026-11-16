@@ -72,6 +72,20 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
+    public void SyncAuthHeadersThrowsTheCanonicalAsyncExchangeError()
+    {
+        OpenIdConnectAuthenticator auth = CreateAuthenticator();
+
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() =>
+            auth.GetAuthHeaders()
+        );
+        Assert.Equal(
+            "OAuth2 authenticators require async token exchange; use GetAuthHeadersAsync() instead.",
+            ex.Message
+        );
+    }
+
+    [Fact]
     public async Task BuildsAuthorizationUrlFromDiscovery()
     {
         var client = new FakeApiClient();

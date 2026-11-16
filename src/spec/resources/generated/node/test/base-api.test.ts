@@ -23,7 +23,7 @@ import { NotFoundError } from "../src/errors/not-found-error.js";
 import { ConflictError } from "../src/errors/conflict-error.js";
 import { UnprocessableEntityError } from "../src/errors/unprocessable-entity-error.js";
 import { InternalServerError } from "../src/errors/internal-server-error.js";
-import type { ApiClient } from "../src/api-client.js";
+import type { ApiClient, RequestOptions } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 import type { ApiResult } from "../src/api-result.js";
 import { PetApi } from "../src/api/pet-api.js";
@@ -33,7 +33,12 @@ import { ApiKeyAuthenticator } from "../src/auth/api-key-authenticator.js";
 import { ApiKeyLocation } from "../src/auth/api-key-location.js";
 import { Category } from "../src/models/index.js";
 import { ObjectSerializer } from "../src/object-serializer.js";
-import { OpenAPIError, SerializationError } from "../src/errors/index.js";
+import {
+  OpenAPIError,
+  NetworkTimeoutError,
+  SerializationError,
+} from "../src/errors/index.js";
+import { TransportOptions } from "../src/transport-options.js";
 
 class CapturingApiClient implements ApiClient {
   capturedUrl = "";
@@ -107,6 +112,7 @@ class TestableApi extends BaseApi {
     contentType: string,
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null,
+    requestOptions?: RequestOptions,
   ): Promise<ApiResult<T>> {
     return this.invokeApiForResult(
       method,
@@ -118,6 +124,10 @@ class TestableApi extends BaseApi {
       contentType,
       returnType,
       auth,
+      false,
+      undefined,
+      "",
+      requestOptions,
     );
   }
 }
@@ -1607,4 +1617,82 @@ describe("TypedErrorBodyTests", () => {
     const err = new BadRequestError("boom", {}, "");
     expect(err.getTypedErrorBody(Category)).toBeNull();
   });
+});
+
+describe("request cancellation against the slow endpoint", () => {
+  const slow = (
+    testApi: TestableApi,
+    requestOptions?: RequestOptions,
+  ): Promise<unknown> =>
+    testApi
+      .callForResult(
+        "GET",
+        `${chasmUrl}/test/slow`,
+        {},
+        {},
+        null,
+        ["application/json"],
+        "application/json",
+        null,
+        undefined,
+        requestOptions,
+      )
+      .catch((e: unknown) => e);
+
+  test("a per-call signal aborts the in-flight request with an AbortError", async () => {
+    const controller = new AbortController();
+    const testApi = new TestableApi(
+      new DefaultApiClient(),
+      Configuration.defaultConfiguration(),
+    );
+    const pending = slow(testApi, { signal: controller.signal });
+    setTimeout(() => controller.abort(), 100);
+    const error = await pending;
+    expect((error as Error).name).toBe("AbortError");
+    expect(error).not.toBeInstanceOf(NetworkTimeoutError);
+  }, 15000);
+
+  test("an already aborted per-call signal rejects without waiting", async () => {
+    const testApi = new TestableApi(
+      new DefaultApiClient(),
+      Configuration.defaultConfiguration(),
+    );
+    const error = await slow(testApi, { signal: AbortSignal.abort() });
+    expect((error as Error).name).toBe("AbortError");
+  });
+
+  test("a client-level signal aborts the in-flight request with an AbortError", async () => {
+    const controller = new AbortController();
+    const config = Configuration.builder().signal(controller.signal).build();
+    const testApi = new TestableApi(new DefaultApiClient(), config);
+    const pending = slow(testApi);
+    setTimeout(() => controller.abort(), 100);
+    const error = await pending;
+    expect((error as Error).name).toBe("AbortError");
+    expect(error).not.toBeInstanceOf(NetworkTimeoutError);
+  }, 15000);
+
+  test("either the client-level or the per-call signal cancels the merged request", async () => {
+    const clientController = new AbortController();
+    const callController = new AbortController();
+    const config = Configuration.builder()
+      .signal(clientController.signal)
+      .build();
+    const testApi = new TestableApi(new DefaultApiClient(), config);
+    const pending = slow(testApi, { signal: callController.signal });
+    setTimeout(() => callController.abort(), 100);
+    const error = await pending;
+    expect((error as Error).name).toBe("AbortError");
+    expect(clientController.signal.aborted).toBe(false);
+  }, 15000);
+
+  test("the timeout still raises NetworkTimeoutError when no signal fires", async () => {
+    const transport = TransportOptions.builder().timeout(300).build();
+    const testApi = new TestableApi(
+      new DefaultApiClient(transport),
+      Configuration.defaultConfiguration(),
+    );
+    const error = await slow(testApi, { signal: new AbortController().signal });
+    expect(error).toBeInstanceOf(NetworkTimeoutError);
+  }, 15000);
 });

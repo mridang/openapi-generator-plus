@@ -930,9 +930,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      * {@code op.vendorExtensions["op"]} for the api template.
      *
      * <p>Each operation method takes flat positional parameters in the structural
-     * order of {@code signatureArgs} (path params, then body, then the synthetic
-     * {@code options} object, then {@code server}), e.g.
-     * {@code getExternalPetInfo(petId, server?)}. The api template renders that
+     * order of {@code signatureArgs} (path params, then body, then {@code server},
+     * then the synthetic {@code options} object, then the per-call
+     * {@code requestOptions}), e.g. {@code getExternalPetInfo(petId, server?)}. The api template renders that
      * parameter list — and the delegating call — from the field list below.
      *
      * <p>Populated key (under the {@code op} decorator namespace):
@@ -985,12 +985,24 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         final boolean hasHeader = op.headerParams != null && !op.headerParams.isEmpty();
         final boolean hasForm = op.formParams != null && !op.formParams.isEmpty();
         final boolean hasCookie = op.cookieParams != null && !op.cookieParams.isEmpty();
-        if (hasQuery || hasHeader || hasForm || hasCookie || op.hasAuthMethods) {
-            final boolean optionsRequired = Boolean.TRUE.equals(d.get("optionsParamRequired"));
-            fields.add(wrapperField("options", optionsClassName, !optionsRequired));
-        }
+        /* Order: required parameters, then the server, then the optional
+         * parameters object, then the per-call request options. Adding
+         * security only appends the options object, so it never moves an
+         * existing argument. */
+        final boolean optionsParamRequired = Boolean.TRUE.equals(d.get("optionsParamRequired"));
+        final boolean hasOptions = hasQuery || hasHeader || hasForm || hasCookie || op.hasAuthMethods;
         if (op.servers != null && !op.servers.isEmpty()) {
-            fields.add(wrapperField("server", serverClassName, true));
+            /* TypeScript forbids a required parameter after an optional one, so
+             * when the options object that follows is required the server is
+             * spelled out as `Server | undefined` instead of `server?`. */
+            if (hasOptions && optionsParamRequired) {
+                fields.add(wrapperField("server", serverClassName + " | undefined", false));
+            } else {
+                fields.add(wrapperField("server", serverClassName, true));
+            }
+        }
+        if (hasOptions) {
+            fields.add(wrapperField("options", optionsClassName, !optionsParamRequired));
         }
 
         // Optional request content-type selector. An operation that declares
@@ -1025,6 +1037,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         } else {
             d.put("hasContentTypeSelector", false);
         }
+
+        /* The trailing per-call cancellation handle: always last. */
+        fields.add(wrapperField("requestOptions", "RequestOptions", true));
 
         d.put("requestWrapperFields", fields);
     }
@@ -1446,6 +1461,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (nestsModel) {
                     serializerImports.add("reattachAdditionalProperties");
                 }
+                if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainNumberDecimal)) {
+                    serializerImports.add("decodePlainNumber");
+                }
                 modelMap.put("serializerImports", String.join(", ", serializerImports));
                 modelMap.put("hasSerializerImports", !serializerImports.isEmpty());
                 modelMap.put("hasUuidImport", namesType(model, "UUID"));
@@ -1457,11 +1475,17 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return result;
     }
 
+    /** Whether the property is a bare {@code type: number} carried as a branded Decimal. */
+    private static boolean isPlainNumberDecimal(CodegenProperty prop) {
+        return Boolean.TRUE.equals(prop.vendorExtensions.get("isPlainNumberDecimal"));
+    }
+
     /** Whether the model template emits an {@code @Transform} for the property. */
     private static boolean hasTransform(CodegenProperty prop) {
         final Map<String, Object> ext = prop.vendorExtensions;
         return Boolean.TRUE.equals(ext.get("isTimeFormat"))
                 || Boolean.TRUE.equals(ext.get("isDurationFormat"))
+                || Boolean.TRUE.equals(ext.get("isPlainNumberDecimal"))
                 || prop.isByteArray
                 || prop.isDateTime
                 || prop.isDate
@@ -1554,6 +1578,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             property.dataType = "Decimal";
             property.datatypeWithEnum = "Decimal";
             property.vendorExtensions.put("isDecimalFormat", true);
+            if (isPlainNumber) {
+                // A bare `type: number` is a JSON number on the wire: decode keeps its
+                // exact text and rejects a quoted string.
+                property.vendorExtensions.put("isPlainNumberDecimal", true);
+            }
             // The branded Decimal is a string, so a numeric schema default
             // becomes its exact text as a string literal cast to the brand.
             if (property.defaultValue != null
