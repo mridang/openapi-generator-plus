@@ -37463,7 +37463,7 @@
    ],
    "unit_testable": null,
    "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - [\"no decision on model mutability or copy-with in AGENTS.md/PARITY_DECISIONS.md (grep empty); unharmonised across the 12",
+   "note": "owner decision 2026-11-17: models become immutable with a copy method in every language (research scratchpad/research/mutability-*.md): java private final + Builder/toBuilder; csharp init-only or record; dart copyWith; python frozen=True + model_copy; ruby with(**attrs)+freeze; php readonly + withX(); node readonly + with(patch); kotlin/go/rust/swift/elixir already ok (document); wave b12 after b10 merge",
    "batch": null
   },
   {
@@ -44985,8 +44985,8 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - AbstractBetterCodegen.java:3731 only reads op responses for docs; node/AGENTS.md:341, go/AGENTS.md:322 list it as skippe",
+   "status": "deferred",
+   "note": "default applied 2026-11-17 (owner did not answer): multiple 2xx schemas deferred; README documents that the first 2xx schema wins; tracking issue to be filed",
    "batch": null
   },
   {
