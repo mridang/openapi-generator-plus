@@ -695,6 +695,37 @@ void main() {
       }
     });
 
+    test('an explicit Accept header parameter beats the config default and the negotiated Accept', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String? receivedAccept;
+      server.listen((request) {
+        receivedAccept = request.headers.value('accept');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.text
+          ..write('ok')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .defaultHeader('Accept', 'application/xml')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/x',
+          headerParams: {'Accept': 'text/plain'},
+          accepts: ['application/json'],
+        );
+        expect(receivedAccept, equals('text/plain'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('rejects a non-JSON content type for a model return type', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
