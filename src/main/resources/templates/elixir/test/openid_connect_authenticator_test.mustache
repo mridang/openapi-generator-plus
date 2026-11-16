@@ -65,6 +65,43 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert String.contains?(url, "state=my-state")
     end
 
+    test "openid is always requested, prepended once and de-duplicated case-sensitively" do
+      for {given, expected} <- [
+            {[], "openid"},
+            {["profile"], "openid profile"},
+            {["profile", "openid"], "openid profile"},
+            {["openid", "openid"], "openid"},
+            {["OpenID", "profile"], "openid OpenID profile"}
+          ] do
+        fake_client = FakeApiClient.new([
+          %{{moduleName}}.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{
+              "issuer" => "https://auth.example.com",
+              "authorization_endpoint" => "https://auth.example.com/authorize",
+              "token_endpoint" => "https://auth.example.com/token"
+            })
+          }
+        ])
+
+        auth =
+          {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.new(
+            "https://api.example.com",
+            "https://auth.example.com/.well-known/openid-configuration",
+            "my-client-id",
+            "my-client-secret",
+            "https://app.example.com/callback",
+            given
+          )
+
+        auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+        url = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+
+        scope = url |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query() |> Map.fetch!("scope")
+        assert scope == expected
+      end
+    end
+
     test "empty state is omitted" do
       fake_client = FakeApiClient.new([
         %{{moduleName}}.ApiHttpResponse{
@@ -455,6 +492,30 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
       assert second == first
       assert FakeApiClient.get_count(fake_client) == 2
+    end
+
+    test "an oversized max-age is clamped to one year" do
+      discovery = %{{moduleName}}.ApiHttpResponse{
+        status_code: 200,
+        headers: %{"Cache-Control" => "max-age=99999999999999"},
+        body: Jason.encode!(%{
+          "issuer" => "https://auth.example.com",
+          "authorization_endpoint" => "https://auth.example.com/authorize",
+          "token_endpoint" => "https://auth.example.com/token"
+        })
+      }
+
+      fake_client = FakeApiClient.new([discovery])
+
+      auth = create_authenticator()
+      auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+      before = System.monotonic_time(:millisecond)
+
+      {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+
+      {_delegate, expiry} = Agent.get(auth.discovery_cache, & &1.discovery)
+      assert expiry <= before + 31_536_000 * 1000 + 5_000
+      assert expiry > before + 31_536_000 * 1000 - 5_000
     end
 
     test "max-age=0 makes every use fetch the discovery document again" do

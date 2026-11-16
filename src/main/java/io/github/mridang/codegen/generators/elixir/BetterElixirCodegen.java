@@ -709,6 +709,19 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Renders a spec value as an Elixir double-quoted string literal. The
+     * backslash, the quote and the interpolation opener are escaped, as are the
+     * line breaks and the tab, so a header name, URL or scope that carries one
+     * of them cannot break or change the meaning of the generated source.
+     */
+    static String toElixirStringLiteral(@Nullable String value) {
+        final String text = value == null ? "" : value;
+        return "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("#{", "\\#{").replace("\n", "\\n").replace("\r", "\\r")
+                .replace("\t", "\\t") + "\"";
+    }
+
+    /**
      * Renders the spec's declared scopes as an Elixir list of strings. A scope
      * name is escaped for a double-quoted literal, including the interpolation
      * opener, so an unusual scope cannot break the generated source.
@@ -719,8 +732,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         }
         final List<String> quoted = new ArrayList<>();
         for (final String scope : scopes.keySet()) {
-            quoted.add("\"" + scope.replace("\\", "\\\\").replace("\"", "\\\"")
-                    .replace("#{", "\\#{") + "\"");
+            quoted.add(toElixirStringLiteral(scope));
         }
         return "[" + String.join(", ", quoted) + "]";
     }
@@ -736,12 +748,12 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             return List.of("host", "token");
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "\"" + spec.keyParamName() + "\"", "api_key",
+            return List.of("host", toElixirStringLiteral(spec.keyParamName()), "api_key",
                     ":" + (spec.keyIn() != null ? spec.keyIn().toLowerCase(Locale.ROOT) : "header"));
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "client_id", "client_secret",
-                    "\"" + spec.tokenUrl() + "\"", formatElixirScopes(spec.scopes()));
+                    toElixirStringLiteral(spec.tokenUrl()), formatElixirScopes(spec.scopes()));
         }
         // The refresh URL is passed as the `refresh_url` keyword option; the
         // positional parameters end at the scopes list. It is written without
@@ -749,28 +761,29 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         // which is why the formatter step runs twice.
         if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             final List<String> args = new ArrayList<>(List.of("host", "client_id", "client_secret",
-                    "\"" + spec.tokenUrl() + "\"", "username", "password",
+                    toElixirStringLiteral(spec.tokenUrl()), "username", "password",
                     formatElixirScopes(spec.scopes())));
             if (spec.refreshUrl() != null) {
-                args.add("refresh_url: \"" + spec.refreshUrl() + "\"");
+                args.add("refresh_url: " + toElixirStringLiteral(spec.refreshUrl()));
             }
             return args;
         }
         if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final List<String> args = new ArrayList<>(List.of("host", "client_id", "client_secret",
-                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    toElixirStringLiteral(spec.authorizationUrl()),
+                    toElixirStringLiteral(spec.tokenUrl()),
                     "redirect_uri", formatElixirScopes(spec.scopes())));
             if (spec.refreshUrl() != null) {
-                args.add("refresh_url: \"" + spec.refreshUrl() + "\"");
+                args.add("refresh_url: " + toElixirStringLiteral(spec.refreshUrl()));
             }
             return args;
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "client_id", "\"" + spec.authorizationUrl() + "\"",
+            return List.of("host", "client_id", toElixirStringLiteral(spec.authorizationUrl()),
                     formatElixirScopes(spec.scopes()));
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
+            return List.of("host", toElixirStringLiteral(spec.openIdConnectUrl()),
                     "client_id", "client_secret", "redirect_uri",
                     formatElixirScopes(spec.scopes()));
         }
@@ -813,6 +826,28 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                 .put(
                         "elixirEnumWire",
                         (fragment, writer) -> writer.write(toEnumWireToken(fragment.execute())));
+    }
+
+    /**
+     * Names an operation function binds itself (its receiver, the options
+     * struct, the keyword list and the locals the request is built in). A
+     * path or body parameter that carried one of them would be shadowed or
+     * would shadow the SDK's own binding, so it is suffixed instead.
+     */
+    private static final Set<String> SDK_BOUND_NAMES = Set.of(
+            "api", "opts", "options", "auth", "path", "query_params", "header_params",
+            "request_body", "cookie_parts", "declared_content_types", "server",
+            "server_module", "server_url");
+
+    /**
+     * Converts a parameter name, suffixing it with {@code _param} when it
+     * equals a name the generated operation binds itself. The wire name is
+     * unaffected: it travels in {@code baseName}.
+     */
+    @Override
+    public String toParamName(String name) {
+        final String param = super.toParamName(name);
+        return SDK_BOUND_NAMES.contains(param) ? param + "_param" : param;
     }
 
     /**

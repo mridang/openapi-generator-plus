@@ -324,6 +324,138 @@ defmodule {{moduleName}}.Api.PetApiTest do
     end
   end
 
+  test "get_pet_tag renders petId as a matrix segment and tagName as a label segment" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    _result = {{moduleName}}.Api.PetApi.get_pet_tag(api, 5, "cute", %{{moduleName}}.Api.Options.GetPetTagOptions{})
+
+    assert PathCapturingApiClient.captured_url(name) == "http://localhost/pet/;petId=5/tag/.cute"
+
+    Agent.stop(name)
+  end
+
+  defmodule SummaryApiClient do
+    # A module-style api_client that records the whole request and answers
+    # with a text/plain body.
+    use Agent
+
+    def start do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> nil end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured(name), do: Agent.get(name, & &1)
+
+    def send_request(method, url, headers, _body) do
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> %{method: method, url: url, headers: headers} end)
+      %{{moduleName}}.ApiHttpResponse{status_code: 200, body: "hello", headers: %{"Content-Type" => "text/plain"}}
+    end
+  end
+
+  test "get_pet_summary sends the matrix date segment, the session cookie and the date array, and returns the text" do
+    {:ok, name} = SummaryApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(SummaryApiClient, config)
+
+    options = %{{moduleName}}.Api.Options.GetPetSummaryOptions{
+      session: "abc123",
+      days: [~D[2024-01-03], ~D[2024-01-04]]
+    }
+
+    assert {:ok, "hello"} = {{moduleName}}.Api.PetApi.get_pet_summary(api, 5, ~D[2024-01-02], options)
+
+    captured = SummaryApiClient.captured(name)
+    assert captured.url == "http://localhost/pet/5/summary/;asOf=2024-01-02?days=2024-01-03&days=2024-01-04"
+    assert captured.headers["Cookie"] == "session=abc123"
+
+    Agent.stop(name)
+  end
+
+  defmodule RecordingApiClient do
+    # A module-style api_client that records the whole request, body included,
+    # and answers with a Pet JSON document for a tag URL and a Medication JSON
+    # document for anything else.
+    use Agent
+
+    def start do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> nil end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured(name), do: Agent.get(name, & &1)
+
+    def send_request(method, url, headers, body) do
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> %{method: method, url: url, headers: headers, body: body} end)
+
+      body =
+        if String.contains?(url, "/tag/"),
+          do: ~s({"name":"Rex","photoUrls":[]}),
+          else: ~s({"drugName":"Amoxicillin"})
+
+      %{{moduleName}}.ApiHttpResponse{
+        status_code: 200,
+        body: body,
+        headers: %{"Content-Type" => "application/json"}
+      }
+    end
+  end
+
+  # D47: an object-valued query or header parameter is written by the
+  # property wire names, in each of its styles.
+  test "get_pet_tag sends object-valued query and header parameters in their styles" do
+    {:ok, name} = RecordingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(RecordingApiClient, config)
+
+    criteria = %{{moduleName}}.Models.PetCriteria{breed: "lab", min_age: 3}
+
+    options = %{{moduleName}}.Api.Options.GetPetTagOptions{
+      criteria: criteria,
+      criteria_csv: criteria,
+      criteria_deep: criteria,
+      x_criteria: criteria
+    }
+
+    assert {:ok, %{{moduleName}}.Models.Pet{name: "Rex"}} =
+             {{moduleName}}.Api.PetApi.get_pet_tag(api, 5, "cute", options)
+
+    captured = RecordingApiClient.captured(name)
+    query = captured.url |> String.split("?") |> List.last()
+
+    assert query =~ "breed=lab&min_age=3"
+    assert query =~ "criteriaCsv=breed%2Clab%2Cmin_age%2C3"
+    assert query =~ "criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3"
+    assert captured.headers["X-Criteria"] == "breed,lab,min_age,3"
+
+    Agent.stop(name)
+  end
+
+  test "add_pet_treatment sends the anyOf wrapper as its JSON body and decodes the matching variant" do
+    {:ok, name} = RecordingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(RecordingApiClient, config)
+
+    treatment = %{{moduleName}}.Models.Medication{drug_name: "Amoxicillin", dosage: "500mg"}
+
+    assert {:ok, %{{moduleName}}.Models.Medication{drug_name: "Amoxicillin"}} =
+             {{moduleName}}.Api.PetApi.add_pet_treatment(api, 5, treatment)
+
+    captured = RecordingApiClient.captured(name)
+    assert captured.method == :post
+    assert captured.url == "http://localhost/pet/5/treatment"
+    assert Jason.decode!(captured.body) == %{"drugName" => "Amoxicillin", "dosage" => "500mg"}
+
+    Agent.stop(name)
+  end
+
   test "string path param is percent-encoded exactly once (no double-encoding)" do
     {:ok, name} = PathCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
@@ -887,6 +1019,19 @@ defmodule {{moduleName}}.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  test "the Mirror server variant splices a channel with an ampersand or an apostrophe verbatim" do
+    mirror = {{moduleName}}.Api.GetMultiServerPetInfoServer.Mirror
+
+    for channel <- ["a&b", "it's"] do
+      server = struct!(mirror, region: "eu", channel: channel)
+      assert mirror.url(server) == "https://eu.mirror.example.com/#{channel}/v1"
+    end
+
+    assert_raise ArgumentError, ~r/Invalid value 'xx' for server variable 'channel'/, fn ->
+      mirror.url(struct!(mirror, region: "eu", channel: "xx"))
+    end
+  end
+
   test "get_multi_server_pet_info rejects a region outside the variable enum" do
     {name, api} = stub_pet_api(@sample_pet)
 
@@ -982,6 +1127,26 @@ defmodule {{moduleName}}.Api.PetApiTest do
     captured = StubResponseApiClient.captured(name)
     assert captured.url =~ "bornAfter=2024-01-01"
     assert captured.headers["Report-Date"] == "2024-02-03"
+
+    Agent.stop(name)
+  end
+
+  test "find_pets_by_status sends the digit-leading 2ndPage under its wire name and the deepObject filter" do
+    {:ok, name} = StubResponseApiClient.start(200, "[]", "application/json")
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(StubResponseApiClient, config)
+
+    options = %{{moduleName}}.Api.Options.FindPetsByStatusOptions{
+      status: "available",
+      n2nd_page: 2,
+      filter: %{"color" => "blue"}
+    }
+
+    assert {:ok, []} = {{moduleName}}.Api.PetApi.find_pets_by_status(api, options)
+
+    url = StubResponseApiClient.captured(name).url
+    assert url =~ "2ndPage=2"
+    assert url =~ "filter%5Bcolor%5D=blue"
 
     Agent.stop(name)
   end
@@ -1332,6 +1497,49 @@ defmodule {{moduleName}}.Api.PetApiTest do
                      %{{moduleName}}.Api.Options.GetPetByNameOptions{category: "", x_correlation_id: "c-1"}
                    )
                  end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "get_pet_by_name raises when the required X-Correlation-Id header is missing" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    for missing <- [nil, ""] do
+      assert_raise ArgumentError,
+                   ~r/Missing the required parameter 'x_correlation_id' when calling PetApi\.get_pet_by_name/,
+                   fn ->
+                     {{moduleName}}.Api.PetApi.get_pet_by_name_with_http_info(
+                       api,
+                       "rex",
+                       %{{moduleName}}.Api.Options.GetPetByNameOptions{category: "dog", x_correlation_id: missing}
+                     )
+                   end
+    end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "get_pet_summary raises when the required session cookie is missing" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    for missing <- [nil, ""] do
+      assert_raise ArgumentError,
+                   ~r/Missing the required parameter 'session' when calling PetApi\.get_pet_summary/,
+                   fn ->
+                     {{moduleName}}.Api.PetApi.get_pet_summary_with_http_info(
+                       api,
+                       5,
+                       ~D[2024-01-02],
+                       %{{moduleName}}.Api.Options.GetPetSummaryOptions{session: missing}
+                     )
+                   end
+    end
 
     assert PathCapturingApiClient.captured_url(name) == ""
     Agent.stop(name)
