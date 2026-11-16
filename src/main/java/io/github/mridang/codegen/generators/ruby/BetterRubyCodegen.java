@@ -860,6 +860,28 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     }
 
     /**
+     * The names the generated operation methods bind themselves: the injected
+     * {@code options} object, the {@code server} and {@code request_content_type}
+     * keywords, and the locals the method body builds. A path or body parameter
+     * with one of these names would shadow the binding, so the shared
+     * {@code toParamName} suffixes it (F1055). The wire name is unaffected: it
+     * travels in {@code baseName}.
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "options", "server", "request_content_type", "path", "server_url",
+                "query_params", "header_params", "cookie_parts", "cookie_value",
+                "request_body", "declared_consumes", "resolved_content_type", "result");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getInjectedArgumentSuffix() {
+        return "_param";
+    }
+
+    /**
      * A parameter becomes a keyword argument and a local variable, where a
      * keyword such as {@code and} cannot be read back, so every reserved
      * word is escaped here, including the ones a property keeps plain.
