@@ -210,7 +210,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             }
             if (transportOptions.VerifySsl)
             {
-            handler.ServerCertificateCustomValidationCallback = (_, cert, _, sslPolicyErrors) =>
+            handler.ServerCertificateCustomValidationCallback = (_, cert, serverChain, sslPolicyErrors) =>
             {
                 /* The pinned CA replaces the system roots, but host name
                  * verification still applies: a certificate issued by the
@@ -225,6 +225,15 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 customChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                 customChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
                 customChain.ChainPolicy.CustomTrustStore.AddRange(caCerts);
+                /* The intermediates the server sent in its handshake are
+                 * candidates for the path from the leaf to the pinned root. */
+                if (serverChain != null)
+                {
+                    foreach (X509ChainElement element in serverChain.ChainElements)
+                    {
+                        customChain.ChainPolicy.ExtraStore.Add(element.Certificate);
+                    }
+                }
                 return customChain.Build(cert);
             };
             }

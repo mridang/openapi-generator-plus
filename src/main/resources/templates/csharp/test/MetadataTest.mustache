@@ -138,6 +138,28 @@ public class MetadataTest
     }
 
     [Fact]
+    public void FileHeaderCarriesTheInfoDescriptionWithoutStringEscapes()
+    {
+        /* The description is escaped for string literals when it is read; a
+           comment must show the prose, so no backslash may sit before a quote. */
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (
+            root is not null
+            && !File.Exists(Path.Combine(root.FullName, "{{packageName}}.Test.csproj"))
+        )
+        {
+            root = root.Parent;
+        }
+        Assert.True(root is not null, "the project root must be above the test output");
+        var model = Path.Combine(root!.FullName, "src", "{{packageName}}", "Models", "Metadata.cs");
+
+        var header = string.Join("\n", File.ReadLines(model).Take(2));
+
+        Assert.StartsWith("//", header, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\\"", header, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EqualityIncludesAdditionalProperties()
     {
         var plain = new Metadata();

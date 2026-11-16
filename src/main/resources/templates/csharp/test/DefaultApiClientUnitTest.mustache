@@ -1606,10 +1606,9 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void ZeroTimeoutIsRejectedAtConstruction()
+    public void ZeroTimeoutIsRejectedAtConfiguration()
     {
-        var transport = TransportOptions.Builder().Timeout(0).Build();
-        var ex = Assert.ThrowsAny<ArgumentException>(() => new DefaultApiClient(transport));
+        var ex = Assert.ThrowsAny<ArgumentException>(() => TransportOptions.Builder().Timeout(0));
         Assert.False(typeof({{errorPrefix}}Exception).IsInstanceOfType(ex), "a configuration mistake must not be an SDK error");
     }
 

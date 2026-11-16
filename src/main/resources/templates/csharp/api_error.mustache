@@ -37,9 +37,10 @@ public class ApiException : {{errorPrefix}}Exception
 
     /// <summary>
     /// Creates an exception for a response that arrived but could not be used, keeping
-    /// its real headers as well as the underlying failure.
+    /// its real headers as well as the underlying failure. Internal: only the transport
+    /// builds it, so it is not part of the public surface the other SDKs share.
     /// </summary>
-    public static ApiException ForUnusableResponse(
+    internal static ApiException ForUnusableResponse(
         int statusCode,
         string message,
         Exception innerException,
@@ -176,20 +177,73 @@ public class ApiException : {{errorPrefix}}Exception
         }
         if (ResponseHeaders is { Count: > 0 })
         {
-            /* D17: compact JSON, keys sorted, '/' unescaped. */
+            /* D17: compact JSON, keys sorted, '/' unescaped. A header that can
+             * carry a credential is shown as *** (F1080). */
+            SortedDictionary<string, string> shown = new(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, string> header in ResponseHeaders)
+            {
+                shown[header.Key] = IsSensitiveHeader(header.Key) ? "***" : header.Value;
+            }
             rendered
                 .Append("\nResponse headers: ")
-                .Append(
-                    System.Text.Json.JsonSerializer.Serialize(
-                        new SortedDictionary<string, string>(ResponseHeaders, StringComparer.Ordinal),
-                        HeaderRenderingOptions
-                    )
-                );
+                .Append(System.Text.Json.JsonSerializer.Serialize(shown, HeaderRenderingOptions));
         }
         if (!string.IsNullOrEmpty(ResponseBody))
         {
-            rendered.Append("\nResponse body: ").Append(ResponseBody);
+            rendered.Append("\nResponse body: ").Append(RenderBody(ResponseBody));
         }
         return rendered.ToString();
+    }
+
+    /// <summary>The longest response body, in characters, that the string form shows.</summary>
+    internal const int MaxRenderedBodyLength = 1024;
+
+    private static bool IsSensitiveHeader(string name)
+    {
+        return name.Equals("authorization", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("proxy-authorization", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("www-authenticate", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("proxy-authenticate", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("cookie", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("set-cookie", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("key", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("token", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("secret", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /* A body is capped and its control characters are escaped, so a gateway
+     * error page cannot flood a log and a hostile server cannot forge log lines
+     * (F1080). The full body stays on ResponseBody. */
+    private static string RenderBody(string body)
+    {
+        string head = body.Length > MaxRenderedBodyLength ? body[..MaxRenderedBodyLength] : body;
+        StringBuilder escaped = new(head.Length);
+        foreach (char c in head)
+        {
+            if (c == '\n')
+            {
+                escaped.Append("\\n");
+            }
+            else if (c == '\r')
+            {
+                escaped.Append("\\r");
+            }
+            else if (char.IsControl(c))
+            {
+                escaped.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                escaped.Append(c);
+            }
+        }
+        if (body.Length > MaxRenderedBodyLength)
+        {
+            escaped
+                .Append("... (")
+                .Append((body.Length - MaxRenderedBodyLength).ToString(CultureInfo.InvariantCulture))
+                .Append(" more characters)");
+        }
+        return escaped.ToString();
     }
 }

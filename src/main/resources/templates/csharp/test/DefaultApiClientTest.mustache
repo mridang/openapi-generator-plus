@@ -2,6 +2,10 @@
 
 using {{packageName}}.Errors;
 using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using {{packageName}};
 using Xunit;
@@ -134,6 +138,90 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(0, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task CustomCaCertAcceptsAServerThatSendsAnIntermediate()
+    {
+        /* The pinned file holds only the root. The server sends its leaf and
+           the intermediate that links the leaf to that root, the usual shape of
+           a private CA; the transport must use the intermediate the server
+           sent instead of failing because the leaf is not signed by the root. */
+        CancellationToken token = TestContext.Current.CancellationToken;
+        DateTimeOffset notBefore = DateTimeOffset.UtcNow.AddDays(-1);
+        DateTimeOffset notAfter = DateTimeOffset.UtcNow.AddDays(30);
+
+        using RSA rootKey = RSA.Create(2048);
+        CertificateRequest rootRequest = new("CN=Test Root CA", rootKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        rootRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, true, 1, true));
+        using X509Certificate2 root = rootRequest.CreateSelfSigned(notBefore, notAfter);
+
+        using RSA intermediateKey = RSA.Create(2048);
+        CertificateRequest intermediateRequest = new("CN=Test Intermediate CA", intermediateKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        intermediateRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, true, 0, true));
+        using X509Certificate2 intermediatePublic = intermediateRequest.Create(root, notBefore, notAfter, new byte[] { 1, 2, 3, 4 });
+        using X509Certificate2 intermediate = intermediatePublic.CopyWithPrivateKey(intermediateKey);
+
+        using RSA leafKey = RSA.Create(2048);
+        CertificateRequest leafRequest = new("CN=localhost", leafKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        leafRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+        SubjectAlternativeNameBuilder names = new();
+        names.AddDnsName("localhost");
+        leafRequest.CertificateExtensions.Add(names.Build());
+        using X509Certificate2 leafPublic = leafRequest.Create(intermediate, notBefore, notAfter, new byte[] { 5, 6, 7, 8 });
+        using X509Certificate2 leaf = leafPublic.CopyWithPrivateKey(leafKey);
+
+        SslStreamCertificateContext context = SslStreamCertificateContext.Create(
+            leaf,
+            new X509Certificate2Collection(intermediate),
+            false,
+            SslCertificateTrust.CreateForX509Collection(new X509Certificate2Collection(root))
+        );
+
+        using TcpListener listener = new(IPAddress.Loopback, 0);
+        listener.Start();
+        int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        Task serverTask = Task.Run(
+            async () =>
+            {
+                using TcpClient tcp = await listener.AcceptTcpClientAsync(token);
+                using SslStream ssl = new(tcp.GetStream(), false);
+                await ssl.AuthenticateAsServerAsync(
+                    new SslServerAuthenticationOptions { ServerCertificateContext = context },
+                    token
+                );
+                byte[] buffer = new byte[8192];
+                _ = await ssl.ReadAsync(buffer, token);
+                byte[] reply = System.Text.Encoding.ASCII.GetBytes(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}"
+                );
+                await ssl.WriteAsync(reply, token);
+                await ssl.FlushAsync(token);
+            },
+            token
+        );
+
+        string caPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".pem");
+        await File.WriteAllTextAsync(caPath, root.ExportCertificatePem(), token);
+        try
+        {
+            var transport = TransportOptions.Builder().VerifySsl(true).CaCertPath(caPath).Build();
+
+            using var client = new DefaultApiClient(transport);
+            var response = await client.SendRequestAsync(
+                "GET",
+                new Uri("https://localhost:" + port + "/items"),
+                new Dictionary<string, string>(),
+                null
+            );
+
+            Assert.Equal(200, response.StatusCode);
+            await serverTask;
+        }
+        finally
+        {
+            File.Delete(caPath);
+        }
     }
 
     [Fact]
