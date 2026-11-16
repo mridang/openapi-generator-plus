@@ -989,6 +989,17 @@ import FoundationNetworking
         client.close()
     }
 
+    /* D29: a request after close() is a wrong call order, with one text. */
+    @Test func testSendAfterCloseThrowsTheCanonicalInvalidState() async throws {
+        let client = makeClient { _ in (self.body(), 200, [:]) }
+        client.close()
+        let error = await #expect(throws: ConfigurationError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "https://example.com", headers: [:], body: nil)
+        }
+        #expect(error == ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests"))
+    }
+
     // MARK: - Bare utf-16 byte-order marks
 
     /* A bare utf-16 label honours a leading byte-order mark and drops it; the
