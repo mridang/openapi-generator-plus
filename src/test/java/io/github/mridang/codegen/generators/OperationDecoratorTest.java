@@ -209,4 +209,51 @@ class OperationDecoratorTest {
         assertEquals(false, deco.get("isContainerOfModel"));
         assertEquals(false, deco.get("hasPluralExamples"));
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void singleSuccessOperationExposesNoSuccessVariants() {
+        final AbstractBetterCodegen codegen = new BetterJavaCodegen();
+        final CodegenOperation op = new CodegenOperation();
+        op.operationId = "getPetById";
+        op.returnType = "Pet";
+
+        codegen.populateOperationDecorators(op);
+
+        final Map<String, Object> deco = (Map<String, Object>) Objects.requireNonNull(op.vendorExtensions.get("op"));
+        assertEquals(false, deco.get("hasMultiple2xx"));
+        assertEquals(Collections.emptyList(), deco.get("successResponses"));
+        assertEquals(Collections.emptyList(), deco.get("successVariants"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void multipleSuccessOperationExposesStatusToVariantMapping() {
+        final AbstractBetterCodegen codegen = new BetterJavaCodegen();
+        final CodegenOperation op = new CodegenOperation();
+        op.operationId = "reserveStock";
+        op.returnType = "ReserveStockResponse";
+        op.vendorExtensions.put(
+                "x-success-responses",
+                List.of(
+                        Map.of("status", "200", "ref", "#/components/schemas/Reservation"),
+                        Map.of("status", "201", "ref", "#/components/schemas/Receipt"),
+                        Map.of("status", "202", "ref", "#/components/schemas/Reservation")));
+
+        codegen.populateOperationDecorators(op);
+
+        final Map<String, Object> deco = (Map<String, Object>) Objects.requireNonNull(op.vendorExtensions.get("op"));
+        assertEquals(true, deco.get("hasMultiple2xx"));
+        assertEquals("ReserveStockResponse", deco.get("successUnionType"));
+        final List<Map<String, Object>> rows = (List<Map<String, Object>>) Objects.requireNonNull(deco.get("successResponses"));
+        assertEquals(List.of("200", "201", "202"), rows.stream().map(r -> r.get("statusCode")).collect(java.util.stream.Collectors.toList()));
+        assertEquals(List.of("Reservation", "Receipt", "Reservation"),
+                rows.stream().map(r -> r.get("returnType")).collect(java.util.stream.Collectors.toList()));
+        assertEquals(List.of(0, 1, 0), rows.stream().map(r -> r.get("variantIndex")).collect(java.util.stream.Collectors.toList()));
+        assertEquals(true, rows.get(0).get("isFirst"));
+        assertEquals(true, rows.get(2).get("isLast"));
+        final List<Map<String, Object>> variants = (List<Map<String, Object>>) Objects.requireNonNull(deco.get("successVariants"));
+        assertEquals(List.of("200", "202"), variants.get(0).get("statusCodes"));
+        assertEquals(List.of("201"), variants.get(1).get("statusCodes"));
+    }
 }
