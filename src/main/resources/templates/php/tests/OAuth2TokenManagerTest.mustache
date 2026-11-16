@@ -216,6 +216,20 @@ test('a string expires_in outside the decimal grammar is stale', function (strin
     expect($client->capturedRequests)->toHaveCount(2);
 })->with(['1e3', '0x10', '3_600', '5.', '+5', '-5', 'abc', '']);
 
+test('the token request is a form post that accepts json', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('hdr', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    $request = $client->capturedRequests[0];
+    expect($request['method'])->toBe('POST');
+    expect($request['headers']['Content-Type'])->toBe('application/x-www-form-urlencoded');
+    expect($request['headers']['Accept'])->toBe('application/json');
+});
+
 test('refresh token empty string preserves existing', function (): void {
     // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
     // MUST NOT clobber the cached refresh_token.
