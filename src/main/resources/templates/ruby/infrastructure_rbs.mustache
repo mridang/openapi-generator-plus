@@ -387,6 +387,7 @@
         include HttpAwareAuthenticator
         def initialize: (String, String, String, String, Array[String], ?client_auth_method: Symbol) -> void
         def api_client=: (ApiClient) -> void
+        def invalidate_access_token: () -> void
 
         private
 
@@ -399,6 +400,7 @@
         include HttpAwareAuthenticator
         def initialize: (String, String, String, String, String, String, Array[String], ?refresh_url: String?, ?client_auth_method: Symbol) -> void
         def api_client=: (ApiClient) -> void
+        def invalidate_access_token: () -> void
 
         private
 
@@ -409,9 +411,11 @@
 {{#hasOAuth2AuthorizationCode}}
       class OAuth2AuthorizationCodeAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
-        def initialize: (String, String, String, String, String, String, Array[String], ?refresh_url: String?, ?token_manager: OAuth2TokenManager?) -> void
+        def initialize: (String, String, String, String, String, String, Array[String], ?refresh_url: String?, ?token_manager: OAuth2TokenManager?, ?pkce_verifier: String?) -> void
         attr_reader token_manager: OAuth2TokenManager
+        attr_reader pkce_verifier: String?
         def api_client=: (ApiClient) -> void
+        def invalidate_access_token: () -> void
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
       end
@@ -434,6 +438,7 @@
         attr_writer api_client: ApiClient?
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
+        def invalidate_access_token: () -> void
         private
         def resolve_delegate: () -> OAuth2AuthorizationCodeAuthenticator
         def discover_delegate: () -> OAuth2AuthorizationCodeAuthenticator

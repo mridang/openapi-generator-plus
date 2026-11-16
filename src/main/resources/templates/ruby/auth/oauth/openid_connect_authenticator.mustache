@@ -81,6 +81,16 @@ module {{moduleName}}
           resolve_delegate.auth_headers
         end
 
+        # Drop the cached access token so the next request obtains a new one
+        # (a refresh grant first). The API classes call this when a request
+        # answers 401 before replaying it once. Nothing happens before the
+        # first discovery, as there is no session yet.
+        #
+        # @return [void]
+        def invalidate_access_token
+          @delegate&.invalidate_access_token
+        end
+
         # Mask the client secret so it never leaks through the default
         # +inspect+/+p+/string-interpolation, which would otherwise dump
         # every instance variable verbatim.
@@ -157,7 +167,8 @@ module {{moduleName}}
             authorization_endpoint,
             token_endpoint,
             @redirect_uri, @scopes,
-            token_manager: current&.token_manager
+            token_manager: current&.token_manager,
+            pkce_verifier: current&.pkce_verifier
           )
           delegate.api_client = client
           @delegate = delegate

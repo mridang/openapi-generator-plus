@@ -5,7 +5,7 @@ D = Steep::Diagnostic
 target :lib do
   check 'lib'
   signature 'sig'
-  library 'base64', 'date', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'openssl', 'timeout'
+  library 'base64', 'date', 'digest', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'openssl', 'timeout'
 end
 {{#emitUnitTests}}
 
@@ -17,7 +17,7 @@ end
 target :test do
   check 'test'
   signature 'sig'
-  library 'base64', 'date', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'openssl', 'timeout',
+  library 'base64', 'date', 'digest', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'openssl', 'timeout',
           'minitest', 'tempfile', 'logger'
   configure_code_diagnostics(D::Ruby.default) do |hash|
     hash[D::Ruby::NoMethod] = nil
