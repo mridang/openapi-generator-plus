@@ -1282,6 +1282,10 @@ class DefaultApiClientUnitTest {
             ApiException.class,
             () -> client.sendRequest("GET", baseUrl + "/content-encoding-lie", Map.of(), null));
     assertEquals(200, ex.getStatusCode());
+    assertNotNull(
+        ex.getResponseHeaders(),
+        "a response arrived, so null headers (no response) would mislead the caller");
+    assertEquals("gzip", ex.getResponseHeaders().get("content-encoding"));
     assertFalse(
         ex instanceof com.example.petstore.errors.NetworkException,
         "a corrupt body is not a network failure");

@@ -1334,6 +1334,8 @@ class DefaultApiClientUnitTest {
                     }
                 }
             assertEquals(200, ex.statusCode)
+            // A response arrived, so the headers are kept: null would mean that none did.
+            assertEquals("gzip", ex.responseHeaders?.get("content-encoding"))
             assertFalse(ex is com.example.petstore.errors.NetworkException, "a corrupt body is not a network failure")
             assertInstanceOf(java.io.IOException::class.java, ex.cause)
         }

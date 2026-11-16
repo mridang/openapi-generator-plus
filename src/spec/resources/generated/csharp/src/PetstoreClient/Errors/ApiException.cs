@@ -18,7 +18,7 @@ public class ApiException : OpenAPIException
 {
     public int StatusCode { get; }
     public string? ResponseBody { get; }
-    public Dictionary<string, string>? ResponseHeaders { get; }
+    public Dictionary<string, string>? ResponseHeaders { get; private init; }
     public object? ErrorBody { get; }
 
     public ApiException() { }
@@ -39,6 +39,23 @@ public class ApiException : OpenAPIException
         : base(message, innerException)
     {
         StatusCode = statusCode;
+    }
+
+    /// <summary>
+    /// Creates an exception for a response that arrived but could not be used, keeping
+    /// its real headers as well as the underlying failure.
+    /// </summary>
+    public static ApiException ForUnusableResponse(
+        int statusCode,
+        string message,
+        Exception innerException,
+        Dictionary<string, string>? responseHeaders
+    )
+    {
+        return new ApiException(statusCode, message, innerException)
+        {
+            ResponseHeaders = responseHeaders,
+        };
     }
 
     public ApiException(

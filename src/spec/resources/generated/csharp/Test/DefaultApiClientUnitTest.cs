@@ -1383,6 +1383,9 @@ public class DefaultApiClientUnitTest
         // A response did arrive: the error carries its real status and is
         // never a NetworkException.
         Assert.Equal(200, ex.StatusCode);
+        // A response arrived, so the headers are kept: null would mean that none did.
+        Assert.NotNull(ex.ResponseHeaders);
+        Assert.Equal("gzip", ex.ResponseHeaders!["content-encoding"]);
         Assert.False(
             ex is PetstoreClient.Errors.NetworkException,
             "a corrupt body is not a network failure"

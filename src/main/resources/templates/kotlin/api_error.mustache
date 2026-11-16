@@ -69,6 +69,27 @@ open class ApiException : {{errorPrefix}}Exception {
     }
 
     /**
+     * Construct an exception for a response that arrived but could not be used, keeping its
+     * real headers and the failure that made it unusable.
+     *
+     * @param statusCode the HTTP status code
+     * @param message the detail message
+     * @param responseHeaders the HTTP response headers
+     * @param cause the underlying failure
+     */
+    constructor(
+        statusCode: Int,
+        message: String,
+        responseHeaders: Map<String, String>?,
+        cause: Throwable
+    ) : super(message, cause) {
+        this.statusCode = statusCode
+        this.responseHeaders = responseHeaders?.toMap()
+        this.responseBody = null
+        this.errorBody = null
+    }
+
+    /**
      * Construct an exception with full response context.
      *
      * @param statusCode the HTTP status code

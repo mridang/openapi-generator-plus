@@ -223,7 +223,7 @@ class DefaultApiClient internal constructor(
                     throw ApiException(
                         response.status.value,
                         "Refusing to follow redirect to non-HTTP(S) URL: $redirectUri",
-                        null,
+                        responseHeadersOf(response),
                         null,
                     )
                 }
@@ -331,7 +331,7 @@ class DefaultApiClient internal constructor(
                 throw ApiException(
                     response.status.value,
                     "Too many redirects (exceeded maxRedirects=${transportOptions.maxRedirects ?: 20})",
-                    null,
+                    responseHeadersOf(response),
                     null,
                 )
             }
@@ -374,6 +374,7 @@ class DefaultApiClient internal constructor(
                 throw ApiException(
                     response.status.value,
                     "Failed to decompress $contentEncoding response body: $e",
+                    responseHeaders,
                     e,
                 )
             }
@@ -599,6 +600,15 @@ internal class MultipartWriter {
             ContentType.MultiPart.FormData.withParameter("boundary", boundary),
         )
     }
+}
+
+/** The response headers as a lower-cased map with comma-joined values. */
+internal fun responseHeadersOf(response: HttpResponse): Map<String, String> {
+    val copy = mutableMapOf<String, String>()
+    response.headers.forEach { name, values ->
+        copy[name.lowercase(java.util.Locale.ROOT)] = values.joinToString(", ")
+    }
+    return copy
 }
 
 /**

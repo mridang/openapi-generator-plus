@@ -1016,6 +1016,8 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     # The response arrived, so the error carries its real status code and is
     # never a NetworkError.
     assert err.status_code == 200
+    # A response arrived, so the headers are kept: nil would mean that none did.
+    assert err.response_headers["content-encoding"] == "gzip"
     refute PetstoreClient.Errors.NetworkError.network_error?(err)
   end
 

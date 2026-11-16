@@ -446,6 +446,8 @@ describe('DefaultApiClient transport-failure responseHeaders', () => {
     expect((caught as Error).constructor).toBe(ApiError);
     expect(caught).not.toBeInstanceOf(NetworkError);
     expect((caught as ApiError).statusCode).toBe(502);
+    // A response arrived, so its headers are kept: null would mean that none did.
+    expect((caught as ApiError).responseHeaders).not.toBeNull();
   });
 });
 

@@ -118,6 +118,25 @@ public class ApiException extends {{errorPrefix}}Exception {
     }
 
     /**
+     * Construct an exception for a response that arrived but could not be used, keeping its
+     * real headers and the failure that made it unusable.
+     *
+     * @param statusCode the HTTP status code
+     * @param message the detail message
+     * @param responseHeaders the HTTP response headers, if available
+     * @param cause the underlying failure
+     */
+    public static ApiException forUnusableResponse(
+            int statusCode,
+            String message,
+            @Nullable Map<String, String> responseHeaders,
+            Throwable cause) {
+        ApiException exception = new ApiException(statusCode, message, responseHeaders, null, null);
+        exception.initCause(cause);
+        return exception;
+    }
+
+    /**
      * Map an HTTP response that was not a success to the exception for its status.
      *
      * <p>400, 401, 403, 404, 409 and 422 map to their named {@link ClientException}

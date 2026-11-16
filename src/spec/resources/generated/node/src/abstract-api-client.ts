@@ -462,7 +462,7 @@ export abstract class AbstractApiClient implements ApiClient {
           throw new ApiError(
             response.status,
             `Too many redirects (exceeded maxRedirects=${maxRedirects})`,
-            null,
+            AbstractApiClient.collectHeaders(response),
             null,
             null,
           );
@@ -506,6 +506,7 @@ export abstract class AbstractApiClient implements ApiClient {
         responseBytes,
         contentEncoding,
         response.status,
+        AbstractApiClient.collectHeaders(response),
       );
     } catch (error) {
       if (error instanceof ApiError) {
@@ -518,7 +519,7 @@ export abstract class AbstractApiClient implements ApiClient {
             (response.headers.get("content-encoding") ?? "") +
             " response body: " +
             (error instanceof Error ? error.message : String(error)),
-          null,
+          AbstractApiClient.collectHeaders(response),
           null,
           null,
           { cause: error },
@@ -543,6 +544,17 @@ export abstract class AbstractApiClient implements ApiClient {
      * parseable, so callers that need structured cookie access should
      * either parse `set-cookie` themselves or use `response.headers.getSetCookie()`.
      */
+    const responseHeaders = AbstractApiClient.collectHeaders(response);
+
+    return {
+      statusCode: response.status,
+      body: responseBody,
+      headers: responseHeaders,
+    };
+  }
+
+  /** The response headers as a lower-cased map, with Set-Cookie joined from getSetCookie(). */
+  static collectHeaders(response: Response): Record<string, string> {
     const responseHeaders: Record<string, string> = {};
     const headersWithCookies = response.headers as Headers & {
       getSetCookie?: () => string[];
@@ -557,11 +569,7 @@ export abstract class AbstractApiClient implements ApiClient {
       }
     }
 
-    return {
-      statusCode: response.status,
-      body: responseBody,
-      headers: responseHeaders,
-    };
+    return responseHeaders;
   }
 
   /**
@@ -590,6 +598,7 @@ export abstract class AbstractApiClient implements ApiClient {
     buf: Buffer,
     contentEncoding: string,
     statusCode = 0,
+    responseHeaders: Record<string, string> | null = null,
   ): Promise<Buffer> {
     if (contentEncoding === "" || contentEncoding === "identity") {
       return buf;
@@ -612,7 +621,7 @@ export abstract class AbstractApiClient implements ApiClient {
             statusCode,
             `Failed to decompress ${contentEncoding} response body: ` +
               (error instanceof Error ? error.message : String(error)),
-            null,
+            responseHeaders,
             null,
             null,
             { cause: error },

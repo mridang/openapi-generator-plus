@@ -441,6 +441,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
           statusCode: httpResponse.statusCode,
           message: "Failed to decompress \(residualEncoding) response body: "
             + "\(error.localizedDescription)",
+          responseHeaders: respHeaders,
           underlyingError: error
         )
       }

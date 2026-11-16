@@ -275,7 +275,15 @@ defmodule {{moduleName}}.DefaultApiClient do
     headers = normalize_headers(response.headers)
     content_type = Map.get(headers, "content-type") || ""
     content_encoding = Map.get(headers, "content-encoding") || ""
-    body_binary = decompress_body(response.body || "", content_encoding, response.status)
+    body_binary =
+      try do
+        decompress_body(response.body || "", content_encoding, response.status)
+      rescue
+        # The response arrived, so the failure carries its real headers (never nil, which
+        # means that no response arrived).
+        e in {{moduleName}}.Errors.ApiError ->
+          reraise %{e | response_headers: e.response_headers || headers}, __STACKTRACE__
+      end
 
     response_body =
       if text_content_type?(content_type) do

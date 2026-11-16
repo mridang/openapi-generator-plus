@@ -621,10 +621,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 if (hops >= maxRedirects && IsRedirectStatus((int)response.StatusCode))
                 {
                     int lastStatus = (int)response.StatusCode;
+                    Dictionary<string, string> lastHeaders = CollectHeaders(response);
                     response.Dispose();
                     throw new ApiException(
                         lastStatus,
-                        $"Exceeded maximum number of redirects ({maxRedirects})"
+                        $"Exceeded maximum number of redirects ({maxRedirects})",
+                        lastHeaders
                     );
                 }
             }
@@ -672,11 +674,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                passthrough) so the caller sees one uniform transport error. */
             int decodeStatus = (int)response.StatusCode;
             string decodeEncoding = string.Join(", ", response.Content.Headers.ContentEncoding);
+            Dictionary<string, string> decodeHeaders = CollectHeaders(response);
             response.Dispose();
-            throw new ApiException(
+            throw ApiException.ForUnusableResponse(
                 decodeStatus,
                 $"Failed to decompress {decodeEncoding} response body: {ex.Message}",
-                ex
+                ex,
+                decodeHeaders
             );
         }
         catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
@@ -710,11 +714,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 int decodeStatus = (int)response.StatusCode;
                 string decodeEncoding = string.Join(", ", response.Content.Headers.ContentEncoding);
+                Dictionary<string, string> decodeHeaders = CollectHeaders(response);
                 response.Dispose();
-                throw new ApiException(
+                throw ApiException.ForUnusableResponse(
                     decodeStatus,
                     $"Failed to decompress {decodeEncoding} response body: {ex.Message}",
-                    ex
+                    ex,
+                    decodeHeaders
                 );
             }
         }
@@ -746,6 +752,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
            Set-Cookie specifically the joined form is not directly parseable;
            applications that need structured cookie access should use
            System.Net.CookieContainer attached to HttpClientHandler. */
+        return new ApiHttpResponse(
+            (int)response.StatusCode,
+            responseBody,
+            CollectHeaders(response)
+        );
+    }
+
+    /// <summary>The response and content headers as a lower-cased map with comma-joined values.</summary>
+    private static Dictionary<string, string> CollectHeaders(HttpResponseMessage response)
+    {
         Dictionary<string, string> responseHeaders = [];
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers)
@@ -758,7 +774,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             responseHeaders[AsciiLower(header.Key)] = string.Join(", ", header.Value);
         }
 
-        return new ApiHttpResponse((int)response.StatusCode, responseBody, responseHeaders);
+        return responseHeaders;
     }
 
     private static bool IsRedirectStatus(int code)

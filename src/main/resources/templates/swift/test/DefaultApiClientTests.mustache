@@ -392,6 +392,24 @@ import FoundationNetworking
         #expect(resp.body.contains("userId"))
     }
 
+    @Test func testCorruptGzipKeepsTheResponseHeaders() async throws {
+        let client = makeClient { _ in
+            return (
+                Data([0x1F, 0x8B, 0x08, 0x00, 0x01, 0x02]), 200,
+                ["Content-Encoding": "gzip", "X-Request-Id": "abc"]
+            )
+        }
+        do {
+            _ = try await client.sendRequest(
+                method: "GET", url: "https://example.com", headers: [:], body: nil)
+            Issue.record("a corrupt gzip body must throw an ApiError")
+        } catch let error as ApiError {
+            #expect(error.statusCode == 200)
+            // A response arrived, so its headers are kept: nil would mean that none did.
+            #expect(error.responseHeaders?["x-request-id"] == "abc")
+        }
+    }
+
     @Test func testDecompressesBrotliResponse() async throws {
         let client = makeClient { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])

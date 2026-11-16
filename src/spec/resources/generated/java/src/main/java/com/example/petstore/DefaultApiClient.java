@@ -515,7 +515,7 @@ public final class DefaultApiClient implements ApiClient {
             throw new ApiException(
                 response.statusCode(),
                 "Refusing to follow redirect to non-HTTP(S) URL: " + redirectUri,
-                null,
+                copyResponseHeaders(response.headers()),
                 null);
           }
           boolean sameOrigin = sameOrigin(originalUri, redirectUri);
@@ -534,7 +534,7 @@ public final class DefaultApiClient implements ApiClient {
             throw new ApiException(
                 response.statusCode(),
                 "Refusing to replay request body across HTTPS->HTTP redirect: " + redirectUri,
-                null,
+                copyResponseHeaders(response.headers()),
                 null);
           }
 
@@ -606,7 +606,7 @@ public final class DefaultApiClient implements ApiClient {
           throw new ApiException(
               response.statusCode(),
               "Too many redirects (exceeded maxRedirects) following " + url,
-              null,
+              copyResponseHeaders(response.headers()),
               null);
         }
       }
@@ -642,9 +642,10 @@ public final class DefaultApiClient implements ApiClient {
       } catch (IOException e) {
         /* A corrupt Content-Encoding body is not a transport failure:
          * a response did arrive, so keep it out of NetworkException. */
-        throw new ApiException(
+        throw ApiException.forUnusableResponse(
             response.statusCode(),
             "Failed to decompress " + contentEncoding + " response body: " + e,
+            responseHeaders,
             e);
       }
       Charset responseCharset = parseCharset(contentType);
@@ -895,6 +896,20 @@ public final class DefaultApiClient implements ApiClient {
         || mediaType.equals("application/javascript")
         || mediaType.endsWith("+json")
         || mediaType.endsWith("+xml");
+  }
+
+  /** Copies the response headers into a lower-cased map with comma-joined values. */
+  private static Map<String, String> copyResponseHeaders(java.net.http.HttpHeaders headers) {
+    Map<String, String> copy = new HashMap<>();
+    headers
+        .map()
+        .forEach(
+            (name, values) -> {
+              if (!values.isEmpty()) {
+                copy.put(name.toLowerCase(java.util.Locale.ROOT), String.join(", ", values));
+              }
+            });
+    return copy;
   }
 
   /**
