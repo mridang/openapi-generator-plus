@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 
 	apierrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
@@ -284,6 +287,177 @@ func TestDeserialize_DefaultsAbsentVersusNull(t *testing.T) {
 	}
 	if fromNull.Retries == nil || *fromNull.Retries != 7 {
 		t.Errorf("expected retries 7, got %v", fromNull.Retries)
+	}
+}
+
+// F1115: the numeric schema defaults keep their exact typed values: a float32
+// that is exactly 0.25, an integral float64 and an int64 beyond int32.
+func TestDeserialize_NumericDefaultsKeepTheirExactTypedValues(t *testing.T) {
+	t.Parallel()
+	var defaults models.Defaults
+	if err := deserialize([]byte("{}"), &defaults); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if defaults.Ratio == nil || *defaults.Ratio != 1.5 {
+		t.Errorf("expected ratio 1.5, got %v", defaults.Ratio)
+	}
+	if defaults.Scale == nil || *defaults.Scale != float32(0.25) {
+		t.Errorf("expected scale 0.25, got %v", defaults.Scale)
+	}
+	if defaults.Weight == nil || *defaults.Weight != 2 {
+		t.Errorf("expected weight 2, got %v", defaults.Weight)
+	}
+	if defaults.Ceiling == nil || *defaults.Ceiling != 9000000000 {
+		t.Errorf("expected ceiling 9000000000, got %v", defaults.Ceiling)
+	}
+}
+
+// F1114: properties named after language keywords and literals keep their
+// wire keys through a decode and an encode.
+func TestEdgeCases_KeywordNamedPropertiesKeepTheirWireKeys(t *testing.T) {
+	t.Parallel()
+	wire := `{"and":true,"or":false,"not":true,"class":"c","return":"r","null":"n","true":true,"false":false}`
+	var decoded models.EdgeCases
+	if err := deserialize([]byte(wire), &decoded); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if decoded.Class == nil || *decoded.Class != "c" || decoded.Return == nil || *decoded.Return != "r" {
+		t.Errorf("expected class c and return r, got %v and %v", decoded.Class, decoded.Return)
+	}
+	if decoded.And == nil || !*decoded.And || decoded.Or == nil || *decoded.Or {
+		t.Errorf("expected and true and or false, got %v and %v", decoded.And, decoded.Or)
+	}
+	data, err := serialize(decoded)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var got, want map[string]any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("invalid JSON %s: %v", data, err)
+	}
+	if err := json.Unmarshal([]byte(wire), &want); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("expected the keys of %s, got %s", wire, data)
+	}
+}
+
+// F1130: a uuid model property is written in lowercase, decodes from the
+// uppercase spelling, and rejects a malformed value.
+func TestOrder_TrackingIdIsWrittenLowercaseAndDecodesUppercase(t *testing.T) {
+	t.Parallel()
+	const upper = "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"
+	const lower = "e621e1f8-c36c-495a-93fc-0c247a3e6e5f"
+	parsed, err := uuid.Parse(upper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := serialize(models.Order{TrackingId: &parsed})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"trackingId":"`+lower+`"`) {
+		t.Errorf("expected the lowercase uuid on the wire, got %s", data)
+	}
+	var decoded models.Order
+	if err := deserialize([]byte(`{"trackingId":"`+upper+`"}`), &decoded); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if decoded.TrackingId == nil || decoded.TrackingId.String() != lower {
+		t.Errorf("expected %s, got %v", lower, decoded.TrackingId)
+	}
+	var rejected models.Order
+	if err := deserialize([]byte(`{"trackingId":"not-a-uuid"}`), &rejected); err == nil {
+		t.Error("expected a malformed uuid to be rejected")
+	}
+}
+
+// D57/F080: a date-time without an offset, or in a looser ISO shape, is
+// rejected whatever the host zone is.
+func TestDeserialize_DateTimeWithoutAnOffsetIsRejected(t *testing.T) {
+	t.Parallel()
+	for _, wire := range []string{
+		`"2024-01-01T10:00:00"`,
+		`"2024-01-01"`,
+		`"2024-01-01 10:00:00+00:00"`,
+		`"2024-01-01T10:00:00.123"`,
+	} {
+		var model models.EdgeCases
+		err := deserialize([]byte(`{"expiresAt":`+wire+`}`), &model)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("expected *SerializationError for %s, got %T: %v", wire, err, err)
+		}
+	}
+}
+
+// F1124: a string pattern is not enforced by this SDK (S3), so a slug that
+// matches and one that does not both round-trip unchanged.
+func TestEdgeCases_SlugRoundTripsWithoutPatternEnforcement(t *testing.T) {
+	t.Parallel()
+	for _, slug := range []string{"12/ab", "ab/12"} {
+		var decoded models.EdgeCases
+		if err := deserialize([]byte(`{"slug":"`+slug+`"}`), &decoded); err != nil {
+			t.Fatalf("unexpected error for %s: %v", slug, err)
+		}
+		if decoded.Slug == nil || *decoded.Slug != slug {
+			t.Errorf("expected slug %q, got %v", slug, decoded.Slug)
+		}
+	}
+}
+
+// F1116: the OAS 3.1 contentEncoding property is a byte field, base64 on the
+// wire and raw bytes in the model.
+func TestPetPassport_BiometricChipRoundTripsThroughBase64(t *testing.T) {
+	t.Parallel()
+	raw := []byte{0x01, 0x02, 0x03}
+	data, err := serialize(models.PetPassport{BiometricChip: &raw})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"biometricChip":"AQID"`) {
+		t.Errorf("expected base64 on the wire, got %s", data)
+	}
+	var back models.PetPassport
+	if err := deserialize(data, &back); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if back.BiometricChip == nil || string(*back.BiometricChip) != string(raw) {
+		t.Errorf("expected the raw bytes back, got %v", back.BiometricChip)
+	}
+}
+
+// F1175: the prefixItems tuple of Pet.location degrades to an open list. A
+// number decodes as float64 (so 2 and 2.0 are the same value), the string keeps
+// its position, a null element survives, and the elements re-encode in order.
+func TestPet_PrefixItemsLocationRoundTripsAsAnOpenList(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"mixed":        `[1.5,2,"hq"]`,
+		"null element": `[null,2,"hq"]`,
+	}
+	for name, location := range cases {
+		var pet models.Pet
+		if err := deserialize([]byte(`{"name":"x","photoUrls":[],"location":`+location+`}`), &pet); err != nil {
+			t.Fatalf("%s: unexpected error: %v", name, err)
+		}
+		if pet.Location == nil || len(*pet.Location) != 3 {
+			t.Fatalf("%s: expected three elements, got %v", name, pet.Location)
+		}
+		if _, isString := (*pet.Location)[2].(string); !isString {
+			t.Errorf("%s: expected the third element to be a string, got %T", name, (*pet.Location)[2])
+		}
+		if _, isFloat := (*pet.Location)[1].(float64); !isFloat {
+			t.Errorf("%s: expected the second element to be a float64, got %T", name, (*pet.Location)[1])
+		}
+		data, err := serialize(pet)
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", name, err)
+		}
+		if !strings.Contains(string(data), `"location":`+location) {
+			t.Errorf("%s: expected location %s on the wire, got %s", name, location, data)
+		}
 	}
 }
 
@@ -1368,6 +1542,31 @@ func TestDeserialize_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
 	}
 }
 
+// F1067: a JSON object that repeats a key resolves to the last value, as in the
+// other eleven SDKs, whatever the decoder's own default would be.
+func TestDeserialize_DuplicateKeyKeepsTheLastValue(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"plain":            `{"id":1,"quantity":3,"id":2}`,
+		"escaped spelling": `{"\u0069d":1,"quantity":3,"id":2}`,
+		"with a mis-cased": `{"ID":9,"id":1,"quantity":3,"id":2}`,
+	}
+	for name, raw := range cases {
+		t.Run(name, func(t *testing.T) {
+			var order models.Order
+			if err := deserialize([]byte(raw), &order); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if order.Id == nil || *order.Id != 2 {
+				t.Errorf("expected id 2 (the last value), got %v", order.Id)
+			}
+			if order.Quantity == nil || *order.Quantity != 3 {
+				t.Errorf("expected quantity 3, got %v", order.Quantity)
+			}
+		})
+	}
+}
+
 func TestDeserialize_MiscasedRequiredKeyIsMissing(t *testing.T) {
 	t.Parallel()
 	var pet models.Pet
@@ -1586,6 +1785,119 @@ func TestAvailabilityEnum_PreservesWireCasingRoundTrip(t *testing.T) {
 		if back != v {
 			t.Errorf("round-trip mismatch: expected %v, got %v", v, back)
 		}
+	}
+}
+
+// F1144: the members whose wire values hold a quote, a backslash, a dollar and
+// a brace sequence round-trip exactly, with the wire text JSON-escaped only
+// where JSON requires it.
+func TestAvailabilityEnum_HostileMembersRoundTripExactly(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		value models.Availability
+		wire  string
+	}{
+		{models.AvailabilityOclock, `"o'clock"`},
+		{models.AvailabilityAB, `"a\\b"`},
+		{models.AvailabilityEq, `"$eq"`},
+		{models.AvailabilityX, `"#{x}"`},
+	}
+	for _, tc := range cases {
+		data, err := serialize(tc.value)
+		if err != nil {
+			t.Fatalf("unexpected error serializing %v: %v", tc.value, err)
+		}
+		if string(data) != tc.wire {
+			t.Errorf("expected %s on the wire, got %s", tc.wire, data)
+		}
+		var back models.Availability
+		if err := deserialize([]byte(tc.wire), &back); err != nil {
+			t.Fatalf("unexpected error decoding %s: %v", tc.wire, err)
+		}
+		if back != tc.value {
+			t.Errorf("round-trip mismatch: expected %q, got %q", tc.value, back)
+		}
+	}
+}
+
+// F1146: an inline enum keeps its declared wire spellings (In-Stock, on-hold,
+// OUT_OF_STOCK) through a model body and rejects anything else.
+func TestEdgeCases_InlinePhaseEnumRoundTripsItsWireValues(t *testing.T) {
+	t.Parallel()
+	for _, phase := range []models.EdgeCasesPhaseEnum{
+		models.EdgeCasesPhaseEnumInStock,
+		models.EdgeCasesPhaseEnumOnHold,
+		models.EdgeCasesPhaseEnumOUTOFSTOCK,
+	} {
+		wire := `{"phase":"` + string(phase) + `"}`
+		var decoded models.EdgeCases
+		if err := deserialize([]byte(wire), &decoded); err != nil {
+			t.Fatalf("unexpected error decoding %s: %v", wire, err)
+		}
+		if decoded.Phase == nil || *decoded.Phase != phase {
+			t.Fatalf("expected phase %q, got %v", phase, decoded.Phase)
+		}
+		data, err := serialize(decoded)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if string(data) != wire {
+			t.Errorf("expected %s on the wire, got %s", wire, data)
+		}
+	}
+	var rejected models.EdgeCases
+	if err := deserialize([]byte(`{"phase":"in-stock"}`), &rejected); err == nil {
+		t.Error("expected an undeclared phase spelling to be rejected")
+	}
+}
+
+// F1145: a format:time model property goes out and comes back as the text the
+// caller set.
+func TestEdgeCases_CutoffTimeRoundTripsAsText(t *testing.T) {
+	t.Parallel()
+	cutoff := "10:30:00.123"
+	data, err := serialize(models.EdgeCases{Cutoff: &cutoff})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != `{"cutoff":"10:30:00.123"}` {
+		t.Errorf("expected the time text on the wire, got %s", data)
+	}
+	var decoded models.EdgeCases
+	if err := deserialize(data, &decoded); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if decoded.Cutoff == nil || *decoded.Cutoff != cutoff {
+		t.Errorf("expected cutoff %q, got %v", cutoff, decoded.Cutoff)
+	}
+}
+
+// F1111: unevaluatedProperties:false refuses an undeclared key as a
+// *SerializationError, still decodes the declared keys, and does not leak onto
+// a model that does not declare it.
+func TestStrictTag_UndeclaredKeyIsRejectedAndDeclaredKeysDecode(t *testing.T) {
+	t.Parallel()
+	var strict models.StrictTag
+	err := deserialize([]byte(`{"id":1,"name":"a","extra":2}`), &strict)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if !strings.Contains(err.Error(), "unknown property 'extra' on StrictTag") {
+		t.Errorf("expected the undeclared key to be named, got %v", err)
+	}
+
+	var ok models.StrictTag
+	if err := deserialize([]byte(`{"id":1,"name":"a"}`), &ok); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ok.Id == nil || *ok.Id != 1 || ok.Name == nil || *ok.Name != "a" {
+		t.Errorf("expected the declared keys to decode, got %+v", ok)
+	}
+
+	var loose models.Category
+	if err := deserialize([]byte(`{"id":1,"extra":2}`), &loose); err != nil {
+		t.Errorf("a model without unevaluatedProperties:false must ignore an undeclared key, got %v", err)
 	}
 }
 

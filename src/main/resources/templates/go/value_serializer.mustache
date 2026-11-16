@@ -2,9 +2,13 @@
 package {{packageName}}
 
 import (
+	"bytes"
+	"encoding"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -183,8 +187,146 @@ func serializeDeepObject(paramName string, value any) map[string]string {
 				result[fmt.Sprintf("%s[%s]", paramName, key)] = val
 			}
 		}
+	default:
+		/* A model (or any other object): one entry per property. */
+		if pairs, ok := objectEntries(value); ok {
+			for _, pair := range pairs {
+				result[fmt.Sprintf("%s[%s]", paramName, pair[0])] = pair[1]
+			}
+		}
 	}
 	return result
+}
+
+// queryPairs is an object-valued query parameter that explodes into one
+// name=value pair per property, in the object's declaration order.
+type queryPairs [][2]string
+
+// objectEntries lists the properties of an object-valued parameter (a model
+// struct or a string-keyed map) as name/value pairs, in declaration order for a
+// model and in sorted order for a map. A null property is left out. A property
+// that is itself an object or array keeps its JSON text. The bool is false for
+// anything that is not an object, so scalars, enums, date-times and slices keep
+// their own encoding.
+func objectEntries(value any) ([][2]string, bool) {
+	if value == nil {
+		return nil, false
+	}
+	rv := reflect.ValueOf(value)
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return nil, false
+		}
+		rv = rv.Elem()
+	}
+	switch rv.Kind() {
+	case reflect.Map:
+		if rv.Type().Key().Kind() != reflect.String {
+			return nil, false
+		}
+		keys := make([]string, 0, rv.Len())
+		for _, k := range rv.MapKeys() {
+			keys = append(keys, k.String())
+		}
+		sort.Strings(keys)
+		pairs := make([][2]string, 0, len(keys))
+		for _, k := range keys {
+			v := rv.MapIndex(reflect.ValueOf(k).Convert(rv.Type().Key())).Interface()
+			if v == nil {
+				continue
+			}
+			pairs = append(pairs, [2]string{k, stringify(v)})
+		}
+		return pairs, true
+	case reflect.Struct:
+		marshaler := reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+		if rv.Type().Implements(marshaler) || reflect.PointerTo(rv.Type()).Implements(marshaler) {
+			return nil, false
+		}
+	default:
+		return nil, false
+	}
+	data, err := json.Marshal(rv.Interface())
+	if err != nil {
+		return nil, false
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
+		return nil, false
+	}
+	var pairs [][2]string
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			return nil, false
+		}
+		key, ok := keyTok.(string)
+		if !ok {
+			return nil, false
+		}
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err != nil {
+			return nil, false
+		}
+		switch {
+		case string(raw) == "null":
+			continue
+		case len(raw) > 0 && raw[0] == '"':
+			var text string
+			if err := json.Unmarshal(raw, &text); err != nil {
+				return nil, false
+			}
+			pairs = append(pairs, [2]string{key, text})
+		default:
+			pairs = append(pairs, [2]string{key, string(raw)})
+		}
+	}
+	return pairs, true
+}
+
+// serializeObject renders an object-valued parameter in the given style. The
+// exploded form of a query parameter becomes queryPairs; every other shape is
+// a single string.
+func serializeObject(paramName string, pairs [][2]string, location, style string, explode bool) any {
+	if len(pairs) == 0 {
+		return serializeNil(location)
+	}
+	flat := make([]string, 0, len(pairs)*2)
+	assigned := make([]string, 0, len(pairs))
+	for _, pair := range pairs {
+		flat = append(flat, pair[0], pair[1])
+		assigned = append(assigned, pair[0]+"="+pair[1])
+	}
+	csv := strings.Join(flat, ",")
+	switch style {
+	case "form":
+		if explode && location == "query" {
+			return queryPairs(pairs)
+		}
+		if explode {
+			return strings.Join(assigned, "&")
+		}
+		return csv
+	case "matrix":
+		if explode {
+			return ";" + strings.Join(assigned, ";")
+		}
+		return ";" + paramName + "=" + csv
+	case "label":
+		if explode {
+			return "." + strings.Join(assigned, ".")
+		}
+		return "." + csv
+	case "spaceDelimited":
+		return strings.Join(flat, " ")
+	case "pipeDelimited":
+		return strings.Join(flat, "|")
+	default:
+		if explode {
+			return strings.Join(assigned, ",")
+		}
+		return csv
+	}
 }
 
 // requirePathParam returns ErrMissingRequiredParameter when a path parameter is
@@ -240,6 +382,19 @@ func serializeStyled(paramName string, value any, location, schemaType, collecti
 	}
 
 	items, isArray := toStringSlice(value)
+
+	/* An object-valued parameter (a model or a map) is encoded property by
+	 * property in its declaration order. */
+	if !isArray && value != nil {
+		if pairs, ok := objectEntries(value); ok {
+			if location == "path" {
+				for i := range pairs {
+					pairs[i][0], pairs[i][1] = encodePathSegment(pairs[i][0]), encodePathSegment(pairs[i][1])
+				}
+			}
+			return serializeObject(paramName, pairs, location, style, explode)
+		}
+	}
 
 	// For path styles, percent-encode each individual item BEFORE applying
 	// the structural separators (";", "=", ".", ",") that the style defines.

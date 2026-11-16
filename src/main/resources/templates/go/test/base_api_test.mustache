@@ -262,8 +262,9 @@ func TestBaseApi_ForwardsAuthHeaders(t *testing.T) {
 
 func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 	t.Parallel()
-	config := {{packageName}}.NewConfigurationBuilder().BaseURL(chasmHTTPURL).Build()
-	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, nil)
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil)
 
 	auth := &baseApiAuth{
 		headers: map[string]string{},
@@ -273,9 +274,37 @@ func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 
 	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), &options.AddPetOptions{Auth: auth})
 	if err != nil {
-		// We don't care if the request fails (chasm may not have a matching mapping),
-		// we just need to verify the cookie was sent
-		_ = err
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := client.capturedHeaders["Cookie"]; got != "session=abc123" {
+		t.Errorf("Cookie header = %q, want %q", got, "session=abc123")
+	}
+}
+
+// injectableAuth is a per-call authenticator that needs the transport, like the
+// OAuth2 and OpenID Connect authenticators do for their token requests.
+type injectableAuth struct {
+	baseApiAuth
+	injected auth.ApiClient
+}
+
+func (a *injectableAuth) SetApiClient(client auth.ApiClient) { a.injected = client }
+
+// F856: a per-call authenticator that needs the transport receives the API's
+// own client before its headers are asked for.
+func TestBaseApi_PerCallHttpAwareAuthenticatorIsInjected(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil)
+	perCall := &injectableAuth{baseApiAuth: *newBaseApiAuth()}
+
+	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), &options.AddPetOptions{Auth: perCall})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if perCall.injected == nil {
+		t.Error("expected the per-call authenticator to receive the API client")
 	}
 }
 

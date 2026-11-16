@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pkgerrors "{{packageName}}/pkg/errors"
+	"{{packageName}}/pkg/models"
 )
 
 // An optional integer, number or boolean parameter is a pointer in the Options
@@ -1071,5 +1072,55 @@ func TestPathEncodingParity_PercentSignIsEncoded(t *testing.T) {
 	result := serializeValue("a%20b", "path", "string", "")
 	if result != "a%2520b" {
 		t.Errorf("expected 'a%%2520b', got %v", result)
+	}
+}
+
+// D47/F1143: an object-valued parameter is encoded property by property, in the
+// model's declaration order, whatever its wire names (min_age is snake case).
+func TestSerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
+	t.Parallel()
+	breed := "lab"
+	minAge := int32(3)
+	criteria := &models.PetCriteria{Breed: &breed, MinAge: &minAge}
+
+	exploded, ok := serializeStyled("criteria", criteria, "query", "PetCriteria", "", "form", true).(queryPairs)
+	if !ok || len(exploded) != 2 || exploded[0] != [2]string{"breed", "lab"} || exploded[1] != [2]string{"min_age", "3"} {
+		t.Errorf("expected breed=lab then min_age=3, got %v", exploded)
+	}
+	cases := []struct {
+		name     string
+		location string
+		style    string
+		explode  bool
+		want     string
+	}{
+		{"form csv", "query", "form", false, "breed,lab,min_age,3"},
+		{"simple header", "header", "simple", false, "breed,lab,min_age,3"},
+		{"simple exploded header", "header", "simple", true, "breed=lab,min_age=3"},
+		{"label", "path", "label", false, ".breed,lab,min_age,3"},
+		{"matrix exploded", "path", "matrix", true, ";breed=lab;min_age=3"},
+		{"pipe delimited", "query", "pipeDelimited", false, "breed|lab|min_age|3"},
+	}
+	for _, tc := range cases {
+		if got := serializeStyled("criteria", criteria, tc.location, "PetCriteria", "", tc.style, tc.explode); got != tc.want {
+			t.Errorf("%s: expected %q, got %v", tc.name, tc.want, got)
+		}
+	}
+}
+
+func TestSerializeStyled_ObjectWithNoSetPropertiesIsOmittedFromTheQuery(t *testing.T) {
+	t.Parallel()
+	if got := serializeStyled("criteria", &models.PetCriteria{}, "query", "PetCriteria", "", "form", true); got != nil {
+		t.Errorf("expected the parameter to be omitted, got %v", got)
+	}
+}
+
+func TestSerializeDeepObject_ModelBecomesBracketedKeys(t *testing.T) {
+	t.Parallel()
+	breed := "lab"
+	minAge := int32(3)
+	got := serializeDeepObject("criteriaDeep", &models.PetCriteria{Breed: &breed, MinAge: &minAge})
+	if len(got) != 2 || got["criteriaDeep[breed]"] != "lab" || got["criteriaDeep[min_age]"] != "3" {
+		t.Errorf("expected criteriaDeep[breed]=lab and criteriaDeep[min_age]=3, got %v", got)
 	}
 }
