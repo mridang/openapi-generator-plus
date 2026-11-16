@@ -293,7 +293,7 @@ class {{classname}} extends BaseApi {
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
 {{#vendorExtensions.param.queryDeepObject}}
-    serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
+    serializeDeepObject('{{baseName}}', parameterObject(options.{{paramName}})).forEach((k, v) {
       queryParams[k] = v;
     });
 {{/vendorExtensions.param.queryDeepObject}}
@@ -307,7 +307,7 @@ class {{classname}} extends BaseApi {
 {{^required}}
     if (options.{{paramName}} != null) {
 {{#vendorExtensions.param.queryDeepObject}}
-      serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
+      serializeDeepObject('{{baseName}}', parameterObject(options.{{paramName}})).forEach((k, v) {
         queryParams[k] = v;
       });
 {{/vendorExtensions.param.queryDeepObject}}
@@ -323,7 +323,7 @@ class {{classname}} extends BaseApi {
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
 {{#vendorExtensions.param.queryDeepObject}}
-      serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
+      serializeDeepObject('{{baseName}}', parameterObject(options.{{paramName}})).forEach((k, v) {
         queryParams[k] = v;
       });
 {{/vendorExtensions.param.queryDeepObject}}

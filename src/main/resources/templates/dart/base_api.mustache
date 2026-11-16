@@ -359,6 +359,14 @@ class BaseApi {
         allowReserved = true;
       }
 
+      if (value is ExplodedObject) {
+        for (final pair in value.pairs.entries) {
+          parts.add('${encodeRfc3986QueryComponent(pair.key)}='
+              '${_encodeQueryValue(pair.value, allowReserved)}');
+        }
+        continue;
+      }
+
       final encodedKey = encodeRfc3986QueryComponent(key);
       if (value is List<String>) {
         for (final item in value) {

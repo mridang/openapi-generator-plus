@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'errors/serialization_exception.dart';
 import 'object_serializer.dart';
 
 /// Serializes parameter values for HTTP requests based on their location and
@@ -196,6 +197,100 @@ String encodeQueryAllowingReserved(String s) {
   return out.toString();
 }
 
+/// The query pairs an exploded object-valued parameter contributes: each
+/// property becomes its own `name=value` pair instead of one value under the
+/// parameter name. Produced by [serializeStyled] and expanded by the query
+/// string builder.
+class ExplodedObject {
+  /// The stringified properties, in declaration order.
+  final Map<String, String> pairs;
+
+  /// Creates the expansion of one exploded object.
+  const ExplodedObject(this.pairs);
+}
+
+/// Returns the properties of an object-valued parameter: a [Map] as is, or the
+/// `toJson()` map of a generated model. Returns null for every other value
+/// (scalars, lists, sets, bytes, dates, durations and enums), which keep their
+/// own serialization.
+Map<String, Object?>? parameterObject(Object? value) {
+  if (value == null ||
+      value is String ||
+      value is num ||
+      value is bool ||
+      value is Iterable<Object?> ||
+      value is Uint8List ||
+      value is DateTime ||
+      value is Duration) {
+    return null;
+  }
+  if (value is Map<Object?, Object?>) {
+    return value.map((k, v) => MapEntry(k.toString(), v));
+  }
+  try {
+    final json = (value as dynamic).toJson();
+    if (json is Map<Object?, Object?>) {
+      return json.map((k, v) => MapEntry(k.toString(), v));
+    }
+  } on NoSuchMethodError {
+    return null;
+  }
+  return null;
+}
+
+/// Flattens [properties] into `name=value` pairs, refusing a nested object or
+/// array: OAS defines no serialization for one inside a parameter.
+Map<String, String> _flatProperties(
+  String paramName,
+  Map<String, Object?> properties,
+) {
+  final pairs = <String, String>{};
+  for (final entry in properties.entries) {
+    final v = entry.value;
+    if (v == null) continue;
+    if (v is Map<Object?, Object?> || v is Iterable<Object?>) {
+      throw SerializationException(
+        "Parameter '$paramName' has a nested value at '${entry.key}', which "
+        'cannot be serialized in this style',
+      );
+    }
+    pairs[entry.key] = stringify(v);
+  }
+  return pairs;
+}
+
+Object? _serializeStyledObject(
+  String paramName,
+  Map<String, Object?> properties,
+  String location,
+  String style,
+  bool explode,
+) {
+  final pairs = _flatProperties(paramName, properties);
+  final enc = location == 'path' ? encodePathSegment : (String x) => x;
+  final flat =
+      pairs.entries.expand((e) => [enc(e.key), enc(e.value)]).join(',');
+  final keyed = pairs.entries.map((e) => '${enc(e.key)}=${enc(e.value)}');
+  switch (style) {
+    case 'matrix':
+      return explode ? keyed.map((p) => ';$p').join() : ';$paramName=$flat';
+    case 'label':
+      return explode ? '.${keyed.join(".")}' : '.$flat';
+    case 'simple':
+      return explode ? keyed.join(',') : flat;
+    case 'spaceDelimited':
+      return explode && location == 'query'
+          ? ExplodedObject(pairs)
+          : pairs.entries.expand((e) => [e.key, e.value]).join(' ');
+    case 'pipeDelimited':
+      return explode && location == 'query'
+          ? ExplodedObject(pairs)
+          : pairs.entries.expand((e) => [e.key, e.value]).join('|');
+    default:
+      return explode && location == 'query' ? ExplodedObject(pairs) : flat;
+  }
+}
+
 /// Serializes a value with OAS 3.0 parameter style formatting.
 ///
 /// Handles matrix, label, simple, form, spaceDelimited, and pipeDelimited
@@ -240,6 +335,12 @@ Object? serializeStyled(
 
   if (style.isEmpty) {
     return serializeValue(value, location, schemaType, collectionFormat);
+  }
+
+  final properties = parameterObject(value);
+  if (properties != null) {
+    return _serializeStyledObject(
+        paramName, properties, location, style, explode);
   }
 
   final rawItems = _toStringList(value);
@@ -333,7 +434,14 @@ Map<String, String> serializeDeepObject(
   if (value == null) return result;
 
   for (final entry in value.entries) {
-    result['$paramName[${entry.key}]'] = stringify(entry.value);
+    final v = entry.value;
+    if (v is Map<Object?, Object?> || v is Iterable<Object?>) {
+      throw SerializationException(
+        "Parameter '$paramName' has a nested value at '${entry.key}', which "
+        'cannot be serialized as a deepObject',
+      );
+    }
+    result['$paramName[${entry.key}]'] = stringify(v);
   }
   return result;
 }

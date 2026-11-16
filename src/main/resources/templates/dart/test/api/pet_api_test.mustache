@@ -1038,6 +1038,53 @@ void main() {
       }
     });
 
+    /* D47 object-valued parameters: with PetCriteria(breed lab, min_age 3) the
+     * form-exploded query carries one pair per property, the non-exploded form
+     * a single comma-joined value, the deepObject a bracketed key per
+     * property, and the simple-style header a comma-joined list. */
+    test('getPetTag sends object-valued query and header parameters in their declared styles', () async {
+      String? capturedQuery;
+      String? capturedHeader;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedQuery = request.uri.query;
+        capturedHeader = request.headers.value('x-criteria');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":5,"name":"Rex","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        const criteria = PetCriteria(breed: 'lab', minAge: 3);
+
+        await api.getPetTag(
+          5,
+          'cute',
+          const GetPetTagOptions(
+            criteria: criteria,
+            criteriaCsv: criteria,
+            criteriaDeep: criteria,
+            xCriteria: criteria,
+          ),
+        );
+
+        expect(capturedQuery, contains('breed=lab'));
+        expect(capturedQuery, contains('min_age=3'));
+        expect(capturedQuery, contains('criteriaCsv=breed%2Clab%2Cmin_age%2C3'));
+        expect(capturedQuery, contains('criteriaDeep%5Bbreed%5D=lab'));
+        expect(capturedQuery, contains('criteriaDeep%5Bmin_age%5D=3'));
+        expect(capturedHeader, equals('breed,lab,min_age,3'));
+      } finally {
+        await server.close();
+      }
+    });
+
     /* getPetTag byte parameters (D51): the `fingerprint` query and the
      * `X-Fingerprint` header are `format: byte`, so bytes `hi` reach the wire
      * as `aGk=` and bytes FB FF as `+/8=` in the standard alphabet, and the
