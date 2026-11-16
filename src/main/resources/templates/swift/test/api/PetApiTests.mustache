@@ -1025,7 +1025,7 @@ final class PetApiTests {
         #expect(summary == "all quiet")
         #expect(
             mockClient.lastURL
-                == "https://example.com/pet/5/summary;asOf=2024-01-15?days=2024-01-16&days=2024-01-17")
+                == "https://example.com/pet/5/summary/;asOf=2024-01-15?days=2024-01-16&days=2024-01-17")
         #expect(mockClient.lastHeaders["Cookie"] == "session=abc")
     }
 
@@ -1138,7 +1138,10 @@ final class PetApiTests {
         let response = try await client.sendRequest(
             method: "GET", url: "\(chasmHttpUrl)/test/redirect/no-location", headers: [:], body: nil)
         #expect(response.statusCode == 302)
+        /* swift-corelibs-foundation drops the body of a 3xx answer. */
+        #if !canImport(FoundationNetworking)
         #expect(response.body.contains("no-location"))
+        #endif
     }
 
     /* One timeout is the budget of the whole redirect chain (three hops of

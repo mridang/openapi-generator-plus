@@ -376,7 +376,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                 : session
             (data, response, task) = try await DefaultApiClient.performDataTask(
                 on: activeSession, for: request,
-                taskDelegate: (!ownsSession && !noRedirect) ? sessionDelegate : nil)
+                taskDelegate: (!ownsSession && !noRedirect) ? sessionDelegate : nil,
+                deadline: transportOptions.timeout.map { TimeInterval($0) / 1000.0 })
         } catch let undecodable as UndecodableBody {
             /* The server answered but its body cannot be decoded: an ApiError
                carrying the real status code, never a NetworkError. */
@@ -854,7 +855,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     private static func performDataTask(
         on session: URLSession,
         for request: URLRequest,
-        taskDelegate: URLSessionTaskDelegate? = nil
+        taskDelegate: URLSessionTaskDelegate? = nil,
+        deadline: TimeInterval? = nil
     ) async throws -> (Data, URLResponse, URLSessionTask) {
         /* Box the task so the completion handler, the continuation body and
            the cancellation handler refer to the same instance. The lock and
@@ -866,6 +868,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             private let lock = NSLock()
             private var task: URLSessionTask?
             private var cancelled = false
+            private var expired = false
 
             /// Records the task; returns false when cancellation came first.
             func install(_ newTask: URLSessionTask) -> Bool {
@@ -883,51 +886,82 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                 current?.cancel()
             }
 
+            /// The deadline passed: cancel the task and remember why.
+            func expire() {
+                let current: URLSessionTask? = lock.withLock {
+                    expired = true
+                    cancelled = true
+                    return task
+                }
+                current?.cancel()
+            }
+
+            var didExpire: Bool {
+                lock.withLock { expired }
+            }
+
             var current: URLSessionTask? {
                 lock.withLock { task }
             }
         }
         let box = TaskBox()
-        return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<(Data, URLResponse, URLSessionTask), Error>) in
-                let task = session.dataTask(with: request) { data, response, error in
-                    if let error = error {
-                        /* A body URLSession could not decode arrived with a
-                           response; keep that response so the caller can
-                           report its real status code. */
-                        if let urlError = error as? URLError,
-                           urlError.code == .cannotDecodeContentData
-                            || urlError.code == .cannotDecodeRawData,
-                           let http = (response ?? box.current?.response) as? HTTPURLResponse {
-                            continuation.resume(throwing: UndecodableBody(response: http, urlError: urlError))
+        /* One end-to-end deadline for the whole call, redirect hops included.
+           Darwin's `timeoutIntervalForResource` already behaves that way, but
+           Foundation on Linux restarts its timers on every redirect hop, so
+           the SDK enforces the budget itself and reports it as a timeout. */
+        let timer: Task<Void, Never>? = deadline.map { seconds in
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                if !Task.isCancelled { box.expire() }
+            }
+        }
+        defer { timer?.cancel() }
+        do {
+            return try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation {
+                    (continuation: CheckedContinuation<(Data, URLResponse, URLSessionTask), Error>) in
+                    let task = session.dataTask(with: request) { data, response, error in
+                        if let error = error {
+                            /* A body URLSession could not decode arrived with a
+                               response; keep that response so the caller can
+                               report its real status code. */
+                            if let urlError = error as? URLError,
+                               urlError.code == .cannotDecodeContentData
+                                || urlError.code == .cannotDecodeRawData,
+                               let http = (response ?? box.current?.response) as? HTTPURLResponse {
+                                continuation.resume(throwing: UndecodableBody(response: http, urlError: urlError))
+                                return
+                            }
+                            continuation.resume(throwing: error)
                             return
                         }
-                        continuation.resume(throwing: error)
+                        guard let data = data, let response = response, let task = box.current else {
+                            continuation.resume(throwing: URLError(.badServerResponse))
+                            return
+                        }
+                        continuation.resume(returning: (data, response, task))
+                    }
+                    /* A caller-supplied session has no SDK delegate of its own, so
+                       the SDK's redirect rules ride on the task itself. */
+                    if let taskDelegate = taskDelegate {
+                        task.delegate = taskDelegate
+                    }
+                    /* A task that is never resumed never calls its completion
+                       handler, so resuming the continuation here is the only
+                       resume on this path. */
+                    guard box.install(task) else {
+                        continuation.resume(throwing: CancellationError())
                         return
                     }
-                    guard let data = data, let response = response, let task = box.current else {
-                        continuation.resume(throwing: URLError(.badServerResponse))
-                        return
-                    }
-                    continuation.resume(returning: (data, response, task))
+                    task.resume()
                 }
-                /* A caller-supplied session has no SDK delegate of its own, so
-                   the SDK's redirect rules ride on the task itself. */
-                if let taskDelegate = taskDelegate {
-                    task.delegate = taskDelegate
-                }
-                /* A task that is never resumed never calls its completion
-                   handler, so resuming the continuation here is the only
-                   resume on this path. */
-                guard box.install(task) else {
-                    continuation.resume(throwing: CancellationError())
-                    return
-                }
-                task.resume()
+            } onCancel: {
+                box.cancel()
             }
-        } onCancel: {
-            box.cancel()
+        } catch let urlError as URLError where urlError.code == .cancelled && box.didExpire {
+            throw URLError(.timedOut, userInfo: [NSUnderlyingErrorKey: urlError])
+        } catch is CancellationError where box.didExpire {
+            throw URLError(.timedOut)
         }
     }
 

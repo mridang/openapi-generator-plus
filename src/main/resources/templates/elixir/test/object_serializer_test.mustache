@@ -1501,9 +1501,9 @@ defmodule {{moduleName}}.ObjectSerializerTest do
     end
 
     test "U+2028 and U+2029 are written literally and only quote, backslash and controls are escaped" do
-      json = {{moduleName}}.ObjectSerializer.serialize(%{"k" => "a b c\"d\\e\nf"})
+      json = {{moduleName}}.ObjectSerializer.serialize(%{"k" => "a\u2028b\u2029c\"d\\e\nf"})
 
-      assert json =~ "a b c"
+      assert json =~ "a\u2028b\u2029c"
       refute json =~ "\\u2028"
       refute json =~ "\\u2029"
       assert json =~ ~S(c\"d\\e\nf)

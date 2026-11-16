@@ -169,7 +169,8 @@ import FoundationNetworking
             try TransportOptionsBuilder().proxy(url).build()
         }
         #expect(error == ConfigurationError.invalidProxy(message))
-        #expect(!(error?.errorDescription ?? "").contains("s3cret"))
+        let description = error?.errorDescription ?? ""
+        #expect(description.range(of: "s3cret") == nil)
     }
 
     /* D77: the timeout is nil or a positive number of milliseconds; zero and

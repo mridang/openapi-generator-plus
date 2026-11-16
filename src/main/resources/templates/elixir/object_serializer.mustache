@@ -127,9 +127,21 @@ defmodule {{moduleName}}.ObjectSerializer do
     if depth > @max_json_depth do
       {:error, "JSON nesting depth #{depth} exceeds limit #{@max_json_depth}"}
     else
-      Jason.decode(data)
+      # Jason keeps the FIRST of a duplicated object key; every other SDK keeps
+      # the last. Decode objects in document order and fold them into maps so
+      # the last occurrence wins.
+      with {:ok, decoded} <- Jason.decode(data, objects: :ordered_objects) do
+        {:ok, last_key_wins(decoded)}
+      end
     end
   end
+
+  defp last_key_wins(%Jason.OrderedObject{values: values}) do
+    Map.new(values, fn {key, value} -> {key, last_key_wins(value)} end)
+  end
+
+  defp last_key_wins(list) when is_list(list), do: Enum.map(list, &last_key_wins/1)
+  defp last_key_wins(other), do: other
 
   @doc """
   Serialize an object to a JSON string.

@@ -269,7 +269,10 @@ public final class TransportOptionsBuilder {
         }
         var parsedProxy: URL? = nil
         if let val = proxy {
-            guard let parsed = URL(string: val) else {
+            /* A string with no scheme at all is "not a valid URL", whether or
+               not the platform's parser accepts it (Foundation on Linux
+               percent-encodes spaces and parses it as a relative reference). */
+            guard let parsed = URL(string: val), parsed.scheme?.isEmpty == false else {
                 throw ConfigurationError.invalidProxyURL(val)
             }
             let scheme = parsed.scheme?.lowercased() ?? ""
