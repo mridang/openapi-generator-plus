@@ -915,6 +915,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             if (p.description != null && !p.description.isEmpty()) {
                 param.put("description", p.description);
             }
+            final Object pluralExamples =
+                    p.vendorExtensions == null ? null : p.vendorExtensions.get("pluralExamples");
+            if (pluralExamples != null) {
+                param.put("pluralExamples", pluralExamples);
+            }
             params.add(param);
             /* A content-based parameter (content: application/json) carries
              * the model type in dataType only; baseType stays null. */

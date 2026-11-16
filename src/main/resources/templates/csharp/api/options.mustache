@@ -18,6 +18,9 @@ public sealed class {{className}}
 {{#description}}
     /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
 {{/description}}
+{{#pluralExamples}}
+    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{{value}}}{{/lambda.escapeXml}}</example>
+{{/pluralExamples}}
 {{#deprecated}}
     {{! FORCED: a doc-only <remarks> note, NOT the [Obsolete] attribute. The
         generated PetApi reads this field internally to build the request, and
@@ -36,6 +39,9 @@ public sealed class {{className}}
 {{#description}}
     /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
 {{/description}}
+{{#pluralExamples}}
+    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{{value}}}{{/lambda.escapeXml}}</example>
+{{/pluralExamples}}
 {{#deprecated}}
     {{! FORCED: a doc-only <remarks> note, NOT the [Obsolete] attribute. The
         generated PetApi reads this field internally to build the request, and
