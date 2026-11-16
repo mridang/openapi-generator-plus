@@ -916,7 +916,7 @@ export class ObjectSerializer {
         throw e;
       }
       throw new SerializationError(
-        `Failed to deserialize object: ${e instanceof Error ? e.message : String(e)}`,
+        `Failed to deserialize JSON: ${e instanceof Error ? e.message : String(e)}`,
         e instanceof Error ? e : undefined
       );
     }

@@ -1,5 +1,7 @@
 {{>api_info}}
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as util from 'node:util';
 import { {{errorPrefix}}Error } from '../src/errors/index{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
@@ -68,6 +70,14 @@ describe('TransportOptions', () => {
   test('userAgent defaults to non-empty string', () => {
     const opts = TransportOptions.builder().build();
     expect(opts.userAgent).toBeTruthy();
+  });
+
+  test('the default userAgent names the published package, its version and the language', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf-8')) as {
+      name: string;
+      version: string;
+    };
+    expect(TransportOptions.builder().build().userAgent).toBe(`${pkg.name}/${pkg.version} (node)`);
   });
 
   test('defaultHeaders defaults to empty map', () => {
@@ -165,6 +175,18 @@ describe('TransportOptions', () => {
   ])('the proxy error for %s never prints the userinfo', (_label, proxy, message) => {
     expect(() => TransportOptions.builder().proxy(proxy)).toThrow(message);
     expect(() => new TransportOptions({ ...directOptions, proxy })).toThrow(message);
+  });
+
+  test('a proxy URL with an IPv6 literal host is accepted and kept verbatim', () => {
+    expect(TransportOptions.builder().proxy('http://[::1]:3128').build().proxy).toBe('http://[::1]:3128');
+    expect(new TransportOptions({ ...directOptions, proxy: 'http://[::1]:3128' }).proxy).toBe('http://[::1]:3128');
+  });
+
+  test('a proxy URL with an unterminated IPv6 literal is rejected', () => {
+    expect(() => TransportOptions.builder().proxy('http://[::1:3128')).toThrow(TypeError);
+    expect(() => TransportOptions.builder().proxy('http://[::1:3128')).toThrow(
+      'Invalid proxy URL (unparseable): http://[::1:3128'
+    );
   });
 
   test('an upper-case proxy scheme is accepted', () => {
