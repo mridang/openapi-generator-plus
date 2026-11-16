@@ -873,6 +873,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         for (final ModelMap modelMap : result.getModels()) {
             final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
             modelMap.put("hasDefaultedOptionalVars", hasDefaultedOptionalVars(model));
+            /* A `format: password` property is masked in `Debug` (F867), which
+             * needs a hand-written impl instead of the derive. */
+            modelMap.put(
+                    "hasPasswordVars",
+                    !model.isEnum
+                            && model.vars != null
+                            && model.vars.stream().anyMatch(v -> v.isPassword));
         }
         /* `use super::*;` only earns its place when the file names another
          * generated model unqualified. The import list also carries collection

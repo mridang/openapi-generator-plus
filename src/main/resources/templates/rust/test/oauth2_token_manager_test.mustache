@@ -764,6 +764,46 @@ async fn test_token_response_missing_access_token_throws_typed_error() {
     );
 }
 
+/* F863 (RFC 6749 section 7.1): a token whose type is not Bearer is refused, not
+ * sent as `Authorization: Bearer`; an absent, null or any-case "bearer" type is
+ * accepted. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_a_token_type_other_than_bearer_is_refused() {
+    for (token_type, accepted) in [
+        (r#""token_type":"Bearer","#, true),
+        (r#""token_type":"bEaReR","#, true),
+        (r#""token_type":null,"#, true),
+        ("", true),
+        (r#""token_type":"DPoP","#, false),
+        (r#""token_type":"mac","#, false),
+        (r#""token_type":"N_A","#, false),
+        (r#""token_type":"","#, false),
+        (r#""token_type":7,"#, false),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        let body = ["{", token_type, r#""access_token":"tok","expires_in":3600}"#].concat();
+        client.enqueue(&body, 200);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client);
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+        let result = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await;
+
+        if accepted {
+            assert_eq!("tok", result.expect("a bearer token is accepted"), "{token_type}");
+        } else {
+            let err = result.expect_err("a non-bearer token type must be refused");
+            let token_err = err
+                .downcast_ref::<OAuth2TokenError>()
+                .unwrap_or_else(|| panic!("expected OAuth2TokenError for {token_type}, got: {err}"));
+            assert_eq!("Unsupported token_type in token response", token_err.message(), "{token_type}");
+        }
+    }
+}
+
 /* D07 (F926, F1105): a 2xx token body the SDK cannot use is an
  * OAuth2TokenError with the canonical text, no parser detail and no cause. */
 #[tokio::test(flavor = "multi_thread")]

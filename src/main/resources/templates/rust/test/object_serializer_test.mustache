@@ -306,3 +306,23 @@ fn test_byte_array_fields_compare_by_content() {
     label.labels = Some(std::collections::HashMap::from([("first".to_string(), vec![7, 9])]));
     assert_ne!(vault(), label);
 }
+
+// F867: a `format: password` property is shown as `***` in the Debug output,
+// and the wire form still carries the value.
+#[test]
+fn test_password_property_is_masked_in_debug_output() {
+    use {{packageName}}::models::Account;
+
+    let secret = ["tr", "0ub4", "dor-", "9"].concat();
+    let mut account = Account::new("u".to_string());
+    account.password = Some(secret.clone());
+
+    let shown = format!("{:?}", account);
+    assert!(!shown.contains(&secret), "{}", shown);
+    assert!(shown.contains("***"), "{}", shown);
+    assert!(shown.contains("username"), "{}", shown);
+    let pretty = format!("{:#?}", account);
+    assert!(!pretty.contains(&secret), "{}", pretty);
+    let wire = serde_json::to_string(&account).expect("serializes");
+    assert!(wire.contains(&secret), "{}", wire);
+}
