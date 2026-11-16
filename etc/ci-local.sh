@@ -91,6 +91,12 @@ case "$cmd" in
     else
       # Focused run: only the named languages' generators and specs. The unit tests and the
       # other generators are covered by the full quick gate that runs once before a push.
+      for lang in "$@"; do
+        if [ -z "$(find src -name "Generate${lang}ClientTest.java" 2> /dev/null | head -1)" ]; then
+          echo "unknown language '$lang': no Generate${lang}ClientTest (use the spelling of the test class, e.g. Php, CSharp)" >&2
+          exit 2
+        fi
+      done
       specs="$(printf '%s*Spec,' "$@")"
       gens="$(printf 'Generate%sClientTest,' "$@")"
       run_step verify "$m" -B verify "-Dtest=${gens%,}" "-Dit.test=${specs%,}" -DfailIfNoTests=false

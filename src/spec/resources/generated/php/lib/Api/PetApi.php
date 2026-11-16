@@ -1802,20 +1802,20 @@ class PetApi extends BaseApi
     /**
      * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
-     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function setPetAvatar(int $petId, \SplFileObject $body, ?string $contentType = null): void
+    public function setPetAvatar(int $petId, \SplFileObject $body, ?string $requestContentType = null): void
     {
-        $this->setPetAvatarWithHttpInfo($petId, $body, $contentType);
+        $this->setPetAvatarWithHttpInfo($petId, $body, $requestContentType);
     }
 
     /**
-     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject $body, ?string $contentType = null): ApiResult
+    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject $body, ?string $requestContentType = null): ApiResult
     {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
@@ -1848,13 +1848,13 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = $body;
 
-        /* Reject an unrecognised $contentType client-side so a typo never rides
+        /* Reject an unrecognised $requestContentType client-side so a typo never rides
          * the wire as an undeclared Content-Type (matching java/elixir and the
          * other SDKs); null defaults to the first declared type below. */
         $declaredConsumes = ['image/jpeg', 'image/png', 'application/json'];
-        if ($contentType !== null && !in_array($contentType, $declaredConsumes, true)) {
+        if ($requestContentType !== null && !in_array($requestContentType, $declaredConsumes, true)) {
             throw new \InvalidArgumentException(
-                "Unsupported request content-type '" . $contentType
+                "Unsupported request content-type '" . $requestContentType
                     . "' for setPetAvatar; declared types are " . implode(', ', $declaredConsumes)
             );
         }
@@ -1866,7 +1866,7 @@ class PetApi extends BaseApi
             $headerParams,
             $requestBody,
             [],
-            $contentType ?? 'image/jpeg',
+            $requestContentType ?? 'image/jpeg',
             null,
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
@@ -2213,12 +2213,12 @@ class PetApi extends BaseApi
      * Attach a vet document or health record
      * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
-     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options, ?string $contentType = null): \PetstoreClient\Models\ApiResponse
+    public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options, ?string $requestContentType = null): \PetstoreClient\Models\ApiResponse
     {
-        $apiResult = $this->uploadPetDocumentWithHttpInfo($petId, $options, $contentType);
+        $apiResult = $this->uploadPetDocumentWithHttpInfo($petId, $options, $requestContentType);
         if ($apiResult->data === null) {
             /* This operation declares a non-void return type, so an empty /
              * undecodable response body is a contract violation. Surface it
@@ -2239,11 +2239,11 @@ class PetApi extends BaseApi
 
     /**
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
-     * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function uploadPetDocumentWithHttpInfo(int $petId, UploadPetDocumentOptions $options, ?string $contentType = null): ApiResult
+    public function uploadPetDocumentWithHttpInfo(int $petId, UploadPetDocumentOptions $options, ?string $requestContentType = null): ApiResult
     {
         $path = '/pet/{petId}/documents';
         /** @var string $pathValue */
@@ -2295,13 +2295,13 @@ class PetApi extends BaseApi
             $requestBody['swatch'] = $options->swatch;
         }
 
-        /* Reject an unrecognised $contentType client-side so a typo never rides
+        /* Reject an unrecognised $requestContentType client-side so a typo never rides
          * the wire as an undeclared Content-Type (matching java/elixir and the
          * other SDKs); null defaults to the first declared type below. */
         $declaredConsumes = ['multipart/form-data', 'application/octet-stream'];
-        if ($contentType !== null && !in_array($contentType, $declaredConsumes, true)) {
+        if ($requestContentType !== null && !in_array($requestContentType, $declaredConsumes, true)) {
             throw new \InvalidArgumentException(
-                "Unsupported request content-type '" . $contentType
+                "Unsupported request content-type '" . $requestContentType
                     . "' for uploadPetDocument; declared types are " . implode(', ', $declaredConsumes)
             );
         }
@@ -2313,7 +2313,7 @@ class PetApi extends BaseApi
             $headerParams,
             $requestBody,
             ['application/json'],
-            $contentType ?? 'multipart/form-data',
+            $requestContentType ?? 'multipart/form-data',
             \PetstoreClient\Models\ApiResponse::class,
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */

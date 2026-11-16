@@ -25,9 +25,9 @@ beforeEach(function (): void {
     $this->api = new StoreApi(config: $config);
 });
 
-function newStoreApiForMock(int $statusCode, string $contentType, string $body): StoreApi
+function newStoreApiForMock(int $statusCode, string $requestContentType, string $body): StoreApi
 {
-    $client = new StoreMockApiClient($statusCode, $body, $contentType);
+    $client = new StoreMockApiClient($statusCode, $body, $requestContentType);
     $config = Configuration::builder()
         ->baseUrl('http://localhost:9999')
         ->build();
