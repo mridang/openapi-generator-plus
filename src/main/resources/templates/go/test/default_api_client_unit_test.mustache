@@ -1734,6 +1734,51 @@ func TestDefaultApiClient_SetCookieResponseIsNotReplayedOnTheNextRequest(t *test
 	}
 }
 
+// F860: the caller's default headers belong to the API, so a token or discovery
+// request sent through the authenticator adapter leaves them off, while the
+// SDK's own User-Agent stays.
+func TestDefaultApiClient_AuthRequestsOmitTheCallersDefaultHeaders(t *testing.T) {
+	t.Parallel()
+	var received http.Header
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received = r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	userAgent := "sdk-test"
+	transport, err := NewTransportOptionsBuilder().
+		DefaultHeader("X-Tenant", "tenant-1").
+		DefaultHeader("Authorization", "Bearer api-token").
+		UserAgent(&userAgent).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+
+	if _, err := client.SendRequest("GET", server.URL+"/api", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if received.Get("X-Tenant") != "tenant-1" || received.Get("Authorization") != "Bearer api-token" {
+		t.Fatalf("expected the default headers on an API request, got %v", received)
+	}
+
+	adapter := &authApiClientAdapter{inner: client}
+	if _, err := adapter.SendRequest("POST", server.URL+"/token", map[string]string{"Accept": "application/json"}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := received.Get("X-Tenant"); got != "" {
+		t.Errorf("expected no X-Tenant on a token request, got %q", got)
+	}
+	if got := received.Get("Authorization"); got != "" {
+		t.Errorf("expected no Authorization on a token request, got %q", got)
+	}
+	if got := received.Get("User-Agent"); got != userAgent {
+		t.Errorf("expected the SDK User-Agent on a token request, got %q", got)
+	}
+}
+
 // HTTP "deflate" is the zlib format (RFC 1950), not a bare DEFLATE stream.
 func TestDefaultApiClient_DecodesZlibWrappedDeflateResponse(t *testing.T) {
 	t.Parallel()

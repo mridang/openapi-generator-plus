@@ -1614,6 +1614,119 @@ func TestAvailabilityEnum_PreservesWireCasingRoundTrip(t *testing.T) {
 	}
 }
 
+// F1144: the members whose wire values hold a quote, a backslash, a dollar and
+// a brace sequence round-trip exactly, with the wire text JSON-escaped only
+// where JSON requires it.
+func TestAvailabilityEnum_HostileMembersRoundTripExactly(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		value models.Availability
+		wire  string
+	}{
+		{models.AvailabilityOclock, `"o'clock"`},
+		{models.AvailabilityAB, `"a\\b"`},
+		{models.AvailabilityEq, `"$eq"`},
+		{models.AvailabilityX, `"#{x}"`},
+	}
+	for _, tc := range cases {
+		data, err := serialize(tc.value)
+		if err != nil {
+			t.Fatalf("unexpected error serializing %v: %v", tc.value, err)
+		}
+		if string(data) != tc.wire {
+			t.Errorf("expected %s on the wire, got %s", tc.wire, data)
+		}
+		var back models.Availability
+		if err := deserialize([]byte(tc.wire), &back); err != nil {
+			t.Fatalf("unexpected error decoding %s: %v", tc.wire, err)
+		}
+		if back != tc.value {
+			t.Errorf("round-trip mismatch: expected %q, got %q", tc.value, back)
+		}
+	}
+}
+
+// F1146: an inline enum keeps its declared wire spellings (In-Stock, on-hold,
+// OUT_OF_STOCK) through a model body and rejects anything else.
+func TestEdgeCases_InlinePhaseEnumRoundTripsItsWireValues(t *testing.T) {
+	t.Parallel()
+	for _, phase := range []models.EdgeCasesPhaseEnum{
+		models.EdgeCasesPhaseEnumInStock,
+		models.EdgeCasesPhaseEnumOnHold,
+		models.EdgeCasesPhaseEnumOUTOFSTOCK,
+	} {
+		wire := `{"phase":"` + string(phase) + `"}`
+		var decoded models.EdgeCases
+		if err := deserialize([]byte(wire), &decoded); err != nil {
+			t.Fatalf("unexpected error decoding %s: %v", wire, err)
+		}
+		if decoded.Phase == nil || *decoded.Phase != phase {
+			t.Fatalf("expected phase %q, got %v", phase, decoded.Phase)
+		}
+		data, err := serialize(decoded)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if string(data) != wire {
+			t.Errorf("expected %s on the wire, got %s", wire, data)
+		}
+	}
+	var rejected models.EdgeCases
+	if err := deserialize([]byte(`{"phase":"in-stock"}`), &rejected); err == nil {
+		t.Error("expected an undeclared phase spelling to be rejected")
+	}
+}
+
+// F1145: a format:time model property goes out and comes back as the text the
+// caller set.
+func TestEdgeCases_CutoffTimeRoundTripsAsText(t *testing.T) {
+	t.Parallel()
+	cutoff := "10:30:00.123"
+	data, err := serialize(models.EdgeCases{Cutoff: &cutoff})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != `{"cutoff":"10:30:00.123"}` {
+		t.Errorf("expected the time text on the wire, got %s", data)
+	}
+	var decoded models.EdgeCases
+	if err := deserialize(data, &decoded); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if decoded.Cutoff == nil || *decoded.Cutoff != cutoff {
+		t.Errorf("expected cutoff %q, got %v", cutoff, decoded.Cutoff)
+	}
+}
+
+// F1111: unevaluatedProperties:false refuses an undeclared key as a
+// *SerializationError, still decodes the declared keys, and does not leak onto
+// a model that does not declare it.
+func TestStrictTag_UndeclaredKeyIsRejectedAndDeclaredKeysDecode(t *testing.T) {
+	t.Parallel()
+	var strict models.StrictTag
+	err := deserialize([]byte(`{"id":1,"name":"a","extra":2}`), &strict)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if !strings.Contains(err.Error(), "unknown property 'extra' on StrictTag") {
+		t.Errorf("expected the undeclared key to be named, got %v", err)
+	}
+
+	var ok models.StrictTag
+	if err := deserialize([]byte(`{"id":1,"name":"a"}`), &ok); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ok.Id == nil || *ok.Id != 1 || ok.Name == nil || *ok.Name != "a" {
+		t.Errorf("expected the declared keys to decode, got %+v", ok)
+	}
+
+	var loose models.Category
+	if err := deserialize([]byte(`{"id":1,"extra":2}`), &loose); err != nil {
+		t.Errorf("a model without unevaluatedProperties:false must ignore an undeclared key, got %v", err)
+	}
+}
+
 func TestAvailabilityEnum_DeserializesKnownValue(t *testing.T) {
 	t.Parallel()
 	var a models.Availability

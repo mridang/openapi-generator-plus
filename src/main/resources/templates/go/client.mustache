@@ -2,6 +2,8 @@
 package {{packageName}}
 
 import (
+	"context"
+
 	"{{packageName}}/pkg/auth"
 )
 
@@ -134,9 +136,12 @@ func (a *authApiClientAdapter) SendRequest(method, url string, headers map[strin
 }
 
 func (a *authApiClientAdapter) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
-	var inner *RequestOptions
+	/* Every request that comes through this adapter is an authentication
+	 * request (token endpoint, discovery document); the marker tells the
+	 * transport to leave the caller's default headers off it. */
+	inner := &RequestOptions{Context: context.WithValue(context.Background(), authRequestContextKey{}, true)}
 	if opts != nil {
-		inner = &RequestOptions{NoRedirect: opts.NoRedirect}
+		inner.NoRedirect = opts.NoRedirect
 	}
 	resp, err := a.inner.SendRequestWithOptions(method, url, headers, body, inner)
 	if err != nil {

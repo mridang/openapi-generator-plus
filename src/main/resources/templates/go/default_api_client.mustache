@@ -45,6 +45,12 @@ var ErrInvalidRequest = errors.New("invalid request")
 // not require constructing a one-off *http.Client.
 type noRedirectContextKey struct{}
 
+// authRequestContextKey marks a token or discovery request sent for an
+// authenticator. Such a request carries only the SDK's own headers: the
+// caller's default headers (an Authorization or API-key header meant for the
+// API) must not reach the identity provider.
+type authRequestContextKey struct{}
+
 // DefaultApiClient is the default HTTP client implementation backed by net/http.
 //
 // Applies transport-level settings from TransportOptions: TLS verification,
@@ -236,7 +242,9 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		return nil, ErrClientClosed
 	}
 	merged := make(map[string]string)
-	mergeHeaders(merged, c.transportOptions.DefaultHeaders())
+	if opts == nil || opts.Context == nil || opts.Context.Value(authRequestContextKey{}) == nil {
+		mergeHeaders(merged, c.transportOptions.DefaultHeaders())
+	}
 	mergeHeaders(merged, headers)
 	if !hasHeader(merged, "User-Agent") && c.transportOptions.UserAgent() != nil {
 		merged["User-Agent"] = *c.transportOptions.UserAgent()

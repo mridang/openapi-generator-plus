@@ -143,6 +143,21 @@ func TestMetadata_NoExampleNullDocLine(t *testing.T) {
 	}
 }
 
+// F1156: the file header prints the info description as prose, so the
+// backslash-escaped quotes of the string-literal form must not reach it.
+func TestMetadata_FileHeaderCarriesNoBackslashEscapedQuotes(t *testing.T) {
+	t.Parallel()
+	modelPath := filepath.Join("..", "pkg", "models", "metadata.go")
+	source, err := os.ReadFile(modelPath)
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", modelPath, err)
+	}
+	header, _, _ := strings.Cut(string(source), "\npackage ")
+	if strings.Contains(header, `\"`) {
+		t.Errorf("the file header of %s must not contain a backslash-escaped quote:\n%s", modelPath, header)
+	}
+}
+
 func TestMetadata_RoundTrip(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00"}`)
