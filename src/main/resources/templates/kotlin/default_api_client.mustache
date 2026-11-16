@@ -415,12 +415,12 @@ class DefaultApiClient internal constructor(
             is io.ktor.client.network.sockets.ConnectTimeoutException,
             is io.ktor.client.network.sockets.SocketTimeoutException,
             is java.net.SocketTimeoutException,
-            -> NetworkTimeoutException(e.toString(), e)
+            -> NetworkTimeoutException(redactUrlsInMessage(e.toString()), e)
             is kotlinx.coroutines.CancellationException -> e
-            is java.nio.channels.UnresolvedAddressException -> NetworkException(e.toString(), e)
+            is java.nio.channels.UnresolvedAddressException -> NetworkException(redactUrlsInMessage(e.toString()), e)
             is IllegalArgumentException -> e
             is {{errorPrefix}}Exception -> e
-            else -> NetworkException(e.toString(), e)
+            else -> NetworkException(redactUrlsInMessage(e.toString()), e)
         }
 
     private fun buildRequestBody(
@@ -780,6 +780,14 @@ internal fun usableRedirectLocation(base: java.net.URI, location: String?): java
  * dropped, because a query-parameter API key is part of the query.
  */
 internal fun redactUrl(url: String): String = url.substringBefore('#').substringBefore('?')
+
+private val urlWithQuery = Regex("""(https?://[^\s?#,\]\)]*)[?#][^\s,\]\)]*""", RegexOption.IGNORE_CASE)
+
+/**
+ * [message] with the query and fragment of every http(s) URL in it removed. Ktor's timeout
+ * exceptions print the request URL, which can hold a query-parameter API key (F861).
+ */
+internal fun redactUrlsInMessage(message: String): String = urlWithQuery.replace(message, "$1")
 
 /** True when [headers] holds [name] under any ASCII letter case (RFC 9110 section 5.1). */
 private fun hasHeader(

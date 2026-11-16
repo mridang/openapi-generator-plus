@@ -1715,7 +1715,27 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("connect and socket deadlines raise NetworkTimeoutException")
+        @DisplayName("F861: a network error message never carries the query of the request URL")
+        fun networkErrorMessageDropsTheQuery() {
+            val engine = MockEngine { _ ->
+                kotlinx.coroutines.delay(5_000)
+                respond("late", HttpStatusCode.OK)
+            }
+            val client = HttpClient(engine) {
+                followRedirects = false
+                install(io.ktor.client.plugins.HttpTimeout) { requestTimeoutMillis = 50 }
+            }
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkTimeoutException::class.java) {
+                runBlocking {
+                    DefaultApiClient(client).sendRequest("GET", "http://localhost/slow?api_key=SECRET", emptyMap(), null)
+                }
+            }
+            assertFalse(ex.message.orEmpty().contains("SECRET"), ex.message)
+            assertEquals("Query and fragment dropped: http://localhost/x", redactUrlsInMessage("Query and fragment dropped: http://localhost/x?k=SECRET#f"))
+            assertEquals("[url=http://h/p, t=1]", redactUrlsInMessage("[url=http://h/p?k=v, t=1]"))
+        }
+
+
         fun connectAndSocketDeadlinesRaiseNetworkTimeoutException() {
             // The `timeout` option arms three Ktor deadlines from one budget —
             // request, connect and socket — so every one of them must classify
