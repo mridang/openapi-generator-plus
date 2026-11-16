@@ -842,6 +842,31 @@ async fn test_authorization_stripped_on_cross_origin_redirect() {
         calls[0]
     );
 }
+/// F1093 (behavioural): a tenant token set by the caller is stripped on a
+/// cross-origin hop although no spec declares it, while a plain header survives.
+#[tokio::test]
+async fn test_token_named_header_stripped_on_cross_origin_redirect() {
+    let (origin_url, dest_captured) = start_cross_origin_redirect_servers();
+
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let mut headers = HashMap::new();
+    headers.insert("X-Tenant-Token".to_string(), "tenant-secret-value".to_string());
+    headers.insert("X-Trace".to_string(), "keep".to_string());
+
+    let _ = client
+        .send_request("GET", &format!("{}/start", origin_url), &headers, None)
+        .await;
+
+    let calls = dest_captured.lock().unwrap();
+    assert_eq!(1, calls.len(), "the destination must receive exactly the follow-up request");
+    let followup = calls[0].to_lowercase();
+    assert!(!followup.contains("x-tenant-token:"), "got: {}", calls[0]);
+    assert!(followup.contains("x-trace:"), "got: {}", calls[0]);
+}
 {{#hasApiKeyHeaderNames}}
 
 /// Gap 3.1 (behavioural, spec-driven): a spec-declared apiKey-in-header name is
@@ -1446,6 +1471,9 @@ async fn test_every_advertised_content_encoding_is_decoded() {
             .unwrap_or_else(|e| panic!("{} response must decode, got: {}", encoding, e));
         assert_eq!(resp.status_code(), 200, "{}", encoding);
         assert_eq!(resp.body(), ENCODED_PAYLOAD, "{}", encoding);
+        /* D92: the returned headers describe the decoded body. */
+        assert!(!resp.headers().contains_key("content-encoding"), "{}", encoding);
+        assert!(!resp.headers().contains_key("content-length"), "{}", encoding);
     }
 }
 
