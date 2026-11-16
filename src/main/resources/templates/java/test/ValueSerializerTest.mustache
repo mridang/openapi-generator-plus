@@ -748,4 +748,55 @@ class ValueSerializerTest {
             assertTrue(result.isEmpty());
         }
     }
+
+    @Nested
+    @DisplayName("object-valued styled parameters")
+    class ObjectValuedTests {
+
+        private Map<String, Object> fields() {
+            Map<String, Object> fields = new java.util.LinkedHashMap<>();
+            fields.put("breed", "lab");
+            fields.put("min_age", 3);
+            return fields;
+        }
+
+        @Test
+        @DisplayName("form without explode joins keys and values with commas")
+        void formWithoutExplodeJoinsKeysAndValues() {
+            assertEquals("breed,lab,min_age,3",
+                    ValueSerializer.serializeStyled("c", fields(), "query", "object", null, "form", false));
+        }
+
+        @Test
+        @DisplayName("form with explode spreads one query entry per field in declaration order")
+        void formWithExplodeSpreadsFields() {
+            Map<String, Object> query = new java.util.LinkedHashMap<>();
+            ValueSerializer.putQuery(query, "c",
+                    ValueSerializer.serializeStyled("c", fields(), "query", "object", null, "form", true), false);
+            assertEquals(List.of("breed", "min_age"), List.copyOf(query.keySet()));
+            assertEquals("3", query.get("min_age"));
+        }
+
+        @Test
+        @DisplayName("matrix, label and simple styles expand per the explode flag")
+        void pathStylesExpand() {
+            assertEquals(";c=breed,lab,min_age,3",
+                    ValueSerializer.serializeStyled("c", fields(), "path", "object", null, "matrix", false));
+            assertEquals(";breed=lab;min_age=3",
+                    ValueSerializer.serializeStyled("c", fields(), "path", "object", null, "matrix", true));
+            assertEquals(".breed=lab.min_age=3",
+                    ValueSerializer.serializeStyled("c", fields(), "path", "object", null, "label", true));
+            assertEquals("breed=lab,min_age=3",
+                    ValueSerializer.serializeStyled("c", fields(), "header", "object", null, "simple", true));
+        }
+
+        @Test
+        @DisplayName("a nested value in an object parameter is refused")
+        void nestedValueIsRefused() {
+            Map<String, Object> nested = new java.util.LinkedHashMap<>();
+            nested.put("inner", Map.of("a", "b"));
+            assertThrows(RuntimeException.class,
+                    () -> ValueSerializer.serializeStyled("c", nested, "query", "object", null, "form", false));
+        }
+    }
 }

@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,7 +46,9 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import {{invokerPackage}}.errors.SerializationException;
@@ -227,6 +230,63 @@ public final class ObjectSerializer {
             return e.name();
         }
         return String.valueOf(value);
+    }
+
+    /**
+     * The ordered, wire-keyed string fields of an object-valued parameter: a
+     * generated model (null properties dropped, keys as written on the wire,
+     * in declaration order) or a map. Returns null for any other value
+     * (scalars, collections, enums), so the caller falls back to the scalar
+     * path. A nested object or array field is rejected, because the OAS styles
+     * cannot express it.
+     *
+     * @param value the parameter value (may be null)
+     * @return the fields, or null when {@code value} is not object-valued
+     * @throws SerializationException if a field is itself an object or array
+     */
+    @Nullable
+    public Map<String, String> toWireMap(@Nullable Object value) {
+        if (value == null) {
+            return null;
+        }
+        Map<String, String> result = new LinkedHashMap<>();
+        if (value instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                Object field = entry.getValue();
+                if (field instanceof Map<?, ?> || field instanceof java.util.Collection<?>) {
+                    throw new SerializationException("Parameter field '" + entry.getKey()
+                            + "' is a nested value; only flat objects can be encoded");
+                }
+                result.put(String.valueOf(entry.getKey()), stringify(field));
+            }
+            return result;
+        }
+        if (value instanceof java.util.Collection<?> || value instanceof byte[] || value instanceof Enum<?>
+                || value instanceof CharSequence || value instanceof Number || value instanceof Boolean
+                || value instanceof TemporalAccessor || value instanceof Date || value instanceof Duration) {
+            return null;
+        }
+        try {
+            JsonNode tree = objectMapper.readTree(serialize(value));
+            if (tree == null || !tree.isObject()) {
+                return null;
+            }
+            for (Map.Entry<String, JsonNode> field : tree.properties()) {
+                JsonNode node = field.getValue();
+                if (node.isNull()) {
+                    continue;
+                }
+                if (node.isContainerNode()) {
+                    throw new SerializationException("Parameter field '" + field.getKey()
+                            + "' is a nested value; only flat objects can be encoded");
+                }
+                result.put(field.getKey(), node.asText());
+            }
+        } catch (JsonProcessingException e) {
+            throw new SerializationException(
+                    "Failed to serialize object to JSON: " + e.getOriginalMessage(), e);
+        }
+        return result;
     }
 
     /**
