@@ -1210,6 +1210,67 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("hostile Availability members map to their exact JSON-quoted wire strings")
+        fun hostileAvailabilityMembersRoundTrip() {
+            // D46/F1144: an apostrophe, a backslash, a dollar sign and an interpolation opener.
+            for (wire in listOf("o'clock", "a\\b", "\$eq", "#" + "{x}")) {
+                val member = {{modelPackage}}.Availability.fromValue(wire)
+                val json =
+                    serializer.serialize(
+                        {{modelPackage}}.StockItem(priority = {{modelPackage}}.Priority.NUMBER_1, availability = member),
+                    )
+                val quoted = kotlinx.serialization.json.JsonPrimitive(wire).toString()
+                assertTrue(json.contains("\"availability\":$quoted"), "expected $quoted on the wire, got: $json")
+                val decoded = serializer.deserialize<{{modelPackage}}.StockItem>(json)
+                assertNotNull(decoded)
+                assertEquals(member, decoded!!.availability)
+            }
+        }
+
+        @Test
+        @DisplayName("an inline enum (EdgeCases.phase) round-trips its non-identifier wire values")
+        fun inlineEnumWireValuesRoundTrip() {
+            // F1146: each wire value decodes to a distinct member and re-encodes verbatim.
+            val members = mutableSetOf<Any>()
+            for (wire in listOf("In-Stock", "on-hold", "OUT_OF_STOCK")) {
+                val decoded = serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"phase\":\"$wire\"}")
+                assertNotNull(decoded, wire)
+                members.add(decoded!!.phase!!)
+                assertEquals(wire, decoded.phase!!.value)
+                assertTrue(serializer.serialize(decoded).contains("\"phase\":\"$wire\""), wire)
+            }
+            assertEquals(3, members.size)
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"phase\":\"in-stock\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("keyword-named and digit-leading properties keep their wire keys")
+        fun keywordAndDigitLeadingPropertiesKeepWireKeys() {
+            // F1114/F1113: the identifier is mangled, the wire key never is.
+            val note = "{\"and\":true,\"or\":false,\"not\":true,\"class\":\"c\",\"return\":\"r\"," +
+                "\"null\":\"n\",\"true\":true,\"false\":false,\"2fa\":true}"
+            val decoded = serializer.deserialize<{{modelPackage}}.EdgeCases>(note)
+            assertNotNull(decoded)
+            val keys = kotlinx.serialization.json.Json
+                .parseToJsonElement(serializer.serialize(decoded!!))
+                .let { it as kotlinx.serialization.json.JsonObject }
+                .keys
+            assertEquals(setOf("and", "or", "not", "class", "return", "null", "true", "false", "2fa"), keys)
+            assertEquals(decoded, serializer.deserialize<{{modelPackage}}.EdgeCases>(serializer.serialize(decoded)))
+        }
+
+        @Test
+        @DisplayName("request JSON writes U+2028, U+2029, DEL and non-ASCII literally")
+        fun requestJsonWritesSeparatorsAndDelLiterally() {
+            // D84/F1148: only the quote, the backslash and controls below U+0020 are escaped.
+            val text = "a\u2028b\u2029c\u007fd\u00e9/<>&"
+            val json = serializer.serialize({{modelPackage}}.EdgeCases(permissionsNote = text))
+            assertTrue(json.contains("\"permissionsNote\":\"$text\""), "expected the literal text, got: $json")
+        }
+
+        @Test
         @DisplayName("a model field typed as a referenced enum (Color) rejects an unknown wire value")
         fun referencedEnumFieldRejectsUnknownValue() {
             // EdgeCases.favoriteColor is a $ref to the standalone Color enum
