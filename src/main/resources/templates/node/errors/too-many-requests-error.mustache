@@ -17,6 +17,29 @@ export class TooManyRequestsError<T = unknown> extends ClientError<T> {
     super(429, message, responseHeaders, responseBody, errorBody, options);
     this.name = 'TooManyRequestsError';
   }
+
+  /**
+   * The `Retry-After` response header as a number of seconds to wait: the
+   * header's own seconds, or the time left until its HTTP date (never
+   * negative, rounded up). `null` when the header is absent or unparseable.
+   */
+  get retryAfter(): number | null {
+    if (this.responseHeaders == null) {
+      return null;
+    }
+    for (const [name, raw] of Object.entries(this.responseHeaders)) {
+      if (name.toLowerCase() !== 'retry-after') {
+        continue;
+      }
+      const value = raw.trim();
+      if (/^\d+(\.\d+)?$/.test(value)) {
+        return Number(value);
+      }
+      const seconds = Math.ceil((Date.parse(value) - Date.now()) / 1000);
+      return Number.isFinite(seconds) ? Math.max(seconds, 0) : null;
+    }
+    return null;
+  }
 }
 
 ApiError.registerStatusError(
