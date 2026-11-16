@@ -7,6 +7,22 @@ is a defect until you can name the language feature that forces it.
 
 Read `CLAUDE.md` too: it holds the alignment rules for generated prose and examples.
 
+## Goal and how this documentation is organised
+
+The goal is best-in-class developer experience, harmonised across all twelve SDKs: the same capabilities, the same behaviour on the wire and the same shape of the API (parameter order, how a client is created and configured, how options, errors, retries, timeouts, cancellation, transports and authentication are used), expressed the way each language's developers expect. Some languages use builders and some do not; that is idiom, but the order of concepts and the capabilities stay the same. When a language cannot do something natively, a small pure library or a version bump is acceptable if it makes the SDK cleaner. The public API shape is fixed now so that later features (OpenAPI 3.1 and 3.2 support, epics #96 and #49) are additive and never breaking. The reference points are the major generated SDKs (Stainless-generated OpenAI, Anthropic and Cloudflare, Speakeasy, Fern, Stripe, AWS and Azure).
+
+Documentation lives in scoped `AGENTS.md` files, in one standard format, and nowhere else:
+
+| File | What it holds |
+|---|---|
+| this file | The goal, the layout, the commands and the workflow. Start here. |
+| `src/main/java/.../generators/AGENTS.md` | The cross-language contract: the error and wire contracts, the settled cross-language decisions, the idiom matrix and the test layout. Each decision is written once, here. |
+| `src/main/java/.../generators/<lang>/AGENTS.md` | One per language: how that language realises the shared contract, its idioms, its settled decisions (with reasons, so reviews do not reopen them), its limitations, its build-breaking rules and its verify commands. `src/main/resources/templates/<lang>/AGENTS.md` points to it. |
+
+Read the root file, the shared file and the file of every language you touch before changing code. Settled decisions are not discussed again in review: if you disagree, open an issue with new evidence instead of changing the code. The ledger (`PARITY_FINDINGS.json`) tracks open work; it is not a place for decisions.
+
+Standing agents (read-only, rerun at any time, results go to the ledger): `oas-conformance-auditor` (OpenAPI feature coverage), `test-parity-auditor` (the same tests under the same names in all twelve) and `sdk-experience-auditor` (cross-SDK discrepancies, developer experience, likely bugs, comparison with the reference SDKs).
+
 ## Parity workflow
 
 The twelve SDKs must be perfectly harmonised: the same public API shape, wire bytes,
