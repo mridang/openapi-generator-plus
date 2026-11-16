@@ -655,16 +655,19 @@ class BaseApiTest {
             var auth =
                     new TestAuthenticator(
                             Map.of(), Map.of(), Map.of("session", "abc123"));
-            api().call(
-                    "GET",
-                    "/test/echo",
-                    new HashMap<>(),
-                    new HashMap<>(),
-                    null,
-                    new String[] {"application/json"},
-                    "application/json",
-                    null,
-                    auth);
+            JsonNode result =
+                    api().call(
+                            "GET",
+                            "/test/echo",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            auth);
+            assertNotNull(result);
+            assertEquals("session=abc123", result.get("headers").get("cookie").asText());
         }
 
         @Test
