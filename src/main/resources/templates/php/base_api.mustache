@@ -2,6 +2,7 @@
 
 namespace {{apiPackage}};
 
+use {{invokerPackage}}\AbstractApiClient;
 use {{invokerPackage}}\ApiClient;
 use {{invokerPackage}}\Errors\ApiException;
 use {{invokerPackage}}\Errors\SerializationException;
@@ -142,49 +143,73 @@ class BaseApi
         }
 
         $isMultipart = $contentType === 'multipart/form-data';
-        $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
-        $headers = array_merge($headers, $this->config->defaultHeaders);
-        $headers = array_merge($headers, $headerParams);
-        if ($effectiveAuth instanceof Authenticator) {
-            $headers = array_merge($headers, $effectiveAuth->getAuthHeaders());
-            $cookies = $effectiveAuth->getCookieParams();
-            if ($cookies !== []) {
-                /* RFC 6265 — don't URL-encode cookie name/value; most cookie
-                 * parsers don't URL-decode, so `=` (base64 padding) would
-                 * arrive as literal `%3D` and break JWT/session cookies.
-                 * Validate and pass through raw instead. */
-                $cookieParts = [];
-                foreach ($cookies as $k => $v) {
-                    if (preg_match('/\A[A-Za-z0-9!#$%&\'*+\-.^_`|~]+\z/', $k) !== 1) {
-                        throw new \InvalidArgumentException(
-                            "Cookie name '$k' contains characters forbidden by RFC 6265"
-                        );
+        /* Builds the headers of one attempt. A retry calls it again, so every
+         * attempt is a fresh request carrying the authenticator's current
+         * headers (a token refreshed meanwhile is picked up). */
+        $buildHeaders = function () use (
+            $accepts,
+            $contentType,
+            $isMultipart,
+            $headerParams,
+            $effectiveAuth,
+        ): array {
+            $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
+            $headers = array_merge($headers, $this->config->defaultHeaders);
+            $headers = array_merge($headers, $headerParams);
+            if ($effectiveAuth instanceof Authenticator) {
+                $headers = array_merge($headers, $effectiveAuth->getAuthHeaders());
+                $cookies = $effectiveAuth->getCookieParams();
+                if ($cookies !== []) {
+                    /* RFC 6265 — don't URL-encode cookie name/value; most cookie
+                     * parsers don't URL-decode, so `=` (base64 padding) would
+                     * arrive as literal `%3D` and break JWT/session cookies.
+                     * Validate and pass through raw instead. */
+                    $cookieParts = [];
+                    foreach ($cookies as $k => $v) {
+                        if (preg_match('/\A[A-Za-z0-9!#$%&\'*+\-.^_`|~]+\z/', $k) !== 1) {
+                            throw new \InvalidArgumentException(
+                                "Cookie name '$k' contains characters forbidden by RFC 6265"
+                            );
+                        }
+                        if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $v) !== 1) {
+                            throw new \InvalidArgumentException(
+                                "Cookie value for '$k' contains characters forbidden by RFC 6265"
+                            );
+                        }
+                        $cookieParts[] = $k . '=' . $v;
                     }
-                    if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $v) !== 1) {
-                        throw new \InvalidArgumentException(
-                            "Cookie value for '$k' contains characters forbidden by RFC 6265"
-                        );
-                    }
-                    $cookieParts[] = $k . '=' . $v;
+                    $cookieStr = implode('; ', $cookieParts);
+                    $existing = $headers['Cookie'] ?? '';
+                    $headers['Cookie'] = $existing !== '' ? $existing . '; ' . $cookieStr : $cookieStr;
                 }
-                $cookieStr = implode('; ', $cookieParts);
-                $existing = $headers['Cookie'] ?? '';
-                $headers['Cookie'] = $existing !== '' ? $existing . '; ' . $cookieStr : $cookieStr;
             }
-        }
-        TraceContextUtil::injectTraceContext($headers);
+            TraceContextUtil::injectTraceContext($headers);
+
+            return $headers;
+        };
 
         $serializedBody = $this->serializeBody($body, $contentType, $isMultipart, $rawBody);
-        if ($serializedBody === null) {
-            /* No body means no entity: never announce a Content-Type for it. */
-            foreach (array_keys($headers) as $name) {
-                if (strtolower((string) $name) === 'content-type') {
-                    unset($headers[$name]);
+        $noBody = $serializedBody === null;
+        $headersForAttempt = function () use ($buildHeaders, $noBody): array {
+            $built = $buildHeaders();
+            if ($noBody) {
+                /* No body means no entity: never announce a Content-Type for it. */
+                foreach (array_keys($built) as $name) {
+                    if (strtolower((string) $name) === 'content-type') {
+                        unset($built[$name]);
+                    }
                 }
             }
-        }
 
-        $response = $this->apiClient->sendRequest($method, $url, $headers, $serializedBody);
+            return $built;
+        };
+
+        /* A transport that derives from AbstractApiClient also retries a
+         * transient failure (TransportOptions::$maxRetries); any other
+         * ApiClient implementation sends once. */
+        $response = $this->apiClient instanceof AbstractApiClient
+            ? $this->apiClient->sendWithRetries($method, $url, $headersForAttempt, $serializedBody)
+            : $this->apiClient->sendRequest($method, $url, $headersForAttempt(), $serializedBody);
 
         if ($response->statusCode === 401
             && $effectiveAuth instanceof Authenticator
@@ -205,7 +230,7 @@ class BaseApi
                 $response = $this->apiClient->sendRequest(
                     $method,
                     $url,
-                    array_merge($headers, $retryAuthHeaders),
+                    array_merge($headersForAttempt(), $retryAuthHeaders),
                     $serializedBody
                 );
             }
