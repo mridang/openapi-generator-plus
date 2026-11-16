@@ -362,6 +362,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.cs"),
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.cs"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.cs"),
+            new SupportingFileSpec("errors/TooManyRequestsException.mustache", errorsFolder, "TooManyRequestsException.cs"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.cs"),
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.cs"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.cs"),

@@ -80,6 +80,7 @@ void main() {
         404: NotFoundException,
         409: ConflictException,
         422: UnprocessableEntityException,
+        429: TooManyRequestsException,
         500: InternalServerErrorException,
         502: ServerException,
       };
@@ -674,7 +675,12 @@ void main() {
             isA<SerializationException>().having(
               (e) => e.toString(),
               'message',
-              contains("Unexpected response Content-Type 'text/plain'"),
+              allOf(
+                contains("Unexpected response Content-Type 'text/plain'"),
+                contains('for PetApi.getPetById'),
+                isNot(contains('GET')),
+                isNot(contains('PetApi.get:')),
+              ),
             ),
           ),
         );

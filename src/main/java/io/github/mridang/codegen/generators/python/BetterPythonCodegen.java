@@ -470,6 +470,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("errors/not_found_exception.mustache", errorsPath, "not_found_exception.py"),
             new SupportingFileSpec("errors/conflict_exception.mustache", errorsPath, "conflict_exception.py"),
             new SupportingFileSpec("errors/unprocessable_entity_exception.mustache", errorsPath, "unprocessable_entity_exception.py"),
+            new SupportingFileSpec("errors/too_many_requests_exception.mustache", errorsPath, "too_many_requests_exception.py"),
             new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsPath, "internal_server_error_exception.py"),
             new SupportingFileSpec("errors/network_exception.mustache", errorsPath, "network_exception.py"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsPath, "network_timeout_exception.py"),

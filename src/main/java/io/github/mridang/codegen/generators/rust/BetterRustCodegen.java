@@ -514,6 +514,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                         "src/errors",
                         "unprocessable_entity_error.rs"),
                 new SupportingFileSpec(
+                        "errors/too_many_requests_error.mustache",
+                        "src/errors",
+                        "too_many_requests_error.rs"),
+                new SupportingFileSpec(
                         "errors/internal_server_error.mustache",
                         "src/errors",
                         "internal_server_error.rs"),

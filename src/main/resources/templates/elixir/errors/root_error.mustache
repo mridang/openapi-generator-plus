@@ -37,6 +37,7 @@ defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
        │      response_headers, response_body, error_body, cause)
        │   ├─ 4xx: BadRequest(400) Unauthorized(401) Forbidden(403)
        │   │       NotFound(404) Conflict(409) UnprocessableEntity(422)
+       │   │       TooManyRequests(429)
        │   │       (and the {{moduleName}}.Errors.ClientError grouping)
        │   ├─ 5xx: InternalServerError(500)
        │   │       (and the {{moduleName}}.Errors.ServerError grouping)
@@ -60,6 +61,7 @@ defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
     {{moduleName}}.Errors.NotFoundError,
     {{moduleName}}.Errors.ConflictError,
     {{moduleName}}.Errors.UnprocessableEntityError,
+    {{moduleName}}.Errors.TooManyRequestsError,
     {{moduleName}}.Errors.InternalServerError,
     {{moduleName}}.Errors.NetworkError,
     {{moduleName}}.Errors.NetworkTimeoutError,
@@ -78,6 +80,7 @@ defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
           | {{moduleName}}.Errors.NotFoundError.t()
           | {{moduleName}}.Errors.ConflictError.t()
           | {{moduleName}}.Errors.UnprocessableEntityError.t()
+          | {{moduleName}}.Errors.TooManyRequestsError.t()
           | {{moduleName}}.Errors.InternalServerError.t()
           | {{moduleName}}.Errors.NetworkError.t()
           | {{moduleName}}.Errors.NetworkTimeoutError.t()

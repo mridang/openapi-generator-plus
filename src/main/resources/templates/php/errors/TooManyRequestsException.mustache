@@ -1,0 +1,20 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Errors;
+
+use Throwable;
+
+/**
+ * Exception for HTTP 429 Too Many Requests.
+ */
+class TooManyRequestsException extends ClientException
+{
+    public function __construct(
+        string $message = "",
+        ?array $responseHeaders = null,
+        ?string $responseBody = null,
+        mixed $errorBody = null,
+        ?Throwable $previous = null
+    ) {
+        parent::__construct(429, $message, $responseHeaders, $responseBody, $errorBody, $previous);
+    }
+}

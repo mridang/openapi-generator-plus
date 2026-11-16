@@ -123,6 +123,7 @@ test('every status-specific error keeps an optional cause', function (string $cl
     \{{invokerPackage}}\Errors\NotFoundException::class,
     \{{invokerPackage}}\Errors\ConflictException::class,
     \{{invokerPackage}}\Errors\UnprocessableEntityException::class,
+    \{{invokerPackage}}\Errors\TooManyRequestsException::class,
     \{{invokerPackage}}\Errors\InternalServerErrorException::class,
 ]);
 
@@ -138,6 +139,7 @@ test('every typed API error extends the base ApiException', function (): void {
         new \{{invokerPackage}}\Errors\NotFoundException('not found'),
         new \{{invokerPackage}}\Errors\ConflictException('conflict'),
         new \{{invokerPackage}}\Errors\UnprocessableEntityException('unprocessable'),
+        new \{{invokerPackage}}\Errors\TooManyRequestsException('slow down'),
         new \{{invokerPackage}}\Errors\ClientException(418, 'client error'),
         new \{{invokerPackage}}\Errors\InternalServerErrorException('server error'),
         new \{{invokerPackage}}\Errors\ServerException(503, 'server error'),
@@ -204,6 +206,7 @@ test('fromResponse maps every status to its exception', function (int $status, s
     [404, \{{invokerPackage}}\Errors\NotFoundException::class],
     [409, \{{invokerPackage}}\Errors\ConflictException::class],
     [422, \{{invokerPackage}}\Errors\UnprocessableEntityException::class],
+    [429, \{{invokerPackage}}\Errors\TooManyRequestsException::class],
     [418, \{{invokerPackage}}\Errors\ClientException::class],
     [500, \{{invokerPackage}}\Errors\InternalServerErrorException::class],
     [503, \{{invokerPackage}}\Errors\ServerException::class],
@@ -252,6 +255,7 @@ test('every error type lives in the Errors namespace under the root', function (
     \{{invokerPackage}}\Errors\NotFoundException::class,
     \{{invokerPackage}}\Errors\ConflictException::class,
     \{{invokerPackage}}\Errors\UnprocessableEntityException::class,
+    \{{invokerPackage}}\Errors\TooManyRequestsException::class,
     \{{invokerPackage}}\Errors\InternalServerErrorException::class,
     \{{invokerPackage}}\Errors\NetworkException::class,
     \{{invokerPackage}}\Errors\NetworkTimeoutException::class,

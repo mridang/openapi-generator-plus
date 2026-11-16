@@ -539,6 +539,13 @@ describe('ValueSerializer', () => {
   });
 
   describe('encodeQueryComponent', () => {
+    test('encodes a content cookie value to the shared bytes', () => {
+      const json = JSON.stringify({ k: 'a b~*\u00e9' });
+      const encoded = ValueSerializer.encodeQueryComponent(json);
+      expect(encoded).toBe('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D');
+      expect(/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(encoded)).toBe(true);
+    });
+
     test('keeps only the RFC 3986 unreserved characters literal', () => {
       expect(ValueSerializer.encodeQueryComponent("a~b*c!d'e(f)g-h_i.j")).toBe('a~b%2Ac%21d%27e%28f%29g-h_i.j');
     });

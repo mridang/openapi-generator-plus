@@ -669,6 +669,40 @@ class DefaultApiClientTest {
         }
 
         @Test
+        @DisplayName("F839: redirect method rewriting follows RFC 9110 15.4")
+        fun redirect_method_rewriting_follows_rfc_9110() {
+            val cases = listOf(
+                Triple(301, "POST", "GET"), Triple(302, "POST", "GET"), Triple(303, "POST", "GET"),
+                Triple(301, "PUT", "PUT"), Triple(302, "PATCH", "PATCH"), Triple(302, "DELETE", "DELETE"),
+                Triple(303, "PUT", "GET"), Triple(303, "DELETE", "GET"), Triple(303, "HEAD", "HEAD"),
+                Triple(307, "POST", "POST"), Triple(308, "PUT", "PUT"),
+            )
+            for ((status, method, expected) in cases) {
+                var hopCount = 0
+                var secondHopMethod: String? = null
+                val engine = MockEngine { req ->
+                    hopCount++
+                    if (hopCount == 1) {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.fromValue(status),
+                            headers = headersOf("Location", "https://other.example.com/dest"),
+                        )
+                    } else {
+                        secondHopMethod = req.method.value
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+                val transport = TransportOptions.builder().followRedirects(true).build()
+                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+                runBlocking {
+                    apiClient.sendRequest(method, "https://secure.example.com/x", emptyMap(), "body")
+                }
+                assertEquals(expected, secondHopMethod, "$status $method")
+            }
+        }
+
+        @Test
         @DisplayName("N1: 307 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
         fun redirect_307_https_to_http_with_body_throws() {
             val engine = MockEngine { _ ->

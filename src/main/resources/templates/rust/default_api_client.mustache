@@ -152,6 +152,10 @@ impl ApiClient for DefaultApiClient {
         DefaultApiClient::close(self);
     }
 
+    fn is_closed(&self) -> bool {
+        DefaultApiClient::is_closed(self)
+    }
+
     /// Sends an HTTP request with transport-level settings applied.
     ///
     /// Merges headers according to the priority order documented on the struct,
@@ -378,6 +382,7 @@ impl ApiClient for DefaultApiClient {
                      * body) must not be silently re-sent in cleartext. */
                     if is_https_to_http_body_replay(
                         status_code,
+                        &current_method,
                         current_url.as_ref(),
                         &next_url,
                         current_body.is_some(),
@@ -397,23 +402,20 @@ impl ApiClient for DefaultApiClient {
                         )) as Box<dyn std::error::Error + Send + Sync>);
                     }
 
-                    /* Pick follow-up method+body per RFC 7231 §6.4.4 /
-                     * RFC 7538.
+                    /* Pick follow-up method+body per RFC 9110 section 15.4.
                      *   307 + 308: preserve original method and body.
-                     *   303:       force GET, drop the body (and Content-Type/Length).
-                     *   301 + 302: historical browser behaviour — switch to GET
-                     *              for non-GET/HEAD requests, drop the body. */
-                    let method_upper = current_method.to_uppercase();
-                    let (next_method, next_body): (String, Option<Vec<u8>>) =
-                        if status_code == 307 || status_code == 308 {
-                            (current_method.clone(), current_body.clone())
-                        } else if status_code == 303 {
-                            ("GET".to_string(), None)
-                        } else if method_upper == "GET" || method_upper == "HEAD" {
-                            (current_method.clone(), current_body.clone())
-                        } else {
-                            ("GET".to_string(), None)
-                        };
+                     *   303:       every method except HEAD becomes GET and
+                     *              drops the body; HEAD stays HEAD.
+                     *   301 + 302: only POST becomes GET (body dropped); every
+                     *              other method keeps method and body. */
+                    let next_method = redirect_next_method(status_code, &current_method);
+                    let next_body: Option<Vec<u8>> = if status_code == 303 {
+                        None
+                    } else if next_method == current_method {
+                        current_body.clone()
+                    } else {
+                        None
+                    };
 
                     let http_method = next_method.parse::<reqwest::Method>().map_err(|e| {
                         Box::new(ConfigurationError::InvalidArgument(format!(
@@ -688,17 +690,30 @@ fn is_redirect_status(code: u16) -> bool {
     matches!(code, 301 | 302 | 303 | 307 | 308)
 }
 
+/// Returns the method a redirect hop uses (RFC 9110 section 15.4): 307 and 308
+/// never change it; 303 turns every method except HEAD into GET; 301 and 302
+/// turn only POST into GET. A hop that changes the method also drops the body.
+pub(crate) fn redirect_next_method(status_code: u16, method: &str) -> String {
+    let upper = method.to_uppercase();
+    match status_code {
+        303 if upper != "HEAD" => "GET".to_string(),
+        301 | 302 if upper == "POST" => "GET".to_string(),
+        _ => method.to_string(),
+    }
+}
+
 /// Returns `true` when following the redirect would replay the
-/// in-flight request body across an HTTPS->HTTP downgrade. Only 307/308
-/// preserve the body per RFC 7231 §6.4.7 / RFC 7538, so the predicate is
-/// false for 301/302/303 even when the schemes differ.
+/// in-flight request body across an HTTPS->HTTP downgrade. A body is replayed
+/// only when the hop keeps the method and is not a 303, so the predicate is
+/// false for a hop that becomes GET even when the schemes differ.
 pub(crate) fn is_https_to_http_body_replay(
     status_code: u16,
+    method: &str,
     current_url: Option<&reqwest::Url>,
     next_url: &reqwest::Url,
     has_body: bool,
 ) -> bool {
-    if status_code != 307 && status_code != 308 {
+    if status_code == 303 || redirect_next_method(status_code, method) != method {
         return false;
     }
     if !has_body {
@@ -1024,7 +1039,7 @@ fn is_text_content_type(content_type: &str) -> bool {
 mod tests {
     use super::{
         build_filename_directive, decode_text_body, is_https_to_http_body_replay,
-        mime_for_filename, parse_charset, same_origin, serialize_multipart_body,
+        redirect_next_method, mime_for_filename, parse_charset, same_origin, serialize_multipart_body,
         validate_multipart_field_name, validate_multipart_filename, SENSITIVE_HEADER_NAMES,
     };
     use crate::api_client::MultipartValue;
@@ -1061,23 +1076,48 @@ mod tests {
         let http2 = reqwest::Url::parse("http://example.com/y").unwrap();
 
         /* 307 + body + https->http: must refuse. */
-        assert!(is_https_to_http_body_replay(307, Some(&https), &http, true));
+        assert!(is_https_to_http_body_replay(307, "POST", Some(&https), &http, true));
         /* 308 + body + https->http: must refuse. */
-        assert!(is_https_to_http_body_replay(308, Some(&https), &http, true));
+        assert!(is_https_to_http_body_replay(308, "POST", Some(&https), &http, true));
         /* 307 + NO body: nothing to leak, must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(307, Some(&https), &http, false));
+        assert!(!is_https_to_http_body_replay(307, "POST", Some(&https), &http, false));
         /* 307 + body + http->http (no downgrade): must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(307, Some(&http), &http2, true));
+        assert!(!is_https_to_http_body_replay(307, "POST", Some(&http), &http2, true));
         /* 307 + body + https->https (no downgrade): must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(307, Some(&https), &https2, true));
+        assert!(!is_https_to_http_body_replay(307, "POST", Some(&https), &https2, true));
         /* 302 (drops body anyway): must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(302, Some(&https), &http, true));
+        assert!(!is_https_to_http_body_replay(302, "POST", Some(&https), &http, true));
         /* 303 (drops body anyway): must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(303, Some(&https), &http, true));
+        assert!(!is_https_to_http_body_replay(303, "POST", Some(&https), &http, true));
         /* 301 (drops body anyway): must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(301, Some(&https), &http, true));
+        assert!(!is_https_to_http_body_replay(301, "POST", Some(&https), &http, true));
         /* Missing current_url: cannot prove downgrade, must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(307, None, &http, true));
+        assert!(!is_https_to_http_body_replay(307, "POST", None, &http, true));
+        /* 301/302 keep the body for a PUT, so the downgrade is refused. */
+        assert!(is_https_to_http_body_replay(302, "PUT", Some(&https), &http, true));
+        assert!(is_https_to_http_body_replay(301, "PATCH", Some(&https), &http, true));
+        /* 303 never replays a body. */
+        assert!(!is_https_to_http_body_replay(303, "PUT", Some(&https), &http, true));
+    }
+
+    /* RFC 9110 section 15.4: the method a redirect hop uses. */
+    #[test]
+    fn test_redirect_next_method_follows_rfc_9110() {
+        for status in [307u16, 308] {
+            for m in ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] {
+                assert_eq!(redirect_next_method(status, m), m);
+            }
+        }
+        for status in [301u16, 302] {
+            assert_eq!(redirect_next_method(status, "POST"), "GET");
+            for m in ["GET", "HEAD", "PUT", "PATCH", "DELETE"] {
+                assert_eq!(redirect_next_method(status, m), m);
+            }
+        }
+        assert_eq!(redirect_next_method(303, "HEAD"), "HEAD");
+        for m in ["GET", "POST", "PUT", "PATCH", "DELETE"] {
+            assert_eq!(redirect_next_method(303, m), "GET");
+        }
     }
 
     /* ── Redirect origin comparison ──

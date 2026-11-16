@@ -157,6 +157,10 @@
       def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped) -> void
     end
 
+    class TooManyRequestsError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped) -> void
+    end
+
     class ServerError < ApiError
     end
 
@@ -242,6 +246,7 @@
     def self.encode_query_allowing_reserved: (String?) -> String
     def self.maybe_allow_reserved: (untyped, bool) -> untyped
     def self.encode_path_segment: (String str) -> String
+    def self.encode_content_cookie: (String?) -> String
 
     PRESERVE_ENCODED: Hash[String, String]
     RESERVED_PRESERVED: Hash[String, String]
@@ -457,8 +462,10 @@
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+    @api_client: DefaultApiClient
     def initialize: (Auth::Authenticator, ?TransportOptions?) -> void
-    def self.with_token: (String, String) -> {{clientClassName}}
+    def close: () -> void
+    def self.with_token: (String, String, ?TransportOptions?) -> {{clientClassName}}
     def self.with_authenticator: (Auth::Authenticator, ?TransportOptions?) -> {{clientClassName}}
   end
 
@@ -472,8 +479,8 @@
       NO_AUTH: Object
       attr_reader config: Configuration
       def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?) -> void
-      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?raw_body: bool) -> ApiResult[untyped]
-      def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?) -> untyped
+      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?) -> ApiResult[untyped]
+      def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private
       def throw_api_error: (ApiHttpResponse) -> void
       def build_query_string: (Hash[String, untyped]) -> String

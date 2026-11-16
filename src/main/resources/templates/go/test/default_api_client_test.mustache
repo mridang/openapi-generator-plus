@@ -429,6 +429,71 @@ func TestDefaultApiClient_Redirect303SwitchesToGetAndDropsBody(t *testing.T) {
 	}
 }
 
+// F839 (RFC 9110 sec 15.4): on 301 and 302 only POST becomes GET, on 303 every
+// method except HEAD becomes GET, and 307 and 308 never change the method.
+func TestDefaultApiClient_RedirectMethodRewriting(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		status     int
+		method     string
+		wantMethod string
+		wantBody   string
+	}{
+		{301, "POST", "GET", ""},
+		{302, "POST", "GET", ""},
+		{301, "PUT", "PUT", "payload"},
+		{302, "PUT", "PUT", "payload"},
+		{301, "PATCH", "PATCH", "payload"},
+		{302, "DELETE", "DELETE", "payload"},
+		{303, "PUT", "GET", ""},
+		{303, "DELETE", "GET", ""},
+		{303, "POST", "GET", ""},
+		{303, "HEAD", "HEAD", ""},
+		{307, "PUT", "PUT", "payload"},
+		{308, "DELETE", "DELETE", "payload"},
+		{307, "POST", "POST", "payload"},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%d_%s", tc.status, tc.method), func(t *testing.T) {
+			t.Parallel()
+			var gotMethod, gotBody string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/start" {
+					http.Redirect(w, r, "/end", tc.status)
+					return
+				}
+				b, _ := io.ReadAll(r.Body)
+				gotMethod, gotBody = r.Method, string(b)
+				w.WriteHeader(200)
+			}))
+			defer server.Close()
+			transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(true).MaxRedirects(5).Build()
+			if buildErr != nil {
+				t.Fatal(buildErr)
+			}
+			client := NewDefaultApiClient(transport)
+			var body any
+			if tc.method != "HEAD" {
+				body = []byte("payload")
+			}
+			resp, err := client.SendRequest(tc.method, server.URL+"/start",
+				map[string]string{"Content-Type": "text/plain"}, body)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if resp.StatusCode != 200 {
+				t.Fatalf("expected 200 after the redirect, got %d", resp.StatusCode)
+			}
+			if gotMethod != tc.wantMethod {
+				t.Errorf("expected method %s, got %s", tc.wantMethod, gotMethod)
+			}
+			if gotBody != tc.wantBody {
+				t.Errorf("expected body %q, got %q", tc.wantBody, gotBody)
+			}
+		})
+	}
+}
+
 // T-new-3: multipart bodies must be replayed across 307 redirects per
 // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
 // request after a 307 still carries the multipart form parts.
@@ -1073,6 +1138,30 @@ func (d *recordingDoer) Do(req *http.Request) (*http.Response, error) {
 		Body:       io.NopCloser(strings.NewReader("{}")),
 		Request:    req,
 	}, nil
+}
+
+func TestDefaultApiClient_ClosedClientRejectsRequestsAndLeavesSuppliedDoerOpen(t *testing.T) {
+	t.Parallel()
+	doer := &recordingDoer{}
+	transport, err := NewTransportOptionsBuilder().HttpClient(doer).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	if _, err := client.SendRequest("GET", "http://example.invalid/pets", map[string]string{}, nil); !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed, got %v", err)
+	}
+	if len(doer.requests) != 0 {
+		t.Errorf("expected no request to reach the supplied doer after Close, got %d", len(doer.requests))
+	}
+	/* The supplied doer is still usable by its owner: Close never touches it. */
+	other := NewDefaultApiClient(transport)
+	if _, err := other.SendRequest("GET", "http://example.invalid/pets", map[string]string{}, nil); err != nil {
+		t.Errorf("expected the supplied doer to stay open, got %v", err)
+	}
 }
 
 func TestDefaultApiClient_CustomHttpDoerReceivesTheRequest(t *testing.T) {

@@ -1,0 +1,26 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import { ClientError } from './client-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 429 Too Many Requests.
+ */
+export class TooManyRequestsError<T = unknown> extends ClientError<T> {
+  constructor(
+    message: string = '',
+    responseHeaders: Record<string, string> | null = null,
+    responseBody: string | null = null,
+    errorBody: T | null = null,
+    options?: { cause?: unknown }
+  ) {
+    super(429, message, responseHeaders, responseBody, errorBody, options);
+    this.name = 'TooManyRequestsError';
+  }
+}
+
+ApiError.registerStatusError(
+  429,
+  (_statusCode, message, headers, body, errorBody) =>
+    new TooManyRequestsError(message, headers, body, errorBody)
+);

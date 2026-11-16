@@ -41,6 +41,18 @@ use {{apiPackage}}\{{classname}};
  */
 class {{clientClassName}}
 {
+    /** @var ApiClient The transport every API group sends through; refuses requests once the client is closed. */
+    private readonly ApiClient $sdkTransport;
+
+    /** @var \stdClass Shared closed flag read by the gate and set by close(). */
+    private readonly \stdClass $sdkState;
+
+    /** @var bool Whether the SDK built the transport itself and so releases it on close(). */
+    private readonly bool $sdkOwnsTransport;
+
+    /** @var ApiClient The unwrapped transport the SDK may release (only when it built it). */
+    private readonly ApiClient $sdkOwnedClient;
+
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
@@ -72,10 +84,38 @@ class {{clientClassName}}
         ?ApiClient $apiClient = null
     ) {
         $transportOptions ??= TransportOptions::builder()->build();
+        $this->sdkOwnsTransport = $apiClient === null;
         $apiClient ??= new DefaultApiClient($transportOptions);
+        $this->sdkOwnedClient = $apiClient;
+        $this->sdkState = new \stdClass();
+        $this->sdkState->closed = false;
+        $this->sdkTransport = new class ($apiClient, $this->sdkState) implements ApiClient {
+            public function __construct(private readonly ApiClient $delegate, private readonly \stdClass $state)
+            {
+            }
+
+            public function sendRequest(
+                string $method,
+                string $url,
+                array $headers,
+                mixed $body,
+                bool $noRedirect = false,
+            ): ApiHttpResponse {
+                if ($this->sdkState->closed === true) {
+                    throw new \LogicException('ApiClient has been closed and can no longer send requests');
+                }
+
+                return $this->delegate->sendRequest($method, $url, $headers, $body, $noRedirect);
+            }
+
+            public function close(): void
+            {
+                $this->sdkState->closed = true;
+            }
+        };
 
         if ($authenticator instanceof HttpAwareAuthenticator) {
-            $authenticator->setApiClient($apiClient);
+            $authenticator->setApiClient($this->sdkTransport);
         }
 
         $config = Configuration::builder()
@@ -84,10 +124,32 @@ class {{clientClassName}}
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        $this->{{clientPropertyName}} = new {{classname}}($apiClient, $config, $authenticator);
+        $this->{{clientPropertyName}} = new {{classname}}($this->sdkTransport, $config, $authenticator);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+    }
+
+    /**
+     * Closes the client: every later request fails with a \LogicException, and
+     * the HTTP transport the SDK built itself is released. A transport supplied
+     * by the caller is never closed here; the caller owns it. Safe to call more
+     * than once.
+     */
+    public function close(): void
+    {
+        $this->sdkState->closed = true;
+        if ($this->sdkOwnsTransport) {
+            $this->sdkOwnedClient->close();
+        }
+    }
+
+    /**
+     * Releases what the client owns when it is garbage collected.
+     */
+    public function __destruct()
+    {
+        $this->close();
     }
 
     /**

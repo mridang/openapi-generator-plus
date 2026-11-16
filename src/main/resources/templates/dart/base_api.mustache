@@ -196,12 +196,14 @@ class BaseApi {
   /// the response body when [returnType] is not empty.
   ///
   /// Parameters are as for [invokeApi], plus [deserialize], the function that
-  /// converts the response body into the return type.
+  /// converts the response body into the return type, and [operation], the
+  /// `Class.operationId` name used in error messages.
   ///
   /// Returns an [ApiResult] containing deserialized data, status code, raw
   /// body, and headers.
   Future<ApiResult<T>> invokeApiForResult<T>({
     required String method,
+    String operation = '',
     required String path,
     Map<String, Object?>? queryParams,
     Map<String, String>? headerParams,
@@ -293,8 +295,9 @@ class BaseApi {
          * typed as a model, so refuse it and name the Content-Type. */
         final mediaType = responseContentType.split(';').first.trim();
         throw SerializationException(
-          "Unexpected response Content-Type '$mediaType' for "
-          '$runtimeType.${method.toLowerCase()}: expected a JSON body',
+          "Unexpected response Content-Type '$mediaType'"
+          "${operation.isEmpty ? '' : ' for $operation'}"
+          ': expected a JSON body',
         );
       }
     }

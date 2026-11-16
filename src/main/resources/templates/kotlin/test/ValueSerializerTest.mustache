@@ -761,6 +761,19 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName("F833: cookie keeps only the unreserved set literal and encodes the rest as UTF-8")
+        fun cookieKeepsOnlyTheUnreservedSetLiteral() {
+            assertEquals(
+                "%22a%20b~%2A%C3%A9%22",
+                ValueSerializer.serializeContent("p", "a b~*\u00e9", "cookie"),
+            )
+            assertEquals(
+                "%22%21%27%28%29%2C%2B%25-._~%22",
+                ValueSerializer.serializeContent("p", "!'(),+%-._~", "cookie"),
+            )
+        }
+
+        @Test
         @DisplayName("query returns the raw JSON for the query builder to encode")
         fun queryReturnsTheRawJson() {
             assertEquals("{\"cutoff\":\"10:30:00.123\"}", ValueSerializer.serializeContent("p", model, "query"))

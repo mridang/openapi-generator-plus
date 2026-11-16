@@ -454,6 +454,32 @@ String toCookieValue(Object? value) {
   return toHeaderValue(value);
 }
 
+/// Percent-encode [value] for a `content:` cookie parameter.
+///
+/// Only the unreserved set A-Z a-z 0-9 - . _ ~ stays literal; every other
+/// character, including * ! ' ( ) and every non-ASCII character, is
+/// percent-encoded as UTF-8 with upper-case hex digits, so the bytes are the
+/// same in every SDK and always satisfy the RFC 6265 cookie-value grammar.
+String encodeContentCookie(String value) {
+  final out = StringBuffer();
+  for (final b in utf8.encode(value)) {
+    final unreserved = (b >= 0x41 && b <= 0x5A) ||
+        (b >= 0x61 && b <= 0x7A) ||
+        (b >= 0x30 && b <= 0x39) ||
+        b == 0x2D ||
+        b == 0x2E ||
+        b == 0x5F ||
+        b == 0x7E;
+    if (unreserved) {
+      out.writeCharCode(b);
+    } else {
+      out.write('%');
+      out.write(b.toRadixString(16).toUpperCase().padLeft(2, '0'));
+    }
+  }
+  return out.toString();
+}
+
 /// Convert a value to a representation suitable for use as a form parameter.
 ///
 /// Returns the string representation, or the empty string if [value] is null.

@@ -96,6 +96,22 @@ class TestClientPoolManager:
 
         assert pool.cleared is False
 
+    def test_closed_client_rejects_further_requests(self) -> None:
+        client = {{clientClassName}}(BearerAuthenticator('{{{basePath}}}', 'test-token'))
+
+        client.close()
+
+        with pytest.raises(RuntimeError, match='closed'):
+            client._api_client.send_request('GET', '{{{basePath}}}/x', {}, None)
+
+    def test_supplied_pool_manager_stays_usable_after_close(self) -> None:
+        pool = _OwnedPool()
+        client = {{clientClassName}}(BearerAuthenticator('{{{basePath}}}', 'test-token'), pool_manager=pool)
+
+        client.close()
+
+        assert pool.cleared is False
+
     def test_with_token_accepts_a_pool_manager(self) -> None:
         pool = _OwnedPool()
 

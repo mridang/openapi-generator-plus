@@ -310,7 +310,7 @@ module {{moduleName}}
           # Cookie request header. Pass the raw value through without
           # URL-encoding, mirroring the auth path.
 <%#vendorExtensions.param.queryContent%>
-          cookie_value = URI.encode_www_form_component(::<%moduleName%>::ObjectSerializer.serialize(options.<%paramName%>)).gsub('+', '%20')
+          cookie_value = ::<%moduleName%>::ValueSerializer.encode_content_cookie(::<%moduleName%>::ObjectSerializer.serialize(options.<%paramName%>))
 <%/vendorExtensions.param.queryContent%>
 <%^vendorExtensions.param.queryContent%>
           cookie_value = ::<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', options.<%paramName%>, :cookie, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s
@@ -384,7 +384,8 @@ module {{moduleName}}
 {{/vendorExtensions.hasMultipleConsumes}}
           {{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
           {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
-          raw_body: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}}
+          raw_body: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
+          operation_id: '{{classname}}.{{operationId}}'
         )
       end
     {{/operation}}

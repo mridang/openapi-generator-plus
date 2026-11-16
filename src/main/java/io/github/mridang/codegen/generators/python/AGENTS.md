@@ -201,6 +201,11 @@ Why: the returned headers must describe the body the caller receives.
 Where: `default_api_client.mustache`.
 Test: `test_default_api_client_unit.mustache` (`TestConnectionPoolSizing` covers the pool, F229: pools use `maxsize=10`).
 
+### Batch 5 fixes (F824, F831, F832, F833, F839)
+Rule: `close()` and the context manager on the client release only the pool the SDK built, a closed client raises `RuntimeError`, and a supplied `pool_manager` is never closed (F824). HTTP 429 maps to `TooManyRequestsException`, a `ClientException` (F831). The unexpected Content-Type error names `<Class>.<operation id>` through the `operation_name` argument the generated operation passes to the invoke helper (F832). A `content:` cookie is `quote(json, safe='')`, which keeps exactly `A-Za-z0-9-._~` literal (F833). Redirects follow RFC 9110 15.4: 301 and 302 turn only POST into GET, 303 turns every method except HEAD into GET, 307 and 308 keep method and body (F839). F826 does not affect Python.
+Where: `client.mustache`, `errors/too_many_requests_exception.mustache`, `base_api.mustache`, `value_serializer.mustache`, `default_api_client.mustache`.
+Test: `test_client.mustache`, `test_api_error.mustache`, `test_base_api.mustache`, `test_value_serializer.mustache`, `test_default_api_client.mustache`.
+
 ### ApiResult headers (D27)
 Rule: `headers` is typed `Mapping[str, str]` and `__post_init__` stores `MappingProxyType(dict(headers))` through `object.__setattr__`.
 Why: a read-only copy so the result never aliases the transport's map.

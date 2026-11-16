@@ -12,9 +12,9 @@ class TestableApi < {{moduleName}}::Api::BaseApi
   end
 
   def call_for_result(method, path, query_params, header_params, body,
-                      accepts, content_type, return_type, auth = nil)
+                      accepts, content_type, return_type, auth = nil, operation_id: nil)
     invoke_api_for_result(method, path, query_params, header_params, body,
-                          accepts, content_type, return_type, auth)
+                          accepts, content_type, return_type, auth, operation_id: operation_id)
   end
 end
 
@@ -83,6 +83,7 @@ describe {{moduleName}}::Api::BaseApi do
     404 => {{moduleName}}::Errors::NotFoundError,
     409 => {{moduleName}}::Errors::ConflictError,
     422 => {{moduleName}}::Errors::UnprocessableEntityError,
+    429 => {{moduleName}}::Errors::TooManyRequestsError,
     418 => {{moduleName}}::Errors::ClientError,
     500 => {{moduleName}}::Errors::InternalServerError,
     502 => {{moduleName}}::Errors::ServerError
@@ -589,6 +590,20 @@ describe {{moduleName}}::Api::BaseApi do
           .must_raise({{moduleName}}::Errors::SerializationError)
     _(err.message).must_include "Unexpected response Content-Type 'text/plain'"
     _(err.message).must_include 'expected a JSON body'
+  end
+
+  it 'names the operation, not an HTTP verb, in the unexpected Content-Type error' do
+    client = FixedResponseApiClient.new(
+      {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: 'hello', headers: { 'Content-Type' => 'text/plain' })
+    )
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    err = _ do
+      test_api.call_for_result('GET', '/test', {}, {}, nil, ['text/plain'], 'application/json', 'Object',
+                               operation_id: 'PetApi.get_pet_by_id')
+    end.must_raise({{moduleName}}::Errors::SerializationError)
+    _(err.message).must_include 'for PetApi.get_pet_by_id: expected a JSON body'
+    _(err.message).wont_include 'get:'
   end
 
   it 'deserializes vendor JSON MIME types like application/problem+json' do

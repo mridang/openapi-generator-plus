@@ -102,6 +102,8 @@ Rule (intended, not yet implemented): the client builder will accept a `reqwest:
 Why: OpenAI, Stainless, Speakeasy, Fern, Azure and Stripe SDKs all accept the standard client. F405 is open.
 Where: `default_api_client.mustache`, `transport_options.mustache`, `client.mustache`.
 Test: none yet.
+Landed with F824: the facade has `close()` and `is_closed()` (delegating to `ApiClient::close`/`is_closed`); a closed client fails requests with `ConfigurationError::InvalidState("ApiClient is closed")` and a supplied `reqwest::Client` is never shut down (`test/client_test.mustache`).
+Also landed: `TooManyRequestsError` (429, F831) wired like `ConflictError`; redirect method rewriting follows RFC 9110 15.4 (F839, `redirect_next_method`); content cookies are `urlencoding::encode`d JSON, already the D52 unreserved set (F833).
 
 ### Dependencies (S10)
 Rule: a small pure crate or a version bump is acceptable when it standardises behaviour; never a crate that needs a native binary. `brotli`, `flate2`, `zstd` (static), `encoding_rs`, `urlencoding`, `regex`, `base64` are accepted; reqwest uses `rustls-tls-native-roots`, not OpenSSL.

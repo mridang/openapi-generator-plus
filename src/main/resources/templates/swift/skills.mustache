@@ -196,6 +196,7 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NotFoundError` (404)
     - `ConflictError` (409)
     - `UnprocessableEntityError` (422)
+    - `TooManyRequestsError` (429)
   - `ServerError` (5xx)
     - `InternalServerError` (500)
   - `NetworkError` (no HTTP response, status 0)

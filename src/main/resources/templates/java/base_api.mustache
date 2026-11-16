@@ -127,6 +127,7 @@ public abstract class BaseApi {
      * headers, and raw body alongside the deserialized data.
      *
      * @param <T>         the return type
+     * @param operationId operation id, named in serialization errors
      * @param method      HTTP method (GET, POST, PUT, DELETE, etc.)
      * @param path        URL path (with path params already substituted)
      * @param queryParams query parameters
@@ -140,6 +141,7 @@ public abstract class BaseApi {
      * @throws ApiException if the API call fails
      */
     protected <T> ApiResult<T> invokeApiForResult(
+            String operationId,
             String method,
             String path,
             Map<String, Object> queryParams,
@@ -371,7 +373,7 @@ public abstract class BaseApi {
                                     + "' for "
                                     + getClass().getSimpleName()
                                     + "."
-                                    + method.toLowerCase(java.util.Locale.ROOT)
+                                    + operationId
                                     + ": expected a JSON body");
                 }
                 T rawBody = (T) response.body();
@@ -420,6 +422,7 @@ public abstract class BaseApi {
      * Invoke an API operation.
      *
      * @param <T>         the return type
+     * @param operationId operation id, named in serialization errors
      * @param method      HTTP method (GET, POST, PUT, DELETE, etc.)
      * @param path        URL path (with path params already substituted)
      * @param queryParams query parameters
@@ -434,6 +437,7 @@ public abstract class BaseApi {
      */
     @Nullable
     protected <T> T invokeApi(
+            String operationId,
             String method,
             String path,
             Map<String, Object> queryParams,
@@ -448,8 +452,34 @@ public abstract class BaseApi {
             target; chaining .data() defeats that inference and would default <T>
             to Object. The witness pins it to the caller's T. }}
         return this.<T>invokeApiForResult(
-                method, path, queryParams, headerParams, body, accepts,
+                operationId, method, path, queryParams, headerParams, body, accepts,
                 contentType, returnType, auth).data();
+    }
+
+    /**
+     * Percent-encodes the JSON text of a {@code content:} cookie parameter.
+     * Only the unreserved set {@code A-Z a-z 0-9 - . _ ~} stays literal;
+     * every other byte of the UTF-8 form is written as {@code %XX} with
+     * upper-case hex, so the result is a valid RFC 6265 cookie value and
+     * is byte-identical across the SDKs.
+     *
+     * @param json the serialized JSON text
+     * @return the percent-encoded cookie value
+     */
+    protected static String encodeContentCookie(String json) {
+        StringBuilder out = new StringBuilder();
+        for (byte b : json.getBytes(StandardCharsets.UTF_8)) {
+            int c = b & 0xFF;
+            if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+                    || c == '-' || c == '.' || c == '_' || c == '~') {
+                out.append((char) c);
+            } else {
+                out.append('%')
+                        .append(Character.toUpperCase(Character.forDigit(c >> 4, 16)))
+                        .append(Character.toUpperCase(Character.forDigit(c & 0xF, 16)));
+            }
+        }
+        return out.toString();
     }
 
     /**

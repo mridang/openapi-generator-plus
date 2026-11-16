@@ -309,6 +309,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/not-found-error.mustache", "src/errors", "not-found-error.ts"),
             new SupportingFileSpec("errors/conflict-error.mustache", "src/errors", "conflict-error.ts"),
             new SupportingFileSpec("errors/unprocessable-entity-error.mustache", "src/errors", "unprocessable-entity-error.ts"),
+            new SupportingFileSpec("errors/too-many-requests-error.mustache", "src/errors", "too-many-requests-error.ts"),
             new SupportingFileSpec("errors/internal-server-error.mustache", "src/errors", "internal-server-error.ts"),
             new SupportingFileSpec("errors/network-error.mustache", "src/errors", "network-error.ts"),
             new SupportingFileSpec("errors/network-timeout-error.mustache", "src/errors", "network-timeout-error.ts"),

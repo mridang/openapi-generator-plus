@@ -80,6 +80,11 @@ Why: `package:http` is the ecosystem's standard client; the other SDKs accept th
 Where: `client.mustache`, `default_api_client*.mustache`, `abstract_api_client.mustache`; allow rule for the extra constructor argument.
 Test: `default_api_client_test.mustache`, `default_api_client_unit_test.mustache`, `client_test.mustache`.
 
+### Batch 5 landings (F824, F831, F832, F833, F839)
+Rule: `Client.close()` closes the `DefaultApiClient` it built and never a transport supplied through `TransportOptions.httpClient`; a request after close raises `StateError`. HTTP 429 raises `TooManyRequestsException`, a `ClientException` selected in `ApiException.fromResponse`. The unexpected-Content-Type `SerializationException` names `Class.operationId` (passed as `operation:` to `invokeApiForResult`). A `content:` cookie is JSON through the SDK serializer, then `encodeContentCookie` keeps only A-Z a-z 0-9 - . _ ~ literal. Redirects follow RFC 9110 15.4: 301/302 turn only POST into GET, 303 turns everything but HEAD into GET, 307/308 never change method.
+Where: `client.mustache`, `errors/too_many_requests_exception.mustache`, `errors/api_exception.mustache`, `base_api.mustache`, `object_serializer.mustache`, `api/api.mustache`, `abstract_api_client.mustache`.
+Test: `client_test`, `api_error_test`, `base_api_test`, `object_serializer_test`, `default_api_client_unit_test` mustache templates.
+
 ### Content parameters use the SDK serializer (S2, D80, D50, F054)
 Rule: `content: application/json` parameters in query, header, path and cookie go through `ObjectSerializer.serialize`, not `jsonEncode` directly. The query branch is landed; the header, path and cookie branches are intended.
 Why: one byte-identical encoder in all twelve (wire names, date-times, null fields omitted).

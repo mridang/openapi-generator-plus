@@ -107,6 +107,10 @@ Rule: `timeout` is one end-to-end budget: the deadline is fixed once and every r
 
 Rule: no proxy unless `TransportOptions.proxy` is set; `ca_cert_path` replaces the system trust store; the SDK's own `Proxy-Authorization` is built into the connection options and is not stripped on a cross-origin redirect. Why: one transport rule for all twelve. Where: `default_api_client.mustache` (`request_options`, `proxy_request_options`), `transport_options.mustache`. Test: `test/default_api_client_test.mustache`. The template does not pass `proxy: :none` and relies on Req not reading the environment; that was not re-verified.
 
+### 429 error and redirect methods (F831, F839)
+
+Rule: HTTP 429 maps to `TooManyRequestsError` (a `ClientError`, listed in `ApiError.from_response/3`, `ClientError`, the root error list and the README-style docs). Redirects follow RFC 9110 section 15.4 through `DefaultApiClient.redirect_method/2`: 307 and 308 keep the method, 303 turns everything but HEAD into GET, 301 and 302 turn only POST into GET. Content cookies are `URI.encode(..., &URI.char_unreserved?/1)` of the serializer JSON, which is already the shared unreserved set (F833). Why: one rule for all twelve. Where: `errors/too_many_requests_error.mustache`, `errors/api_error.mustache`, `default_api_client.mustache`. Test: `test/api_error_test.mustache`, `test/default_api_client_unit_test.mustache`, `test/value_serializer_test.mustache`.
+
 ### Header injection is case-insensitive (F299)
 
 Rule: `User-Agent` and `X-Request-ID` are injected only when no header of any casing is already present; the caller's header always wins. Why: HTTP field names are case-insensitive. Where: `default_api_client.mustache` (`has_header?/2`). Test: `test/default_api_client_unit_test.mustache`.

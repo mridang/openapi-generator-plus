@@ -256,3 +256,9 @@ python3 etc/api-surface.py check
 ```
 
 Language-specific: `mvn verify -Dgroups=node`; inside a generated SDK `npm test`, `npx tsc --noEmit`, `npx eslint .`, `npx prettier --check .` and `npx typedoc --treatWarningsAsErrors`.
+
+### Client lifecycle, 429 and redirects (F824, F831, F839, 2026-11-16)
+Rule: the `Client` facade has `close()` and `[Symbol.asyncDispose]()`, which close only the `DefaultApiClient` the SDK built (a caller-supplied `fetch` is never called or closed; later requests fail with the closed-client error). HTTP 429 maps to `TooManyRequestsError`, a `ClientError`. Redirects follow RFC 9110 15.4: on 301/302 only POST becomes GET, on 303 everything but HEAD becomes GET, 307/308 keep method and body; a body kept on a non-GET/HEAD method is refused across an https to http downgrade.
+Why: byte-identical behaviour across the twelve SDKs.
+Where: `client.mustache`, `errors/too-many-requests-error.mustache`, `abstract_api_client.mustache`.
+Test: `test/client.test.mustache`, `test/api-error.test.mustache`, `test/base-api.test.mustache`, `test/default-api-client-unit.test.mustache`. F833 (content cookie bytes) and F832 (operation name in the content-type error) already conformed; `test/value-serializer.test.mustache` pins the cookie bytes.

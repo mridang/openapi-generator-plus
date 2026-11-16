@@ -227,13 +227,28 @@ abstract class AbstractApiClient implements ApiClient
                     }
                     $crossOrigin = !self::sameOrigin($originalUrl, $nextUrl);
 
-                    /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+                    /* Gap T3: pick follow-up method+body per RFC 9110 15.4.
                      *   307 + 308: preserve original method and body.
-                     *   303:       force GET, drop the body (and Content-Type/Length).
-                     *   301 + 302: historical browser behaviour — switch to GET for
-                     *              non-GET/HEAD requests, drop the body. */
+                     *   303:       every method except HEAD becomes GET, body dropped.
+                     *   301 + 302: only POST becomes GET (body dropped); every
+                     *              other method keeps its method and body. */
                     $statusCode = $response->statusCode;
                     $methodUpper = strtoupper($currentMethod);
+
+                    if ($statusCode === 307 || $statusCode === 308) {
+                        $nextMethod = $currentMethod;
+                        $dropBody = false;
+                    } elseif ($statusCode === 303) {
+                        $toGet = $methodUpper !== 'HEAD';
+                        $nextMethod = $toGet ? 'GET' : $currentMethod;
+                        $dropBody = $toGet;
+                    } elseif ($methodUpper === 'POST') {
+                        $nextMethod = 'GET';
+                        $dropBody = true;
+                    } else {
+                        $nextMethod = $currentMethod;
+                        $dropBody = false;
+                    }
 
                     /* Gap 3.3: refuse to replay a request body across an
                      * HTTPS -> HTTP downgrade. A malicious 307/308 from an
@@ -245,7 +260,7 @@ abstract class AbstractApiClient implements ApiClient
                     $nextScheme = strtolower((string) $scheme);
                     $isDowngrade = $prevScheme === 'https' && $nextScheme === 'http';
                     $hasBody = $currentBody !== null;
-                    if ($isDowngrade && $hasBody && ($statusCode === 307 || $statusCode === 308)) {
+                    if ($isDowngrade && $hasBody && !$dropBody) {
                         /* Gap 3.3 / T-D2: raise instead of silently returning
                          * the 3xx so the caller sees the refused downgrade,
                          * matching the SDKs that throw on a refused replay. */
@@ -253,20 +268,6 @@ abstract class AbstractApiClient implements ApiClient
                             $statusCode,
                             "Refusing to replay request body across HTTPS->HTTP downgrade redirect to $nextUrl"
                         );
-                    }
-
-                    if ($statusCode === 307 || $statusCode === 308) {
-                        $nextMethod = $currentMethod;
-                        $dropBody = false;
-                    } elseif ($statusCode === 303) {
-                        $nextMethod = 'GET';
-                        $dropBody = true;
-                    } elseif ($methodUpper === 'GET' || $methodUpper === 'HEAD') {
-                        $nextMethod = $currentMethod;
-                        $dropBody = false;
-                    } else {
-                        $nextMethod = 'GET';
-                        $dropBody = true;
                     }
 
                     $redirectHeaders = $currentHeaders;

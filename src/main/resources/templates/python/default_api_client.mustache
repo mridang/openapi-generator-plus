@@ -771,10 +771,9 @@ class DefaultApiClient:
            client, so mutating them mid-redirect would strip the proxy
            credentials from concurrent requests.
 
-        The 303 -> GET coercion and 301/302 demotion of non-idempotent
-        methods are handled here for completeness, but those are about
-        method semantics rather than security and mirror the existing
-        Java / Kotlin behaviour.
+        Method rewriting follows RFC 9110 section 15.4: 301 and 302 turn only
+        POST into GET, 303 turns every method except HEAD into GET, and 307
+        and 308 never change the method.
         """
         max_redirects = (
             self._transport_options.max_redirects
@@ -837,20 +836,23 @@ class DefaultApiClient:
                     response_headers=dict(response.headers),
                 )
 
-            # Pick follow-up method/body per RFC 7231 section 6.4 / RFC 7538.
+            # Pick follow-up method/body per RFC 9110 section 15.4: 307 and 308
+            # never change the method; 303 turns every method except HEAD into
+            # GET; 301 and 302 turn only POST into GET.
             status_code = response.status
-            if status_code in (307, 308):
-                next_method = current_method
-                next_body = current_body
-            elif status_code == 303:
-                next_method = 'GET'
-                next_body = None
-            elif current_method.upper() in ('GET', 'HEAD'):
-                next_method = current_method
-                next_body = current_body
+            upper_method = current_method.upper()
+            if status_code == 303:
+                rewrite = upper_method != 'HEAD'
+            elif status_code in (301, 302):
+                rewrite = upper_method == 'POST'
             else:
+                rewrite = False
+            if rewrite:
                 next_method = 'GET'
                 next_body = None
+            else:
+                next_method = current_method
+                next_body = current_body
 
             next_headers: Dict[str, str] = dict(current_headers)
             if not same_origin:

@@ -3,9 +3,9 @@
 package {{packageName}}
 
 import (
-{{#hasOsImport}}
-	"os"
-{{/hasOsImport}}
+{{#hasIoImport}}
+	"io"
+{{/hasIoImport}}
 {{#hasModelImport}}
 	. "{{moduleName}}/pkg/models"
 {{/hasModelImport}}
@@ -31,7 +31,12 @@ type {{className}} struct {
 	{{name}} {{{dataType}}}
 {{/required}}
 {{^required}}
+{{#isReader}}
+	{{name}} {{{dataType}}}
+{{/isReader}}
+{{^isReader}}
 	{{name}} *{{{dataType}}}
+{{/isReader}}
 {{/required}}
 {{/params}}
 {{#hasAuthField}}

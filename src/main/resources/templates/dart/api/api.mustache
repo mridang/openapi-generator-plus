@@ -374,17 +374,17 @@ class {{classname}} extends BaseApi {
 {{#cookieParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-    addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}Uri.encodeComponent(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
+    addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
 {{/required}}
 {{^required}}
     if (options.{{paramName}} != null) {
-      addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}Uri.encodeComponent(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
+      addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
     }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-      addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}Uri.encodeComponent(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
+      addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/cookieParams}}
@@ -477,6 +477,7 @@ class {{classname}} extends BaseApi {
 
     return invokeApiForResult{{#returnType}}<{{{.}}}>{{/returnType}}{{^returnType}}<void>{{/returnType}}(
       method: '{{httpMethod}}',
+      operation: '{{classname}}.{{operationId}}',
       path: path,
       queryParams: queryParams,
       headerParams: headerParams,

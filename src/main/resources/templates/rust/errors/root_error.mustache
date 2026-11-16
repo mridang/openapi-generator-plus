@@ -11,6 +11,7 @@ use crate::errors::network_timeout_error::NetworkTimeoutError;
 use crate::errors::not_found_error::NotFoundError;
 use crate::errors::server_error::ServerError;
 use crate::errors::unauthorized_error::UnauthorizedError;
+use crate::errors::too_many_requests_error::TooManyRequestsError;
 use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
 use crate::errors::oauth2_server_error::OAuth2ServerError;
 use crate::errors::oauth2_token_error::OAuth2TokenError;
@@ -63,6 +64,7 @@ impl {{errorPrefix}}Error for ForbiddenError {}
 impl {{errorPrefix}}Error for NotFoundError {}
 impl {{errorPrefix}}Error for ConflictError {}
 impl {{errorPrefix}}Error for UnprocessableEntityError {}
+impl {{errorPrefix}}Error for TooManyRequestsError {}
 impl {{errorPrefix}}Error for InternalServerError {}
 impl {{errorPrefix}}Error for NetworkError {}
 impl {{errorPrefix}}Error for NetworkTimeoutError {}

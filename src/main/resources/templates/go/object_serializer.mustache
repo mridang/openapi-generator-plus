@@ -358,6 +358,28 @@ func toCookieValue(value any) string {
 	return toHeaderValue(value)
 }
 
+// encodeContentCookieValue percent-encodes the serialised JSON of a content
+// cookie parameter as UTF-8, keeping exactly the unreserved set A-Z a-z 0-9
+// - . _ ~ literal. Everything else, including * ! ' ( ) and every non-ASCII
+// byte, becomes %XX, so the bytes are identical in all twelve SDKs and always
+// satisfy the RFC 6265 cookie-octet check.
+func encodeContentCookieValue(raw []byte) string {
+	const hexDigits = "0123456789ABCDEF"
+	var sb strings.Builder
+	for _, c := range raw {
+		switch {
+		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c >= '0' && c <= '9',
+			c == '-', c == '.', c == '_', c == '~':
+			sb.WriteByte(c)
+		default:
+			sb.WriteByte('%')
+			sb.WriteByte(hexDigits[c>>4])
+			sb.WriteByte(hexDigits[c&0x0F])
+		}
+	}
+	return sb.String()
+}
+
 // toFormValue converts a value to a representation suitable for use as a form parameter.
 //
 // Returns the string representation, or an empty string if nil.

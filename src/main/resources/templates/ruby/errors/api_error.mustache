@@ -36,6 +36,7 @@ module {{moduleName}}
         when 404 then NotFoundError.new(**opts)
         when 409 then ConflictError.new(**opts)
         when 422 then UnprocessableEntityError.new(**opts)
+        when 429 then TooManyRequestsError.new(**opts)
         when 500 then InternalServerError.new(**opts)
         when 400..499 then ClientError.new(status_code: status_code, **opts)
         when 500..599 then ServerError.new(status_code: status_code, **opts)

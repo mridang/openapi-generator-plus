@@ -12,6 +12,7 @@ use crate::errors::internal_server_error::InternalServerError;
 use crate::errors::not_found_error::NotFoundError;
 use crate::errors::serialization_error::SerializationError;
 use crate::errors::server_error::ServerError;
+use crate::errors::too_many_requests_error::TooManyRequestsError;
 use crate::errors::unauthorized_error::UnauthorizedError;
 use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
 use crate::json_value::JsonValue;
@@ -197,6 +198,7 @@ impl ApiError {
                 403 => ForbiddenError::try_from(client_err).map(|e| Box::new(e) as Boxed),
                 404 => NotFoundError::try_from(client_err).map(|e| Box::new(e) as Boxed),
                 409 => ConflictError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                429 => TooManyRequestsError::try_from(client_err).map(|e| Box::new(e) as Boxed),
                 422 => UnprocessableEntityError::try_from(client_err).map(|e| Box::new(e) as Boxed),
                 _ => Err(client_err),
             };
@@ -403,6 +405,8 @@ pub enum ApiErrorKind {
     Conflict(ApiErrorFields),
     /// HTTP 422 Unprocessable Entity.
     UnprocessableEntity(ApiErrorFields),
+    /// HTTP 429 Too Many Requests.
+    TooManyRequests(ApiErrorFields),
     /// HTTP 500 Internal Server Error.
     InternalServerError(ApiErrorFields),
     /// Any other client-side (4xx) status with no dedicated variant.
@@ -428,6 +432,7 @@ impl ApiErrorKind {
             | Self::NotFound(f)
             | Self::Conflict(f)
             | Self::UnprocessableEntity(f)
+            | Self::TooManyRequests(f)
             | Self::InternalServerError(f)
             | Self::ClientError(f)
             | Self::ServerError(f)
@@ -464,6 +469,7 @@ impl From<ApiError> for ApiErrorKind {
             404 => Self::NotFound(f),
             409 => Self::Conflict(f),
             422 => Self::UnprocessableEntity(f),
+            429 => Self::TooManyRequests(f),
             500 => Self::InternalServerError(f),
             c if (400..500).contains(&c) => Self::ClientError(f),
             c if (500..600).contains(&c) => Self::ServerError(f),

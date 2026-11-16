@@ -295,6 +295,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.php"),
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.php"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.php"),
+            new SupportingFileSpec("errors/TooManyRequestsException.mustache", errorsFolder, "TooManyRequestsException.php"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.php"),
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.php"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.php"),

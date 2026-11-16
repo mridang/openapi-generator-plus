@@ -1056,6 +1056,17 @@ import FoundationNetworking
             _ = try DefaultApiClient(transportOptions: transport)
         }
     }
+
+    /* RFC 9110 15.4: which methods a redirect rewrites. */
+    @Test(arguments: [
+        (301, "POST", "GET"), (301, "PUT", "PUT"), (301, "PATCH", "PATCH"), (301, "DELETE", "DELETE"),
+        (302, "POST", "GET"), (302, "PUT", "PUT"), (302, "DELETE", "DELETE"),
+        (303, "POST", "GET"), (303, "PUT", "GET"), (303, "DELETE", "GET"), (303, "HEAD", "HEAD"),
+        (307, "POST", "POST"), (307, "PUT", "PUT"), (308, "DELETE", "DELETE"),
+    ])
+    func testRedirectMethodFollowsRfc9110(status: Int, method: String, expected: String) {
+        #expect(DefaultApiClient.redirectMethod(status: status, method: method) == expected)
+    }
 }
 
 // MARK: - Model-part stand-in for multipart unit tests
