@@ -1459,6 +1459,30 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(result)) == %{"ok" => true}
     end
 
+    test "PetPassport.biometricChip (contentEncoding base64) round-trips as bytes" do
+      chip = <<1, 2, 3, 255>>
+      passport = %{{moduleName}}.Models.PetPassport{biometric_chip: chip}
+
+      data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(passport))
+      assert data["biometricChip"] == Base.encode64(chip)
+
+      decoded =
+        {{moduleName}}.ObjectSerializer.deserialize(
+          Jason.encode!(%{"biometricChip" => Base.encode64(chip)}),
+          "PetPassport"
+        )
+
+      assert decoded.biometric_chip == chip
+    end
+
+    test "a duplicate object key resolves to the last value, even when the first has the wrong type" do
+      pet = {{moduleName}}.ObjectSerializer.deserialize(~s({"name":"a","name":"b","photoUrls":[]}), "Pet")
+      assert pet.name == "b"
+
+      retyped = {{moduleName}}.ObjectSerializer.deserialize(~s({"name":5,"name":"b","photoUrls":[]}), "Pet")
+      assert retyped.name == "b"
+    end
+
     test "EdgeCases.slug accepts a value matching its pattern" do
       edge = {{moduleName}}.ObjectSerializer.deserialize(~s({"slug":"12/ab"}), "EdgeCases")
       assert edge.slug == "12/ab"

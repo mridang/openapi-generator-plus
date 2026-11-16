@@ -1131,6 +1131,26 @@ defmodule {{moduleName}}.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  test "find_pets_by_status sends the digit-leading 2ndPage under its wire name and the deepObject filter" do
+    {:ok, name} = StubResponseApiClient.start(200, "[]", "application/json")
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(StubResponseApiClient, config)
+
+    options = %{{moduleName}}.Api.Options.FindPetsByStatusOptions{
+      status: "available",
+      n2nd_page: 2,
+      filter: %{"color" => "blue"}
+    }
+
+    assert {:ok, []} = {{moduleName}}.Api.PetApi.find_pets_by_status(api, options)
+
+    url = StubResponseApiClient.captured(name).url
+    assert url =~ "2ndPage=2"
+    assert url =~ "filter%5Bcolor%5D=blue"
+
+    Agent.stop(name)
+  end
+
   test "set_pet_preferences serialises the date form field as YYYY-MM-DD" do
     {:ok, name} = StubResponseApiClient.start(200, ~s({"code":200}), "application/json")
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")

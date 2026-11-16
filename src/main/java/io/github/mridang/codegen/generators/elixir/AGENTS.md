@@ -246,3 +246,43 @@ Rule: the README gained a `Usage` section (install line, quick start, link to SK
 ### Skipped in batch 6 (needs a cross-language decision or shared Java)
 
 F056, F057, F823, F827, F828, F830, F834, F835, F836, F837, F838, F840, F843, F855, F856, F857, F858, F862, F865, F866, F872, F893, F894, F929, F1048: each changes the public surface of all twelve SDKs or the shared generator, or (F872) rests on a compile check that was not run. F258 stays a documented limitation. F090, F215, F228, F278, F405, F803, F831, F839, F054 were already conforming.
+
+## Decisions taken in batch 7
+
+Each entry uses the audit finding's own proposal as the default. The owner may revisit any of them.
+
+### Object-valued query and header parameters (F1143, D47)
+
+Rule: a model struct or a map in a query, header or cookie parameter is written by its wire names: a model in `json_key_order/0` order, a map in key order; unset properties are left out. `form` with `explode: true` in the query repeats each property as its own `name=value` pair (`ValueSerializer.serialize_styled/7` returns `{:exploded_object, pairs}`, which `BaseApi.query_string_pairs` unpacks); `form` with `explode: false` and `simple` write `k1,v1,k2,v2`; `deepObject` writes `name[k]=v`. A nested object or array leaf raises `SerializationError`. Where: `value_serializer.mustache` (`object_pairs/1`), `base_api.mustache`. Test: `test/value_serializer_test.mustache`, `test/api/pet_api_test.mustache`.
+
+### Per-call authenticators get the transport (F856)
+
+Rule: an authenticator passed in an operation's options struct is handed the client's `ApiClient` through `set_api_client/2` before it is used, like the client-level one. Where: `base_api.mustache` (`inject_api_client/2`). Test: `test/base_api_test.mustache`.
+
+### expires_in and max-age ceiling (F1138, D08)
+
+Rule: a server-supplied `expires_in` and an OIDC discovery `max-age` are clamped to 31 536 000 seconds before the expiry is computed. Where: `auth/oauth/oauth2_token_manager.mustache`, `auth/oauth/openid_connect_authenticator.mustache`. Test: `test/oauth2_token_manager_test.mustache`, `test/openid_connect_authenticator_test.mustache`.
+
+### Protobuf durations are bounded (F1149, D88)
+
+Rule: a `format: duration` value above +-315 576 000 000 seconds is a `SerializationError` on decode. Where: `object_serializer.mustache` (`parse_protobuf_duration/1`). Test: `test/object_serializer_test.mustache`.
+
+### Proxy URL errors mask the userinfo (F1086, D79)
+
+Rule: the two `Invalid proxy URL` messages print the value with `user:pass@` replaced by `***@`. Where: `transport_options.mustache` (`mask_userinfo/1`). Test: `test/transport_options_test.mustache`.
+
+### Redirect handling (F1132, F1093)
+
+Rule: a 3xx whose `Location` is absent, cannot be resolved, or names an http(s) URL the transport cannot send (`http://[bad`, no host) comes back as that response, never as an exception. On a cross-origin hop every header whose name contains `key`, `token` or `secret` is removed together with the static list (the S15 redaction rule), so a default header or a custom authenticator's header does not follow the hop. Where: `default_api_client.mustache` (`resolve_url/2`, `strip_sensitive_headers/1`). Test: `test/default_api_client_unit_test.mustache`.
+
+### Generated literals and parameter names (F1154, F1055)
+
+Rule: every spec value written into an authenticator constructor call (api key name, token, authorization and OpenID Connect URLs, scopes) goes through `BetterElixirCodegen.toElixirStringLiteral` (backslash, quote, `#{`, line breaks and tab escaped). A path or body parameter named like a binding the operation function makes itself (`api`, `opts`, `options`, `auth`, `path`, `server` and the request-building locals) gets the suffix `_param`; the wire name is unaffected. Where: `BetterElixirCodegen`. Test: `BetterElixirCodegenTest`.
+
+### SKILLS error section (F1084)
+
+Rule: the Error Handling section names the root grouping (`<Prefix>Error`, `exceptions/0`, `<prefix>_error?/1`), `SerializationError`, `OAuth2ServerError` and `OAuth2TokenError`, and ends the example with the root predicate. Where: `skills.mustache`.
+
+### Skipped in batch 7 (needs shared Java, a cross-language decision or a toolchain run)
+
+F056 (S3: not enforced), F057, F1062, F865, F866 (shared generator), F1058, F1060, F1055's petstore fixture row (spec change), F1100, F1153, F1168, F1174, F1176 (gates and shared tests), F855 and F857 (401 retry and per-scheme credentials change the surface of all twelve), F838, F840, F1048, F1080 (size bounds and error rendering are cross-language), F1150, F1151 (no proxy fixture for Elixir; Elixir takes upload bytes, not a handle), F1152 (needs a compile gate), F1161 (only `/test/response-headers`, `/test/empty` and the Set-Cookie row are covered).
