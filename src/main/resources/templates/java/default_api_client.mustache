@@ -865,7 +865,13 @@ public final class DefaultApiClient implements ApiClient {
      * named, annotated method rather than a synthetic lambda.
      */
     private static boolean isSensitiveHeader(Set<String> sensitiveHeaders, String name) {
-        return sensitiveHeaders.contains(name.toLowerCase(Locale.ROOT));
+        String lower = name.toLowerCase(Locale.ROOT);
+        /* The static list, plus the S15 name heuristic: a header whose name
+         * contains key, token or secret is a credential whatever put it there. */
+        return sensitiveHeaders.contains(lower)
+                || lower.contains("key")
+                || lower.contains("token")
+                || lower.contains("secret");
     }
 
     /**

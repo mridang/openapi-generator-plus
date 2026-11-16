@@ -1210,6 +1210,8 @@ class DefaultApiClientUnitTest {
         new java.util.concurrent.atomic.AtomicReference<>("__unset__");
     final java.util.concurrent.atomic.AtomicReference<String> seenTarget =
         new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    final java.util.concurrent.atomic.AtomicReference<String> seenTenantToken =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
     HttpServer proxy = HttpServer.create(new InetSocketAddress(0), 0);
     proxy.createContext(
         "/x",
@@ -1228,6 +1230,7 @@ class DefaultApiClientUnitTest {
           seenTarget.set(exchange.getRequestURI().toString());
           seenProxyAuth.set(exchange.getRequestHeaders().getFirst("Proxy-Authorization"));
           seenAuth.set(exchange.getRequestHeaders().getFirst("Authorization"));
+          seenTenantToken.set(exchange.getRequestHeaders().getFirst("X-Tenant-Token"));
           exchange.sendResponseHeaders(200, -1);
           exchange.close();
         });
@@ -1241,6 +1244,7 @@ class DefaultApiClientUnitTest {
       DefaultApiClient client = new DefaultApiClient(transport);
       Map<String, String> headers = new HashMap<>();
       headers.put("Authorization", "Bearer caller-secret");
+      headers.put("X-Tenant-Token", "tenant-secret");
       ApiHttpResponse response = client.sendRequest("GET", "http://a.test/x", headers, null);
       assertEquals(200, response.statusCode());
       assertEquals("http://b.test/y", seenTarget.get());
@@ -1248,6 +1252,7 @@ class DefaultApiClientUnitTest {
           "Basic " + Base64.getEncoder().encodeToString("user:pass".getBytes(StandardCharsets.UTF_8)),
           seenProxyAuth.get());
       assertNull(seenAuth.get(), "the caller's Authorization must be stripped cross-origin");
+      assertNull(seenTenantToken.get(), "a header named like a credential must be stripped cross-origin");
     } finally {
       proxy.stop(0);
     }
