@@ -35459,8 +35459,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - java Client.java:92 still builds Configuration.builder().baseUrl(authenticator.getHost()) and ignores caller Configurati",
+   "status": "forced",
+   "note": "owner decision 2026-11-17: keep Configuration and TransportOptions separate; one README paragraph per SDK on which setting goes where",
    "batch": null
   },
   {
@@ -35550,7 +35550,7 @@
    ],
    "unit_testable": null,
    "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - no request method/url/request id on ApiError in any errors/ template; skipped in java/AGENTS.md:309 and kotlin/AGENTS.md",
+   "note": "owner decision 2026-11-17: ADD requestMethod and requestPath (query string stripped) to ApiException and subclasses in all 12 SDKs, included in the rendered message; wave b11",
    "batch": null
   },
   {
