@@ -167,6 +167,25 @@ class BaseApiTest {
         assertEquals(0, ok.invalidations)
     }
 
+    @Test
+    @DisplayName("F1121: an explicit Accept header parameter beats the configured default and the negotiated Accept")
+    fun headerParamAcceptWinsOverDefaultAndNegotiated() {
+        val client = CapturingApiClient()
+        val config = Configuration.builder().baseUrl("http://localhost").defaultHeader("Accept", "text/plain").build()
+        val api = TestableApiWithConfig(client, config)
+
+        runBlocking {
+            api.call(
+                "GET",
+                "/items",
+                headerParams = mutableMapOf("Accept" to "application/xml"),
+                accepts = arrayOf("application/json"),
+            )
+        }
+
+        assertEquals("application/xml", client.capturedHeaders["Accept"])
+    }
+
     private fun api() = TestableApi(ChasmContainer.getBaseUrl())
 
     @Test

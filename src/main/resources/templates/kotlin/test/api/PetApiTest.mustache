@@ -837,6 +837,156 @@ class PetApiTest {
             )
         }
 
+        private fun capturingPetApi(
+            responseBody: String,
+            contentType: String = "application/json",
+            capture: (io.ktor.client.request.HttpRequestData, String) -> Unit,
+        ): PetApi {
+            val engine =
+                MockEngine { request ->
+                    capture(request, String(request.body.toByteArray(), Charsets.UTF_8))
+                    respond(
+                        content = responseBody,
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", contentType),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            return PetApi(DefaultApiClient(HttpClient(engine)), config)
+        }
+
+        @Test
+        @DisplayName("getPetTag sends object-valued query and header parameters in their styles")
+        fun testGetPetTagObjectValuedParameters() {
+            // F1143/D47: form exploded, form not exploded, deepObject and simple header.
+            var query = ""
+            var header: String? = null
+            val api =
+                capturingPetApi("""{"id":1,"name":"Rex","photoUrls":[]}""") { request, _ ->
+                    query = request.url.encodedQuery
+                    header = request.headers["X-Criteria"]
+                }
+            val criteria = PetCriteria(breed = "lab", minAge = 3)
+
+            runBlocking {
+                api.getPetTag(
+                    5L,
+                    "cute",
+                    GetPetTagOptions(criteria = criteria, criteriaCsv = criteria, criteriaDeep = criteria, xCriteria = criteria),
+                )
+            }
+
+            assertTrue(query.contains("breed=lab"), query)
+            assertTrue(query.contains("min_age=3"), query)
+            assertTrue(query.contains("criteriaCsv=breed%2Clab%2Cmin_age%2C3"), query)
+            assertTrue(query.contains("criteriaDeep%5Bbreed%5D=lab"), query)
+            assertTrue(query.contains("criteriaDeep%5Bmin_age%5D=3"), query)
+            assertEquals("breed,lab,min_age,3", header)
+        }
+
+        @Test
+        @DisplayName("a digit-leading query parameter keeps its wire name")
+        fun testDigitLeadingQueryParameterKeepsWireName() {
+            // F1113: the identifier is n2ndPage, the wire name stays 2ndPage.
+            var query = ""
+            val api = capturingPetApi("[]") { request, _ -> query = request.url.encodedQuery }
+
+            runBlocking { api.findPetsByStatus(FindPetsByStatusOptions(n2ndPage = 2)) }
+
+            assertTrue(query.contains("2ndPage=2"), query)
+            assertFalse(query.contains("n2ndPage"), query)
+        }
+
+        @Test
+        @DisplayName("getPetSummary sends the matrix date path, the cookie and the date array, and returns the text body")
+        fun testGetPetSummaryWireShapes() {
+            // F1068: matrix-style format:date path segment, required cookie, date-array query, text/plain.
+            var path = ""
+            var query = ""
+            var cookie: String? = null
+            val api =
+                capturingPetApi("hello", contentType = "text/plain") { request, _ ->
+                    path = request.url.encodedPath
+                    query = request.url.encodedQuery
+                    cookie = request.headers["Cookie"]
+                }
+
+            val summary =
+                runBlocking {
+                    api.getPetSummary(
+                        7L,
+                        java.time.LocalDate.of(2024, 1, 2),
+                        {{apiPackage}}.options.GetPetSummaryOptions(
+                            session = "abc",
+                            days = listOf(java.time.LocalDate.of(2024, 1, 3), java.time.LocalDate.of(2024, 1, 4)),
+                        ),
+                    )
+                }
+
+            assertEquals("hello", summary)
+            assertTrue(path.endsWith("/pet/7/summary/;asOf=2024-01-02"), path)
+            assertTrue(query.contains("days=2024-01-03"), query)
+            assertTrue(query.contains("2024-01-04"), query)
+            assertEquals("session=abc", cookie)
+        }
+
+        @Test
+        @DisplayName("uploadPetDocument sends non-string scalar parts as plain text parts")
+        fun testUploadPetDocumentScalarParts() {
+            // F1125/D36: boolean, integer, date-time and enum parts carry their text form and no Content-Type.
+            var wire = ""
+            val api = capturingPetApi("""{"code":200,"type":"ok","message":"m"}""") { _, body -> wire = body }
+
+            runBlocking {
+                api.uploadPetDocument(
+                    1L,
+                    UploadPetDocumentOptions(
+                        _file = "doc".toByteArray(),
+                        isPrimary = true,
+                        pageCount = 3L,
+                        takenAt = java.time.OffsetDateTime.parse("2024-01-15T10:30:00Z"),
+                        swatch = Swatch.RED,
+                    ),
+                )
+            }
+
+            val expected =
+                mapOf(
+                    "isPrimary" to "true",
+                    "pageCount" to "3",
+                    "takenAt" to "2024-01-15T10:30:00.000+00:00",
+                    "swatch" to "red",
+                )
+            for ((name, text) in expected) {
+                val start = wire.indexOf("name=\"$name\"")
+                assertTrue(start >= 0, "missing part $name in: $wire")
+                val part = wire.substring(start, wire.indexOf("\r\n--", start))
+                assertFalse(part.contains("Content-Type"), "part $name must carry no Content-Type: $part")
+                assertTrue(part.endsWith("\r\n\r\n$text"), "part $name must be $text: $part")
+            }
+        }
+
+        @Test
+        @DisplayName("addPetTreatment puts exactly the chosen variant on the wire as JSON")
+        fun testAddPetTreatmentSendsTheChosenVariant() {
+            // F1142: the anyOf wrapper is the request body of the operation.
+            var body = ""
+            var contentType: String? = null
+            var path = ""
+            val api =
+                capturingPetApi("""{"procedureName":"spay"}""") { request, text ->
+                    body = text
+                    path = request.url.encodedPath
+                    contentType = request.body.contentType?.toString()
+                }
+
+            runBlocking { api.addPetTreatment(5L, PetTreatment(actualInstance = Surgery(procedureName = "spay"))) }
+
+            assertTrue(path.endsWith("/pet/5/treatment"), path)
+            assertTrue(contentType!!.startsWith("application/json"), contentType)
+            assertTrue(body.contains("\"procedureName\":\"spay\""), body)
+        }
+
         @Test
         @DisplayName("getPetTag sends format: byte query and header values as padded standard base64")
         fun testGetPetTagByteParamsAreBase64() {

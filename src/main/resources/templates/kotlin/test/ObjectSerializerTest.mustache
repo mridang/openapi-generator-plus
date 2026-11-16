@@ -1210,6 +1210,81 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("colliding schema names (Error, Result) keep their wire keys through EdgeCases")
+        fun collidingSchemaNamesRoundTrip() {
+            // F1131/D45: lastError and outcome decode and re-encode under their own keys.
+            val wire = "{\"lastError\":{\"code\":7,\"message\":\"boom\"},\"outcome\":{\"ok\":true}}"
+            val decoded = serializer.deserialize<{{modelPackage}}.EdgeCases>(wire)
+            assertNotNull(decoded)
+            assertEquals(7, decoded!!.lastError!!.code)
+            assertEquals("boom", decoded.lastError!!.message)
+            assertEquals(true, decoded.outcome!!.ok)
+            assertEquals(
+                kotlinx.serialization.json.Json.parseToJsonElement(wire),
+                kotlinx.serialization.json.Json.parseToJsonElement(serializer.serialize(decoded)),
+            )
+        }
+
+        @Test
+        @DisplayName("enum members with non-identifier wire values (Separator) decode to distinct constants")
+        fun separatorEnumRoundTrip() {
+            // F1124: ' ', '@@', 'a-b' and 'a_b' sanitise to empty or colliding identifiers.
+            val members = mutableSetOf<Any>()
+            for (wire in listOf(" ", "@@", "a-b", "a_b")) {
+                val decoded = serializer.deserialize<{{modelPackage}}.EdgeCases>("{\"separator\":\"$wire\"}")
+                assertNotNull(decoded, wire)
+                members.add(decoded!!.separator!!)
+                assertEquals(wire, decoded.separator!!.value)
+                assertTrue(serializer.serialize(decoded).contains("\"separator\":\"$wire\""), wire)
+            }
+            assertEquals(4, members.size)
+        }
+
+        @Test
+        @DisplayName("a contentEncoding property (PetPassport.biometricChip) is a base64 byte field")
+        fun contentEncodedPropertyIsBase64Bytes() {
+            // F1116: normalised to format: byte, so it decodes from and encodes to standard base64.
+            val decoded = serializer.deserialize<{{modelPackage}}.PetPassport>("{\"biometricChip\":\"AQID\"}")
+            assertNotNull(decoded)
+            assertArrayEquals(byteArrayOf(1, 2, 3), decoded!!.biometricChip)
+            assertTrue(serializer.serialize(decoded).contains("\"biometricChip\":\"AQID\""))
+        }
+
+        @Test
+        @DisplayName("a uuid property (Order.trackingId) is written lowercase, read from uppercase and malformed is rejected")
+        fun uuidPropertyIsCanonicalLowercase() {
+            // F1130/D67
+            val upper = "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"
+            val decoded = serializer.deserialize<{{modelPackage}}.Order>("{\"trackingId\":\"$upper\"}")
+            assertNotNull(decoded)
+            assertTrue(
+                serializer.serialize(decoded!!).contains("\"trackingId\":\"${upper.lowercase()}\""),
+                "expected the lowercase form",
+            )
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>("{\"trackingId\":\"not-a-uuid\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("a date-time without an offset is rejected on decode")
+        fun dateTimeWithoutOffsetIsRejected() {
+            // D57/F080, F1163: the host time zone must never fill the missing offset in.
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>("{\"shipDate\":\"2024-01-15T10:30:00\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("a duplicate object key resolves to the last value")
+        fun duplicateKeyKeepsTheLastValue() {
+            // F1067
+            val decoded = serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"first\",\"name\":\"last\",\"photoUrls\":[]}")
+            assertNotNull(decoded)
+            assertEquals("last", decoded!!.name)
+        }
+
+        @Test
         @DisplayName("hostile Availability members map to their exact JSON-quoted wire strings")
         fun hostileAvailabilityMembersRoundTrip() {
             // D46/F1144: an apostrophe, a backslash, a dollar sign and an interpolation opener.

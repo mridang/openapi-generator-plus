@@ -11,6 +11,7 @@ import {{apiPackage}}.options.SearchStoreOptions
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
@@ -210,6 +211,69 @@ class StoreApiTest {
                     runBlocking { api.deleteOrder(99999L) }
                 }
             assertEquals(404, exception.statusCode)
+        }
+
+        private fun capturingStoreApi(
+            responseBody: String,
+            capture: (io.ktor.client.request.HttpRequestData, String) -> Unit = { _, _ -> },
+        ): StoreApi {
+            val engine =
+                MockEngine { request ->
+                    capture(request, String(request.body.toByteArray(), Charsets.UTF_8))
+                    respond(
+                        content = responseBody,
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            return StoreApi(DefaultApiClient(HttpClient(engine)), config)
+        }
+
+        @Test
+        @DisplayName("createAccount sends the writeOnly password and keeps the readOnly id")
+        fun testCreateAccountSendsAndReceivesReadOnlyAndWriteOnly() {
+            // F1128/D56
+            var sent = ""
+            val api =
+                capturingStoreApi("""{"id":7,"username":"u","password":"p"}""") { _, text -> sent = text }
+
+            val created = runBlocking { api.createAccount(Account(username = "u", password = "p")) }
+
+            assertTrue(sent.contains("\"password\":\"p\""), sent)
+            assertEquals(7L, created.id)
+            assertEquals("p", created.password)
+        }
+
+        @Test
+        @DisplayName("response-shape operations decode their return types")
+        fun testResponseShapeOperations() {
+            // F1141: bare enum, array of enum maps, array of date-time maps, recursive models, defaults, int enum.
+            assertEquals(Swatch.GREEN, runBlocking { capturingStoreApi("\"green\"").getSwatch() })
+            assertEquals(
+                listOf(mapOf("a" to Swatch.RED), mapOf("b" to Swatch.BLUE)),
+                runBlocking { capturingStoreApi("""[{"a":"red"},{"b":"blue"}]""").getSwatchGroups() },
+            )
+            val groups =
+                runBlocking {
+                    capturingStoreApi("""[{"t":"2024-01-15T10:30:00Z"}]""").getTimestampGroups()
+                }
+            assertEquals(OffsetDateTime.parse("2024-01-15T10:30:00Z").toInstant(), groups[0]["t"]!!.toInstant())
+
+            val department =
+                runBlocking {
+                    capturingStoreApi("""{"name":"d","lead":{"name":"e","department":{"name":"d2"}}}""").getDepartment()
+                }
+            assertEquals("d2", department.lead!!.department!!.name)
+
+            val tree =
+                runBlocking { capturingStoreApi("""{"value":"a","child":{"value":"b","child":{"value":"c"}}}""").getTree() }
+            assertEquals("c", tree.child!!.child!!._value)
+
+            val defaults = runBlocking { capturingStoreApi("{}").getDefaults() }
+            assertEquals(3, defaults.retries)
+            assertEquals(Defaults.ModeEnum.MEDIUM, defaults.mode)
+            assertEquals("untitled", defaults.label)
         }
 
         @Test
