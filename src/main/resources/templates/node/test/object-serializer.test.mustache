@@ -8,7 +8,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { Account, Category, EdgeCases, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag, RequiredNullable } from '../src/models/index{{importFileExtension}}';
+import { Account, Category, EdgeCases, ModelError, ModelResult, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag, RequiredNullable } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -2146,6 +2146,16 @@ describe('toBinary', () => {
       const decoded = ObjectSerializer.deserialize({ priority: 1, availability: wire }, StockItem)!;
       expect(decoded.availability).toBe(wire);
       expect(JSON.parse(ObjectSerializer.serialize(decoded)).availability).toBe(wire);
+    });
+
+    test('models named Error and Result are generated as ModelError and ModelResult and round trip', () => {
+      const wire = { lastError: { code: 7, message: 'boom' }, outcome: { ok: true } };
+      const decoded = ObjectSerializer.deserialize(wire, EdgeCases)!;
+
+      expect(decoded.lastError).toBeInstanceOf(ModelError);
+      expect(decoded.lastError!.message).toBe('boom');
+      expect(decoded.outcome).toBeInstanceOf(ModelResult);
+      expect(JSON.parse(ObjectSerializer.serialize(decoded))).toMatchObject(wire);
     });
 
     test('a duplicate object key resolves to the last value', () => {

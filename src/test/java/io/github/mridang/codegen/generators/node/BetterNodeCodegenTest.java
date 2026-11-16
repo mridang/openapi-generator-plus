@@ -44,4 +44,12 @@ class BetterNodeCodegenTest {
         plain.dataType = "string";
         assertEquals("string", BetterNodeCodegen.uploadType(plain));
     }
+
+    @Test
+    void modelsNamedLikeTheGlobalErrorOrResultGetThePrefix() {
+        final BetterNodeCodegen codegen = new BetterNodeCodegen();
+        assertEquals("ModelError", codegen.toModelName("Error"));
+        assertEquals("ModelResult", codegen.toModelName("Result"));
+        assertEquals("Category", codegen.toModelName("Category"));
+    }
 }

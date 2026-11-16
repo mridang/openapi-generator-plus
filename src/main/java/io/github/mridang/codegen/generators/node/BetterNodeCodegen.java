@@ -125,6 +125,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "number", "boolean", "string", "object", "any", "unknown",
                                 "void", "undefined", "null", "Array", "Set", "Buffer", "UUID",
                                 "URI", "Email", "Decimal",
+                                // A schema named like the global Error would shadow it in
+                                // every model file that imports it; Result is renamed to
+                                // match the other SDKs (D45, F173).
+                                "Error", "Result",
                                 // 4.8 — Temporal.* types come from `temporal-polyfill`,
                                 // not from generated models, so the model-import filter
                                 // must not treat them as model classes.

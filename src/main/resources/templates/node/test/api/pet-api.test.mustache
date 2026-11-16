@@ -1200,6 +1200,44 @@ describe('PetApi against a recording client', () => {
     expect(recorded[0]!.headers['X-Criteria']).toBe('breed,lab,min_age,3');
   });
 
+  test('getPetTag writes the matrix path parameter and the label path parameter', async () => {
+    await recordingApi.getPetTag(5, 'cute');
+
+    expect(new URL(recorded[0]!.url).pathname).toBe('/pet/;petId=5/tag/.cute');
+  });
+
+  test('findPetsByStatus writes the deepObject filter as bracketed keys', async () => {
+    await recordingApi.findPetsByStatus({ filter: { color: 'blue', size: 'large' } }).catch(() => undefined);
+
+    expect(new URL(recorded[0]!.url).search).toContain('filter%5Bcolor%5D=blue&filter%5Bsize%5D=large');
+  });
+
+  test('findPetsByStatus keeps the digit-leading query parameter name', async () => {
+    await recordingApi.findPetsByStatus({ n2ndPage: 2 }).catch(() => undefined);
+
+    expect(new URL(recorded[0]!.url).searchParams.get('2ndPage')).toBe('2');
+  });
+
+  test('getPetByName without the required X-Correlation-Id header sends no request', async () => {
+    const error = await recordingApi.getPetByName('x', { category: 'sample' } as never).catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('getPetSummary without the required session cookie sends no request', async () => {
+    const error = await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {} as never).catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Missing the required parameter 'session' when calling PetApi.getPetSummary",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
   test('without a variant the client base URL is used', async () => {
     await recordingApi.getExternalPetInfo(1);
 

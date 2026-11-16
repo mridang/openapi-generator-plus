@@ -1645,3 +1645,55 @@ describe('SendRequestOptions.signal', () => {
     await client.close();
   });
 });
+
+describe('the client keeps no ambient state between requests', () => {
+  const originalFetch = global.fetch;
+  const proxyVariables = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy'];
+  const savedEnvironment = new Map<string, string | undefined>();
+  afterEach(() => {
+    global.fetch = originalFetch;
+    for (const name of proxyVariables) {
+      const saved = savedEnvironment.get(name);
+      if (saved === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = saved;
+      }
+    }
+    savedEnvironment.clear();
+  });
+
+  it('a Set-Cookie response header is not replayed on the next request', async () => {
+    const seen: Array<Record<string, string>> = [];
+    global.fetch = (async (_url: unknown, init: { headers: Record<string, string> }) => {
+      seen.push(init.headers);
+      const headers = new Headers();
+      headers.append('set-cookie', 'sid=abc; Path=/');
+      return new Response('{}', { status: 200, headers });
+    }) as unknown as typeof fetch;
+    const client = new DefaultApiClient();
+
+    await client.sendRequest('GET', 'http://api.example/first', {}, null);
+    await client.sendRequest('GET', 'http://api.example/second', {}, null);
+
+    expect(seen).toHaveLength(2);
+    expect(Object.keys(seen[1]!).map((name) => name.toLowerCase())).not.toContain('cookie');
+  });
+
+  it('ambient proxy variables are ignored; only TransportOptions.proxy is a proxy source', async () => {
+    for (const name of proxyVariables) {
+      savedEnvironment.set(name, process.env[name]);
+      process.env[name] = 'http://127.0.0.1:9';
+    }
+    let seenInit: Record<string, unknown> | undefined;
+    global.fetch = (async (_url: unknown, init: Record<string, unknown>) => {
+      seenInit = init;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await new DefaultApiClient().sendRequest('GET', 'http://api.example/x', {}, null);
+
+    expect(seenInit).toBeDefined();
+    expect(seenInit!['dispatcher']).toBeUndefined();
+  });
+});
