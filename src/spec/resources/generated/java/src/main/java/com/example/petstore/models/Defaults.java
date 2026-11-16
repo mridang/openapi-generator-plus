@@ -83,7 +83,7 @@ public class Defaults {
   /** The {@code label} property. */
   @JsonProperty("label")
   @Nullable
-  public String label = "untitled";
+  public Object label;
 
   /** The {@code greeting} property. */
   @JsonProperty("greeting")

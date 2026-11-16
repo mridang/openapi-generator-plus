@@ -31,7 +31,7 @@ class Defaults(BaseModel):
     mode: Optional[DefaultsModeEnum] = Field(
         default=DefaultsModeEnum.MEDIUM, alias="mode"
     )
-    label: Optional[StrictStr] = Field(default="untitled", alias="label")
+    label: Optional[object] = Field(default=untitled, alias="label")
     greeting: Optional[StrictStr] = Field(
         default='it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b', alias="greeting"
     )

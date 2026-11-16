@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
-from pydantic import StrictStr
 
 
 class RequiredNullable(BaseModel):
@@ -16,7 +15,7 @@ class RequiredNullable(BaseModel):
     RequiredNullable
     """
 
-    note: StrictStr = Field(alias="note")
+    note: object = Field(alias="note")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

@@ -19,7 +19,7 @@ public class RequiredNullable {
   @Nullable
   @com.fasterxml.jackson.annotation.JsonInclude(
       com.fasterxml.jackson.annotation.JsonInclude.Include.ALWAYS)
-  public String note;
+  public Object note;
 
   /* No-arg constructor required by deserialization/test tooling. It
    * intentionally leaves the @NonNull required fields uninitialized — the
@@ -40,7 +40,7 @@ public class RequiredNullable {
    * @param note the {@code note} property
    */
   @com.fasterxml.jackson.annotation.JsonCreator
-  public RequiredNullable(@JsonProperty(value = "note", required = true) @Nullable String note) {
+  public RequiredNullable(@JsonProperty(value = "note", required = true) @Nullable Object note) {
     this.note = note;
   }
 
