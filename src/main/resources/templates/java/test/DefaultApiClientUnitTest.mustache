@@ -360,6 +360,9 @@ class DefaultApiClientUnitTest {
     private final List<java.net.http.HttpRequest> requests =
         new java.util.concurrent.CopyOnWriteArrayList<>();
 
+    /** When set, answers every send with this response instead of reaching the network. */
+    private java.net.http.HttpResponse<byte[]> scripted;
+
     @Override
     public java.util.Optional<java.net.CookieHandler> cookieHandler() {
       return delegate.cookieHandler();
@@ -406,19 +409,76 @@ class DefaultApiClientUnitTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> java.net.http.HttpResponse<T> send(
         java.net.http.HttpRequest request,
         java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler)
         throws IOException, InterruptedException {
       requests.add(request);
+      if (scripted != null) {
+        return (java.net.http.HttpResponse<T>) scripted;
+      }
       return delegate.send(request, responseBodyHandler);
     }
 
+    /** A redirect answer for {@code request}, pointing at {@code location}. */
+    static java.net.http.HttpResponse<byte[]> redirect(
+        int status, String location, java.net.http.HttpRequest request) {
+      java.net.http.HttpHeaders headers =
+          java.net.http.HttpHeaders.of(Map.of("location", List.of(location)), (name, value) -> true);
+      return new java.net.http.HttpResponse<byte[]>() {
+        @Override
+        public int statusCode() {
+          return status;
+        }
+
+        @Override
+        public java.net.http.HttpRequest request() {
+          return request;
+        }
+
+        @Override
+        public java.util.Optional<java.net.http.HttpResponse<byte[]>> previousResponse() {
+          return java.util.Optional.empty();
+        }
+
+        @Override
+        public java.net.http.HttpHeaders headers() {
+          return headers;
+        }
+
+        @Override
+        public byte[] body() {
+          return new byte[0];
+        }
+
+        @Override
+        public java.util.Optional<javax.net.ssl.SSLSession> sslSession() {
+          return java.util.Optional.empty();
+        }
+
+        @Override
+        public java.net.URI uri() {
+          return request.uri();
+        }
+
+        @Override
+        public java.net.http.HttpClient.Version version() {
+          return java.net.http.HttpClient.Version.HTTP_1_1;
+        }
+      };
+    }
+
     @Override
+    @SuppressWarnings("unchecked")
     public <T> java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<T>> sendAsync(
         java.net.http.HttpRequest request,
         java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler) {
       requests.add(request);
+      if (scripted != null) {
+        return java.util.concurrent.CompletableFuture.completedFuture(
+            (java.net.http.HttpResponse<T>) scripted);
+      }
       return delegate.sendAsync(request, responseBodyHandler);
     }
 
@@ -1430,6 +1490,35 @@ class DefaultApiClientUnitTest {
     assertEquals(302, ex.getStatusCode());
     assertTrue(
         ex.toString().contains("Too many redirects (exceeded 2)"), "unexpected message: " + ex);
+  }
+
+  @Test
+  void redirectThatDowngradesHttpsToHttpRefusesToReplayTheBody() {
+    // D16: a 307 from https to http would send the body in cleartext.
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.scripted =
+        RecordingHttpClient.redirect(
+            307,
+            "http://other.example.invalid/y",
+            java.net.http.HttpRequest.newBuilder(
+                    java.net.URI.create("https://api.example.invalid/x"))
+                .build());
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class,
+            () ->
+                client.sendRequest(
+                    "POST", "https://api.example.invalid/x", Map.of(), "payload"));
+    assertEquals(307, ex.getStatusCode());
+    assertTrue(
+        ex.toString()
+            .contains(
+                "Refusing to replay request body across HTTPS->HTTP redirect: "
+                    + "https://api.example.invalid/x -> http://other.example.invalid/y"),
+        "was: " + ex);
   }
 
   @Test

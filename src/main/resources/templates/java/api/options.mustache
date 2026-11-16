@@ -67,6 +67,9 @@ public final class {{className}} {
 {{/description}}
      *
      * @param {{paramName}} {{#description}}{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}{{/description}}{{^description}}the {@code {{baseName}}} parameter{{/description}}
+{{#pluralExamples}}
+     *     Example — {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}: {@code {{{value}}}}
+{{/pluralExamples}}
      * @return this options instance for chaining
 {{#deprecated}}
      * @deprecated This parameter is deprecated.

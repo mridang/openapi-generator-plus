@@ -185,4 +185,12 @@ class BetterJavaCodegenTest {
         assertTrue(codegen.setsDiscriminatorDefaultOnChildren());
         assertTrue(codegen.demotesDiscriminatorFromRequiredVars());
     }
+
+    @Test
+    void renamesAParameterNamedLikeAnInjectedArgument() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        assertEquals("optionsParam", codegen.toParamName("options"));
+        assertEquals("serverParam", codegen.toParamName("server"));
+        assertEquals("requestContentTypeParam", codegen.toParamName("requestContentType"));
+    }
 }

@@ -341,3 +341,29 @@ Where: `api_error.mustache`. Test: `ApiExceptionTest`.
 
 ### F825 skipped
 Rust only.
+
+## Decisions taken in batch 10
+
+### Fixed (code and test)
+- F1103 (D79): a CA certificate that cannot be read says `failed to read CA certificate from "<path>": <cause>`, one that holds no certificate or does not parse says `failed to parse CA certificate from "<path>": <cause>` (an empty or non-PEM file gives `no PEM blocks found or unparseable`). Where: `default_api_client.mustache`. Test: `DefaultApiClientUnitTest` (`nonexistentCaCertPathFailsFast`, `garbagePemCaCertPathThrowsIllegalArgumentException`, `emptyCaCertFileIsReportedAsNoPemBlocks`).
+- F1118: `ServerConfiguration.getUrl` validates every variable, then substitutes in one pass over the template, so a value that contains `{other}` is never expanded again and an unknown placeholder stays literal. Where: `server_configuration.mustache`. Test: `ServerConfigurationTest`.
+- F1088: `make lint` runs `mvn spotless:check checkstyle:check spotbugs:check`. Where: `makefile.mustache`.
+- F1094: the jar manifest carries `Automatic-Module-Name` set to the invoker package (maven-jar-plugin 3.4.2). No `module-info.java`. Where: `pom.mustache`.
+- F1096 (half): `jackson-jaxrs-json-provider` is gone (nothing used it). `jsr305` stays a compile dependency because the public types carry `javax.annotation.Nullable`; moving it to `provided` is a decision for the owner.
+- F1055: `BetterJavaCodegen.getInjectedArgumentNames` is `options`, `server` and `requestContentType`, so a path or body parameter of that name becomes `optionsParam` and so on. Test: `BetterJavaCodegenTest.renamesAParameterNamedLikeAnInjectedArgument`.
+- F893 (java half): the named examples of an optional parameter are rendered on its Options setter (`Example — <summary>: {@code <value>}`). Where: `api/options.mustache`, `BetterJavaCodegen.generateOptionsFileContent`. Test: `JavaFormattingSpec.pluralExamplesShouldBeAttributedToParameter` (F1071, required `petId` examples on the operation); the optional-parameter rendering shows in the regenerated golden.
+- F1072: `BetterJavaCodegenTypeMappingTest` is now `BetterJavaCodegenTest` (mirrors its source) and covers the generator identity, naming conventions, collection templates, discriminator flags and the injected names.
+
+### Tests added for behaviour that already conformed
+F901 (`proxyPasswordKeepsALiteralPlusSign`), F926 (`unusableTokenResponseHasTheCanonicalMessageAndNoCause`, five rows), F927 (`redirectThatDowngradesHttpsToHttpRefusesToReplayTheBody`, driven by a scripted `HttpClient`, so no TLS fixture), F1065 (IPv6 proxy rows in `TransportOptionsTest`), F1073 and F1074 (`BearerAuthenticatorTest`), F1119 (`TransportOptionsTest.readmeSocksNoteNamesTheBuilderProxySetter`), F1123 (`ClientTest.customTransportWithoutCloseCanBeClosedTwice`), F1135 (`identityEncodedBodyPassesThroughUndecodedAndKeepsItsHeaders`), F1139 (`ServerConfigurationTest`, map and enum list copies), F1129 (`ComposedSchemaTest.TreatmentRecordTests`), F1161 (`StoreApiTest` typed status routes, 400 to 502), F1170 (`BaseApiTest` `sendsNoBodyWhenNull` now asserts a null body and no `Content-Type` or `Content-Length`), F1107 (the four remaining snake_case test names renamed).
+
+### Already conforming
+F215 (`ObjectSerializerTest` `requiredNullableKeepsExplicitNull`, `requiredNullableRejectsMissingKey`), F855 and F858 (batch 9), F1124 (the `o'neil` server, `ZZZZZZZZZZ` nickname and the slug rows are in the java tests), F1080 (batch 9).
+
+### Skipped, with the reason
+- F324 (optional body overload), F332 (binary response type): public API shape across every operation variant and a cross-language decision.
+- F831 (502, 503, 504 types), F840, F843, F857, F862, F865, F866, F894, F908, F1056, F1058, F1060, F1061, F1062, F1081, F1153, F1157, F1172, F1177, F1178, F1180: owner decision or shared Java (`AbstractBetterCodegen`, the OpenAPI rules, the petstore spec, `etc/`). `forUnusableResponse` stays public because `DefaultApiClient` calls it from another package.
+- F860 (OIDC discovery keeps default headers): the discovery request needs an `ApiClient` flag that is separate from `noRedirect`, a public API change.
+- F1078 (`close()` cancels in-flight requests): the error shape of a cancelled request is not decided and the test would be timing based.
+- F1077, F1085: new generated build gates and shared fixtures, cross-language.
+- F1140: java reads each redirect body whole (`BodyHandlers.ofByteArray`), so a hop holds no connection to release and there is nothing to count.

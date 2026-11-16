@@ -208,7 +208,7 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("proxy_with_credentials_injects_basic_authorization")
-        void proxy_with_credentials_injects_basic_authorization() throws Exception {
+        void proxyWithCredentialsInjectsBasicAuthorization() throws Exception {
             TransportOptions transport = TransportOptions.builder()
                     .proxy("http://alice:s3cret@127.0.0.1:3128")
                     .build();
