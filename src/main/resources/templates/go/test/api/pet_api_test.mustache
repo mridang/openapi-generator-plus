@@ -1195,6 +1195,38 @@ func TestPetApi_CallerSuppliedFileHandleIsNeverClosedByTheSdk(t *testing.T) {
 	}
 }
 
+// F1127: a required header and a required cookie are refused before dispatch
+// when they are empty, naming the caller-facing parameter.
+func TestPetApi_RequiredHeaderAndCookieAreRefusedBeforeAnyRequest(t *testing.T) {
+	t.Parallel()
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	_, err := api.GetPetByName(context.Background(), "rex", &options.GetPetByNameOptions{Category: "c"})
+	if !errors.Is(err, {{packageName}}.ErrMissingRequiredParameter) {
+		t.Fatalf("expected ErrMissingRequiredParameter for the header, got %v", err)
+	}
+	if !strings.HasSuffix(err.Error(), "'xCorrelationId' when calling PetApi.GetPetByName") {
+		t.Errorf("unexpected message %q", err.Error())
+	}
+
+	_, err = api.GetPetSummary(context.Background(), int64(1), "2024-01-01", &options.GetPetSummaryOptions{})
+	if !errors.Is(err, {{packageName}}.ErrMissingRequiredParameter) {
+		t.Fatalf("expected ErrMissingRequiredParameter for the cookie, got %v", err)
+	}
+	if !strings.HasSuffix(err.Error(), "'session' when calling PetApi.GetPetSummary") {
+		t.Errorf("unexpected message %q", err.Error())
+	}
+	if requests != 0 {
+		t.Errorf("expected no request to be sent, got %d", requests)
+	}
+}
+
 func TestPetApi_UploadFieldAcceptsAnIoReader(t *testing.T) {
 	t.Parallel()
 	var gotFile string

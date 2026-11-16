@@ -3,6 +3,7 @@ package {{packageName}}_test
 
 import (
 	"context"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -31,6 +32,40 @@ func newStoreApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := {{packageName}}.NewDefaultApiClient(nil)
 	return {{packageName}}.NewStoreApi(client, config, nil)
+}
+
+// F1128: createAccount sends the write-only password, keeps the read-only id
+// of the response, and carries no credential of its own.
+func TestStoreApi_CreateAccountSendsPasswordAndDecodesReadOnlyId(t *testing.T) {
+	t.Parallel()
+	var gotBody, gotMethod, gotPath, gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		gotBody, gotMethod, gotPath, gotAuth = string(raw), r.Method, r.URL.Path, r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":7,"username":"u"}`))
+	}))
+	defer server.Close()
+	api := newStoreApiForMock(t, server)
+
+	password := "p"
+	result, err := api.CreateAccount(context.Background(), models.Account{Username: "u", Password: &password})
+	if err != nil {
+		t.Fatalf("CreateAccount failed: %v", err)
+	}
+	if gotMethod != "POST" || gotPath != "/store/account" {
+		t.Errorf("expected POST /store/account, got %s %s", gotMethod, gotPath)
+	}
+	if gotBody != `{"username":"u","password":"p"}` {
+		t.Errorf("expected the password on the wire, got %s", gotBody)
+	}
+	if gotAuth != "" {
+		t.Errorf("expected no Authorization header, got %q", gotAuth)
+	}
+	if result.Id == nil || *result.Id != 7 {
+		t.Errorf("expected the read-only id 7, got %v", result.Id)
+	}
 }
 
 func TestStoreApi_PlaceOrder(t *testing.T) {
