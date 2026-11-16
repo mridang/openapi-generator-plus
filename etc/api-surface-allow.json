@@ -2058,6 +2058,14 @@
     "node"
    ],
    "reason": "F1143, D47: node's maybeAllowReserved returns a union (string, string[], ExplodedObject, AllowReservedValue), whose first SDK type is ExplodedObject; the others return only the allow-reserved wrapper"
+  },
+  {
+   "element": "metadata.additionalpropertiestype",
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "tracked as F865: typed additionalProperties is populated by the shared generator for ruby only so far (populatesAdditionalPropertiesType hook); the other SDKs render it differently or still need the typing"
   }
  ]
 }
