@@ -283,7 +283,7 @@ public class OAuth2TokenManagerTest
         // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
         // MUST NOT clobber the cached refresh_token.
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}");
 
         var manager = new OAuth2TokenManager();
@@ -311,8 +311,8 @@ public class OAuth2TokenManagerTest
         // letting the JsonException propagate.
         var client = new FakeApiClient();
         // 1) Initial grant: returns an access token + refresh token, near-expiry
-        //    (expires_in=1, minus the 30s buffer) so the next call refreshes.
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        //    (expires_in=0) so the next call refreshes.
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         // 2) Refresh attempt: malformed JSON body -> OAuth2TokenException.
         client.Enqueue("this is not json", statusCode: 200);
         // 3) Fallback original grant: succeeds.
@@ -690,7 +690,7 @@ public class OAuth2TokenManagerTest
     public async Task NonStringRefreshTokenDoesNotReplaceTheStoredOne()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"refresh_token\":12345,\"expires_in\":3600}");
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
@@ -836,7 +836,7 @@ public class OAuth2TokenManagerTest
     public async Task RefreshGoesToTheRefreshUrlWithTheClientCredentials()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);
@@ -863,7 +863,7 @@ public class OAuth2TokenManagerTest
     public async Task RefreshGrantParametersMakeExactlyOnePost()
     {
         var client = new FakeApiClient();
-        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
         var manager = new OAuth2TokenManager();
         manager.SetApiClient(client);

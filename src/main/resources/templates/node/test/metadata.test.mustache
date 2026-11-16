@@ -61,7 +61,7 @@ describe('schema constraints in model doc comments (documentation only)', () => 
   });
 
   test('the constraints are not enforced at runtime', () => {
-    expect(() => new Pet({ name: 'Fido', photoUrls: [], nickname: 'x' })).not.toThrow();
+    expect(() => new Pet({ name: 'Fido', photoUrls: new Set<string>(), nickname: 'x' })).not.toThrow();
   });
 });
 

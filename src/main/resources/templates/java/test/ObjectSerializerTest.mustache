@@ -1794,7 +1794,8 @@ class ObjectSerializerTest {
                     new com.fasterxml.jackson.core.type.TypeReference<Object>() {}.getType();
             SerializationException ex = assertThrows(SerializationException.class,
                     () -> serializer.deserialize("{\"a\":", objectType));
-            assertTrue(ex.getMessage().startsWith("Failed to deserialize JSON: "), ex.getMessage());
+            String message = String.valueOf(ex.getMessage());
+            assertTrue(message.startsWith("Failed to deserialize JSON: "), message);
         }
 
         /* Containers of byte arrays must print their content, not identity. */

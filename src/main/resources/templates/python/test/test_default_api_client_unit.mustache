@@ -1,6 +1,7 @@
 import json
 import pytest
 import urllib3
+from urllib3._collections import HTTPHeaderDict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from typing import Any, ClassVar
@@ -656,7 +657,7 @@ class _FakeResp:
 
     def __init__(self, status: int, headers: dict[str, Any]) -> None:
         self.status = status
-        self.headers = urllib3.HTTPHeaderDict(headers)
+        self.headers = HTTPHeaderDict(headers)
         self.released = False
 
     def read(self) -> bytes:

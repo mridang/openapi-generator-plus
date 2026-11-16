@@ -263,7 +263,7 @@ public sealed class ClientTest : IDisposable
     public async Task PasswordWrapperUsesItsTokenUrlThenItsRefreshUrlAndScopes()
     {
         var transport = new ScriptedApiClient();
-        transport.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        transport.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         transport.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = new LegacyAuthPasswordAuthenticator(Host, "cid", "csecret", "alice", "s3cret");
         auth.SetApiClient(transport);
@@ -283,7 +283,7 @@ public sealed class ClientTest : IDisposable
     public async Task AuthorizationCodeWrapperUsesItsAuthorizeTokenAndRefreshUrlsAndScopes()
     {
         var transport = new ScriptedApiClient();
-        transport.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        transport.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
         transport.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
         var auth = new UserAuthAuthorizationCodeAuthenticator(
             Host, "cid", "csecret", new Uri("https://app.example.com/callback"));

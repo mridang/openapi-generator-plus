@@ -1062,7 +1062,7 @@ describe('SecurityNoneSuppressesClientAuth', () => {
     const clientAuth = new BearerAuthenticator('http://localhost', 'secret-token-123');
     const petApi = new PetApi(client, config, clientAuth);
     try {
-      await petApi.addPet({ name: 'Fido', photoUrls: [] });
+      await petApi.addPet({ name: 'Fido', photoUrls: new Set<string>() });
     } catch {
       // capture-only
     }

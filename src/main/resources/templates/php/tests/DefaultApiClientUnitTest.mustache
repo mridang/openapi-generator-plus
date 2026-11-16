@@ -931,10 +931,13 @@ test('https to http downgrade refuses body replay on 307', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(function (ApiException $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
+            if (!$e instanceof ApiException) {
+                return;
+            }
             expect($e->getCode())->toBe(307);
             expect($e->getMessage())->toBe(
                 'Refusing to replay request body across HTTPS->HTTP redirect: '
@@ -1066,10 +1069,13 @@ test('exceeding max redirects throws too many redirects', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient($loop), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (ApiException $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
+            if (!$e instanceof ApiException) {
+                return;
+            }
             expect($e->getCode())->toBe(302);
             expect($e->getMessage())->toBe('Too many redirects (exceeded 3)');
             expect($e->getResponseHeaders())->toHaveKey('location');
@@ -1115,10 +1121,13 @@ test('redirect to non http scheme throws', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (ApiException $e): void {
+        ->toThrow(function (\Throwable $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
+            if (!$e instanceof ApiException) {
+                return;
+            }
             expect($e->getCode())->toBe(302);
             expect($e->getMessage())->toBe('Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd');
             expect($e->getResponseHeaders())->toHaveKey('location');
