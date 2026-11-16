@@ -212,6 +212,15 @@ class TestStoreApiFixtureOperations:
     """Operations whose only purpose is to pin the generated return type and
     request body: the reply is served by a local listener."""
 
+    async def test_get_order_by_tracking_id_puts_the_lowercase_uuid_in_the_path(self) -> None:
+        import uuid
+
+        api, seen = _recording_server('{"id":1}')
+
+        await api.get_order_by_tracking_id(uuid.UUID('E621E1F8-C36C-495A-93FC-0C247A3E6E5F'))
+
+        assert seen['path'] == '/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f'
+
     async def test_create_account_sends_the_password_and_keeps_the_read_only_id(self) -> None:
         import json
 

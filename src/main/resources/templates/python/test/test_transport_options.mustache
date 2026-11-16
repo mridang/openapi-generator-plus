@@ -246,6 +246,36 @@ class TestTransportOptions:
 
 class TestProxyUrlValidation:
     @pytest.mark.parametrize(
+        ("proxy", "shown"),
+        [
+            ("http://[::1:3128", "http://[::1:3128"),
+            ("http://user@[::1:3128", "http://***@[::1:3128"),
+        ],
+    )
+    def test_an_unterminated_ipv6_literal_is_rejected_with_the_exact_message(
+        self, proxy: str, shown: str
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().proxy(proxy)
+
+        assert type(exc_info.value) is ValueError
+        assert str(exc_info.value) == f"Invalid proxy URL (unterminated IPv6 literal): {shown}"
+
+    @pytest.mark.parametrize(
+        "proxy",
+        [
+            "http://user:pw@proxy:3128",
+            "http://user@proxy",
+            "http://[::1]:3128",
+            "http://proxy:3128/path?q=1",
+        ],
+    )
+    def test_a_proxy_with_user_info_an_ipv6_literal_or_a_path_is_accepted(
+        self, proxy: str
+    ) -> None:
+        assert TransportOptions.builder().proxy(proxy).build().proxy == proxy
+
+    @pytest.mark.parametrize(
         ("proxy", "message"),
         [
             ("", "Invalid proxy URL (must use http or https scheme): "),

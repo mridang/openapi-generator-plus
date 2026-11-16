@@ -282,7 +282,7 @@ Where: `readme.mustache`.
 ### Not done in batch 6 (python)
 - F541 needs a change to `PythonClientSpec.java` (spec Java, outside the batch).
 - F829 (a synchronous client) and F405 (httpx) are the S9 transport decision and a design change; urllib3 stays.
-- F215, F923, F834 (required plus nullable, S5): the petstore `RequiredNullable.note` is declared with an OAS 3.1 type array, and the golden still renders `note: StrictStr`, so the python model does not yet honour S5; fixing it needs the shared normaliser and a regenerated golden to verify.
+- F215, F923, F834 (required plus nullable, S5): done in batch 10 (F834, the optional tri-state, stays open).
 - F929: python's `get_auth_headers` is the blocking path that really performs the token exchange (the async layer runs it in `asyncio.to_thread`), so the D12 "use the async method" message does not apply; the matrix row saying python raises is wrong and is left for the owner.
 
 ## Decisions taken in batch 7
@@ -345,6 +345,42 @@ Rule: `str(error)` renders the body cut at 1 KiB of UTF-8 with `... (N more byte
 
 ### Not applicable in batch 9 (python)
 F825 is rust only.
+
+## Decisions taken in batch 10
+
+### Required and nullable properties (S5, F215, F923)
+Rule: a required nullable property is `Optional[T]` with no default, so the key must be present on decode (missing is an error) and an explicit null is kept; a model that has one gets a `@model_serializer(mode='wrap')` that adds the key back as null, because the serializer runs with `exclude_none`. The flag is `vendorExtensions.hasRequiredNullable`, set in `postProcessModelProperty`; a model with `additionalProperties` folds the same lines into its flattening serializer (a class holds one).
+Where: `models/model.mustache`, `BetterPythonCodegen.java`. Test: `test_object_serializer.mustache` (`TestRequiredNullableOnTheWire`).
+
+### Auth (F856, F859, F860, F863)
+Rule: `BaseApi` hands its own `ApiClient` to a per-call authenticator that is an `HttpAwareAuthenticator`; OIDC discovery rejects a document whose `issuer` (trailing slash ignored) differs from the discovery URL minus `/.well-known/openid-configuration` (no issuer is accepted) and an `authorization_endpoint` or `token_endpoint` that is not https unless loopback (`SerializationException`); a token response whose `token_type` is not `bearer` in any case is `OAuth2TokenException('Unsupported token_type in token response')`, an absent one is accepted; a `no_redirect` request (the token POST) carries no `TransportOptions.default_headers`. Discovery GET still carries them (it must follow redirects, so it cannot use the flag); stopping that needs a flag on the public `ApiClient.send_request`, a cross-language decision not taken.
+Where: `base_api.mustache`, `auth/oauth/openid_connect_authenticator.mustache`, `auth/oauth/oauth2_token_manager.mustache`, `default_api_client.mustache`, `api_client.mustache`.
+Test: `test_base_api.mustache` (`TestPerCallAuthenticatorGetsTheClient`), `test_openid_connect_authenticator.mustache` (`TestDiscoveryDocumentIsChecked`), `test_oauth2_token_manager.mustache`, `test_default_api_client_unit.mustache` (`TestAuthRequestsOmitTheCallersDefaultHeaders`).
+
+### Strings, messages and literals (F278, F869, F1083, F1102, F1103, F1118, F1065, F1154)
+Rule: an apiKey scheme name goes into the generated wrapper through `pythonStringBody` (quote, backslash and control characters escaped) and into the redirect strip list through `lambda.quotedLiteral`; an enum member renders as its wire value (`__str__`); a `datetime` passed for a `format: date` parameter sends only the date; the server-variable rejection reads `Allowed values: [a, b, c]`; an unreadable CA file is `failed to read CA certificate from "<path>": <cause>` and an unparseable one `failed to parse CA certificate from "<path>": <cause>`; server variables are substituted in one pass, so a value holding `{other}` is never expanded; an unterminated IPv6 literal in a proxy URL is `Invalid proxy URL (unterminated IPv6 literal): <url>`.
+Where: `BetterPythonCodegen.java`, `default_api_client.mustache`, `models/model.mustache`, `value_serializer.mustache`, `server_configuration.mustache`, `transport_options.mustache`.
+Test: `BetterPythonCodegenTest` (new, F1072), `test_object_serializer.mustache` (`TestEnumStringFormIsTheWireValue`), `test_value_serializer.mustache`, `test_server_configuration.mustache`, `test_default_api_client_unit.mustache`, `test_transport_options.mustache`.
+
+### Declared variant order (F1129)
+Rule: `postProcessModels` puts `model.oneOf` and `model.anyOf` back in spec order (the parent keeps them sorted), so `one_of_schemas`, `any_of_schemas` and the union annotations follow declaration order and a payload that fits several variants resolves to the first declared one. Test: `test_composed_schema.mustache` (`TestAnyOfTreatmentRecord`).
+
+### Docs and layout (F883, F884, F887, F888, F889, F890, F893, F1088)
+Rule: the README opens with Installation and Usage (linking SKILLS.md), then Configuration (timeouts, proxy, request id, Custom HTTP client, retries, OAuth2, response compression, raw responses, cancellation), Package, type mapping, Caveats, Not supported (now also XML bodies, Link Objects, mutual TLS) and a final Development section; the SKILLS model sample passes the required fields and its Configuration has Custom Transport Options, Custom HTTP client, retries, timeouts, request id, compression and cancellation at `###`; an options class keeps the examples of its parameters as comments; `make lint` also runs `ruff format --check .`.
+Where: `readme.mustache`, `skills.mustache`, `api/options.mustache`, `makefile.mustache`. Test: `test_metadata.mustache`, `PythonFormattingSpec` (`pluralExamplesShouldBeAttributedToParameter`, `optionalParameterExamplesShouldBeKept`).
+
+### Tests only (F1069, F1074, F1112, F1135, F1170)
+`test_store_api.mustache` (lowercase uuid in the `getOrderByTrackingId` path), `test_bearer_authenticator.mustache` (`Bearer Bearer xyz` and `bearerxyz`), `test_object_serializer.mustache` (byte-array equality), `test_default_api_client_unit.mustache` (identity encoding passes through), `test_base_api.mustache` (a null body is not sent).
+
+### Already conforming in python
+F229 (pool `maxsize=10`, `default_api_client.mustache`, test `TestConnectionPoolSizing`), F823 and F855 (batch 9: `base_api.mustache` replay at the `invalidate_access_token` lookup), F858 PKCE (`oauth2_auth_code_authenticator.mustache:126`), F1080 (`errors.mustache:46`, `TestApiErrorRendering`), F1180 (`invalidate_access_token` is public on all four OAuth authenticators), F831 (429 is `TooManyRequestsException`; the `retryAfter` accessor is not decided).
+
+### Skipped in batch 10 (python)
+- F912: reading the body in chunks to check the deadline needs `response.stream`, and the unit tests' fake responses implement `read()` only; the per-read timeout still applies to a trickled body.
+- F870: `frozen=True` would make models immutable, which is the F868 mutability decision.
+- F858 nonce, F827, F828, F830, F834, F835, F836, F837, F857, F862, F865, F868, F894, F1058, F1060, F1061, F1062: cross-language design or shared Java.
+- F1055, F1056: shared codegen filter. F1071 ordering test (`moveServerBeforeOptions`) is go-only: python has no such method.
+- F1077, F1085, F1087, F1157, F1172, F1081, F840, F843: audit gate, shared fixtures and runtime floors are not decided, or need the shared spec or gate.
 
 ## Build-breaking rules
 

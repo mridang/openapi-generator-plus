@@ -183,6 +183,28 @@ class TestReadmeAndSkillsText:
     def test_skills_install_command_uses_the_manifest_name(self) -> None:
         assert f'pip install {self._manifest_name()}\n' in self._read('SKILLS.md')
 
+    def test_readme_opens_with_installation_and_usage_that_link_the_skills(self) -> None:
+        readme = self._read('README.md')
+        assert readme.index('## Installation') < readme.index('## Usage') < readme.index('## Configuration')
+        assert f'pip install {self._manifest_name()}\n' in readme
+        assert '[SKILLS.md](SKILLS.md)' in readme
+
+    def test_readme_files_supported_features_outside_not_supported(self) -> None:
+        readme = self._read('README.md')
+        not_supported = readme.index('## Not supported')
+        for heading in ('### Custom HTTP client', '### Raw responses', '### Cancellation'):
+            assert readme.index(heading) < not_supported
+
+    def test_readme_not_supported_lists_xml_links_and_mutual_tls(self) -> None:
+        readme = self._read('README.md')
+        for heading in ('### XML bodies', '### Link Objects', '### Mutual TLS'):
+            assert readme.index(heading) > readme.index('## Not supported')
+
+    def test_skills_models_sample_passes_the_required_fields(self) -> None:
+        skills = self._read('SKILLS.md')
+        sample = skills[skills.index('## Models'):skills.index('## Binary')]
+        assert 'Required fields must be passed to the constructor' in sample
+
     def test_readme_socks_note_names_the_builder_setter(self) -> None:
         readme = self._read('README.md')
         assert (

@@ -9,6 +9,7 @@ test: install
 	python -m pytest -v
 
 lint: install
+	ruff format --check .
 	ruff check .
 
 format: install

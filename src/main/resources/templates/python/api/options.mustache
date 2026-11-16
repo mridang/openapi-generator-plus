@@ -15,12 +15,22 @@ class {{className}}:
     """Options for the {{operationId}} operation."""
 
 {{#requiredParams}}
+{{#vendorExtensions.pluralExamples}}
+    # Example for `{{{paramName}}}`: {{{summary}}}
+    # {{{description}}}
+    # >>> {{{value}}}
+{{/vendorExtensions.pluralExamples}}
 {{#deprecated}}
     # .. deprecated:: This parameter is deprecated.
 {{/deprecated}}
     {{paramName}}: {{dataType}}
 {{/requiredParams}}
 {{#optionalParams}}
+{{#vendorExtensions.pluralExamples}}
+    # Example for `{{{paramName}}}`: {{{summary}}}
+    # {{{description}}}
+    # >>> {{{value}}}
+{{/vendorExtensions.pluralExamples}}
 {{#deprecated}}
     # .. deprecated:: This parameter is deprecated.
 {{/deprecated}}

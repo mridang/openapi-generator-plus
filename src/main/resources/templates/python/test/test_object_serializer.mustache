@@ -805,6 +805,32 @@ class TestFixtureModelsOnTheWire:
             ObjectSerializer().deserialize('{"phase":"in-stock"}', 'EdgeCases')
 
 
+class TestRequiredNullableOnTheWire:
+    """S5: a property that is required and nullable must be present on decode,
+    keeps an explicit null, and is written as null when unset."""
+
+    def test_an_explicit_null_decodes_and_is_kept(self) -> None:
+        from {{packageName}}.models.required_nullable import RequiredNullable
+
+        decoded = ObjectSerializer().deserialize('{"note":null}', 'RequiredNullable')
+        assert isinstance(decoded, RequiredNullable)
+        assert decoded.note is None
+
+    def test_a_missing_key_is_rejected(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{}', 'RequiredNullable')
+
+    def test_a_null_value_is_written_as_null(self) -> None:
+        from {{packageName}}.models.required_nullable import RequiredNullable
+
+        assert ObjectSerializer().serialize(RequiredNullable(note=None)) == '{"note":null}'
+
+    def test_a_value_is_written_as_is(self) -> None:
+        from {{packageName}}.models.required_nullable import RequiredNullable
+
+        assert ObjectSerializer().serialize(RequiredNullable(note='n')) == '{"note":"n"}'
+
+
 class TestExcludeNoneOnSerialize:
     def test_none_values_are_omitted(self) -> None:
         import json
@@ -1245,6 +1271,23 @@ class TestIntegerBackedEnum:
         assert restored == original
 
 
+class TestEnumStringFormIsTheWireValue:
+    """F869: a member renders as its wire value when interpolated, whatever
+    the member identifier became after sanitising."""
+
+    def test_a_string_member_renders_as_its_wire_value(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        assert str(Availability('on-hold')) == 'on-hold'
+        assert f'{Availability("Sold")}' == 'Sold'
+
+    def test_an_integer_member_renders_as_its_number(self) -> None:
+        from {{packageName}}.models.priority import Priority
+        assert str(Priority(3)) == '3'
+
+    def test_an_inline_member_renders_as_its_wire_value(self) -> None:
+        assert str(OrderStatusEnum.PLACED) == 'placed'
+
+
 class TestNonLowercaseStringEnum:
     """Scenario 2 — a string enum whose values are NOT all lowercase
     (Availability: "Available"/"Sold"/"on-hold") must round-trip with the
@@ -1358,6 +1401,15 @@ class TestByteModelFieldHoldsRawBytes:
         assert restored.seal == self.RAW
         assert restored.shards == [b'a', self.RAW]
         assert restored.labels == {'k': b'test'}
+
+    def test_equality_compares_byte_contents_bare_listed_and_mapped(self) -> None:
+        vault = self._vault()
+        first = vault(seal=bytes(self.RAW), shards=[bytes(self.RAW)], labels={'k': bytes(self.RAW)})
+        second = vault(seal=bytes(self.RAW), shards=[bytes(self.RAW)], labels={'k': bytes(self.RAW)})
+        assert first == second
+        assert first != vault(seal=b'other', shards=[bytes(self.RAW)], labels={'k': bytes(self.RAW)})
+        assert first != vault(seal=bytes(self.RAW), shards=[b'other'], labels={'k': bytes(self.RAW)})
+        assert first != vault(seal=bytes(self.RAW), shards=[bytes(self.RAW)], labels={'k': b'other'})
 
     def test_pet_passport_thumbnail_and_scans_round_trip(self) -> None:
         wire = '{"thumbnail":"dGVzdA==","scans":["AQID"]}'

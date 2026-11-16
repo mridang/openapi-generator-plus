@@ -1,8 +1,11 @@
 {{>api_info}}
 
+import re
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Dict, Mapping, Optional, Sequence
+
+_PLACEHOLDER = re.compile(r'\{([^{}]*)\}')
 
 
 @dataclass(frozen=True)
@@ -83,14 +86,16 @@ class ServerConfiguration:
         if overrides is None:
             overrides = {}
 
-        url = self.url_template
+        resolved: Dict[str, str] = {}
         for var_name, var in self.variables.items():
             value = overrides.get(var_name, var.default_value)
 
             if var.enum_values and value not in var.enum_values:
                 raise ValueError(
-                    f"Invalid value '{value}' for server variable '{var_name}'. Allowed values: {var.enum_values}"
+                    f"Invalid value '{value}' for server variable '{var_name}'. Allowed values: [{', '.join(var.enum_values)}]"
                 )
 
-            url = url.replace('{' + var_name + '}', value)
-        return url
+            resolved[var_name] = value
+        # One pass over the template, so a placeholder that a substituted value
+        # happens to contain is never expanded again.
+        return _PLACEHOLDER.sub(lambda match: resolved.get(match.group(1), match.group(0)), self.url_template)

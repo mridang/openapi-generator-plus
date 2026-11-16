@@ -170,6 +170,27 @@ class TestAnyOfPetTreatment:
         assert 'drugName' not in surg_json
 
 
+class TestAnyOfTreatmentRecord:
+    """anyOf variants are tried in DECLARATION order: TreatmentRecord declares
+    Surgery before Medication, the reverse of PetTreatment and of the alphabet."""
+
+    _BOTH = '{"drugName":"Amoxicillin","procedureName":"Spay"}'
+
+    def test_variants_are_retained_in_declaration_order(self) -> None:
+        record = ObjectSerializer().deserialize(self._BOTH, 'TreatmentRecord')
+        assert [type(m) for m in record.matched_instances] == [Surgery, Medication]
+        assert isinstance(record.actual_instance, Surgery)
+
+    def test_the_variant_tuple_follows_the_declaration(self) -> None:
+        from {{packageName}}.models.treatment_record import TreatmentRecord
+
+        assert TreatmentRecord.any_of_schemas == ('Surgery', 'Medication')
+
+    def test_the_opposite_declaration_order_keeps_its_own_order(self) -> None:
+        treatment = ObjectSerializer().deserialize(self._BOTH, 'PetTreatment')
+        assert [type(m) for m in treatment.matched_instances] == [Medication, Surgery]
+
+
 class TestOneOfNonDiscriminatorValidator:
     """oneof-multiple-match: the non-discriminator oneOf validator now uses
     FIRST-match semantics -- it returns the first variant the payload

@@ -22,11 +22,17 @@ def _assert_valid_proxy(proxy: Optional[str]) -> None:
     directly cannot carry a proxy the builder would have refused.
 
     Raises:
-        ValueError: If the proxy URL has another scheme or no host.
+        ValueError: If the proxy URL has another scheme, no host or an
+            unterminated IPv6 literal.
     """
     if proxy is None:
         return
-    parsed = urlparse(proxy)
+    try:
+        parsed = urlparse(proxy)
+    except ValueError:
+        raise ValueError(
+            f"Invalid proxy URL (unterminated IPv6 literal): {_proxy_in_message(proxy)}"
+        ) from None
     if parsed.scheme not in ('http', 'https'):
         raise ValueError(f"Invalid proxy URL (must use http or https scheme): {_proxy_in_message(proxy)}")
     if not parsed.hostname:

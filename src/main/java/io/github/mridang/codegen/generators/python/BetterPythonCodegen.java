@@ -873,6 +873,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
 
+        // S5: a required nullable property keeps its key on the wire as an
+        // explicit null, so the model template adds a serializer for it.
+        if (property.required && property.isNullable) {
+            model.vendorExtensions.put("hasRequiredNullable", true);
+        }
+
         // Item 1 — uri subformat guard. The typeMapping rewrites `URI` to
         // `HttpUrl`; revert to `str` for non-absolute subformats. Use the
         // strict primitive so that the lax-coercion guarantee is preserved.
@@ -1235,6 +1241,81 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         return params;
     }
 
+    /**
+     * Puts the oneOf and anyOf variant names of each model back into the order
+     * the spec declares them. The parent keeps them in a sorted set, but the
+     * runtime tries the variants in the order of the {@code one_of_schemas} and
+     * {@code any_of_schemas} tuples, so a payload that fits several variants
+     * must resolve to the first declared one, as in the other SDKs.
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            if (model == null || model.getComposedSchemas() == null) {
+                continue;
+            }
+            if (model.oneOf != null) {
+                model.oneOf = inDeclaredOrder(model.oneOf, model.getComposedSchemas().getOneOf());
+            }
+            if (model.anyOf != null) {
+                model.anyOf = inDeclaredOrder(model.anyOf, model.getComposedSchemas().getAnyOf());
+            }
+        }
+        return result;
+    }
+
+    private static Set<String> inDeclaredOrder(
+            Set<String> names, @Nullable List<CodegenProperty> declared) {
+        if (declared == null || names.isEmpty()) {
+            return names;
+        }
+        final Set<String> ordered = new java.util.LinkedHashSet<>();
+        for (final CodegenProperty variant : declared) {
+            if (names.contains(variant.dataType)) {
+                ordered.add(variant.dataType);
+            }
+        }
+        ordered.addAll(names);
+        return ordered;
+    }
+
+    /**
+     * Escapes text for the inside of a double-quoted Python string literal, so
+     * an apiKey scheme name holding a quote, a backslash or a control
+     * character cannot break the generated authenticator wrapper.
+     *
+     * @param text the raw text
+     * @return the text with backslashes, quotes and control characters escaped
+     */
+    static String pythonStringBody(final String text) {
+        final StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                out.append("\\\\");
+            } else if (c == '"') {
+                out.append("\\\"");
+            } else if (c == '\n') {
+                out.append("\\n");
+            } else if (c == '\r') {
+                out.append("\\r");
+            } else if (c == '\t') {
+                out.append("\\t");
+            } else if (c < 0x20) {
+                out.append("\\x");
+                if (c < 0x10) {
+                    out.append('0');
+                }
+                out.append(Integer.toHexString(c));
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
     @SuppressWarnings("StringConcatenationMissingWhitespace")
     private static List<String> buildPythonSuperArgs(SchemeAuthSpec spec) {
         final String scopes = formatPythonScopes(spec.scopes());
@@ -1247,7 +1328,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of(
                     "host",
-                    "\"" + spec.keyParamName() + "\"",
+                    "\"" + pythonStringBody(Objects.toString(spec.keyParamName(), "")) + "\"",
                     "api_key",
                     "ApiKeyLocation." + spec.keyIn());
         }
@@ -1425,6 +1506,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             importSet.add("from typing import " + String.join(", ", typingNames));
         }
 
+        /* The shared pass that attaches the examples to the parameters runs after
+         * the options files are written, so attach them here for the doc comments. */
+        capturePluralExamplesForParameters(optionsParams);
         final List<Map<String, Object>> requiredParams = new ArrayList<>();
         final List<Map<String, Object>> optionalParams = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
@@ -1432,6 +1516,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             param.put("paramName", p.paramName);
             param.put("dataType", p.dataType);
             param.put("deprecated", p.isDeprecated);
+            param.put("vendorExtensions", p.vendorExtensions);
             if (p.required) {
                 requiredParams.add(param);
             } else {

@@ -7,48 +7,45 @@ Auto-generated Python SDK client for the {{appName}} API.
 - Python 3.13+
 - `pip`
 
-Install runtime and development dependencies:
+## Installation
 
 ```bash
-pip install -e . --group dev
+pip install {{projectName}}
 ```
 
-## Format
+## Usage
 
-```bash
-ruff format .
+```python
+import asyncio
+
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}}
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}from {{packageName}}.models import {{{dataType}}}
+{{/isModel}}{{/bodyParam}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+
+async def main() -> None:
+    with {{clientClassName}}.with_token("https://api.example.com", "your-token") as client:
+        result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+        print(result)
+
+
+asyncio.run(main())
 ```
 
-## Lint
-
-```bash
-ruff check .
-```
-
-## Type-check
-
-```bash
-mypy .
-```
-
-## Install
-
-```bash
-pip install -e .
-```
-
-## Test
-
-```bash
-pytest
-```
-
-## Package
-
-- Name: `{{projectName}}`
-- Version: `{{packageVersion}}`
+See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
 
 ## Configuration
+
+`TransportOptions.builder()` sets `timeout` (milliseconds, one end-to-end budget across redirects and retries; `None` or at least 1), `proxy`, `verify_ssl`, `ca_cert_path`, `follow_redirects`, `max_redirects`, `user_agent`, `default_headers`, `inject_request_id` and `max_retries`. The proxy is exactly what you configure: `HTTP_PROXY` and `NO_PROXY` are ignored. With `inject_request_id(True)` every request carries an `X-Request-ID` header unless you send one.
+
+### Custom HTTP client
+
+Pass a `urllib3.PoolManager` you built to the client
+(`Client(authenticator, pool_manager=pool)`; `with_token` and
+`with_authenticator` take it too). The SDK defaults (timeout, redirect policy,
+user agent, request id, default headers) are applied on top of it, and the SDK
+never closes it: you own its lifecycle. Combining it with a proxy, a CA bundle
+or `verify_ssl(False)` in `TransportOptions` raises `ValueError`, because those
+settings belong to the pool manager you built.
 
 ### Automatic retries
 
@@ -65,6 +62,30 @@ A request is retried after a network error that happened before a response arriv
 When the API answers 401 to a call authenticated through an OAuth2 or OpenID Connect authenticator, the SDK drops the cached access token (the refresh token is kept), obtains a new one and sends the call once more; a second 401 raises `UnauthorizedException`. A stream or multipart body is not sent again. `invalidate_access_token()` on the authenticator does the same by hand.
 
 The authorization-code flow uses PKCE (`S256`): `build_authorization_url()` creates the code verifier, keeps it in the authenticator and puts the `code_challenge` on the URL, and `exchange_code()` sends the `code_verifier`. Build the URL and exchange the code on the same authenticator.
+
+A token response whose `token_type` is not `bearer` (any case) raises `OAuth2TokenException`, and an OpenID Connect discovery document whose `issuer` differs from the discovery URL, or whose endpoints are not https (loopback hosts excepted), raises `SerializationException`.
+
+### Response compression
+
+The client sends an `Accept-Encoding` header naming the codecs it can decode (`gzip` and `deflate` always; `br` and `zstd` when the optional extra is installed with `pip install {{projectName}}[compression]`) and decodes the body for you. A decoded response drops `content-encoding` and `content-length` from `headers`; a body sent with `Content-Encoding: identity` is passed through untouched.
+
+### Raw responses
+
+Every operation has a `<operation>_with_http_info` variant returning an `ApiResult` with `status_code`, `headers` (a read-only copy), `raw_body` and the typed `data`.
+
+### Cancellation
+
+Cancelling the asyncio task that awaits an operation aborts the request
+itself: its socket is shut down and the connection dropped, instead of the
+call running on in a worker thread. `Client.close()` (also `with Client(...)`)
+cancels every request still in flight; those calls raise `RuntimeError`. To
+bound how long a call can take, set the request timeout on `TransportOptions`;
+a call that exceeds it fails with `NetworkTimeoutException`.
+
+## Package
+
+- Name: `{{projectName}}`
+- Version: `{{packageVersion}}`
 
 ## OpenAPI type mapping
 
@@ -129,25 +150,6 @@ Request parameters outside a model are not checked client-side. `uniqueItems`
 arrays are sent in the collection's natural order (a Python `set` in iteration
 order), never sorted.
 
-### Your own HTTP transport
-
-Pass a `urllib3.PoolManager` you built to the client
-(`Client(authenticator, pool_manager=pool)`; `with_token` and
-`with_authenticator` take it too). The SDK defaults (timeout, redirect policy,
-user agent, request id, default headers) are applied on top of it, and the SDK
-never closes it: you own its lifecycle. Combining it with a proxy, a CA bundle
-or `verify_ssl(False)` in `TransportOptions` raises `ValueError`, because those
-settings belong to the pool manager you built.
-
-### Per-call cancellation
-
-Cancelling the asyncio task that awaits an operation aborts the request
-itself: its socket is shut down and the connection dropped, instead of the
-call running on in a worker thread. `Client.close()` (also `with Client(...)`)
-cancels every request still in flight; those calls raise `RuntimeError`. To
-bound how long a call can take, set the request timeout on `TransportOptions`;
-a call that exceeds it fails with `NetworkTimeoutException`.
-
 ## Not supported
 
 ### Webhooks and callbacks
@@ -158,6 +160,18 @@ per-operation `callbacks` — are intentionally skipped during code
 generation. If you need to receive webhook deliveries, write the
 handler yourself and use this SDK only to deserialize the incoming
 payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType`
+
+Only JSON, form, multipart and binary bodies are generated. `application/xml` request and response bodies and the `xml` schema keywords (`nodeType`, `attribute`, `wrapped`) are not supported.
+
+### Link Objects
+
+Response Link Objects are ignored; follow links in your own code.
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes are not generated. Supply a client certificate through your own `urllib3.PoolManager` (see Custom HTTP client).
 
 ### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
 
@@ -185,3 +199,35 @@ into the generated tree as part of your release pipeline before
 publishing to a registry — most registries warn or block on a missing
 file, and the GitHub license auto-detect cannot pick up a manifest-only
 declaration.
+
+## Development
+
+### Install
+
+```bash
+pip install -e . --group dev
+```
+
+### Format
+
+```bash
+ruff format .
+```
+
+### Lint
+
+```bash
+ruff check .
+```
+
+### Type-check
+
+```bash
+mypy .
+```
+
+### Test
+
+```bash
+pytest
+```
