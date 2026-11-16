@@ -704,6 +704,19 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
 mod tests {
     use super::{self as object_serializer, QueryValue, SerializationError};
 
+    /* D84: request JSON writes U+2028, U+2029, DEL, `/`, `<`, `>`, `&` and
+     * non-ASCII literally; only the quote, the backslash and controls below
+     * U+0020 are escaped. */
+    #[test]
+    fn test_request_json_writes_line_separators_and_del_literally() {
+        let value = serde_json::json!({"k": "a\u{2028}b\u{2029}c\u{7f}/<>&\u{e9}\"\\\n"});
+        let json = object_serializer::serialize(&value).expect("serializes");
+        assert_eq!(
+            "{\"k\":\"a\u{2028}b\u{2029}c\u{7f}/<>&\u{e9}\\\"\\\\\\n\"}",
+            json
+        );
+    }
+
     /* F1090: additional properties are written in ascending key order, so a body
      * with several extras has the same bytes in every process. */
     #[test]

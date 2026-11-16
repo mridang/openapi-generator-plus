@@ -202,6 +202,14 @@ fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
     );
 }
 
+/* D57, F080: a date-time field without an offset is rejected on decode,
+ * whatever the host zone. */
+#[test]
+fn test_metadata_date_time_without_an_offset_is_rejected() {
+    let result = serde_json::from_str::<Metadata>(r#"{"createdAt":"2024-01-15T10:30:00"}"#);
+    assert!(result.is_err(), "an offset-less date-time must be rejected");
+}
+
 // -- date-time serialization preserves sub-second precision --
 //
 // `Metadata.createdAt` is the SDK's `date_time::DateTime`. An instant carrying
