@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 470, forced 4, needs-spec 2, open 126, parked 37, partial 5. Severity: critical 3, high 60, medium 547, low 212.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 471, forced 4, needs-spec 2, open 125, parked 37, partial 5. Severity: critical 3, high 60, medium 547, low 212.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -38,7 +38,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 470, forced 4,
 | F030 | high | fixed | L10-models-composed | kotlin | kotlin: required container properties default to an empty collection, so a payload missing a required array (Pet.photoUrls) is accepted and the constructor does not require it |
 | F031 | high | fixed | L10-models-composed | node | node: nested model properties skip required-field and primitive-type validation, so only the top-level model is validated |
 | F032 | high | fixed | L10-models-composed | node | node: the discriminated oneOf path never runs the selected variant's constructor, so a variant missing a required field or carrying a wrong-typed field is accepted |
-| F033 | high | open | L12-api-bodies | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | getPetPhoto (content negotiation, Case 9) returns 7 different things when the server picks application/json |
+| F033 | high | fixed | L12-api-bodies | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | getPetPhoto (content negotiation, Case 9) returns 7 different things when the server picks application/json |
 | F034 | high | fixed | L12-api-bodies | go, rust | go and rust send a literal `null` JSON body (with Content-Type: application/json) when the optional request body is omitted |
 | F035 | high | fixed | L12-api-bodies | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | setPetAvatar application/json variant (Case 10) cannot be expressed, and selecting it puts 6+ different bodies on the wire |
 | F036 | high | fixed | L13a-tests-transport | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | BaseApi 'cross-origin redirect drops Authorization/Cookie' tests are tautological in all 12; swift has no real strip test at all |
@@ -1228,7 +1228,7 @@ Reviewer suspected this is forced: None. class-transformer bypasses constructors
 - `src/spec/resources/generated/node/src/models/dry-food.ts:35` — if (data !== undefined) { if (this.weightKg == null) { throw new TypeError("weightKg is required");
 
 ## F033 [high] getPetPhoto (content negotiation, Case 9) returns 7 different things when the server picks application/json
-- Status: **open** | Lens: L12-api-bodies | Category: behavior | Unit-testable (reviewer's view): True
+- Status: **fixed** (eleven SDKs now return the raw bytes of a JSON reply to a binary operation, each with a regression test; java, csharp, ruby and dart already did) | Lens: L12-api-bodies | Category: behavior | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 getPetPhoto declares image/jpeg, image/png and application/json (a Photo object) for its 200 response. All 12 SDKs send `Accept: image/jpeg, image/png, application/json`, so the JSON variant is a legitimate reply. Every SDK types the return as bytes, and the bytes branch handles a JSON body differently in each one. (1) java (InputStream), csharp (Stream), ruby (StringIO) and dart (Uint8List) return the raw UTF-8 bytes of the JSON. (2) python returns the parsed dict while the signature says bytes: _deserialize returns non-bytes data unchanged when klass is bytes. (3) node returns the parsed plain object cast as Buffer (`(json) => json as Buffer`). (4) php deserializes with returnType 'string', so json_decode produces an array and settype(array,'string') yields the literal string "Array" plus an E_WARNING. (5) kotlin throws SerializationException because it calls deserialize<String> on an object. go (json.Unmarshal of an object into []byte), swift (JSONDecoder into Data) and elixir (convert_to_type(map, "binary()")) also throw SerializationError. (6) rust returns Ok with an EMPTY Vec<u8> (`_ => Vec::new()`), which is silent data loss. No SDK tests the JSON branch: the integration tests only hit the mock's default image variant, and rust's test_pet_api_get_pet_photo discards its result. Pick one contract, for example raw bytes of whatever body arrived (the java/csharp/ruby/dart behaviour) or a typed SerializationError. Then add a per-language unit test that drives getPetPhoto with Content-Type: application/json and a Photo body.

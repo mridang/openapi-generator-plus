@@ -1951,10 +1951,11 @@
    "unit_testable": true,
    "lens": "L12-api-bodies",
    "id": "F033",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "eleven SDKs now return the raw bytes of a JSON reply to a binary operation, each with a regression test; java, csharp, ruby and dart already did",
    "priority_triage": "high",
-   "plain": "When the server answers a binary or content-negotiated operation with JSON, the SDKs return seven different things (bytes, text, parsed objects, errors)."
+   "plain": "When the server answers a binary or content-negotiated operation with JSON, the SDKs return seven different things (bytes, text, parsed objects, errors).",
+   "commit": "d2f3b306a"
   },
   {
    "title": "go and rust send a literal `null` JSON body (with Content-Type: application/json) when the optional request body is omitted",
