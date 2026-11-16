@@ -389,6 +389,135 @@ pub fn to_deep_object_map<T: Serialize>(
     }
 }
 
+/// Returns the text of a scalar property of an object-valued parameter, and a
+/// `SerializationError` for a nested object or array (D47).
+fn scalar_param_text(name: &str, value: &serde_json::Value) -> Result<String, SerializationError> {
+    match value {
+        serde_json::Value::Array(_) | serde_json::Value::Object(_) => Err(SerializationError::new(
+            format!("object-valued parameter property '{}' must be a scalar, not a nested value", name),
+            None,
+        )),
+        other => Ok(stringify(other)),
+    }
+}
+
+/// Expands an object-valued parameter (a model or a free-form map) into its
+/// `(name, value)` pairs in declaration order, leaving out null properties.
+/// Returns `None` for a value that is not an object. A map has no declared
+/// order, so its keys are sorted.
+fn object_param_pairs<T: Serialize + 'static>(
+    value: &T,
+) -> Result<Option<Vec<(String, String)>>, SerializationError> {
+    if scalar_override(value).is_some() {
+        return Ok(None);
+    }
+    match serde_json::to_value(value) {
+        Ok(serde_json::Value::Object(fields)) => {
+            let mut pairs = Vec::new();
+            for (key, field) in fields {
+                if field.is_null() {
+                    continue;
+                }
+                let text = scalar_param_text(&key, &field)?;
+                pairs.push((key, text));
+            }
+            if std::any::type_name::<T>().contains("HashMap") {
+                pairs.sort_by(|a, b| a.0.cmp(&b.0));
+            }
+            Ok(Some(pairs))
+        }
+        Ok(_) => Ok(None),
+        Err(e) => Err(SerializationError::new(
+            format!("failed to serialize object parameter: {}", e),
+            Some(Box::new(e)),
+        )),
+    }
+}
+
+/// The per-property query pairs of an object-valued parameter in `form` style
+/// with `explode=true` (`breed=lab&min_age=3`); `None` for any other style or
+/// for a value that is not an object.
+pub fn object_query_pairs<T: Serialize + 'static>(
+    value: &T,
+    style: &str,
+    explode: bool,
+) -> Result<Option<Vec<(String, String)>>, SerializationError> {
+    if style != "form" || !explode {
+        return Ok(None);
+    }
+    object_param_pairs(value)
+}
+
+/// Converts a parameter value to the text a styled serializer receives. A
+/// scalar is [`stringify`]d; an object is expanded: `k,v,k,v` (`k=v,k=v` for
+/// `simple` with explode), joined with a space or `|` for the
+/// `spaceDelimited` and `pipeDelimited` styles. A nested value is a
+/// `SerializationError`.
+pub fn stringify_param<T: Serialize + 'static>(
+    value: &T,
+    style: &str,
+    explode: bool,
+) -> Result<String, SerializationError> {
+    match object_param_pairs(value)? {
+        None => Ok(stringify(value)),
+        Some(pairs) => {
+            if explode && style == "simple" {
+                return Ok(pairs
+                    .iter()
+                    .map(|(k, v)| format!("{}={}", k, v))
+                    .collect::<Vec<_>>()
+                    .join(","));
+            }
+            let separator = match style {
+                "spaceDelimited" => " ",
+                "pipeDelimited" => "|",
+                _ => ",",
+            };
+            Ok(pairs
+                .into_iter()
+                .flat_map(|(k, v)| [k, v])
+                .collect::<Vec<_>>()
+                .join(separator))
+        }
+    }
+}
+
+/// Serde adapter for map properties: the entries are written in ascending key
+/// order, so the bytes do not depend on the per-process `HashMap` order.
+pub mod sorted_map {
+    use serde::{Serialize, Serializer};
+
+    pub fn serialize<K, V, S>(
+        map: &std::collections::HashMap<K, V>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        K: Serialize + Ord,
+        V: Serialize,
+        S: Serializer,
+    {
+        let mut entries: Vec<(&K, &V)> = map.iter().collect();
+        entries.sort_by(|a, b| a.0.cmp(b.0));
+        serializer.collect_map(entries)
+    }
+
+    /// The same adapter for an optional field.
+    pub fn option<K, V, S>(
+        map: &Option<std::collections::HashMap<K, V>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        K: Serialize + Ord,
+        V: Serialize,
+        S: Serializer,
+    {
+        match map {
+            Some(entries) => serialize(entries, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+}
+
 /// Formats a `format: time` value as an RFC 3339 partial-time: `HH:mm:ss`, plus
 /// `.SSS` only when the millisecond part is non-zero. Sub-millisecond digits are
 /// truncated, never rounded, so `10:30:00.9996` is written `10:30:00.999`.
@@ -551,13 +680,18 @@ pub mod required_nullable {
 
 /// Writes a model's additional properties, leaving out every key that is the
 /// wire name of one of its `declared` properties: the declared value wins and
-/// no key is ever written twice.
+/// no key is ever written twice. The keys are written in ascending order: a
+/// `HashMap` iterates in a per-process random order, which would make the bytes
+/// of a body with two or more extras differ from run to run.
 pub fn serialize_extras<V: Serialize, S: serde::Serializer>(
     extras: &std::collections::HashMap<String, V>,
     declared: &[&str],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    serializer.collect_map(extras.iter().filter(|(key, _)| !declared.contains(&key.as_str())))
+    let mut entries: Vec<(&String, &V)> =
+        extras.iter().filter(|(key, _)| !declared.contains(&key.as_str())).collect();
+    entries.sort_by(|a, b| a.0.cmp(b.0));
+    serializer.collect_map(entries)
 }
 
 /// Returns the wire text of the parameter types whose form is not their serde
@@ -698,6 +832,75 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
 #[cfg(test)]
 mod tests {
     use super::{self as object_serializer, QueryValue, SerializationError};
+
+    /* D47: an object-valued parameter is expanded per property, in declaration
+     * order for a model and in key order for a map; a nested value is refused. */
+    #[test]
+    fn test_object_valued_parameters_expand_per_style() {
+        let mut map: std::collections::HashMap<String, serde_json::Value> =
+            std::collections::HashMap::new();
+        map.insert("min_age".to_string(), serde_json::json!(3));
+        map.insert("breed".to_string(), serde_json::json!("lab"));
+        map.insert("skipped".to_string(), serde_json::Value::Null);
+
+        assert_eq!(
+            Some(vec![
+                ("breed".to_string(), "lab".to_string()),
+                ("min_age".to_string(), "3".to_string())
+            ]),
+            object_serializer::object_query_pairs(&map, "form", true).unwrap()
+        );
+        assert_eq!(None, object_serializer::object_query_pairs(&map, "form", false).unwrap());
+        assert_eq!(
+            "breed,lab,min_age,3",
+            object_serializer::stringify_param(&map, "form", false).unwrap()
+        );
+        assert_eq!(
+            "breed=lab,min_age=3",
+            object_serializer::stringify_param(&map, "simple", true).unwrap()
+        );
+        assert_eq!(
+            "breed|lab|min_age|3",
+            object_serializer::stringify_param(&map, "pipeDelimited", false).unwrap()
+        );
+        assert_eq!("lab", object_serializer::stringify_param(&"lab".to_string(), "form", true).unwrap());
+
+        map.insert("nested".to_string(), serde_json::json!({"a": 1}));
+        assert!(object_serializer::stringify_param(&map, "form", false).is_err());
+        assert!(object_serializer::object_query_pairs(&map, "form", true).is_err());
+    }
+
+    /* D84: request JSON writes U+2028, U+2029, DEL, `/`, `<`, `>`, `&` and
+     * non-ASCII literally; only the quote, the backslash and controls below
+     * U+0020 are escaped. */
+    #[test]
+    fn test_request_json_writes_line_separators_and_del_literally() {
+        let value = serde_json::json!({"k": "a\u{2028}b\u{2029}c\u{7f}/<>&\u{e9}\"\\\n"});
+        let json = object_serializer::serialize(&value).expect("serializes");
+        assert_eq!(
+            "{\"k\":\"a\u{2028}b\u{2029}c\u{7f}/<>&\u{e9}\\\"\\\\\\n\"}",
+            json
+        );
+    }
+
+    /* F1090: additional properties are written in ascending key order, so a body
+     * with several extras has the same bytes in every process. */
+    #[test]
+    fn test_serialize_extras_writes_the_keys_in_ascending_order() {
+        use serde::Serialize;
+        struct Extras(std::collections::HashMap<String, i32>);
+        impl Serialize for Extras {
+            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                object_serializer::serialize_extras(&self.0, &["declared"], serializer)
+            }
+        }
+        let mut map = std::collections::HashMap::new();
+        for (i, key) in ["zeta", "mid", "alpha", "declared", "beta", "omega", "kappa"].iter().enumerate() {
+            map.insert((*key).to_string(), i32::try_from(i).expect("small index"));
+        }
+        let json = object_serializer::serialize(&Extras(map)).expect("serializes");
+        assert_eq!(json, r#"{"alpha":2,"beta":4,"kappa":6,"mid":1,"omega":5,"zeta":0}"#);
+    }
 
     /* F833: a content cookie is the SDK's JSON, percent-encoded keeping only
      * A-Z a-z 0-9 - . _ ~ literal, so the bytes match the other eleven SDKs

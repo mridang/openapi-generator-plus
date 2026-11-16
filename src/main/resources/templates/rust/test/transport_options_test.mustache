@@ -115,21 +115,42 @@ fn test_transport_options_follow_redirects_defaults_to_true_with_null_max_redire
     assert!(opts.max_redirects().is_none(), "expected no max_redirects");
 }
 
+/* D79: the proxy messages are the canonical ones, and the userinfo of the
+ * rejected URL is shown as `***@`, so a proxy credential never reaches a log. */
 #[test]
 fn test_transport_options_invalid_proxy_url_throws_exception() {
-    for (proxy, reason) in [
-        ("not-a-valid-url", "\"not-a-valid-url\": relative URL without a base"),
-        ("ftp://proxy.example.com:21", "\"ftp://proxy.example.com:21\": must use http or https scheme"),
-        ("socks5://proxy.example.com:1080", "\"socks5://proxy.example.com:1080\": must use http or https scheme"),
-        ("http://", "\"http://\": empty host"),
+    for (proxy, message) in [
+        ("not-a-valid-url", "Invalid proxy URL: not-a-valid-url"),
+        (
+            "ftp://proxy.example.com:21",
+            "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
+        ),
+        (
+            "socks5://proxy.example.com:1080",
+            "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080",
+        ),
+        ("http://", "Invalid proxy URL (missing host): http://"),
+        (
+            "ftp://user:s3cr3t@proxy.example.com:21",
+            "Invalid proxy URL (must use http or https scheme): ftp://***@proxy.example.com:21",
+        ),
+        (
+            "http://user:s3cr3t@",
+            "Invalid proxy URL (missing host): http://***@",
+        ),
     ] {
         let result = TransportOptionsBuilder::new().proxy(proxy).build();
         assert_eq!(
             result.as_ref().err(),
-            Some(&ConfigurationError::InvalidProxy(reason.to_string())),
+            Some(&ConfigurationError::InvalidProxy(message.to_string())),
             "unexpected result for {:?}: {:?}",
             proxy,
             result
+        );
+        assert_eq!(
+            result.err().map(|e| e.to_string()),
+            Some(message.to_string()),
+            "the error must display the canonical message verbatim"
         );
     }
 }
@@ -150,11 +171,14 @@ fn test_transport_options_missing_ca_cert_file_is_rejected() {
     let result = TransportOptionsBuilder::new()
         .ca_cert_path("/nonexistent/ca.pem")
         .build();
-    assert!(
-        matches!(result, Err(ConfigurationError::InvalidCaCertificate(_))),
-        "expected InvalidCaCertificate, got {:?}",
-        result
-    );
+    match result {
+        Err(ConfigurationError::InvalidCaCertificate(message)) => assert!(
+            message.starts_with("failed to read CA certificate from \"/nonexistent/ca.pem\": "),
+            "unexpected message: {}",
+            message
+        ),
+        other => panic!("expected InvalidCaCertificate, got {:?}", other),
+    }
 }
 
 /// Builds transport options around a CA file holding `contents` and returns the
@@ -176,7 +200,7 @@ fn ca_file_rejection(name: &str, contents: &str) -> String {
 fn test_transport_options_ca_cert_file_without_certificate_is_rejected() {
     let reason = ca_file_rejection("no-pem", "this is not a certificate\n");
     assert!(
-        reason.contains("the file holds no PEM CERTIFICATE block"),
+        reason.starts_with("failed to parse CA certificate from ") && reason.ends_with(": no PEM blocks found"),
         "unexpected reason: {}",
         reason
     );

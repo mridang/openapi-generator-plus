@@ -162,6 +162,10 @@ impl BaseApi {
             None => self.authenticator.as_ref().map(|a| a.as_ref()),
         };
         if let Some(auth) = effective_auth {
+            /* A per-call authenticator never met the client's constructor, so it
+             * gets this API's transport before it is asked for headers. An
+             * authenticator that already has one keeps it. */
+            auth.inject_api_client(self.api_client.clone());
             for (k, v) in auth.query_params() {
                 /* The authenticator's value replaces an operation query
                  * parameter of the same name, so the name is sent once. */
@@ -263,10 +267,30 @@ impl BaseApi {
         }
 
         /* Send request */
-        let response = self
+        let mut response = self
             .api_client
             .send_request(params.method, &request_url, &headers, serialized_body.as_ref())
             .await?;
+
+        /* A 401 on a request signed by a token flow means the cached token was
+         * revoked or rotated: drop it, get a new one (a refresh grant first) and
+         * replay the request once. A multipart body is not replayed, and a
+         * failure to re-authenticate leaves the original 401 to be reported. */
+        if response.status_code() == 401 && !matches!(serialized_body, Some(RequestBody::Multipart(_))) {
+            if let Some(auth) = effective_auth {
+                if auth.invalidate_access_token().await {
+                    if let Ok(fresh) = auth.try_auth_headers().await {
+                        for (k, v) in fresh {
+                            insert_header(&mut headers, k, v);
+                        }
+                        response = self
+                            .api_client
+                            .send_request(params.method, &request_url, &headers, serialized_body.as_ref())
+                            .await?;
+                    }
+                }
+            }
+        }
 
         /* Check for errors */
         if response.status_code() < 200 || response.status_code() >= 300 {
@@ -364,10 +388,30 @@ impl BaseApi {
                 use base64::Engine as _;
                 let bytes = base64::engine::general_purpose::STANDARD
                     .decode(response.body().as_bytes())
-                    .unwrap_or_default();
+                    .map_err(|e| {
+                        crate::errors::serialization_error::SerializationError::new(
+                            format!("Invalid base64 value for a non-JSON response body: {e}"),
+                            Some(Box::new(e)),
+                        )
+                    })?;
                 String::from_utf8_lossy(&bytes).into_owned()
             };
-            serde_json::from_value(serde_json::Value::String(text)).ok()
+            /* D32: a String return takes the text; any other return type is a
+             * SerializationError naming the Content-Type, never a silent None. */
+            match serde_json::from_value(serde_json::Value::String(text)) {
+                Ok(value) => Some(value),
+                Err(_) => {
+                    return Err(Box::new(
+                        crate::errors::serialization_error::SerializationError::new(
+                            format!(
+                                "Unexpected response Content-Type '{}' for a JSON return type",
+                                resp_content_type.as_deref().unwrap_or("")
+                            ),
+                            None,
+                        ),
+                    ));
+                }
+            }
         } else {
             None
         };
@@ -597,6 +641,62 @@ mod tests {
             let response = ApiHttpResponse::new(200, self.body.clone(), headers);
             Box::pin(async move { Ok(response) })
         }
+    }
+
+    /// Records the `Accept` header of the one request it receives.
+    struct AcceptCapturingClient {
+        accept: std::sync::Mutex<Option<String>>,
+    }
+
+    impl ApiClient for AcceptCapturingClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            *self.accept.lock().unwrap() = headers.get("Accept").cloned();
+            let response = ApiHttpResponse::new(200, "{}".to_string(), HashMap::new());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /* F1121: an explicit `Accept` header parameter beats both the configured
+     * default (`text/plain`) and the negotiated value (`application/json`). */
+    #[tokio::test]
+    async fn test_header_param_accept_wins_over_the_default_and_the_negotiated_accept() {
+        let client = Arc::new(AcceptCapturingClient { accept: std::sync::Mutex::new(None) });
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .default_header("Accept", "text/plain")
+            .build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let mut header_params = HashMap::new();
+        header_params.insert("Accept".to_string(), "application/xml".to_string());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: "/items",
+            query_params: Vec::new(),
+            header_params,
+            body: None,
+            multipart: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+        };
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        assert_eq!(Some("application/xml".to_string()), *client.accept.lock().unwrap());
     }
 
     /// Runs a String-returning operation against a response with the given

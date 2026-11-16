@@ -91,6 +91,16 @@ impl crate::auth::Authenticator for {{className}} {
         self.0.cookie_params()
     }
 
+    fn inject_api_client(&self, client: std::sync::Arc<dyn crate::api_client::ApiClient>) {
+        self.0.inject_api_client(client)
+    }
+
+    fn invalidate_access_token<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
+        self.0.invalidate_access_token()
+    }
+
     fn as_http_aware_mut(&mut self) -> Option<&mut dyn crate::auth::HttpAwareAuthenticator> {
         self.0.as_http_aware_mut()
     }

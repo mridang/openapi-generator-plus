@@ -420,7 +420,8 @@ async fn test_pet_api_get_pet_tag() {
     let opts = GetPetTagOptions::new()
         .colors(vec!["blue".to_string(), "black".to_string()])
         .sizes(vec!["S".to_string(), "M".to_string()]);
-    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+    let result = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+    assert!(result.is_ok(), "get_pet_tag failed: {:?}", result.err());
 }
 
 /// Points the operation's own server at the mock server, which serves every
@@ -867,6 +868,121 @@ async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
     );
 }
 
+/* D28: the REQUIRED header `X-Correlation-Id` is guarded like the required
+ * query parameter: an empty value is refused before any request is sent. */
+#[tokio::test]
+async fn test_pet_api_get_pet_by_name_empty_required_header_errors() {
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let opts = GetPetByNameOptions { category: "cats".to_string(), x_correlation_id: String::new() };
+    let err = api
+        .get_pet_by_name("rex".to_string(), Some(&opts))
+        .await
+        .expect_err("an empty required header must be rejected");
+    assert_eq!(
+        err.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Missing the required parameter 'X-Correlation-Id' when calling PetApi.get_pet_by_name"
+                .to_string()
+        ))
+    );
+}
+
+/* The REQUIRED cookie `session` of get_pet_summary: an empty value is refused,
+ * and so is a value holding a character outside the RFC 6265 cookie-octet set. */
+#[tokio::test]
+async fn test_pet_api_get_pet_summary_guards_the_required_cookie() {
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).expect("a valid date");
+
+    let empty = api
+        .get_pet_summary(1, as_of, Some(&GetPetSummaryOptions::new(String::new())))
+        .await
+        .expect_err("an empty required cookie must be rejected");
+    assert_eq!(
+        empty.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Missing the required parameter 'session' when calling PetApi.get_pet_summary".to_string()
+        ))
+    );
+
+    let forbidden = api
+        .get_pet_summary(1, as_of, Some(&GetPetSummaryOptions::new("a;b".to_string())))
+        .await
+        .expect_err("a cookie value holding a semicolon must be rejected");
+    assert_eq!(
+        forbidden.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Cookie value for 'session' contains characters forbidden by RFC 6265".to_string()
+        ))
+    );
+}
+
+/* D47, F1143: object-valued query and header parameters are expanded per
+ * property in their declared styles. */
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_object_valued_params_expand_per_style() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let mut criteria = PetCriteria::new();
+    criteria.breed = Some("lab".to_string());
+    criteria.min_age = Some(3);
+    let opts = GetPetTagOptions::new()
+        .criteria(criteria.clone())
+        .criteria_csv(criteria.clone())
+        .criteria_deep(criteria.clone())
+        .x_criteria(criteria);
+    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(request_line.contains("breed=lab&min_age=3"), "{}", request_line);
+    assert!(request_line.contains("criteriaCsv=breed%2Clab%2Cmin_age%2C3"), "{}", request_line);
+    assert!(
+        request_line.contains("criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3"),
+        "{}",
+        request_line
+    );
+    let header = request
+        .lines()
+        .find(|line| line.to_lowercase().starts_with("x-criteria:"))
+        .map(|line| line["x-criteria:".len()..].trim().to_string());
+    assert_eq!(Some("breed,lab,min_age,3".to_string()), header, "{}", request);
+}
+
+/* F1113: a digit-leading query parameter keeps its original wire name even
+ * though its Rust identifier needs a letter prefix. */
+#[tokio::test]
+async fn test_pet_api_find_pets_by_status_digit_leading_query_param_keeps_its_wire_name() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let _ = api
+        .find_pets_by_status(Some(&FindPetsByStatusOptions::new().n2nd_page(2)))
+        .await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(request_line.contains("2ndPage=2"), "got request line: {}", request_line);
+}
+
+/* F1142: an operation whose request body is an anyOf wrapper puts exactly the
+ * variant the caller passed on the wire, with its path parameter resolved. */
+#[tokio::test]
+async fn test_pet_api_add_pet_treatment_sends_the_chosen_variant_as_the_body() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let input = serde_json::json!({"drugName": "Amoxicillin", "dosage": "500mg"});
+    let treatment: PetTreatment =
+        serde_json::from_value(input.clone()).expect("the variant must decode");
+
+    let _ = api.add_pet_treatment(5, treatment, None).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(request_line.starts_with("POST /pet/5/treatment"), "got: {}", request_line);
+    let body = request.split("\r\n\r\n").nth(1).expect("a request body");
+    let sent: serde_json::Value = serde_json::from_str(body).expect("the body is JSON");
+    assert_eq!(input, sent);
+}
+
 /// A path parameter of exactly `.` or `..` is a dot segment the URL parser
 /// would collapse, re-routing the request. It is rejected before dispatch: the
 /// client points at a closed port, so any request would fail with a network
@@ -1180,6 +1296,111 @@ async fn test_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
         "default multipart body must carry the `file` part, got body: {}",
         String::from_utf8_lossy(body)
     );
+}
+
+/* D36, F1125: the scalar multipart parts of upload_pet_document are plain text
+ * parts with no part Content-Type of their own. */
+#[tokio::test]
+async fn test_pet_api_upload_pet_document_scalar_parts_are_plain_text() {
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let taken_at: {{packageName}}::date_time::DateTime = "2024-01-15T10:30:00+00:00"
+        .parse()
+        .expect("a valid instant");
+    let opts = UploadPetDocumentOptions::new(vec![1, 2, 3])
+        .is_primary(true)
+        .page_count(3)
+        .taken_at(taken_at)
+        .swatch(Swatch::Red);
+
+    let _ = api.upload_pet_document(1, Some(&opts), None).await;
+
+    let raw = rx.recv().expect("expected a captured request");
+    let (_, body) = split_http_request(&raw);
+    let body_text = String::from_utf8_lossy(body).to_string();
+    for (name, value) in [
+        ("isPrimary", "true"),
+        ("pageCount", "3"),
+        ("takenAt", "2024-01-15T10:30:00.000+00:00"),
+        ("swatch", "red"),
+    ] {
+        let expected = format!("Content-Disposition: form-data; name=\"{}\"\r\n\r\n{}\r\n", name, value);
+        assert!(body_text.contains(&expected), "missing part {}: {:?}", name, body_text);
+    }
+}
+
+/* F1158: the matrix `petId` and label `tagName` path styles reach the URL. */
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_path_styles_reach_the_url() {
+    let (api, client) = new_pet_api_recording_urls();
+    let _ = api.get_pet_tag(5, "cute".to_string(), None).await;
+
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(urls[0].ends_with("/pet/;petId=5/tag/.cute"), "{}", urls[0]);
+}
+
+/* F1158: the deepObject `filter` map is expanded per key in key order. */
+#[tokio::test]
+async fn test_pet_api_find_pets_by_status_filter_is_a_deep_object() {
+    let (api, client) = new_pet_api_recording_urls();
+    let mut filter = HashMap::new();
+    filter.insert("size".to_string(), "large".to_string());
+    filter.insert("color".to_string(), "blue".to_string());
+    let _ = api
+        .find_pets_by_status(Some(&FindPetsByStatusOptions::new().filter(filter)))
+        .await;
+
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(
+        urls[0].contains("filter%5Bcolor%5D=blue&filter%5Bsize%5D=large"),
+        "{}",
+        urls[0]
+    );
+}
+
+/* F1155: the deprecation markers sit on the declarations the spec deprecates:
+ * an operation, an Options parameter, a model and a property. */
+#[test]
+fn test_deprecated_elements_carry_the_deprecated_attribute() {
+    let squash = |text: &str| text.split_whitespace().collect::<String>();
+    let api = squash(include_str!("../src/api/pet_api.rs"));
+    for operation in ["find_pets_by_status", "get_pet_by_id"] {
+        assert!(
+            api.contains(&format!("#[deprecated]pubasyncfn{}_with_http_info(", operation)),
+            "{operation} must carry #[deprecated]"
+        );
+    }
+    let options = squash(include_str!("../src/api/options/find_pets_by_status_options.rs"));
+    assert!(options.contains("#[deprecated]pubstatus:"), "the status option must be deprecated");
+    let tag = squash(include_str!("../src/models/tag.rs"));
+    assert!(tag.contains("#[deprecated(note=\"Thisschemaisdeprecated.\")]"), "Tag must be deprecated");
+    let pet = squash(include_str!("../src/models/pet.rs"));
+    assert!(
+        pet.contains("#[deprecated(note=\"Thispropertyisdeprecated.\")]#[serde(rename=\"status\""),
+        "Pet.status must be deprecated"
+    );
+}
+
+/* F1068: a matrix-style `format: date` path segment and a date-array query
+ * reach the URL as dates. */
+#[tokio::test]
+async fn test_pet_api_get_pet_summary_sends_the_matrix_date_and_the_date_array() {
+    let (api, client) = new_pet_api_recording_urls();
+    let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).expect("a valid date");
+    let days = vec![
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 1).expect("a valid date"),
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 2).expect("a valid date"),
+    ];
+    let opts = GetPetSummaryOptions::new("s".to_string()).days(days);
+
+    /* The stub answers `{}`, which is not a String body; only the URL matters. */
+    let _ = api.get_pet_summary(1, as_of, Some(&opts)).await;
+
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(urls[0].contains("/pet/1/summary/;asOf=2024-01-31"), "{}", urls[0]);
+    assert!(urls[0].contains("days=2024-02-01&days=2024-02-02"), "{}", urls[0]);
 }
 
 /// Records the URL of every request and answers with an empty JSON object.

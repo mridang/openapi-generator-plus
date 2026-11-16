@@ -260,6 +260,43 @@ impl ApiError {
     }
 }
 
+/// The most response-body bytes an error's text carries; the full body stays on
+/// [`ApiError::response_body`].
+const MAX_RENDERED_BODY_BYTES: usize = 1024;
+
+/// Returns true when a response header's value must not be copied into an error
+/// text: the credential names of the redaction rule plus `Set-Cookie` and the
+/// two authentication challenges.
+fn is_secret_response_header(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    matches!(lower.as_str(), "set-cookie" | "www-authenticate" | "proxy-authenticate")
+        || crate::transport_options::is_sensitive_header(&lower)
+}
+
+/// Renders a response body for an error text: at most
+/// [`MAX_RENDERED_BODY_BYTES`] bytes with a `... (N more bytes)` suffix, and
+/// every control character escaped so a hostile server cannot forge log lines.
+fn render_body(body: &str) -> String {
+    let mut end = body.len().min(MAX_RENDERED_BODY_BYTES);
+    while !body.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut out = String::with_capacity(end);
+    for c in body[..end].chars() {
+        match c {
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c.is_control() => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    if end < body.len() {
+        out.push_str(&format!("... ({} more bytes)", body.len() - end));
+    }
+    out
+}
+
 /// Renders an error as the message followed by whatever response context was
 /// captured, one labelled field per line. Shared by [`ApiError`], every
 /// per-status wrapper (which delegates to it) and [`ApiErrorKind`], so they all
@@ -283,14 +320,20 @@ fn render_error(
         if !headers.is_empty() {
             /* Compact JSON with the keys sorted (D17), so the line is the same
              * on every run and in every SDK. */
-            let sorted: std::collections::BTreeMap<&String, &String> = headers.iter().collect();
+            let sorted: std::collections::BTreeMap<&String, String> = headers
+                .iter()
+                .map(|(name, value)| {
+                    let shown = if is_secret_response_header(name) { "***".to_string() } else { value.clone() };
+                    (name, shown)
+                })
+                .collect();
             let json = serde_json::to_string(&sorted).unwrap_or_default();
             msg.push_str(&format!("\nResponse headers: {}", json));
         }
     }
     if let Some(body) = body {
         if !body.is_empty() {
-            msg.push_str(&format!("\nResponse body: {}", body));
+            msg.push_str(&format!("\nResponse body: {}", render_body(body)));
         }
     }
     msg
