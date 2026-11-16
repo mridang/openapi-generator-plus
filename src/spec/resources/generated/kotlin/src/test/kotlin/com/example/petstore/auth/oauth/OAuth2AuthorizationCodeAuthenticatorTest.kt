@@ -178,7 +178,9 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         val url = auth.buildAuthorizationUrl("")
 
         assertFalse(url.contains("state"), url)
-        assertEquals(auth.buildAuthorizationUrl(null), url)
+        // Each URL carries its own random PKCE challenge, so compare without it.
+        val withoutPkce = { u: String -> u.substringBefore("&code_challenge=") }
+        assertEquals(withoutPkce(auth.buildAuthorizationUrl(null)), withoutPkce(url))
     }
 
     @Test

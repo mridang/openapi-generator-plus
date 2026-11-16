@@ -1646,11 +1646,14 @@ describe Petstore::Client::DefaultApiClient do
   def run_retry_probe(options: nil, verb: :get, headers: {}, body: nil, retry_headers: nil, &respond)
     envs = []
     delays = []
+    # The request body as sent: the stub rewrites env.body with the response.
+    @sent_bodies = []
     # One stub per possible attempt: the adapter consumes a stub per request.
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       10.times do
         stub.public_send(verb, '/r') do |env|
           envs << env
+          @sent_bodies << env.body
           respond.call(envs.length)
         end
       end
@@ -1666,6 +1669,10 @@ describe Petstore::Client::DefaultApiClient do
       end
     end
     [outcome, envs, delays]
+  end
+
+  def long_budget
+    Petstore::Client::TransportOptions.builder.timeout(300_000).build
   end
 
   def ok_after(attempts, failure)
@@ -1734,14 +1741,14 @@ describe Petstore::Client::DefaultApiClient do
   end
 
   it 'caps a Retry-After wait at 60 seconds' do
-    _outcome, _envs, delays = run_retry_probe(&ok_after(1, [503, { 'Retry-After' => '3600' }, 'later']))
+    _outcome, _envs, delays = run_retry_probe(options: long_budget, &ok_after(1, [503, { 'Retry-After' => '3600' }, 'later']))
 
     _(delays).must_equal [60.0]
   end
 
   it 'reads a Retry-After header that is an HTTP date' do
     date = (Time.now.utc + 30).httpdate
-    _outcome, _envs, delays = run_retry_probe(&ok_after(1, [503, { 'retry-after' => date }, 'later']))
+    _outcome, _envs, delays = run_retry_probe(options: long_budget, &ok_after(1, [503, { 'retry-after' => date }, 'later']))
 
     _(delays.first).must_be_within_delta 30, 1.5
   end
@@ -1790,9 +1797,9 @@ describe Petstore::Client::DefaultApiClient do
   end
 
   it 'sends a string body again on a retry' do
-    _outcome, envs, = run_retry_probe(verb: :post, body: 'payload', &ok_after(1, [503, {}, 'busy']))
+    run_retry_probe(verb: :post, body: 'payload', &ok_after(1, [503, {}, 'busy']))
 
-    _(envs.map(&:body)).must_equal %w[payload payload]
+    _(@sent_bodies).must_equal %w[payload payload]
   end
 
   it 'never lets a retry start after the timeout budget is spent' do

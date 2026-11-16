@@ -750,7 +750,7 @@ describe("BaseApi auth injection", () => {
         [];
       let issued = 0;
       const stub: ApiClient = {
-        async sendRequest(_method, url, headers) {
+        async sendRequest(_method, url, headers): Promise<ApiHttpResponse> {
           seen.push({ url, authorization: headers["Authorization"] });
           if (url === tokenUrl) {
             issued += 1;
@@ -773,14 +773,19 @@ describe("BaseApi auth injection", () => {
       return { seen, stub };
     }
 
-    const oauth = () =>
-      new OAuth2ClientCredentialsAuthenticator(
+    /* The client injects its transport into the authenticator it was built
+     * with; the test does the same with its stub. */
+    const oauth = (stub: ApiClient) => {
+      const authenticator = new OAuth2ClientCredentialsAuthenticator(
         "https://api.example.com",
         "client-id",
         "client-secret",
         tokenUrl,
         [],
       );
+      authenticator.setApiClient(stub);
+      return authenticator;
+    };
 
     test("drops the cached token and replays the request once with the new one", async () => {
       const { seen, stub } = renewingServer((authorization) =>
@@ -789,7 +794,7 @@ describe("BaseApi auth injection", () => {
       const testable = new TestableApi(
         stub,
         new Configuration({ baseUrl: "https://api.example.com" }),
-        oauth(),
+        oauth(stub),
       );
 
       await testable.call(
@@ -816,7 +821,7 @@ describe("BaseApi auth injection", () => {
       const testable = new TestableApi(
         stub,
         new Configuration({ baseUrl: "https://api.example.com" }),
-        oauth(),
+        oauth(stub),
       );
 
       const error = await testable
@@ -843,7 +848,7 @@ describe("BaseApi auth injection", () => {
       const testable = new TestableApi(
         stub,
         new Configuration({ baseUrl: "https://api.example.com" }),
-        oauth(),
+        oauth(stub),
       );
 
       const error = await testable
@@ -869,7 +874,7 @@ describe("BaseApi auth injection", () => {
     test("keeps the 401 when the new token cannot be obtained", async () => {
       let tokenCalls = 0;
       const stub: ApiClient = {
-        async sendRequest(_method, url) {
+        async sendRequest(_method, url): Promise<ApiHttpResponse> {
           if (url === tokenUrl) {
             tokenCalls += 1;
             return tokenCalls === 1
@@ -897,7 +902,7 @@ describe("BaseApi auth injection", () => {
       const testable = new TestableApi(
         stub,
         new Configuration({ baseUrl: "https://api.example.com" }),
-        oauth(),
+        oauth(stub),
       );
 
       const error = await testable

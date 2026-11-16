@@ -586,7 +586,7 @@ class OpenIdConnectAuthenticatorTest {
 
   @javax.annotation.Nullable
   private static String formField(String body, String name) {
-    for (String pair : body.split("&")) {
+    for (String pair : body.split("&", -1)) {
       if (pair.startsWith(name + "=")) {
         return pair.substring(name.length() + 1);
       }

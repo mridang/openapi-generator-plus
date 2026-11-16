@@ -553,8 +553,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         body,
                         noRedirect,
                         timeoutSource,
-                        timeoutToken,
-                        state
+                        state,
+                        timeoutToken
                     )
                     .ConfigureAwait(false);
                 if (
@@ -623,8 +623,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         object? body,
         bool noRedirect,
         CancellationTokenSource? timeoutSource,
-        CancellationToken timeoutToken,
-        AttemptState state
+        AttemptState state,
+        CancellationToken timeoutToken
     )
     {
         /* Field names are case-insensitive (RFC 9110 section 5.1), so a caller

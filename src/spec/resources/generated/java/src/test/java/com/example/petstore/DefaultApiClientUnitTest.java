@@ -2094,7 +2094,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void aRetryAfterBeyondTheRemainingBudgetNeverExtendsTheTimeout() throws Exception {
+  void retryAfterBeyondTheRemainingBudgetNeverExtendsTheTimeout() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "30"), hits);
     try {
@@ -2128,7 +2128,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void aNetworkErrorBeforeAnyResponseIsRetriedEvenForPost() throws Exception {
+  void networkErrorBeforeAnyResponseIsRetriedEvenForPost() throws Exception {
     try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
       java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
       String url = "http://127.0.0.1:" + silent.getLocalPort() + "/create";
@@ -2142,7 +2142,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void aStreamBodyIsNeverRetried() throws Exception {
+  void streamBodyIsNeverRetried() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
     try {

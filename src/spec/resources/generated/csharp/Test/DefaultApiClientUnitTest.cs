@@ -2560,8 +2560,8 @@ public class DefaultApiClientUnitTest
         DefaultApiClient client,
         object? body = null,
         Func<Task<Dictionary<string, string>>>? refresh = null,
-        CancellationToken token = default,
-        string method = "GET"
+        string method = "GET",
+        CancellationToken token = default
     )
     {
         return client.SendRequestAsync(
@@ -2825,7 +2825,11 @@ public class DefaultApiClientUnitTest
     [Fact]
     public void RetryAfterInSecondsOrAsADateIsHonouredAndCappedAtSixtySeconds()
     {
-        var now = DateTimeOffset.UtcNow;
+        var wall = DateTimeOffset.UtcNow;
+        var now = new DateTimeOffset(
+            wall.Ticks - wall.Ticks % TimeSpan.TicksPerSecond,
+            TimeSpan.Zero
+        );
         var inTenSeconds = now.AddSeconds(10)
             .ToString("R", System.Globalization.CultureInfo.InvariantCulture);
 
@@ -2839,8 +2843,8 @@ public class DefaultApiClientUnitTest
             DefaultApiClient.RetryDelay(0, Header("3600"), now, 0.5)
         );
         Assert.Equal(
-            10,
-            Math.Round(DefaultApiClient.RetryDelay(0, Header(inTenSeconds), now, 0.5).TotalSeconds)
+            TimeSpan.FromSeconds(10),
+            DefaultApiClient.RetryDelay(0, Header(inTenSeconds), now, 0.5)
         );
         Assert.Equal(
             TimeSpan.FromSeconds(0.5),

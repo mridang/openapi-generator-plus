@@ -479,7 +479,7 @@ module Petstore::Client
                 else
                   http_date_wait(text)
                 end
-      seconds && [[seconds, 0.0].max, RETRY_AFTER_CAP_S].min
+      seconds&.clamp(0.0, RETRY_AFTER_CAP_S)
     end
 
     # Seconds from now until the HTTP date +text+ (negative once it is past),

@@ -110,7 +110,7 @@ class ApiExceptionTest {
 
     @Test
     void renderedBodyEscapesTabsAndOtherControlCharacters() {
-        ApiException ex = new ApiException(500, "boom", Map.of(), "a\tb\u0001c\u007fd");
+        ApiException ex = new ApiException(500, "boom", Map.of(), "a\tb\1c\177d");
 
         assertEquals(
                 "boom\nHTTP status code: 500\nResponse body: a\\tb\\u0001c\\u007fd",

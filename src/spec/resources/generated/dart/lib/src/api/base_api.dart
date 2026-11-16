@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 
 import '../api_client.dart';
@@ -23,6 +24,8 @@ import '../object_serializer.dart';
 import '../value_serializer.dart';
 import '../trace_context_util.dart';
 import '../errors/api_exception.dart';
+import '../errors/network_exception.dart';
+import '../errors/network_timeout_exception.dart';
 
 /// Base class for all API classes.
 ///

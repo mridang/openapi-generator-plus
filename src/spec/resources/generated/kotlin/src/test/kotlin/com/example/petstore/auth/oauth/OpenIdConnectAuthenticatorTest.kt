@@ -96,7 +96,8 @@ class OpenIdConnectAuthenticatorTest {
         val absent = runBlocking { auth.buildAuthorizationUrl(null) }
 
         assertFalse(url.contains("state"), url)
-        assertEquals(absent, url)
+        // Each URL carries its own random PKCE challenge, so compare without it.
+        assertEquals(absent.substringBefore("&code_challenge="), url.substringBefore("&code_challenge="))
     }
 
     @Test
@@ -498,7 +499,7 @@ class OpenIdConnectAuthenticatorTest {
         assertEquals(
             "https://auth.example.com/authorize?response_type=code&client_id=cid" +
                 "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=openid",
-            url,
+            url.substringBefore("&code_challenge="),
         )
     }
 

@@ -10,7 +10,9 @@ package com.example.petstore.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -518,7 +520,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   /** The value of one form field of a token request body, or null when absent. */
   @javax.annotation.Nullable
   private static String field(String body, String name) {
-    for (String pair : body.split("&")) {
+    for (String pair : body.split("&", -1)) {
       if (pair.startsWith(name + "=")) {
         return pair.substring(name.length() + 1);
       }
@@ -546,7 +548,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
 
     assertEquals(43, first.length());
     assertTrue(first.matches("[A-Za-z0-9_-]{43}"), first);
-    assertFalse(first.equals(second));
+    assertNotEquals(first, second);
   }
 
   @Test
@@ -621,7 +623,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     auth.exchangeCode("second");
 
     assertNotNull(field(bodies.get(0), "code_verifier"));
-    assertEquals(null, field(bodies.get(1), "code_verifier"));
+    assertNull(field(bodies.get(1), "code_verifier"));
   }
 
   @Test

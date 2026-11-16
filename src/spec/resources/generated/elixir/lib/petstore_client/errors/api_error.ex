@@ -149,9 +149,7 @@ defmodule PetstoreClient.Errors.ApiError do
 
   defp response_secret_header?(name),
     do:
-      name
-      |> to_string()
-      |> (String.downcase() in ["set-cookie", "www-authenticate", "proxy-authenticate"])
+      String.downcase(to_string(name)) in ["set-cookie", "www-authenticate", "proxy-authenticate"]
 
   @doc """
   Map an HTTP response that was not a success to the error for its status.
