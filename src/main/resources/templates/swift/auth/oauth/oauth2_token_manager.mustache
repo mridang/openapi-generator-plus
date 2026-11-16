@@ -387,6 +387,14 @@ public final class OAuth2TokenManager: @unchecked Sendable {
                 "Token response missing or empty access_token field"
             )
         }
+        /* Only a Bearer credential can be sent as `Authorization: Bearer`: a
+         * DPoP, MAC or N_A token would be replayed as the wrong scheme. An
+         * absent or null token_type is accepted. */
+        if let tokenType = rawJson["token_type"], !(tokenType is NSNull),
+            (tokenType as? String)?.lowercased() != "bearer"
+        {
+            throw OAuth2TokenError.invalidResponse("Unsupported token_type in token response")
+        }
         let rawExpiresIn = rawJson["expires_in"]
         let hasExpiresIn = rawExpiresIn != nil && !(rawExpiresIn is NSNull)
         let expiresIn = Self.parseExpiresIn(rawExpiresIn)
