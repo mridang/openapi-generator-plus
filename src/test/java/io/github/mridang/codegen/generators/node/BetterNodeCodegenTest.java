@@ -95,8 +95,10 @@ class BetterNodeCodegenTest {
 
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> wrapperFields(final CodegenOperation op) {
-        final Map<String, Object> decorator = (Map<String, Object>) op.vendorExtensions.get("op");
-        return (List<Map<String, Object>>) decorator.get("requestWrapperFields");
+        final Map<String, Object> decorator =
+                java.util.Objects.requireNonNull((Map<String, Object>) op.vendorExtensions.get("op"));
+        return java.util.Objects.requireNonNull(
+                (List<Map<String, Object>>) decorator.get("requestWrapperFields"));
     }
 
     private static List<String> names(final List<Map<String, Object>> fields) {
@@ -128,7 +130,7 @@ class BetterNodeCodegenTest {
         new BetterNodeCodegen().populateRequestWrapper(op);
         final Map<String, Object> server = wrapperFields(op).get(1);
         assertEquals("GetThingServer | undefined", server.get("type"));
-        assertFalse((Boolean) server.get("optional"));
+        assertEquals(false, server.get("optional"));
     }
 
     @Test
@@ -137,7 +139,7 @@ class BetterNodeCodegenTest {
         new BetterNodeCodegen().populateRequestWrapper(op);
         final Map<String, Object> server = wrapperFields(op).get(1);
         assertEquals("GetThingServer", server.get("type"));
-        assertTrue((Boolean) server.get("optional"));
+        assertEquals(true, server.get("optional"));
     }
 
     @Test
