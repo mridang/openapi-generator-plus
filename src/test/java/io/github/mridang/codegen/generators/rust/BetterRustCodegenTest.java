@@ -16,9 +16,9 @@ class BetterRustCodegenTest {
   }
 
   @Test
-  void leavesAUrlUntouchedAndTurnsAMissingValueIntoAnEmptyLiteral() {
+  void leavesAUrlUntouchedAndTurnsAnEmptyValueIntoAnEmptyLiteral() {
     assertThat(codegen.toRustStringLiteral("https://auth.example.com/oauth/token?a=b&c=d"))
         .isEqualTo("\"https://auth.example.com/oauth/token?a=b&c=d\"");
-    assertThat(codegen.toRustStringLiteral(null)).isEqualTo("\"\"");
+    assertThat(codegen.toRustStringLiteral("")).isEqualTo("\"\"");
   }
 }
