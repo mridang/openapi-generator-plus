@@ -1009,6 +1009,52 @@ void main() {
       }
     });
 
+    /* getPetTag byte parameters (D51): the `fingerprint` query and the
+     * `X-Fingerprint` header are `format: byte`, so bytes `hi` reach the wire
+     * as `aGk=` and bytes FB FF as `+/8=` in the standard alphabet, and the
+     * query value is percent-encoded. */
+    for (final sample in <List<Object>>[
+      [<int>[0x68, 0x69], 'aGk%3D', 'aGk='],
+      [<int>[0xFB, 0xFF], '%2B%2F8%3D', '+/8='],
+    ]) {
+      final bytes = Uint8List.fromList(sample[0] as List<int>);
+      final wantQuery = sample[1] as String;
+      final wantHeader = sample[2] as String;
+      test('getPetTag sends byte parameters as standard padded base64 ($wantHeader)',
+          () async {
+        String? capturedQuery;
+        String? capturedHeader;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedQuery = request.uri.query;
+          capturedHeader = request.headers.value('x-fingerprint');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":5,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getPetTag(
+            5,
+            'cute',
+            GetPetTagOptions(fingerprint: bytes, xFingerprint: bytes),
+          );
+
+          expect(capturedQuery, contains('fingerprint=$wantQuery'));
+          expect(capturedHeader, equals(wantHeader));
+        } finally {
+          await server.close();
+        }
+      });
+    }
+
     /* required-string-empty-rejected: for a REQUIRED string param, an empty
      * string "" is treated as "absent" (parity with go/rust/swift/elixir),
      * so the call must fail-fast with an ArgumentError rather than sending an
