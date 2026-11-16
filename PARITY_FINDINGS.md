@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4, needs-spec 2, open 163, parked 53, partial 5. Severity: critical 3, high 60, medium 547, low 212.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 418, forced 4, needs-spec 2, open 162, parked 53, partial 5. Severity: critical 3, high 60, medium 547, low 212.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -667,7 +667,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F659 | medium | duplicate | batch5-discovered | node | ObjectSerializer.deserializeLeaf 'date' uses new Date(value) for both date-only and date-time leaves, so the D57 offset requirement is not enforced on container or top-level date-time values |
 | F660 | medium | false-positive | batch5-discovered | node | The hostname-verification TLS test in default-api-client.test.ts fails when jest runs directly on macOS (the request resolves) but passes inside the Docker NodeClientSpec |
 | F661 | medium | parked | api-surface | dart, elixir, ruby, rust | API surface: harmonise api `baseapi` (9 differences) |
-| F662 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getmultiserverpetinfoservermirror` (2 differences) |
+| F662 | medium | fixed | api-surface | dart, php, python, ruby | API surface: harmonise api `getmultiserverpetinfoservermirror` (2 differences) |
 | F663 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getmultiserverpetinfoserverregional` (1 differences) |
 | F664 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getstagingpetinfoserverstagingserver` (2 differences) |
 | F665 | medium | parked | api-surface | dart, node, php, ruby | API surface: harmonise api `petapi` (6 differences) |
@@ -7384,7 +7384,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - baseapi.buildcollectionparam [member] majority absent (11 SDKs); differs: elixir=extra
 
 ## F662 [medium] API surface: harmonise api `getmultiserverpetinfoservermirror` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **fixed** (F664) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, php, python, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `getmultiserverpetinfoservermirror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.

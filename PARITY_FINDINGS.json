@@ -32118,9 +32118,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `getmultiserverpetinfoservermirror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- getmultiserverpetinfoservermirror.region [member] majority present (8 SDKs); differs: dart=missing; php=missing; python=missing; ruby=missing\n- getmultiserverpetinfoservermirror.channel [member] majority present (8 SDKs); differs: dart=missing; php=missing; python=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "F664",
+   "batch": null,
+   "commit": "F663"
   },
   {
    "id": "F663",
