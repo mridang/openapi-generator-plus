@@ -33,11 +33,12 @@ export abstract class {{serverTypeName}} {
 }
 {{#serverEnums}}
 
-export enum {{serverTypeName}}{{typeName}} {
+export const {{serverTypeName}}{{typeName}} = {
 {{#enumValues}}
-  {{name}} = {{{literal}}},
+  {{name}}: {{{literal}}},
 {{/enumValues}}
-}
+} as const;
+export type {{serverTypeName}}{{typeName}} = (typeof {{serverTypeName}}{{typeName}})[keyof typeof {{serverTypeName}}{{typeName}}];
 {{/serverEnums}}
 {{#variants}}
 {{#hasDescription}}
@@ -105,13 +106,13 @@ export class {{classname}} extends BaseApi {
 {{#pathParams}}
    * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-   * @example {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+   * @example {{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
    * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-   * @example {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+   * @example {{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.hasOptionsParam}}
@@ -128,25 +129,25 @@ export class {{classname}} extends BaseApi {
 {{#queryParams}}
    * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-   * @example {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+   * @example options.{{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/queryParams}}
 {{#headerParams}}
    * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-   * @example {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+   * @example options.{{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/headerParams}}
 {{#formParams}}
    * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-   * @example {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+   * @example options.{{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/formParams}}
 {{#cookieParams}}
    * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-   * @example {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+   * @example options.{{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/cookieParams}}
 {{#vendorExtensions.op.hasContentTypeSelector}}
@@ -250,7 +251,7 @@ export class {{classname}} extends BaseApi {
         a%252Fb). Encode once, in the serializer. A format date value is cut
         to its date part first and then styled like any other value, so a
         matrix or label style still applies. }}
-    path = path.replace(`{${'{{baseName}}'}}`, {{#vendorExtensions.param.queryContent}}ValueSerializer.encodePathSegment(ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string{{/vendorExtensions.param.queryContent}});
+    path = path.replace(`{${'{{baseName}}'}}`, () => {{#vendorExtensions.param.queryContent}}ValueSerializer.encodePathSegment(ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string{{/vendorExtensions.param.queryContent}});
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
@@ -376,7 +377,6 @@ export class {{classname}} extends BaseApi {
 {{#operation}}
 {{#allParams}}
 {{#isEnum}}
-{{^stringEnums}}
 export const {{operationIdCamelCase}}{{enumName}} = {
 {{#allowableValues}}
   {{#enumVars}}
@@ -385,16 +385,6 @@ export const {{operationIdCamelCase}}{{enumName}} = {
 {{/allowableValues}}
 } as const;
 export type {{operationIdCamelCase}}{{enumName}} = (typeof {{operationIdCamelCase}}{{enumName}})[keyof typeof {{operationIdCamelCase}}{{enumName}}];
-{{/stringEnums}}
-{{#stringEnums}}
-export enum {{operationIdCamelCase}}{{enumName}} {
-{{#allowableValues}}
-  {{#enumVars}}
-  {{{name}}} = {{{value}}}{{^-last}},{{/-last}}
-  {{/enumVars}}
-{{/allowableValues}}
-}
-{{/stringEnums}}
 {{/isEnum}}
 {{/allParams}}
 {{/operation}}
