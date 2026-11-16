@@ -539,6 +539,56 @@ func TestApiError_ErrorRendersOnlyThePartsThatArePresent(t *testing.T) {
 	}
 }
 
+// Error() shows at most 1 KiB of the body, escapes control characters so a
+// hostile body cannot forge a log line, and masks credential-bearing response
+// headers; the accessors keep the real body and headers.
+func TestApiError_ErrorCapsTheBodyEscapesControlsAndMasksSecretHeaders(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("x", 1030)
+	capped := apierrors.NewApiError(500, "boom", long, nil, nil, nil)
+	if got, want := capped.Error(), "boom\nHTTP status code: 500\nResponse body: "+strings.Repeat("x", 1024)+"... (6 more bytes)"; got != want {
+		t.Errorf("expected the body capped at 1024 bytes, got %q", got)
+	}
+	if capped.ResponseBody() != long {
+		t.Error("the full body must stay on ResponseBody")
+	}
+
+	multibyte := strings.Repeat("x", 1023) + "\u00e9"
+	cut := apierrors.NewApiError(500, "boom", multibyte, nil, nil, nil)
+	if got, want := cut.Error(), "boom\nHTTP status code: 500\nResponse body: "+strings.Repeat("x", 1023)+"... (2 more bytes)"; got != want {
+		t.Errorf("expected the cap to stop before a split character, got %q", got)
+	}
+
+	forged := apierrors.NewApiError(500, "boom", "a\r\nHTTP status code: 200\x00\x7f", nil, nil, nil)
+	if got, want := forged.Error(), "boom\nHTTP status code: 500\nResponse body: a\\x0D\\x0AHTTP status code: 200\\x00\\x7F"; got != want {
+		t.Errorf("expected control characters escaped, got %q", got)
+	}
+
+	headers := map[string]string{
+		"Authorization":       "Bearer a",
+		"Proxy-Authorization": "Basic b",
+		"Cookie":              "sid=c",
+		"set-cookie":          "sid=d",
+		"www-authenticate":    "Bearer realm=x",
+		"proxy-authenticate":  "Basic realm=y",
+		"x-api-key":           "k",
+		"x-auth-token":        "t",
+		"x-client-secret":     "s",
+		"x-request-id":        "abc",
+	}
+	masked := apierrors.NewApiError(401, "denied", "", headers, nil, nil)
+	want := "denied\nHTTP status code: 401\nResponse headers: " +
+		`{"Authorization":"***","Cookie":"***","Proxy-Authorization":"***","proxy-authenticate":"***",` +
+		`"set-cookie":"***","www-authenticate":"***","x-api-key":"***","x-auth-token":"***",` +
+		`"x-client-secret":"***","x-request-id":"abc"}`
+	if got := masked.Error(); got != want {
+		t.Errorf("expected credential headers masked, got %q", got)
+	}
+	if masked.ResponseHeaders()["set-cookie"] != "sid=d" {
+		t.Error("the real header values must stay on ResponseHeaders")
+	}
+}
+
 // FromResponse keeps whatever JSON the server sent as the error body, scalars
 // and a leading byte order mark included, and never fails on a body it cannot
 // parse: the raw body is still retained.
