@@ -1303,6 +1303,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 param.put("description", p.description);
             }
             param.put("isDeprecated", p.isDeprecated);
+            // The named examples of the parameter, documented like the ones
+            // api.mustache writes for a path or body parameter.
+            final Object examples =
+                    p.vendorExtensions == null ? null : p.vendorExtensions.get("pluralExamples");
+            if (examples instanceof List<?> && !((List<?>) examples).isEmpty()) {
+                param.put("pluralExamples", examples);
+            }
             params.add(param);
             if (p.required) {
                 hasAnyRequired = true;

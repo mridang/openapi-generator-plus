@@ -93,17 +93,13 @@ module {{moduleName}}
 {{#pathParams}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-      # {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}
-      # {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
-      # Example: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
+      # Example for +{{paramName}}+ — {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-      # {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}
-      # {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
-      # Example: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
+      # Example for +{{paramName}}+ — {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}
