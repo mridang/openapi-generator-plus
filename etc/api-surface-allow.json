@@ -980,6 +980,126 @@
    ],
    "value": "extra*",
    "reason": "these are internal support classes called by the generated code, not by users: java, kotlin, csharp, go, rust and swift hide their helpers with package-private, internal or lowercase names, while php, ruby, dart, node, python and elixir have no such visibility across files, so extra helper functions are expected there; a helper missing from a language, or a different signature, is still reported"
+  },
+  {
+   "element": [
+    "servers.all",
+    "servers.allservers"
+   ],
+   "aspect": "*",
+   "languages": [
+    "dart",
+    "ruby",
+    "go",
+    "rust"
+   ],
+   "reason": "the list of all servers is present in every SDK under its idiomatic name: ALL in ruby, allServers in dart, AllServers in go and all_servers() in rust"
+  },
+  {
+   "element": [
+    "objectserializer",
+    "valueserializer",
+    "headerselector"
+   ],
+   "aspect": "type",
+   "languages": [
+    "java",
+    "kotlin",
+    "csharp",
+    "go",
+    "swift"
+   ],
+   "reason": "internal support type: these languages hide it with package-private, internal or lowercase visibility, so it is not part of the public surface"
+  },
+  {
+   "element": [
+    "objectserializer.resolveoneof",
+    "objectserializer.resolveanyof"
+   ],
+   "aspect": "*",
+   "languages": [
+    "ruby",
+    "python",
+    "elixir",
+    "rust"
+   ],
+   "reason": "these languages resolve oneOf and anyOf inside the generated model code instead of a serializer helper; the accepted inputs and the errors are the same"
+  },
+  {
+   "element": "objectserializer.parsejson",
+   "aspect": "*",
+   "languages": [
+    "java",
+    "php",
+    "rust"
+   ],
+   "reason": "these languages parse JSON with their standard library (Jackson, json_decode, serde_json) and apply the depth limit there, so they have no separate helper"
+  },
+  {
+   "element": [
+    "valueserializer.serialize",
+    "valueserializer.encodepathsegment",
+    "valueserializer.maybeallowreserved",
+    "iso8601duration.validatepartialtime",
+    "datetime.time",
+    "datetime.intoinner"
+   ],
+   "aspect": "*",
+   "languages": [
+    "dart",
+    "rust",
+    "php",
+    "swift",
+    "go"
+   ],
+   "reason": "internal helper that each of these languages names or organises differently; the wire bytes are checked by the shared petstore tests"
+  },
+  {
+   "element": "apiclient.close",
+   "aspect": "*",
+   "languages": [
+    "python",
+    "dart",
+    "node"
+   ],
+   "reason": "the ApiClient interface does not require close(): python documents it as optional so test doubles stay small, and the default clients still provide it"
+  },
+  {
+   "element": [
+    "apiclient.sendrequest",
+    "client"
+   ],
+   "aspect": "*",
+   "languages": [
+    "elixir",
+    "ruby"
+   ],
+   "reason": "elixir declares the callback on its ApiClient behaviour and ruby nests Client inside the Petstore namespace, which the surface check treats as a namespace"
+  },
+  {
+   "element": [
+    "abstractapiclient.validatemultipartfilename",
+    "abstractapiclient.buildfilenamedirective"
+   ],
+   "aspect": "*",
+   "languages": [
+    "node"
+   ],
+   "reason": "node builds and validates the multipart filename inside buildContentDisposition"
+  },
+  {
+   "element": ["baseapi.noauth","oauth2authorizationcodeauthenticator.tokenmanager","oauth2tokenmanager.markexchanged"],
+   "aspect": "member",
+   "languages": ["ruby","node"],
+   "value": "extra*",
+   "reason": "ruby and node have no package-private visibility: the NO_AUTH sentinel, the token manager hand-over and markExchanged are used by other generated classes and by the tests"
+  },
+  {
+   "element": ["baseapi.config","baseapi.apiclient","petapi.config","petapi.apiclient","storeapi.config","storeapi.apiclient"],
+   "aspect": "member",
+   "languages": ["dart"],
+   "value": "extra*",
+   "reason": "dart has no protected visibility across libraries: the generated api classes live in other files than BaseApi, so these fields are public"
   }
  ]
 }

@@ -31,6 +31,8 @@ module Petstore::Client
         # expiry arithmetic.
         MAX_EXPIRES_IN_S = 31_536_000
 
+        private_constant :EXPIRY_SAFETY_MARGIN_S, :MAX_EXPIRES_IN_S
+
         # The refresh token last issued by the authorization server.
         #
         # @return [String, nil] the current refresh token, if any

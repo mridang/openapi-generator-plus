@@ -36,11 +36,11 @@ class OAuth2TokenManager {
         /** Safety margin (in milliseconds) applied to token expiry checks
          *  so that we refresh slightly before the token actually expires,
          *  avoiding a race against the server clock. */
-        const val EXPIRY_SAFETY_MARGIN_MS: Long = 60_000L
+        private const val EXPIRY_SAFETY_MARGIN_MS: Long = 60_000L
 
         /** Longest token lifetime honoured (one year), so a huge `expires_in`
          *  cannot overflow the millisecond expiry arithmetic. */
-        const val MAX_EXPIRES_IN_SECONDS: Long = 31_536_000L
+        private const val MAX_EXPIRES_IN_SECONDS: Long = 31_536_000L
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -51,7 +51,7 @@ class OAuth2TokenManager {
      * Injected by the [com.example.petstore.auth.HttpAwareAuthenticator.setApiClient] call that the
      * client constructor makes; it must be set before any token requests are made.
      */
-    var apiClient: ApiClient? = null
+    internal var apiClient: ApiClient? = null
 
     /**
      * Single-flight refresh lock. Held across the suspending [fetchToken] call so

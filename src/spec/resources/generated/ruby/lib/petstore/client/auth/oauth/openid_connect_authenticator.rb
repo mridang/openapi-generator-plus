@@ -55,6 +55,8 @@ module Petstore::Client
         # Ceiling (one year, in seconds) for a server-supplied max-age.
         MAX_DISCOVERY_MAX_AGE_SECONDS = 31_536_000
 
+        private_constant :DEFAULT_DISCOVERY_MAX_AGE_SECONDS, :MAX_DISCOVERY_MAX_AGE_SECONDS
+
         # Inject the shared API client for making discovery and token requests.
         #
         # @param value [ApiClient] the shared API client instance

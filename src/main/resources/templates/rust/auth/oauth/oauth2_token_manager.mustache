@@ -71,7 +71,7 @@ impl OAuth2TokenManager {
     }
 
     /// Records that an authorization code has been exchanged for this session.
-    pub fn mark_exchanged(&self) {
+    pub(crate) fn mark_exchanged(&self) {
         self.exchanged.store(true, Ordering::SeqCst);
     }
 

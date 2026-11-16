@@ -31,7 +31,7 @@ class OAuth2ServerException(
     val rawBody: String,
 ) : OpenAPIException(buildMessage(statusCode, code, description, rawBody)) {
     private companion object {
-        fun buildMessage(
+        private fun buildMessage(
             statusCode: Int,
             code: String?,
             description: String?,
