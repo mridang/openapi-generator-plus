@@ -61,7 +61,7 @@ async fn test_base_api_error_dispatch_404() {
 async fn test_base_api_error_dispatch_409() {
     let base_url = format!("{}/test/status/409", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
-    let client = DefaultApiClient::new(None);
+    let client = DefaultApiClient::new(Some(TransportOptions::builder().max_retries(0).build().expect("valid transport options")));
     let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
@@ -83,7 +83,7 @@ async fn test_base_api_error_dispatch_422() {
 async fn test_base_api_error_dispatch_500() {
     let base_url = format!("{}/test/status/500", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
-    let client = DefaultApiClient::new(None);
+    let client = DefaultApiClient::new(Some(TransportOptions::builder().max_retries(0).build().expect("valid transport options")));
     let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
@@ -94,7 +94,7 @@ async fn test_base_api_error_dispatch_500() {
 async fn test_base_api_error_dispatch_502() {
     let base_url = format!("{}/test/status/502", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
-    let client = DefaultApiClient::new(None);
+    let client = DefaultApiClient::new(Some(TransportOptions::builder().max_retries(0).build().expect("valid transport options")));
     let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
@@ -732,7 +732,7 @@ async fn test_base_api_not_found_is_client_error() {
 async fn test_base_api_internal_server_error_is_server_error() {
     let base_url = format!("{}/test/status/500", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
-    let client = DefaultApiClient::new(None);
+    let client = DefaultApiClient::new(Some(TransportOptions::builder().max_retries(0).build().expect("valid transport options")));
     let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
@@ -1871,4 +1871,297 @@ async fn test_a_per_call_authenticator_is_given_the_transport() {
         .expect("delete_pet failed");
 
     assert_eq!(1, auth.injected.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+/* F823: a failed call is sent again up to `max_retries` times, as a fresh
+ * request with its authentication headers applied again. */
+enum Scripted {
+    Status(u16, Option<&'static str>),
+    Network,
+    Timeout,
+}
+
+struct ScriptedApiClient {
+    script: Mutex<Vec<Scripted>>,
+    retries: u32,
+    budget: Option<std::time::Duration>,
+    authorizations: Mutex<Vec<Option<String>>>,
+    deadlines: Mutex<Vec<Option<std::time::Instant>>>,
+}
+
+impl ScriptedApiClient {
+    fn new(script: Vec<Scripted>, retries: u32, budget: Option<std::time::Duration>) -> Arc<Self> {
+        Arc::new(ScriptedApiClient {
+            script: Mutex::new(script),
+            retries,
+            budget,
+            authorizations: Mutex::new(Vec::new()),
+            deadlines: Mutex::new(Vec::new()),
+        })
+    }
+
+    fn calls(&self) -> usize {
+        self.authorizations.lock().unwrap().len()
+    }
+}
+
+impl {{packageName}}::api_client::ApiClient for ScriptedApiClient {
+    fn send_request(
+        &self,
+        method: &str,
+        url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&{{packageName}}::api_client::RequestBody>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        self.send_request_with_options(method, url, headers, body, &{{packageName}}::api_client::RequestOptions::default())
+    }
+
+    fn send_request_with_options(
+        &self,
+        _method: &str,
+        _url: &str,
+        headers: &HashMap<String, String>,
+        _body: Option<&{{packageName}}::api_client::RequestBody>,
+        options: &{{packageName}}::api_client::RequestOptions,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        self.authorizations.lock().unwrap().push(headers.get("Authorization").cloned());
+        self.deadlines.lock().unwrap().push(options.deadline);
+        let step = self.script.lock().unwrap().remove(0);
+        Box::pin(async move {
+            match step {
+                Scripted::Status(status, retry_after) => {
+                    let mut h = HashMap::new();
+                    h.insert("Content-Type".to_string(), "application/json".to_string());
+                    if let Some(value) = retry_after {
+                        h.insert("retry-after".to_string(), value.to_string());
+                    }
+                    Ok({{packageName}}::api_http_response::ApiHttpResponse::new(status, "{}".to_string(), h))
+                }
+                Scripted::Network => {
+                    let failed = ApiError::new(0, "connection refused".to_string(), None, None);
+                    Err(Box::new(NetworkError::try_from(failed).expect("status 0")) as Box<dyn std::error::Error + Send + Sync>)
+                }
+                Scripted::Timeout => {
+                    let failed = ApiError::new(0, "timed out".to_string(), None, None);
+                    let network = NetworkError::try_from(failed).expect("status 0");
+                    Err(Box::new(NetworkTimeoutError::from(network)) as Box<dyn std::error::Error + Send + Sync>)
+                }
+            }
+        })
+    }
+
+    fn max_retries(&self) -> u32 {
+        self.retries
+    }
+
+    fn request_timeout(&self) -> Option<std::time::Duration> {
+        self.budget
+    }
+}
+
+/// Hands out a different bearer token on every call.
+struct CountingAuthenticator {
+    asked: std::sync::atomic::AtomicUsize,
+}
+
+impl {{packageName}}::auth::Authenticator for CountingAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>,
+    > {
+        Box::pin(async move {
+            let n = self.asked.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let mut headers = HashMap::new();
+            headers.insert("Authorization".to_string(), format!("Bearer n{}", n));
+            headers
+        })
+    }
+}
+
+fn retrying_api(client: &Arc<ScriptedApiClient>) -> PetApi {
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    PetApi::new(client.clone(), config, None)
+}
+
+#[tokio::test]
+async fn test_a_retryable_status_is_retried_until_the_call_succeeds() {
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(503, Some("0")),
+            Scripted::Status(429, Some("0")),
+            Scripted::Status(200, None),
+        ],
+        2,
+        None,
+    );
+
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the third attempt succeeds");
+
+    assert_eq!(3, client.calls());
+}
+
+#[tokio::test]
+async fn test_the_last_failure_is_reported_when_the_retries_run_out() {
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(500, Some("0")),
+            Scripted::Status(500, Some("0")),
+            Scripted::Status(500, Some("0")),
+            Scripted::Status(200, None),
+        ],
+        2,
+        None,
+    );
+
+    let err = retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect_err("three failures in a row are reported");
+
+    assert!(err.downcast_ref::<InternalServerError>().is_some(), "got: {}", err);
+    assert_eq!(3, client.calls());
+}
+
+#[tokio::test]
+async fn test_statuses_that_do_not_retry_are_sent_once() {
+    for status in [400, 404, 422, 501] {
+        let client = ScriptedApiClient::new(
+            vec![Scripted::Status(status, Some("0")), Scripted::Status(200, None)],
+            2,
+            None,
+        );
+
+        let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+        assert!(outcome.is_err(), "status {}", status);
+        assert_eq!(1, client.calls(), "status {}", status);
+    }
+}
+
+#[tokio::test]
+async fn test_zero_max_retries_sends_the_call_once() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(503, Some("0")), Scripted::Status(200, None)],
+        0,
+        None,
+    );
+
+    let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+}
+
+#[tokio::test]
+async fn test_a_network_failure_is_retried_but_a_timeout_is_not() {
+    let client = ScriptedApiClient::new(vec![Scripted::Network, Scripted::Status(200, None)], 2, None);
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry after a network failure succeeds");
+    assert_eq!(2, client.calls());
+
+    let client = ScriptedApiClient::new(vec![Scripted::Timeout, Scripted::Status(200, None)], 2, None);
+    let err = retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect_err("a timeout has used up the budget");
+    assert!(err.downcast_ref::<NetworkTimeoutError>().is_some(), "got: {}", err);
+    assert_eq!(1, client.calls());
+}
+
+#[tokio::test]
+async fn test_a_retry_asks_the_authenticator_for_fresh_headers() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(503, Some("0")), Scripted::Status(200, None)],
+        2,
+        None,
+    );
+    let auth = Arc::new(CountingAuthenticator { asked: std::sync::atomic::AtomicUsize::new(0) });
+
+    retrying_api(&client)
+        .delete_pet(1, Some(&DeletePetOptions::new().auth(auth)))
+        .await
+        .expect("the retry succeeds");
+
+    assert_eq!(
+        vec![Some("Bearer n0".to_string()), Some("Bearer n1".to_string())],
+        *client.authorizations.lock().unwrap()
+    );
+}
+
+#[tokio::test]
+async fn test_retry_after_seconds_is_honoured() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(429, Some("1")), Scripted::Status(200, None)],
+        2,
+        None,
+    );
+    let started = std::time::Instant::now();
+
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry succeeds");
+
+    assert!(started.elapsed() >= std::time::Duration::from_millis(900), "waited {:?}", started.elapsed());
+}
+
+#[tokio::test]
+async fn test_a_retry_that_does_not_fit_the_timeout_is_not_made() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(503, Some("30")), Scripted::Status(200, None)],
+        2,
+        Some(std::time::Duration::from_secs(2)),
+    );
+    let started = std::time::Instant::now();
+
+    let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+    assert!(started.elapsed() < std::time::Duration::from_secs(2), "waited {:?}", started.elapsed());
+}
+
+#[tokio::test]
+async fn test_every_attempt_shares_one_deadline() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(503, Some("0")), Scripted::Status(200, None)],
+        2,
+        Some(std::time::Duration::from_secs(30)),
+    );
+
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry succeeds");
+
+    let deadlines = client.deadlines.lock().unwrap();
+    assert_eq!(2, deadlines.len());
+    assert!(deadlines[0].is_some());
+    assert_eq!(deadlines[0], deadlines[1]);
+}
+
+#[tokio::test]
+async fn test_a_multipart_body_is_never_retried() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(503, Some("0")), Scripted::Status(200, None)],
+        2,
+        None,
+    );
+
+    let outcome = retrying_api(&client)
+        .upload_pet_document(1, Some(&UploadPetDocumentOptions::new(vec![1, 2, 3])), None)
+        .await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
 }

@@ -71,3 +71,80 @@ impl {{errorPrefix}}Error for NetworkTimeoutError {}
 impl {{errorPrefix}}Error for SerializationError {}
 impl {{errorPrefix}}Error for OAuth2ServerError {}
 impl {{errorPrefix}}Error for OAuth2TokenError {}
+
+/// Lets a caller match on the SDK's HTTP errors without downcasting by hand.
+///
+/// Every operation returns `Box<dyn std::error::Error + Send + Sync>`; this
+/// extension trait is implemented for that trait object, so the helpers are
+/// called straight on the boxed error. A named wrapper such as
+/// [`NotFoundError`] resolves to the [`ApiError`] it wraps.
+///
+/// ```ignore
+/// if let Err(err) = api.get_item(id).await {
+///     if let Some(api_error) = err.as_api_error() {
+///         eprintln!("HTTP {}", api_error.status_code());
+///     }
+/// }
+/// ```
+pub trait {{errorPrefix}}ErrorExt {
+    /// The [`ApiError`] this error is or wraps: the root error, a status
+    /// wrapper (400, 404, 5xx and so on), a [`ClientError`], a [`ServerError`],
+    /// a [`NetworkError`] or a [`NetworkTimeoutError`]. `None` for any other error.
+    fn as_api_error(&self) -> Option<&ApiError>;
+
+    /// Whether [`as_api_error`](Self::as_api_error) finds an [`ApiError`].
+    fn is_api_error(&self) -> bool {
+        self.as_api_error().is_some()
+    }
+
+    /// The pattern-matching [`ApiErrorKind`] view of the error, or `None` when
+    /// it is not an [`ApiError`] or a wrapper of one.
+    fn api_error_kind(&self) -> Option<ApiErrorKind> {
+        self.as_api_error().cloned().map(ApiErrorKind::from)
+    }
+}
+
+impl {{errorPrefix}}ErrorExt for dyn std::error::Error + Send + Sync + 'static {
+    fn as_api_error(&self) -> Option<&ApiError> {
+        if let Some(e) = self.downcast_ref::<ApiError>() {
+            return Some(e);
+        }
+        if let Some(e) = self.downcast_ref::<ClientError>() {
+            return Some(e.api_error());
+        }
+        if let Some(e) = self.downcast_ref::<ServerError>() {
+            return Some(e.api_error());
+        }
+        if let Some(e) = self.downcast_ref::<NetworkError>() {
+            return Some(e.api_error());
+        }
+        if let Some(e) = self.downcast_ref::<NetworkTimeoutError>() {
+            return Some(e.network_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<BadRequestError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<UnauthorizedError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<ForbiddenError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<NotFoundError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<ConflictError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<UnprocessableEntityError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<TooManyRequestsError>() {
+            return Some(e.client_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<InternalServerError>() {
+            return Some(e.server_error().api_error());
+        }
+        None
+    }
+}
