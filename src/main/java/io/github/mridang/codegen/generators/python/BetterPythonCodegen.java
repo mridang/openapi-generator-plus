@@ -873,6 +873,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
 
+        // S5: a required nullable property keeps its key on the wire as an
+        // explicit null, so the model template adds a serializer for it.
+        if (property.required && property.isNullable) {
+            model.vendorExtensions.put("hasRequiredNullable", true);
+        }
+
         // Item 1 — uri subformat guard. The typeMapping rewrites `URI` to
         // `HttpUrl`; revert to `str` for non-absolute subformats. Use the
         // strict primitive so that the lax-coercion guarantee is preserved.
@@ -1235,6 +1241,41 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         return params;
     }
 
+    /**
+     * Escapes text for the inside of a double-quoted Python string literal, so
+     * an apiKey scheme name holding a quote, a backslash or a control
+     * character cannot break the generated authenticator wrapper.
+     *
+     * @param text the raw text
+     * @return the text with backslashes, quotes and control characters escaped
+     */
+    static String pythonStringBody(final String text) {
+        final StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                out.append("\\\\");
+            } else if (c == '"') {
+                out.append("\\\"");
+            } else if (c == '\n') {
+                out.append("\\n");
+            } else if (c == '\r') {
+                out.append("\\r");
+            } else if (c == '\t') {
+                out.append("\\t");
+            } else if (c < 0x20) {
+                out.append("\\x");
+                if (c < 0x10) {
+                    out.append('0');
+                }
+                out.append(Integer.toHexString(c));
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
     @SuppressWarnings("StringConcatenationMissingWhitespace")
     private static List<String> buildPythonSuperArgs(SchemeAuthSpec spec) {
         final String scopes = formatPythonScopes(spec.scopes());
@@ -1247,7 +1288,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of(
                     "host",
-                    "\"" + spec.keyParamName() + "\"",
+                    "\"" + pythonStringBody(Objects.toString(spec.keyParamName(), "")) + "\"",
                     "api_key",
                     "ApiKeyLocation." + spec.keyIn());
         }

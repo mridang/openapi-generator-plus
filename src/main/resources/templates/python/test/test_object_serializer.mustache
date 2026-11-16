@@ -805,6 +805,32 @@ class TestFixtureModelsOnTheWire:
             ObjectSerializer().deserialize('{"phase":"in-stock"}', 'EdgeCases')
 
 
+class TestRequiredNullableOnTheWire:
+    """S5: a property that is required and nullable must be present on decode,
+    keeps an explicit null, and is written as null when unset."""
+
+    def test_an_explicit_null_decodes_and_is_kept(self) -> None:
+        from {{packageName}}.models.required_nullable import RequiredNullable
+
+        decoded = ObjectSerializer().deserialize('{"note":null}', 'RequiredNullable')
+        assert isinstance(decoded, RequiredNullable)
+        assert decoded.note is None
+
+    def test_a_missing_key_is_rejected(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{}', 'RequiredNullable')
+
+    def test_a_null_value_is_written_as_null(self) -> None:
+        from {{packageName}}.models.required_nullable import RequiredNullable
+
+        assert ObjectSerializer().serialize(RequiredNullable(note=None)) == '{"note":null}'
+
+    def test_a_value_is_written_as_is(self) -> None:
+        from {{packageName}}.models.required_nullable import RequiredNullable
+
+        assert ObjectSerializer().serialize(RequiredNullable(note='n')) == '{"note":"n"}'
+
+
 class TestExcludeNoneOnSerialize:
     def test_none_values_are_omitted(self) -> None:
         import json

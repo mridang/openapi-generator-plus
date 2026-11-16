@@ -41,6 +41,9 @@ class ApiClient(Protocol):
             endpoint — the token manager checks the returned status code and
             refuses to follow it. When ``False`` (the default), the
             implementation follows redirects per its usual security guards.
+            A ``no_redirect`` request also carries no transport-level default
+            headers, so credentials meant for the API never reach the token
+            endpoint.
         :return: ApiHttpResponse containing status code, body, and headers
         """
         ...
