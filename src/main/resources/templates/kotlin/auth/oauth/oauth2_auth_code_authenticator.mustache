@@ -76,6 +76,10 @@ open class OAuth2AuthorizationCodeAuthenticator internal constructor(
         tokenManager.apiClient = apiClient
     }
 
+    override fun invalidateAccessToken() {
+        tokenManager.invalidateAccessToken()
+    }
+
     /**
      * Build the authorization URL to redirect the user to.
      *

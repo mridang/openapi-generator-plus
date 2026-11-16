@@ -132,6 +132,41 @@ class BaseApiTest {
         override fun getCookieParams(): Map<String, String> = cookies
     }
 
+    class UnauthorizedApiClient : CapturingApiClient() {
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean
+        ): ApiHttpResponse = ApiHttpResponse(401, "{}", mapOf("Content-Type" to "application/json"))
+    }
+
+    class CountingOAuthAuthenticator : {{invokerPackage}}.auth.HttpAwareAuthenticator {
+        var invalidations = 0
+        override fun setApiClient(apiClient: ApiClient) {}
+        override fun invalidateAccessToken() {
+            invalidations++
+        }
+        override fun getHost(): String = ""
+        override suspend fun getAuthHeaders(): Map<String, String> = mapOf("Authorization" to "Bearer t")
+    }
+
+    @Test
+    @DisplayName("F855: a 401 answer invalidates the cached OAuth2 token, other statuses do not")
+    fun unauthorizedAnswerInvalidatesTheCachedToken() {
+        val auth = CountingOAuthAuthenticator()
+        val api = TestableApiWithClient(UnauthorizedApiClient(), "http://localhost")
+        assertThrows(ApiException::class.java) {
+            runBlocking { api.call("GET", "/items", auth = auth) }
+        }
+        assertEquals(1, auth.invalidations)
+
+        val ok = CountingOAuthAuthenticator()
+        runBlocking { TestableApiWithClient(CapturingApiClient(), "http://localhost").call("GET", "/items", auth = ok) }
+        assertEquals(0, ok.invalidations)
+    }
+
     private fun api() = TestableApi(ChasmContainer.getBaseUrl())
 
     @Test

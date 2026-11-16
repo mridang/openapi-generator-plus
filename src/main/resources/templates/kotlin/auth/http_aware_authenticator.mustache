@@ -34,4 +34,11 @@ interface HttpAwareAuthenticator : Authenticator {
      * @param apiClient the shared API client instance
      */
     fun setApiClient(apiClient: ApiClient)
+
+    /**
+     * Drop the cached access token so that the next call fetches (or refreshes) a new one.
+     * [BaseApi][{{apiPackage}}.BaseApi] calls it when the API answers 401, so a token revoked
+     * on the server is not served from the cache until it expires. The default does nothing.
+     */
+    fun invalidateAccessToken() {}
 }

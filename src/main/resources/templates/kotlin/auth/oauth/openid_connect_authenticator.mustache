@@ -69,6 +69,10 @@ open class OpenIdConnectAuthenticator(
         this.apiClient = apiClient
     }
 
+    override fun invalidateAccessToken() {
+        delegate?.invalidateAccessToken()
+    }
+
     /**
      * Lazily resolve the delegate by fetching the OIDC discovery document.
      *
