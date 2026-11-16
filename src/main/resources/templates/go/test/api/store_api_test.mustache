@@ -525,6 +525,38 @@ func TestStoreApi_GetDepartmentDecodesTheMutualReference(t *testing.T) {
 	}
 }
 
+// A model with schema defaults decodes through the operation: the values the
+// server sent win, an explicit null stays null, and an absent key takes its
+// declared default.
+func TestStoreApi_GetDefaultsDecodesTheServersValues(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`{"retries":5,"mode":"high","label":null,"swatch":"blue","ceiling":9000000001}`, func(*http.Request) {})
+	defer server.Close()
+
+	result, err := newStoreApiForMock(t, server).GetDefaults(context.Background())
+	if err != nil {
+		t.Fatalf("GetDefaults failed: %v", err)
+	}
+	if result.Retries == nil || *result.Retries != 5 {
+		t.Errorf("expected retries 5, got %v", result.Retries)
+	}
+	if result.Mode == nil || *result.Mode != models.DefaultsModeEnumHigh {
+		t.Errorf("expected mode high, got %v", result.Mode)
+	}
+	if result.Label != nil {
+		t.Errorf("expected an explicit null label to stay nil, got %v", *result.Label)
+	}
+	if result.Swatch == nil || *result.Swatch != models.SwatchBlue {
+		t.Errorf("expected swatch blue, got %v", result.Swatch)
+	}
+	if result.Ceiling == nil || *result.Ceiling != 9000000001 {
+		t.Errorf("expected ceiling 9000000001, got %v", result.Ceiling)
+	}
+	if result.Ratio == nil || *result.Ratio != 1.5 {
+		t.Errorf("expected the absent ratio to take its default 1.5, got %v", result.Ratio)
+	}
+}
+
 // An optional date-time query parameter is sent in the canonical date-time form.
 func TestStoreApi_GetStockItemSendsTheAsOfInstantAsDateTime(t *testing.T) {
 	t.Parallel()
