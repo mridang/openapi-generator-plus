@@ -961,6 +961,20 @@ test('config default Accept wins over operation-negotiated Accept', function ():
     expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
 });
 
+test('an explicit Accept header parameter wins over the configured default and the negotiated one', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('Accept', 'application/xml')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], ['Accept' => 'text/csv'], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders['Accept'] ?? null)->toBe('text/csv');
+    expect(array_keys(array_change_key_case($client->capturedHeaders, CASE_LOWER)))
+        ->toContain('accept');
+});
+
 // -- BinaryResponseTests --
 
 test('octet stream response decoded as base 64 bytes', function (): void {
