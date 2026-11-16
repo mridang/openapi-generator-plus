@@ -57,4 +57,21 @@ public class PythonFormattingSpec extends AbstractFormattingSpec implements Pyth
         .withFailMessage("Generated Python code is not properly formatted:\n%s", result.output())
         .isTrue();
   }
+
+  /** F1071: a plural example is written directly under the parameter it belongs to. */
+  @Test
+  void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+    Path petApi = tempOutputDir.resolve("petstore_client/api/pet_api.py");
+    String src = java.nio.file.Files.readString(petApi);
+    assertThat(src)
+        .as("python pet_api.py should list plural examples under their parameter")
+        .contains(
+            ":param pet_id: ID of pet to return (required)\n"
+                + "        # Small breed ID\n"
+                + "        # A common small-breed pet identifier\n"
+                + "        # >>> 1\n"
+                + "        # Large breed ID\n"
+                + "        # A common large-breed pet identifier\n"
+                + "        # >>> 42\n");
+  }
 }

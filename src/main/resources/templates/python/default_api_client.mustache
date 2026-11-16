@@ -480,10 +480,13 @@ class DefaultApiClient:
                 try:
                     ctx = ssl.create_default_context()
                     ctx.load_verify_locations(cafile=transport_options.ca_cert_path)
-                except (OSError, ssl.SSLError) as e:
+                except ssl.SSLError as e:
                     raise ValueError(
-                        'failed to load CA certificate from '
-                        f'{transport_options.ca_cert_path!r}: {e}'
+                        f'failed to parse CA certificate from "{transport_options.ca_cert_path}": {e}'
+                    ) from e
+                except OSError as e:
+                    raise ValueError(
+                        f'failed to read CA certificate from "{transport_options.ca_cert_path}": {e}'
                     ) from e
             if not transport_options.verify_ssl:
                 kwargs['cert_reqs'] = 'CERT_NONE'

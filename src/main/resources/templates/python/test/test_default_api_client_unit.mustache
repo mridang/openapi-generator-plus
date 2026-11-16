@@ -1501,7 +1501,7 @@ class TestCaCertPathFailsFast:
             .ca_cert_path("/nonexistent/ca.pem")
             .build()
         )
-        with pytest.raises(ValueError, match='failed to load CA certificate'):
+        with pytest.raises(ValueError, match='failed to read CA certificate from "/nonexistent/ca.pem"'):
             DefaultApiClient(transport)
 
 class TestApiKeyHeaderStrippedOnCrossOrigin:
@@ -1786,7 +1786,7 @@ class TestGarbageCaCertPath:
         assert type(excinfo.value) is ValueError
         assert not isinstance(excinfo.value, OpenAPIException)
         assert str(excinfo.value).startswith(
-            f"failed to load CA certificate from {str(ca_file)!r}: "
+            f'failed to parse CA certificate from "{ca_file}": '
         )
 
 
