@@ -479,8 +479,8 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 		}
 		if !matched {
 			return nil, fmt.Errorf(
-				"unsupported request content-type %q for {{operationId}}; declared types are %v",
-				requestContentType[0], declaredConsumes)
+				"unsupported request content-type %q for {{operationId}}; declared types are %s",
+				requestContentType[0], bracketedList(declaredConsumes))
 		}
 	}
 {{#hasFormParams}}

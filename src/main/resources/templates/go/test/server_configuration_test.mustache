@@ -183,7 +183,7 @@ func TestServerConfiguration_RejectionMessageNamesValueVariableAndAllowedValues(
 	)
 
 	_, err := server.URL(map[string]string{"env": "invalid"})
-	want := "invalid server variable: invalid value 'invalid' for server variable 'env'. Allowed values: [api staging]"
+	want := "invalid server variable: invalid value 'invalid' for server variable 'env'. Allowed values: [api, staging]"
 	if err == nil || err.Error() != want {
 		t.Errorf("expected message %q, got %v", want, err)
 	}

@@ -161,11 +161,17 @@ func (s *ServerConfiguration) URL(overrides map[string]string) (string, error) {
 				}
 			}
 			if !valid {
-				return "", fmt.Errorf("%w: invalid value '%s' for server variable '%s'. Allowed values: %v", ErrInvalidServerVariable, value, varName, variable.enumValues)
+				return "", fmt.Errorf("%w: invalid value '%s' for server variable '%s'. Allowed values: %s", ErrInvalidServerVariable, value, varName, bracketedList(variable.enumValues))
 			}
 		}
 
 		result = strings.ReplaceAll(result, "{"+varName+"}", value)
 	}
 	return result, nil
+}
+
+// bracketedList renders a list of values as [a, b, c], the one rendering every
+// SDK uses in its messages.
+func bracketedList(values []string) string {
+	return "[" + strings.Join(values, ", ") + "]"
 }
