@@ -6765,10 +6765,11 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F099",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "decode-failure and redirect-limit errors now carry the real response headers in java, kotlin, csharp, node, swift, elixir (and go, php already did); a regression assertion in each",
    "priority_triage": "medium",
-   "plain": "When a response arrives but cannot be decoded, half the SDKs report no headers on the error and half report the real ones."
+   "plain": "When a response arrives but cannot be decoded, half the SDKs report no headers on the error and half report the real ones.",
+   "commit": "dbe3ec19b"
   },
   {
    "title": "Error-contract test coverage is uneven: the OAuth2ServerError message is tested only in go, the error-body depth cap in 5 SDKs, exact rendering in 5",
@@ -10105,10 +10106,11 @@
    "unit_testable": true,
    "lens": "L12-api-bodies",
    "id": "F151",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "all six SDKs that leaked a raw error, decoded garbage or returned empty bytes now raise their SerializationError; a regression test in each",
    "priority_triage": "medium",
-   "plain": "A base64 body or a missing content type on a byte-returning operation decodes differently, with some SDKs returning garbage or throwing raw platform errors."
+   "plain": "A base64 body or a missing content type on a byte-returning operation decodes differently, with some SDKs returning garbage or throwing raw platform errors.",
+   "commit": "dd6b8ea9a"
   },
   {
    "title": "Petstore spec does not exercise several body/response shapes, so whole branches above are never generated or tested",
@@ -12125,10 +12127,11 @@
    "unit_testable": true,
    "lens": "L14-codegen-java",
    "id": "F174",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): kotlin, csharp, rust, node and python codegens now emit type-correct numeric defaults (BetterKotlinCodegen.java:~672, BetterCSharpCodegen.java:~633, BetterRustCodegen.java:~604, BetterNodeCodegen.java:1504, BetterPythonCodegen.java:1012-1020)",
    "priority_triage": "low",
-   "plain": "Numeric default values are emitted as literals that do not match the target type in Python and Elixir."
+   "plain": "Numeric default values are emitted as literals that do not match the target type in Python and Elixir.",
+   "commit": "dbe3ec19b"
   },
   {
    "title": "format: uri is a validated typed URI in 6 SDKs and an unvalidated plain string in 6, despite stdlib URI types existing",
@@ -20330,8 +20333,8 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F309",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): goldens keep plain names: swift ApiResponse.swift:13 type, dart api_response.dart:12 type, php EdgeCases.php:36-48 $and/$or/$class/$return, ruby edge_cases.rb:131-133; only genuine clashes are escaped",
    "outcomes": {
     "dart": {
      "outcome": "needs-decision",
@@ -20356,7 +20359,8 @@
    },
    "batch": 3,
    "priority_triage": "low",
-   "plain": "Some legal names (and in Java, illegal literals) are renamed or not renamed inconsistently, so public field names differ between SDKs."
+   "plain": "Some legal names (and in Java, illegal literals) are renamed or not renamed inconsistently, so public field names differ between SDKs.",
+   "commit": "dbe3ec19b"
   },
   {
    "title": "`format: int32` range is enforced by 5 SDKs; swift (Int), python, dart, php, ruby, elixir and node accept and re-send values outside int32",
@@ -34174,9 +34178,10 @@
    "description": "The php golden's spec/ directory and README may still mention the removed AsBytes helpers; I grepped the templates and found none, but did not check the generated README text.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): grep AsBytes in generated php finds only tests asserting the helpers are absent; none in README or spec",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F770",
@@ -34275,9 +34280,10 @@
    "description": "The canonical text (F732, D78) says kotlin `String?` with no default is already allow-listed. `etc/api-surface.py check --json` still reports `model requirednullable.note prop-optional {kotlin: optional}` with no allowed reason, because the extractor reads `?` as optional. Either add the allow-list entry (or fix the extractor so it recognises a `String?` constructor parameter with no default as required), or treat F732 as unresolved.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): etc/api-surface-allow.json:1134-1139 has the requirednullable.note allow rule for kotlin",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F776",
@@ -34292,9 +34298,10 @@
    "description": "The canonical file (api-models part 1, item 1) says go `DateTime.Time()` and rust `DateTime::into_inner()` are the same operation spelled per language, and that the allow rules are merged. The surface check still reports two rows with no allowed reason: `model datetime.time member {rust: missing}` and `model datetime.intoinner member {go: missing}`. Add a single allow entry that pairs them.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): etc/api-surface-allow.json:1038-1056 has one entry for datetime.time and datetime.intoinner covering go and rust",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F777",
@@ -34358,9 +34365,10 @@
    "description": "Mixed receiver kinds on one generated model type. Make the receivers consistent (idiom review of the model API change set).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): go/models/model.mustache:578 and :664 ActualInstance uses a value receiver, as MarshalJSON does; golden go/pkg/models/pet_food.go:78",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F781",
@@ -34374,9 +34382,10 @@
    "description": "src/main/resources/templates/kotlin/object_serializer.mustache (about lines 346-370).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): kotlin/object_serializer.mustache:16 imports StructureKind; uses at :327-370 are short names",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F782",
@@ -34406,9 +34415,10 @@
    "description": "Generated docblocks on byte properties keep the spec description 'Base64-encoded ...' although values are raw; the private static byteProperties(string $class) helper (about 25 lines) is copy-pasted into two templates.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): byteProperties defined once at php/object_serializer.mustache:1220 and called from ds_aware_object_normalizer; golden BinaryVault.php:33 docblock says raw bytes, base64 only on the wire",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F784",
@@ -34458,9 +34468,10 @@
    "description": "BetterJavaCodegen.postProcessOperationsWithModels puts `hasOnlyOptionalBody` in op.vendorExtensions and api.mustache reads `{{#vendorExtensions.hasOnlyOptionalBody}}`. The repo CLAUDE.md says never to use vendor extensions in templates. It copies the existing hasMultipleConsumes pattern, so it is consistent with neighbouring code, but it conflicts with the written rule. Decide whether to move it to a native field or document the exception.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (invalid): grep OnlyOptionalBody src returns nothing; CLAUDE.md:29-45 now allows generator-computed vendor extensions where no native field exists",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F787",
@@ -34524,9 +34535,10 @@
    "description": "Idiom review of api-small-classes: The README snippet builds the Configuration with the builder chain, which is the awkward call site: src/main/resources/templates/php/readme.mustache:208 (and the golden src/spec/resources/generated/php/README.md:386) reads `config: \\PetstoreClient\\Configuration::builder()->baseUrl('/api/v3')->build()`.\n\nSuggested form: Write `config: new \\{{invokerPackage}}\\Configuration(baseUrl: '{{basePath}}')` (golden: `config: new \\PetstoreClient\\Configuration(baseUrl: '/api/v3')`). This depends on canonical item 1 (Configuration's constructor takes optional baseUrl), so it must land in the same change set; until then the snippet cannot be made idiomatic.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (invalid): php README and readme.mustache no longer contain a builder-chain Configuration snippet; golden Configuration.php:39-40 has a constructor with a default baseUrl",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F791",
@@ -34557,9 +34569,10 @@
    "description": "Idiom review of api-small-classes: assertValidProxy is made a non-static instance method, which is not the canonical shape and is not how a stateless validator should be written. src/main/resources/templates/php/transport_options.mustache (golden src/spec/resources/generated/php/lib/TransportOptions.php:70 and :81) changes `self::assertValidProxy` to `$this->assertValidProxy` and `public static` to `private function`.\n\nSuggested form: Keep it stateless: declare `private static function assertValidProxy(?string $proxy): void` and call `self::assertValidProxy($proxy);` from the constructor. That matches the canonical `private static` and keeps the constructor's call form as it was.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): php/transport_options.mustache:58,73 assertValidProxy is static and called via self::; golden TransportOptions.php:70,85",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F793",
@@ -34624,9 +34637,10 @@
    "description": "Idiom review of api-small-classes: Stale selector name in a comment. src/main/resources/templates/ruby/test/api/pet_api_test.mustache:268 (and the generated src/spec/resources/generated/ruby/test/api/pet_api_test.rb:268) still says \"an unspecified content_type still sends the first\", but the keyword is now request_content_type, so the comment names an argument that no longer exists.\n\nSuggested form: Change the comment line to: # backward compatible: an unspecified request_content_type still sends the first. Apply the same change in the template and in the generated pet_api_test.rb so they stay in step.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): generated ruby/test/api/pet_api_test.rb:268 comment names request_content_type; template line 268 matches",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F797",
@@ -34785,9 +34799,10 @@
    "description": "Idiom review of single-language-defects: src/spec/resources/generated/elixir/test/pet_api_test.exs:172 and :906-909 still pass the server override as the third positional argument, `get_external_pet_info(api, 1, server: server)`. The change makes that third parameter `options` (default nil), so the keyword list reaches `options && Map.get(options, :auth)` in get_external_pet_info_with_http_info (lib/petstore_client/api/pet_api.ex:1334) and raises BadMapError. These two tests are not in the staged change, so the suite is left failing.\n\nSuggested form: Pass the Options slot explicitly in both tests: `PetstoreClient.Api.PetApi.get_external_pet_info(api, 1, nil, server: server)` at pet_api_test.exs:172, and `get_external_pet_info(api, 1, nil, server: PetstoreClient.Api.GetExternalPetInfoServer.Server0)` in the multi-line call at pet_api_test.exs:906-909. Stage the test file with the change.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (invalid): elixir pet_api_test.exs:172 get_external_pet_info(api, 1, server: server) matches pet_api.ex:1258 opts \\\\ [] keyword list",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F806",
@@ -34801,9 +34816,10 @@
    "description": "Idiom review of single-language-defects: src/spec/resources/generated/java/src/main/java/com/example/petstore/api/PetApi.java:976: the public overload getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) that exists at HEAD (PetApi.java:943) is removed and replaced by a three-argument method. This is a source-breaking removal of public API, and it forces the awkward call site getExternalPetInfo(1L, null, server) in PetApiTest.java:355 and its mustache source. The removal happened only because the convenience overload at PetApi.java:949 calls getExternalPetInfo(petId, null), which becomes ambiguous once a (Long, Server) overload exists.\n\nSuggested form: Restore public Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) and its WithHttpInfo twin, each delegating with a null options argument. Remove the ambiguity in the convenience overload by casting the null: getExternalPetInfo(petId, (GetExternalPetInfoOptions) null). Make that change in the java api.mustache convenience block (around lines 150-185), not by hand-editing PetApi.java. Then the test can call getExternalPetInfo(1L, server) as HEAD did.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (invalid): java PetApi.java:943 getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) overload still exists; PetApiTest.java:337 uses it",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F807",
@@ -34817,9 +34833,10 @@
    "description": "Idiom review of single-language-defects: src/spec/resources/generated/java/src/main/java/com/example/petstore/models/DryFood.java:14 and WetFood.java:14 now read 'extends DeprecatedFood' instead of 'extends PetFood' (HEAD). PetFood is no longer the supertype of the two subtypes, a public API regression a java developer using PetFood as a base type would hit. The cause is the new DeprecatedFood oneOf in src/spec/resources/generated/java/src/test/resources/openapi.yaml, which reuses DryFood and WetFood with the same discriminator mapping, so the generator picks it as parent.\n\nSuggested form: Change the spec, not the generated java, so DryFood and WetFood keep PetFood as their parent. The deprecated union must not reuse the discriminator mapping that DryFood and WetFood already belong to. Either give the deprecated union a different discriminator or drop its oneOf members, then regenerate. Check the generator's parent-selection rule in the java codegen. Flag this to the parity-guard too, because the canonical asks for unreferenced deprecated schemas and this block references DryFood and WetFood.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (invalid): java DryFood.java:14 and WetFood.java:14 extend PetFood; no Deprecated* schemas in the petstore spec",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F808",
@@ -34833,9 +34850,10 @@
    "description": "Idiom review of single-language-defects: src/spec/resources/generated/java/src/test/java/com/example/petstore/api/PetApiTest.java:83-100 (and its source template src/main/resources/templates/java/test/api/PetApiTest.mustache) tests Javadoc by hand-scanning PetApi.java with indexOf, a hard-coded ') {' marker, and a substring loop with a break. This is not how this SDK's tests read files: ClientTest.java uses Files.readString and a Pattern regex on the file. A java developer would find the scanning brittle and hard to read.\n\nSuggested form: Read the file with Files.readString(source) as ClientTest does. Find the Javadoc block with one Pattern, for example a regex matching '/\\*\\*(?:(?!\\*/).)*?@param options options carrying an optional per-call authenticator(?:(?!\\*/).)*?\\*/\\s*public ApiResult<Pet> getExternalPetInfoWithHttpInfo\\(\\s*Long petId, @Nullable GetExternalPetInfoOptions options\\)', compiled with DOTALL. Then assert the match is found and that it does not contain '@param auth'. Keep one claim per test.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (invalid): java PetApiTest.java has no javadoc-scanning test; the indexOf hits at 640 and 829-831 are unrelated URL parsing",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F809",
@@ -34866,9 +34884,10 @@
    "description": "Idiom review of single-language-defects: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:374 (and generated src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/api/PetApiTest.kt:388) calls `getExternalPetInfo(1L, null, PetApi.GetExternalPetInfoServer.Server0)`. The bare `null` in the middle of the call is an unreadable positional argument, and the line is 101 columns.\n\nSuggested form: Use the named argument the signature already supports: `externalApi.getExternalPetInfo(1L, server = PetApi.GetExternalPetInfoServer.Server0)`. The defaulted options parameter is then skipped, the call reads naturally, and the line fits in 100 columns. Apply the same change to the generated PetApiTest.kt.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (invalid): kotlin PetApiTest.kt:388 externalApi.getExternalPetInfo(1L, PetApi.GetExternalPetInfoServer.Server0); PetApi.kt:576-578 has no options param",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F811",
@@ -34915,9 +34934,10 @@
    "description": "Idiom review of single-language-defects: Not a rejection, for the parity-guard: the anyOf wrapper takes untyped [Any] at DeprecatedTreatment.swift:25, while the oneOf wrappers (DeprecatedFood.swift:17, PetFood.swift:16) take one typed init per variant. The [Any] form mirrors Java's List<Object> and Kotlin's matchedInstances, so it is a harmonised shape that Swift cannot type-check.\n\nSuggested form: Keep the [Any] form for harmonisation. Optionally, a typed convenience init per variant (like the oneOf wrappers) could sit beside it without changing the surface of the other SDKs.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (invalid): no Deprecated* files in generated/swift; the finding was a parity note, not a defect",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F814",
@@ -34931,9 +34951,10 @@
    "description": "Idiom review of single-language-defects: Generated php/lib/DefaultApiClient.php:214 declares filePart as a non-static `private function` and the call sites at :330 and :342 use `$this->filePart(`, but the template declares `private static function filePart` (default_api_client.mustache:202) and calls it as `self::filePart(` (:318, :335). The generated file is stale against its template, and the static form is the idiomatic one for a helper that uses no instance state.\n\nSuggested form: Regenerate the php SDK so DefaultApiClient.php matches the template: `private static function filePart(` at line 214 and `self::filePart(` at lines 330 and 342.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): No filePart helper in php/default_api_client.mustache or generated php/lib/DefaultApiClient.php; file parts use DataPart::fromPath (template :244)",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F815",
@@ -34947,9 +34968,10 @@
    "description": "Idiom review of single-language-defects: default_api_client.mustache:317 (generated DefaultApiClient.php:329) and :334 (generated :341) wrap the read in `@file_get_contents(...)` and `stream_get_contents($v)` and fall back to `''` on false. An unreadable file or stream is now silently uploaded as an empty part, where the previous DataPart::fromPath threw. Suppressing the warning with `@` is also not how PHP 8 code reports a read failure.\n\nSuggested form: Read without `@`, and on `false` throw like the CA-certificate path does at default_api_client.mustache:77-94, e.g. `$content = file_get_contents($path); if ($content === false) { throw new \\InvalidArgumentException(sprintf('failed to read multipart file \"%s\"', $path)); }`, and the same check after `stream_get_contents($v)`. Add a failure-path test for each.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (invalid): php/default_api_client.mustache:244 uses DataPart::fromPath (throws on unreadable file); :270 stream_get_contents($v) passed straight to DataPart with no fallback; the @file_get_contents at :77 is the CA-cert path",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F816",
@@ -34963,9 +34985,10 @@
    "description": "Idiom review of single-language-defects: default_api_client.mustache:207-222 (the anonymous DataPart subclass returned by filePart) declares `private string $rawBytes;`, `private string $rawContentType;` and `private ?string $encodedFilename;` and then copies each constructor argument into them in the body. That is Java-style boilerplate where constructor property promotion fits, and PHP 8 code is expected to use it.\n\nSuggested form: Declare the three fields in the constructor signature as promoted properties, e.g. `public function __construct(string $bytes, string $filename, string $contentType, private readonly string $rawBytes, private readonly string $rawContentType, private readonly ?string $encodedFilename) { parent::__construct($bytes, $filename, $contentType); }`, or pass `$bytes` and `$contentType` through the promoted parameters and drop the separate property declarations. Keep parent::__construct as is.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): grep for rawBytes/rawContentType/encodedFilename in the php template and generated DefaultApiClient.php returns nothing",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F817",
@@ -34979,9 +35002,10 @@
    "description": "Idiom review of single-language-defects: The call site at templates php/tests/Api/PetApiTest.mustache:367 (generated php/tests/Api/PetApiTest.php:367) is `$api->getExternalPetInfo(1, null, new \\...GetExternalPetInfoServerServer0())`. Passing a bare `null` to skip the options parameter is an awkward positional call, and the test skips the options argument only to reach the server argument.\n\nSuggested form: Use a named argument: `$result = $api->getExternalPetInfo(1, server: new \\{{invokerPackage}}\\Api\\GetExternalPetInfoServerServer0());` (generated: `$api->getExternalPetInfo(1, server: new \\PetstoreClient\\Api\\GetExternalPetInfoServerServer0());`).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): php/tests/Api/PetApiTest.mustache:367 and generated PetApiTest.php:367 call getExternalPetInfo(1, new ...GetExternalPetInfoServerServer0()) with no positional null",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F818",
@@ -35012,9 +35036,10 @@
    "description": "Idiom review of single-language-defects: The template test calls get_external_pet_info with a positional None for the new options parameter just to reach server. The call site is awkward, and the change is unnecessary: options defaults to None, so the original keyword-only server call still works.\n\nSuggested form: In src/main/resources/templates/python/test/api/test_pet_api.mustache line 569, change `await api.get_external_pet_info(1, None, server=MockServer())` to `await api.get_external_pet_info(1, server=MockServer())`. Make the same change in the generated src/spec/resources/generated/python/test/Api/test_pet_api.py line 643.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): python/test/api/test_pet_api.mustache:569 and generated test_pet_api.py:643 call api.get_external_pet_info(1, server=MockServer())",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F820",
@@ -35028,9 +35053,10 @@
    "description": "Idiom review of single-language-defects: The generated anyof_merged_dump comment in deprecated_treatment.py line 106 and treatment_record.py line 103 is one line of about 140 characters. The template (model.mustache lines 285-286) and the regenerated pet_treatment.py line 103 wrap it onto two lines, so these generated files do not match the template output and break the 100-column line length.\n\nSuggested form: Replace the single comment line in deprecated_treatment.py:106 and treatment_record.py:103 with the two-line form used by model.mustache and pet_treatment.py: `# JSON mode keeps date-time, bytes and Decimal fields in their` followed by `# wire form, so the merged dict matches model_dump_json.` at the same indentation. Regenerate the files rather than hand-editing if possible.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "verified against the current tree (already_fixed): python/models/model.mustache:266-297 and generated treatment_record.py:87-99 contain no single-line 140-column comment; deprecated_treatment.py no longer exists",
+   "batch": null,
+   "commit": "dbe3ec19b"
   },
   {
    "id": "F821",
