@@ -9,10 +9,7 @@ import 'network_exception.dart';
 
 /// Exception for a request that timed out before an HTTP response arrived. The
 /// status code is always 0 and the underlying transport exception (a
-/// `dart:async` `TimeoutException`) is kept as [underlyingError].
+/// `dart:async` `TimeoutException`) is kept as [cause].
 class NetworkTimeoutException extends NetworkException {
-  const NetworkTimeoutException({
-    required super.message,
-    super.underlyingError,
-  });
+  const NetworkTimeoutException({required super.message, super.cause});
 }

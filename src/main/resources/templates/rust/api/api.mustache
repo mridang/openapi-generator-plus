@@ -159,8 +159,8 @@ impl {{classname}} {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for {{operationId}} but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
 {{/returnType}}

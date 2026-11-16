@@ -166,11 +166,7 @@ void main() {
                 isA<NetworkException>(),
               )
               .having((e) => e.statusCode, 'statusCode', 0)
-              .having(
-                (e) => e.underlyingError,
-                'underlyingError',
-                isA<TimeoutException>(),
-              ),
+              .having((e) => e.cause, 'cause', isA<TimeoutException>()),
         ),
       );
     });
@@ -806,11 +802,7 @@ Future<void> main(List<String> args) async {
           throwsA(
             isA<NetworkException>()
                 .having((e) => e.statusCode, 'statusCode', 0)
-                .having(
-                  (e) => e.underlyingError,
-                  'underlyingError',
-                  isA<TlsException>(),
-                ),
+                .having((e) => e.cause, 'cause', isA<TlsException>()),
           ),
         );
       },

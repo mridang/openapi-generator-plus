@@ -52,7 +52,7 @@ class ApiException extends OpenAPIException {
   /// Set when wrapping a SocketException or other lower-level failure so
   /// callers can inspect the root error rather than only a stringified
   /// message.
-  final Object? underlyingError;
+  final Object? cause;
 
   /// Creates an exception with full response context.
   const ApiException({
@@ -61,7 +61,7 @@ class ApiException extends OpenAPIException {
     this.responseBody,
     this.responseHeaders,
     this.errorBody,
-    this.underlyingError,
+    this.cause,
   });
 
   /// Build the exception that a non-2xx response with this status raises.

@@ -268,8 +268,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for add_pet but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -351,8 +351,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for add_pet_photos but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -483,8 +483,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for add_pet_treatment but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -721,8 +721,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for download_pet_document but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -829,8 +829,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for find_pets_born_on but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -935,8 +935,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for find_pets_by_status but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1113,8 +1113,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_external_pet_info but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1214,8 +1214,8 @@ impl PetApi {
                 status_code,
                 "Expected a response body for get_multi_server_pet_info but received none"
                     .to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1312,8 +1312,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_avatar but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1402,8 +1402,8 @@ impl PetApi {
                 status_code,
                 "Expected a response body for get_pet_avatar_thumbnail but received none"
                     .to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1505,8 +1505,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_by_id but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1605,8 +1605,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_by_name but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1788,8 +1788,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_passport but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1879,8 +1879,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_photo but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1995,8 +1995,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_summary but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -2198,8 +2198,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_tag but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -2548,8 +2548,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_staging_pet_info but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -2858,8 +2858,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for set_pet_preferences but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -2978,8 +2978,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for update_pet but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -3074,8 +3074,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for upload_pet_certificate but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -3189,8 +3189,8 @@ impl PetApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for upload_pet_document but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }

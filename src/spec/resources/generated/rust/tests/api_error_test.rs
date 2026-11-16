@@ -27,8 +27,8 @@ fn test_api_error_exposes_status_message_body_headers() {
     let err = ApiError::new(
         404,
         "not found".to_string(),
-        Some(r#"{"id":7,"name":"missing"}"#.to_string()),
         Some(headers),
+        Some(r#"{"id":7,"name":"missing"}"#.to_string()),
     );
 
     assert_eq!(err.status_code(), 404);
@@ -76,8 +76,8 @@ fn test_api_error_display_renders_status_headers_and_body() {
     let err = ApiError::new(
         502,
         "bad gateway".to_string(),
-        Some("upstream down".to_string()),
         Some(headers),
+        Some("upstream down".to_string()),
     );
 
     assert_eq!(
@@ -93,8 +93,8 @@ fn test_api_error_display_omits_empty_parts() {
     let empty = ApiError::new(
         500,
         "boom".to_string(),
-        Some(String::new()),
         Some(HashMap::new()),
+        Some(String::new()),
     );
     assert_eq!("boom\nHTTP status code: 500", empty.to_string());
 
@@ -149,13 +149,13 @@ fn test_api_error_scalar_json_body_parses() {
     let text = ApiError::new(
         500,
         "boom".to_string(),
-        Some(r#""just text""#.to_string()),
         None,
+        Some(r#""just text""#.to_string()),
     );
     let parsed = text.error_body().expect("a scalar JSON body must parse");
     assert_eq!(Some("just text"), parsed.as_str());
 
-    let number = ApiError::new(500, "boom".to_string(), Some("42".to_string()), None);
+    let number = ApiError::new(500, "boom".to_string(), None, Some("42".to_string()));
     let parsed = number.error_body().expect("a scalar JSON body must parse");
     assert_eq!(Some(42), parsed.as_i64());
 }
@@ -165,8 +165,8 @@ fn test_api_error_typed_error_body_deserializes_body() {
     let err = ApiError::new(
         400,
         "bad request".to_string(),
-        Some(r#"{"id":42,"name":"Dogs"}"#.to_string()),
         None,
+        Some(r#"{"id":42,"name":"Dogs"}"#.to_string()),
     );
 
     let typed: Option<Category> = err
@@ -190,8 +190,8 @@ fn test_api_error_typed_error_body_ignores_extraneous_fields() {
     let err = ApiError::new(
         422,
         "unprocessable".to_string(),
-        Some(r#"{"id":1,"name":"Cat","extra":"drop-me"}"#.to_string()),
         None,
+        Some(r#"{"id":1,"name":"Cat","extra":"drop-me"}"#.to_string()),
     );
 
     let typed: Option<Category> = err
@@ -210,7 +210,7 @@ fn nested_array(depth: usize) -> String {
 fn test_api_error_body_nested_beyond_serde_default_limit_still_parses() {
     // serde_json stops at ~128 levels; the shared cap is 1000, as on the
     // success path.
-    let err = ApiError::new(400, "bad".to_string(), Some(nested_array(500)), None);
+    let err = ApiError::new(400, "bad".to_string(), None, Some(nested_array(500)));
 
     assert!(
         err.error_body().is_some(),
@@ -224,7 +224,7 @@ fn test_api_error_body_nested_beyond_serde_default_limit_still_parses() {
 
 #[test]
 fn test_api_error_body_nested_beyond_shared_cap_is_rejected() {
-    let err = ApiError::new(400, "bad".to_string(), Some(nested_array(1001)), None);
+    let err = ApiError::new(400, "bad".to_string(), None, Some(nested_array(1001)));
 
     assert!(
         err.error_body().is_none(),
@@ -244,8 +244,8 @@ fn test_api_error_body_with_leading_bom_parses() {
     let err = ApiError::new(
         400,
         "bad".to_string(),
-        Some("\u{feff}{\"id\":42,\"name\":\"Dogs\"}".to_string()),
         None,
+        Some("\u{feff}{\"id\":42,\"name\":\"Dogs\"}".to_string()),
     );
 
     assert!(
@@ -263,8 +263,8 @@ fn test_api_error_exposes_parsed_error_body() {
     let err = ApiError::new(
         404,
         "not found".to_string(),
-        Some(r#"{"id":7,"name":"missing"}"#.to_string()),
         None,
+        Some(r#"{"id":7,"name":"missing"}"#.to_string()),
     );
 
     let body = err.error_body().expect("a JSON body must be exposed");
@@ -286,8 +286,8 @@ fn test_api_error_error_body_is_none_without_json() {
     let not_json = ApiError::new(
         500,
         "boom".to_string(),
-        Some("<html>oops</html>".to_string()),
         None,
+        Some("<html>oops</html>".to_string()),
     );
     assert!(not_json.error_body().is_none());
 }
@@ -304,8 +304,8 @@ fn test_api_error_fields_are_accessor_only() {
     let err = ApiError::new(
         500,
         "boom".to_string(),
-        Some("body".to_string()),
         Some(headers),
+        Some("body".to_string()),
     );
 
     /* Every piece of state is reachable only via an accessor method. */
@@ -689,8 +689,8 @@ fn test_status_wrappers_display_the_wrapped_api_error() {
         let expected = ApiError::new(
             status,
             format!("API returned status code {}", status),
-            Some("detail-body".to_string()),
             Some(headers.clone()),
+            Some("detail-body".to_string()),
         );
         assert_eq!(expected.to_string(), boxed.to_string(), "status {}", status);
         let kind = petstore::ApiErrorKind::from(expected.clone());

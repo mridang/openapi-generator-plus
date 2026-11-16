@@ -1260,8 +1260,8 @@ void main() {
               isA<NetworkTimeoutException>()
                   .having((e) => e.statusCode, 'statusCode', 0)
                   .having(
-                    (e) => e.underlyingError,
-                    'underlyingError',
+                    (e) => e.cause,
+                    'cause',
                     isA<TimeoutException>().having(
                       (t) => t.message,
                       'message',
@@ -1314,8 +1314,8 @@ void main() {
               isA<NetworkTimeoutException>()
                   .having((e) => e.statusCode, 'statusCode', 0)
                   .having(
-                    (e) => e.underlyingError,
-                    'underlyingError',
+                    (e) => e.cause,
+                    'cause',
                     isA<TimeoutException>().having(
                       (t) => t.message,
                       'message',
@@ -1354,8 +1354,8 @@ void main() {
             ),
             throwsA(
               isA<NetworkTimeoutException>().having(
-                (e) => e.underlyingError,
-                'underlyingError',
+                (e) => e.cause,
+                'cause',
                 isA<TimeoutException>().having(
                   (t) => t.message,
                   'message',
@@ -1386,7 +1386,7 @@ void main() {
               .having((e) => e.runtimeType, 'runtimeType', NetworkException)
               .having((e) => e, 'is an ApiException', isA<ApiException>())
               .having((e) => e.statusCode, 'statusCode', 0)
-              .having((e) => e.underlyingError, 'underlyingError', isNotNull),
+              .having((e) => e.cause, 'cause', isNotNull),
         ),
       );
     });

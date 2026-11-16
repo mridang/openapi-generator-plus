@@ -427,16 +427,16 @@ abstract class AbstractApiClient implements ApiClient {
        * NetworkException (an ApiException with status 0) -- unless the
        * connect deadline is what expired, which is a timeout. */
       if (isTimeoutMessage(e.message)) {
-        throw NetworkTimeoutException(message: e.message, underlyingError: e);
+        throw NetworkTimeoutException(message: e.message, cause: e);
       }
-      throw NetworkException(message: e.message, underlyingError: e);
+      throw NetworkException(message: e.message, cause: e);
     } on TimeoutException catch (e) {
       /* `Future.timeout` throws dart:async's TimeoutException, which is
        * why the SDK type is NetworkTimeoutException and not a name that
        * would clash with it. */
       throw NetworkTimeoutException(
         message: e.message ?? 'Request timed out',
-        underlyingError: e,
+        cause: e,
       );
     } catch (e) {
       /* A raw dart:io SocketException / HandshakeException that surfaces
@@ -446,18 +446,11 @@ abstract class AbstractApiClient implements ApiClient {
        * type escapes the SDK surface. */
       if (isNetworkError(e)) {
         if (isTimeoutMessage(e.toString())) {
-          throw NetworkTimeoutException(
-            message: e.toString(),
-            underlyingError: e,
-          );
+          throw NetworkTimeoutException(message: e.toString(), cause: e);
         }
-        throw NetworkException(message: e.toString(), underlyingError: e);
+        throw NetworkException(message: e.toString(), cause: e);
       }
-      throw ApiException(
-        statusCode: 0,
-        message: e.toString(),
-        underlyingError: e,
-      );
+      throw ApiException(statusCode: 0, message: e.toString(), cause: e);
     }
     final contentEncoding = (streamedResponse.headers['content-encoding'] ?? '')
         .toLowerCase()
@@ -473,7 +466,7 @@ abstract class AbstractApiClient implements ApiClient {
         statusCode: streamedResponse.statusCode,
         message: e.message,
         responseHeaders: streamedResponse.headers,
-        underlyingError: e.underlyingError,
+        cause: e.cause,
       );
     }
     final contentType = streamedResponse.headers['content-type'] ?? '';

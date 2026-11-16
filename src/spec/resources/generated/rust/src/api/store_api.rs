@@ -71,8 +71,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for create_account but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -227,8 +227,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_by_swatch but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -359,8 +359,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_defaults but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -431,8 +431,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_department but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -506,8 +506,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_grouped_categories but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -587,8 +587,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_inventory but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -667,8 +667,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_matrix but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -743,8 +743,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_order_by_id but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -835,8 +835,8 @@ impl StoreApi {
                 status_code,
                 "Expected a response body for get_order_by_tracking_id but received none"
                     .to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -929,8 +929,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_stock_item but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1027,8 +1027,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_swatch but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1102,8 +1102,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_swatch_groups but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1185,8 +1185,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_timestamp_groups but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1261,8 +1261,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for get_tree but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1334,8 +1334,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for place_order but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
@@ -1416,8 +1416,8 @@ impl StoreApi {
             None => Err(Box::new(ApiError::new(
                 status_code,
                 "Expected a response body for search_store but received none".to_string(),
-                Some(raw_body),
                 Some(headers),
+                Some(raw_body),
             )) as Box<dyn std::error::Error + Send + Sync>),
         }
     }

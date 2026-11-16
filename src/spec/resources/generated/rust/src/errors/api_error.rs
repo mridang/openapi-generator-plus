@@ -110,8 +110,8 @@ impl ApiError {
     pub fn new(
         status_code: u16,
         message: String,
-        response_body: Option<String>,
         response_headers: Option<HashMap<String, String>>,
+        response_body: Option<String>,
     ) -> Self {
         let error_body = parse_error_body(response_body.as_deref());
         Self {
@@ -185,8 +185,8 @@ impl ApiError {
         let base_err = Self::new(
             status_code,
             format!("API returned status code {}", status_code),
-            Some(body.to_string()),
             Some(headers.clone()),
+            Some(body.to_string()),
         );
 
         type Boxed = Box<dyn std::error::Error + Send + Sync>;

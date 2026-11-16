@@ -1191,7 +1191,7 @@ void main() {
               'GET', 'http://127.0.0.1:${server.port}/stalled-body', {}, null),
           throwsA(isA<NetworkTimeoutException>()
               .having((e) => e.statusCode, 'statusCode', 0)
-              .having((e) => e.underlyingError, 'underlyingError',
+              .having((e) => e.cause, 'cause',
                   isA<TimeoutException>().having((t) => t.message, 'message',
                       'Request timed out after 300 ms'))),
         );
@@ -1228,7 +1228,7 @@ void main() {
               'GET', 'http://127.0.0.1:${server.port}/stalled-redirect', {}, null),
           throwsA(isA<NetworkTimeoutException>()
               .having((e) => e.statusCode, 'statusCode', 0)
-              .having((e) => e.underlyingError, 'underlyingError',
+              .having((e) => e.cause, 'cause',
                   isA<TimeoutException>().having((t) => t.message, 'message',
                       'Request timed out after 300 ms'))),
         );
@@ -1254,8 +1254,8 @@ void main() {
           client.sendRequest(
               'GET', 'http://127.0.0.1:${server.port}/silent', {}, null),
           throwsA(isA<NetworkTimeoutException>().having(
-              (e) => e.underlyingError,
-              'underlyingError',
+              (e) => e.cause,
+              'cause',
               isA<TimeoutException>().having((t) => t.message, 'message',
                   'Request timed out after 300 ms'))),
         );
@@ -1280,7 +1280,7 @@ void main() {
               .having((e) => e.runtimeType, 'runtimeType', NetworkException)
               .having((e) => e, 'is an ApiException', isA<ApiException>())
               .having((e) => e.statusCode, 'statusCode', 0)
-              .having((e) => e.underlyingError, 'underlyingError', isNotNull),
+              .having((e) => e.cause, 'cause', isNotNull),
         ),
       );
     });

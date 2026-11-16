@@ -1710,8 +1710,8 @@ fn make_api_error(code: u16) -> petstore::ApiError {
     petstore::ApiError::new(
         code,
         format!("status {}", code),
-        Some(format!("{{\"code\":{}}}", code)),
         Some(HashMap::new()),
+        Some(format!("{{\"code\":{}}}", code)),
     )
 }
 
@@ -1808,8 +1808,8 @@ fn test_api_error_typed_error_body_parses_into_target_type() {
     let err = petstore::ApiError::new(
         400,
         "bad request".to_string(),
-        Some(r#"{"title":"Bad Input","status":400}"#.to_string()),
         Some(headers),
+        Some(r#"{"title":"Bad Input","status":400}"#.to_string()),
     );
     let parsed: Option<Problem> = err.typed_error_body().expect("should deserialize");
     assert_eq!(
@@ -1844,8 +1844,8 @@ fn test_api_error_typed_error_body_returns_err_when_body_invalid() {
     let err = petstore::ApiError::new(
         400,
         "bad".to_string(),
-        Some("not json at all".to_string()),
         None,
+        Some("not json at all".to_string()),
     );
     let parsed: Result<Option<Strict>, _> = err.typed_error_body();
     assert!(
@@ -1894,7 +1894,7 @@ fn test_api_result_and_response_accessor_only() {
 #[test]
 fn test_typed_error_wrappers_accessor_only() {
     let api_error =
-        petstore::ApiError::new(400, "bad request".to_string(), Some("{}".to_string()), None);
+        petstore::ApiError::new(400, "bad request".to_string(), None, Some("{}".to_string()));
     let client_error = ClientError::from(api_error);
     assert_eq!(client_error.api_error().status_code(), 400);
 

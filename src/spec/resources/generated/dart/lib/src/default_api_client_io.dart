@@ -148,7 +148,7 @@ class DefaultApiClient extends AbstractApiClient {
           throw ApiException(
             statusCode: 0,
             message: 'Failed to decompress gzip response body: $e',
-            underlyingError: e,
+            cause: e,
           );
         }
       case 'deflate':
@@ -158,7 +158,7 @@ class DefaultApiClient extends AbstractApiClient {
           throw ApiException(
             statusCode: 0,
             message: 'Failed to decompress deflate response body: $e',
-            underlyingError: e,
+            cause: e,
           );
         }
       case 'identity':
