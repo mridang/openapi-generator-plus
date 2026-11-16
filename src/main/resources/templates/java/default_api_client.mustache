@@ -692,6 +692,12 @@ public final class DefaultApiClient implements ApiClient {
                         responseHeaders,
                         e);
             }
+            if (!"identity".equalsIgnoreCase(contentEncoding.trim())) {
+                /* D92: the returned headers describe the body the caller
+                 * receives, so the encoding and length of the wire body go. */
+                responseHeaders.remove("content-encoding");
+                responseHeaders.remove("content-length");
+            }
             Charset responseCharset = parseCharset(contentType);
             String responseBody = isTextContentType(contentType)
                     ? new String(decompressedBytes, responseCharset)

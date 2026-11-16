@@ -1666,6 +1666,8 @@ class DefaultApiClientUnitTest {
         client.sendRequest("GET", baseUrl + "/content-encoding-deflate", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertEquals("{\"ok\":true}", response.body());
+    assertFalse(response.headers().containsKey("content-encoding"));
+    assertFalse(response.headers().containsKey("content-length"));
   }
 
   @Test
