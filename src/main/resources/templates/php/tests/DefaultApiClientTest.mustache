@@ -159,6 +159,23 @@ test('makes https request through proxy with verify ssl false', function (): voi
 
 // -- Request timeout --
 
+test('the timeout is one budget for every redirect hop', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->timeout(1200)->followRedirects(true)->build());
+
+    expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/redirect/chain/1', [], null))
+        ->toThrow(\{{invokerPackage}}\Errors\NetworkTimeoutException::class);
+});
+
+test('a redirect chain inside the budget completes', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->timeout(5000)->followRedirects(true)->build());
+
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/chain/1', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
+
 test('times out on slow endpoint', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
