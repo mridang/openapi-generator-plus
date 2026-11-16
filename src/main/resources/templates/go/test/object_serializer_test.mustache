@@ -428,6 +428,39 @@ func TestPetPassport_BiometricChipRoundTripsThroughBase64(t *testing.T) {
 	}
 }
 
+// F1175: the prefixItems tuple of Pet.location degrades to an open list. A
+// number decodes as float64 (so 2 and 2.0 are the same value), the string keeps
+// its position, a null element survives, and the elements re-encode in order.
+func TestPet_PrefixItemsLocationRoundTripsAsAnOpenList(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"mixed":        `[1.5,2,"hq"]`,
+		"null element": `[null,2,"hq"]`,
+	}
+	for name, location := range cases {
+		var pet models.Pet
+		if err := deserialize([]byte(`{"name":"x","photoUrls":[],"location":`+location+`}`), &pet); err != nil {
+			t.Fatalf("%s: unexpected error: %v", name, err)
+		}
+		if pet.Location == nil || len(*pet.Location) != 3 {
+			t.Fatalf("%s: expected three elements, got %v", name, pet.Location)
+		}
+		if _, isString := (*pet.Location)[2].(string); !isString {
+			t.Errorf("%s: expected the third element to be a string, got %T", name, (*pet.Location)[2])
+		}
+		if _, isFloat := (*pet.Location)[1].(float64); !isFloat {
+			t.Errorf("%s: expected the second element to be a float64, got %T", name, (*pet.Location)[1])
+		}
+		data, err := serialize(pet)
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", name, err)
+		}
+		if !strings.Contains(string(data), `"location":`+location) {
+			t.Errorf("%s: expected location %s on the wire, got %s", name, location, data)
+		}
+	}
+}
+
 // Required AND nullable: the key must be present, an explicit null is a legal
 // value and is kept, and encoding always writes the key (null when nil).
 func TestDeserialize_RequiredNullableKeyMustBePresentAndNullIsKept(t *testing.T) {

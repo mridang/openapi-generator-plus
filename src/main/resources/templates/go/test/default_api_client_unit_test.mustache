@@ -1043,9 +1043,9 @@ func TestDefaultApiClient_SpecDeclaredApiKeyHeaderNamesAreSensitive(t *testing.T
 		return false
 	}
 	{{#apiKeyHeaderNames}}
-	if !contains("{{name}}") {
+	if !contains("{{#goStringLiteral}}{{{name}}}{{/goStringLiteral}}") {
 		t.Errorf("expected spec-declared API-key header %q to be in sensitiveHeaderAllowlist, got %v",
-			"{{name}}", sensitiveHeaderAllowlist)
+			"{{#goStringLiteral}}{{{name}}}{{/goStringLiteral}}", sensitiveHeaderAllowlist)
 	}
 	{{/apiKeyHeaderNames}}
 }
@@ -1057,7 +1057,7 @@ func TestDefaultApiClient_StripsApiKeyHeaderAcrossCrossOriginRedirect(t *testing
 	t.Parallel()
 	// Use the first spec-declared API-key header for the assertion.
 	apiKeyHeader := []string{
-		{{#apiKeyHeaderNames}}"{{name}}", {{/apiKeyHeaderNames}}
+		{{#apiKeyHeaderNames}}"{{#goStringLiteral}}{{{name}}}{{/goStringLiteral}}", {{/apiKeyHeaderNames}}
 	}[0]
 
 	var receivedKey string

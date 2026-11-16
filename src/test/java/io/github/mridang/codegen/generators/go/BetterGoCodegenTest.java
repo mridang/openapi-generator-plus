@@ -45,4 +45,13 @@ class BetterGoCodegenTest {
     BetterGoCodegen.moveServerBeforeOptions(args);
     assertThat(names(args)).containsExactly("path", "server");
   }
+
+  /* F1154: an apiKey name goes into a Go string literal, so a quote, a backslash and a control
+  character are escaped while a dollar sign and an interpolation opener stay literal. */
+  @Test
+  void escapesQuoteBackslashAndControlCharactersInAnApiKeyName() {
+    assertThat(BetterGoCodegen.goStringBody("X-Api\"Key\\")).isEqualTo("X-Api\\\"Key\\\\");
+    assertThat(BetterGoCodegen.goStringBody("X-$Key#{x}")).isEqualTo("X-$Key#{x}");
+    assertThat(BetterGoCodegen.goStringBody("a\nb\u0001")).isEqualTo("a\\nb\\x01");
+  }
 }

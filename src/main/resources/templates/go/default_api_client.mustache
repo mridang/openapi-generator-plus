@@ -660,7 +660,7 @@ var sensitiveHeaderAllowlist = []string{
 	"Cookie",
 	"Proxy-Authorization",
 {{#apiKeyHeaderNames}}
-	"{{name}}",
+	"{{#goStringLiteral}}{{{name}}}{{/goStringLiteral}}",
 {{/apiKeyHeaderNames}}
 }
 
