@@ -20,6 +20,8 @@ import {
   Category,
   PhotoMetadata,
   Priority,
+  Reservation,
+  ReservationReceipt,
   Swatch,
   TreeNode,
 } from "../../src/models/index.js";
@@ -339,6 +341,36 @@ describe("StoreApi response shapes", () => {
       expect(result.priority).toBe(Priority.NUMBER_2);
       expect(result.availability).toBe(Availability.OnHold);
       expect(result.matrix).toEqual([[1, 2], [3]]);
+    } finally {
+      close();
+    }
+  });
+
+  test("reserveStock decodes a 200 body as the existing reservation", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      '{"reservationId":31,"quantity":4}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(31);
+    } finally {
+      close();
+    }
+  });
+
+  test("reserveStock decodes a 201 body as the new receipt", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      201,
+      "application/json",
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(ReservationReceipt);
+      expect((result as ReservationReceipt).receiptCode).toBe("R-1");
     } finally {
       close();
     }

@@ -403,7 +403,7 @@ describe("DefaultApiClient CA certificate fail-fast", () => {
     expect((caught as Error).message).toMatch(
       /^failed to read CA certificate from "\/nonexistent\/ca\.pem": \S/,
     );
-    expect((caught as Error).cause).toBeInstanceOf(Error);
+    expect(((caught as Error).cause as Error).message).toMatch(/ENOENT/);
   });
 
   it("reads a directory as a failed read, not as a certificate", () => {

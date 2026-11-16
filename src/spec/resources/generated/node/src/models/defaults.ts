@@ -159,11 +159,7 @@ export class Defaults {
       throw new TypeError(`ceiling must be an integer, got ${this.ceiling}`);
     }
     if (this.mode != null) {
-      const modeValues = Object.values(DefaultsModeEnum).filter(
-        (v) =>
-          typeof (DefaultsModeEnum as Record<string, unknown>)[v as string] !==
-          "number",
-      );
+      const modeValues = Object.values(DefaultsModeEnum);
       if (!(modeValues as readonly unknown[]).includes(this.mode)) {
         throw new TypeError(
           `Unknown enum value for mode: ${JSON.stringify(this.mode)}. ` +
@@ -172,10 +168,7 @@ export class Defaults {
       }
     }
     if (this.swatch != null) {
-      const swatchValues = Object.values(Swatch).filter(
-        (v) =>
-          typeof (Swatch as Record<string, unknown>)[v as string] !== "number",
-      );
+      const swatchValues = Object.values(Swatch);
       if (!(swatchValues as readonly unknown[]).includes(this.swatch)) {
         throw new TypeError(
           `Unknown enum value for swatch: ${JSON.stringify(this.swatch)}. ` +

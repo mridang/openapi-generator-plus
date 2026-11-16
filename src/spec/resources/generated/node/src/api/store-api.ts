@@ -26,6 +26,8 @@ import {
   StockItem,
   Swatch,
   TreeNode,
+  Reservation,
+  ReservationReceipt,
 } from "../models/index.js";
 import type { GetBySwatchOptions } from "./options/get-by-swatch-options.js";
 import type { GetStockItemOptions } from "./options/get-stock-item-options.js";
@@ -1112,8 +1114,13 @@ export class StoreApi extends BaseApi {
       null,
       ["application/json"],
       "application/json",
-      (json: unknown) =>
-        ObjectSerializer.deserialize(json, ReserveStockResponse)!,
+      (json: unknown, statusCode: number): ReserveStockResponse => {
+        if (statusCode === 200) {
+          return ObjectSerializer.deserialize(json, Reservation)!;
+        }
+        return ObjectSerializer.deserialize(json, ReservationReceipt)!;
+      },
+
       NO_AUTH,
       false,
       "model",

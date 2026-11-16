@@ -764,7 +764,7 @@ describe Petstore::Client::Api::PetApi do
       }).must_raise(ArgumentError)
 
       _(err.message).must_equal(
-        %q(Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: [staging, sandbox])
+        "Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: [staging, sandbox]"
       )
     end
 

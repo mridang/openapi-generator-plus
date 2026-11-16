@@ -294,12 +294,7 @@ export class EdgeCases {
       );
     }
     if (this.phase != null) {
-      const phaseValues = Object.values(EdgeCasesPhaseEnum).filter(
-        (v) =>
-          typeof (EdgeCasesPhaseEnum as Record<string, unknown>)[
-            v as string
-          ] !== "number",
-      );
+      const phaseValues = Object.values(EdgeCasesPhaseEnum);
       if (!(phaseValues as readonly unknown[]).includes(this.phase)) {
         throw new TypeError(
           `Unknown enum value for phase: ${JSON.stringify(this.phase)}. ` +
@@ -308,10 +303,7 @@ export class EdgeCases {
       }
     }
     if (this.favoriteColor != null) {
-      const favoriteColorValues = Object.values(Color).filter(
-        (v) =>
-          typeof (Color as Record<string, unknown>)[v as string] !== "number",
-      );
+      const favoriteColorValues = Object.values(Color);
       if (
         !(favoriteColorValues as readonly unknown[]).includes(
           this.favoriteColor,
@@ -324,11 +316,7 @@ export class EdgeCases {
       }
     }
     if (this.separator != null) {
-      const separatorValues = Object.values(Separator).filter(
-        (v) =>
-          typeof (Separator as Record<string, unknown>)[v as string] !==
-          "number",
-      );
+      const separatorValues = Object.values(Separator);
       if (!(separatorValues as readonly unknown[]).includes(this.separator)) {
         throw new TypeError(
           `Unknown enum value for separator: ${JSON.stringify(this.separator)}. ` +

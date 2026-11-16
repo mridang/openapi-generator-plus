@@ -601,9 +601,9 @@ class TestValueSerializerFormatDatePath:
         moment = datetime.datetime(
             2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc
         )
-        assert ValueSerializer.serialize(moment, "query", "string").startswith(
-            "2024-01-15T13:45:30"
-        )
+        rendered = ValueSerializer.serialize(moment, "query", "string")
+        assert isinstance(rendered, str)
+        assert rendered.startswith("2024-01-15T13:45:30")
 
     def test_date_in_path_returns_yyyy_mm_dd(self) -> None:
         date = datetime.date(2024, 1, 15)

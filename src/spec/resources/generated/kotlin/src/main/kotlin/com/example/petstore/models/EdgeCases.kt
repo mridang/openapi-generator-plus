@@ -109,12 +109,12 @@ data class EdgeCases(
      * The `lastError` property.
      */
     @SerialName("lastError")
-    val lastError: Error? = null,
+    val lastError: ModelError? = null,
     /**
      * The `outcome` property.
      */
     @SerialName("outcome")
-    val outcome: Result? = null,
+    val outcome: ModelResult? = null,
     /**
      * The `cutoff` property.
      */

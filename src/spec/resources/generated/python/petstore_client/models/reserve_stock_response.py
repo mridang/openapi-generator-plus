@@ -66,7 +66,6 @@ class ReserveStockResponse(BaseModel):
 
     @field_validator("actual_instance")
     def actual_instance_must_validate_oneof(cls, v: Any) -> Any:
-        instance = ReserveStockResponse.model_construct()
         error_messages = []
         # First-match semantics: return the FIRST oneOf variant the payload
         # validates against rather than requiring exactly one match. A payload

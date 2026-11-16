@@ -8,6 +8,8 @@ namespace PetstoreClient.Api.Options;
 public sealed class FindPetsByStatusOptions
 {
     /// <summary>Status values that need to be considered for filter</summary>
+    /// <example>Available only: available</example>
+    /// <example>Sold pets: sold</example>
     /// <remarks>This parameter is deprecated.</remarks>
     public string? Status { get; init; }
 

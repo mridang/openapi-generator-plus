@@ -1197,19 +1197,9 @@ export class ObjectSerializer {
     value: unknown,
     enumObj: Record<string, unknown>,
   ): T {
-    /**
-     * A TypeScript numeric enum carries a reverse mapping, so
-     * Object.values() yields both the member-name strings and the numeric
-     * wire values (e.g. ["NUMBER_1", 1]). Without filtering, a string
-     * payload matching a member name would pass this membership check and
-     * bypass validation. Drop the reverse-mapped string keys by keeping
-     * only values v for which enumObj[v] is not itself a number. For a
-     * string enum (no reverse mapping) enumObj[value] is undefined, so
-     * every value is retained unchanged.
-     */
-    const members = Object.values(enumObj).filter(
-      (v) => typeof enumObj[v as string] !== "number",
-    );
+    /* Enums are const objects, so there is no numeric reverse mapping and
+     * Object.values() is exactly the set of wire values. */
+    const members = Object.values(enumObj);
     if (!(members as readonly unknown[]).includes(value)) {
       throw new SerializationError(
         `Unknown enum value: ${JSON.stringify(value)}. ` +

@@ -66,7 +66,6 @@ class SetPetAvatarThumbnailRequest(BaseModel):
 
     @field_validator("actual_instance")
     def actual_instance_must_validate_oneof(cls, v: Any) -> Any:
-        instance = SetPetAvatarThumbnailRequest.model_construct()
         error_messages = []
         # First-match semantics: return the FIRST oneOf variant the payload
         # validates against rather than requiring exactly one match. A payload
@@ -75,12 +74,12 @@ class SetPetAvatarThumbnailRequest(BaseModel):
         # Python matches that behaviour for cross-SDK parity. The no-match
         # case is still an error.
         try:
-            instance.one_of_0 = v
+            SetPetAvatarThumbnailRequest.model_construct().one_of_0 = v
             return v
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
         try:
-            instance.one_of_1 = v
+            SetPetAvatarThumbnailRequest.model_construct().one_of_1 = v
             return v
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))

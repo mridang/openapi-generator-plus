@@ -177,11 +177,7 @@ export class Order {
       );
     }
     if (this.status != null) {
-      const statusValues = Object.values(OrderStatusEnum).filter(
-        (v) =>
-          typeof (OrderStatusEnum as Record<string, unknown>)[v as string] !==
-          "number",
-      );
+      const statusValues = Object.values(OrderStatusEnum);
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
         throw new TypeError(
           `Unknown enum value for status: ${JSON.stringify(this.status)}. ` +

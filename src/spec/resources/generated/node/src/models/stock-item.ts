@@ -68,11 +68,7 @@ export class StockItem {
       throw new TypeError(`matrix must be an array, got ${typeof this.matrix}`);
     }
     if (this.priority != null) {
-      const priorityValues = Object.values(Priority).filter(
-        (v) =>
-          typeof (Priority as Record<string, unknown>)[v as string] !==
-          "number",
-      );
+      const priorityValues = Object.values(Priority);
       if (!(priorityValues as readonly unknown[]).includes(this.priority)) {
         throw new TypeError(
           `Unknown enum value for priority: ${JSON.stringify(this.priority)}. ` +
@@ -81,11 +77,7 @@ export class StockItem {
       }
     }
     if (this.availability != null) {
-      const availabilityValues = Object.values(Availability).filter(
-        (v) =>
-          typeof (Availability as Record<string, unknown>)[v as string] !==
-          "number",
-      );
+      const availabilityValues = Object.values(Availability);
       if (
         !(availabilityValues as readonly unknown[]).includes(this.availability)
       ) {

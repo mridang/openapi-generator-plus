@@ -91,7 +91,7 @@ export abstract class BaseApi {
     body: unknown,
     accepts: string[],
     contentType: string,
-    returnType: ((json: unknown) => T) | null,
+    returnType: ((json: unknown, statusCode: number) => T) | null,
     auth?: Authenticator | null,
     rawBody = false,
     returnKind?: "model" | "string" | "binary",
@@ -354,7 +354,7 @@ export abstract class BaseApi {
          * MAX_JSON_DEPTH pre-flight guard rejects malicious
          * 100k-deep payloads before V8 stack-overflows. */
         const json = ObjectSerializer.parseJson(cleaned);
-        data = returnType(json);
+        data = returnType(json, response.statusCode);
       }
     }
 
@@ -396,7 +396,7 @@ export abstract class BaseApi {
     body: unknown,
     accepts: string[],
     contentType: string,
-    returnType: ((json: unknown) => T) | null,
+    returnType: ((json: unknown, statusCode: number) => T) | null,
     auth?: Authenticator | null,
     rawBody = false,
     returnKind?: "model" | "string" | "binary",

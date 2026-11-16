@@ -285,12 +285,7 @@ export class PetWithOwner {
       }
     }
     if (this.status != null) {
-      const statusValues = Object.values(PetWithOwnerStatusEnum).filter(
-        (v) =>
-          typeof (PetWithOwnerStatusEnum as Record<string, unknown>)[
-            v as string
-          ] !== "number",
-      );
+      const statusValues = Object.values(PetWithOwnerStatusEnum);
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
         throw new TypeError(
           `Unknown enum value for status: ${JSON.stringify(this.status)}. ` +

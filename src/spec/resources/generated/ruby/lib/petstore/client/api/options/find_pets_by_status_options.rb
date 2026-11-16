@@ -12,6 +12,8 @@ module Petstore::Client
     module Options
       # Options for the find_pets_by_status operation.
       # @param status [String] Status values that need to be considered for filter (deprecated)
+      # Example for +status+ — Available only: available
+      # Example for +status+ — Sold pets: sold
       # @deprecated This parameter is deprecated.
       # @param filter [Hash<String, String>] Filter criteria as key-value pairs
       # @param born_after [Date] Only return pets born on or after this date
