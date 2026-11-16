@@ -434,7 +434,8 @@ class AbstractBetterCodegenTest {
     assertEquals("requestOptionsParam", codegen("node").toParamName("requestOptions"));
     assertEquals("opts_param", codegen("elixir").toParamName("opts"));
     assertEquals("api_param", codegen("elixir").toParamName("api"));
-    assertEquals("options", codegen("java").toParamName("options"));
+    assertEquals("optionsParam", codegen("java").toParamName("options"));
+    assertEquals("petId", codegen("java").toParamName("pet_id"));
     assertEquals("petId", codegen("csharp").toParamName("pet_id"));
   }
 }
