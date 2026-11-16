@@ -98,6 +98,44 @@ func TestOpenIdConnect_BuildsAuthorizationUrlFromDiscovery(t *testing.T) {
 	}
 }
 
+// D05: the authorization request always asks for openid, first and once,
+// whatever scopes the caller passes.
+func TestOpenIdConnect_AuthorizationUrlAlwaysRequestsTheOpenidScope(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name   string
+		scopes []string
+		want   string
+	}{
+		{"none given", nil, "scope=openid&"},
+		{"openid missing", []string{"profile"}, "scope=openid%20profile&"},
+		{"openid repeated", []string{"profile", "openid", "email"}, "scope=openid%20profile%20email&"},
+	}
+	for _, tc := range cases {
+		client := &fakeOIDCClient{
+			responses: []fakeOIDCResponse{
+				{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+			},
+		}
+		authObj := oauth.NewOpenIdConnectAuthenticator(
+			"https://api.example.com",
+			"https://auth.example.com/.well-known/openid-configuration",
+			"my-client-id",
+			"my-client-secret",
+			"https://app.example.com/callback",
+			tc.scopes,
+		)
+		authObj.SetApiClient(client)
+		url, err := authObj.BuildAuthorizationURL("s")
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", tc.name, err)
+		}
+		if !strings.Contains(url+"&", tc.want) {
+			t.Errorf("%s: expected %q in %q", tc.name, tc.want, url)
+		}
+	}
+}
+
 func TestOpenIdConnect_FetchesDiscoveryDocument(t *testing.T) {
 	t.Parallel()
 	client := &fakeOIDCClient{
