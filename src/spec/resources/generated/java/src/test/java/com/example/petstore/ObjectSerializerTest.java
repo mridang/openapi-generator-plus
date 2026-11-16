@@ -531,10 +531,10 @@ class ObjectSerializerTest {
     @Test
     @DisplayName("string with accented character serializes without unicode escape")
     void accentedCharacterNotEscaped() throws Exception {
-      String eAcute = Character.toString(0xE9);
-      String result = serializer.serialize("caf" + eAcute);
+      String acuteE = Character.toString(0xE9);
+      String result = serializer.serialize("caf" + acuteE);
       assertTrue(
-          result.contains(eAcute), "should contain the literal accented character, got: " + result);
+          result.contains(acuteE), "should contain the literal accented character, got: " + result);
     }
 
     @Test
@@ -2135,8 +2135,8 @@ class ObjectSerializerTest {
               + Character.toString(0x7f)
               + "d";
       assertEquals("\"" + raw + "\"", serializer.serialize(raw));
-      String eAcute = Character.toString(0xE9);
-      assertEquals("\"/<>&" + eAcute + "\"", serializer.serialize("/<>&" + eAcute));
+      String acuteE = Character.toString(0xE9);
+      assertEquals("\"/<>&" + acuteE + "\"", serializer.serialize("/<>&" + acuteE));
       assertEquals("\"q\\\"b\\\\c\\n\\u0001\"", serializer.serialize("q\"b\\c\n\u0001"));
     }
 
