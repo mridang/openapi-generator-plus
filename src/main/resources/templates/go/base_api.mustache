@@ -387,10 +387,10 @@ type retryPolicyProvider interface {
 
 // isRetryableStatus reports whether a response status is worth retrying.
 func isRetryableStatus(status int) bool {
-	switch {
-	case status == http.StatusRequestTimeout, status == http.StatusConflict, status == http.StatusTooManyRequests:
+	switch status {
+	case http.StatusRequestTimeout, http.StatusConflict, http.StatusTooManyRequests:
 		return true
-	case status == http.StatusNotImplemented:
+	case http.StatusNotImplemented:
 		return false
 	default:
 		return status >= 500 && status <= 599

@@ -831,7 +831,7 @@ public final class DefaultApiClient implements ApiClient {
         return status == 408
                 || status == 409
                 || status == 429
-                || (status >= 500 && status <= 599 && status != 501);
+                || status >= 500 && status <= 599 && status != 501;
     }
 
     /**

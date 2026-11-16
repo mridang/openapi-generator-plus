@@ -515,7 +515,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             try
             {
                 ApiHttpResponse result = await SendAttemptAsync(
-                    method, url, attemptHeaders, body, noRedirect, timeoutSource, timeoutToken, state)
+                    method, url, attemptHeaders, body, noRedirect, timeoutSource, state, timeoutToken)
                     .ConfigureAwait(false);
                 if (
                     !canRetry
@@ -581,8 +581,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         object? body,
         bool noRedirect,
         CancellationTokenSource? timeoutSource,
-        CancellationToken timeoutToken,
-        AttemptState state
+        AttemptState state,
+        CancellationToken timeoutToken
     )
     {
         /* Field names are case-insensitive (RFC 9110 section 5.1), so a caller

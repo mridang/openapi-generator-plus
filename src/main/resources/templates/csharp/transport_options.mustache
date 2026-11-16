@@ -144,8 +144,8 @@ public sealed class TransportOptions
         bool injectRequestId,
         HttpClient? httpClient,
         HttpMessageHandler? httpMessageHandler,
-        CancellationToken cancellationToken,
-        int maxRetries = 2
+        int maxRetries,
+        CancellationToken cancellationToken
     )
     {
         MaxRetries = maxRetries;
@@ -448,8 +448,8 @@ public sealed class TransportOptionsBuilder
             injectRequestId: _injectRequestId,
             httpClient: _httpClient,
             httpMessageHandler: _httpMessageHandler,
-            cancellationToken: _cancellationToken,
-            maxRetries: _maxRetries
+            maxRetries: _maxRetries,
+            cancellationToken: _cancellationToken
         );
     }
 

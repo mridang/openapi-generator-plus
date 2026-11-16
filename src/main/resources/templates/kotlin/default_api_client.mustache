@@ -157,10 +157,9 @@ class DefaultApiClient internal constructor(
             val response =
                 try {
                     sendOnce(method, url, headers, body, noRedirect, budget)
+                } catch (e: NetworkTimeoutException) {
+                    throw e
                 } catch (e: NetworkException) {
-                    if (e is NetworkTimeoutException) {
-                        throw e
-                    }
                     val pause = retryPause(attempt, null, budget) ?: throw e
                     sleeper(pause)
                     attempt++

@@ -2276,8 +2276,8 @@ public class DefaultApiClientUnitTest
         DefaultApiClient client,
         object? body = null,
         Func<Task<Dictionary<string, string>>>? refresh = null,
-        CancellationToken token = default,
-        string method = "GET")
+        string method = "GET",
+        CancellationToken token = default)
     {
         return client.SendRequestAsync(
             method,
