@@ -402,14 +402,14 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
-        for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", &object_serializer::to_deep_object_map(&opts.{{paramName}})?) {
+        for (k, v) in object_serializer::deep_object_pairs("{{baseName}}", &opts.{{paramName}})? {
             query_params.push((k, v, false));
         }
 {{/required}}
 {{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
-                for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", &object_serializer::to_deep_object_map(val)?) {
+                for (k, v) in object_serializer::deep_object_pairs("{{baseName}}", val)? {
                     query_params.push((k, v, false));
                 }
             }
