@@ -33,7 +33,16 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.media.StringSchema;
+import org.openapitools.codegen.CodegenDiscriminator;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenProperty;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.CodegenServer;
 import org.openapitools.codegen.CodegenServerVariable;
 
@@ -313,5 +322,119 @@ class AbstractBetterCodegenTest {
             generator + " must generate a bearer authenticator");
       }
     }
+  }
+
+  private static ModelsMap modelsMapOf(CodegenModel model) {
+    final ModelMap modelMap = new ModelMap();
+    modelMap.setModel(model);
+    final ModelsMap models = new ModelsMap();
+    models.setModels(new ArrayList<>(List.of(modelMap)));
+    return models;
+  }
+
+  private static CodegenModel unionOf(String name, String... variants) {
+    final CodegenModel union = new CodegenModel();
+    union.name = name;
+    union.classname = name;
+    union.oneOf = new java.util.TreeSet<>(List.of(variants));
+    union.discriminator = new CodegenDiscriminator();
+    final List<CodegenDiscriminator.MappedModel> mapped = new ArrayList<>();
+    for (final String variant : variants) {
+      mapped.add(new CodegenDiscriminator.MappedModel(variant, variant));
+    }
+    union.discriminator.setMappedModels(new java.util.LinkedHashSet<>(mapped));
+    return union;
+  }
+
+  @Test
+  @DisplayName("a variant reused by a later union keeps the union that declared it first")
+  void aVariantKeepsTheFirstUnionThatClaimsIt() {
+    final AbstractBetterCodegen codegen = codegen("java");
+    final OpenAPI api = new OpenAPI().components(new Components());
+    // Declaration order: PetFood first, then DeprecatedFood (which sorts first by name).
+    api.getComponents().addSchemas("PetFood", new Schema<>());
+    api.getComponents().addSchemas("DeprecatedFood", new Schema<>());
+    codegen.setOpenAPI(api);
+    final CodegenModel dry = new CodegenModel();
+    dry.name = "DryFood";
+    dry.classname = "DryFood";
+    final Map<String, ModelsMap> all = new java.util.TreeMap<>();
+    all.put("DeprecatedFood", modelsMapOf(unionOf("DeprecatedFood", "DryFood")));
+    all.put("PetFood", modelsMapOf(unionOf("PetFood", "DryFood")));
+    all.put("DryFood", modelsMapOf(dry));
+
+    codegen.wireDiscriminatorParents(all);
+
+    assertEquals("PetFood", dry.parent);
+    assertFalse(AbstractBetterCodegen.setParentOnChild(all, "DryFood", "DeprecatedFood"));
+    assertEquals("PetFood", dry.parent);
+  }
+
+  @Test
+  @DisplayName("additionalProperties of a typed schema fills additionalPropertiesType when opted in")
+  void typedAdditionalPropertiesFillTheModelType() {
+    final Schema<?> typed = new Schema<>().type("object");
+    typed.setAdditionalProperties(new StringSchema());
+    final Schema<?> untyped = new Schema<>().type("object");
+    untyped.setAdditionalProperties(true);
+    final AbstractBetterCodegen ruby = codegen("ruby");
+    ruby.setOpenAPI(new OpenAPI().components(new Components()));
+
+    assertEquals("String", ruby.additionalPropertiesValueType(typed));
+    assertEquals(null, ruby.additionalPropertiesValueType(untyped));
+    assertTrue(ruby.populatesAdditionalPropertiesType());
+    assertFalse(codegen("java").populatesAdditionalPropertiesType());
+  }
+
+  @Test
+  @DisplayName("a default written next to a $ref reaches the property")
+  void aRefSiblingDefaultIsCarriedOntoTheProperty() {
+    final StringSchema availability = new StringSchema();
+    availability.setEnum(List.of("available", "on-hold"));
+    final AbstractBetterCodegen codegen = codegen("java");
+    codegen.setOpenAPI(
+        new OpenAPI().components(new Components().addSchemas("Availability", availability)));
+    final Schema<?> reference = new Schema<>();
+    reference.set$ref("#/components/schemas/Availability");
+    reference.setDefault("on-hold");
+
+    final CodegenProperty property = codegen.fromProperty("availability", reference, false, false);
+
+    assertEquals("on-hold", property.vendorExtensions.get("siblingDefault"));
+    assertEquals(true, property.vendorExtensions.get("siblingDefaultIsEnum"));
+    assertEquals("Availability", property.vendorExtensions.get("siblingDefaultEnumType"));
+    assertEquals(
+        codegen.toEnumVarName("on-hold", "String"),
+        property.vendorExtensions.get("siblingDefaultEnumVar"));
+  }
+
+  @Test
+  @DisplayName("QUERY is a safe and idempotent method, POST and PATCH are neither")
+  void httpMethodClassificationIsShared() {
+    for (final String safe : List.of("GET", "HEAD", "OPTIONS", "TRACE", "QUERY", "query")) {
+      assertTrue(AbstractBetterCodegen.isSafeHttpMethod(safe), safe);
+      assertTrue(AbstractBetterCodegen.isIdempotentHttpMethod(safe), safe);
+    }
+    for (final String idempotent : List.of("PUT", "DELETE")) {
+      assertFalse(AbstractBetterCodegen.isSafeHttpMethod(idempotent), idempotent);
+      assertTrue(AbstractBetterCodegen.isIdempotentHttpMethod(idempotent), idempotent);
+    }
+    for (final String unsafe : List.of("POST", "PATCH", "PURGE")) {
+      assertFalse(AbstractBetterCodegen.isSafeHttpMethod(unsafe), unsafe);
+      assertFalse(AbstractBetterCodegen.isIdempotentHttpMethod(unsafe), unsafe);
+    }
+    assertFalse(AbstractBetterCodegen.isSafeHttpMethod(null));
+  }
+
+  @Test
+  @DisplayName("a parameter named like an injected argument is suffixed, others are untouched")
+  void injectedArgumentNamesAreSuffixedByTheSharedToParamName() {
+    assertEquals("optionsParam", codegen("csharp").toParamName("options"));
+    assertEquals("cancellationTokenParam", codegen("csharp").toParamName("cancellationToken"));
+    assertEquals("requestOptionsParam", codegen("node").toParamName("requestOptions"));
+    assertEquals("opts_param", codegen("elixir").toParamName("opts"));
+    assertEquals("api_param", codegen("elixir").toParamName("api"));
+    assertEquals("options", codegen("java").toParamName("options"));
+    assertEquals("petId", codegen("csharp").toParamName("pet_id"));
   }
 }

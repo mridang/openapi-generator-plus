@@ -538,6 +538,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
            snake form splits an acronym off the word before it: OpenAPI ->
            open_api, Zitadel -> zitadel. */
         final String errorPrefix = errorPrefix(getPropertyOrDefault("errorPrefix", DEFAULT_ERROR_PREFIX));
+        additionalProperties.put("safeHttpMethods", List.copyOf(new TreeSet<>(SAFE_HTTP_METHODS)));
+        additionalProperties.put(
+                "idempotentHttpMethods", List.copyOf(new TreeSet<>(IDEMPOTENT_HTTP_METHODS)));
         additionalProperties.put("errorPrefix", errorPrefix);
         additionalProperties.put("errorPrefixSnake", NamingConvention.SNAKE_CASE.apply(errorPrefix));
         additionalProperties.put("errorPrefixKebab", NamingConvention.KEBAB_CASE.apply(errorPrefix));
@@ -1528,6 +1531,30 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 apiPackage.replace('.', '/')).toString();
     }
 
+    /** HTTP methods that never change server state (RFC 9110 and the QUERY draft). */
+    private static final Set<String> SAFE_HTTP_METHODS =
+            Set.of("GET", "HEAD", "OPTIONS", "TRACE", "QUERY");
+
+    /** HTTP methods whose repetition has the same effect as one call. */
+    private static final Set<String> IDEMPOTENT_HTTP_METHODS =
+            Set.of("GET", "HEAD", "OPTIONS", "TRACE", "QUERY", "PUT", "DELETE");
+
+    /**
+     * Whether an HTTP method is safe (read-only): GET, HEAD, OPTIONS, TRACE
+     * and QUERY. The single classification every transport shares (F838).
+     */
+    public static boolean isSafeHttpMethod(@Nullable String method) {
+        return method != null && SAFE_HTTP_METHODS.contains(method.toUpperCase(Locale.ROOT));
+    }
+
+    /**
+     * Whether an HTTP method is idempotent: the safe methods plus PUT and
+     * DELETE. A transport may replay these after a stale connection.
+     */
+    public static boolean isIdempotentHttpMethod(@Nullable String method) {
+        return method != null && IDEMPOTENT_HTTP_METHODS.contains(method.toUpperCase(Locale.ROOT));
+    }
+
     /**
      * Returns the default value expression for a schema, handling
      * the boolean case using {@link #getTrueLiteral()} and
@@ -1626,6 +1653,34 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Whether {@code CodegenModel.additionalPropertiesType} is filled from the
+     * schema's {@code additionalProperties} (F865). Off by default because most
+     * model templates already render the slot, so turning it on changes their
+     * output; a language opts in when its template types the extras.
+     */
+    protected boolean populatesAdditionalPropertiesType() {
+        return false;
+    }
+
+    /**
+     * Returns the declared type of the values of a schema's
+     * {@code additionalProperties}, or {@code null} when it is absent,
+     * boolean, or an untyped schema (so the bucket stays an any-map).
+     */
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    final String additionalPropertiesValueType(@Nullable Schema schema) {
+        if (schema == null || !(schema.getAdditionalProperties() instanceof Schema)) {
+            return null;
+        }
+        final Schema values = (Schema) schema.getAdditionalProperties();
+        final boolean typed = values.get$ref() != null
+                || values.getType() != null
+                || (values.getTypes() != null && !values.getTypes().isEmpty());
+        return typed ? getTypeDeclaration(values) : null;
+    }
+
+    /**
      * Records whether the source schema for this model declares
      * {@code unevaluatedProperties: false} (OAS 3.1 / JSON Schema
      * 2020-12 strict-mode). The flag is consumed by
@@ -1647,6 +1702,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
         final CodegenModel built = super.fromModel(name, schema);
+        if (built != null && populatesAdditionalPropertiesType()) {
+            built.additionalPropertiesType = additionalPropertiesValueType(schema);
+        }
         // Record enum models so referenced-enum properties (which carry
         // isEnum == false but a complexType naming the enum) can be told apart
         // from class-referencing properties during decorator emission.
@@ -2332,11 +2390,34 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             final String sanitized = digitLeadingFallback(sanitizeName(name));
             final String cased = paramCasing.apply(sanitized);
             if (isReservedWord(cased)) {
-                return escapeReservedWord(cased);
+                return disambiguateInjectedArgument(escapeReservedWord(cased));
             }
-            return cased;
+            return disambiguateInjectedArgument(cased);
         }
-        return toVarName(name);
+        return disambiguateInjectedArgument(toVarName(name));
+    }
+
+    /**
+     * The names of the arguments the generated operations add to their own
+     * signature in this language (for example {@code options},
+     * {@code server}). A path or body parameter that carries one of them is
+     * suffixed by {@link #toParamName(String)} so the signature never has two
+     * parameters of the same name (F1055). Empty by default; a language lists
+     * the names its templates inject.
+     */
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of();
+    }
+
+    /** The suffix added to a parameter named like an injected argument. */
+    protected String getInjectedArgumentSuffix() {
+        return "Param";
+    }
+
+    private String disambiguateInjectedArgument(String paramName) {
+        return getInjectedArgumentNames().contains(paramName)
+                ? paramName + getInjectedArgumentSuffix()
+                : paramName;
     }
 
     /**
@@ -3268,6 +3349,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         d.put("hasCookieParams", op.cookieParams != null && !op.cookieParams.isEmpty());
         d.put("hasPathParams", op.pathParams != null && !op.pathParams.isEmpty());
         d.put("hasBodyParam", op.bodyParam != null);
+        // Shared HTTP method classification (F838).
+        d.put("isSafeMethod", isSafeHttpMethod(op.httpMethod));
+        d.put("isIdempotentMethod", isIdempotentHttpMethod(op.httpMethod));
 
         // Phase 1.7 — signatureArgs: ordered list of method-signature parameters
         // (path / body / options / server) so templates can iterate declaratively
@@ -4284,9 +4368,38 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 super.fromProperty(name, p, required, schemaIsFromAdditionalProperties);
         capturePropertyPluralExamples(property, p);
         applyConstAsSingleValueEnum(property, p);
+        captureRefSiblingDefault(property, p);
         return property;
     }
 
+
+    /**
+     * Carries a {@code default} written next to a {@code $ref} (an OAS 3.1
+     * sibling keyword, D60) onto the property, which the base class loses
+     * because it resolves the reference first. Surfaces
+     * {@code vendorExtensions["siblingDefault"]} (the wire value as text),
+     * {@code ["siblingDefaultIsEnum"]} and, for a referenced string enum,
+     * {@code ["siblingDefaultEnumType"]} (the model name) and
+     * {@code ["siblingDefaultEnumVar"]} (the generated member name). The
+     * property's own {@code defaultValue} is left alone so no output changes
+     * until a template reads these.
+     */
+    @SuppressWarnings("rawtypes")
+    private void captureRefSiblingDefault(CodegenProperty property, Schema p) {
+        if (property == null || p == null || p.get$ref() == null || p.getDefault() == null) {
+            return;
+        }
+        final String wire = String.valueOf(p.getDefault());
+        property.vendorExtensions.put("siblingDefault", wire);
+        final String refName = ModelUtils.getSimpleRef(p.get$ref());
+        final Schema target = this.openAPI == null ? null : ModelUtils.getSchema(this.openAPI, refName);
+        final boolean isEnum = target != null && target.getEnum() != null && !target.getEnum().isEmpty();
+        property.vendorExtensions.put("siblingDefaultIsEnum", isEnum);
+        if (isEnum) {
+            property.vendorExtensions.put("siblingDefaultEnumType", toModelName(refName));
+            property.vendorExtensions.put("siblingDefaultEnumVar", toEnumVarName(wire, "String"));
+        }
+    }
 
     /**
      * Translates OpenAPI 3.1 {@code const} schemas into the existing
@@ -5614,18 +5727,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 }
             }
         }
+        // Gap 20: Wire discriminator-based parent links. Unions claim their
+        // variants in the order the spec declares them, so a variant reused by
+        // a later union keeps the first union's supertype (F802).
+        if (setsDiscriminatorParent()) {
+            wireDiscriminatorParents(result);
+        }
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
                 final CodegenModel model = modelMap.getModel();
-
-                // Gap 20: Wire discriminator-based parent links
-                if (setsDiscriminatorParent()
-                        && model.discriminator != null && !model.oneOf.isEmpty()) {
-                    for (final CodegenDiscriminator.MappedModel mapped :
-                            model.discriminator.getMappedModels()) {
-                        setParentOnChild(result, mapped.getModelName(), model.classname);
-                    }
-                }
 
                 // Gap 24: Build fully-qualified model imports (Python)
                 if (buildsFqnModelImports()) {
@@ -5799,23 +5909,68 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Claims every mapped variant of each discriminated union for that union,
+     * visiting the unions in the order the spec declares them (alphabetical
+     * when the declaration order is unknown). The first union to claim a
+     * variant keeps it.
+     */
+    void wireDiscriminatorParents(Map<String, ModelsMap> allModels) {
+        final List<String> declared = new ArrayList<>();
+        if (openAPI != null && openAPI.getComponents() != null
+                && openAPI.getComponents().getSchemas() != null) {
+            declared.addAll(openAPI.getComponents().getSchemas().keySet());
+        }
+        final List<CodegenModel> unions = new ArrayList<>();
+        for (final ModelsMap modelsMap : allModels.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (model.discriminator != null && !model.oneOf.isEmpty()) {
+                    unions.add(model);
+                }
+            }
+        }
+        unions.sort(
+                Comparator.comparingInt(
+                                (CodegenModel m) -> {
+                                    final int at = declared.indexOf(m.name);
+                                    return at < 0 ? Integer.MAX_VALUE : at;
+                                })
+                        .thenComparing(m -> m.classname));
+        for (final CodegenModel union : unions) {
+            for (final CodegenDiscriminator.MappedModel mapped :
+                    union.discriminator.getMappedModels()) {
+                setParentOnChild(allModels, mapped.getModelName(), union.classname);
+            }
+        }
+    }
+
+    /**
      * Sets {@code parent} and {@code parentSchema} on a child
      * model (identified by {@code childName}) to {@code parentName},
-     * but only if the child does not already have a parent.
+     * but only if the child does not already have a parent. The first
+     * union that claims a variant keeps it: a later union that reuses
+     * the same variant never re-parents it (F802), so a variant's
+     * supertype does not depend on which union happens to be visited
+     * last.
+     *
+     * @return {@code true} when this call claimed the child
      */
-    private static void setParentOnChild(
+    static boolean setParentOnChild(
             Map<String, ModelsMap> allModels, String childName, String parentName) {
         final ModelsMap childModels = allModels.get(childName);
         if (childModels == null) {
-            return;
+            return false;
         }
+        boolean claimed = false;
         for (final ModelMap modelMap : childModels.getModels()) {
             final CodegenModel child = modelMap.getModel();
             if (child.parent == null) {
                 child.parent = parentName;
                 child.parentSchema = parentName;
+                claimed = true;
             }
         }
+        return claimed;
     }
 
     /**
