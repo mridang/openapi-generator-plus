@@ -719,6 +719,25 @@ import Testing
         let _: any {{errorPrefix}}Error = error
     }
 
+    // MARK: - Byte arrays compare by content
+
+    /* A bare byte array, a list of them and a map of them are equal when the
+     * bytes are, whichever instance they came from, and differ when a byte
+     * does. */
+    @Test func testByteArraysCompareByContent() throws {
+        let json = "{\"seal\":\"AQID\",\"shards\":[\"AQID\",\"BAU=\"],\"labels\":{\"k\":\"AQID\"}}"
+        let first = try #require(try ObjectSerializer.deserialize(json, as: BinaryVault.self))
+        let second = try #require(try ObjectSerializer.deserialize(json, as: BinaryVault.self))
+        #expect(first == second)
+        #expect(first.seal == Data([1, 2, 3]))
+        #expect(first.shards == [Data([1, 2, 3]), Data([4, 5])])
+        #expect(first.labels == ["k": Data([1, 2, 3])])
+
+        #expect(first != BinaryVault(seal: Data([1, 2, 4]), shards: first.shards, labels: first.labels))
+        #expect(first != BinaryVault(seal: first.seal, shards: [Data([1, 2, 3])], labels: first.labels))
+        #expect(first != BinaryVault(seal: first.seal, shards: first.shards, labels: ["k": Data([9])]))
+    }
+
     // MARK: - Constraint keywords are not enforced (D55, F027)
 
     /* The pattern, length and range keywords of the fixture models are
