@@ -122,7 +122,7 @@ Where: `configuration.mustache`, `transport_options.mustache`.
 Test: `test/configuration_test.mustache`, `test/transport_options_test.mustache`.
 
 ### Timeouts, redirects, validation timing (S16, D76, D77, D79, D72, D73, F121)
-Rule: one end-to-end timeout budget; a caller-supplied stream or file handle is never closed; proxy URL validation happens in `Build()`, not in the builder setter (the setter stores `proxyErr`); `caCertPath` is validated even when `verifySsl` is false. Today `Build()` rejects only a NEGATIVE timeout with `ErrInvalidTimeout`; rejecting zero ("must be a positive number of milliseconds") is intended (F121) and the `Timeout()` doc still says a zero value means a zero-millisecond timeout.
+Rule: one end-to-end timeout budget; a caller-supplied stream or file handle is never closed; proxy URL validation happens in `Build()`, not in the builder setter (the setter stores `proxyErr`); `caCertPath` is validated even when `verifySsl` is false. `Build()` rejects a zero or negative timeout with `ErrInvalidTimeout` and the canonical text `invalid timeout: must be a positive number of milliseconds (got N)` (D77, F121, F924, batch 6); `nil` is the only way to ask for no timeout.
 Why: the budget used to apply per hop; redirects could multiply it.
 Where: `default_api_client.mustache`, `transport_options.mustache`.
 Test: `test/transport_options_test.mustache`, `test/default_api_client_test.mustache`.
@@ -164,7 +164,7 @@ Where: `default_api_client.mustache`.
 Test: `test/default_api_client_test.mustache`.
 
 ### Error text matrix (D14, D15, D16, D17, D20, D28, D29, F245, F260, F267)
-Rule: serializer messages are "failed to serialize object to JSON: ..." and "failed to deserialize JSON: ..." (lower case forced); redirect refusals read "refusing to follow redirect to non-HTTP(S) URL: <next>", "refusing to replay request body across HTTPS->HTTP redirect: <cur> -> <next>" and "too many redirects (exceeded N)" with the `*url.Error` unwrapped and no `redirect refused:` prefix (intended for the unwrap); the "Response headers:" line is compact JSON with sorted keys written by a `json.Encoder` with `SetEscapeHTML(false)` (intended); list values render `[a, b, c]` through `strings.Join` (intended); the missing-parameter message names the caller-facing identifier; use-after-close wraps `ErrClientClosed`, whose text is "API client has been closed and can no longer send requests" (the forced "API client" wording).
+Rule: serializer messages are "failed to serialize object to JSON: ..." and "failed to deserialize JSON: ..." (lower case forced); redirect refusals read "refusing to follow redirect to non-HTTP(S) URL: <next>", "refusing to replay request body across HTTPS->HTTP redirect: <cur> -> <next>" and "too many redirects (exceeded N)" with the `*url.Error` unwrapped by `redirectRefusalMessage` and no `redirect refused:` prefix (landed, batch 6, F927); the "Response headers:" line is compact JSON with sorted keys written by a `json.Encoder` with `SetEscapeHTML(false)` (`compactHeadersJSON`, landed, batch 6, F922); list values render `[a, b, c]` through `strings.Join` (intended); the missing-parameter message names the caller-facing identifier; use-after-close wraps `ErrClientClosed`, whose text is "API client has been closed and can no longer send requests" (the forced "API client" wording).
 Why: one message grammar across all twelve; the lower-case first letter is the only forced difference (ST1005).
 Where: `api_error.mustache`, `errors/*.mustache`, `object_serializer.mustache`, `default_api_client.mustache`, `server_configuration.mustache`, `api/api.mustache`.
 Test: `test/api_error_test.mustache`, `test/default_api_client_test.mustache`, `test/server_configuration_test.mustache`.
@@ -248,7 +248,7 @@ Where: `default_api_client.mustache`, `transport_options.mustache`.
 Test: `test/default_api_client_test.mustache`, `test/transport_options_test.mustache`.
 
 ### ApiResult.headers is a copy
-Rule (intended): `NewApiResult` stores `maps.Clone(headers)`; the field is documented "do not mutate"; read-only is impossible in go.
+Rule: `NewApiResult` stores `maps.Clone(headers)` (conformant, F325); the field is documented "do not mutate"; read-only is impossible in go.
 Why: a caller mutating the result must not alter the transport's map (F325).
 Where: `api_result.mustache`.
 Test: `test/api_result_test.mustache`.
@@ -288,6 +288,19 @@ Not harmonised on purpose: the multipart file part sends a real filename and a s
 - The module must build for `GOOS=wasip1 GOARCH=wasm` (`GoWasmSpec`), so no cgo and no OS-specific dependency.
 - Tests run with `-race` and CPU is bounded; golangci-lint and the Go build cache live under `/root/.cache/go`.
 - The generator and the golden must be regenerated together; the golden formatters run in Docker and can be flaky (see the root AGENTS.md).
+
+## Decisions taken in batch 6
+
+The audit's own proposal was the default wherever no owner decision existed.
+
+- Header merge (F1044): every layer (transport defaults, configuration defaults, header selector, operation headers, auth headers) is merged by `mergeHeaders` in `default_api_client.mustache`: a key that differs only in case replaces the earlier one, the later layer keeps its spelling, and the keys of one layer are visited in sorted order so the result never depends on map iteration. `removeHeader` and `hasHeader` are case-insensitive, so a caller's `accept-encoding` suppresses the injected one and `Content-Type` is dropped on a bodyless request whatever its spelling. Test: `TestDefaultApiClient_HeaderSpellingsAreMergedCaseInsensitively` and `TestMergeHeaders_...` in `test/default_api_client_unit_test.mustache`.
+- Token expiry (F854, F1046, F1045): one margin, applied when the token is stored: `expiry = now + expires_in - min(60 s, expires_in / 2)`, so a 60 s token is reused for 30 s and a 120 s token for 60 s. A grant response without `expires_in` (first fetch, refresh or exchange) leaves no expiry and the token is cached until invalidated; `expires_in <= 0` or unparseable still means stale on arrival. Tests that need a stale token use `"expires_in":0`. Test: `TestOAuth2TokenManager_ShortLivedTokensAreStillReused`, `..._RefreshWithoutExpiresInCachesTheNewToken`.
+- OIDC rediscovery (F1052): when the discovery max-age lapses and the refetch fails, the previous delegate keeps serving (stale-if-error) and discovery is retried after 30 s; the first discovery still fails. `max-age=0` still refetches on every call (pinned by `TestOpenIdConnect_DiscoveryIsReusedForTheCacheControlMaxAge`; the floor the audit suggested was not taken). Test: `TestOpenIdConnect_FailedRediscoveryKeepsUsingThePreviousDelegate`.
+- Query secrets in errors (F861): `redactURL` replaces the query of a URL with `***` in transport-error messages (`request failed: ...`) and in the redirect refusal messages; the original `*url.Error` stays the cause. Test: `TestDefaultApiClient_NetworkErrorMessageRedactsTheQuery`.
+- Trace propagator (F880, race part): `traceContextPropagator` is an `atomic.Pointer`, so `SetTraceContextPropagator` may run while requests are in flight. Per-operation spans and metrics are not added. Test: `TestSetTraceContextPropagator_ConcurrentSetAndInjectIsRaceFree` (the suite runs with `-race`).
+- F844 is already conforming: this file exists.
+
+Skipped in batch 6, each needing a public go-only API change that the api-surface check and the other eleven SDKs must agree on first (the allow rules live in `etc/`): F842 (move `requestContentType` into a per-call option), F875 (`models.Date`), F876 (named inline parameter enums), F877 (return slices and maps by value), F878 (typed union constructors and accessors), F879 (per-tag service interfaces), F881 (exported `AllValues`/`IsValid`; `TestModel_InlineEnumValueListIsNotExported` pins the helper unexported today), F874 and F1053 (a context-aware auth method), F1048 (a response size limit option). F873 (single-pass model decode), F882 (operation doc comment layout, which the generated-prose alignment rules in `CLAUDE.md` pin) and F930 (no petstore operation has a nested object form field, so the check cannot be driven through the public API from `test/base_api_test.mustache`) need a larger change than could be verified without the Docker gate.
 
 ## Verify
 

@@ -3,6 +3,7 @@ package {{packageName}}
 
 import (
 	"context"
+	"sync/atomic"
 )
 
 // InjectTraceContext injects the current OpenTelemetry trace context into the
@@ -19,11 +20,12 @@ import (
 // reach headers. The W3C propagator always writes tracestate, empty or not,
 // and an empty tracestate header is not what the other SDKs send.
 func InjectTraceContext(headers map[string]string) {
-	if traceContextPropagator == nil {
+	propagate := traceContextPropagator.Load()
+	if propagate == nil {
 		return
 	}
 	injected := make(map[string]string)
-	traceContextPropagator(context.Background(), injected)
+	(*propagate)(context.Background(), injected)
 	for key, value := range injected {
 		if value != "" {
 			headers[key] = value
@@ -35,9 +37,10 @@ func InjectTraceContext(headers map[string]string) {
 // mutable map of request headers.
 type TraceContextPropagatorFunc func(ctx context.Context, headers map[string]string)
 
-// traceContextPropagator holds the current propagator function.
-// It is nil by default (no-op).
-var traceContextPropagator TraceContextPropagatorFunc
+// traceContextPropagator holds the current propagator function. It is nil by
+// default (no-op) and is read and written atomically, so a propagator can be
+// registered while requests are in flight.
+var traceContextPropagator atomic.Pointer[TraceContextPropagatorFunc]
 
 // SetTraceContextPropagator sets the function used to inject trace context
 // headers. Pass nil to disable trace context injection.
@@ -55,5 +58,9 @@ var traceContextPropagator TraceContextPropagatorFunc
 //		propagation.TraceContext{}.Inject(activeSpanContext(), propagation.MapCarrier(headers))
 //	})
 func SetTraceContextPropagator(fn TraceContextPropagatorFunc) {
-	traceContextPropagator = fn
+	if fn == nil {
+		traceContextPropagator.Store(nil)
+		return
+	}
+	traceContextPropagator.Store(&fn)
 }
