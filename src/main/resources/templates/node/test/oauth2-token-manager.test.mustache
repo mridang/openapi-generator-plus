@@ -457,6 +457,42 @@ describe('OAuth2TokenManager', () => {
     expect(bodies).toHaveLength(2);
   });
 
+  test.each([
+    ['authorization_code', { grant_type: 'authorization_code', code: 'abc' }],
+    ['client_credentials', { grant_type: 'client_credentials' }],
+    ['password', { grant_type: 'password', username: 'user', password: 'pass' }]
+  ])('the %s token request is form-encoded and asks for JSON', async (_grant, params) => {
+    mockClient.responseBody = JSON.stringify({ access_token: 'tok', expires_in: 3600 });
+
+    await tokenManager.getAccessToken('https://auth.example.com/token', params);
+
+    expect(mockClient.lastHeaders['Content-Type']).toBe('application/x-www-form-urlencoded');
+    expect(mockClient.lastHeaders['Accept']).toBe('application/json');
+  });
+
+  test('the refresh grant request is form-encoded and asks for JSON', async () => {
+    const headers: Array<Record<string, string>> = [];
+    const stepClient: ApiClient = {
+      async sendRequest(_method, _url, requestHeaders): Promise<ApiHttpResponse> {
+        headers.push(requestHeaders);
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ access_token: 'tok', refresh_token: 'ref-1', expires_in: 0 }),
+          headers: { 'content-type': 'application/json' }
+        };
+      }
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(stepClient);
+
+    await manager.getAccessToken('https://auth.example.com/token', originalParams);
+    await manager.getAccessToken('https://auth.example.com/token', originalParams);
+
+    expect(headers).toHaveLength(2);
+    expect(headers[1]!['Content-Type']).toBe('application/x-www-form-urlencoded');
+    expect(headers[1]!['Accept']).toBe('application/json');
+  });
+
   test('a rejected refresh falls back to the original grant', async () => {
     const { client, bodies } = scripted([
       { status: 200, body: { access_token: 'old', refresh_token: 'ref-1', expires_in: 0 } },
@@ -706,6 +742,34 @@ describe('OAuth2TokenManager', () => {
         grant_type: 'client_credentials'
       });
       expect(second).toBe('half2');
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
+  test('an expires_in beyond one year is clamped to one year', async () => {
+    let n = 0;
+    const stepClient: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        n++;
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ access_token: `clamp${n}`, expires_in: 9999999999 }),
+          headers: { 'content-type': 'application/json' }
+        };
+      }
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(stepClient);
+    const originalNow = Date.now;
+
+    try {
+      await manager.getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' });
+      Date.now = () => originalNow() + 31_536_000_000;
+      const second = await manager.getAccessToken('https://auth.example.com/token', {
+        grant_type: 'client_credentials'
+      });
+      expect(second).toBe('clamp2');
     } finally {
       Date.now = originalNow;
     }

@@ -472,7 +472,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * ("3600s"), not ISO-8601 ("PT1H") — protobuf-JSON APIs reject the ISO form.
    */
   @Transform(({ value }) => (typeof value === 'string' ? durationFromProtoJson(value) : value), { toClassOnly: true })
-  @Transform(({ value }) => (value instanceof Temporal.Duration ? durationToProtoJson(value) : value), { toPlainOnly: true })
+  @Transform(({ value }) => (isTemporalValue(value, 'Duration') ? durationToProtoJson(value as Temporal.Duration) : value), { toPlainOnly: true })
 {{/vendorExtensions.isDurationFormat}}
 {{#isByteArray}}
   /** 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary. */
@@ -914,7 +914,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null) {
       if (typeof this.{{name}} === 'string') {
         this.{{name}} = Temporal.PlainTime.from(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
-      } else if (!(this.{{name}} instanceof Temporal.PlainTime)) {
+      } else if (!isTemporalValue(this.{{name}}, 'PlainTime')) {
         throw new TypeError(`{{name}} must be a Temporal.PlainTime or ISO time string, got ${typeof this.{{name}}}`);
       }
     }
@@ -929,7 +929,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null) {
       if (typeof this.{{name}} === 'string') {
         this.{{name}} = durationFromProtoJson(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
-      } else if (!(this.{{name}} instanceof Temporal.Duration)) {
+      } else if (!isTemporalValue(this.{{name}}, 'Duration')) {
         throw new TypeError(`{{name}} must be a Temporal.Duration or protobuf-JSON duration string, got ${typeof this.{{name}}}`);
       }
     }
@@ -1159,6 +1159,29 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
   }
 
+{{#hasPasswordField}}
+  /**
+   * String form for `util.inspect` and `console.log`: every `format: password`
+   * field prints as `***`. The field and the JSON sent on the wire keep the
+   * real value.
+   */
+  [Symbol.for('nodejs.util.inspect.custom')](
+    _depth: number,
+    options: Record<string, unknown>,
+    inspect: (value: unknown, options?: Record<string, unknown>) => string
+  ): string {
+    const masked: Record<string, unknown> = { ...(this as unknown as Record<string, unknown>) };
+{{#vars}}
+{{#vendorExtensions.isPasswordFormat}}
+    if (masked['{{name}}'] != null) {
+      masked['{{name}}'] = '***';
+    }
+{{/vendorExtensions.isPasswordFormat}}
+{{/vars}}
+    return `{{classname}} ${inspect(masked, options)}`;
+  }
+
+{{/hasPasswordField}}
   /**
    * Value-equality across all declared fields{{#isAdditionalPropertiesTrue}} (including the
    * additionalProperties index keys){{/isAdditionalPropertiesTrue}}. Two instances are equal when

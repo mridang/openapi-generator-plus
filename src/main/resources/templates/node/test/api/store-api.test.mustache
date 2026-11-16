@@ -3,8 +3,8 @@
 import * as http from 'node:http';
 import { StoreApi } from '../../src/api/store-api{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
-import { Order, OrderStatusEnum, Category, PhotoMetadata, Swatch } from '../../src/models/index{{importFileExtension}}';
-import { InternalServerError, NotFoundError, SerializationError } from '../../src/errors/index{{importFileExtension}}';
+import { Account, Availability, Order, OrderStatusEnum, Category, PhotoMetadata, Priority, Swatch, TreeNode } from '../../src/models/index{{importFileExtension}}';
+import { BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NotFoundError, SerializationError, ServerError, UnauthorizedError, UnprocessableEntityError } from '../../src/errors/index{{importFileExtension}}';
 import { uuid, type UUID } from '../../src/brand{{importFileExtension}}';
 import { Temporal } from 'temporal-polyfill';
 
@@ -210,6 +210,86 @@ describe('StoreApi nested container deserialization', () => {
   });
 });
 
+describe('StoreApi response shapes', () => {
+  test('getSwatch decodes a bare enum into its member', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '"green"');
+    try {
+      expect(await mockApi.getSwatch()).toBe(Swatch.Green);
+    } finally {
+      close();
+    }
+  });
+
+  test('getDepartment follows the mutual Department and Employee reference', async () => {
+    const body = '{"name":"eng","lead":{"name":"ann","department":{"name":"ops"}}}';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getDepartment();
+      expect(result.name).toBe('eng');
+      expect(result.lead!.name).toBe('ann');
+      expect(result.lead!.department!.name).toBe('ops');
+    } finally {
+      close();
+    }
+  });
+
+  test('getTree decodes a self-recursive model into typed nodes', async () => {
+    const body = '{"value":"a","child":{"value":"b","child":{"value":"c"}}}';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getTree();
+      expect(result).toBeInstanceOf(TreeNode);
+      expect(result.child).toBeInstanceOf(TreeNode);
+      expect(result.child!.child!.value).toBe('c');
+    } finally {
+      close();
+    }
+  });
+
+  test('getStockItem decodes the integer enum, the string enum and the nested arrays', async () => {
+    const body = '{"priority":2,"availability":"on-hold","matrix":[[1,2],[3]]}';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getStockItem();
+      expect(result.priority).toBe(Priority.NUMBER_2);
+      expect(result.availability).toBe(Availability.OnHold);
+      expect(result.matrix).toEqual([[1, 2], [3]]);
+    } finally {
+      close();
+    }
+  });
+
+  test('createAccount sends the writeOnly password and decodes the readOnly id', async () => {
+    let sentBody = '';
+    const server = http.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        sentBody = Buffer.concat(chunks).toString('utf-8');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{"id":7,"username":"u","password":"p"}');
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const accountApi = new StoreApi(
+        undefined,
+        Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build(),
+      );
+
+      const result = await accountApi.createAccount(new Account({ username: 'u', password: 'p' }));
+
+      expect(JSON.parse(sentBody)).toEqual({ username: 'u', password: 'p' });
+      expect(result).toBeInstanceOf(Account);
+      expect(result.id).toBe(7);
+      expect(result.password).toBe('p');
+    } finally {
+      server.close();
+    }
+  });
+});
+
 describe('StoreApi content-encoded query parameters', () => {
   async function captureSearch(q: PhotoMetadata): Promise<string> {
     let capturedUrl = '';
@@ -382,6 +462,30 @@ describe('StoreApi named-enum parameters', () => {
     } finally {
       server.close();
     }
+  });
+});
+
+describe('StoreApi error dispatch through the typed status routes', () => {
+  test.each([
+    [400, BadRequestError],
+    [401, UnauthorizedError],
+    [403, ForbiddenError],
+    [404, NotFoundError],
+    [409, ConflictError],
+    [418, ClientError],
+    [422, UnprocessableEntityError],
+    [500, InternalServerError],
+    [502, ServerError],
+  ])('getOrderById answered with %i raises the status-specific error', async (status, expected) => {
+    const statusApi = new StoreApi(
+      undefined,
+      Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
+    );
+
+    const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(expected);
+    expect((error as ClientError).statusCode).toBe(status);
   });
 });
 

@@ -4,15 +4,15 @@ import type { ApiClient, RequestOptions } from '../api-client{{importFileExtensi
 import type { ApiResult } from '../api-result{{importFileExtension}}';
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
 import { isNoAuth } from '../auth/authenticator{{importFileExtension}}';
+import { isHttpAwareAuthenticator } from '../auth/http-aware-authenticator{{importFileExtension}}';
 /* Imported through the errors barrel, which loads every status-specific
  * error, so ApiError.fromResponse knows them all. */
 import { ApiError, SerializationError } from '../errors/index{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { DefaultApiClient } from '#transport';
 import { HeaderSelector } from '../header-selector{{importFileExtension}}';
-import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
-import { Temporal } from 'temporal-polyfill';
-import { AllowReservedValue, ValueSerializer } from '../value-serializer{{importFileExtension}}';
+import { ObjectSerializer, isTemporalValue } from '../object-serializer{{importFileExtension}}';
+import { AllowReservedValue, ExplodedObject, ValueSerializer } from '../value-serializer{{importFileExtension}}';
 import { injectTraceContext } from '../trace-context-util{{importFileExtension}}';
 
 /**
@@ -106,6 +106,12 @@ export abstract class BaseApi {
      *     back to the configured client authenticator (secured op).
      *   - auth is a real authenticator  -> per-call override; use it. */
     const effectiveAuth = isNoAuth(auth) ? null : (auth ?? this.authenticator);
+    /* The client injects its transport into the authenticator it was built
+     * with. A per-call OAuth2 or OpenID Connect authenticator was never given
+     * one, so hand it this API's own client before it fetches a token. */
+    if (auth != null && effectiveAuth === auth && isHttpAwareAuthenticator(auth)) {
+      auth.setApiClient(this.apiClient);
+    }
     if (effectiveAuth) {
       const authQueryParams = effectiveAuth.getQueryParams();
       for (const [k, v] of Object.entries(authQueryParams)) {
@@ -130,6 +136,13 @@ export abstract class BaseApi {
         }
         const encodeQueryValue = (v: string): string =>
           allowReserved ? ValueSerializer.encodeQueryAllowingReserved(v) : ValueSerializer.encodeQueryComponent(v);
+        if (value instanceof ExplodedObject) {
+          /* An exploded object contributes one entry per property, under the
+           * property's own name. */
+          return value.entries.map(
+            ([name, entry]) => `${ValueSerializer.encodeQueryComponent(name)}=${encodeQueryValue(entry)}`
+          );
+        }
         const encodedKey = ValueSerializer.encodeQueryComponent(k);
         return Array.isArray(value)
           ? value.map((item) => `${encodedKey}=${encodeQueryValue(String(item))}`)
@@ -153,8 +166,11 @@ export abstract class BaseApi {
     };
     overlay(this.config.defaultHeaders);
     overlay(headerParams);
+    const credentialHeaderNames: string[] = Object.keys(this.config.defaultHeaders);
     if (effectiveAuth) {
-      overlay(await effectiveAuth.getAuthHeadersAsync());
+      const authHeaders = await effectiveAuth.getAuthHeadersAsync();
+      credentialHeaderNames.push(...Object.keys(authHeaders));
+      overlay(authHeaders);
       const cookies = effectiveAuth.getCookieParams();
       const cookieEntries = Object.entries(cookies);
       if (cookieEntries.length > 0) {
@@ -196,9 +212,10 @@ export abstract class BaseApi {
       (s): s is AbortSignal => s != null
     );
     const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
-    const response = signal
-      ? await this.apiClient.sendRequest(method, url, headers, serializedBody, { signal })
-      : await this.apiClient.sendRequest(method, url, headers, serializedBody);
+    const response = await this.apiClient.sendRequest(method, url, headers, serializedBody, {
+      ...(signal ? { signal } : {}),
+      credentialHeaderNames
+    });
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       this.throwApiError(response);
@@ -349,7 +366,10 @@ export abstract class BaseApi {
     if (rawBody && (Buffer.isBuffer(body) || body instanceof Uint8Array || body instanceof Blob)) {
       return body as Buffer;
     }
-    if (contentType === 'multipart/form-data') {
+    if (/^multipart\//i.test(contentType)) {
+      /* Any multipart subtype (form-data, mixed, related) is assembled by the
+       * transport from the form parts object; the subtype comes from the
+       * Content-Type header. */
       return body as Record<string, unknown>;
     }
     if (contentType.startsWith('image/') || contentType === 'application/octet-stream') {
@@ -402,14 +422,7 @@ export abstract class BaseApi {
        * encoding (no OAS encoding style is emitted), so it is rejected
        * instead of being sent as '[object Object]'. */
       const isScalarObject = (value: object): boolean =>
-        value instanceof Date ||
-        value instanceof Uint8Array ||
-        value instanceof Temporal.PlainDate ||
-        value instanceof Temporal.PlainTime ||
-        value instanceof Temporal.PlainDateTime ||
-        value instanceof Temporal.Instant ||
-        value instanceof Temporal.ZonedDateTime ||
-        value instanceof Temporal.Duration;
+        value instanceof Date || value instanceof Uint8Array || isTemporalValue(value);
       const scalar = (key: string, value: unknown): string => {
         if (typeof value === 'object' && value !== null && !isScalarObject(value)) {
           throw new SerializationError(

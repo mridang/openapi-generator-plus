@@ -49,7 +49,7 @@ try {
 }
 ```
 
-Every API error derives from `ApiError`, with a subclass per status class. Authentication
+Every error the SDK raises derives from `{{errorPrefix}}Error`; an `ApiError` carries the HTTP status, with a subclass per status class. Authentication
 schemes, servers, custom transports, cancellation and testing are covered in
 [SKILLS.md](SKILLS.md).
 

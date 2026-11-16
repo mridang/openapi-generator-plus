@@ -125,6 +125,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "number", "boolean", "string", "object", "any", "unknown",
                                 "void", "undefined", "null", "Array", "Set", "Buffer", "UUID",
                                 "URI", "Email", "Decimal",
+                                // A schema named like the global Error would shadow it in
+                                // every model file that imports it; Result is renamed to
+                                // match the other SDKs (D45, F173).
+                                "Error", "Result",
                                 // 4.8 — Temporal.* types come from `temporal-polyfill`,
                                 // not from generated models, so the model-import filter
                                 // must not treat them as model classes.
@@ -691,6 +695,22 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected String getModelNameCollisionPrefix() {
         return "Model";
+    }
+
+    /**
+     * Names of the arguments the SDK itself adds to every operation. A parameter
+     * named like one would produce two parameters of the same name (TS2300).
+     */
+    private static final Set<String> INJECTED_ARGUMENT_NAMES = Set.of("options", "requestOptions", "server");
+
+    /**
+     * Suffixes a parameter that is named like an SDK-injected argument with
+     * {@code Param}, so {@code options} becomes {@code optionsParam} (F1055).
+     */
+    @Override
+    public String toParamName(String name) {
+        final String param = super.toParamName(name);
+        return INJECTED_ARGUMENT_NAMES.contains(param) ? param + "Param" : param;
     }
 
     /** {@inheritDoc} */
@@ -1466,12 +1486,23 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 final boolean nestsModel = model.vars.stream().anyMatch(BetterNodeCodegen::nestsModel);
                 modelMap.put("hasTypeDecorator", model.vars.stream().anyMatch(this::needsTypeDecorator));
                 modelMap.put(
+                        "hasPasswordField",
+                        model.vars.stream()
+                                .anyMatch(v -> Boolean.TRUE.equals(v.vendorExtensions.get("isPasswordFormat"))));
+                modelMap.put(
                         "hasTransformDecorator",
                         nestsModel || model.vars.stream().anyMatch(BetterNodeCodegen::hasTransform));
                 final List<String> serializerImports = new ArrayList<>();
                 if (Boolean.TRUE.equals(modelMap.get("hasDurationImport"))) {
                     serializerImports.add("durationFromProtoJson");
                     serializerImports.add("durationToProtoJson");
+                }
+                if (model.vars.stream()
+                        .anyMatch(
+                                v ->
+                                        Boolean.TRUE.equals(v.vendorExtensions.get("isTimeFormat"))
+                                                || Boolean.TRUE.equals(v.vendorExtensions.get("isDurationFormat")))) {
+                    serializerImports.add("isTemporalValue");
                 }
                 if (Boolean.TRUE.equals(modelMap.get("hasBufferImport"))) {
                     serializerImports.add("decodeBase64");
@@ -1575,6 +1606,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         if ("duration".equals(property.dataFormat)) {
             property.vendorExtensions.put("isDurationFormat", true);
+        }
+        if ("password".equals(property.dataFormat)) {
+            property.vendorExtensions.put("isPasswordFormat", true);
         }
         // 2.3 — revert `uri-reference` / `uri-template` back to plain `string`;
         // only `format: uri` retains the branded URI alias.

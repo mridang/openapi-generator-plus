@@ -643,6 +643,36 @@ describe('DefaultApiClient multipart wire form (canonical behaviors #4, #5)', ()
     }
   });
 
+  it.each([
+    ['multipart/mixed', 'multipart/mixed; boundary='],
+    ['multipart/related', 'multipart/related; boundary='],
+    ['Multipart/Related; type="application/json"', 'multipart/Related; boundary='],
+  ])('a declared %s content type keeps its subtype with the SDK boundary', async (declared, expectedPrefix) => {
+    let contentType: string | undefined;
+    const srv = http.createServer((req, res) => {
+      contentType = req.headers['content-type'];
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{"ok":true}');
+      });
+    });
+    await new Promise<void>((resolve) => srv.listen(0, '127.0.0.1', resolve));
+    try {
+      const port = (srv.address() as { port: number }).port;
+      await new DefaultApiClient().sendRequest(
+        'POST',
+        `http://127.0.0.1:${port}/upload`,
+        { 'Content-Type': declared },
+        { note: 'hello' },
+      );
+      expect(contentType!.startsWith(expectedPrefix)).toBe(true);
+      expect(contentType).not.toContain('form-data');
+    } finally {
+      srv.close();
+    }
+  });
+
   it('#4 unknown file extension falls back to application/octet-stream', async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
@@ -836,6 +866,24 @@ describe('cross-origin redirect strips API-key headers', () => {
 {{/hasApiKeyHeaderNames}}
     // Non-sensitive headers should still be forwarded.
     expect(lastReceivedHeaders['accept']).toBe('application/json');
+  });
+
+  it('strips a default header and an authenticator header the fixed list does not know on cross-origin 302', async () => {
+    const transport = TransportOptions.builder()
+      .followRedirects(true)
+      .defaultHeaders({ 'X-Tenant-Token': 'tenant-secret' })
+      .build();
+    const client = new DefaultApiClient(transport);
+    await client.sendRequest(
+      'GET',
+      `${srcUrl}/start`,
+      { 'X-Custom-Auth': 'custom-secret', 'X-Correlation-Id': 'corr-1' },
+      null,
+      { credentialHeaderNames: ['X-Custom-Auth'] },
+    );
+    expect(lastReceivedHeaders['x-tenant-token']).toBeUndefined();
+    expect(lastReceivedHeaders['x-custom-auth']).toBeUndefined();
+    expect(lastReceivedHeaders['x-correlation-id']).toBe('corr-1');
   });
 
   it('keeps Authorization and Cookie on a same-origin redirect', async () => {
@@ -1613,5 +1661,89 @@ describe('SendRequestOptions.signal', () => {
     expect(error).not.toBeInstanceOf(NetworkTimeoutError);
     expect(error).not.toBeInstanceOf(NetworkError);
     await client.close();
+  });
+});
+
+describe('the client keeps no ambient state between requests', () => {
+  const originalFetch = global.fetch;
+  const proxyVariables = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy'];
+  const savedEnvironment = new Map<string, string | undefined>();
+  afterEach(() => {
+    global.fetch = originalFetch;
+    for (const name of proxyVariables) {
+      const saved = savedEnvironment.get(name);
+      if (saved === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = saved;
+      }
+    }
+    savedEnvironment.clear();
+  });
+
+  it('a Set-Cookie response header is not replayed on the next request', async () => {
+    const seen: Array<Record<string, string>> = [];
+    global.fetch = (async (_url: unknown, init: { headers: Record<string, string> }) => {
+      seen.push(init.headers);
+      const headers = new Headers();
+      headers.append('set-cookie', 'sid=abc; Path=/');
+      return new Response('{}', { status: 200, headers });
+    }) as unknown as typeof fetch;
+    const client = new DefaultApiClient();
+
+    await client.sendRequest('GET', 'http://api.example/first', {}, null);
+    await client.sendRequest('GET', 'http://api.example/second', {}, null);
+
+    expect(seen).toHaveLength(2);
+    expect(Object.keys(seen[1]!).map((name) => name.toLowerCase())).not.toContain('cookie');
+  });
+
+  it('ambient proxy variables are ignored; only TransportOptions.proxy is a proxy source', async () => {
+    for (const name of proxyVariables) {
+      savedEnvironment.set(name, process.env[name]);
+      process.env[name] = 'http://127.0.0.1:9';
+    }
+    let seenInit: Record<string, unknown> | undefined;
+    global.fetch = (async (_url: unknown, init: Record<string, unknown>) => {
+      seenInit = init;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await new DefaultApiClient().sendRequest('GET', 'http://api.example/x', {}, null);
+
+    expect(seenInit).toBeDefined();
+    expect(seenInit!['dispatcher']).toBeUndefined();
+  });
+});
+
+describe('caller-supplied upload handles are left untouched', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('a Blob sent as a multipart part or as the whole body is still readable afterwards', async () => {
+    global.fetch = (async () => new Response('{}', { status: 200 })) as unknown as typeof fetch;
+    const client = new DefaultApiClient();
+    const part = new Blob(['part-bytes']);
+    const whole = new Blob(['body-bytes']);
+
+    await client.sendRequest('POST', 'http://api.example/up', {}, { file: part });
+    await client.sendRequest('PUT', 'http://api.example/up', { 'Content-Type': 'application/octet-stream' }, whole as unknown as Buffer);
+
+    expect(await part.text()).toBe('part-bytes');
+    expect(await whole.text()).toBe('body-bytes');
+  });
+
+  it('a Blob is still readable after a failed call', async () => {
+    global.fetch = (async () => {
+      throw new TypeError('fetch failed');
+    }) as unknown as typeof fetch;
+    const client = new DefaultApiClient();
+    const part = new Blob(['part-bytes']);
+
+    await client.sendRequest('POST', 'http://api.example/up', {}, { file: part }).catch(() => undefined);
+
+    expect(await part.text()).toBe('part-bytes');
   });
 });

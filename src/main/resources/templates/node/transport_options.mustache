@@ -1,6 +1,17 @@
 {{>api_info}}
 
 /**
+ * Render a proxy URL for an error message with any userinfo replaced by
+ * `***@`, so a configuration error never prints the proxy credentials.
+ *
+ * @param proxy proxy URL as supplied by the caller
+ * @returns the URL with its userinfo masked
+ */
+function proxyForMessage(proxy: string): string {
+  return proxy.replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/)[^/?#]*@/, '$1***@');
+}
+
+/**
  * Reject a proxy URL that cannot be parsed, does not use http or https, or
  * has no host. Shared by the builder and the constructor so the invariant
  * holds however an instance is created.
@@ -15,14 +26,16 @@ function assertValidProxy(proxy: string | null): void {
   let parsed: URL;
   try {
     parsed = new URL(proxy);
-  } catch (e) {
-    throw new TypeError(`Invalid proxy URL (unparseable): ${proxy}`, { cause: e });
+  } catch {
+    /* The parser's own error carries the raw input (and so its userinfo),
+     * which is why it is not chained as the cause. */
+    throw new TypeError(`Invalid proxy URL (unparseable): ${proxyForMessage(proxy)}`);
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new TypeError(`Invalid proxy URL (must use http or https scheme): ${proxy}`);
+    throw new TypeError(`Invalid proxy URL (must use http or https scheme): ${proxyForMessage(proxy)}`);
   }
   if (!parsed.hostname) {
-    throw new TypeError(`Invalid proxy URL (missing host): ${proxy}`);
+    throw new TypeError(`Invalid proxy URL (missing host): ${proxyForMessage(proxy)}`);
   }
 }
 

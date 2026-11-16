@@ -329,6 +329,18 @@ describe('generated documentation', () => {
     expect(skills).toContain('} else if (error instanceof ApiError) {');
   });
 
+  test('SKILLS error handling names the root error and every branch of the tree', () => {
+    for (const name of [
+      '`{{errorPrefix}}Error` (root)',
+      '`SerializationError`',
+      '`OAuth2ServerError`',
+      '`OAuth2TokenError`',
+      '} else if (error instanceof {{errorPrefix}}Error) {',
+    ]) {
+      expect(skills).toContain(name);
+    }
+  });
+
   test('README documents schema constraints, uniqueItems order, cancellation and the custom fetch', () => {
     const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8');
 
