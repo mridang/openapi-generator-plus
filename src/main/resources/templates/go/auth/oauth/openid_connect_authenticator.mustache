@@ -248,6 +248,9 @@ func (a *OpenIdConnectAuthenticator) discover() (*OAuth2AuthorizationCodeAuthent
 		 * user's session and must survive it. */
 		fresh.tokenManager = a.delegate.tokenManager
 		fresh.tokenExchanged.Store(a.delegate.tokenExchanged.Load())
+		/* The PKCE verifier of a login that is still pending must survive
+		 * too, or its code could no longer be exchanged. */
+		fresh.setPKCEVerifier(a.delegate.currentPKCEVerifier())
 	}
 	a.delegate = fresh
 	a.delegate.tokenManager.SetApiClient(client)
