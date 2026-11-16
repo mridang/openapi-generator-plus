@@ -137,6 +137,14 @@ OAuth2 authenticators resolve the access token by making an HTTP call to the tok
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
 
+#### Renewal on 401
+
+When the API answers `401` to a call authenticated by OAuth2 or OpenID Connect, the authenticator drops the cached access token (`invalidateAccessToken()`, the refresh token is kept), obtains a new one and the call is replayed once. A second `401` is thrown as the usual `UnauthorizedError`. A multipart body is not replayed, and Bearer, Basic and API key authenticators never replay.
+
+#### PKCE
+
+The Authorization Code and OpenID Connect `buildAuthorizationUrl()` adds a PKCE (RFC 7636) `code_challenge` with `code_challenge_method=S256` and keeps the matching 43-character verifier, which `exchangeCode()` sends as `code_verifier`. Building the URL again starts a new verifier.
+
 #### Token caching
 
 The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
@@ -266,6 +274,10 @@ const transport = TransportOptions.builder()
 
 const client = new {{clientClassName}}(authenticator, transport);
 ```
+
+### Retries
+
+`TransportOptions.builder().maxRetries(n)` sets the automatic retries (default `2`, `0` disables them). A request is retried after a network error before any response and after a `408`, `409`, `429` or `5xx` other than `501`, waiting 0.5 s doubling to 8 s with up to 25% jitter or the server's `Retry-After` (at most 60 s). The retries share the single `timeout` and stop when the call is cancelled; each one rebuilds the headers and asks the authenticator again.
 
 ## API Methods
 

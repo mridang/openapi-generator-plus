@@ -103,7 +103,7 @@ const chasmUrl = process.env.CHASM_HTTP_URL!;
 
 function api(): TestableApi {
   const config = new Configuration({ baseUrl: chasmUrl });
-  return new TestableApi(new DefaultApiClient(), config);
+  return new TestableApi(new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()), config);
 }
 
 /* The first request to a freshly started container can fail with a connection
@@ -455,6 +455,115 @@ describe('BaseApi auth injection', () => {
       'https://api.example.com/items',
     ]);
     expect(seen[1]!.headers['Authorization']).toBe('Bearer per-call-token');
+  });
+
+  describe('a 401 on an OAuth2 call', () => {
+    const tokenUrl = 'https://auth.example.com/token';
+
+    /* A token endpoint that issues tok-1, tok-2, ... and an API that accepts only the latest token. */
+    function renewingServer(apiStatus: (authorization: string | undefined) => number) {
+      const seen: Array<{ url: string; authorization: string | undefined }> = [];
+      let issued = 0;
+      const stub: ApiClient = {
+        async sendRequest(_method, url, headers) {
+          seen.push({ url, authorization: headers['Authorization'] });
+          if (url === tokenUrl) {
+            issued += 1;
+            return {
+              statusCode: 200,
+              body: JSON.stringify({ access_token: `tok-${issued}`, expires_in: 3600 }),
+              headers: { 'content-type': 'application/json' }
+            };
+          }
+          return { statusCode: apiStatus(headers['Authorization']), body: '{}', headers: { 'content-type': 'application/json' } };
+        }
+      };
+      return { seen, stub };
+    }
+
+    const oauth = () => new OAuth2ClientCredentialsAuthenticator(
+      'https://api.example.com', 'client-id', 'client-secret', tokenUrl, []);
+
+    test('drops the cached token and replays the request once with the new one', async () => {
+      const { seen, stub } = renewingServer((authorization) => (authorization === 'Bearer tok-1' ? 401 : 200));
+      const testable = new TestableApi(stub, new Configuration({ baseUrl: 'https://api.example.com' }), oauth());
+
+      await testable.call('GET', '/items', {}, {}, null, ['application/json'], 'application/json', null);
+
+      expect(seen).toEqual([
+        { url: tokenUrl, authorization: undefined },
+        { url: 'https://api.example.com/items', authorization: 'Bearer tok-1' },
+        { url: tokenUrl, authorization: undefined },
+        { url: 'https://api.example.com/items', authorization: 'Bearer tok-2' }
+      ]);
+    });
+
+    test('reports a second 401 as the usual Unauthorized error after exactly one replay', async () => {
+      const { seen, stub } = renewingServer(() => 401);
+      const testable = new TestableApi(stub, new Configuration({ baseUrl: 'https://api.example.com' }), oauth());
+
+      const error = await testable
+        .call('GET', '/items', {}, {}, null, ['application/json'], 'application/json', null)
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(UnauthorizedError);
+      expect(seen.filter((request) => request.url !== tokenUrl)).toHaveLength(2);
+    });
+
+    test('does not replay a multipart body', async () => {
+      const { seen, stub } = renewingServer(() => 401);
+      const testable = new TestableApi(stub, new Configuration({ baseUrl: 'https://api.example.com' }), oauth());
+
+      const error = await testable
+        .call('POST', '/items', {}, {}, { field: 'value' }, ['application/json'], 'multipart/form-data', null)
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(UnauthorizedError);
+      expect(seen.map((request) => request.url)).toEqual([tokenUrl, 'https://api.example.com/items']);
+    });
+
+    test('keeps the 401 when the new token cannot be obtained', async () => {
+      let tokenCalls = 0;
+      const stub: ApiClient = {
+        async sendRequest(_method, url) {
+          if (url === tokenUrl) {
+            tokenCalls += 1;
+            return tokenCalls === 1
+              ? { statusCode: 200, body: JSON.stringify({ access_token: 'tok-1', expires_in: 3600 }), headers: {} }
+              : { statusCode: 400, body: JSON.stringify({ error: 'invalid_client' }), headers: {} };
+          }
+          return { statusCode: 401, body: '{}', headers: { 'content-type': 'application/json' } };
+        }
+      };
+      const testable = new TestableApi(stub, new Configuration({ baseUrl: 'https://api.example.com' }), oauth());
+
+      const error = await testable
+        .call('GET', '/items', {}, {}, null, ['application/json'], 'application/json', null)
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(UnauthorizedError);
+    });
+
+    test.each([
+      ['bearer', () => new BearerAuthenticator('https://api.example.com', 'fixed')],
+      ['api key', () => new ApiKeyAuthenticator('https://api.example.com', 'X-Key', 'fixed', ApiKeyLocation.HEADER)]
+    ])('is never replayed for a %s authenticator', async (_name, make) => {
+      let calls = 0;
+      const stub: ApiClient = {
+        async sendRequest() {
+          calls += 1;
+          return { statusCode: 401, body: '{}', headers: { 'content-type': 'application/json' } };
+        }
+      };
+      const testable = new TestableApi(stub, new Configuration({ baseUrl: 'https://api.example.com' }), make());
+
+      const error = await testable
+        .call('GET', '/items', {}, {}, null, ['application/json'], 'application/json', null)
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(UnauthorizedError);
+      expect(calls).toBe(1);
+    });
   });
 
   /*

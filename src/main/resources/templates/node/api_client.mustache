@@ -18,6 +18,8 @@ import type { ApiHttpResponse } from './api-http-response{{importFileExtension}}
  * - `signal` -- aborts the request when it fires. The transport rejects with
  *   the signal's reason (an `AbortError` by default), which is distinct from
  *   the timeout error.
+ * - `refreshAuthHeaders` -- called before each automatic retry for fresh
+ *   authentication headers.
  */
 export interface SendRequestOptions {
   readonly noRedirect?: boolean;
@@ -29,6 +31,12 @@ export interface SendRequestOptions {
    * another origin, like the credential headers every transport knows.
    */
   readonly credentialHeaderNames?: readonly string[];
+  /**
+   * Asks for the authentication headers again. The transport calls it before
+   * every automatic retry (not before the first attempt) and sends what it
+   * returns in place of the headers of the same name.
+   */
+  readonly refreshAuthHeaders?: () => Promise<Record<string, string>>;
 }
 
 /**

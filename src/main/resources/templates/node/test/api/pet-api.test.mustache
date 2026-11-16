@@ -9,6 +9,8 @@ import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../../src/api-http-response{{importFileExtension}}';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
+import { DefaultApiClient } from '../../src/default-api-client{{importFileExtension}}';
+import { TransportOptions } from '../../src/transport-options{{importFileExtension}}';
 import { Servers } from '../../src/servers{{importFileExtension}}';
 import { Medication, Pet, PetCriteria, PetStatusEnum, PetTreatment, PhotoMetadata, SetPetAvatarThumbnailRequest, Swatch } from '../../src/models/index{{importFileExtension}}';
 import { ApiError } from '../../src/errors/api-error{{importFileExtension}}';
@@ -368,7 +370,7 @@ function createMockServer(status: number, requestContentType: string, body: stri
       const mockConfig = Configuration.builder()
         .baseUrl(`http://127.0.0.1:${addr.port}`)
         .build();
-      const mockApi = new PetApi(undefined, mockConfig);
+      const mockApi = new PetApi(new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()), mockConfig);
       resolve({ api: mockApi, server, close: () => server.close() });
     });
   });
