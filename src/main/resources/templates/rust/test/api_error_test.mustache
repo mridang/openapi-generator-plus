@@ -712,6 +712,22 @@ fn test_skills_error_handling_example_has_the_common_catch_arms() {
     );
 }
 
+/* F1084: the SKILLS.md error section documents the whole tree, not only the
+ * ApiError branch. */
+#[test]
+fn test_skills_error_section_documents_the_full_error_tree() {
+    let skills = include_str!("../SKILLS.md");
+    for name in [
+        "`{{errorPrefix}}Error` (root marker trait)",
+        "`SerializationError`",
+        "`OAuth2ServerError`",
+        "`OAuth2TokenError`",
+        "`ConfigurationError`",
+    ] {
+        assert!(skills.contains(name), "SKILLS.md must document {name}");
+    }
+}
+
 /// The generic wrappers wrap only a status of their own class: a `ClientError`
 /// is 4xx, a `ServerError` 5xx and a `NetworkError` status 0, and any other
 /// status is handed back as the original `ApiError`.
