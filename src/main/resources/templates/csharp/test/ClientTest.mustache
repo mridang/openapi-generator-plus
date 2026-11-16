@@ -236,7 +236,7 @@ public sealed class ClientTest : IDisposable
         await auth.GetAuthHeadersAsync();
 
         Assert.StartsWith("https://auth.example.com/authorize?", authorizeUrl, StringComparison.Ordinal);
-        Assert.Contains("scope=pets%3Awrite%20pets%3Aread", authorizeUrl, StringComparison.Ordinal);
+        Assert.Contains("scope=pets%3Aread%20pets%3Awrite", authorizeUrl, StringComparison.Ordinal);
         Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
         Assert.Equal("https://auth.example.com/oauth/refresh", transport.Requests[1].Url.AbsoluteUri);
     }
@@ -253,7 +253,7 @@ public sealed class ClientTest : IDisposable
 
         Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
         Assert.Contains("grant_type=client_credentials", transport.Requests[0].Body, StringComparison.Ordinal);
-        Assert.Contains("scope=pets%3Awrite+pets%3Aread", transport.Requests[0].Body, StringComparison.Ordinal);
+        Assert.Contains("scope=pets%3Aread+pets%3Awrite", transport.Requests[0].Body, StringComparison.Ordinal);
     }
 
     [Fact]

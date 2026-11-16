@@ -263,7 +263,7 @@ describe("scheme authenticators the spec declares", () => {
       expect(calls).toHaveLength(1);
       expect(calls[0]!.url).toBe("https://auth.example.com/oauth/token");
       expect(calls[0]!.params.get("grant_type")).toBe("client_credentials");
-      expect(calls[0]!.params.get("scope")).toBe("pets:write pets:read");
+      expect(calls[0]!.params.get("scope")).toBe("pets:read pets:write");
     });
 
     test("the password wrapper posts to the token URL, then refreshes at the declared refresh URL", async () => {
@@ -298,7 +298,7 @@ describe("scheme authenticators the spec declares", () => {
       auth.setApiClient(client);
 
       expect(auth.buildAuthorizationUrl()).toBe(
-        "https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb&scope=pets%3Awrite%20pets%3Aread",
+        "https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb&scope=pets%3Aread%20pets%3Awrite",
       );
       await auth.exchangeCode("the-code");
       await pastExpiry(() => auth.getAuthHeadersAsync());

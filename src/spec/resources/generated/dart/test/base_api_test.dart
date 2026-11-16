@@ -731,7 +731,7 @@ void main() {
       },
     );
 
-    test('skips deserialization for non-JSON content type', () async {
+    test('rejects a non-JSON content type for a model return type', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -747,10 +747,16 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetByIdWithHttpInfo(1, null);
-        expect(result.statusCode, equals(200));
-        expect(result.data, isNull);
-        expect(result.rawBody, equals('hello'));
+        await expectLater(
+          api.getPetByIdWithHttpInfo(1, null),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.toString(),
+              'message',
+              contains("Unexpected response Content-Type 'text/plain'"),
+            ),
+          ),
+        );
       } finally {
         await server.close();
       }

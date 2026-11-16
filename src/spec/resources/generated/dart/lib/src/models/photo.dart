@@ -69,4 +69,10 @@ class Photo {
   /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([id, caption, isPrimary, url]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'Photo(id: $id, caption: $caption, isPrimary: $isPrimary, url: $url)';
 }

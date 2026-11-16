@@ -323,7 +323,7 @@ async fn test_scheme_wrapper_sends_the_scopes_declared_by_the_spec() {
     let body = client.last_body().expect("should have body");
     assert!(
         body.split('&')
-            .any(|pair| pair == "scope=pets%3Awrite+pets%3Aread"),
+            .any(|pair| pair == "scope=pets%3Aread+pets%3Awrite"),
         "token request body: {}",
         body
     );

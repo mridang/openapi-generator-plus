@@ -113,11 +113,15 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(account Account) (*ApiResult[Accoun
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.CreateAccount: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -280,11 +284,15 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetB
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetBySwatch: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -379,11 +387,15 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo() (*ApiResult[Defaults], error) {
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetDefaults: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -478,11 +490,15 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo() (*ApiResult[Department], error) {
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetDepartment: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -577,11 +593,15 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo() (*ApiResult[[]map[string]C
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetGroupedCategories: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -676,11 +696,15 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetInventory: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -775,11 +799,15 @@ func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetMatrix: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -883,11 +911,15 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetOrderById: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -990,11 +1022,15 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(trackingId uuid.UUID) (*ApiR
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetOrderByTrackingId: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -1094,11 +1130,15 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetStockItem: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -1193,11 +1233,15 @@ func (a *StoreApi) GetSwatchWithHTTPInfo() (*ApiResult[Swatch], error) {
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetSwatch: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -1292,11 +1336,15 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetSwatchGroups: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -1391,11 +1439,15 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]Dat
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetTimestampGroups: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -1490,11 +1542,15 @@ func (a *StoreApi) GetTreeWithHTTPInfo() (*ApiResult[TreeNode], error) {
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetTree: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -1589,11 +1645,15 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.PlaceOrder: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}
@@ -1709,11 +1769,15 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(options *opts.SearchStoreOptions) (*A
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.SearchStore: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}

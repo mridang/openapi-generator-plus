@@ -359,6 +359,39 @@ class {{classname}} {
 {{/isUnevaluatedPropertiesFalse}}
 {{#vars}}
 {{#required}}
+{{^isEnum}}
+{{#defaultValue}}
+{{#isPrimitiveType}}
+{{^isDateTime}}
+{{^isDate}}
+{{^isUuid}}
+{{^isUri}}
+{{^isByteArray}}
+{{^vendorExtensions.isDuration}}
+{{^isArray}}
+{{^isMap}}
+    /* A required property that carries a default (the synthetic oneOf
+       discriminator value, or a schema default) is filled with that default
+       when its key is ABSENT; an explicit null is left in place and is still
+       rejected by the required guard below. */
+    if (!json.containsKey('{{baseName}}')) {
+      json = {...json, '{{baseName}}': {{{defaultValue}}}};
+    }
+{{/isMap}}
+{{/isArray}}
+{{/vendorExtensions.isDuration}}
+{{/isByteArray}}
+{{/isUri}}
+{{/isUuid}}
+{{/isDate}}
+{{/isDateTime}}
+{{/isPrimitiveType}}
+{{/defaultValue}}
+{{/isEnum}}
+{{/required}}
+{{/vars}}
+{{#vars}}
+{{#required}}
     /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
        non-null on the wire. An absent key reads as null in Dart, so this
        single guard covers both the missing and explicitly-null cases. We
@@ -847,6 +880,11 @@ class {{classname}} {
   /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([{{#vars}}{{#isArray}}const DeepCollectionEquality().hash({{name}}){{/isArray}}{{^isArray}}{{#isMap}}const DeepCollectionEquality().hash({{name}}){{/isMap}}{{^isMap}}{{#isByteArray}}const DeepCollectionEquality().hash({{name}}){{/isByteArray}}{{^isByteArray}}{{name}}{{/isByteArray}}{{/isMap}}{{/isArray}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}const DeepCollectionEquality().hash(additionalProperties){{/isAdditionalPropertiesTrue}}]);
+
+  /// Dumps every field{{#isAdditionalPropertiesTrue}} and the additionalProperties map{{/isAdditionalPropertiesTrue}}; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() => '{{classname}}({{#vars}}{{name}}: ${{{name}}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: $additionalProperties{{/isAdditionalPropertiesTrue}})';
 }
 {{/isPrimitiveAnyOf}}
 {{/isPrimitiveOneOf}}
@@ -955,6 +993,9 @@ class {{classname}} {
 
   @override
   int get hashCode => const DeepCollectionEquality().hash(_value);
+
+  @override
+  String toString() => '{{classname}}($_value)';
 }
 {{/isPrimitiveOneOf}}
 {{#isPrimitiveAnyOf}}
@@ -1062,6 +1103,9 @@ class {{classname}} {
 
   @override
   int get hashCode => const DeepCollectionEquality().hash(_value);
+
+  @override
+  String toString() => '{{classname}}($_value)';
 }
 {{/isPrimitiveAnyOf}}
 {{/anyOf}}
@@ -1132,6 +1176,9 @@ class {{classname}} {
     throw SerializationException('Data does not match any oneOf schemas for {{classname}}');
 {{/discriminator}}
   }
+
+  @override
+  String toString() => '{{classname}}($_value)';
 }
 {{/-first}}
 {{/oneOf}}
@@ -1232,6 +1279,9 @@ class {{classname}} {
     }
     return {{classname}}._(decoded);
   }
+
+  @override
+  String toString() => '{{classname}}($_values)';
 }
 {{/-first}}
 {{/anyOf}}

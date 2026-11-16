@@ -263,6 +263,6 @@ class OAuth2ClientCredentialsAuthenticatorTest {
 
         assertEquals("Bearer wrapped", headers["Authorization"])
         assertEquals("https://auth.example.com/oauth/token", client.lastUrl)
-        assertTrue(client.lastBody!!.contains("scope=pets%3Awrite+pets%3Aread"), client.lastBody)
+        assertTrue(client.lastBody!!.contains("scope=pets%3Aread+pets%3Awrite"), client.lastBody)
     }
 }

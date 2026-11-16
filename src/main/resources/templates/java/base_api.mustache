@@ -355,8 +355,25 @@ public abstract class BaseApi {
                 }
             } else if (!responseContentType.isEmpty()
                     && !headerSelector.isJsonMime(responseContentType)) {
-                /* Non-JSON, non-binary response: the declared return type for
-                 * such operations is always String, so this cast is safe. */
+                /* Non-JSON, non-binary response: only a String return type
+                 * can carry a text-class body verbatim. Anything else is a
+                 * serialization error naming the Content-Type, never an
+                 * unchecked cast into the model slot. */
+                if (returnType != String.class) {
+                    String mediaType = responseContentType;
+                    int semi = mediaType.indexOf(';');
+                    if (semi >= 0) {
+                        mediaType = mediaType.substring(0, semi);
+                    }
+                    throw new SerializationException(
+                            "Unexpected response Content-Type '"
+                                    + mediaType.trim()
+                                    + "' for "
+                                    + getClass().getSimpleName()
+                                    + "."
+                                    + method.toLowerCase(java.util.Locale.ROOT)
+                                    + ": expected a JSON body");
+                }
                 T rawBody = (T) response.body();
                 data = rawBody;
             } else {

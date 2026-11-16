@@ -468,6 +468,11 @@ public final class DefaultApiClient implements ApiClient {
         HttpRequest.Builder builder =
                 HttpRequest.newBuilder(URI.create(url)).method(method, bodyPublisher);
 
+        /* The timeout is one end-to-end budget for the whole call: every
+         * redirect hop draws from the same deadline. */
+        final long deadlineNanos = transportOptions.getTimeout() != null
+                ? System.nanoTime() + Duration.ofMillis(transportOptions.getTimeout()).toNanos()
+                : 0L;
         if (transportOptions.getTimeout() != null) {
             builder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
         }
@@ -599,7 +604,11 @@ public final class DefaultApiClient implements ApiClient {
                     HttpRequest.Builder redirectBuilder = HttpRequest.newBuilder(redirectUri)
                             .method(nextMethod, nextBody);
                     if (transportOptions.getTimeout() != null) {
-                        redirectBuilder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
+                        long remainingNanos = deadlineNanos - System.nanoTime();
+                        if (remainingNanos <= 0) {
+                            throw new HttpTimeoutException("request timed out");
+                        }
+                        redirectBuilder.timeout(Duration.ofNanos(remainingNanos));
                     }
                     for (Map.Entry<String, String> entry : redirectHeaders.entrySet()) {
                         redirectBuilder.header(entry.getKey(), entry.getValue());

@@ -102,7 +102,7 @@ class ApiException extends OpenAPIException
                  * argument is one past the container cap because json_decode
                  * counts the outermost container as a level. */
                 $errorBody = json_decode(
-                    $responseBody,
+                    str_starts_with($responseBody, "\xEF\xBB\xBF") ? substr($responseBody, 3) : $responseBody,
                     true,
                     ObjectSerializer::JSON_DECODE_DEPTH,
                     JSON_THROW_ON_ERROR

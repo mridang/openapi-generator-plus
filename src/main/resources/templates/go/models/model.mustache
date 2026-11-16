@@ -319,9 +319,19 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{#vars}}
 {{#required}}
 {{^isNullable}}
+{{#defaultValue}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		/* A required property that carries a default (the synthetic discriminator
+		 * default, or a schema default) is satisfied by that default when absent. */
+		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+		o.{{name}} = default{{name}}
+	} else if string(rawVal) == "null" {
+{{/defaultValue}}
+{{^defaultValue}}
 	if rawVal, ok := raw["{{baseName}}"]; !ok {
 		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
 	} else if string(rawVal) == "null" {
+{{/defaultValue}}
 		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
 	}
 {{/isNullable}}
@@ -379,9 +389,19 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{#vars}}
 {{#required}}
 {{^isNullable}}
+{{#defaultValue}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		/* A required property that carries a default (the synthetic discriminator
+		 * default, or a schema default) is satisfied by that default when absent. */
+		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+		aux.{{name}} = default{{name}}
+	} else if string(rawVal) == "null" {
+{{/defaultValue}}
+{{^defaultValue}}
 	if rawVal, ok := raw["{{baseName}}"]; !ok {
 		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
 	} else if string(rawVal) == "null" {
+{{/defaultValue}}
 		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
 	}
 {{/isNullable}}
@@ -430,9 +450,19 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{#vars}}
 {{#required}}
 {{^isNullable}}
+{{#defaultValue}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		/* A required property that carries a default (the synthetic discriminator
+		 * default, or a schema default) is satisfied by that default when absent. */
+		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+		aux.{{name}} = default{{name}}
+	} else if string(rawVal) == "null" {
+{{/defaultValue}}
+{{^defaultValue}}
 	if rawVal, ok := raw["{{baseName}}"]; !ok {
 		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
 	} else if string(rawVal) == "null" {
+{{/defaultValue}}
 		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
 	}
 {{/isNullable}}

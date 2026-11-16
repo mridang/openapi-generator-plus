@@ -187,4 +187,35 @@ data class PetWithOwner(
         result = 31 * result + ownerName.hashCode()
         return result
     }
+
+  /* The synthesized data-class toString prints ByteArray fields as an
+   * identity hash (`[B@1b6d3586`), omits the @Transient additionalProperties
+   * bucket and does not look inside containers. This override keeps the
+   * data-class shape but renders byte data by content, containers
+   * element-wise and appends additionalProperties. */
+    override fun toString(): String =
+        listOf(
+            "id=" + renderForToString(id),
+            "name=" + renderForToString(name),
+            "category=" + renderForToString(category),
+            "photoUrls=" + renderForToString(photoUrls),
+            "tags=" + renderForToString(tags),
+            "status=" + renderForToString(status),
+            "location=" + renderForToString(location),
+            "homepageUrl=" + renderForToString(homepageUrl),
+            "thumbnailRef=" + renderForToString(thumbnailRef),
+            "linkTemplate=" + renderForToString(linkTemplate),
+            "ownerEmail=" + renderForToString(ownerEmail),
+            "weightKg=" + renderForToString(weightKg),
+            "nickname=" + renderForToString(nickname),
+            "ownerName=" + renderForToString(ownerName),
+        ).joinToString(", ", "PetWithOwner(", ")")
+
+    private fun renderForToString(value: Any?): String =
+        when (value) {
+            is ByteArray -> value.contentToString()
+            is Map<*, *> -> value.entries.joinToString(", ", "{", "}") { "${it.key}=${renderForToString(it.value)}" }
+            is Iterable<*> -> value.joinToString(", ", "[", "]") { renderForToString(it) }
+            else -> value.toString()
+        }
 }

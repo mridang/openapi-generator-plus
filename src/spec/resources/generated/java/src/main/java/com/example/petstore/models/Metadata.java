@@ -87,7 +87,8 @@ public class Metadata {
     StringBuilder sb = new StringBuilder();
     sb.append(getClass().getSimpleName()).append("{");
     sb.append("createdAt=").append(createdAt);
-    sb.append(", additionalProperties=").append(additionalProperties);
+    sb.append(", additionalProperties=")
+        .append(com.example.petstore.ObjectSerializer.structuralToString(additionalProperties));
     sb.append("}");
     return sb.toString();
   }

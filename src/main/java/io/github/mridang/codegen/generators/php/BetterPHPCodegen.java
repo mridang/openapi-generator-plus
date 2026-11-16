@@ -947,7 +947,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         if (scopes == null || scopes.isEmpty()) {
             return "[]";
         }
-        return "['" + String.join("', '", scopes.keySet()) + "']";
+        final List<String> literals = new ArrayList<>();
+        for (final String scope : scopes.keySet()) {
+            literals.add(toPhpStringLiteral(scope));
+        }
+        return "[" + String.join(", ", literals) + "]";
     }
 
     private List<String> buildPhpSuperArgs(SchemeAuthSpec spec) {
@@ -958,37 +962,37 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             return List.of("$host", "$token");
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
-            return List.of("$host", "'" + spec.keyParamName() + "'", "$apiKey",
+            return List.of("$host", toPhpStringLiteral(java.util.Objects.toString(spec.keyParamName(), "")), "$apiKey",
                     "ApiKeyLocation::" + spec.keyIn());
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             final String scopes = formatPhpScopes(spec.scopes());
             return List.of("$host", "$clientId", "$clientSecret",
-                    "'" + spec.tokenUrl() + "'", scopes);
+                    toPhpStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")), scopes);
         }
         if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
-                    ? "'" + spec.refreshUrl() + "'" : "null";
+                    ? toPhpStringLiteral(java.util.Objects.toString(spec.refreshUrl(), "")) : "null";
             final String scopes = formatPhpScopes(spec.scopes());
             return List.of("$host", "$clientId", "$clientSecret",
-                    "'" + spec.tokenUrl() + "'",
+                    toPhpStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")),
                     "$username", "$password", scopes, refreshArg);
         }
         if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
-                    ? "'" + spec.refreshUrl() + "'" : "null";
+                    ? toPhpStringLiteral(java.util.Objects.toString(spec.refreshUrl(), "")) : "null";
             final String scopes = formatPhpScopes(spec.scopes());
             return List.of("$host", "$clientId", "$clientSecret",
-                    "'" + spec.authorizationUrl() + "'", "'" + spec.tokenUrl() + "'",
+                    toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")), toPhpStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")),
                     "$redirectUri", scopes, refreshArg);
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             final String scopes = formatPhpScopes(spec.scopes());
             return List.of("$host", "$clientId",
-                    "'" + spec.authorizationUrl() + "'", scopes);
+                    toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")), scopes);
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
-            return List.of("$host", "'" + spec.openIdConnectUrl() + "'",
+            return List.of("$host", toPhpStringLiteral(java.util.Objects.toString(spec.openIdConnectUrl(), "")),
                     "$clientId", "$clientSecret", "$redirectUri", "[]");
         }
         return List.of();

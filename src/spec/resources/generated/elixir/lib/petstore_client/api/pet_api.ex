@@ -2799,7 +2799,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.ValueSerializer.maybe_allow_reserved(
             PetstoreClient.ValueSerializer.serialize_styled(
               "fingerprint",
-              options.fingerprint,
+              PetstoreClient.ObjectSerializer.encode_base64_param(options.fingerprint),
               :query,
               "binary()",
               nil,
@@ -2842,7 +2842,7 @@ defmodule PetstoreClient.Api.PetApi do
           "X-Fingerprint",
           PetstoreClient.ValueSerializer.serialize_styled(
             "X-Fingerprint",
-            options.x_fingerprint,
+            PetstoreClient.ObjectSerializer.encode_base64_param(options.x_fingerprint),
             :header,
             "binary()",
             nil,

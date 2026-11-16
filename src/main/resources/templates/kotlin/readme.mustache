@@ -22,7 +22,7 @@ gradle test
 
 ## Lint, format & static analysis
 
-The SDK ships with three configured tools:
+The SDK ships with two configured tools:
 
 - **ktlint** — formatter / style enforcer (`org.jlleitschuh.gradle.ktlint`)
 - **detekt** — linter + static analyser with the `detekt-formatting`

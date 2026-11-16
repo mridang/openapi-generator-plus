@@ -72,6 +72,9 @@ export abstract class BaseApi {
    * @param returnType deserialization function (or null for void)
    * @param auth optional authenticator for operation-specific auth
    * @param rawBody whether the body is `format: binary` bytes sent unchanged
+   * @param returnKind how a non-JSON success body is read: `string` for a plain
+   *   string return, `binary` for a `format: binary` return, `model` otherwise
+   * @param operationName the operation name, used in error messages
    * @returns ApiResult containing deserialized data, status code, raw body, and headers
    */
   protected async invokeApiForResult<T>(
@@ -85,6 +88,8 @@ export abstract class BaseApi {
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null,
     rawBody = false,
+    returnKind?: "model" | "string" | "binary",
+    operationName = "",
   ): Promise<ApiResult<T>> {
     let url: string;
     if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -214,11 +219,12 @@ export abstract class BaseApi {
       if (!isJson) {
         /* The transport stores text bodies verbatim but base64-encodes
          * binary bodies (DefaultApiClient.isTextContentType decides which).
-         * Mirror that here: text payloads (text/*, application/xml,
-         * application/javascript, *+xml) are returned as the raw string,
-         * while binary payloads are base64-decoded to a Buffer so the
-         * caller receives the actual bytes — matching the Go/Python/Dart
-         * SDKs. JSON/+json content is already handled by the else branch.
+         * A string return accepts a text payload (text/*, application/xml,
+         * application/javascript, *+xml) verbatim; a binary return
+         * base64-decodes the payload to a Buffer so the caller receives the
+         * actual bytes. Any other non-JSON body for a model return is a
+         * SerializationError, never a raw string typed as the model.
+         * JSON/+json content is already handled by the else branch.
          * rawBody keeps the original (still-encoded) string. */
         const mediaType = respContentType.split(";")[0].trim().toLowerCase();
         const isText =
@@ -226,10 +232,14 @@ export abstract class BaseApi {
           mediaType === "application/xml" ||
           mediaType === "application/javascript" ||
           mediaType.endsWith("+xml");
-        if (isText) {
+        if (returnKind !== "model" && returnKind !== "binary" && isText) {
           data = response.body as unknown as T;
-        } else {
+        } else if (returnKind !== "model") {
           data = Buffer.from(response.body, "base64") as unknown as T;
+        } else {
+          throw new SerializationError(
+            `Unexpected response Content-Type '${mediaType}' for ${this.constructor.name}${operationName ? "." + operationName : ""}: expected a JSON body`,
+          );
         }
       } else {
         /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
@@ -269,6 +279,9 @@ export abstract class BaseApi {
    * @param returnType deserialization function (or null for void)
    * @param auth optional authenticator for operation-specific auth
    * @param rawBody whether the body is `format: binary` bytes sent unchanged
+   * @param returnKind how a non-JSON success body is read: `string` for a plain
+   *   string return, `binary` for a `format: binary` return, `model` otherwise
+   * @param operationName the operation name, used in error messages
    * @returns deserialized response or void
    */
   protected async invokeApi<T>(
@@ -282,6 +295,8 @@ export abstract class BaseApi {
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null,
     rawBody = false,
+    returnKind?: "model" | "string" | "binary",
+    operationName = "",
   ): Promise<T | void> {
     const result = await this.invokeApiForResult(
       method,
@@ -294,6 +309,8 @@ export abstract class BaseApi {
       returnType,
       auth,
       rawBody,
+      returnKind,
+      operationName,
     );
     return result.data;
   }

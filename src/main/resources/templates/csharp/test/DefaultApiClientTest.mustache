@@ -155,6 +155,29 @@ public class DefaultApiClientTest
         Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task IgnoresAmbientProxyWhenNoProxyIsConfigured()
+    {
+        var original = HttpClient.DefaultProxy;
+        HttpClient.DefaultProxy = new System.Net.WebProxy("http://127.0.0.1:1");
+        try
+        {
+            var client = new DefaultApiClient(TransportOptions.Builder().Build());
+            var response = await client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            );
+
+            Assert.Equal(200, response.StatusCode);
+        }
+        finally
+        {
+            HttpClient.DefaultProxy = original;
+        }
+    }
+
     // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
     // and surfaced as Proxy-Authorization so the proxy can authenticate
     // the tunnel — otherwise the proxy 407s. This test is fixture-independent.
@@ -230,6 +253,45 @@ public class DefaultApiClientTest
         Assert.IsAssignableFrom<{{packageName}}.Errors.NetworkException>(ex);
         Assert.Equal(0, ex.StatusCode);
         Assert.NotNull(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task TimeoutIsOneBudgetAcrossRedirectHops()
+    {
+        var transport = TransportOptions.Builder()
+            .Timeout(1200)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkTimeoutException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/redirect/chain/1"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+        Assert.Equal(0, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RedirectChainWithinTheTimeoutBudgetSucceeds()
+    {
+        var transport = TransportOptions.Builder()
+            .Timeout(5000)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/redirect/chain/1"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
     }
 
     // -- User-Agent header --

@@ -54,7 +54,6 @@ reason for each is recorded here.
 | `AllPublicDeclarationsHaveDocumentation` | A schema or operation without a `description` has no documentation to emit, and inventing one would put generator prose in the caller's API docs. |
 | `BeginDocumentationCommentWithOneLineSummary` | Doc comments are the document's own `description` text, reproduced unaltered; it is not the generator's to re-punctuate into a one-line summary. |
 | `ValidateDocumentationComments` | Same reason: a document's `description` does not list the operation's Swift parameters. |
-| `NeverForceUnwrap`, `NeverUseForceTry` | Test code asserts on values the fixture guarantees; a force-unwrap there is the assertion. |
 | `NoLeadingUnderscores` | An underscore-prefixed stored property is the backing store for a same-named computed property, which Swift has no other spelling for. |
 | `OmitExplicitReturns`, `UseEarlyExits`, `UseWhereClausesInForLoops`, `NoEmptyLinesOpeningClosingBraces`, `AlwaysUseLiteralForEmptyCollectionInit` | Body shape is emitted uniformly from one template that must cover every document shape, so it cannot be rewritten per call site. |
 

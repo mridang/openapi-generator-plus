@@ -114,4 +114,13 @@ class BetterKotlinCodegenTypeMappingTest {
         assertNotNull(harvested);
         assertEquals(1, harvested.size(), "duplicate (case-insensitive) names must dedupe");
     }
+
+    /* An apiKey scheme name is spliced into a Kotlin string literal, so
+     * the quote, backslash and template sigil must be escaped. */
+    @Test
+    void escapesApiKeyNamesForAKotlinStringLiteral() {
+        assertEquals("X-Api'Key", BetterKotlinCodegen.escapeKotlinString("X-Api'Key"));
+        assertEquals("X-\\$ident", BetterKotlinCodegen.escapeKotlinString("X-$ident"));
+        assertEquals("a\\\"b\\\\c", BetterKotlinCodegen.escapeKotlinString("a\"b\\c"));
+    }
 }

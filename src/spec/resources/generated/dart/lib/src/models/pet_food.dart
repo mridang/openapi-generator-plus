@@ -53,4 +53,7 @@ class PetFood {
         );
     }
   }
+
+  @override
+  String toString() => 'PetFood($_value)';
 }

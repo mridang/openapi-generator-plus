@@ -11,7 +11,7 @@ Auto-generated C# SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 Tooling baked into the project:
 
 - **Formatter:** `dotnet format` (built into the SDK) and `dotnet csharpier`
-- **Linter / style:** [`StyleCop.Analyzers`](https://github.com/DotNetAnalyzers/StyleCopAnalyzers) (NuGet, included as a `PrivateAssets=all` analyzer reference)
+- **Linter / style:** `dotnet csharpier check` and `dotnet format --verify-no-changes`, with `EnforceCodeStyleInBuild=true` applying the `.editorconfig` code-style rules during the build
 - **Static analysis:** [`Microsoft.CodeAnalysis.NetAnalyzers`](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/overview) (Roslyn analyzers), with `EnableNETAnalyzers=true` and `AnalysisLevel=latest-all`
 
 ## Build
@@ -41,7 +41,7 @@ make lint
 dotnet csharpier check .
 dotnet format --verify-no-changes --severity warn
 
-# Run Roslyn / StyleCop analyzers with warnings as errors
+# Run the Roslyn analyzers with warnings as errors
 make analyze
 # or directly:
 dotnet build --no-restore /warnaserror

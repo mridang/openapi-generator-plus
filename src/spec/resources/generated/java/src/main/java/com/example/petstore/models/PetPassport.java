@@ -86,7 +86,7 @@ public class PetPassport {
     sb.append(getClass().getSimpleName()).append("{");
     sb.append("pet=").append(pet);
     sb.append(", thumbnail=").append(java.util.Arrays.toString(thumbnail));
-    sb.append(", scans=").append(scans);
+    sb.append(", scans=").append(com.example.petstore.ObjectSerializer.structuralToString(scans));
     sb.append(", issuedAt=").append(issuedAt);
     sb.append(", biometricChip=").append(java.util.Arrays.toString(biometricChip));
     sb.append("}");

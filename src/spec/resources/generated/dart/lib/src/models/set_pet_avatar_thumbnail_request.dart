@@ -83,4 +83,7 @@ class SetPetAvatarThumbnailRequest {
 
   @override
   int get hashCode => const DeepCollectionEquality().hash(_value);
+
+  @override
+  String toString() => 'SetPetAvatarThumbnailRequest($_value)';
 }

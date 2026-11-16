@@ -47,8 +47,9 @@ public class PetCriteria : IEquatable<PetCriteria>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Breed=").Append(this.Breed);
-        sb.Append(", MinAge=").Append(this.MinAge);
+        sb.Append("Breed=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Breed));
+        sb.Append(", MinAge=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.MinAge));
         sb.Append('}');
         return sb.ToString();
     }

@@ -11,6 +11,7 @@ import gzip
 import mimetypes
 import re
 import ssl
+import time
 import uuid
 import zlib
 from urllib.parse import quote as _url_quote, unquote as _url_unquote, urljoin, urlsplit
@@ -167,7 +168,12 @@ def _sanitize_multipart_filename(filename: str) -> Tuple[str, Optional[str]]:
     if is_ascii:
         escaped = filename.replace("\\", "\\\\").replace('"', '\\"')
         return escaped, None
-    ascii_fallback = filename.encode("ascii", errors="replace").decode("ascii")
+    # One '_' per code point that is non-ASCII or a control character, so the
+    # fallback matches the other SDKs ('r_sum_.pdf', never 'r?sum?.pdf').
+    ascii_fallback = "".join(
+        "_" if ord(ch) > 0x7E or ord(ch) < 0x20 or ord(ch) == 0x7F else ch
+        for ch in filename
+    )
     ascii_fallback = ascii_fallback.replace("\\", "\\\\").replace('"', '\\"')
     rfc5987 = "UTF-8''" + _url_quote(filename, safe="")
     return ascii_fallback, rfc5987
@@ -415,10 +421,14 @@ class DefaultApiClient:
             merged_headers.setdefault("Content-Length", "0")
 
         # --- Timeout ---
+        # The timeout is one end-to-end budget: every redirect hop draws from
+        # the same deadline, measured from the start of the call.
         request_kwargs: Dict[str, Any] = {}
+        deadline: Optional[float] = None
         if self._transport_options.timeout is not None:
             timeout_seconds = self._transport_options.timeout / 1000.0
             request_kwargs["timeout"] = urllib3.Timeout(total=timeout_seconds)
+            deadline = time.monotonic() + timeout_seconds
 
         # --- Redirects ---
         # Gap BH / Bucket 4.1: urllib3's built-in redirect handling (via
@@ -472,6 +482,7 @@ class DefaultApiClient:
                     initial_body=encoded_body,
                     initial_headers=merged_headers,
                     request_kwargs=request_kwargs,
+                    deadline=deadline,
                 )
 
             # The body read happens INSIDE the transport try/catch so a
@@ -578,6 +589,7 @@ class DefaultApiClient:
         initial_body: Any,
         initial_headers: Dict[str, str],
         request_kwargs: Dict[str, Any],
+        deadline: Optional[float] = None,
     ) -> Any:
         """Drive the redirect loop manually with security guards.
 
@@ -613,12 +625,18 @@ class DefaultApiClient:
         current_method = initial_method
         current_body = initial_body
         current_headers: Dict[str, str] = dict(initial_headers)
+        unusable_location = False
         while response.status in self._REDIRECT_STATUSES and redirects_remaining > 0:
             location = response.headers.get("location") if response.headers else None
             if not location:
                 break
 
             next_url = self._resolve_url(current_url, location)
+            if next_url is None:
+                # An unusable Location behaves like a missing one: stop and
+                # return the 3xx untouched, body included.
+                unusable_location = True
+                break
 
             # Guard 1: scheme allowlist.
             parsed_next = urlsplit(next_url)
@@ -698,6 +716,15 @@ class DefaultApiClient:
             # follow-up so urllib3 returns the connection to the pool.
             self._release_response(response)
 
+            hop_kwargs = dict(request_kwargs)
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise NetworkTimeoutException(
+                        message="Request timed out: the timeout budget was used up before the redirect was followed"
+                    )
+                hop_kwargs["timeout"] = urllib3.Timeout(total=remaining)
+
             response = self._pool_manager.request(
                 next_method,
                 next_url,
@@ -705,7 +732,7 @@ class DefaultApiClient:
                 body=next_body,
                 preload_content=False,
                 decode_content=False,
-                **request_kwargs,
+                **hop_kwargs,
             )
 
             current_url = next_url
@@ -720,7 +747,8 @@ class DefaultApiClient:
         # Location to follow) when the loop ran out of budget -- the
         # no-Location case breaks out and is a legitimate terminal 3xx.
         if (
-            response.status in self._REDIRECT_STATUSES
+            not unusable_location
+            and response.status in self._REDIRECT_STATUSES
             and response.headers
             and response.headers.get("location")
         ):
@@ -748,8 +776,11 @@ class DefaultApiClient:
             response.release_conn()
 
     @staticmethod
-    def _resolve_url(base_url: str, location: str) -> str:
+    def _resolve_url(base_url: str, location: str) -> Optional[str]:
         """Resolve a ``Location`` header against the request URL (RFC 3986).
+
+        Returns ``None`` when the value cannot be parsed (for example
+        ``http://[bad``), so the caller treats it like a missing ``Location``.
 
         An absolute URL is returned verbatim so the scheme-allowlist guard sees
         its raw scheme rather than one inherited from ``base_url``. Anything
@@ -757,9 +788,12 @@ class DefaultApiClient:
         query-only references (``?page=2`` keeps the base path), protocol- and
         path-relative references, and removes ``.``/``..`` segments.
         """
-        if urlsplit(location).scheme:
-            return location
-        return urljoin(base_url, location)
+        try:
+            if urlsplit(location).scheme:
+                return location
+            return urljoin(base_url, location)
+        except ValueError:
+            return None
 
     @staticmethod
     def _is_https_to_http_downgrade(original_url: str, redirect_url: str) -> bool:

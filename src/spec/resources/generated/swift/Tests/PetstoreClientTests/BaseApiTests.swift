@@ -71,6 +71,13 @@ import Testing
 
   // MARK: - Binary response answered with JSON
 
+  @Test func testContentDispositionFilenameStarKeepsOnlyUnreservedCharacters() throws {
+    let value = try BaseApi.buildContentDisposition(
+      name: "file", filename: "r\u{E9}sum\u{E9}*(1).pdf")
+    #expect(value.contains("filename=\"r_sum_*(1).pdf\""))
+    #expect(value.contains("filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf"))
+  }
+
   @Test func testBinaryOperationAnsweredWithJsonReturnsTheRawBytes() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":7,\"name\":\"photo\"}"
@@ -277,19 +284,33 @@ import Testing
 
   // MARK: - Non-JSON content type skips deserialization
 
-  @Test func testSkipsDeserializationForNonJsonContentType() async throws {
+  @Test func testNonJsonContentTypeOnModelReturnIsASerializationError() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "hello"
-    mockClient.responseHeaders = ["Content-Type": "text/plain"]
+    mockClient.responseHeaders = ["Content-Type": "text/plain; charset=utf-8"]
 
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
 
-    let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
-    #expect(result.statusCode == 200)
-    #expect(result.data == nil, "Data should be nil when Content-Type is not JSON")
-    #expect(result.rawBody == "hello")
+    do {
+      _ = try await api.getPetByIdWithHTTPInfo(petId: 1)
+      Issue.record("expected a SerializationError")
+    } catch let error as SerializationError {
+      #expect(
+        error.message
+          == "Unexpected response Content-Type 'text/plain' for PetApi.getPetById: expected a JSON body"
+      )
+    }
+  }
+
+  @Test func testIsTextContentType() {
+    #expect(BaseApi.isTextContentType("text/plain; charset=utf-8"))
+    #expect(BaseApi.isTextContentType("application/xml"))
+    #expect(BaseApi.isTextContentType("application/atom+xml"))
+    #expect(BaseApi.isTextContentType("application/javascript"))
+    #expect(!BaseApi.isTextContentType("application/pdf"))
+    #expect(!BaseApi.isTextContentType("image/png"))
   }
 
   @Test func testDeserializesVendorJsonMimeTypes() async throws {
@@ -765,7 +786,7 @@ import Testing
 
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
-    let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
+    let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
     guard let decoded = Data(base64Encoded: result.rawBody) else {
       Issue.record("rawBody was not valid base64: \(result.rawBody)")
       return
@@ -785,7 +806,7 @@ import Testing
 
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
-    let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
+    let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
     guard let decoded = Data(base64Encoded: result.rawBody) else {
       Issue.record("rawBody was not valid base64: \(result.rawBody)")
       return
@@ -802,18 +823,6 @@ import Testing
     let api = PetApi(apiClient: mockClient, config: config)
     let result = try await api.getPetByIdWithHTTPInfo(petId: 42)
     #expect(result.data != nil, "data should be parsed for application/json response")
-  }
-
-  @Test func testTextPlainResponseReturnsString() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseBody = "hello world"
-    mockClient.responseHeaders = ["Content-Type": "text/plain"]
-
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-    let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
-    #expect(result.rawBody == "hello world", "rawBody should be the plain text response")
-    #expect(result.data == nil, "data should be nil for text/plain response")
   }
 
   @Test func testEmptyBodyYieldsEmptyRawBody() async throws {

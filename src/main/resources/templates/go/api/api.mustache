@@ -495,11 +495,15 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 				return nil, decErr
 			}
 			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok {
-			/* A string return type with a non-JSON Content-Type (for example
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
 			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim instead of leaving the zero value. */
+			 * verbatim. */
 			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for {{classname}}.{{operationId}}: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
 		}
 		dataPtr = &data
 	}

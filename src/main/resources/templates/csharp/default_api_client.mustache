@@ -135,6 +135,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         ArgumentNullException.ThrowIfNull(transportOptions);
         _transportOptions = transportOptions;
 
+        if (transportOptions.Timeout is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(transportOptions), "Timeout must be greater than zero");
+        }
+
         HttpClientHandler handler = new()
         {
             AutomaticDecompression = DecompressionMethods.All,
@@ -216,6 +222,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             handler.Proxy = webProxy;
             handler.UseProxy = true;
         }
+        else
+        {
+            /* TransportOptions.Proxy is the only proxy source: with none set
+               the client connects directly and ignores HTTP_PROXY, NO_PROXY
+               and the system proxy settings. */
+            handler.UseProxy = false;
+        }
 
         /* Gap AK: keep a Proxy-Authorization preview value alongside the
          * WebProxy.Credentials so tests (and any HTTP-aware authenticator)
@@ -234,7 +247,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
         if (transportOptions.Timeout.HasValue)
         {
-            _httpClient.Timeout = TimeSpan.FromMilliseconds(transportOptions.Timeout.Value);
+            /* The timeout is one end-to-end budget enforced per call in
+               SendRequestAsync, so HttpClient's own per-send timeout is off. */
+            _httpClient.Timeout = Timeout.InfiniteTimeSpan;
         }
     }
 
@@ -414,11 +429,18 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             request.Content = CreateReplayContent(replayBytes, replayType);
         }
 
+        /* One budget for every hop and the body read: a single token created
+           here is shared by each send, so a redirect chain cannot reset it. */
+        using CancellationTokenSource? timeoutSource = _transportOptions.Timeout.HasValue
+            ? new CancellationTokenSource(TimeSpan.FromMilliseconds(_transportOptions.Timeout.Value))
+            : null;
+        CancellationToken timeoutToken = timeoutSource?.Token ?? CancellationToken.None;
+
         HttpResponseMessage response;
         try
         {
             response = await _httpClient
-                .SendAsync(request)
+                .SendAsync(request, timeoutToken)
                 .ConfigureAwait(false);
 
             /* Gap BH: manual redirect loop with cross-origin sensitive-header strip.
@@ -562,7 +584,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     currentUrl = nextUrl;
                     currentMethod = nextMethod;
                     currentBody = nextBody;
-                    response = await _httpClient.SendAsync(next).ConfigureAwait(false);
+                    response = await _httpClient.SendAsync(next, timeoutToken).ConfigureAwait(false);
                     next.Dispose();
                     hops++;
                 }
@@ -589,7 +611,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             /* Connection refused, DNS, TLS handshake, reset: no HTTP response. */
             throw new Errors.NetworkException(ex.Message, ex);
         }
-        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        catch (OperationCanceledException ex) when (
+            timeoutSource?.IsCancellationRequested == true || ex.InnerException is TimeoutException)
         {
             throw new Errors.NetworkTimeoutException("Request timed out", ex);
         }
@@ -603,7 +626,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         byte[] responseBytes;
         try
         {
-            responseBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            responseBytes = await response.Content.ReadAsByteArrayAsync(timeoutToken).ConfigureAwait(false);
         }
         catch (HttpRequestException ex)
         {
@@ -635,7 +658,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 ex,
                 decodeHeaders);
         }
-        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        catch (OperationCanceledException ex) when (
+            timeoutSource?.IsCancellationRequested == true || ex.InnerException is TimeoutException)
         {
             /* Only our own timeout becomes NetworkTimeoutException. Any other
                cancellation is the caller's and propagates untouched. */
@@ -992,10 +1016,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             return "filename=\"" + escaped + "\"";
         }
         StringBuilder fallback = new();
-        foreach (char c in filename)
+        foreach (Rune rune in filename.EnumerateRunes())
         {
-            char safe = (c > 0x7F || c < 0x20 || c == 0x7F) ? '_' : c;
-            _ = fallback.Append(safe);
+            /* One underscore per code point, so an astral character (an emoji)
+               is replaced once, not once per UTF-16 unit. */
+            _ = rune.Value is > 0x7F or < 0x20 or 0x7F
+                ? fallback.Append('_')
+                : fallback.Append((char)rune.Value);
         }
         string fallbackEscaped = EscapeQuotedString(fallback.ToString());
         string encoded = Rfc5987EncodeValue(filename);

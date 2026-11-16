@@ -626,13 +626,16 @@ internal class ObjectSerializer(
      * Refuses a payload nested deeper than [MAX_JSON_DEPTH] before parsing it.
      */
     fun parseToJsonElement(jsonString: String): JsonElement {
-        val depth = jsonMaxDepth(jsonString)
+        // Strip one leading BOM (RFC 8259 §8.1) so the error-body path
+        // accepts the same payloads as deserialize().
+        val text = if (jsonString.isNotEmpty() && jsonString[0].code == 0xFEFF) jsonString.substring(1) else jsonString
+        val depth = jsonMaxDepth(text)
         if (depth > MAX_JSON_DEPTH) {
             throw SerializationException(
                 "JSON nesting depth $depth exceeds limit $MAX_JSON_DEPTH")
         }
         return try {
-            json.parseToJsonElement(jsonString)
+            json.parseToJsonElement(text)
         } catch (e: kotlinx.serialization.SerializationException) {
             throw SerializationException("Failed to parse JSON: ${e.message}", e)
         }

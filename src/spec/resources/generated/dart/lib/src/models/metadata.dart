@@ -77,4 +77,10 @@ class Metadata {
     createdAt,
     const DeepCollectionEquality().hash(additionalProperties),
   ]);
+
+  /// Dumps every field and the additionalProperties map; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'Metadata(createdAt: $createdAt, additionalProperties: $additionalProperties)';
 }

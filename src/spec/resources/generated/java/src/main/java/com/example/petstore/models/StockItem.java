@@ -82,7 +82,7 @@ public class StockItem {
     sb.append(getClass().getSimpleName()).append("{");
     sb.append("priority=").append(priority);
     sb.append(", availability=").append(availability);
-    sb.append(", matrix=").append(matrix);
+    sb.append(", matrix=").append(com.example.petstore.ObjectSerializer.structuralToString(matrix));
     sb.append("}");
     return sb.toString();
   }

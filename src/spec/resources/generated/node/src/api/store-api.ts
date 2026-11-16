@@ -91,6 +91,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Account)!,
       NO_AUTH,
+      false,
+      "model",
+      "createAccount",
     );
   }
 
@@ -236,6 +239,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Category)!,
       NO_AUTH,
+      false,
+      "model",
+      "getBySwatch",
     );
   }
 
@@ -279,6 +285,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Defaults)!,
       NO_AUTH,
+      false,
+      "model",
+      "getDefaults",
     );
   }
 
@@ -322,6 +331,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Department)!,
       NO_AUTH,
+      false,
+      "model",
+      "getDepartment",
     );
   }
 
@@ -373,6 +385,9 @@ export class StoreApi extends BaseApi {
           ObjectSerializer.deserializeMap(x, Category),
         ),
       NO_AUTH,
+      false,
+      "model",
+      "getGroupedCategories",
     );
   }
 
@@ -421,6 +436,9 @@ export class StoreApi extends BaseApi {
           ObjectSerializer.deserializeLeaf<number>(x, "int32"),
         ),
       NO_AUTH,
+      false,
+      "model",
+      "getInventory",
     );
   }
 
@@ -469,6 +487,9 @@ export class StoreApi extends BaseApi {
           ),
         ),
       NO_AUTH,
+      false,
+      "model",
+      "getMatrix",
     );
   }
 
@@ -530,6 +551,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
       undefined,
+      false,
+      "model",
+      "getOrderById",
     );
   }
 
@@ -594,6 +618,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
       NO_AUTH,
+      false,
+      "model",
+      "getOrderByTrackingId",
     );
   }
 
@@ -655,6 +682,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, StockItem)!,
       NO_AUTH,
+      false,
+      "model",
+      "getStockItem",
     );
   }
 
@@ -702,6 +732,9 @@ export class StoreApi extends BaseApi {
           Swatch as unknown as Record<string, unknown>,
         ),
       NO_AUTH,
+      false,
+      "model",
+      "getSwatch",
     );
   }
 
@@ -755,6 +788,9 @@ export class StoreApi extends BaseApi {
           ),
         ),
       NO_AUTH,
+      false,
+      "model",
+      "getSwatchGroups",
     );
   }
 
@@ -806,6 +842,9 @@ export class StoreApi extends BaseApi {
           ),
         ),
       NO_AUTH,
+      false,
+      "model",
+      "getTimestampGroups",
     );
   }
 
@@ -849,6 +888,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, TreeNode)!,
       NO_AUTH,
+      false,
+      "model",
+      "getTree",
     );
   }
 
@@ -895,6 +937,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
       undefined,
+      false,
+      "model",
+      "placeOrder",
     );
   }
 
@@ -987,6 +1032,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserializeArray(json, Order),
       NO_AUTH,
+      false,
+      "model",
+      "searchStore",
     );
   }
 }

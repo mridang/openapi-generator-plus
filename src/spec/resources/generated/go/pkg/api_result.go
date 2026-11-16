@@ -9,6 +9,8 @@
 
 package petstore
 
+import "maps"
+
 // ApiResult represents a typed API response with deserialized data, status code,
 // raw body, and headers. Returned by WithHTTPInfo methods.
 //
@@ -23,7 +25,7 @@ type ApiResult[T any] struct {
 	/* RawBody is the raw response body string (never nil; empty for no body). */
 	RawBody string
 
-	/* Headers are the response headers. */
+	/* Headers are the response headers, copied at construction. Go has no immutable map, so callers must not mutate it. */
 	Headers map[string]string
 }
 
@@ -33,6 +35,6 @@ func NewApiResult[T any](statusCode int, data *T, rawBody string, headers map[st
 		StatusCode: statusCode,
 		Data:       data,
 		RawBody:    rawBody,
-		Headers:    headers,
+		Headers:    maps.Clone(headers),
 	}
 }

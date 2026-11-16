@@ -430,7 +430,7 @@ class TestUserAuthWrapper:
         assert auth.build_authorization_url() == (
             "https://auth.example.com/authorize?response_type=code&client_id=cid"
             "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb"
-            "&scope=pets%3Awrite%20pets%3Aread"
+            "&scope=pets%3Aread%20pets%3Awrite"
         )
         auth.exchange_code("code")
         auth.get_auth_headers()

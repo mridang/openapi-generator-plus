@@ -52,7 +52,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Account",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.createAccount"
     )
 
     return try await invokeAPIForResult(params, as: Account.self)
@@ -91,7 +92,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: [],
       contentType: "application/json",
       returnType: "",
-      auth: nil
+      auth: nil,
+      operation: "StoreApi.deleteOrder"
     )
 
     return try await invokeAPIForEmptyResult(params)
@@ -152,7 +154,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Category",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getBySwatch"
     )
 
     return try await invokeAPIForResult(params, as: Category.self)
@@ -191,7 +194,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Defaults",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getDefaults"
     )
 
     return try await invokeAPIForResult(params, as: Defaults.self)
@@ -230,7 +234,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Department",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getDepartment"
     )
 
     return try await invokeAPIForResult(params, as: Department.self)
@@ -269,7 +274,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "[[String: Category]]",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getGroupedCategories"
     )
 
     return try await invokeAPIForResult(params, as: [[String: Category]].self)
@@ -308,7 +314,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "[String: Int]",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getInventory"
     )
 
     return try await invokeAPIForResult(params, as: [String: Int].self)
@@ -347,7 +354,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "[[Int]]",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getMatrix"
     )
 
     return try await invokeAPIForResult(params, as: [[Int]].self)
@@ -394,7 +402,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Order",
-      auth: nil
+      auth: nil,
+      operation: "StoreApi.getOrderById"
     )
 
     return try await invokeAPIForResult(params, as: Order.self)
@@ -442,7 +451,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Order",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getOrderByTrackingId"
     )
 
     return try await invokeAPIForResult(params, as: Order.self)
@@ -493,7 +503,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "StockItem",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getStockItem"
     )
 
     return try await invokeAPIForResult(params, as: StockItem.self)
@@ -532,7 +543,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Swatch",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getSwatch"
     )
 
     return try await invokeAPIForResult(params, as: Swatch.self)
@@ -571,7 +583,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "[[String: Swatch]]",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getSwatchGroups"
     )
 
     return try await invokeAPIForResult(params, as: [[String: Swatch]].self)
@@ -610,7 +623,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "[[String: Date]]",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getTimestampGroups"
     )
 
     return try await invokeAPIForResult(params, as: [[String: Date]].self)
@@ -649,7 +663,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "TreeNode",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getTree"
     )
 
     return try await invokeAPIForResult(params, as: TreeNode.self)
@@ -690,7 +705,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Order",
-      auth: nil
+      auth: nil,
+      operation: "StoreApi.placeOrder"
     )
 
     return try await invokeAPIForResult(params, as: Order.self)
@@ -760,7 +776,8 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "[Order]",
-      auth: BaseApi.noAuthSentinel
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.searchStore"
     )
 
     return try await invokeAPIForResult(params, as: [Order].self)

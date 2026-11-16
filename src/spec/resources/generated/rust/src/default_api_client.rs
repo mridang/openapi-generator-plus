@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use std::time::Duration;
 
@@ -55,7 +55,9 @@ pub const SENSITIVE_HEADER_NAMES: &[&str] = &[
 ///  4. `TransportOptions::inject_request_id` -- injected if not already set
 pub struct DefaultApiClient {
     transport_options: TransportOptions,
-    http_client: Client,
+    /* The pooled transport. `close()` takes it out so the connection pool and
+     * idle sockets are released even while other handles to this client live. */
+    http_client: Mutex<Option<Client>>,
     /// Close-lifecycle flag. Set by `close()`; once set, any further
     /// `send_request*` call fails fast with an `ApiError` instead of leaking a
     /// foreign reqwest error or silently succeeding.
@@ -71,18 +73,20 @@ impl DefaultApiClient {
         let http_client = build_http_client(&opts);
         Self {
             transport_options: opts,
-            http_client,
+            http_client: Mutex::new(Some(http_client)),
             closed: Arc::new(AtomicBool::new(false)),
         }
     }
 
     /// Explicit close hook. Marks the client closed so that any
     /// subsequent request fails fast with a uniform SDK `ApiError`
-    /// ("client is closed"). `reqwest::Client` additionally releases its
-    /// connection pool / executor threads when the last clone is dropped
-    /// (see the `Drop` impl below).
+    /// ("client is closed"), and drops the underlying `reqwest::Client` so its
+    /// connection pool is released once in-flight requests finish.
     pub fn close(&self) {
         self.closed.store(true, Ordering::SeqCst);
+        if let Ok(mut guard) = self.http_client.lock() {
+            guard.take();
+        }
     }
 
     /// Returns true once `close()` has been called on this client.
@@ -94,9 +98,8 @@ impl DefaultApiClient {
 impl Drop for DefaultApiClient {
     /// Explicit `Drop` impl documents the lifecycle of the
     /// underlying `reqwest::Client`. Reqwest tears the pool down via its
-    /// own `Drop` once the last `Arc` clone is released; this impl exists
-    /// to make that contract discoverable to readers and to give us a hook
-    /// for future cleanup if we ever own resources outside reqwest.
+    /// own `Drop` once the last clone is released, which `close()` triggers
+    /// early; this impl gives us a hook for future cleanup.
     fn drop(&mut self) {
         /* No-op: reqwest::Client's internal Drop releases the pool. */
     }
@@ -159,12 +162,17 @@ impl ApiClient for DefaultApiClient {
             /* Use-after-close is a wrong call order, reported as
              * ConfigurationError::InvalidState rather than a foreign library
              * error or a silent success. */
-            if self.closed.load(Ordering::SeqCst) {
-                return Err(Box::new(ConfigurationError::InvalidState(
-                    "ApiClient is closed".to_string(),
-                ))
-                    as Box<dyn std::error::Error + Send + Sync>);
-            }
+            let http_client = self
+                .http_client
+                .lock()
+                .ok()
+                .and_then(|guard| guard.clone())
+                .filter(|_| !self.closed.load(Ordering::SeqCst))
+                .ok_or_else(|| {
+                    Box::new(ConfigurationError::InvalidState(
+                        "ApiClient is closed".to_string(),
+                    )) as Box<dyn std::error::Error + Send + Sync>
+                })?;
             let mut merged: HashMap<String, String> = self.transport_options.default_headers();
             for (k, v) in &headers {
                 merged.insert(k.clone(), v.clone());
@@ -235,7 +243,7 @@ impl ApiClient for DefaultApiClient {
                 ))) as Box<dyn std::error::Error + Send + Sync>
             })?;
 
-            let mut request_builder = self.http_client.request(http_method, parsed_url);
+            let mut request_builder = http_client.request(http_method, parsed_url);
 
             for (k, v) in &merged {
                 request_builder = request_builder.header(k.as_str(), v.as_str());
@@ -371,8 +379,7 @@ impl ApiClient for DefaultApiClient {
                             next_method, e
                         ))) as Box<dyn std::error::Error + Send + Sync>
                     })?;
-                    let mut redirect_builder =
-                        self.http_client.request(http_method, next_url.clone());
+                    let mut redirect_builder = http_client.request(http_method, next_url.clone());
                     let mut redirect_headers = current_headers.clone();
                     if next_body.is_none() {
                         let keeps_method = next_method == current_method;
@@ -557,6 +564,13 @@ fn has_header(headers: &HashMap<String, String>, name: &str) -> bool {
     headers.keys().any(|k| k.eq_ignore_ascii_case(name))
 }
 
+/* Parses every certificate in a PEM bundle: `Certificate::from_pem` reads only
+ * the first block, which would leave the rest of a multi-certificate bundle
+ * untrusted. */
+fn root_certificates(pem: &[u8]) -> Vec<reqwest::Certificate> {
+    reqwest::Certificate::from_pem_bundle(pem).unwrap_or_default()
+}
+
 fn build_http_client(opts: &TransportOptions) -> Client {
     /* `TransportOptions::proxy` is the only proxy source: reqwest would
      * otherwise honour HTTP(S)_PROXY / ALL_PROXY / NO_PROXY and the system
@@ -586,7 +600,7 @@ fn build_http_client(opts: &TransportOptions) -> Client {
      * matching the SDKs that pin to the given CA. */
     if let Some(pem) = opts.ca_cert_pem() {
         builder = builder.tls_built_in_root_certs(false);
-        if let Ok(cert) = reqwest::Certificate::from_pem(pem) {
+        for cert in root_certificates(pem) {
             builder = builder.add_root_certificate(cert);
         }
     }
@@ -964,6 +978,21 @@ mod tests {
      * for the generator's own golden suite, never for a real client SDK. */
     use crate::models::PhotoMetadata;
     use crate::object_serializer;
+
+    #[test]
+    fn test_root_certificates_trusts_every_certificate_in_a_bundle() {
+        use super::root_certificates;
+        let ca = std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/certs/ca.pem"
+        ))
+        .expect("failed to read the CA fixture");
+        let mut bundle = ca.clone();
+        bundle.extend_from_slice(b"\n");
+        bundle.extend_from_slice(&ca);
+        assert_eq!(root_certificates(&ca).len(), 1);
+        assert_eq!(root_certificates(&bundle).len(), 2);
+    }
 
     /* ── HTTPS->HTTP body-replay predicate ──
      *

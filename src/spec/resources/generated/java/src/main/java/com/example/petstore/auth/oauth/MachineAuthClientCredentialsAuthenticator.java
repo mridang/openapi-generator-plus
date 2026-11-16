@@ -27,6 +27,6 @@ public final class MachineAuthClientCredentialsAuthenticator
         clientId,
         clientSecret,
         "https://auth.example.com/oauth/token",
-        List.of("pets:write", "pets:read"));
+        List.of("pets:read", "pets:write"));
   }
 }

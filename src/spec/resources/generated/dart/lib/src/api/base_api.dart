@@ -262,7 +262,6 @@ class BaseApi {
        * content-type (octet-stream, image, audio, video media types). */
       final returnsBytes =
           returnType == 'List<int>' || returnType == 'Uint8List';
-      final isBinaryContentType = _isBinaryContentType(responseContentType);
       final isJsonBody =
           _headerSelector.isJsonMime(responseContentType) ||
           (responseContentType.isEmpty && !returnsBytes);
@@ -306,19 +305,23 @@ class BaseApi {
          * content-type defaults to JSON deserialization rather than dropping
          * the body, matching swift/node and the other SDKs. */
         data = deserialize(response.body);
-      } else if (returnType == 'String') {
+      } else if (returnType == 'String' &&
+          _isTextContentType(responseContentType)) {
         data = response.body as T?;
-      } else if (isBinaryContentType) {
-        /* Non-binary returnType (e.g. a model class) but the response
-         * is a binary stream — the SDK cannot reasonably cast bytes
-         * to the model, so leave data null and let the caller use
-         * rawBody. Matches the non-JSON branch below. */
+      } else if (responseContentType.isEmpty ||
+          _headerSelector.isJsonMime(responseContentType)) {
+        /* A JSON body with no deserializer supplied leaves data null;
+         * rawBody is still populated. */
         data = null;
       } else {
-        /* Non-JSON, non-binary content-type for a model return type —
-         * don't attempt a String→Model cast (which throws at runtime).
-         * Leave data null; rawBody is still populated. */
-        data = null;
+        /* A non-JSON body can only be returned verbatim for a String return
+         * type with a text media type; anything else would be a raw string
+         * typed as a model, so refuse it and name the Content-Type. */
+        final mediaType = responseContentType.split(';').first.trim();
+        throw SerializationException(
+          "Unexpected response Content-Type '$mediaType' for "
+          '$runtimeType.${method.toLowerCase()}: expected a JSON body',
+        );
       }
     }
 
@@ -330,15 +333,15 @@ class BaseApi {
     );
   }
 
-  /// Reports whether [contentType] names a binary media type (octet-stream,
-  /// image, audio, or video), whose response body the transport base64-encodes.
-  bool _isBinaryContentType(String contentType) {
+  /// Reports whether [contentType] names a text media type (text/*,
+  /// application/xml, application/javascript or a +xml suffix) whose body may
+  /// be returned verbatim as a String.
+  bool _isTextContentType(String contentType) {
     final mediaType = contentType.split(';').first.trim().toLowerCase();
-    if (mediaType.isEmpty) return false;
-    return mediaType == 'application/octet-stream' ||
-        mediaType.startsWith('image/') ||
-        mediaType.startsWith('audio/') ||
-        mediaType.startsWith('video/');
+    return mediaType.startsWith('text/') ||
+        mediaType == 'application/xml' ||
+        mediaType == 'application/javascript' ||
+        mediaType.endsWith('+xml');
   }
 
   /// Encodes a form field key or value.

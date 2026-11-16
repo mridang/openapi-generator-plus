@@ -1376,6 +1376,70 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  test "get_pet_by_name rejects dot-segment path values before dispatch" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    for value <- [".", ".."] do
+      err =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
+            api,
+            value,
+            %PetstoreClient.Api.Options.GetPetByNameOptions{
+              category: "dog",
+              x_correlation_id: "c-1"
+            }
+          )
+        end
+
+      assert err.message == "Path parameter 'name' must not be '.' or '..'"
+    end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "get_pet_by_name sends a path value that merely contains dots" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    _result =
+      PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
+        api,
+        "a..b",
+        %PetstoreClient.Api.Options.GetPetByNameOptions{category: "dog", x_correlation_id: "c-1"}
+      )
+
+    assert String.contains?(PathCapturingApiClient.captured_url(name), "/pet/byName/a..b")
+    Agent.stop(name)
+  end
+
+  # format: byte query parameters travel as standard-alphabet base64: the bytes
+  # "hi" are `aGk=` (percent-encoded `aGk%3D`), never the raw text.
+  test "get_pet_tag base64-encodes a format byte query parameter" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    _result =
+      PetstoreClient.Api.PetApi.get_pet_tag(
+        api,
+        5,
+        "cute",
+        %PetstoreClient.Api.Options.GetPetTagOptions{fingerprint: <<0xFB, 0xFF>>}
+      )
+
+    url = PathCapturingApiClient.captured_url(name)
+
+    assert String.contains?(url, "fingerprint=%2B%2F8%3D"),
+           "Expected standard-alphabet base64 fingerprint=%2B%2F8%3D, got: #{url}"
+
+    Agent.stop(name)
+  end
+
   test "get_pet_by_name sends the required category on the wire" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")

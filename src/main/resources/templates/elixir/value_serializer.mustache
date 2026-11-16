@@ -37,6 +37,7 @@ defmodule {{moduleName}}.ValueSerializer do
   @spec serialize(term(), atom(), String.t(), keyword()) :: String.t() | [String.t()] | nil
   def serialize(value, location, schema_type, opts \\ []) do
     collection_format = Keyword.get(opts, :collection_format)
+    value = set_to_list(value)
 
     cond do
       is_nil(value) ->
@@ -59,6 +60,11 @@ defmodule {{moduleName}}.ValueSerializer do
         end
     end
   end
+
+  # A `uniqueItems` array parameter is a `MapSet`; it expands exactly like an
+  # array parameter, element by element, in the set's iteration order.
+  defp set_to_list(%MapSet{} = set), do: MapSet.to_list(set)
+  defp set_to_list(value), do: value
 
   # Returns the wire-value string for `value` when `schema_type` resolves to a
   # generated enum module that maps the atom via `value/1`; otherwise nil so
@@ -161,7 +167,8 @@ defmodule {{moduleName}}.ValueSerializer do
 
   ## Raises
 
-    `ArgumentError` if a path parameter is the empty string.
+    `ArgumentError` if a path parameter is the empty string, or is exactly `.`
+    or `..` (a dot segment some transports would resolve to another endpoint).
 
   """
   @spec serialize_styled(String.t(), term(), atom(), String.t(), atom() | nil, String.t() | nil, boolean()) ::
@@ -174,6 +181,14 @@ defmodule {{moduleName}}.ValueSerializer do
   # the others so Elixir's pattern matcher selects it first.
   def serialize_styled(param_name, "", :path, _schema_type, _collection_format, _style, _explode) do
     raise ArgumentError, "Path parameter '#{param_name}' must not be empty"
+  end
+
+  # A path value of exactly `.` or `..` would be resolved as a dot segment by
+  # some transports and reroute the request, so it is rejected up front. The
+  # matrix and label styles prefix their value and can never form one.
+  def serialize_styled(param_name, value, :path, _schema_type, _collection_format, style, _explode)
+      when value in [".", ".."] and style in [nil, "", "simple"] do
+    raise ArgumentError, "Path parameter '#{param_name}' must not be '.' or '..'"
   end
 
   def serialize_styled(_param_name, value, location, schema_type, collection_format, nil, _explode) do
@@ -190,7 +205,7 @@ defmodule {{moduleName}}.ValueSerializer do
     # so a sanitized atom name (`:great_dane`) emits the wire value
     # ("GreatDane") rather than `to_string(atom)`. Scalars and arrays of enums
     # are both covered; non-enum values pass through untouched.
-    value = resolve_enum_wire_values(value, schema_type)
+    value = value |> set_to_list() |> resolve_enum_wire_values(schema_type)
 
     case style do
       "matrix" ->

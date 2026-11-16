@@ -79,6 +79,20 @@ class TestValueSerializerQuery:
             ["a", "b", "c"], "query", "array", "multi"
         ) == ["a", "b", "c"]
 
+    def test_set_joins_like_an_array(self) -> None:
+        assert ValueSerializer.serialize({"a"}, "query", "array") == "a"
+
+    def test_set_returns_every_element_for_multi(self) -> None:
+        assert sorted(
+            list(ValueSerializer.serialize({"a", "b"}, "query", "array", "multi") or [])
+        ) == ["a", "b"]
+
+    def test_set_expands_for_an_exploded_form_style(self) -> None:
+        result = ValueSerializer.serialize_styled(
+            "c", frozenset({"a", "b"}), "query", "array", None, "form", True
+        )
+        assert sorted(list(result or [])) == ["a", "b"]
+
     def test_empty_array_returns_empty_string_for_csv(self) -> None:
         assert ValueSerializer.serialize([], "query", "array") == ""
 

@@ -23,6 +23,6 @@ class UserAuthAuthorizationCodeAuthenticator(OAuth2AuthorizationCodeAuthenticato
             "https://auth.example.com/authorize",
             "https://auth.example.com/oauth/token",
             redirect_uri,
-            ["pets:write", "pets:read"],
+            ["pets:read", "pets:write"],
             "https://auth.example.com/oauth/refresh",
         )

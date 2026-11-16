@@ -39,6 +39,21 @@ void main() {
         reason: 'description must not be empty',
       );
     });
+
+    test('writes the description as a quoted YAML scalar', () {
+      final contents = File(
+        '${Directory.current.path}/pubspec.yaml',
+      ).readAsStringSync();
+      final match = RegExp(
+        r'^description:\s*(.+)$',
+        multiLine: true,
+      ).firstMatch(contents);
+      expect(
+        match!.group(1)!.trim(),
+        matches(r'^".*"$'),
+        reason: 'an unquoted scalar breaks on `: `, `#` and a leading `&`',
+      );
+    });
   });
 
   group('package barrel', () {
@@ -212,5 +227,21 @@ void main() {
         expect(first.hashCode, equals(second.hashCode));
       },
     );
+
+    test('toString dumps the fields and the additionalProperties map', () {
+      final metadata = Metadata(
+        createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+        additionalProperties: const {
+          'tags': ['a', 'b'],
+        },
+      );
+
+      final text = metadata.toString();
+
+      expect(text, startsWith('Metadata('));
+      expect(text, contains('createdAt: 2024-01-15 10:30:00.000Z'));
+      expect(text, contains('additionalProperties: {tags: [a, b]}'));
+      expect(text, isNot(contains("Instance of")));
+    });
   });
 }

@@ -135,7 +135,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
 
     assertEquals("https://auth.example.com/oauth/token", capturedUrl.get());
     String body = java.util.Objects.requireNonNull(capturedBody.get());
-    assertTrue(body.contains("scope=pets%3Awrite+pets%3Aread"), body);
+    assertTrue(body.contains("scope=pets%3Aread+pets%3Awrite"), body);
   }
 
   @Test

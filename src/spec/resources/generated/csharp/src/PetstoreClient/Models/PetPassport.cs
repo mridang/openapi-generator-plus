@@ -84,21 +84,14 @@ public class PetPassport : IEquatable<PetPassport>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Pet=").Append(this.Pet);
+        sb.Append("Pet=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Pet));
         sb.Append(", Thumbnail=")
-            .Append(
-                this.Thumbnail is null
-                    ? "null"
-                    : global::System.Convert.ToBase64String(this.Thumbnail)
-            );
-        sb.Append(", Scans=").Append(this.Scans);
-        sb.Append(", IssuedAt=").Append(this.IssuedAt);
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Thumbnail));
+        sb.Append(", Scans=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Scans));
+        sb.Append(", IssuedAt=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.IssuedAt));
         sb.Append(", BiometricChip=")
-            .Append(
-                this.BiometricChip is null
-                    ? "null"
-                    : global::System.Convert.ToBase64String(this.BiometricChip)
-            );
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.BiometricChip));
         sb.Append('}');
         return sb.ToString();
     }

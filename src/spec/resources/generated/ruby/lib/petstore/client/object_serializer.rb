@@ -42,7 +42,8 @@ module Petstore::Client
 
     # Parse a JSON text into a plain Ruby value, refusing payloads that
     # exceed the MAX_JSON_DEPTH nesting cap (DoS guard for malicious
-    # deeply-nested payloads).
+    # deeply-nested payloads). A single leading U+FEFF byte-order mark is
+    # ignored.
     #
     # @param json_string [String] the raw JSON text
     # @param symbolize_names [Boolean] whether object keys become Symbols
@@ -50,6 +51,12 @@ module Petstore::Client
     # @raise [Errors::SerializationError] if the depth limit is exceeded or
     #   parsing fails
     def self.parse_json(json_string, symbolize_names: false)
+      # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+      # but Windows-generated payloads often include one and Ruby's
+      # JSON.parse rejects it. Strip it here so every JSON entry point,
+      # including the error-body path, tolerates it.
+      json_string = json_string.delete_prefix("\uFEFF")
+
       depth = json_max_depth(json_string)
       if depth > MAX_JSON_DEPTH
         raise Errors::SerializationError.new(
@@ -147,12 +154,6 @@ module Petstore::Client
     # non-finite literal is encountered.
     def self.deserialize(json_string, target_type)
       return nil if json_string.nil? || (json_string.is_a?(String) && json_string.empty?)
-
-      # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
-      # but Windows-generated payloads often include one and Ruby's
-      # JSON.parse rejects it. Strip silently for parity with Java
-      # Jackson / C# System.Text.Json which strip transparently.
-      json_string = json_string.sub(/\A﻿/, '') if json_string.is_a?(String) && json_string.start_with?('﻿')
 
       data = if json_string.is_a?(String)
                parse_json(json_string, symbolize_names: true)

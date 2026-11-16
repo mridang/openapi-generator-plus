@@ -1140,6 +1140,35 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("rejects a text/plain response when the return type is not String")
+    void rejectsTextPlainForNonStringReturnType() {
+      var client =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              return new ApiHttpResponse(200, "hello", Map.of("Content-Type", "text/plain"));
+            }
+          };
+      var testApi = new TestableApi(client, "http://localhost");
+      com.example.petstore.errors.SerializationException ex =
+          assertThrowsExactly(
+              com.example.petstore.errors.SerializationException.class,
+              () ->
+                  testApi.call(
+                      "GET",
+                      "/test/echo",
+                      new HashMap<>(),
+                      new HashMap<>(),
+                      null,
+                      new String[] {"text/plain"},
+                      "application/json",
+                      JSON_NODE_TYPE,
+                      null));
+      assertTrue(String.valueOf(ex.getMessage()).contains("text/plain"));
+    }
+
+    @Test
     @DisplayName("deserializes vendor JSON MIME types like application/problem+json")
     void deserializesVendorJsonMimeType() throws ApiException {
       var client =

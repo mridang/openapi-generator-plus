@@ -23,6 +23,6 @@ public sealed class MachineAuthClientCredentialsAuthenticator : OAuth2ClientCred
             clientId,
             clientSecret,
             new Uri("https://auth.example.com/oauth/token"),
-            ["pets:write", "pets:read"]
+            ["pets:read", "pets:write"]
         ) { }
 }

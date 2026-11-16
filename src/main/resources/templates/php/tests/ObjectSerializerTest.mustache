@@ -667,6 +667,20 @@ test('an unknown enum value inside a container is rejected', function (): void {
         ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
+test('a null model element in a container is rejected', function (string $json, string $class): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, $class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class, 'Null is not a valid');
+})->with([
+    'vector' => ['[null,{"name":"a","photoUrls":[]}]', 'Ds\Vector<Pet>'],
+    'set' => ['[null]', 'Ds\Set<Pet>'],
+    'map' => ['{"a":null}', 'Ds\Map<Pet>'],
+    'typed array' => ['[null]', 'Pet[]'],
+]);
+
+test('a null scalar element in a container is kept', function (): void {
+    expect(ObjectSerializer::deserialize('["a",null]', 'string[]'))->toBe(['a', null]);
+});
+
 test('string leaves keep their text and are not parsed as json again', function (): void {
     expect(ObjectSerializer::deserialize('["true","null","5","1.5"]', 'string[]'))
         ->toBe(['true', 'null', '5', '1.5']);

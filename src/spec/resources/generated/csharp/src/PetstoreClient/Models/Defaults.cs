@@ -144,15 +144,20 @@ public class Defaults : IEquatable<Defaults>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Retries=").Append(this.Retries);
-        sb.Append(", Mode=").Append(this.Mode);
-        sb.Append(", Label=").Append(this.Label);
-        sb.Append(", Greeting=").Append(this.Greeting);
-        sb.Append(", Swatch=").Append(this.Swatch);
-        sb.Append(", Ratio=").Append(this.Ratio);
-        sb.Append(", Scale=").Append(this.Scale);
-        sb.Append(", Weight=").Append(this.Weight);
-        sb.Append(", Ceiling=").Append(this.Ceiling);
+        sb.Append("Retries=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Retries));
+        sb.Append(", Mode=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Mode));
+        sb.Append(", Label=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Label));
+        sb.Append(", Greeting=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Greeting));
+        sb.Append(", Swatch=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Swatch));
+        sb.Append(", Ratio=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Ratio));
+        sb.Append(", Scale=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Scale));
+        sb.Append(", Weight=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Weight));
+        sb.Append(", Ceiling=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Ceiling));
         sb.Append('}');
         return sb.ToString();
     }

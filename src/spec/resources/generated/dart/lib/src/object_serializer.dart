@@ -131,6 +131,7 @@ int _jsonMaxDepth(String s) {
 /// Throws [SerializationException] if the depth limit is exceeded or parsing
 /// fails.
 dynamic parseJson(String data) {
+  data = _stripBom(data);
   final depth = _jsonMaxDepth(data);
   if (depth > _kMaxJsonDepth) {
     throw SerializationException(

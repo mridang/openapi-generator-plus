@@ -436,11 +436,11 @@ import Testing
             redirectUri: "https://app.example.com/cb")
         #expect(
             String(describing: auth)
-                == "UserAuthAuthorizationCodeAuthenticator(host: https://api.example.com, clientID: cid, clientSecret: ***, authorizationURL: https://auth.example.com/authorize, tokenURL: https://auth.example.com/oauth/token, refreshURL: https://auth.example.com/oauth/refresh, redirectURI: https://app.example.com/cb, scopes: [\"pets:write\", \"pets:read\"], tokenExchanged: false)"
+                == "UserAuthAuthorizationCodeAuthenticator(host: https://api.example.com, clientID: cid, clientSecret: ***, authorizationURL: https://auth.example.com/authorize, tokenURL: https://auth.example.com/oauth/token, refreshURL: https://auth.example.com/oauth/refresh, redirectURI: https://app.example.com/cb, scopes: [\"pets:read\", \"pets:write\"], tokenExchanged: false)"
         )
         let url = try auth.buildAuthorizationURL(state: "s1")
         #expect(url.hasPrefix("https://auth.example.com/authorize?"))
         let items = URLComponents(string: url)?.queryItems ?? []
-        #expect(items.first { $0.name == "scope" }?.value == "pets:write pets:read")
+        #expect(items.first { $0.name == "scope" }?.value == "pets:read pets:write")
     }
 }

@@ -361,8 +361,13 @@ class BaseApi:
                 if return_type == 'bytes':
                     import base64
                     data = base64.b64decode(response.body) if response.body else b''
-                else:
+                elif return_type == 'str' and self._is_text_media_type(resp_content_type):
                     data = response.body
+                else:
+                    raise SerializationException(
+                        f"Unexpected response Content-Type '{resp_content_type}' "
+                        f'for return type {return_type}: expected a JSON body'
+                    )
             else:
                 data = self._object_serializer.deserialize(response.body, return_type)
                 if return_type == 'bytes' and not isinstance(data, (bytes, bytearray)):
@@ -425,6 +430,16 @@ class BaseApi:
             auth,
         )
         return result.data
+
+    @staticmethod
+    def _is_text_media_type(media_type: str) -> bool:
+        """Return ``True`` for a text-class media type (text/*, XML, JavaScript)."""
+        media_type = media_type.lower()
+        return (
+            media_type.startswith('text/')
+            or media_type in ('application/xml', 'application/javascript')
+            or media_type.endswith('+xml')
+        )
 
     @staticmethod
     def _throw_api_exception(response: 'ApiHttpResponse') -> None:

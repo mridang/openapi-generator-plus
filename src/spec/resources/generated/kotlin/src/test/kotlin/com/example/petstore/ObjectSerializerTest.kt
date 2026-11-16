@@ -1701,6 +1701,17 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("toString renders byte data by content, never an identity hash")
+        fun toStringRendersBytesByContent() {
+            val text = vaultOf().toString()
+
+            assertTrue(text.contains("seal=[1, 2, 3]"), text)
+            assertTrue(text.contains("shards=[[4, 5], [6]]"), text)
+            assertTrue(text.contains("labels={first=[7, 8]}"), text)
+            assertFalse(text.contains("[B@"), text)
+        }
+
+        @Test
         @DisplayName("a differing byte in the bare array makes them unequal")
         fun differingBareArrayCompareUnequal() {
             val left = vaultOf()

@@ -100,7 +100,7 @@ func TestUserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
 
 	url := auth.BuildAuthorizationURL("")
 
-	if !strings.Contains(url, "scope=pets%3Awrite%20pets%3Aread") {
+	if !strings.Contains(url, "scope=pets%3Aread%20pets%3Awrite") {
 		t.Errorf("expected URL to carry the declared scopes, got %q", url)
 	}
 }

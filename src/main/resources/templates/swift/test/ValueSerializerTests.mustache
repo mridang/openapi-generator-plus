@@ -96,6 +96,11 @@ import Testing
         #expect(result as? String == "a,b,c")
     }
 
+    @Test func testSerializeValueQuerySetExpandsLikeArray() {
+        let result = ValueSerializer.serializeValue(Set(["red"]), location: "query", schemaType: "array", collectionFormat: "csv")
+        #expect(result as? String == "red")
+    }
+
     @Test func testSerializeValueQueryArraySsv() {
         let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "ssv")
         #expect(result as? String == "a b c")

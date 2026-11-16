@@ -147,7 +147,21 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/vendorExtensions.isDuration}}
 {{^vendorExtensions.isDuration}}
 {{#required}}
+{{#defaultValue}}
+{{^isEnum}}
+        /* A required property that carries a default (a discriminator value, for
+           one) is filled with that default when the key is absent. */
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decode({{{dataType}}}.self, forKey: .{{name}})
+            : {{{.}}}
+{{/isEnum}}
+{{#isEnum}}
+        self.{{name}} = try container.decode({{classname}}{{enumName}}.self, forKey: .{{name}})
+{{/isEnum}}
+{{/defaultValue}}
+{{^defaultValue}}
         self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
+{{/defaultValue}}
 {{/required}}
 {{^required}}
 {{#defaultValue}}
@@ -160,6 +174,11 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/defaultValue}}
 {{/required}}
 {{/vendorExtensions.isDuration}}
+{{/vars}}
+{{#vars}}
+{{#isUri}}
+        try ObjectSerializer.requireAbsoluteUri(self.{{name}}, property: "{{baseName}}")
+{{/isUri}}
 {{/vars}}
 {{#isUnevaluatedPropertiesFalse}}
         /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
@@ -204,12 +223,22 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/required}}
 {{/vendorExtensions.isDuration}}
 {{^vendorExtensions.isDuration}}
+{{#isUuid}}
+{{#required}}
+        try container.encode({{name}}.uuidString.lowercased(), forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}?.uuidString.lowercased(), forKey: .{{name}})
+{{/required}}
+{{/isUuid}}
+{{^isUuid}}
 {{#required}}
         try container.encode({{name}}, forKey: .{{name}})
 {{/required}}
 {{^required}}
         try container.encodeIfPresent({{name}}, forKey: .{{name}})
 {{/required}}
+{{/isUuid}}
 {{/vendorExtensions.isDuration}}
 {{/vars}}
     }
@@ -265,7 +294,21 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/vendorExtensions.isDuration}}
 {{^vendorExtensions.isDuration}}
 {{#required}}
+{{#defaultValue}}
+{{^isEnum}}
+        /* A required property that carries a default (a discriminator value, for
+           one) is filled with that default when the key is absent. */
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decode({{{dataType}}}.self, forKey: .{{name}})
+            : {{{.}}}
+{{/isEnum}}
+{{#isEnum}}
+        self.{{name}} = try container.decode({{classname}}{{enumName}}.self, forKey: .{{name}})
+{{/isEnum}}
+{{/defaultValue}}
+{{^defaultValue}}
         self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
+{{/defaultValue}}
 {{/required}}
 {{^required}}
 {{#defaultValue}}
@@ -291,6 +334,11 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
             }
         }
         self.additionalProperties = additionalProperties
+{{#vars}}
+{{#isUri}}
+        try ObjectSerializer.requireAbsoluteUri(self.{{name}}, property: "{{baseName}}")
+{{/isUri}}
+{{/vars}}
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -305,18 +353,29 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/required}}
 {{/vendorExtensions.isDuration}}
 {{^vendorExtensions.isDuration}}
+{{#isUuid}}
+{{#required}}
+        try container.encode({{name}}.uuidString.lowercased(), forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}?.uuidString.lowercased(), forKey: .{{name}})
+{{/required}}
+{{/isUuid}}
+{{^isUuid}}
 {{#required}}
         try container.encode({{name}}, forKey: .{{name}})
 {{/required}}
 {{^required}}
         try container.encodeIfPresent({{name}}, forKey: .{{name}})
 {{/required}}
+{{/isUuid}}
 {{/vendorExtensions.isDuration}}
 {{/vars}}
 
         /* Encode additional properties */
         var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
-        for (key, value) in additionalProperties {
+        let declaredKeys = Set(CodingKeys.allCases.map { $0.rawValue })
+        for (key, value) in additionalProperties where !declaredKeys.contains(key) {
             let codingKey = DynamicCodingKey(stringValue: key)
             try dynamicContainer.encode(value, forKey: codingKey)
         }

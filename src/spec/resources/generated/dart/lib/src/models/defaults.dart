@@ -220,4 +220,10 @@ class Defaults {
     weight,
     ceiling,
   ]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'Defaults(retries: $retries, mode: $mode, label: $label, greeting: $greeting, swatch: $swatch, ratio: $ratio, scale: $scale, weight: $weight, ceiling: $ceiling)';
 }

@@ -30,16 +30,16 @@ analyser, and Rector configuration. Run any of them via Composer's
 `vendor/bin`:
 
 ```bash
-# Formatter — PHP-CS-Fixer (PHP84Migration + PHP82Migration:risky rulesets)
+# Formatter — PHP-CS-Fixer (@PSR12 ruleset)
 vendor/bin/php-cs-fixer fix
 
-# Linter — PHP_CodeSniffer (PSR-12 + SlevomatCodingStandard)
+# Linter — PHP_CodeSniffer (PSR-12)
 vendor/bin/phpcs
 
 # Static analyser — PHPStan at level 9 (max)
 vendor/bin/phpstan analyse
 
-# Automated upgrades — Rector (UP_TO_PHP_84 + DEAD_CODE + CODE_QUALITY + TYPE_DECLARATION)
+# Automated upgrades — Rector (UP_TO_PHP_84 + DEAD_CODE + CODE_QUALITY + EARLY_RETURN + TYPE_DECLARATION)
 vendor/bin/rector
 ```
 

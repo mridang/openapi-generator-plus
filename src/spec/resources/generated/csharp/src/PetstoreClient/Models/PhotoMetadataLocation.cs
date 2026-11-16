@@ -47,8 +47,8 @@ public class PhotoMetadataLocation : IEquatable<PhotoMetadataLocation>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Lat=").Append(this.Lat);
-        sb.Append(", Lng=").Append(this.Lng);
+        sb.Append("Lat=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Lat));
+        sb.Append(", Lng=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Lng));
         sb.Append('}');
         return sb.ToString();
     }

@@ -113,6 +113,15 @@ defmodule {{moduleName}}.ObjectSerializer do
   """
   @spec parse_json(binary()) :: {:ok, term()} | {:error, String.t() | Jason.DecodeError.t()}
   def parse_json(data) when is_binary(data) do
+    # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
+    # Windows-generated payloads often include one and Jason rejects it.
+    # Strip it here so the success and error-body paths share one rule.
+    data =
+      case data do
+        <<0xEF, 0xBB, 0xBF, rest::binary>> -> rest
+        other -> other
+      end
+
     depth = json_max_depth(data)
 
     if depth > @max_json_depth do
@@ -214,16 +223,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   def deserialize(body, "String") when is_binary(body), do: body
 
   def deserialize(json_string, target_type) when is_binary(json_string) do
-    # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
-    # Windows-generated payloads often include one and Jason rejects it.
-    # Strip it silently.
-    stripped =
-      case json_string do
-        <<0xEF, 0xBB, 0xBF, rest::binary>> -> rest
-        other -> other
-      end
-
-    case parse_json(stripped) do
+    case parse_json(json_string) do
       {:ok, data} -> convert_guarded(data, target_type)
       {:error, reason} -> raise {{moduleName}}.Errors.SerializationError, message: "Failed to parse JSON: #{inspect(reason)}"
     end
@@ -291,6 +291,28 @@ defmodule {{moduleName}}.ObjectSerializer do
   def stringify(%Duration{} = d), do: format_protobuf_duration(d)
 
   def stringify(value), do: to_string(value)
+
+  @doc """
+  Base64-encode a `format: byte` parameter value.
+
+  A byte parameter travels as standard-alphabet RFC 4648 base64 with padding
+  (`"hi"` becomes `"aGk="`). A list (an array of bytes) is encoded element by
+  element, and `nil` stays `nil` so an omitted parameter is still omitted.
+
+  ## Parameters
+
+    * `value` - The raw bytes, a list of raw bytes, a set of raw bytes or `nil`.
+
+  ## Returns
+
+    The base64 text, the list of base64 texts, or `nil`.
+  """
+  @spec encode_base64_param(term()) :: term()
+  def encode_base64_param(nil), do: nil
+  def encode_base64_param(value) when is_binary(value), do: Base.encode64(value)
+  def encode_base64_param(%MapSet{} = set), do: set |> MapSet.to_list() |> encode_base64_param()
+  def encode_base64_param(value) when is_list(value), do: Enum.map(value, &encode_base64_param/1)
+  def encode_base64_param(value), do: value
 
   @doc """
   Convert a value to a string suitable for use as a URL path parameter.
@@ -737,7 +759,7 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   def convert_to_type(data, "Array<" <> rest) when is_list(data) do
     sub_type = String.trim_trailing(rest, ">")
-    Enum.map(data, fn item -> convert_to_type(item, sub_type) end)
+    Enum.map(data, fn item -> convert_element(item, sub_type) end)
   end
 
   def convert_to_type(data, "MapSet.t(" <> rest) when is_list(data) do
@@ -749,7 +771,7 @@ defmodule {{moduleName}}.ObjectSerializer do
     sub_type = String.trim_trailing(rest, ">")
 
     Map.new(data, fn {key, value} ->
-      {key, convert_to_type(value, sub_type)}
+      {key, convert_element(value, sub_type)}
     end)
   end
 
@@ -778,7 +800,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   # unchanged.
   def convert_to_type(data, "[" <> rest) when is_list(data) do
     sub_type = String.replace_suffix(rest, "]", "")
-    Enum.map(data, fn item -> convert_to_type(item, sub_type) end)
+    Enum.map(data, fn item -> convert_element(item, sub_type) end)
   end
 
   # An array descriptor ("[Inner]") given a NON-list payload is a type
@@ -801,7 +823,7 @@ defmodule {{moduleName}}.ObjectSerializer do
     sub_type = String.replace_suffix(rest, "}", "")
 
     Map.new(data, fn {key, value} ->
-      {key, convert_to_type(value, sub_type)}
+      {key, convert_element(value, sub_type)}
     end)
   end
 
@@ -852,6 +874,26 @@ defmodule {{moduleName}}.ObjectSerializer do
         data
     end
   end
+
+  # An array or map element. The elements of a container are never nullable
+  # here, so a null where the element type is a generated model (struct, oneOf
+  # or anyOf) is a type mismatch; any other null element is passed through as
+  # before.
+  @spec convert_element(term(), String.t()) :: term()
+  defp convert_element(nil, type) do
+    module = resolve_model_module(type)
+
+    if Enum.any?([{:openapi_types, 0}, {:openapi_one_of, 0}, {:openapi_any_of, 0}], fn {fun, arity} ->
+         function_exported?(module, fun, arity)
+       end) do
+      raise {{moduleName}}.Errors.SerializationError,
+        message: "Expected an object for #{type}, got null"
+    else
+      nil
+    end
+  end
+
+  defp convert_element(item, type), do: convert_to_type(item, type)
 
   @spec raise_unknown_inline_enum(String.t(), [{String.t(), term()}]) :: no_return()
   defp raise_unknown_inline_enum(str, members) do

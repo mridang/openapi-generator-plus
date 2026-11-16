@@ -47,8 +47,9 @@ public class Error : IEquatable<Error>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Code=").Append(this.Code);
-        sb.Append(", Message=").Append(this.Message);
+        sb.Append("Code=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Code));
+        sb.Append(", Message=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Message));
         sb.Append('}');
         return sb.ToString();
     }

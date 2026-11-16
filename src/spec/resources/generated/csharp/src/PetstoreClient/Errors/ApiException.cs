@@ -102,10 +102,12 @@ public class ApiException : OpenAPIException
         {
             try
             {
-                /* Cap the nesting depth so a deeply-nested error payload is
+                /* A leading BOM is stripped first, as on the success path.
+                 * Cap the nesting depth so a deeply-nested error payload is
                  * refused before it can recurse through the call stack. */
+                string jsonBody = responseBody[0] == '\uFEFF' ? responseBody[1..] : responseBody;
                 using var document = System.Text.Json.JsonDocument.Parse(
-                    responseBody,
+                    jsonBody,
                     new System.Text.Json.JsonDocumentOptions
                     {
                         MaxDepth = ObjectSerializer.MaxJsonDepth,

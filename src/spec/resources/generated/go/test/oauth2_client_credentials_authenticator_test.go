@@ -101,7 +101,7 @@ func TestMachineAuthWrapper_SendsDeclaredScopes(t *testing.T) {
 
 	authObj.AuthHeaders()
 
-	if !strings.Contains(client.LastBody, "scope=pets%3Awrite+pets%3Aread") {
+	if !strings.Contains(client.LastBody, "scope=pets%3Aread+pets%3Awrite") {
 		t.Errorf("expected body to carry the declared scopes, got %q", client.LastBody)
 	}
 }

@@ -1584,4 +1584,51 @@ class DefaultApiClientUnitTest {
       server.stop(0);
     }
   }
+
+  @Test
+  void timeoutIsOneBudgetAcrossRedirectHops() throws Exception {
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    for (Map.Entry<String, String> hop : Map.of("/h1", "/h2", "/h2", "/h3").entrySet()) {
+      server.createContext(
+          hop.getKey(),
+          exchange -> {
+            try {
+              Thread.sleep(400);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            exchange.getResponseHeaders().add("Location", hop.getValue());
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+          });
+    }
+    server.createContext(
+        "/h3",
+        exchange -> {
+          try {
+            Thread.sleep(400);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+
+    try {
+      TransportOptions transport =
+          TransportOptions.builder().followRedirects(true).timeout(1000).build();
+      DefaultApiClient client = new DefaultApiClient(transport);
+      assertThrowsExactly(
+          {{invokerPackage}}.errors.NetworkTimeoutException.class,
+          () ->
+              client.sendRequest(
+                  "GET",
+                  "http://localhost:" + server.getAddress().getPort() + "/h1",
+                  new HashMap<>(),
+                  null));
+    } finally {
+      server.stop(0);
+    }
+  }
 }

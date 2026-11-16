@@ -47,7 +47,7 @@ internal static class ValueSerializer
             return location == "query" ? null : "";
         }
 
-        if (value is IList list && value is not byte[])
+        if (AsArray(value) is { } list)
         {
             if (location == "query")
             {
@@ -79,6 +79,20 @@ internal static class ValueSerializer
         string str = ObjectSerializer.Stringify(value);
 
         return location == "path" ? EncodePathSegment(str) : str;
+    }
+
+    /* Returns the value as a list when it is an array-like parameter (a list
+     * or a uniqueItems set), so both expand identically; strings, byte arrays
+     * and dictionaries are scalars here. */
+    private static IList? AsArray(object? value)
+    {
+        return value switch
+        {
+            null or string or byte[] or IDictionary => null,
+            IList list => list,
+            IEnumerable sequence => sequence.Cast<object>().ToList(),
+            _ => null,
+        };
     }
 
     /// <summary>
@@ -220,7 +234,7 @@ internal static class ValueSerializer
         if (
             location == "path"
             && value is not null
-            && (value is not IList || value is byte[])
+            && AsArray(value) is null
             && (string.IsNullOrEmpty(style) || style == "simple")
         )
         {
@@ -245,7 +259,7 @@ internal static class ValueSerializer
         }
 
         List<string>? items = null;
-        if (value is IList list && value is not byte[])
+        if (AsArray(value) is { } list)
         {
             items = [.. list.Cast<object>().Select(ObjectSerializer.Stringify)];
         }

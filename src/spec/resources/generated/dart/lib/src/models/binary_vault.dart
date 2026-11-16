@@ -80,4 +80,10 @@ class BinaryVault {
     const DeepCollectionEquality().hash(shards),
     const DeepCollectionEquality().hash(labels),
   ]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'BinaryVault(seal: $seal, shards: $shards, labels: $labels)';
 }

@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.TreeSet;
@@ -1134,7 +1135,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             this.authorizationUrl = authorizationUrl;
             this.refreshUrl = refreshUrl;
             this.openIdConnectUrl = openIdConnectUrl;
-            this.scopes = scopes != null ? Collections.unmodifiableMap(new HashMap<>(scopes)) : null;
+            this.scopes = scopes != null ? Collections.unmodifiableMap(new LinkedHashMap<>(scopes)) : null;
         }
 
         public String schemeName() { return schemeName; }

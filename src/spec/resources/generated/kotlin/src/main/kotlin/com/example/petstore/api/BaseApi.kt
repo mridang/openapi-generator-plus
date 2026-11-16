@@ -338,7 +338,19 @@ abstract class BaseApi {
                 } else if (responseContentType.isNotEmpty() &&
                     !headerSelector.isJsonMime(responseContentType)
                 ) {
-                    response.body as T
+                    // A non-JSON success body is returned verbatim only for a
+                    // String return type with a text-class Content-Type; any
+                    // other return type is a serialization error rather than
+                    // an unchecked cast.
+                    if (T::class == String::class && isTextResponseContentType(responseContentType)) {
+                        response.body as T
+                    } else {
+                        throw com.example.petstore.errors.SerializationException(
+                            "Unexpected response Content-Type '" +
+                                responseContentType.substringBefore(';').trim() +
+                                "' for " + T::class.simpleName + ".invokeApiForResult: expected a JSON body",
+                        )
+                    }
                 } else {
                     objectSerializer.deserialize<T>(response.body)
                 }

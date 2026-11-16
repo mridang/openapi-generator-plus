@@ -19,7 +19,7 @@ func (a UserAuthAuthorizationCodeAuthenticator) GoString() string {
 }
 
 func NewUserAuthAuthorizationCodeAuthenticator(host string, clientId string, clientSecret string, redirectUri string) *UserAuthAuthorizationCodeAuthenticator {
-	inner := NewOAuth2AuthorizationCodeAuthenticator(host, clientId, clientSecret, "https://auth.example.com/authorize", "https://auth.example.com/oauth/token", redirectUri, []string{"pets:write", "pets:read"}, "https://auth.example.com/oauth/refresh")
+	inner := NewOAuth2AuthorizationCodeAuthenticator(host, clientId, clientSecret, "https://auth.example.com/authorize", "https://auth.example.com/oauth/token", redirectUri, []string{"pets:read", "pets:write"}, "https://auth.example.com/oauth/refresh")
 	return &UserAuthAuthorizationCodeAuthenticator{
 		OAuth2AuthorizationCodeAuthenticator: inner,
 	}

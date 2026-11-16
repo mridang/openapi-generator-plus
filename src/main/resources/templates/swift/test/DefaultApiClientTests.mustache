@@ -132,10 +132,12 @@ import FoundationNetworking
         #expect(resp.statusCode == 200)
     }
 
-    @Test func testTimesOutOnSlowEndpoint() async throws {
+    /* The stub answers at once, so no deadline fires here; this only proves a
+     * 1 ms timeout is accepted. The deadlines themselves are asserted on the
+     * built session and on the timeout error mapping in ApiErrorTests. */
+    @Test func testAcceptsTimeoutConfiguration() async throws {
         let transport = TransportOptionsBuilder().timeout(1).build()
         let client = makeClient(transport: transport) { _ in
-            // Stub returns immediately; timeout test verifies config is accepted
             return (self.jsonBody(), 200, [:])
         }
         let resp = try await client.sendRequest(

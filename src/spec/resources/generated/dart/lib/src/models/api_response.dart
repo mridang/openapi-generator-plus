@@ -61,4 +61,10 @@ class ApiResponse {
   /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([code, type, message]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'ApiResponse(code: $code, type: $type, message: $message)';
 }

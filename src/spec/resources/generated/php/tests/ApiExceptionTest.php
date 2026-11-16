@@ -198,6 +198,12 @@ test('fromResponse leaves the error body null when the body is not JSON', functi
     expect($ex->getErrorBody())->toBeNull();
 });
 
+test('fromResponse strips a leading byte order mark before decoding the error body', function (): void {
+    $e = \PetstoreClient\Errors\ApiException::fromResponse(400, [], "\xEF\xBB\xBF{\"code\":7}");
+
+    expect($e->getErrorBody())->toBe(['code' => 7]);
+});
+
 test('fromResponse decodes an error body nested exactly at the depth cap and drops one past it', function (): void {
     $cap = \PetstoreClient\ObjectSerializer::MAX_JSON_DEPTH;
     $atCap = str_repeat('[', $cap) . str_repeat(']', $cap);

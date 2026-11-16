@@ -100,4 +100,7 @@ class TreatmentRecord {
     }
     return TreatmentRecord._(decoded);
   }
+
+  @override
+  String toString() => 'TreatmentRecord($_values)';
 }

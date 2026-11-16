@@ -144,13 +144,18 @@ public class Order : IEquatable<Order>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Id=").Append(this.Id);
-        sb.Append(", PetId=").Append(this.PetId);
-        sb.Append(", Quantity=").Append(this.Quantity);
-        sb.Append(", TrackingId=").Append(this.TrackingId);
-        sb.Append(", ShipDate=").Append(this.ShipDate);
-        sb.Append(", Status=").Append(this.Status);
-        sb.Append(", Complete=").Append(this.Complete);
+        sb.Append("Id=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Id));
+        sb.Append(", PetId=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.PetId));
+        sb.Append(", Quantity=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Quantity));
+        sb.Append(", TrackingId=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.TrackingId));
+        sb.Append(", ShipDate=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.ShipDate));
+        sb.Append(", Status=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Status));
+        sb.Append(", Complete=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Complete));
         sb.Append('}');
         return sb.ToString();
     }

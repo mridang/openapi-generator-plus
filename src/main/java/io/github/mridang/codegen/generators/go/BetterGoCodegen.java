@@ -972,7 +972,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             return List.of("host", "token");
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "\"" + spec.keyParamName() + "\"", "apiKey",
+            return List.of("host", "\"" + goStringBody(java.util.Objects.toString(spec.keyParamName(), "")) + "\"", "apiKey",
                     "ApiKeyLocation" + NamingConvention.PASCAL_CASE.apply(spec.keyIn() != null ? spec.keyIn().toLowerCase(Locale.ROOT) : "header"));
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {

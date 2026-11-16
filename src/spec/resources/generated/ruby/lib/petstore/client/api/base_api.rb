@@ -164,8 +164,17 @@ module Petstore::Client
                    StringIO.new(raw_bytes)
                  elsif !resp_content_type || @header_selector.json_mime?(resp_content_type)
                    ::Petstore::Client::ObjectSerializer.deserialize(response.body, return_type)
-                 else
+                 elsif return_type == 'String'
                    response.body
+                 else
+                   # A non-JSON body can only be returned verbatim for a String
+                   # return type (the transport base64-encodes binary types);
+                   # anything else would be a raw string typed as a model, so
+                   # refuse it and name the Content-Type.
+                   raise ::Petstore::Client::Errors::SerializationError.new(
+                     "Unexpected response Content-Type '#{resp_content_type}' for " \
+                     "#{self.class.name.to_s.split('::').last}.#{method.downcase}: expected a JSON body", nil
+                   )
                  end
         end
 

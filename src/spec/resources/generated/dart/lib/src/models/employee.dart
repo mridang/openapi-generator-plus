@@ -69,4 +69,9 @@ class Employee {
   /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([name, department]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() => 'Employee(name: $name, department: $department)';
 }

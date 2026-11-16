@@ -220,26 +220,36 @@ public class EdgeCases : IEquatable<EdgeCases>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("FreeFormAny=").Append(this.FreeFormAny);
-        sb.Append(", FavoriteColor=").Append(this.FavoriteColor);
-        sb.Append(", PermissionsNote=").Append(this.PermissionsNote);
-        sb.Append(", And=").Append(this.And);
-        sb.Append(", Or=").Append(this.Or);
-        sb.Append(", Not=").Append(this.Not);
-        sb.Append(", Class=").Append(this.Class);
-        sb.Append(", Return=").Append(this.Return);
-        sb.Append(", RetryAfter=").Append(this.RetryAfter);
-        sb.Append(", ExpiresAt=").Append(this.ExpiresAt);
-        sb.Append(", N2fa=").Append(this.N2fa);
-        sb.Append(", Separator=").Append(this.Separator);
-        sb.Append(", Null=").Append(this.Null);
-        sb.Append(", True=").Append(this.True);
-        sb.Append(", False=").Append(this.False);
-        sb.Append(", LastError=").Append(this.LastError);
-        sb.Append(", Outcome=").Append(this.Outcome);
-        sb.Append(", Cutoff=").Append(this.Cutoff);
-        sb.Append(", Phase=").Append(this.Phase);
-        sb.Append(", Slug=").Append(this.Slug);
+        sb.Append("FreeFormAny=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.FreeFormAny));
+        sb.Append(", FavoriteColor=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.FavoriteColor));
+        sb.Append(", PermissionsNote=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.PermissionsNote));
+        sb.Append(", And=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.And));
+        sb.Append(", Or=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Or));
+        sb.Append(", Not=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Not));
+        sb.Append(", Class=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Class));
+        sb.Append(", Return=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Return));
+        sb.Append(", RetryAfter=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.RetryAfter));
+        sb.Append(", ExpiresAt=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.ExpiresAt));
+        sb.Append(", N2fa=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.N2fa));
+        sb.Append(", Separator=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Separator));
+        sb.Append(", Null=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Null));
+        sb.Append(", True=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.True));
+        sb.Append(", False=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.False));
+        sb.Append(", LastError=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.LastError));
+        sb.Append(", Outcome=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Outcome));
+        sb.Append(", Cutoff=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Cutoff));
+        sb.Append(", Phase=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Phase));
+        sb.Append(", Slug=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Slug));
         sb.Append('}');
         return sb.ToString();
     }

@@ -41,6 +41,43 @@ public class ValueSerializerTest
         Assert.Equal("red", ObjectSerializer.Stringify(TestHue.Red));
     }
 
+    // -- uniqueItems sets expand exactly like lists --
+
+    [Fact]
+    public void QuerySetExpandsLikeListNonExploded()
+    {
+        var set = new HashSet<string> { "red" };
+        Assert.Equal(
+            "red",
+            ValueSerializer.SerializeStyled("labels", set, "query", "array", null, "form", false)
+        );
+        var two = new SortedSet<string> { "blue", "red" };
+        Assert.Equal(
+            "blue,red",
+            ValueSerializer.SerializeStyled("labels", two, "query", "array", null, "form", false)
+        );
+    }
+
+    [Fact]
+    public void QuerySetExpandsLikeListExploded()
+    {
+        var two = new SortedSet<string> { "blue", "red" };
+        Assert.Equal(
+            new List<string> { "blue", "red" },
+            ValueSerializer.SerializeStyled("labels", two, "query", "array", null, "form", true)
+        );
+    }
+
+    [Fact]
+    public void QuerySetWithMultiCollectionFormatExpands()
+    {
+        var two = new SortedSet<string> { "blue", "red" };
+        Assert.Equal(
+            new List<string> { "blue", "red" },
+            ValueSerializer.Serialize(two, "query", "array", "multi")
+        );
+    }
+
     // -- path location --
 
     [Fact]

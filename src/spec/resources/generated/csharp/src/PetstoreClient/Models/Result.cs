@@ -42,7 +42,7 @@ public class Result : IEquatable<Result>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Ok=").Append(this.Ok);
+        sb.Append("Ok=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Ok));
         sb.Append('}');
         return sb.ToString();
     }

@@ -951,7 +951,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             constructorSig = "required String host, required String apiKey";
             superCall =
                     "host: host, keyParamName: '"
-                            + spec.keyParamName()
+                            + escapeDartString(java.util.Objects.toString(spec.keyParamName(), ""))
                             + "', apiKey: apiKey, location: ApiKeyLocation."
                             + loc;
         } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {

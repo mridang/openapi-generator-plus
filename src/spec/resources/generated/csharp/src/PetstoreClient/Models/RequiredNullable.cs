@@ -81,7 +81,7 @@ public class RequiredNullable : IEquatable<RequiredNullable>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Note=").Append(this.Note);
+        sb.Append("Note=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Note));
         sb.Append('}');
         return sb.ToString();
     }

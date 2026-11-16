@@ -575,6 +575,44 @@ defmodule PetstoreClient.ValueSerializerTest do
     end
   end
 
+  describe "uniqueItems (MapSet) parameters" do
+    test "a set expands like an array for form style, exploded and not" do
+      set = MapSet.new(["red", "blue"])
+
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "labels",
+               set,
+               :query,
+               "array",
+               nil,
+               "form",
+               false
+             ) ==
+               "blue,red"
+
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "labels",
+               set,
+               :query,
+               "array",
+               nil,
+               "form",
+               true
+             ) ==
+               ["blue", "red"]
+    end
+
+    test "a set expands like an array for the unstyled and header paths" do
+      set = MapSet.new(["red", "blue"])
+
+      assert PetstoreClient.ValueSerializer.serialize(set, :query, "array",
+               collection_format: :multi
+             ) == ["blue", "red"]
+
+      assert PetstoreClient.ValueSerializer.serialize(set, :header, "array") == "blue,red"
+    end
+  end
+
   describe "serialize_deep_object/2" do
     test "basic map returns bracketed keys" do
       result =
@@ -805,6 +843,61 @@ defmodule PetstoreClient.ValueSerializerTest do
           false
         )
       end
+    end
+
+    test "dot-segment path values raise ArgumentError" do
+      for value <- [".", ".."], style <- [nil, "", "simple"] do
+        error =
+          assert_raise ArgumentError, fn ->
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "name",
+              value,
+              :path,
+              "string",
+              nil,
+              style,
+              false
+            )
+          end
+
+        assert error.message == "Path parameter 'name' must not be '.' or '..'"
+      end
+    end
+
+    test "dot-containing path values that are not dot segments are accepted" do
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "name",
+               "a..b",
+               :path,
+               "string",
+               nil,
+               "simple",
+               false
+             ) ==
+               "a..b"
+
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "name",
+               ".hidden",
+               :path,
+               "string",
+               nil,
+               nil,
+               false
+             ) ==
+               ".hidden"
+
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "name",
+               "..",
+               :path,
+               "string",
+               nil,
+               "label",
+               false
+             ) ==
+               "...",
+             "label style prefixes the value so it can never be a dot segment"
     end
 
     test "path value is encoded exactly once (no double-encoding)" do

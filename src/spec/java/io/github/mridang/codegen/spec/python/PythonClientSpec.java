@@ -14,7 +14,7 @@ public class PythonClientSpec extends AbstractClientSpec implements PythonSpec {
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"python -m pytest test/ -v"};
+    return new String[] {"python -m pytest -v"};
   }
 
   @Override

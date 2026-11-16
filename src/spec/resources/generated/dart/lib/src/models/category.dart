@@ -59,4 +59,9 @@ class Category {
   /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([id, name]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() => 'Category(id: $id, name: $name)';
 }

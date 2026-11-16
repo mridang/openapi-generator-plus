@@ -249,10 +249,12 @@ public class PetWithOwner {
     sb.append("id=").append(id);
     sb.append(", name=").append(name);
     sb.append(", category=").append(category);
-    sb.append(", photoUrls=").append(photoUrls);
-    sb.append(", tags=").append(tags);
+    sb.append(", photoUrls=")
+        .append(com.example.petstore.ObjectSerializer.structuralToString(photoUrls));
+    sb.append(", tags=").append(com.example.petstore.ObjectSerializer.structuralToString(tags));
     sb.append(", status=").append(status);
-    sb.append(", location=").append(location);
+    sb.append(", location=")
+        .append(com.example.petstore.ObjectSerializer.structuralToString(location));
     sb.append(", homepageUrl=").append(homepageUrl);
     sb.append(", thumbnailRef=").append(thumbnailRef);
     sb.append(", linkTemplate=").append(linkTemplate);

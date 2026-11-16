@@ -67,10 +67,11 @@ public class BinaryVault : IEquatable<BinaryVault>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Seal=")
-            .Append(this.Seal is null ? "null" : global::System.Convert.ToBase64String(this.Seal));
-        sb.Append(", Shards=").Append(this.Shards);
-        sb.Append(", Labels=").Append(this.Labels);
+        sb.Append("Seal=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Seal));
+        sb.Append(", Shards=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Shards));
+        sb.Append(", Labels=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Labels));
         sb.Append('}');
         return sb.ToString();
     }

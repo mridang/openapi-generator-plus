@@ -16,6 +16,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import java.time.OffsetDateTime
+import kotlin.collections.Map
 
 @Serializable
 data class Metadata(
@@ -55,4 +56,23 @@ data class Metadata(
         result = 31 * result + additionalProperties.hashCode()
         return result
     }
+
+  /* The synthesized data-class toString prints ByteArray fields as an
+   * identity hash (`[B@1b6d3586`), omits the @Transient additionalProperties
+   * bucket and does not look inside containers. This override keeps the
+   * data-class shape but renders byte data by content, containers
+   * element-wise and appends additionalProperties. */
+    override fun toString(): String =
+        listOf(
+            "createdAt=" + renderForToString(createdAt),
+            "additionalProperties=" + renderForToString(additionalProperties),
+        ).joinToString(", ", "Metadata(", ")")
+
+    private fun renderForToString(value: Any?): String =
+        when (value) {
+            is ByteArray -> value.contentToString()
+            is Map<*, *> -> value.entries.joinToString(", ", "{", "}") { "${it.key}=${renderForToString(it.value)}" }
+            is Iterable<*> -> value.joinToString(", ", "[", "]") { renderForToString(it) }
+            else -> value.toString()
+        }
 }

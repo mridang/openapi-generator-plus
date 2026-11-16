@@ -47,7 +47,8 @@ public struct Metadata: Codable, Sendable, Equatable, Hashable {
 
     /* Encode additional properties */
     var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
-    for (key, value) in additionalProperties {
+    let declaredKeys = Set(CodingKeys.allCases.map { $0.rawValue })
+    for (key, value) in additionalProperties where !declaredKeys.contains(key) {
       let codingKey = DynamicCodingKey(stringValue: key)
       try dynamicContainer.encode(value, forKey: codingKey)
     }

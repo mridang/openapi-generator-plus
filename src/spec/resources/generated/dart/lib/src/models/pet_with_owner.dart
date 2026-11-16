@@ -270,4 +270,10 @@ class PetWithOwner {
     nickname,
     ownerName,
   ]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'PetWithOwner(id: $id, name: $name, category: $category, photoUrls: $photoUrls, tags: $tags, status: $status, location: $location, homepageUrl: $homepageUrl, thumbnailRef: $thumbnailRef, linkTemplate: $linkTemplate, ownerEmail: $ownerEmail, weightKg: $weightKg, nickname: $nickname, ownerName: $ownerName)';
 }

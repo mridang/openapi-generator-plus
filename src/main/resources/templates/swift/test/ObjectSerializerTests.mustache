@@ -275,6 +275,15 @@ import Testing
         #expect(ObjectSerializer.stringify(false) == "false")
     }
 
+    @Test func testStringifyDataIsBase64() {
+        #expect(ObjectSerializer.stringify(Data("hi".utf8)) == "aGk=")
+    }
+
+    @Test func testStringifyUUIDIsLowercase() {
+        let uuid = UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")!
+        #expect(ObjectSerializer.stringify(uuid) == "e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
+    }
+
     @Test func testStringifyDate() {
         let date = Date(timeIntervalSince1970: 1705315800)
         let result = ObjectSerializer.stringify(date)
@@ -877,6 +886,29 @@ import Testing
         #expect(throws: SerializationError.self) {
             _ = try ObjectSerializer.resolveAnyOf([String: Any](), candidates: candidates)
         }
+    }
+
+    // MARK: - format: uri is an absolute RFC 3986 URI
+
+    @Test(arguments: ["urn:isbn:0451450523", "mailto:a@b.com", "ftp://x.org/f", "https://example.com/pets/fido"])
+    func testFormatUriAcceptsAbsoluteUris(uri: String) throws {
+        let json = "{\"name\":\"Fido\",\"photoUrls\":[],\"homepageUrl\":\"\(uri)\"}"
+        let pet = try ObjectSerializer.deserialize(json, as: Pet.self)
+        #expect(pet?.homepageUrl == uri)
+    }
+
+    @Test(arguments: ["/relative", "not a uri", ""])
+    func testFormatUriRejectsRelativeReferences(uri: String) {
+        let json = "{\"name\":\"Fido\",\"photoUrls\":[],\"homepageUrl\":\"\(uri)\"}"
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize(json, as: Pet.self)
+        }
+    }
+
+    @Test func testUriReferenceStaysAPlainString() throws {
+        let json = "{\"name\":\"Fido\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb-fido.png\"}"
+        let pet = try ObjectSerializer.deserialize(json, as: Pet.self)
+        #expect(pet?.thumbnailRef == "/assets/thumb-fido.png")
     }
 
     // MARK: - Divergence #10 — required-field deserialisation must hard-fail

@@ -57,10 +57,12 @@ public class Photo : IEquatable<Photo>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Id=").Append(this.Id);
-        sb.Append(", Caption=").Append(this.Caption);
-        sb.Append(", IsPrimary=").Append(this.IsPrimary);
-        sb.Append(", Url=").Append(this.Url);
+        sb.Append("Id=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Id));
+        sb.Append(", Caption=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Caption));
+        sb.Append(", IsPrimary=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.IsPrimary));
+        sb.Append(", Url=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Url));
         sb.Append('}');
         return sb.ToString();
     }

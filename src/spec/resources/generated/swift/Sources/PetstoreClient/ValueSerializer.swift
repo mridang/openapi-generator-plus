@@ -296,6 +296,9 @@ internal enum ValueSerializer {
   /// Preserves nil slots in styled csv/ssv/tsv/pipes arrays by emitting an
   /// empty string for each nil element (OAS csv semantics for `1,,3`).
   private static func toStringArray(_ value: Any?) -> [String]? {
+    if let set = value as? Set<AnyHashable> {
+      return toStringArray(Array(set))
+    }
     if let items = value as? [String] {
       return items
     }

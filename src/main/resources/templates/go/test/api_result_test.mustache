@@ -79,3 +79,19 @@ func TestApiResult_HoldsStructData(t *testing.T) {
 		t.Errorf("Headers[Location] = %q, want %q", result.Headers["Location"], "/resources/7")
 	}
 }
+
+func TestApiResult_HeadersAreCopiedAtConstruction(t *testing.T) {
+	t.Parallel()
+	headers := map[string]string{"Content-Type": "application/json"}
+
+	result := {{packageName}}.NewApiResult[string](200, nil, "", headers)
+	headers["Content-Type"] = "text/plain"
+	headers["X-Added"] = "1"
+
+	if result.Headers["Content-Type"] != "application/json" {
+		t.Errorf("Headers[Content-Type] = %q, want %q", result.Headers["Content-Type"], "application/json")
+	}
+	if _, ok := result.Headers["X-Added"]; ok {
+		t.Error("Headers aliases the caller's map; X-Added leaked into the result")
+	}
+}

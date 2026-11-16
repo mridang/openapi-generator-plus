@@ -53,6 +53,9 @@ class ValueSerializer:
         Returns:
             The serialized string, a list of strings (for 'multi' format), or None.
         """
+        if isinstance(value, (set, frozenset, tuple)):
+            value = list(value)
+
         if value is None:
             if location == 'query':
                 return None
@@ -181,6 +184,9 @@ class ValueSerializer:
         # endpoint, so it is rejected before dispatch like the empty value.
         if location == 'path' and isinstance(value, str) and value in ('.', '..'):
             raise ValueError(f"Path parameter '{param_name}' must not be '.' or '..'")
+
+        if isinstance(value, (set, frozenset, tuple)):
+            value = list(value)
 
         if style is None or style == '':
             return cls.serialize(value, location, schema_type, collection_format)

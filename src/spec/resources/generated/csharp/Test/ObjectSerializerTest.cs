@@ -1588,6 +1588,16 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void ToStringRendersCollectionsAndBytesByContent()
+        {
+            var text = VaultOf().ToString();
+
+            Assert.Contains("Shards=[BAU=, Bg==]", text, StringComparison.Ordinal);
+            Assert.Contains("Labels={first=Bwg=}", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("System.Collections", text, StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void EqualContentDistinctArraysCompareEqual()
         {
             var left = VaultOf();

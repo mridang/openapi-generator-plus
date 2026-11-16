@@ -84,4 +84,10 @@ class PhotoMetadata {
   /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([caption, isPrimary, takenAt, location]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'PhotoMetadata(caption: $caption, isPrimary: $isPrimary, takenAt: $takenAt, location: $location)';
 }

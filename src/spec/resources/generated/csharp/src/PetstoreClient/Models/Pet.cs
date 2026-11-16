@@ -260,19 +260,29 @@ public class Pet : IEquatable<Pet>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Id=").Append(this.Id);
-        sb.Append(", Name=").Append(this.Name);
-        sb.Append(", Category=").Append(this.Category);
-        sb.Append(", PhotoUrls=").Append(this.PhotoUrls);
-        sb.Append(", Tags=").Append(this.Tags);
-        sb.Append(", Status=").Append(this.Status);
-        sb.Append(", Location=").Append(this.Location);
-        sb.Append(", HomepageUrl=").Append(this.HomepageUrl);
-        sb.Append(", ThumbnailRef=").Append(this.ThumbnailRef);
-        sb.Append(", LinkTemplate=").Append(this.LinkTemplate);
-        sb.Append(", OwnerEmail=").Append(this.OwnerEmail);
-        sb.Append(", WeightKg=").Append(this.WeightKg);
-        sb.Append(", Nickname=").Append(this.Nickname);
+        sb.Append("Id=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Id));
+        sb.Append(", Name=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Name));
+        sb.Append(", Category=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Category));
+        sb.Append(", PhotoUrls=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.PhotoUrls));
+        sb.Append(", Tags=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Tags));
+        sb.Append(", Status=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Status));
+        sb.Append(", Location=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Location));
+        sb.Append(", HomepageUrl=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.HomepageUrl));
+        sb.Append(", ThumbnailRef=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.ThumbnailRef));
+        sb.Append(", LinkTemplate=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.LinkTemplate));
+        sb.Append(", OwnerEmail=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.OwnerEmail));
+        sb.Append(", WeightKg=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.WeightKg));
+        sb.Append(", Nickname=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Nickname));
         sb.Append('}');
         return sb.ToString();
     }

@@ -65,4 +65,9 @@ class TreeNode {
   /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([value, child]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() => 'TreeNode(value: $value, child: $child)';
 }

@@ -37,6 +37,8 @@ final class ValueSerializer
         ?string $collectionFormat = null,
     ): string|array|null
     {
+        $value = self::expandCollection($value);
+
         if ($value === null) {
             if ($location === 'query') {
                 return null;
@@ -167,6 +169,23 @@ final class ValueSerializer
     }
 
     /**
+     * Expands a `\Ds\Set` or `\Ds\Sequence` (a `uniqueItems` array parameter) into a
+     * plain array so it serializes exactly like any other array parameter.
+     * Every other value passes through untouched.
+     *
+     * @param mixed $value the raw parameter value
+     * @return mixed the array for a Set or Sequence, otherwise the value untouched
+     */
+    private static function expandCollection(mixed $value): mixed
+    {
+        if ($value instanceof \Ds\Set || $value instanceof \Ds\Sequence) {
+            return $value->toArray();
+        }
+
+        return $value;
+    }
+
+    /**
      * Serialize a value using the specified OAS 3.0 parameter style.
      *
      * Supports simple, form, matrix, label, spaceDelimited, and pipeDelimited
@@ -191,6 +210,8 @@ final class ValueSerializer
         ?string $style,
         bool $explode
     ): string|array|null {
+        $value = self::expandCollection($value);
+
         /* Path parameters are required components of the URL — accepting an
          * empty string would silently produce a malformed URL like
          * `/resource//details`, which most servers route to 404 instead of

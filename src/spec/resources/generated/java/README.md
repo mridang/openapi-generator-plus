@@ -14,7 +14,7 @@ The generated project comes pre-wired with the following Maven plugins:
 | Tool | Plugin | Invoke |
 | --- | --- | --- |
 | Formatter | `spotless-maven-plugin` (google-java-format) | `mvn spotless:apply` (write) / `mvn spotless:check` (verify) |
-| Linter | `maven-checkstyle-plugin` (`checkstyle.xml` at project root) | `mvn checkstyle:check` |
+| Linter | `maven-checkstyle-plugin` (bundled `google_checks.xml` plus `checkstyle-suppressions.xml`) | `mvn checkstyle:check` |
 | Static analyser | `spotbugs-maven-plugin` | `mvn spotbugs:check` |
 | Static analyser (compile-time) | Error Prone + NullAway (via `maven-compiler-plugin`) | `mvn compile` |
 | Auto-upgrader | `rewrite-maven-plugin` (`org.openrewrite.java.migrate.UpgradeToJava25` recipe) | `mvn rewrite:run` |

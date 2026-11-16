@@ -52,8 +52,8 @@ public class Tag : IEquatable<Tag>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Id=").Append(this.Id);
-        sb.Append(", Name=").Append(this.Name);
+        sb.Append("Id=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Id));
+        sb.Append(", Name=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Name));
         sb.Append('}');
         return sb.ToString();
     }

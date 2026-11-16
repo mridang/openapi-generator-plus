@@ -525,6 +525,31 @@ internal enum ObjectSerializer {
         return try deserialize(data, as: type)
     }
 
+    /// Validates a `format: uri` value: an absolute RFC 3986 URI (a scheme
+    /// followed by `:`, with no whitespace or control characters). Relative
+    /// references and empty strings are rejected with a ``SerializationError``;
+    /// a `nil` (absent) value is accepted. The text itself is never changed.
+    static func requireAbsoluteUri(_ value: String?, property: String) throws {
+        guard let value = value else { return }
+        let scalars = Array(value.unicodeScalars)
+        let hasBadScalar = scalars.contains { scalar in
+            scalar.properties.isWhitespace || scalar.value < 0x20 || scalar.value == 0x7F
+        }
+        let schemeEnd = scalars.firstIndex(of: ":")
+        var validScheme = false
+        if let end = schemeEnd, end > 0, scalars[0].isASCII, scalars[0].properties.isAlphabetic {
+            validScheme = scalars[..<end].allSatisfy { scalar in
+                scalar.isASCII
+                    && (scalar.properties.isAlphabetic || ("0"..."9").contains(scalar)
+                        || scalar == "+" || scalar == "-" || scalar == ".")
+            }
+        }
+        if hasBadScalar || !validScheme {
+            throw SerializationError(
+                message: "Property '\(property)' must be an absolute URI (RFC 3986): \(value)")
+        }
+    }
+
     /// Convert a scalar value to its canonical string representation.
     ///
     /// Booleans produce lowercase `"true"`/`"false"`. `Date` values are
@@ -575,6 +600,13 @@ internal enum ObjectSerializer {
         case let rawInt64 as any RawRepresentable where rawInt64.rawValue is Int64:
             /* Int64-backed enum variant of the branch above. */
             return (rawInt64.rawValue as? Int64).map { "\($0)" } ?? "\(value)"
+        case let data as Data:
+            /* `format: byte` parameters are base64 text on the wire; without
+             * this branch `Data.description` would yield `2 bytes`. */
+            return data.base64EncodedString()
+        case let uuid as UUID:
+            /* RFC 9562 requires lowercase output; `uuidString` is uppercase. */
+            return uuid.uuidString.lowercased()
         case let desc as CustomStringConvertible:
             return desc.description
         default:

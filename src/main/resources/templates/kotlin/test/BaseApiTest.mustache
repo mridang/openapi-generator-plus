@@ -1003,6 +1003,27 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("text/plain response for a non-String return type is a serialization error naming the Content-Type")
+        fun textPlainResponseForNonStringTypeIsSerializationError() {
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
+                ): ApiHttpResponse {
+                    return ApiHttpResponse(200, "hello", mapOf("Content-Type" to "text/plain; charset=utf-8"))
+                }
+            }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val ex = assertThrows(
+                {{invokerPackage}}.errors.SerializationException::class.java
+            ) {
+                runBlocking {
+                    testApi.callForResult<Int>("GET", "/api/text", accepts = arrayOf("text/plain"))
+                }
+            }
+            assertTrue(ex.message!!.contains("text/plain"))
+        }
+
+        @Test
         @DisplayName("octet-stream with empty body yields empty raw body")
         fun octetStreamEmptyBodyYieldsEmpty() {
             val client = object : CapturingApiClient() {

@@ -293,7 +293,7 @@ public sealed class ClientTest : IDisposable
             authorizeUrl,
             StringComparison.Ordinal
         );
-        Assert.Contains("scope=pets%3Awrite%20pets%3Aread", authorizeUrl, StringComparison.Ordinal);
+        Assert.Contains("scope=pets%3Aread%20pets%3Awrite", authorizeUrl, StringComparison.Ordinal);
         Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
         Assert.Equal(
             "https://auth.example.com/oauth/refresh",
@@ -318,7 +318,7 @@ public sealed class ClientTest : IDisposable
             StringComparison.Ordinal
         );
         Assert.Contains(
-            "scope=pets%3Awrite+pets%3Aread",
+            "scope=pets%3Aread+pets%3Awrite",
             transport.Requests[0].Body,
             StringComparison.Ordinal
         );

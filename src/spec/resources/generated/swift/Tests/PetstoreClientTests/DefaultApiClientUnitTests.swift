@@ -933,6 +933,38 @@ import Testing
     #expect(config.requestCachePolicy == .reloadIgnoringLocalCacheData)
   }
 
+  #if !os(Linux)
+    /* With no proxy configured the session must not pick up the system proxy
+       settings: an empty dictionary switches them off. */
+    @Test func testSessionIgnoresSystemProxyWhenNoProxyConfigured() throws {
+      let (session, _) = try DefaultApiClient.buildSession(TransportOptionsBuilder().build())
+      #expect(session.configuration.connectionProxyDictionary?.isEmpty == true)
+    }
+  #endif
+
+  /* The SDK's own Proxy-Authorization survives a redirect hop; on a
+     cross-origin hop to https it is withheld. */
+  @Test func testProxyAuthorizationIsReappliedOnRedirect() {
+    var sameOrigin = URLRequest(url: URL(string: "https://example.com/b")!)
+    DefaultApiClient.reapplyProxyAuthorization(
+      to: &sameOrigin, header: "Basic abc", crossOrigin: false)
+    #expect(sameOrigin.value(forHTTPHeaderField: "Proxy-Authorization") == "Basic abc")
+
+    var crossHttp = URLRequest(url: URL(string: "http://other.example/b")!)
+    DefaultApiClient.reapplyProxyAuthorization(
+      to: &crossHttp, header: "Basic abc", crossOrigin: true)
+    #expect(crossHttp.value(forHTTPHeaderField: "Proxy-Authorization") == "Basic abc")
+
+    var crossHttps = URLRequest(url: URL(string: "https://other.example/b")!)
+    DefaultApiClient.reapplyProxyAuthorization(
+      to: &crossHttps, header: "Basic abc", crossOrigin: true)
+    #expect(crossHttps.value(forHTTPHeaderField: "Proxy-Authorization") == nil)
+
+    var none = URLRequest(url: URL(string: "https://example.com/b")!)
+    DefaultApiClient.reapplyProxyAuthorization(to: &none, header: nil, crossOrigin: false)
+    #expect(none.value(forHTTPHeaderField: "Proxy-Authorization") == nil)
+  }
+
   /* noRedirect requests (OAuth2 token calls) share ONE long-lived session
      built from the primary configuration, rather than a fresh, never
      invalidated session per call that dropped the proxy and timeouts. */

@@ -81,4 +81,9 @@ class SetPetAvatarRequest {
   @override
   int get hashCode =>
       Object.hashAll([const DeepCollectionEquality().hash(data), mimeType]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() => 'SetPetAvatarRequest(data: $data, mimeType: $mimeType)';
 }

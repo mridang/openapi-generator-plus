@@ -82,6 +82,14 @@ defmodule PetstoreClient.ApiErrorTest do
     assert err.response_body == ~s("overloaded")
   end
 
+  test "from_response parses an error body that starts with a UTF-8 BOM" do
+    body = <<0xEF, 0xBB, 0xBF>> <> ~s({"code":1})
+    err = PetstoreClient.Errors.ApiError.from_response(404, %{}, body)
+
+    assert err.error_body == %{"code" => 1}
+    assert err.response_body == body
+  end
+
   test "from_response refuses a deeply nested error body but keeps the raw one" do
     body = String.duplicate("[", 1_500) <> String.duplicate("]", 1_500)
     err = PetstoreClient.Errors.ApiError.from_response(500, %{}, body)

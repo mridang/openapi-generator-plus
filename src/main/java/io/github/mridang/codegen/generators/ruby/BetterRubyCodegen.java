@@ -1132,7 +1132,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             return List.of("host", "token");
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "'" + spec.keyParamName() + "'", "api_key",
+            return List.of("host", toRubyStringLiteral(java.util.Objects.toString(spec.keyParamName(), "")), "api_key",
                     "ApiKeyLocation::" + spec.keyIn());
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {

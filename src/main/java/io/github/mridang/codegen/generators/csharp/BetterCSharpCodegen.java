@@ -808,7 +808,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             constructorSig = "string host, string apiKey";
             superCall =
                     "host, \""
-                            + spec.keyParamName()
+                            + escapeStringLiteralBody(java.util.Objects.toString(spec.keyParamName(), ""))
                             + "\", apiKey, ApiKeyLocation."
                             + loc;
             namespaceSuffix = null;

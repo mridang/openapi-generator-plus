@@ -408,6 +408,16 @@ class TestMultipartFilenameSanitization:
         # ASCII fallback must still be present and quote-safe
         assert '"' not in ascii_fallback or '\\"' in ascii_fallback
 
+    def test_non_ascii_name_gets_one_underscore_per_code_point(self) -> None:
+        ascii_fallback, rfc5987 = _sanitize_multipart_filename("résumé*(1).pdf")
+        assert ascii_fallback == "r_sum_*(1).pdf"
+        assert rfc5987 == "UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf"
+
+    def test_emoji_name_gets_a_single_underscore(self) -> None:
+        ascii_fallback, rfc5987 = _sanitize_multipart_filename("\U0001f600.png")
+        assert ascii_fallback == "_.png"
+        assert rfc5987 == "UTF-8''%F0%9F%98%80.png"
+
     def test_multipart_body_rejects_filename_injection(self) -> None:
         import io
 
@@ -1018,6 +1028,9 @@ class TestRedirectLocationResolution:
             == "FILE:///etc/passwd"
         )
 
+    def test_unparseable_location_resolves_to_none(self) -> None:
+        assert DefaultApiClient._resolve_url(self.BASE, "http://[bad") is None
+
     def test_followed_query_only_redirect_requests_the_resolved_url(self) -> None:
         class _Pool:
             def __init__(self) -> None:
@@ -1110,6 +1123,39 @@ class TestRedirectExhaustion:
         client = DefaultApiClient(transport, pool_manager=_Pool())
         response = client.send_request("GET", "https://example.com/start", {}, None)
         assert response.status_code == 302
+
+    def test_unparseable_location_returns_the_3xx_without_raising(self) -> None:
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return _FakeResp(302, {"location": "http://[bad"})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        response = client.send_request("GET", "https://example.com/start", {}, None)
+        assert response.status_code == 302
+
+    def test_redirect_hops_share_one_timeout_budget(self) -> None:
+        import time
+
+        from petstore_client.errors import NetworkTimeoutException
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls += 1
+                time.sleep(0.06)
+                return _FakeResp(302, {"location": "http://example.com/next"})
+
+        pool = _Pool()
+        transport = (
+            TransportOptions.builder().follow_redirects(True).timeout(100).build()
+        )
+        client = DefaultApiClient(transport, pool_manager=pool)
+        with pytest.raises(NetworkTimeoutException):
+            client.send_request("GET", "http://example.com/start", {}, None)
+        assert pool.calls == 2
 
 
 class TestUseAfterClose:

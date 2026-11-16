@@ -86,8 +86,8 @@ public class Department : IEquatable<Department>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Name=").Append(this.Name);
-        sb.Append(", Lead=").Append(this.Lead);
+        sb.Append("Name=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Name));
+        sb.Append(", Lead=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Lead));
         sb.Append('}');
         return sb.ToString();
     }

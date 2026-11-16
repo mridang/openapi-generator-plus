@@ -11,14 +11,16 @@ class ApiResult<T> {
   /// The raw response body string (never null; empty for no body).
   final String rawBody;
 
-  /// The response headers.
+  /// The response headers (an unmodifiable copy).
   final Map<String, String> headers;
 
-  /// Creates a typed API response.
-  const ApiResult({
+  /// Creates a typed API response. The headers are copied into an
+  /// unmodifiable map, so mutating the argument afterwards, or the result's
+  /// headers, never touches the other.
+  ApiResult({
     required this.statusCode,
     required this.data,
     required this.rawBody,
-    required this.headers,
-  });
+    required Map<String, String> headers,
+  }) : headers = Map.unmodifiable(headers);
 }

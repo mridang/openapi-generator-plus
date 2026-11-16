@@ -289,7 +289,7 @@ class TestMachineAuthWrapper:
         assert call[0][1] == "https://auth.example.com/oauth/token"
         assert call[0][3] == (
             "grant_type=client_credentials&client_id=cid&client_secret=sec"
-            "&scope=pets%3Awrite+pets%3Aread"
+            "&scope=pets%3Aread+pets%3Awrite"
         )
         assert auth.get_host() == "https://api.example.com"
 

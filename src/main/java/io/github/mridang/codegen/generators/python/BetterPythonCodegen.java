@@ -142,7 +142,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         typeMapping.put("duration", "ProtobufDuration");
         typeMapping.put("UUID", "uuid.UUID");
         // Item 1: format: uri → UrlStr, a `str` whose AfterValidator asserts
-        // the value is a valid absolute http(s) URL but returns it verbatim.
+        // the value is an absolute RFC 3986 URI (any scheme) but returns it verbatim.
         // pydantic.HttpUrl validates AND normalizes (lowercases host, strips a
         // default port, appends a trailing slash), which makes the JSON
         // round-trip lossy — `https://example.com` would re-encode as

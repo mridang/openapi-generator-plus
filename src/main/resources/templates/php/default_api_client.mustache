@@ -136,6 +136,31 @@ class DefaultApiClient extends AbstractApiClient
     }
 
     /**
+     * Builds a file or raw-bytes form part without a Content-Transfer-Encoding
+     * header.
+     *
+     * DataPart forces a Content-Transfer-Encoding of 8bit onto every part,
+     * which the in-memory multipart encoder of {@see Psr18ApiClient} never
+     * sends. DataPart::fromPath() always returns a plain DataPart, so the part
+     * is built here from a {@see File} or a byte string instead, and the header
+     * is dropped from the prepared headers.
+     *
+     * @param string|\Symfony\Component\Mime\Part\File $body the file or the raw bytes
+     */
+    private static function binaryFormPart(string|\Symfony\Component\Mime\Part\File $body, string $filename, string $mime): DataPart
+    {
+        return new class ($body, $filename, $mime) extends DataPart {
+            public function getPreparedHeaders(): Headers
+            {
+                $headers = parent::getPreparedHeaders();
+                $headers->remove('Content-Transfer-Encoding');
+
+                return $headers;
+            }
+        };
+    }
+
+    /**
      * Builds a plain text form field part that carries only its
      * Content-Disposition header.
      *
@@ -241,8 +266,8 @@ class DefaultApiClient extends AbstractApiClient
                         $effectiveFilename = $isAscii
                             ? $filename
                             : preg_replace('/[^\x20-\x7E]/u', '_', $filename) ?? $filename;
-                        $dataPart = DataPart::fromPath(
-                            $path !== false ? $path : $v->getPathname(),
+                        $dataPart = self::binaryFormPart(
+                            new \Symfony\Component\Mime\Part\File($path !== false ? $path : $v->getPathname()),
                             $effectiveFilename,
                             $mime
                         );
@@ -266,8 +291,8 @@ class DefaultApiClient extends AbstractApiClient
                         self::validateMultipartFilename($filename);
                         $mime = $this->guessMimeType(null, $filename);
                         try {
-                            $parts[] = new DataPart(
-                                stream_get_contents($v),
+                            $parts[] = self::binaryFormPart(
+                                (string) stream_get_contents($v),
                                 $filename,
                                 $mime
                             );

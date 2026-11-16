@@ -90,6 +90,22 @@ void main() {
       expect(restored['foodType'], equals('dry'));
     });
 
+    test('DryFood fills the discriminator default when its key is absent', () {
+      final food = DryFood.fromJson(<String, dynamic>{'weightKg': 2.5});
+
+      expect(food.foodType, equals('dry'));
+    });
+
+    test('DryFood rejects an explicit null discriminator', () {
+      expect(
+        () => DryFood.fromJson(<String, dynamic>{
+          'foodType': null,
+          'weightKg': 2.5,
+        }),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
     test(
       'PetFood constructor wraps a variant that serializes with its discriminator',
       () {

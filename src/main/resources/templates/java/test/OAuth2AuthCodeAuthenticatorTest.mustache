@@ -146,7 +146,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         auth.getAuthHeaders();
 
         assertTrue(authorizeUrl.startsWith("https://auth.example.com/authorize?"), authorizeUrl);
-        assertTrue(authorizeUrl.endsWith("&scope=pets%3Awrite%20pets%3Aread"), authorizeUrl);
+        assertTrue(authorizeUrl.endsWith("&scope=pets%3Aread%20pets%3Awrite"), authorizeUrl);
         assertEquals(
                 List.of("https://auth.example.com/oauth/token",
                         "https://auth.example.com/oauth/refresh"),

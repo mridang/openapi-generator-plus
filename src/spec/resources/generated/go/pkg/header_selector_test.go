@@ -177,3 +177,39 @@ func TestHeaderSelector_SelectHeadersFiltersOutEmptyEntries(t *testing.T) {
 		t.Errorf("expected Accept 'application/json', got %q", headers["Accept"])
 	}
 }
+
+func TestHeaderSelector_IsTextMIME(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	testCases := []struct {
+		input    string
+		expected bool
+	}{
+		{"text/plain", true},
+		{"TEXT/HTML; charset=utf-8", true},
+		{"application/xml", true},
+		{"application/javascript", true},
+		{"application/atom+xml", true},
+		{"application/json", false},
+		{"application/octet-stream", false},
+		{"", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			if result := hs.isTextMIME(tc.input); result != tc.expected {
+				t.Errorf("isTextMIME(%q) = %v, want %v", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestHeaderSelector_MediaTypeStripsParametersAndLowercases(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	if got := hs.mediaType(" Text/Plain ; charset=utf-8"); got != "text/plain" {
+		t.Errorf("mediaType = %q, want %q", got, "text/plain")
+	}
+}

@@ -30,6 +30,17 @@ class TestApiResult:
         assert result.raw_body == ""
         assert result.headers == {}
 
+    def test_headers_are_a_read_only_copy(self) -> None:
+        source = {"Content-Type": "application/json"}
+        result: ApiResult[None] = ApiResult(
+            status_code=200, data=None, raw_body="", headers=source
+        )
+        source["X-Late"] = "1"
+
+        assert "X-Late" not in result.headers
+        with pytest.raises(TypeError):
+            cast(Any, result.headers)["X-New"] = "1"
+
     def test_is_frozen(self) -> None:
         # ApiResult is an immutable @dataclass(frozen=True); attribute
         # assignment must raise.

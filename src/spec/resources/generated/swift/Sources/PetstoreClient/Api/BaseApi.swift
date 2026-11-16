@@ -86,6 +86,8 @@ public class BaseApi: @unchecked Sendable {
     let contentType: String
     let returnType: String
     let auth: Authenticator?
+    /// `Class.operationId` of the calling operation, named in errors.
+    var operation: String = ""
     /// True when the operation's body parameter is `format: binary`: the
     /// caller's bytes are sent unchanged under whichever declared
     /// Content-Type was selected, never re-encoded as JSON.
@@ -283,8 +285,15 @@ public class BaseApi: @unchecked Sendable {
          servers strip Content-Type from JSON responses. */
       if isJsonResponse {
         data = try ObjectSerializer.deserialize(response.body, as: type)
-      } else {
+      } else if type == String.self {
         data = response.body as? T
+      } else {
+        let mediaType =
+          responseContentType.split(separator: ";").first
+          .map { $0.trimmingCharacters(in: .whitespaces) } ?? responseContentType
+        throw SerializationError(
+          message: "Unexpected response Content-Type '\(mediaType)' for "
+            + "\(params.operation): expected a JSON body")
       }
     }
     return ApiResult<T>(
@@ -293,6 +302,15 @@ public class BaseApi: @unchecked Sendable {
       rawBody: response.body,
       headers: response.headers
     )
+  }
+
+  /// Whether a response Content-Type is text-class: `text/*`,
+  /// `application/xml`, `application/javascript` or any `+xml` type.
+  static func isTextContentType(_ contentType: String) -> Bool {
+    let mediaType = (contentType.split(separator: ";").first.map(String.init) ?? contentType)
+      .trimmingCharacters(in: .whitespaces).lowercased()
+    return mediaType.hasPrefix("text/") || mediaType == "application/xml"
+      || mediaType == "application/javascript" || mediaType.hasSuffix("+xml")
   }
 
   /// Invoke an API operation with no return type and return the full result
@@ -593,8 +611,10 @@ public class BaseApi: @unchecked Sendable {
       }
     }
     let asciiSafe = try sanitizeQuotedHeaderValue(asciiFallback)
-    var allowed = CharacterSet.alphanumerics
-    allowed.insert(charactersIn: "!#$&+-.^_`|~")
+    /* RFC 3986 unreserved only: `CharacterSet.alphanumerics` also holds
+     * non-ASCII letters, so the set is spelled out explicitly. */
+    let allowed = CharacterSet(
+      charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
     let encoded = filename.addingPercentEncoding(withAllowedCharacters: allowed) ?? asciiSafe
     return
       "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(asciiSafe)\"; filename*=UTF-8''\(encoded)"

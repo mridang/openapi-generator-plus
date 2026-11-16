@@ -466,7 +466,7 @@ void main() {
         expect(
           auth.buildAuthorizationUrl(),
           equals(
-            'https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=pets%3Awrite%20pets%3Aread',
+            'https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=pets%3Aread%20pets%3Awrite',
           ),
         );
 

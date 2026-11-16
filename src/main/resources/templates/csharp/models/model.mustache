@@ -544,10 +544,10 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
         {{#vars}}
-        sb.Append("{{^-first}}, {{/-first}}{{name}}=").Append({{#isByteArray}}this.{{name}} is null ? "null" : global::System.Convert.ToBase64String(this.{{name}}){{/isByteArray}}{{^isByteArray}}this.{{name}}{{/isByteArray}});
+        sb.Append("{{^-first}}, {{/-first}}{{name}}=").Append(global::{{packageName}}.ObjectSerializer.Describe(this.{{name}}));
         {{/vars}}
         {{#isAdditionalPropertiesTrue}}
-        sb.Append("{{#hasVars}}, {{/hasVars}}AdditionalProperties=").Append(this.AdditionalProperties);
+        sb.Append("{{#hasVars}}, {{/hasVars}}AdditionalProperties=").Append(global::{{packageName}}.ObjectSerializer.Describe(this.AdditionalProperties));
         {{/isAdditionalPropertiesTrue}}
         sb.Append('}');
         return sb.ToString();
@@ -692,10 +692,10 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
         {{#vars}}
-        sb.Append("{{^-first}}, {{/-first}}{{name}}=").Append({{#isByteArray}}this.{{name}} is null ? "null" : global::System.Convert.ToBase64String(this.{{name}}){{/isByteArray}}{{^isByteArray}}this.{{name}}{{/isByteArray}});
+        sb.Append("{{^-first}}, {{/-first}}{{name}}=").Append(global::{{packageName}}.ObjectSerializer.Describe(this.{{name}}));
         {{/vars}}
         {{#isAdditionalPropertiesTrue}}
-        sb.Append("{{#hasVars}}, {{/hasVars}}AdditionalProperties=").Append(this.AdditionalProperties);
+        sb.Append("{{#hasVars}}, {{/hasVars}}AdditionalProperties=").Append(global::{{packageName}}.ObjectSerializer.Describe(this.AdditionalProperties));
         {{/isAdditionalPropertiesTrue}}
         sb.Append('}');
         return sb.ToString();

@@ -303,7 +303,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     path = "{{{path}}}"
 {{#pathParams}}
 {{=<% %>=}}
-    path = String.replace(path, "{<%baseName%>}", <%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%paramName%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string())
+    path = String.replace(path, "{<%baseName%>}", <%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%paramName%><%/items.isByteArray%><%/isByteArray%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string())
 <%={{ }}=%>
 {{/pathParams}}
 {{#servers}}
@@ -354,7 +354,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
       if not is_nil(options) and not is_nil(options.{{paramName}}) do
         Map.put(query_params, "{{baseName}}",
           {{moduleName}}.ValueSerializer.maybe_allow_reserved(
-            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
+            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}options.{{paramName}}{{/items.isByteArray}}{{/isByteArray}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
             {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
       else
         query_params
@@ -365,7 +365,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
       if not is_nil(options) and not is_nil(options.{{paramName}}){{#isExplode}} and options.{{paramName}} != []{{/isExplode}} do
         Map.put(query_params, "{{baseName}}",
           {{moduleName}}.ValueSerializer.maybe_allow_reserved(
-            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
+            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}options.{{paramName}}{{/items.isByteArray}}{{/isByteArray}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
             {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
       else
         query_params
@@ -376,7 +376,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{#headerParams}}
     header_params =
       if not is_nil(options) and not is_nil(options.{{paramName}}) do
-        Map.put(header_params, "{{baseName}}", {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :header, "{{{dataType}}}", nil, "{{style}}", {{isExplode}}) |> to_string())
+        Map.put(header_params, "{{baseName}}", {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}options.{{paramName}}{{/items.isByteArray}}{{/isByteArray}}, :header, "{{{dataType}}}", nil, "{{style}}", {{isExplode}}) |> to_string())
       else
         header_params
       end
@@ -393,7 +393,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
         # programmer error and would otherwise enable header injection; fail
         # closed with the identical ArgumentError the auth-cookie path raises.
         cookie_value =
-          <%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", options.<%paramName%>, :cookie, "<%& dataType%>", nil, "<%style%>", <%isExplode%>)
+          <%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%>options.<%paramName%><%/items.isByteArray%><%/isByteArray%>, :cookie, "<%& dataType%>", nil, "<%style%>", <%isExplode%>)
           |> to_string()
 
         unless cookie_value =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do

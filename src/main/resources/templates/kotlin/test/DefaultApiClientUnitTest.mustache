@@ -715,15 +715,15 @@ class DefaultApiClientUnitTest {
         fun sensitiveHeaderNamesIncludesApiKeyNames() {
             val names = DefaultApiClient.SENSITIVE_HEADER_NAMES
 {{#apiKeyHeaderNames}}            assertTrue(
-                names.contains("{{lowerName}}"),
-                "expected SENSITIVE_HEADER_NAMES to contain harvested apiKey header '{{lowerName}}'"
+                names.contains("{{#lambda.kotlinString}}{{{lowerName}}}{{/lambda.kotlinString}}"),
+                "expected SENSITIVE_HEADER_NAMES to contain harvested apiKey header '{{#lambda.kotlinString}}{{{lowerName}}}{{/lambda.kotlinString}}'"
             )
 {{/apiKeyHeaderNames}}        }
 
         @Test
         @DisplayName("Gap 3.1: API-key header stripped on cross-origin redirect")
         fun apiKeyHeaderStrippedOnCrossOriginRedirect() {
-{{#apiKeyHeaderNames}}{{#-first}}            val apiKeyHeader = "{{name}}"
+{{#apiKeyHeaderNames}}{{#-first}}            val apiKeyHeader = "{{#lambda.kotlinString}}{{{name}}}{{/lambda.kotlinString}}"
 {{/-first}}{{/apiKeyHeaderNames}}            var hopHeaders: io.ktor.http.Headers? = null
             var hopCount = 0
             val engine = MockEngine { req ->

@@ -1732,5 +1732,19 @@ class ObjectSerializerTest {
             assertThrows(SerializationException.class,
                     () -> serializer.deserialize("[".repeat(1500) + "]".repeat(1500), objectType));
         }
+
+        /* Containers of byte arrays must print their content, not identity. */
+        @Test
+        @DisplayName("structuralToString dumps byte lists and maps by content")
+        void structuralToStringDumpsContainersByContent() {
+            assertEquals(
+                    "[[1, 2], [3]]",
+                    ObjectSerializer.structuralToString(
+                            java.util.List.of(new byte[] {1, 2}, new byte[] {3})));
+            assertEquals(
+                    "{a=[1]}",
+                    ObjectSerializer.structuralToString(java.util.Map.of("a", new byte[] {1})));
+            assertEquals("null", ObjectSerializer.structuralToString(null));
+        }
     }
 }

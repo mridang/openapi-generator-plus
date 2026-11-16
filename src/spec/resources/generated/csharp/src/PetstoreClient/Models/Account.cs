@@ -94,9 +94,11 @@ public class Account : IEquatable<Account>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Id=").Append(this.Id);
-        sb.Append(", Username=").Append(this.Username);
-        sb.Append(", Password=").Append(this.Password);
+        sb.Append("Id=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Id));
+        sb.Append(", Username=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Username));
+        sb.Append(", Password=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Password));
         sb.Append('}');
         return sb.ToString();
     }

@@ -66,7 +66,10 @@ func (o *DryFood) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if rawVal, ok := raw["foodType"]; !ok {
-		return fmt.Errorf("required field 'foodType' is missing in DryFood")
+		/* A required property that carries a default (the synthetic discriminator
+		 * default, or a schema default) is satisfied by that default when absent. */
+		var defaultFoodType string = "dry"
+		aux.FoodType = defaultFoodType
 	} else if string(rawVal) == "null" {
 		return fmt.Errorf("required field 'foodType' must not be null in DryFood")
 	}

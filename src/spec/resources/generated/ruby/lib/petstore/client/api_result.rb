@@ -31,7 +31,7 @@ module Petstore::Client
       @status_code = status_code
       @data = data
       @raw_body = raw_body
-      @headers = headers.freeze
+      @headers = headers.dup.freeze
     end
   end
 end

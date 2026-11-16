@@ -37,6 +37,7 @@ from petstore_client.errors.internal_server_error_exception import (
     InternalServerErrorException,
 )
 from petstore_client.api_http_response import ApiHttpResponse
+from petstore_client.errors.serialization_exception import SerializationException
 from petstore_client.models import Category
 from petstore_client import servers as Servers
 
@@ -1027,6 +1028,25 @@ class TestContentTypeDeserialization:
             "GET", "/test/echo", {}, {}, None, ["text/plain"], "application/json", "str"
         )
         assert result == "hello"
+
+    async def test_non_json_content_type_for_a_model_return_raises(self) -> None:
+        client = PlainTextApiClient()
+        config = Configuration(base_url="http://localhost")
+        stub = StubApi(api_client=client, config=config)
+        with pytest.raises(
+            SerializationException,
+            match="Unexpected response Content-Type 'text/plain'",
+        ):
+            await stub.call(
+                "GET",
+                "/test/echo",
+                {},
+                {},
+                None,
+                ["text/plain"],
+                "application/json",
+                "Pet",
+            )
 
     async def test_deserializes_vendor_json_mime_types(self) -> None:
         client = VendorJsonApiClient()

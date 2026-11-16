@@ -267,7 +267,7 @@ import Testing
       host: "https://api.example.com", clientId: "cid", clientSecret: "csecret")
     #expect(
       String(describing: auth)
-        == "MachineAuthClientCredentialsAuthenticator(host: https://api.example.com, clientID: cid, clientSecret: ***, tokenURL: https://auth.example.com/oauth/token, scopes: [\"pets:write\", \"pets:read\"], clientAuthMethod: \(ClientAuthMethod.body))"
+        == "MachineAuthClientCredentialsAuthenticator(host: https://api.example.com, clientID: cid, clientSecret: ***, tokenURL: https://auth.example.com/oauth/token, scopes: [\"pets:read\", \"pets:write\"], clientAuthMethod: \(ClientAuthMethod.body))"
     )
   }
 }

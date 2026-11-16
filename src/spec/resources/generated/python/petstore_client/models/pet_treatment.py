@@ -100,7 +100,9 @@ class PetTreatment(BaseModel):
         merged: Dict[str, Any] = {}
         for instance in instances:
             if isinstance(instance, BaseModel):
-                part = instance.model_dump(by_alias=True, exclude_none=True)
+                part = instance.model_dump(
+                    mode="json", by_alias=True, exclude_none=True
+                )
             else:
                 part = instance
             if isinstance(part, dict):

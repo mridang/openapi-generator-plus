@@ -312,19 +312,19 @@ impl TransportOptionsBuilder {
                 validate_ca_pem(&pem).map_err(|reason| {
                     ConfigurationError::InvalidCaCertificate(format!("failed to parse {:?}: {}", path, reason))
                 })?;
-                let cert = reqwest::Certificate::from_pem(&pem).map_err(|e| {
+                let certs = reqwest::Certificate::from_pem_bundle(&pem).map_err(|e| {
                     ConfigurationError::InvalidCaCertificate(format!("failed to parse {:?}: {}", path, e))
                 })?;
                 /* A DER-shaped block that is not an X.509 certificate is only
                  * rejected when the TLS config is built, so build a client with
-                 * it now; otherwise `DefaultApiClient::new` would panic. */
-                reqwest::Client::builder()
-                    .tls_built_in_root_certs(false)
-                    .add_root_certificate(cert)
-                    .build()
-                    .map_err(|e| {
-                        ConfigurationError::InvalidCaCertificate(format!("failed to parse {:?}: {}", path, e))
-                    })?;
+                 * every certificate now; otherwise `DefaultApiClient::new` would panic. */
+                let mut probe = reqwest::Client::builder().tls_built_in_root_certs(false);
+                for cert in certs {
+                    probe = probe.add_root_certificate(cert);
+                }
+                probe.build().map_err(|e| {
+                    ConfigurationError::InvalidCaCertificate(format!("failed to parse {:?}: {}", path, e))
+                })?;
                 Some(pem)
             }
         };

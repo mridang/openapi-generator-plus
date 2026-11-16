@@ -54,6 +54,14 @@ import Testing
     #expect(err.errorDescription?.isEmpty == false)
   }
 
+  /* A body that starts with a byte-order mark still populates errorBody,
+   * as it does on the success path. */
+  @Test func testBomPrefixedErrorBodyPopulatesErrorBody() {
+    let err = ApiError.fromResponse(
+      statusCode: 404, headers: [:], body: "\u{FEFF}{\"code\":1}")
+    #expect((err.errorBody as? [String: Any])?["code"] as? Int == 1)
+  }
+
   /* A top-level scalar error body (JSON fragment) populates errorBody like
    * the other SDKs; a bare null stays absent. */
   @Test func testFromResponseParsesScalarJsonBody() {

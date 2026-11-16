@@ -111,6 +111,7 @@ public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
     self.weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg)
     self.nickname = try container.decodeIfPresent(String.self, forKey: .nickname)
     self.ownerName = try container.decode(String.self, forKey: .ownerName)
+    try ObjectSerializer.requireAbsoluteUri(self.homepageUrl, property: "homepageUrl")
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.

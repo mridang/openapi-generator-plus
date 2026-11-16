@@ -106,4 +106,11 @@ class BetterJavaCodegenTypeMappingTest {
         assertNotNull(harvested);
         assertEquals(1, harvested.size(), "duplicate (case-insensitive) names must dedupe");
     }
+
+    /* An apiKey scheme name holding quotes or backslashes must stay one literal. */
+    @Test
+    void apiKeyNameIsEscapedForJavaLiteral() {
+        assertEquals("X-Api\\\"Key\\\\", BetterJavaCodegen.escapeJavaLiteral("X-Api\"Key\\"));
+        assertEquals("X-Api'Key$", BetterJavaCodegen.escapeJavaLiteral("X-Api'Key$"));
+    }
 }

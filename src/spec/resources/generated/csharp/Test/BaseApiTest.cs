@@ -354,6 +354,24 @@ public class BaseApiTest
         Assert.Equal("hello", result);
     }
 
+    [Fact]
+    public async Task RejectsNonJsonContentTypeForNonStringReturn()
+    {
+        var textApi = new TestableApi(new TextPlainApiClient(), "http://localhost");
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            textApi.CallAsync<JsonNode>(
+                "GET",
+                "/test/echo",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+        Assert.Contains("text/plain", ex.Message, StringComparison.Ordinal);
+    }
+
     private sealed class TextPlainApiClient : IApiClient
     {
         public Task<ApiHttpResponse> SendRequestAsync(

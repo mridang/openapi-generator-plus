@@ -65,8 +65,8 @@ public class BinaryVault {
     StringBuilder sb = new StringBuilder();
     sb.append(getClass().getSimpleName()).append("{");
     sb.append("seal=").append(java.util.Arrays.toString(seal));
-    sb.append(", shards=").append(shards);
-    sb.append(", labels=").append(labels);
+    sb.append(", shards=").append(com.example.petstore.ObjectSerializer.structuralToString(shards));
+    sb.append(", labels=").append(com.example.petstore.ObjectSerializer.structuralToString(labels));
     sb.append("}");
     return sb.toString();
   }

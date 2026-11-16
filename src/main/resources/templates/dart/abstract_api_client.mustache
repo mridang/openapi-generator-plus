@@ -235,7 +235,7 @@ abstract class AbstractApiClient implements ApiClient {
           'proxy-authorization',
 {{#apiKeyHeaderNames}}
 {{#nameLower}}
-          '{{nameLower}}',
+          '{{#lambda.dartString}}{{{nameLower}}}{{/lambda.dartString}}',
 {{/nameLower}}
 {{/apiKeyHeaderNames}}
         };

@@ -173,7 +173,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             verifySsl: opts.verifySsl,
             caCertPath: opts.caCertPath,
             followRedirects: opts.followRedirects,
-            maxRedirects: opts.maxRedirects
+            maxRedirects: opts.maxRedirects,
+            proxyAuthHeader: DefaultApiClient.buildProxyAuthHeader(opts.proxy)
         )
         self.session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
         self.sessionDelegate = delegate
@@ -913,6 +914,10 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 #else
         if let proxy = opts.proxy {
             config.connectionProxyDictionary = proxyConnectionDictionary(proxy)
+        } else {
+            /* No proxy unless `TransportOptions.proxy` is set: an empty
+             * dictionary switches the system proxy settings off. */
+            config.connectionProxyDictionary = [:]
         }
 #endif
 
@@ -931,7 +936,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                 verifySsl: opts.verifySsl,
                 caCertPath: opts.caCertPath,
                 followRedirects: opts.followRedirects,
-                maxRedirects: opts.maxRedirects
+                maxRedirects: opts.maxRedirects,
+                proxyAuthHeader: buildProxyAuthHeader(opts.proxy)
             )
             return (URLSession(configuration: config, delegate: delegate, delegateQueue: nil), delegate)
         }
@@ -1019,6 +1025,10 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
     private let caCertPath: String?
     private let followRedirects: Bool
     private let maxRedirects: Int?
+    /* The SDK's own proxy credential, re-applied to every redirected request
+     * after the cross-origin strip (it authenticates to the proxy, which is
+     * the same for every hop, not to the origin). */
+    private let proxyAuthHeader: String?
     /* Redirect counting and the redirect-refusal error are scoped PER
        URLSessionTask, not per delegate instance. One ``SessionDelegate`` backs
        a single ``URLSession`` that is shared across every request a client
@@ -1041,11 +1051,15 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
        re-raised on the call side once that task completes. */
     private let redirectErrors = LockedTaskErrors()
 
-    init(verifySsl: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int?) {
+    init(
+        verifySsl: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int?,
+        proxyAuthHeader: String? = nil
+    ) {
         self.verifySsl = verifySsl
         self.caCertPath = caCertPath
         self.followRedirects = followRedirects
         self.maxRedirects = maxRedirects
+        self.proxyAuthHeader = proxyAuthHeader
         super.init()
     }
 
@@ -1168,13 +1182,17 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
          * (X-API-Key, X-Internal-Token, …) are also stripped on
          * cross-origin hops alongside the RFC-defined three. */
         var redirectRequest = request
+        var crossOrigin = false
         if let originalURL = task.originalRequest?.url,
            let nextURL = request.url,
            !DefaultApiClient.sameOrigin(originalURL, nextURL) {
+            crossOrigin = true
             for sensitive in DefaultApiClient.sensitiveRedirectHeaders {
                 redirectRequest.setValue(nil, forHTTPHeaderField: sensitive)
             }
         }
+        DefaultApiClient.reapplyProxyAuthorization(
+            to: &redirectRequest, header: proxyAuthHeader, crossOrigin: crossOrigin)
 
         /* Refuse to replay a request body across an
          * HTTPS -> HTTP transport downgrade. Replaying the body in
@@ -1243,6 +1261,21 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
 }
 
 extension DefaultApiClient {
+    /// Re-applies the SDK's own `Proxy-Authorization` to a redirected request
+    /// after the cross-origin credential strip, so an authenticated proxy does
+    /// not answer 407 on the later hops. On a cross-origin hop whose target is
+    /// https the header is NOT re-added: there it would travel to an unrelated
+    /// origin inside the TLS tunnel.
+    static func reapplyProxyAuthorization(
+        to request: inout URLRequest, header: String?, crossOrigin: Bool
+    ) {
+        guard let header = header else { return }
+        if crossOrigin && request.url?.scheme?.lowercased() == "https" {
+            return
+        }
+        request.setValue(header, forHTTPHeaderField: "Proxy-Authorization")
+    }
+
     /// Whether a redirect must be refused because it would replay a request
     /// body over an HTTPS -> HTTP downgrade. Only a REAL body counts: the
     /// explicit empty `Data()` this client attaches to a body-less

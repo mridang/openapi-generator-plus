@@ -7,6 +7,7 @@
 
 import base64
 import math
+import re
 from decimal import Decimal
 from typing import Annotated, Any
 
@@ -15,19 +16,23 @@ from pydantic import (
     AwareDatetime,
     BeforeValidator,
     Field,
-    HttpUrl,
     PlainSerializer,
     PlainValidator,
     SecretStr,
     Strict,
-    TypeAdapter,
 )
 
-# Compiled once at import time and reused for every `format: uri` field. The
-# adapter only VALIDATES that a candidate string parses as an absolute http(s)
-# URL — it is never used to re-emit the value, so its normalization (trailing
-# slash, default-port stripping, host lowercasing) never reaches the wire.
-_HTTP_URL_ADAPTER: TypeAdapter[HttpUrl] = TypeAdapter(HttpUrl)
+# An absolute RFC 3986 URI: a scheme, then ':', then no whitespace or control
+# characters. Any scheme is valid (http, ftp, mailto, urn); a relative
+# reference, an empty string or text with spaces is not.
+_ABSOLUTE_URI_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:[^\s\x00-\x1f\x7f]*$")
+
+# An RFC 3339 date-time: a full date, 'T' (or 't'), a time with optional
+# fractional seconds, and an explicit offset ('Z' or +hh:mm). Free text and
+# offset-less strings are not valid wire values.
+RFC3339_DATE_TIME_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$"
+)
 
 
 def _coerce_int_to_float(value: Any) -> Any:
@@ -65,19 +70,17 @@ def _decimal_to_json_number(value: Decimal) -> float:
 
 
 def _validate_url_preserving(value: Any) -> Any:
-    """Validate a URL string without mutating it.
+    """Validate an absolute URI without mutating it.
 
-    ``pydantic.HttpUrl`` validates AND normalizes: it lowercases the host,
-    strips a default port, and appends a trailing slash to a host-only URL.
-    That normalization makes a JSON round-trip lossy — ``https://example.com``
-    decodes and re-encodes as ``https://example.com/`` — which breaks
-    byte-identity with every other SDK that keeps the URL verbatim. Here we run
-    the same parser purely as a VALIDATOR (a non-URL still raises) but return
-    the ORIGINAL string so the wire value round-trips unchanged.
+    Any scheme is accepted (``urn:``, ``mailto:`` and ``ftp:`` are valid); a
+    relative reference or a string with whitespace is not. The ORIGINAL string
+    is returned so the wire value round-trips byte-identical, which a
+    normalizing parser such as ``pydantic.HttpUrl`` would break.
     """
     if value is None:
         return value
-    _HTTP_URL_ADAPTER.validate_python(value)
+    if not isinstance(value, str) or not _ABSOLUTE_URI_PATTERN.match(value):
+        raise ValueError(f"{value!r} is not an absolute URI")
     return value
 
 
@@ -94,6 +97,8 @@ def _reject_non_string_date_time(value: Any) -> Any:
         raise ValueError(
             f"a date-time must be an RFC 3339 string, not {type(value).__name__}"
         )
+    if isinstance(value, str) and not RFC3339_DATE_TIME_PATTERN.match(value):
+        raise ValueError(f"{value!r} is not an RFC 3339 date-time")
     return value
 
 
@@ -131,7 +136,7 @@ LaxFloat = Annotated[
 ]
 
 # `format: uri` fields. A plain `str` carrying an AfterValidator that asserts
-# the value is a valid absolute http(s) URL but never rewrites it, so the wire
+# the value is an absolute RFC 3986 URI (any scheme) but never rewrites it, so the wire
 # value round-trips byte-identical (unlike `pydantic.HttpUrl`, which normalizes).
 UrlStr = Annotated[str, AfterValidator(_validate_url_preserving)]
 

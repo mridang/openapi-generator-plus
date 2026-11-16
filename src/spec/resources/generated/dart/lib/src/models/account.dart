@@ -80,4 +80,10 @@ class Account {
   /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([id, username, password]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'Account(id: $id, username: $username, password: $password)';
 }

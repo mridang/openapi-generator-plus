@@ -91,9 +91,11 @@ public class Medication : IEquatable<Medication>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("DrugName=").Append(this.DrugName);
-        sb.Append(", Dosage=").Append(this.Dosage);
-        sb.Append(", Notes=").Append(this.Notes);
+        sb.Append("DrugName=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.DrugName));
+        sb.Append(", Dosage=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Dosage));
+        sb.Append(", Notes=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Notes));
         sb.Append('}');
         return sb.ToString();
     }

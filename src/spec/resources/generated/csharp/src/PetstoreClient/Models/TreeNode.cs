@@ -86,8 +86,8 @@ public class TreeNode : IEquatable<TreeNode>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Value=").Append(this.Value);
-        sb.Append(", Child=").Append(this.Child);
+        sb.Append("Value=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Value));
+        sb.Append(", Child=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Child));
         sb.Append('}');
         return sb.ToString();
     }

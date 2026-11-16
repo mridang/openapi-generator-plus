@@ -228,6 +228,17 @@ class ApiExceptionTest {
     }
 
     @Test
+    fun fromResponsePopulatesTheErrorBodyWhenTheBodyStartsWithABom() {
+        val ex = ApiException.fromResponse(404, emptyMap(), "\uFEFF{\"code\":1}")
+
+        assertEquals(
+            kotlinx.serialization.json.Json
+                .parseToJsonElement("{\"code\":1}"),
+            ex.errorBody,
+        )
+    }
+
+    @Test
     fun everyErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
         val errors =
             listOf(

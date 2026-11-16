@@ -579,6 +579,18 @@ describe Petstore::Client::Api::BaseApi do
     _(result).must_equal 'hello'
   end
 
+  it 'raises a SerializationError for a non-JSON body on a model return type' do
+    client = FixedResponseApiClient.new(
+      Petstore::Client::ApiHttpResponse.new(status_code: 200, body: 'hello', headers: { 'Content-Type' => 'text/plain' })
+    )
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    err = _ { test_api.call('GET', '/test', {}, {}, nil, ['text/plain'], 'application/json', 'Object') }
+          .must_raise(Petstore::Client::Errors::SerializationError)
+    _(err.message).must_include "Unexpected response Content-Type 'text/plain'"
+    _(err.message).must_include 'expected a JSON body'
+  end
+
   it 'deserializes vendor JSON MIME types like application/problem+json' do
     client = FixedResponseApiClient.new(
       Petstore::Client::ApiHttpResponse.new(

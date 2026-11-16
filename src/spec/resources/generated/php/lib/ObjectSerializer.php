@@ -615,6 +615,24 @@ class ObjectSerializer
     }
 
     /**
+     * Rejects a null element of an array, list or map whose element type is a
+     * generated model. Model-typed items are non-nullable, so a null is a wire
+     * violation rather than a value to keep or drop. Elements of any other
+     * type (scalars, dates, mixed) are unaffected.
+     *
+     * @param mixed  $element      the decoded element
+     * @param string $elementClass the qualified element type
+     *
+     * @throws \InvalidArgumentException when a model-typed element is null
+     */
+    private static function assertModelElementPresent(mixed $element, string $elementClass): void
+    {
+        if ($element === null && str_starts_with(ltrim($elementClass, '\\'), 'PetstoreClient\Models\\')) {
+            throw new \InvalidArgumentException("Null is not a valid '$elementClass' element");
+        }
+    }
+
+    /**
      * Internal recursive deserialization implementation.
      *
      * Native serializer exceptions raised here are caught and wrapped by the
@@ -685,6 +703,7 @@ class ObjectSerializer
                 $mapItems = [];
                 /** @var array<array-key, mixed> $data */
                 foreach ($data as $key => $value) {
+                    self::assertModelElementPresent($value, $inner);
                     $mapItems[(string) $key] = self::deserializeInternal($value, $inner, null, true);
                 }
                 return new \Ds\Map($mapItems);
@@ -693,6 +712,7 @@ class ObjectSerializer
             $listItems = [];
             /** @var array<array-key, mixed> $data */
             foreach ($data as $value) {
+                self::assertModelElementPresent($value, $inner);
                 $listItems[] = self::deserializeInternal($value, $inner, null, true);
             }
             return $container === 'Set' ? new \Ds\Set($listItems) : new \Ds\Vector($listItems);
@@ -708,6 +728,7 @@ class ObjectSerializer
             $subClass = substr($class, 0, -2);
             $values = [];
             foreach ($data as $value) {
+                self::assertModelElementPresent($value, self::qualifySchemaName($subClass));
                 $values[] = self::deserializeInternal($value, $subClass, null, true);
             }
             return $values;
@@ -729,6 +750,7 @@ class ObjectSerializer
                 $subClass = self::qualifySchemaName(trim($subClassArray[1]));
                 /** @var array<string, mixed> $data */
                 foreach ($data as $key => $value) {
+                    self::assertModelElementPresent($value, $subClass);
                     $deserialized[$key] = self::deserializeInternal($value, $subClass, null, true);
                 }
             }

@@ -17,6 +17,13 @@ class DryFood {
 
   /// Creates a [DryFood] from a JSON map.
   factory DryFood.fromJson(Map<String, dynamic> json) {
+    /* A required property that carries a default (the synthetic oneOf
+       discriminator value, or a schema default) is filled with that default
+       when its key is ABSENT; an explicit null is left in place and is still
+       rejected by the required guard below. */
+    if (!json.containsKey('foodType')) {
+      json = {...json, 'foodType': 'dry'};
+    }
     /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
        non-null on the wire. An absent key reads as null in Dart, so this
        single guard covers both the missing and explicitly-null cases. We
@@ -74,4 +81,9 @@ class DryFood {
   /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([foodType, weightKg]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() => 'DryFood(foodType: $foodType, weightKg: $weightKg)';
 }

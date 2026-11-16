@@ -124,6 +124,10 @@ describe('ObjectSerializer', () => {
       expect(() => ObjectSerializer.parseJson('{')).toThrow(SerializationError);
     });
 
+    test('parseJson strips a leading BOM', () => {
+      expect(ObjectSerializer.parseJson('\uFEFF{"a":1}')).toEqual({ a: 1 });
+    });
+
     /* The error contract: every wire-shape failure throws exactly
      * SerializationError (no subclass, no library error), and that is an
      * instance of the SDK root so one catch handles it. */
@@ -884,6 +888,9 @@ describe('ObjectSerializer', () => {
       ['boolean', 1, 'number'],
       ['date', 1700000000, 'number'],
       ['date', 'garbage', 'string'],
+      ['date', '2024-01-01T10:00:00', 'string'],
+      ['date', 'Jan 1 2024', 'string'],
+      ['date', '10:00', 'string'],
     ] as const)('rejects a %s leaf given %p', (kind, value, received) => {
       expect(() => ObjectSerializer.deserializeLeaf(value, kind)).toThrow(
         new SerializationError(`Expected ${kind} but received: ${received}`),

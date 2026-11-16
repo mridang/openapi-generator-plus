@@ -161,6 +161,19 @@ public class MetadataTest
     }
 
     [Fact]
+    public void ToStringRendersAdditionalPropertiesEntries()
+    {
+        var metadata = new Metadata
+        {
+            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "hello" },
+        };
+
+        var text = metadata.ToString();
+
+        Assert.Contains("AdditionalProperties={customField=hello}", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DeclaredPropertyWinsOverACollidingAdditionalProperty()
     {
         var metadata = new Metadata

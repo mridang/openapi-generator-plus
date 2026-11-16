@@ -106,6 +106,19 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void FromResponsePopulatesErrorBodyFromABomPrefixedBody()
+    {
+        var ex = ApiException.FromResponse(
+            404,
+            new Dictionary<string, string>(),
+            "\uFEFF{\"code\":1}"
+        );
+
+        var body = Assert.IsType<System.Text.Json.JsonElement>(ex.ErrorBody);
+        Assert.Equal(1, body.GetProperty("code").GetInt32());
+    }
+
+    [Fact]
     public void FromResponseKeepsAScalarJsonBody()
     {
         var ex = ApiException.FromResponse(400, new Dictionary<string, string>(), "\"just text\"");

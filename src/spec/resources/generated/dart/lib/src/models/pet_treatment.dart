@@ -100,4 +100,7 @@ class PetTreatment {
     }
     return PetTreatment._(decoded);
   }
+
+  @override
+  String toString() => 'PetTreatment($_values)';
 }

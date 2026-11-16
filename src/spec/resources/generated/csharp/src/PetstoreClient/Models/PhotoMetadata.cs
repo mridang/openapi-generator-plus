@@ -60,10 +60,14 @@ public class PhotoMetadata : IEquatable<PhotoMetadata>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Caption=").Append(this.Caption);
-        sb.Append(", IsPrimary=").Append(this.IsPrimary);
-        sb.Append(", TakenAt=").Append(this.TakenAt);
-        sb.Append(", Location=").Append(this.Location);
+        sb.Append("Caption=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Caption));
+        sb.Append(", IsPrimary=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.IsPrimary));
+        sb.Append(", TakenAt=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.TakenAt));
+        sb.Append(", Location=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Location));
         sb.Append('}');
         return sb.ToString();
     }

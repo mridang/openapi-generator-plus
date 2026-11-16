@@ -89,9 +89,12 @@ public class StockItem : IEquatable<StockItem>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Priority=").Append(this.Priority);
-        sb.Append(", Availability=").Append(this.Availability);
-        sb.Append(", Matrix=").Append(this.Matrix);
+        sb.Append("Priority=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Priority));
+        sb.Append(", Availability=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Availability));
+        sb.Append(", Matrix=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Matrix));
         sb.Append('}');
         return sb.ToString();
     }

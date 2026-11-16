@@ -269,6 +269,16 @@ void main() {
       expect(err.responseBody, equals(body));
       expect(err.errorBody, isNull);
     });
+
+    test('parses an error body that starts with a UTF-8 BOM', () {
+      final err = ApiException.fromResponse(
+        400,
+        const {},
+        '\u{FEFF}{"code": 7}',
+      );
+
+      expect(err.errorBody, equals({'code': 7}));
+    });
   });
 
   group('ApiException rendering', () {

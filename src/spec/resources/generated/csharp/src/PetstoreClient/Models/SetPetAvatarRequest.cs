@@ -103,9 +103,9 @@ public class SetPetAvatarRequest : IEquatable<SetPetAvatarRequest>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Data=")
-            .Append(this.Data is null ? "null" : global::System.Convert.ToBase64String(this.Data));
-        sb.Append(", MimeType=").Append(this.MimeType);
+        sb.Append("Data=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Data));
+        sb.Append(", MimeType=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.MimeType));
         sb.Append('}');
         return sb.ToString();
     }

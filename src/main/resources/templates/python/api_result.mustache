@@ -1,7 +1,8 @@
 {{>api_info}}
 
 from dataclasses import dataclass
-from typing import Dict, Generic, Optional, TypeVar
+from types import MappingProxyType
+from typing import Generic, Mapping, Optional, TypeVar
 
 T = TypeVar('T')
 
@@ -17,4 +18,9 @@ class ApiResult(Generic[T]):
     # The raw response body is always populated by the transport (an empty
     # string when the server sent no body), so it is never null.
     raw_body: str
-    headers: Dict[str, str]
+    headers: Mapping[str, str]
+
+    def __post_init__(self) -> None:
+        # Take a read-only copy so the result never aliases (or lets a caller
+        # mutate) the transport's own header map.
+        object.__setattr__(self, 'headers', MappingProxyType(dict(self.headers)))

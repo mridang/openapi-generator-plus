@@ -4,6 +4,9 @@
 {{#model}}
 {{#isEnum}}
 defmodule {{moduleName}}.Models.{{classname}} do
+  {{#isDeprecated}}
+  @moduledoc deprecated: "This schema is deprecated."
+  {{/isDeprecated}}
   @moduledoc """
   {{#description}}{{{description}}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
 
@@ -56,6 +59,9 @@ end
 {{#oneOf}}
 {{#-first}}
 defmodule {{moduleName}}.Models.{{classname}} do
+  {{#isDeprecated}}
+  @moduledoc deprecated: "This schema is deprecated."
+  {{/isDeprecated}}
   {{#description}}
   @moduledoc "{{{.}}}"
   {{/description}}
@@ -235,6 +241,9 @@ end
 {{#anyOf}}
 {{#-first}}
 defmodule {{moduleName}}.Models.{{classname}} do
+  {{#isDeprecated}}
+  @moduledoc deprecated: "This schema is deprecated."
+  {{/isDeprecated}}
   {{#description}}
   @moduledoc "{{{.}}}"
   {{/description}}

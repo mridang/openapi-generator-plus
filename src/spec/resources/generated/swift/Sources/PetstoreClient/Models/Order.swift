@@ -88,7 +88,7 @@ public struct Order: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(id, forKey: .id)
     try container.encodeIfPresent(petId, forKey: .petId)
     try container.encodeIfPresent(quantity, forKey: .quantity)
-    try container.encodeIfPresent(trackingId, forKey: .trackingId)
+    try container.encodeIfPresent(trackingId?.uuidString.lowercased(), forKey: .trackingId)
     try container.encodeIfPresent(shipDate, forKey: .shipDate)
     try container.encodeIfPresent(status, forKey: .status)
     try container.encodeIfPresent(complete, forKey: .complete)

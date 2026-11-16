@@ -1218,6 +1218,16 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert String.contains?(cd, "filename=\"")
   end
 
+  test "build_content_disposition falls back to one underscore per code point" do
+    assert PetstoreClient.DefaultApiClient.build_content_disposition("file", "résumé*(1).pdf") ==
+             ~s|Content-Disposition: form-data; name="file"; filename="r_sum_*(1).pdf"; | <>
+               "filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf"
+
+    assert PetstoreClient.DefaultApiClient.build_content_disposition("file", "😀.png") ==
+             ~s|Content-Disposition: form-data; name="file"; filename="_.png"; | <>
+               "filename*=UTF-8''%F0%9F%98%80.png"
+  end
+
   test "build_content_disposition omits filename* for ASCII-only names" do
     cd = PetstoreClient.DefaultApiClient.build_content_disposition("file", "file.png")
     assert String.contains?(cd, "filename=\"file.png\"")

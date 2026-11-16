@@ -348,7 +348,19 @@ public abstract class BaseApi
             }
             else if (responseContentType != null && !HeaderSelector.IsJsonMime(responseContentType))
             {
-                data = (T)(object)response.Body;
+                /* A non-JSON success body is only usable as text for a string
+                   return; any other return type is a serialization error that
+                   names the Content-Type, never a cast failure. */
+                if (typeof(T) == typeof(string))
+                {
+                    data = (T)(object)response.Body;
+                }
+                else
+                {
+                    throw new SerializationException(
+                        $"Unexpected response Content-Type '{responseContentType.Split(';')[0].Trim()}' for {typeof(T).Name}: expected a JSON body"
+                    );
+                }
             }
             else
             {

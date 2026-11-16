@@ -43,7 +43,7 @@ class DefaultApiClient internal constructor(
             "authorization",
             "cookie",
             "proxy-authorization",{{#apiKeyHeaderNames}}
-            "{{lowerName}}",{{/apiKeyHeaderNames}}
+            "{{#lambda.kotlinString}}{{{lowerName}}}{{/lambda.kotlinString}}",{{/apiKeyHeaderNames}}
         )
     }
 

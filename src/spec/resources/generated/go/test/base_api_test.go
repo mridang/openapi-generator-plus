@@ -538,15 +538,18 @@ func TestBaseApi_SkipsDeserializationForNonJSON(t *testing.T) {
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil)
 	pet, err := api.GetPetById(int64(1), nil)
-	/* A text/plain body must NOT be handed to the JSON deserializer: had the
-	 * SDK attempted to parse "hello plain text" as JSON it would surface a
-	 * deserialization error. Skipping deserialization yields a nil error and a
-	 * model with no fields populated from the plain-text body. */
-	if err != nil {
-		t.Fatalf("expected no error when skipping non-JSON deserialization, got: %v", err)
+	/* A text/plain body must NOT be handed to the JSON deserializer, and a
+	 * model return type must never come back as a zero-valued model with a nil
+	 * error: the SDK raises a SerializationError naming the Content-Type. */
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError for a text/plain body on a model return, got %T: %v", err, err)
 	}
-	if pet != nil && pet.Id != nil {
-		t.Errorf("expected no fields populated from plain-text body, got Id=%v", *pet.Id)
+	if !strings.Contains(serErr.Message(), "text/plain") {
+		t.Errorf("expected the error to name text/plain, got %q", serErr.Message())
+	}
+	if pet != nil {
+		t.Errorf("expected no model, got %+v", pet)
 	}
 }
 
@@ -1260,7 +1263,7 @@ func TestBinaryResponse_JsonResponseParsedToObject(t *testing.T) {
 	}
 }
 
-func TestBinaryResponse_TextPlainBodyForModelReturnLeavesTheModelEmpty(t *testing.T) {
+func TestBinaryResponse_TextPlainBodyForModelReturnIsASerializationError(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
 		responseBody:        "hello world",
@@ -1269,11 +1272,12 @@ func TestBinaryResponse_TextPlainBodyForModelReturnLeavesTheModelEmpty(t *testin
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil)
 	got, err := api.GetPetById(int64(1), nil)
-	if err != nil {
-		t.Fatalf("expected no error: a non-JSON body is not handed to the JSON decoder, got %v", err)
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError for a plain-text body on a model return, got %T: %v", err, err)
 	}
-	if got == nil || got.Id != nil || got.Name != "" {
-		t.Errorf("expected an empty model for a plain-text body, got %+v", got)
+	if got != nil {
+		t.Errorf("expected no model for a plain-text body, got %+v", got)
 	}
 }
 

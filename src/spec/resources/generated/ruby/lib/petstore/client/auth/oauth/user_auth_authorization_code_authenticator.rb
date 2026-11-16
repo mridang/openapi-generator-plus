@@ -20,7 +20,7 @@ module Petstore::Client
             'https://auth.example.com/authorize',
             'https://auth.example.com/oauth/token',
             redirect_uri,
-            ['pets:write', 'pets:read'],
+            ['pets:read', 'pets:write'],
             refresh_url: 'https://auth.example.com/oauth/refresh'
           )
         end

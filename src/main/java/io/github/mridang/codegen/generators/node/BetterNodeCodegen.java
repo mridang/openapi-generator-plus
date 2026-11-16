@@ -1197,6 +1197,16 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return "['" + String.join("', '", scopes.keySet()) + "']";
     }
 
+    /**
+     * Wraps a value in a single-quoted TypeScript string literal, escaping the
+     * backslash, the single quote and line terminators so a legal header or
+     * query name cannot break the generated source.
+     */
+    static String quoteSingle(String value) {
+        return "'" + value.replace("\\", "\\\\").replace("'", "\\'")
+                .replace("\n", "\\n").replace("\r", "\\r") + "'";
+    }
+
     private List<String> buildNodeSuperArgs(SchemeAuthSpec spec) {
         if ("BasicAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password");
@@ -1205,7 +1215,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             return List.of("host", "token");
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "'" + spec.keyParamName() + "'", "apiKey",
+            return List.of("host", quoteSingle(java.util.Objects.toString(spec.keyParamName(), "")), "apiKey",
                     "ApiKeyLocation." + spec.keyIn());
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {

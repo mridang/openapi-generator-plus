@@ -22,7 +22,7 @@ impl MachineAuthClientCredentialsAuthenticator {
             client_id,
             client_secret,
             "https://auth.example.com/oauth/token",
-            vec!["pets:write".to_string(), "pets:read".to_string()],
+            vec!["pets:read".to_string(), "pets:write".to_string()],
         ))
     }
 }

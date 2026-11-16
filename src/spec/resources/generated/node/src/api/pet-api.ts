@@ -271,6 +271,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
       options?.auth,
+      false,
+      "model",
+      "addPet",
     );
   }
 
@@ -363,6 +366,9 @@ export class PetApi extends BaseApi {
       "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserializeArray(json, Photo),
       undefined,
+      false,
+      "model",
+      "addPetPhotos",
     );
   }
 
@@ -444,6 +450,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, PetTreatment)!,
       options?.auth,
+      false,
+      "model",
+      "addPetTreatment",
     );
   }
 
@@ -604,6 +613,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => json as Buffer,
       undefined,
+      false,
+      "binary",
+      "downloadPetDocument",
     );
   }
 
@@ -667,6 +679,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserializeArray(json, Pet),
       undefined,
+      false,
+      "model",
+      "findPetsBornOn",
     );
   }
 
@@ -786,6 +801,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserializeArray(json, Pet),
       undefined,
+      false,
+      "model",
+      "findPetsByStatus",
     );
   }
 
@@ -860,6 +878,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
       undefined,
+      false,
+      "model",
+      "getExternalPetInfo",
     );
   }
 
@@ -932,6 +953,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
       undefined,
+      false,
+      "model",
+      "getMultiServerPetInfo",
     );
   }
 
@@ -994,6 +1018,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => json as Buffer,
       undefined,
+      false,
+      "binary",
+      "getPetAvatar",
     );
   }
 
@@ -1059,6 +1086,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.decodeBase64(json as string),
       undefined,
+      false,
+      "model",
+      "getPetAvatarThumbnail",
     );
   }
 
@@ -1132,6 +1162,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
       undefined,
+      false,
+      "model",
+      "getPetById",
     );
   }
 
@@ -1237,6 +1270,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
       undefined,
+      false,
+      "model",
+      "getPetByName",
     );
   }
 
@@ -1301,6 +1337,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, PetPassport)!,
       undefined,
+      false,
+      "model",
+      "getPetPassport",
     );
   }
 
@@ -1387,6 +1426,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => json as Buffer,
       undefined,
+      false,
+      "binary",
+      "getPetPhoto",
     );
   }
 
@@ -1521,6 +1563,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => json as string,
       undefined,
+      false,
+      "string",
+      "getPetSummary",
     );
   }
 
@@ -1750,6 +1795,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
       undefined,
+      false,
+      "model",
+      "getPetTag",
     );
   }
 
@@ -1824,6 +1872,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
       undefined,
+      false,
+      "model",
+      "getStagingPetInfo",
     );
   }
 
@@ -2072,6 +2123,9 @@ export class PetApi extends BaseApi {
       "application/x-www-form-urlencoded",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
       undefined,
+      false,
+      "model",
+      "setPetPreferences",
     );
   }
 
@@ -2142,6 +2196,9 @@ export class PetApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
       undefined,
+      false,
+      "model",
+      "updatePet",
     );
   }
 
@@ -2223,6 +2280,9 @@ export class PetApi extends BaseApi {
       "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
       undefined,
+      false,
+      "model",
+      "uploadPetCertificate",
     );
   }
 
@@ -2367,6 +2427,9 @@ export class PetApi extends BaseApi {
       requestContentType ?? "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
       undefined,
+      false,
+      "model",
+      "uploadPetDocument",
     );
   }
 }

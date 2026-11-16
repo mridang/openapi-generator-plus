@@ -658,6 +658,19 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
   end
 
+  describe "encode_base64_param/1" do
+    test "encodes bytes as padded standard-alphabet base64" do
+      assert PetstoreClient.ObjectSerializer.encode_base64_param("hi") == "aGk="
+      assert PetstoreClient.ObjectSerializer.encode_base64_param(<<0xFB, 0xFF>>) == "+/8="
+    end
+
+    test "encodes each element of a list or set and keeps nil as nil" do
+      assert PetstoreClient.ObjectSerializer.encode_base64_param(["hi", "yo"]) == ["aGk=", "eW8="]
+      assert PetstoreClient.ObjectSerializer.encode_base64_param(MapSet.new(["hi"])) == ["aGk="]
+      assert PetstoreClient.ObjectSerializer.encode_base64_param(nil) == nil
+    end
+  end
+
   describe "format: uuid (UUID)" do
     test "accepts canonical lower-case UUID" do
       uuid = "550e8400-e29b-41d4-a716-446655440000"
@@ -710,6 +723,30 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert %PetstoreClient.Models.Category{} = category
       assert category.id == 1
       assert category.name == "Dogs"
+    end
+
+    test "rejects a null element in an array of models" do
+      for type <- ["[Category]", "Array<Category>"] do
+        error =
+          assert_raise PetstoreClient.Errors.SerializationError, fn ->
+            PetstoreClient.ObjectSerializer.deserialize(~s([null,{"id":1,"name":"Dogs"}]), type)
+          end
+
+        assert error.message == "Expected an object for Category, got null"
+      end
+    end
+
+    test "rejects a null value in a map of models" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"a":null}), "%{String.t() => Category}")
+      end
+    end
+
+    test "keeps a null element in an array of primitives" do
+      assert PetstoreClient.ObjectSerializer.deserialize(~s(["a",null]), "[String.t()]") == [
+               "a",
+               nil
+             ]
     end
 
     test "returns nil for empty input" do

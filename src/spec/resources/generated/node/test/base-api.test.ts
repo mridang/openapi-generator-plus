@@ -79,6 +79,7 @@ class TestableApi extends BaseApi {
     contentType: string,
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null,
+    returnKind?: "model" | "string" | "binary",
   ): Promise<T | void> {
     return this.invokeApi(
       method,
@@ -90,6 +91,9 @@ class TestableApi extends BaseApi {
       contentType,
       returnType,
       auth,
+      false,
+      returnKind,
+      "testOperation",
     );
   }
 
@@ -278,6 +282,8 @@ describe("BaseApi success deserialization", () => {
       ["text/plain"],
       "application/json",
       (json) => json as string,
+      undefined,
+      "string",
     );
     expect(result).toBeDefined();
     expect(result).toContain("hello world");
@@ -972,8 +978,36 @@ describe("BaseApi content-type deserialization guard", () => {
       ["text/plain"],
       "application/json",
       (json) => json as string,
+      undefined,
+      "string",
     );
     expect(result).toBe("hello");
+  });
+
+  test("rejects a text/plain body for a model return with a SerializationError naming the Content-Type", async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = "hello";
+    client.responseHeaders = { "content-type": "text/plain" };
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const testApi = new TestableApi(client, config);
+    await expect(
+      testApi.call(
+        "GET",
+        "/test/echo",
+        {},
+        {},
+        null,
+        ["application/json"],
+        "application/json",
+        (json) => json as { id: number },
+        undefined,
+        "model",
+      ),
+    ).rejects.toThrow(
+      new SerializationError(
+        "Unexpected response Content-Type 'text/plain' for TestableApi.testOperation: expected a JSON body",
+      ),
+    );
   });
 
   test("deserializes vendor JSON MIME types like application/problem+json", async () => {
@@ -1158,6 +1192,8 @@ describe("BinaryResponseTests", () => {
       ["text/plain"],
       "application/json",
       (json) => json as string,
+      undefined,
+      "string",
     );
     expect(typeof result).toBe("string");
     expect(result).toBe("hello world");

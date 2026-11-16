@@ -193,6 +193,12 @@ describe {{moduleName}}::Errors::ApiError do
     _(err.error_body).must_be_nil
   end
 
+  it 'from_response parses a BOM-prefixed error body' do
+    err = {{moduleName}}::Errors::ApiError.from_response(400, {}, "\uFEFF{\"code\":7}")
+
+    _(err.error_body).must_equal('code' => 7)
+  end
+
   it 'from_response keeps a non-JSON body raw without an error body' do
     err = {{moduleName}}::Errors::ApiError.from_response(500, {}, '<html>oops</html>')
 

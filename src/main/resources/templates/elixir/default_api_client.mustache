@@ -1150,14 +1150,15 @@ defmodule {{moduleName}}.DefaultApiClient do
     :binary.bin_to_list(binary) |> Enum.all?(fn b -> b < 128 end)
   end
 
+  # One `_` per Unicode code point that is non-ASCII or a control character, so
+  # `résumé` becomes `r_sum_` and an emoji a single `_`, matching the other SDKs.
   defp to_ascii_fallback(filename) do
     filename
-    |> :binary.bin_to_list()
-    |> Enum.map(fn
-      b when b < 128 -> b
-      _ -> ?_
+    |> String.codepoints()
+    |> Enum.map_join(fn
+      <<c>> when c in 32..126 -> <<c>>
+      _ -> "_"
     end)
-    |> :binary.list_to_bin()
   end
 
   defp guess_mime_type(filename) when is_binary(filename) do

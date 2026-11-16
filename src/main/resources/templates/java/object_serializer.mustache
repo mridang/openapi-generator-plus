@@ -991,4 +991,51 @@ public final class ObjectSerializer {
         }
         return value.hashCode();
     }
+
+    /**
+     * Content-based string form for model {@code toString}: arrays and nested
+     * containers are dumped element by element instead of by identity.
+     *
+     * @param value the value to render, possibly null
+     * @return a readable, content-derived string
+     */
+    public static String structuralToString(@Nullable Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value instanceof byte[] bytes) {
+            return java.util.Arrays.toString(bytes);
+        }
+        if (value.getClass().isArray()) {
+            String wrapped = java.util.Arrays.deepToString(new Object[] {value});
+            return wrapped.substring(1, wrapped.length() - 1);
+        }
+        if (value instanceof java.util.Map<?, ?> map) {
+            StringBuilder sb = new StringBuilder("{");
+            boolean first = true;
+            for (java.util.Map.Entry<?, ?> entry : map.entrySet()) {
+                if (!first) {
+                    sb.append(", ");
+                }
+                first = false;
+                sb.append(structuralToString(entry.getKey()))
+                        .append('=')
+                        .append(structuralToString(entry.getValue()));
+            }
+            return sb.append('}').toString();
+        }
+        if (value instanceof java.util.Collection<?> collection) {
+            StringBuilder sb = new StringBuilder("[");
+            boolean first = true;
+            for (Object item : collection) {
+                if (!first) {
+                    sb.append(", ");
+                }
+                first = false;
+                sb.append(structuralToString(item));
+            }
+            return sb.append(']').toString();
+        }
+        return String.valueOf(value);
+    }
 }

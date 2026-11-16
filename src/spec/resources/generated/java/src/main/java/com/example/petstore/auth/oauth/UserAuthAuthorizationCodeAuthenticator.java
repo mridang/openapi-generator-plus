@@ -30,7 +30,7 @@ public final class UserAuthAuthorizationCodeAuthenticator
         "https://auth.example.com/authorize",
         "https://auth.example.com/oauth/token",
         redirectUri,
-        List.of("pets:write", "pets:read"),
+        List.of("pets:read", "pets:write"),
         "https://auth.example.com/oauth/refresh");
   }
 }

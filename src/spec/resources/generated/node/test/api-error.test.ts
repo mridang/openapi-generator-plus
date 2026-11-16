@@ -121,6 +121,15 @@ describe("ApiError", () => {
       expect(typed!.name).toBe("Dogs");
     });
 
+    test("parses an error body that starts with a BOM", () => {
+      const err = ApiError.fromResponse(
+        400,
+        {},
+        '\uFEFF{"id":42,"name":"Dogs"}',
+      );
+      expect(err.errorBody).toEqual({ id: 42, name: "Dogs" });
+    });
+
     test("returns null when there is no response body", () => {
       const err = ApiError.fromResponse(500, {}, null);
       expect(err.getTypedErrorBody(Category)).toBeNull();

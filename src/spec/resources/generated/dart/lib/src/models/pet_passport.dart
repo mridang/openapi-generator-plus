@@ -115,4 +115,10 @@ class PetPassport {
     issuedAt,
     const DeepCollectionEquality().hash(biometricChip),
   ]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'PetPassport(pet: $pet, thumbnail: $thumbnail, scans: $scans, issuedAt: $issuedAt, biometricChip: $biometricChip)';
 }

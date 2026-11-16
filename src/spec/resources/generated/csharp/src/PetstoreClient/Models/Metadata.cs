@@ -53,8 +53,10 @@ public class Metadata : IEquatable<Metadata>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("CreatedAt=").Append(this.CreatedAt);
-        sb.Append(", AdditionalProperties=").Append(this.AdditionalProperties);
+        sb.Append("CreatedAt=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.CreatedAt));
+        sb.Append(", AdditionalProperties=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.AdditionalProperties));
         sb.Append('}');
         return sb.ToString();
     }

@@ -94,9 +94,11 @@ public class Surgery : IEquatable<Surgery>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("ProcedureName=").Append(this.ProcedureName);
-        sb.Append(", DurationMinutes=").Append(this.DurationMinutes);
-        sb.Append(", Notes=").Append(this.Notes);
+        sb.Append("ProcedureName=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.ProcedureName));
+        sb.Append(", DurationMinutes=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.DurationMinutes));
+        sb.Append(", Notes=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Notes));
         sb.Append('}');
         return sb.ToString();
     }

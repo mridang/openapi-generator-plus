@@ -200,7 +200,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: options?.auth
+      auth: options?.auth,
+      operation: "PetApi.addPet"
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -259,7 +260,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "multipart/form-data",
       returnType: "[Photo]",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.addPetPhotos"
     )
 
     return try await invokeAPIForResult(params, as: [Photo].self)
@@ -311,7 +313,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "PetTreatment",
-      auth: options?.auth
+      auth: options?.auth,
+      operation: "PetApi.addPetTreatment"
     )
 
     return try await invokeAPIForResult(params, as: PetTreatment.self)
@@ -376,7 +379,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: [],
       contentType: "application/json",
       returnType: "",
-      auth: options?.auth
+      auth: options?.auth,
+      operation: "PetApi.deletePet"
     )
 
     return try await invokeAPIForEmptyResult(params)
@@ -430,7 +434,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/octet-stream"],
       contentType: "application/json",
       returnType: "Data",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.downloadPetDocument"
     )
 
     return try await invokeAPIForResult(params, as: Data.self)
@@ -478,7 +483,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "[Pet]",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.findPetsBornOn"
     )
 
     return try await invokeAPIForResult(params, as: [Pet].self)
@@ -570,7 +576,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "[Pet]",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.findPetsByStatus"
     )
 
     return try await invokeAPIForResult(params, as: [Pet].self)
@@ -627,7 +634,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getExternalPetInfo"
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -684,7 +692,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getMultiServerPetInfo"
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -731,7 +740,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["image/jpeg", "image/png"],
       contentType: "application/json",
       returnType: "Data",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getPetAvatar"
     )
 
     return try await invokeAPIForResult(params, as: Data.self)
@@ -778,7 +788,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Data",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getPetAvatarThumbnail"
     )
 
     return try await invokeAPIForResult(params, as: Data.self)
@@ -849,7 +860,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getPetById"
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -917,7 +929,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getPetByName"
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -964,7 +977,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "PetPassport",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getPetPassport"
     )
 
     return try await invokeAPIForResult(params, as: PetPassport.self)
@@ -1017,7 +1031,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["image/jpeg", "image/png", "application/json"],
       contentType: "application/json",
       returnType: "Data",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getPetPhoto"
     )
 
     return try await invokeAPIForResult(params, as: Data.self)
@@ -1108,7 +1123,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["text/plain"],
       contentType: "application/json",
       returnType: "String",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getPetSummary"
     )
 
     return try await invokeAPIForResult(params, as: String.self)
@@ -1226,7 +1242,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getPetTag"
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -1283,7 +1300,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.getStagingPetInfo"
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -1347,6 +1365,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: effectiveRequestContentType,
       returnType: "",
       auth: nil,
+      operation: "PetApi.setPetAvatar",
       rawBody: true
     )
 
@@ -1391,7 +1410,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: [],
       contentType: "application/json",
       returnType: "",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.setPetAvatarThumbnail"
     )
 
     return try await invokeAPIForEmptyResult(params)
@@ -1467,7 +1487,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/x-www-form-urlencoded",
       returnType: "ApiResponse",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.setPetPreferences"
     )
 
     return try await invokeAPIForResult(params, as: ApiResponse.self)
@@ -1515,7 +1536,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Pet",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.updatePet"
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -1575,7 +1597,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "multipart/form-data",
       returnType: "ApiResponse",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.uploadPetCertificate"
     )
 
     return try await invokeAPIForResult(params, as: ApiResponse.self)
@@ -1684,7 +1707,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: effectiveRequestContentType,
       returnType: "ApiResponse",
-      auth: nil
+      auth: nil,
+      operation: "PetApi.uploadPetDocument"
     )
 
     return try await invokeAPIForResult(params, as: ApiResponse.self)

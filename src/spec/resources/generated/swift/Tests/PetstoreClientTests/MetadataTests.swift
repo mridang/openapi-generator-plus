@@ -63,6 +63,16 @@ import Testing
     #expect(first.hashValue == same.hashValue)
   }
 
+  /* A colliding additionalProperties key never overrides the declared
+   * property: the declared value wins and the key is written once. */
+  @Test func testDeclaredPropertyWinsOverCollidingAdditionalProperty() throws {
+    let when = Date(timeIntervalSince1970: 1_705_315_800)
+    let metadata = Metadata(createdAt: when, additionalProperties: ["createdAt": AnyCodable("x")])
+    let json = try ObjectSerializer.serialize(metadata)
+    #expect(json.components(separatedBy: "\"createdAt\"").count == 2)
+    #expect(!json.contains("\"x\""))
+  }
+
   @Test func testRoundTrip() throws {
     // Use ObjectSerializer for consistent date encoding/decoding
     let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)

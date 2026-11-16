@@ -291,4 +291,10 @@ class EdgeCases {
     phase,
     slug,
   ]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'EdgeCases(freeFormAny: $freeFormAny, favoriteColor: $favoriteColor, permissionsNote: $permissionsNote, and: $and, or: $or, not: $not, class_: $class_, return_: $return_, retryAfter: $retryAfter, expiresAt: $expiresAt, n2fa: $n2fa, separator: $separator, null_: $null_, true_: $true_, false_: $false_, lastError: $lastError, outcome: $outcome, cutoff: $cutoff, phase: $phase, slug: $slug)';
 }

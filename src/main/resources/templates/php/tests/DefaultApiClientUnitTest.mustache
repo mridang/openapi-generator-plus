@@ -442,6 +442,36 @@ test('multipart png file gets image png content type', function (): void {
     }
 });
 
+test('multipart file part carries no content transfer encoding', function (): void {
+    $tmp = tempnam(sys_get_temp_dir(), 'mp_');
+    expect($tmp)->toBeString();
+    file_put_contents($tmp, 'payload');
+
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    try {
+        $client = new StubbedDefaultApiClient($mockClient);
+        $client->sendRequest(
+            'POST',
+            'http://example.com/upload',
+            [],
+            ['file' => new \SplFileObject($tmp), 'raw' => fopen('data://text/plain,bytes', 'r')]
+        );
+
+        expect($capturedBody)->toContain('payload');
+        expect($capturedBody)->toContain('bytes');
+        expect($capturedBody)->not->toContain('Content-Transfer-Encoding');
+    } finally {
+        @unlink($tmp);
+    }
+});
+
 test('multipart pdf file gets application pdf content type', function (): void {
     $tmp = tempnam(sys_get_temp_dir(), 'mp_');
     expect($tmp)->toBeString();

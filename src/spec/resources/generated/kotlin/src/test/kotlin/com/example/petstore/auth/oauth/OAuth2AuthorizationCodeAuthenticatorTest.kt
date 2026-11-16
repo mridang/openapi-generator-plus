@@ -376,7 +376,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
 
         val url = auth.buildAuthorizationUrl()
         assertTrue(url.startsWith("https://auth.example.com/authorize?response_type=code"), url)
-        assertTrue(url.contains("scope=pets%3Awrite%20pets%3Aread"), url)
+        assertTrue(url.contains("scope=pets%3Aread%20pets%3Awrite"), url)
 
         runBlocking { auth.exchangeCode("auth-code-xyz") }
         assertEquals("https://auth.example.com/oauth/token", client.lastUrl)

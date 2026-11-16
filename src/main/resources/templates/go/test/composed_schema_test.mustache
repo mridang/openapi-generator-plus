@@ -514,3 +514,22 @@ func TestSetPetAvatarThumbnailRequest_ConstructedFromVariantsSerializes(t *testi
 		t.Errorf("expected array wire [\"AQI=\",\"AwQ=\"], got %s", string(arrayOut))
 	}
 }
+
+func TestDryFood_AbsentDiscriminatorPropertyIsFilledWithItsDefault(t *testing.T) {
+	t.Parallel()
+	var food models.DryFood
+	if err := json.Unmarshal([]byte(`{"weightKg":2.5}`), &food); err != nil {
+		t.Fatalf("expected the discriminator default to satisfy the required property, got %v", err)
+	}
+	if food.FoodType != "dry" {
+		t.Errorf("expected foodType 'dry', got %q", food.FoodType)
+	}
+}
+
+func TestDryFood_NullDiscriminatorPropertyIsStillRejected(t *testing.T) {
+	t.Parallel()
+	var food models.DryFood
+	if err := json.Unmarshal([]byte(`{"foodType":null,"weightKg":2.5}`), &food); err == nil {
+		t.Fatal("expected an explicit null foodType to be rejected")
+	}
+}

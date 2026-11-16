@@ -50,6 +50,12 @@ import Testing
         }
     }
 
+    @Test func testDryFoodFillsAbsentRequiredDiscriminatorWithItsDefault() throws {
+        let jsonData = Data("{\"weightKg\":2.5}".utf8)
+        let food = try JSONDecoder().decode(DryFood.self, from: jsonData)
+        #expect(food.foodType == "dry")
+    }
+
     @Test func testPetFoodMissingDiscriminatorThrows() {
         // Payload missing the foodType key entirely must also fail loudly,
         // since the wrapper cannot route to any listed subtype.

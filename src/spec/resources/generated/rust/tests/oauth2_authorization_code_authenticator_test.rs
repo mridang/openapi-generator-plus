@@ -453,7 +453,7 @@ fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
 
     assert!(
         url.split(['?', '&'])
-            .any(|pair| pair == "scope=pets%3Awrite%20pets%3Aread"),
+            .any(|pair| pair == "scope=pets%3Aread%20pets%3Awrite"),
         "authorization url: {}",
         url
     );

@@ -19,7 +19,7 @@ func (a MachineAuthClientCredentialsAuthenticator) GoString() string {
 }
 
 func NewMachineAuthClientCredentialsAuthenticator(host string, clientId string, clientSecret string) *MachineAuthClientCredentialsAuthenticator {
-	inner := NewOAuth2ClientCredentialsAuthenticator(host, clientId, clientSecret, "https://auth.example.com/oauth/token", []string{"pets:write", "pets:read"})
+	inner := NewOAuth2ClientCredentialsAuthenticator(host, clientId, clientSecret, "https://auth.example.com/oauth/token", []string{"pets:read", "pets:write"})
 	return &MachineAuthClientCredentialsAuthenticator{
 		OAuth2ClientCredentialsAuthenticator: inner,
 	}

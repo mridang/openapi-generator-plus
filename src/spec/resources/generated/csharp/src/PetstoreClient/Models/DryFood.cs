@@ -75,8 +75,10 @@ public class DryFood : PetFood, IEquatable<DryFood>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("FoodType=").Append(this.FoodType);
-        sb.Append(", WeightKg=").Append(this.WeightKg);
+        sb.Append("FoodType=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.FoodType));
+        sb.Append(", WeightKg=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.WeightKg));
         sb.Append('}');
         return sb.ToString();
     }

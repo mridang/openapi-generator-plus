@@ -72,6 +72,23 @@ func (h *headerSelector) selectAcceptHeader(accept []string) string {
 	return strings.Join(filtered, ", ")
 }
 
+// mediaType returns the lowercased media type of a Content-Type value, without
+// its parameters (for example "text/plain; charset=utf-8" gives "text/plain").
+func (h *headerSelector) mediaType(contentType string) string {
+	mediaType, _, _ := strings.Cut(contentType, ";")
+	return strings.ToLower(strings.TrimSpace(mediaType))
+}
+
+// isTextMIME reports whether a Content-Type is text-class: text/*, XML,
+// JavaScript or a +xml structured syntax suffix.
+func (h *headerSelector) isTextMIME(contentType string) bool {
+	mediaType := h.mediaType(contentType)
+	return strings.HasPrefix(mediaType, "text/") ||
+		mediaType == "application/xml" ||
+		mediaType == "application/javascript" ||
+		strings.HasSuffix(mediaType, "+xml")
+}
+
 // isJSONMIME detects whether a string contains a valid JSON mime type.
 //
 // Returns true if the string represents a JSON MIME type.

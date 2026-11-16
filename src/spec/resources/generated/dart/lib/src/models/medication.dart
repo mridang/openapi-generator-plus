@@ -73,4 +73,10 @@ class Medication {
   /// so equal instances hash equally.
   @override
   int get hashCode => Object.hashAll([drugName, dosage, notes]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'Medication(drugName: $drugName, dosage: $dosage, notes: $notes)';
 }

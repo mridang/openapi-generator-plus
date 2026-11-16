@@ -661,6 +661,35 @@ internal partial class ObjectSerializer
     }
 
     /// <summary>
+    /// Debug text for a model field: collections and maps are rendered element by
+    /// element (<c>[a, b]</c>, <c>{k=v}</c>) and byte arrays as base64, never as a
+    /// collection type name.
+    /// </summary>
+    public static string Describe(object? value)
+    {
+        return value switch
+        {
+            null => "null",
+            string text => text,
+            byte[] bytes => Convert.ToBase64String(bytes),
+            IDictionary dict => DescribeDictionary(dict),
+            IEnumerable sequence => "[" + string.Join(", ", sequence.Cast<object?>().Select(Describe)) + "]",
+            _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "null",
+        };
+    }
+
+    private static string DescribeDictionary(IDictionary dict)
+    {
+        List<string> entries = new();
+        foreach (DictionaryEntry entry in dict)
+        {
+            entries.Add(Describe(entry.Key) + "=" + Describe(entry.Value));
+        }
+
+        return "{" + string.Join(", ", entries) + "}";
+    }
+
+    /// <summary>
     /// Content-based hash code matching <see cref="StructuralEquals"/>: equal
     /// values (including equal collections and byte arrays) hash identically.
     /// </summary>

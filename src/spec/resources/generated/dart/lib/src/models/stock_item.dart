@@ -86,4 +86,10 @@ class StockItem {
     availability,
     const DeepCollectionEquality().hash(matrix),
   ]);
+
+  /// Dumps every field; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  @override
+  String toString() =>
+      'StockItem(priority: $priority, availability: $availability, matrix: $matrix)';
 }

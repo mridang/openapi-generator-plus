@@ -538,3 +538,19 @@ test('allow reserved still percent encodes non ascii', function (): void {
 test('allow reserved empty string preserved', function (): void {
     expect(ValueSerializer::encodeQueryAllowingReserved(''))->toBe('');
 });
+
+test('query set serializes like an array', function (): void {
+    expect(ValueSerializer::serialize(new \Ds\Set(['red', 'blue']), 'query', 'array', 'csv'))->toBe('red,blue');
+});
+
+test('query set with multi collection format expands to repeated values', function (): void {
+    expect(ValueSerializer::serialize(new \Ds\Set(['red', 'blue']), 'query', 'array', 'multi'))->toBe(['red', 'blue']);
+});
+
+test('styled form set serializes like an array', function (): void {
+    expect(ValueSerializer::serializeStyled('color', new \Ds\Set(['blue', 'black']), 'query', 'array', null, 'form', false))->toBe('blue,black');
+});
+
+test('styled form exploded set expands to repeated values', function (): void {
+    expect(ValueSerializer::serializeStyled('color', new \Ds\Set(['blue', 'black']), 'query', 'array', null, 'form', true))->toBe(['blue', 'black']);
+});

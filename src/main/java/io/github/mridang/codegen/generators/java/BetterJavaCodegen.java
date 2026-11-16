@@ -1036,6 +1036,20 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return "List.of(\"" + String.join("\", \"", scopes.keySet()) + "\")";
     }
 
+    /**
+     * Escapes text for the body of a Java string literal.
+     *
+     * @param text raw text, possibly null
+     * @return the text with backslashes, quotes and control characters escaped
+     */
+    static String escapeJavaLiteral(@Nullable String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
+    }
+
     private List<String> buildJavaSuperArgs(SchemeAuthSpec spec) {
         if ("BasicAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password");
@@ -1044,7 +1058,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             return List.of("host", "token");
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "\"" + spec.keyParamName() + "\"", "apiKey",
+            return List.of("host", "\"" + escapeJavaLiteral(java.util.Objects.toString(spec.keyParamName(), "")) + "\"", "apiKey",
                     "ApiKeyLocation." + spec.keyIn());
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {

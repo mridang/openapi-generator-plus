@@ -75,8 +75,10 @@ public class WetFood : PetFood, IEquatable<WetFood>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("FoodType=").Append(this.FoodType);
-        sb.Append(", VolumeMl=").Append(this.VolumeMl);
+        sb.Append("FoodType=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.FoodType));
+        sb.Append(", VolumeMl=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.VolumeMl));
         sb.Append('}');
         return sb.ToString();
     }

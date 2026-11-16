@@ -89,8 +89,9 @@ public class Employee : IEquatable<Employee>
     {
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
-        sb.Append("Name=").Append(this.Name);
-        sb.Append(", Department=").Append(this.Department);
+        sb.Append("Name=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Name));
+        sb.Append(", Department=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Department));
         sb.Append('}');
         return sb.ToString();
     }

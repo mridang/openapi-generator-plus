@@ -215,6 +215,9 @@ impl {{classname}} {
     /// header — when the chosen content-type expects a different body shape than
     /// the one this method's body parameter carries, the caller is responsible
     /// for supplying a body the server accepts for that type.
+{{#isDeprecated}}
+    #[deprecated]
+{{/isDeprecated}}
     pub async fn {{operationId}}_with_content_type(
         &self,
 {{#vendorExtensions.op.signatureArgs}}

@@ -32,7 +32,7 @@ upgrade tool. No additional tools need to be installed.
 |-------------|------------------------|------------------------------------------------------|
 | Formatter   | `dart format .`        | Built into the Dart SDK                              |
 | Linter      | `dart analyze`         | Uses `package:lints/recommended.yaml`                |
-| Analyser    | `dart analyze`         | Strict rules via `package:very_good_analysis`        |
+| Analyser    | `dart analyze`         | Strict casts, inference and raw types (`analysis_options.yaml`) |
 | Auto-fix    | `dart fix --apply`     | Applies analyser-suggested fixes (Rector-equivalent) |
 
 ## Build

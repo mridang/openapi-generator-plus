@@ -453,11 +453,16 @@ export class ObjectSerializer {
    * the `MAX_JSON_DEPTH` nesting cap (DoS guard for malicious
    * deeply-nested payloads — F5 follow-up, parity with Go/Java/Python).
    *
-   * @param json the raw JSON text
+   * A leading UTF-8 BOM (U+FEFF) is stripped before parsing: RFC 8259
+   * section 8.1 forbids it, but Windows-generated payloads often carry one
+   * and JSON.parse rejects it.
+   *
+   * @param text the raw JSON text
    * @returns the parsed value
    * @throws SerializationError if the depth limit is exceeded or parsing fails
    */
-  static parseJson(json: string): unknown {
+  static parseJson(text: string): unknown {
+    const json = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
     const depth = jsonMaxDepth(json);
     if (depth > MAX_JSON_DEPTH) {
       throw new SerializationError(
@@ -971,6 +976,10 @@ export class ObjectSerializer {
    * [-2^31, 2^31-1]. `int64` must be an integer; values beyond 2^53 cannot be
    * checked because JSON.parse has already rounded them.
    *
+   * A date leaf must be an RFC 3339 date-time with an explicit offset or a
+   * bare `YYYY-MM-DD` date; anything else (no offset, free text) is rejected
+   * so it never resolves against the host time zone or the current date.
+   *
    * @param value the parsed wire value
    * @param kind the expected leaf type
    * @returns the value, typed as the expected leaf
@@ -989,7 +998,10 @@ export class ObjectSerializer {
           ? Number.isInteger(value)
           : kind === 'boolean'
             ? typeof value === 'boolean'
-            : typeof value === 'string' && !Number.isNaN(new Date(value).getTime());
+            : typeof value === 'string' &&
+              (/^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/.test(value) ||
+                /^\d{4}-\d{2}-\d{2}$/.test(value)) &&
+              !Number.isNaN(new Date(value).getTime());
     if (!valid) {
       throw new SerializationError(`Expected ${kind} but received: ${typeof value}`);
     }

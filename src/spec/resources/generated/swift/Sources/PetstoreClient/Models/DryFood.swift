@@ -35,7 +35,12 @@ public struct DryFood: Codable, Sendable, Equatable, Hashable {
   /// "discard extras on deserialise" expectation.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.foodType = try container.decode(String.self, forKey: .foodType)
+    /* A required property that carries a default (a discriminator value, for
+       one) is filled with that default when the key is absent. */
+    self.foodType =
+      container.contains(.foodType)
+      ? try container.decode(String.self, forKey: .foodType)
+      : "dry"
     self.weightKg = try container.decode(Double.self, forKey: .weightKg)
   }
 

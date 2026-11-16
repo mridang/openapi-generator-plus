@@ -15,7 +15,7 @@ from datetime import timezone
 from enum import Enum
 from typing import Any, ClassVar, Optional, Type, TypeVar, Union, cast, overload
 
-from dateutil.parser import parse
+from dateutil.parser import isoparse, parse
 from pydantic import BaseModel, SecretStr, StrictBool, StrictInt, StrictStr, TypeAdapter
 
 # The protobuf-JSON duration helpers live in a tiny dependency-free module so
@@ -26,7 +26,7 @@ from petstore_client._duration import (
     _format_timedelta_protobuf,
     _parse_timedelta_protobuf,
 )
-from petstore_client._types import LaxFloat
+from petstore_client._types import RFC3339_DATE_TIME_PATTERN, LaxFloat
 
 # The errors package imports ObjectSerializer lazily (inside a method), so this
 # top-level import does not create a cycle.
@@ -231,6 +231,11 @@ class ObjectSerializer:
         :raises SerializationException: if the depth limit is exceeded or
             parsing fails
         """
+        # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
+        # Windows-generated payloads often include one and json.loads rejects
+        # it. Strip it here so the success and error-body paths agree.
+        if json_string.startswith("\ufeff"):
+            json_string = json_string[1:]
         depth = _json_max_depth(json_string)
         if depth > _MAX_JSON_DEPTH:
             raise SerializationException(
@@ -267,13 +272,6 @@ class ObjectSerializer:
         try:
             if json_string is None or json_string == "":
                 return None
-
-            # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
-            # but Windows-generated payloads often include one and Python's
-            # json.loads rejects it. Strip silently for parity with Java
-            # Jackson / C# System.Text.Json which strip transparently.
-            if json_string.startswith("﻿"):
-                json_string = json_string[1:]
 
             data = ObjectSerializer.parse_json(json_string)
             # _deserialize is dynamically typed (returns Any); narrow it back
@@ -516,7 +514,16 @@ class ObjectSerializer:
             # Dict[str, datetime]) slip through naive while the identical value
             # on a model field is rejected. Reject naive results here so both
             # paths decode by one consistent AwareDatetime rule.
-            parsed = parse(data) if not isinstance(data, datetime.datetime) else data
+            if isinstance(data, datetime.datetime):
+                parsed = data
+            else:
+                # Only RFC 3339 is accepted: free text such as 'tomorrow' or
+                # '10:00' would otherwise resolve against the host clock/zone.
+                if not isinstance(data, str) or not RFC3339_DATE_TIME_PATTERN.match(
+                    data
+                ):
+                    raise ValueError(f"{data!r} is not an RFC 3339 date-time")
+                parsed = isoparse(data.upper())
             if parsed.tzinfo is None or parsed.tzinfo.utcoffset(parsed) is None:
                 raise ValueError(
                     "Naive datetime is not allowed; an offset-aware date-time "
@@ -631,6 +638,8 @@ class ObjectSerializer:
             return value.isoformat()
         if isinstance(value, uuid.UUID):
             return str(value)
+        if isinstance(value, (bytes, bytearray)):
+            return base64.b64encode(value).decode("ascii")
         return str(value)
 
     @classmethod

@@ -210,6 +210,12 @@ class TestFromResponse:
         assert err.response_headers is None
         assert err.response_body is None
 
+    def test_parses_a_bom_prefixed_error_body(self) -> None:
+        err = ApiException.from_response(400, {}, '\ufeff{"code": 7}')
+
+        assert type(err) is BadRequestException
+        assert err.error_body == {"code": 7}
+
     def test_refuses_a_deeply_nested_error_body(self) -> None:
         # The error body is attacker-controlled, so parsing is depth-capped:
         # an over-deep payload leaves error_body None instead of exhausting
@@ -315,13 +321,13 @@ class TestFromResponseBodyShapes:
         assert err.error_body == "just a string"
         assert err.response_body == '"just a string"'
 
-    def test_a_bom_prefixed_body_is_kept_raw_without_an_error_body(self) -> None:
+    def test_a_bom_prefixed_body_is_parsed_into_an_error_body(self) -> None:
         body = '﻿{"a":1}'
 
         err = ApiException.from_response(400, {}, body)
 
         assert type(err) is BadRequestException
-        assert err.error_body is None
+        assert err.error_body == {"a": 1}
         assert err.response_body == body
 
 

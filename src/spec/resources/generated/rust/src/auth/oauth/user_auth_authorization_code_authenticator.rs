@@ -24,7 +24,7 @@ impl UserAuthAuthorizationCodeAuthenticator {
             "https://auth.example.com/authorize",
             "https://auth.example.com/oauth/token",
             redirect_uri,
-            vec!["pets:write".to_string(), "pets:read".to_string()],
+            vec!["pets:read".to_string(), "pets:write".to_string()],
             "https://auth.example.com/oauth/refresh",
         ))
     }

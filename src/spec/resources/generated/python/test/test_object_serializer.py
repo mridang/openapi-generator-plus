@@ -129,6 +129,27 @@ class TestContainerDatetimeAwareDecodeRule:
         with pytest.raises(ValueError):
             ObjectSerializer()._deserialize("2024-01-01T12:30:45", "datetime")
 
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "tomorrow",
+            "10:00",
+            "Jan 1 2024",
+            "2024-01-01",
+            "01/02/2024 10:00",
+            "2024-01-01 10:00:00Z",
+        ],
+    )
+    def test_container_datetime_rejects_non_rfc3339_text(self, text: str) -> None:
+        with pytest.raises(ValueError):
+            ObjectSerializer()._deserialize(text, "datetime")
+
+    def test_container_datetime_accepts_a_long_fraction(self) -> None:
+        result = ObjectSerializer()._deserialize(
+            "2024-01-01T12:30:45.123456789+01:00", "datetime"
+        )
+        assert result.utcoffset() == datetime.timedelta(hours=1)
+
     def test_awaredatetime_alias_rejects_naive(self) -> None:
         # The 'AwareDatetime' type name resolves to the same decode rule.
         with pytest.raises(ValueError):
@@ -275,6 +296,20 @@ class TestUriRoundTripsByteIdentical:
         # HttpUrl would lowercase the host and strip the :80 default port.
         assert restored.homepage_url == url
 
+    @pytest.mark.parametrize(
+        "uri", ["urn:isbn:0451450523", "mailto:a@b.com", "ftp://x.org/f"]
+    )
+    def test_absolute_uri_of_any_scheme_accepted(self, uri: str) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "%s"}' % uri
+        restored = ObjectSerializer().deserialize(wire, "Pet")
+        assert restored is not None
+        assert restored.homepage_url == uri
+
+    def test_relative_reference_rejected(self) -> None:
+        wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "/relative"}'
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(wire, "Pet")
+
     def test_non_url_string_rejected(self) -> None:
         # UrlStr still validates: a non-URL value is a real error.
         wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "not a url"}'
@@ -390,6 +425,12 @@ class TestStringify:
 
     def test_boolean_true_returns_lowercase_string(self) -> None:
         assert ObjectSerializer.stringify(True) == "true"
+
+    def test_bytes_are_base64_encoded(self) -> None:
+        assert ObjectSerializer.stringify(b"hi") == "aGk="
+
+    def test_bytes_use_the_standard_base64_alphabet(self) -> None:
+        assert ObjectSerializer.stringify(b"\xfb\xff") == "+/8="
 
     def test_boolean_false_returns_lowercase_string(self) -> None:
         assert ObjectSerializer.stringify(False) == "false"
