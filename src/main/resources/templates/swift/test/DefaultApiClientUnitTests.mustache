@@ -592,6 +592,18 @@ import FoundationNetworking
     }
     {{/hasApiKeyHeaderNames}}
 
+    /* A header the SDK cannot list at generation time (a default header or a
+       custom authenticator's header) is still dropped on a cross-origin hop
+       when its name says it carries a credential. */
+    @Test(arguments: [
+        ("X-Tenant-Token", true), ("x-auth-token", true), ("Api-Key", true), ("X-Client-Secret", true),
+        ("Authorization", true), ("cookie", true), ("Proxy-Authorization", true),
+        ("Accept", false), ("User-Agent", false), ("X-Request-ID", false),
+    ])
+    func testCredentialNamedHeadersAreStrippedOnACrossOriginHop(name: String, sensitive: Bool) {
+        #expect(DefaultApiClient.isSensitiveRedirectHeader(name) == sensitive)
+    }
+
     // MARK: - noRedirect returns the 3xx as-is (Gap 3.2)
 
     /// noRedirect=true MUST NOT follow the redirect; the 307 is returned to
@@ -951,6 +963,30 @@ import FoundationNetworking
             currentScheme: "https", nextScheme: "http", request: streamed, originalBody: Data("x".utf8)))
         #expect(DefaultApiClient.refusesBodyReplay(
             currentScheme: "https", nextScheme: "http", request: streamed, originalBody: nil))
+    }
+
+    /* D16: the canonical wording of the three redirect refusals. */
+    @Test func testRedirectRefusalMessagesAreCanonical() {
+        #expect(DefaultApiClient.tooManyRedirectsMessage(limit: 20) == "Too many redirects (exceeded 20)")
+        #expect(
+            DefaultApiClient.nonHttpRedirectMessage(next: "file:///etc/passwd")
+                == "Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd")
+        #expect(
+            DefaultApiClient.bodyReplayMessage(
+                current: "https://a.example/x", next: "http://a.example/y")
+                == "Refusing to replay request body across HTTPS->HTTP redirect: "
+                + "https://a.example/x -> http://a.example/y")
+    }
+
+    /* A caller-supplied session keeps the SDK's redirect rules: they are
+       attached to each task, so the guard is not lost with the session's own
+       delegate. */
+    @Test func testSuppliedSessionStillAppliesTheRedirectRules() throws {
+        let session = UnitStubURLProtocol.session { _ in (Data("{}".utf8), 200, [:]) }
+        let supplied = try TransportOptionsBuilder().session(session).build()
+        let client = try DefaultApiClient(transportOptions: supplied)
+        #expect(client.appliesRedirectRules)
+        client.close()
     }
 
     // MARK: - Bare utf-16 byte-order marks

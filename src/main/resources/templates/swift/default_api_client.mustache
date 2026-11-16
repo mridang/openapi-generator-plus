@@ -93,7 +93,18 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         self.proxyCredential = DefaultApiClient.buildProxyCredential(opts.proxy)
         if let supplied = opts.session {
             self.session = supplied
-            self.sessionDelegate = nil
+            /* The supplied session carries none of the SDK's redirect rules, so
+             * the SDK's own delegate is attached to every task it sends (see
+             * `performDataTask`): a cross-origin hop still strips credentials,
+             * a non-HTTP(S) Location and an HTTPS to HTTP body replay are still
+             * refused, and the hop cap still applies. */
+            self.sessionDelegate = SessionDelegate(
+                verifySsl: true,
+                caCertPath: nil,
+                followRedirects: true,
+                maxRedirects: nil,
+                proxyCredential: nil
+            )
             self.ownsSession = false
             return
         }
@@ -361,7 +372,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                 ? noRedirectSession()
                 : session
             (data, response, task) = try await DefaultApiClient.performDataTask(
-                on: activeSession, for: request)
+                on: activeSession, for: request,
+                taskDelegate: (!ownsSession && !noRedirect) ? sessionDelegate : nil)
         } catch let undecodable as UndecodableBody {
             /* The server answered but its body cannot be decoded: an ApiError
                carrying the real status code, never a NetworkError. */
@@ -838,7 +850,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
     private static func performDataTask(
         on session: URLSession,
-        for request: URLRequest
+        for request: URLRequest,
+        taskDelegate: URLSessionTaskDelegate? = nil
     ) async throws -> (Data, URLResponse, URLSessionTask) {
         /* Box the task so the completion handler, the continuation body and
            the cancellation handler refer to the same instance. The lock and
@@ -895,6 +908,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                         return
                     }
                     continuation.resume(returning: (data, response, task))
+                }
+                /* A caller-supplied session has no SDK delegate of its own, so
+                   the SDK's redirect rules ride on the task itself. */
+                if let taskDelegate = taskDelegate {
+                    task.delegate = taskDelegate
                 }
                 /* A task that is never resumed never calls its completion
                    handler, so resuming the continuation here is the only
@@ -1027,6 +1045,12 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             configuration: session.configuration, delegate: delegate, delegateQueue: nil)
         noRedirectSessionStorage = created
         return created
+    }
+
+    /// Whether the SDK's redirect rules (credential stripping, scheme and
+    /// downgrade refusal, hop cap) are applied to this client's requests.
+    var appliesRedirectRules: Bool {
+        return sessionDelegate != nil
     }
 
     /// Releases the underlying URLSession's connection pool / delegate queue.
@@ -1203,7 +1227,7 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
                silently returning the last 3xx response. */
             redirectErrors.set(ApiError(
                 statusCode: response.statusCode,
-                message: "Exceeded maximum number of redirects (\(limit))",
+                message: DefaultApiClient.tooManyRedirectsMessage(limit: limit),
                 responseHeaders: DefaultApiClient.lowercasedHeaders(of: response)
             ), for: taskKey)
             completionHandler(nil)
@@ -1220,8 +1244,8 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
         else {
             redirectErrors.set(ApiError(
                 statusCode: response.statusCode,
-                message: "Refusing to follow redirect to non-HTTP(S) Location: "
-                    + (request.url?.absoluteString ?? "<unknown>"),
+                message: DefaultApiClient.nonHttpRedirectMessage(
+                    next: request.url?.absoluteString ?? "<unknown>"),
                 responseHeaders: DefaultApiClient.lowercasedHeaders(of: response)
             ), for: taskKey)
             completionHandler(nil)
@@ -1243,8 +1267,11 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
         if let originalURL = task.originalRequest?.url,
            let nextURL = request.url,
            !DefaultApiClient.sameOrigin(originalURL, nextURL) {
-            for sensitive in DefaultApiClient.sensitiveRedirectHeaders {
-                redirectRequest.setValue(nil, forHTTPHeaderField: sensitive)
+            let sensitiveNames = (redirectRequest.allHTTPHeaderFields ?? [:]).keys.filter {
+                DefaultApiClient.isSensitiveRedirectHeader($0)
+            }
+            for name in sensitiveNames {
+                redirectRequest.setValue(nil, forHTTPHeaderField: name)
             }
         }
 
@@ -1282,9 +1309,9 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
                silently returning the 3xx response. */
             redirectErrors.set(ApiError(
                 statusCode: response.statusCode,
-                message: "Refusing to replay request body across an HTTPS -> HTTP "
-                    + "redirect (TLS downgrade) to "
-                    + (request.url?.absoluteString ?? "<unknown>"),
+                message: DefaultApiClient.bodyReplayMessage(
+                    current: task.currentRequest?.url?.absoluteString ?? "<unknown>",
+                    next: request.url?.absoluteString ?? "<unknown>"),
                 responseHeaders: DefaultApiClient.lowercasedHeaders(of: response)
             ), for: taskKey)
             completionHandler(nil)
@@ -1360,6 +1387,35 @@ extension DefaultApiClient {
         "Proxy-Authorization",{{#apiKeyHeaderNames}}
         "{{name}}",{{/apiKeyHeaderNames}}
     ]
+
+    /// Whether a header must not leave the origin on a redirect: one named in
+    /// ``sensitiveRedirectHeaders``, or any header whose name contains `key`,
+    /// `token` or `secret` (the rule the string forms of `Configuration` and
+    /// `TransportOptions` use to redact a credential). A default header or a
+    /// custom authenticator's header is covered without being listed.
+    static func isSensitiveRedirectHeader(_ name: String) -> Bool {
+        let lower = name.lowercased()
+        if sensitiveRedirectHeaders.contains(where: { $0.lowercased() == lower }) {
+            return true
+        }
+        return lower.contains("key") || lower.contains("token") || lower.contains("secret")
+    }
+
+    /// The message for a redirect chain longer than the hop cap.
+    static func tooManyRedirectsMessage(limit: Int) -> String {
+        return "Too many redirects (exceeded \(limit))"
+    }
+
+    /// The message for a redirect whose Location is not an http or https URL.
+    static func nonHttpRedirectMessage(next: String) -> String {
+        return "Refusing to follow redirect to non-HTTP(S) URL: \(next)"
+    }
+
+    /// The message for a redirect that would replay a request body over a
+    /// downgrade from HTTPS to HTTP.
+    static func bodyReplayMessage(current: String, next: String) -> String {
+        return "Refusing to replay request body across HTTPS->HTTP redirect: \(current) -> \(next)"
+    }
 
     /// The method of the follow-up request for a redirect (RFC 9110 15.4):
     /// 301 and 302 turn only POST into GET, 303 turns everything except HEAD
