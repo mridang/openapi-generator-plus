@@ -1110,6 +1110,49 @@ void main() {
       );
     });
 
+    test('getPetByName rejects an empty required header with the canonical message', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('http://localhost:1')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      await expectLater(
+        api.getPetByName(
+          'Rex',
+          const GetPetByNameOptions(category: 'dogs', xCorrelationId: ''),
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
+          ),
+        ),
+      );
+    });
+
+    test('getPetSummary rejects an empty required cookie with the canonical message', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('http://localhost:1')
+          .build();
+      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+      await expectLater(
+        api.getPetSummary(
+          1,
+          DateTime.utc(2024, 1, 15),
+          const GetPetSummaryOptions(session: ''),
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            "Missing the required parameter 'session' when calling PetApi.getPetSummary",
+          ),
+        ),
+      );
+    });
+
     test('errorHandling_notFound', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/404')
