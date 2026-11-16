@@ -27,6 +27,8 @@ class OAuth2TokenManagerTest {
             private set
         var lastNoRedirect: Boolean? = null
             private set
+        var lastHeaders: Map<String, String> = emptyMap()
+            private set
         val bodies = mutableListOf<String?>()
 
         fun enqueue(body: String, statusCode: Int = 200) {
@@ -44,8 +46,23 @@ class OAuth2TokenManagerTest {
             lastBody = body?.toString()
             bodies.add(lastBody)
             lastNoRedirect = noRedirect
+            lastHeaders = headers
             return responses.poll() ?: throw IllegalStateException("No responses queued")
         }
+    }
+
+    @Test
+    fun tokenRequestIsAFormPostAcceptingJson() {
+        // F1075: RFC 6749 section 4.4.2 / 5.1 headers of the token request.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok","expires_in":3600}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        runBlocking {
+            manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+        }
+        assertEquals("application/x-www-form-urlencoded", client.lastHeaders["Content-Type"])
+        assertEquals("application/json", client.lastHeaders["Accept"])
     }
 
     @Test
@@ -130,7 +147,7 @@ class OAuth2TokenManagerTest {
     @Test
     fun refreshIsSentToTheRefreshUrlAndARefreshGrantIsPostedOnce() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
         val manager = OAuth2TokenManager()
         manager.apiClient = client
@@ -229,7 +246,7 @@ class OAuth2TokenManagerTest {
     @Test
     fun refetchesTokenWhenExpired() {
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"tok1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
 
         val manager = OAuth2TokenManager()
@@ -340,7 +357,7 @@ class OAuth2TokenManagerTest {
         // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
         // MUST NOT clobber the cached refresh_token.
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}""")
+        client.enqueue("""{"access_token":"old_access","refresh_token":"old_refresh","expires_in":0}""")
         client.enqueue("""{"access_token":"new_access","expires_in":3600,"refresh_token":""}""")
 
         val manager = OAuth2TokenManager()
@@ -759,9 +776,39 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun expiresInExactlyBufferReturnsZeroBuffer() {
-        // Gap CM: expires_in == 30 (the buffer) collapses expiry to now, forcing
-        // the next getAccessToken call to refetch.
+    fun expiresInNinetySecondsIsServedFromCacheOnTheSecondCall() {
+        // F854/F895: the margin is min(60 s, expires_in / 2) and is applied once, at store, so a
+        // token valid for 90 s (which two stacked margins used to make permanently stale) is reused.
+        val networkCalls = AtomicInteger(0)
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiHttpResponse {
+                networkCalls.incrementAndGet()
+                return ApiHttpResponse(200, """{"access_token":"ninety","expires_in":90}""", emptyMap())
+            }
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+        assertEquals("ninety", second)
+        assertEquals(1, networkCalls.get())
+    }
+
+    @Test
+    fun expiresInZeroCollapsesExpiryToNow() {
+        // Gap CM: expires_in == 0 collapses expiry to now, forcing the next
+        // getAccessToken call to refetch.
         val networkCalls = AtomicInteger(0)
         val client = object : ApiClient {
             override suspend fun sendRequest(
@@ -772,7 +819,7 @@ class OAuth2TokenManagerTest {
                 noRedirect: Boolean
             ): ApiHttpResponse {
                 val n = networkCalls.incrementAndGet()
-                return ApiHttpResponse(200, """{"access_token":"edge$n","expires_in":30}""", emptyMap())
+                return ApiHttpResponse(200, """{"access_token":"edge$n","expires_in":0}""", emptyMap())
             }
         }
         val manager = OAuth2TokenManager()
@@ -839,7 +886,7 @@ class OAuth2TokenManagerTest {
         // credentials; when the endpoint rejects it, the manager re-runs the
         // original grant instead of surfacing the refresh error.
         val client = FakeApiClient()
-        client.enqueue("""{"access_token":"old","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"old","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
         client.enqueue("""{"access_token":"new","expires_in":3600}""")
 
@@ -886,7 +933,7 @@ class OAuth2TokenManagerTest {
             ): ApiHttpResponse {
                 if (calls.incrementAndGet() == 1) {
                     return ApiHttpResponse(
-                        200, """{"access_token":"old","refresh_token":"ref1","expires_in":1}""", emptyMap())
+                        200, """{"access_token":"old","refresh_token":"ref1","expires_in":0}""", emptyMap())
                 }
                 throw kotlinx.coroutines.CancellationException("stop")
             }

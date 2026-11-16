@@ -180,7 +180,25 @@ class TransportOptionsTest {
                 val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
                     TransportOptions.builder().proxy(proxy).build()
                 }
-                assertEquals("Invalid proxy URL (missing host): $proxy", ex.message)
+                assertEquals("Invalid proxy URL (missing host): " + proxy.replace("user:pw@", "***@"), ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName("a proxy URL error never carries the user-info")
+        fun proxyUrlErrorMasksTheUserInfo() {
+            val cases = mapOf(
+                "socks5://svc:s3cret@proxy:1080" to "Invalid proxy URL (must use http or https scheme): socks5://***@proxy:1080",
+                "svc:s3cret@proxy:3128" to "Invalid proxy URL (missing scheme): ***@proxy:3128",
+                "http://svc:s3cret@[::1:3128" to "Invalid proxy URL (unterminated IPv6 literal): http://***@[::1:3128",
+                "http://svc:s3cret@:3128" to "Invalid proxy URL (missing host): http://***@:3128",
+            )
+            for ((proxy, expected) in cases) {
+                val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().proxy(proxy).build()
+                }
+                assertEquals(expected, ex.message)
+                assertFalse(ex.message.orEmpty().contains("s3cret"))
             }
         }
 

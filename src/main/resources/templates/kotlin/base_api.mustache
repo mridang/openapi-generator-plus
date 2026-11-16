@@ -252,6 +252,10 @@ abstract class BaseApi {
 
         val response = apiClient.sendRequest(method, url, headers, requestBody)
 
+        if (response.statusCode == 401 && effectiveAuth is HttpAwareAuthenticator) {
+            // A cached OAuth2 token the API no longer accepts must not outlive this answer.
+            effectiveAuth.invalidateAccessToken()
+        }
         if (response.statusCode < 200 || response.statusCode >= 300) {
             throw ApiException.fromResponse(response.statusCode, response.headers, response.body)
         }

@@ -69,6 +69,10 @@ open class OpenIdConnectAuthenticator(
         this.apiClient = apiClient
     }
 
+    override fun invalidateAccessToken() {
+        delegate?.invalidateAccessToken()
+    }
+
     /**
      * Lazily resolve the delegate by fetching the OIDC discovery document.
      *
@@ -127,6 +131,25 @@ open class OpenIdConnectAuthenticator(
         }
         val authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint")
         val tokenEndpoint = requireEndpoint(discovery, "token_endpoint")
+
+        /* OpenID Connect Discovery 1.0 section 4.3 / RFC 8414 section 3.3: the issuer in the
+         * document must be identical to the URL the document was discovered under, and the
+         * endpoints must not downgrade to cleartext (client secret, code and refresh token
+         * travel to them). An http discovery URL is a caller's own choice (a local mock). */
+        val expectedIssuer = openIdConnectUrl.removeSuffix("/.well-known/openid-configuration").trimEnd('/')
+        val issuer = (discovery["issuer"] as? kotlinx.serialization.json.JsonPrimitive)
+            ?.takeIf { it.isString }
+            ?.content
+        if (issuer == null || issuer.trimEnd('/') != expectedIssuer) {
+            throw SerializationException("OIDC discovery issuer does not match the discovery URL")
+        }
+        if (!openIdConnectUrl.startsWith("http://", ignoreCase = true)) {
+            for ((field, endpoint) in listOf("authorization_endpoint" to authorizationEndpoint, "token_endpoint" to tokenEndpoint)) {
+                if (!endpoint.startsWith("https://", ignoreCase = true)) {
+                    throw SerializationException("OIDC discovery '$field' must use https")
+                }
+            }
+        }
 
         /* Rediscovery refreshes the endpoints only: the replacement delegate is
          * built around the previous delegate's token manager, so the exchanged
