@@ -32099,9 +32099,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `baseapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- baseapi.noauth [member] majority absent (11 SDKs); differs: ruby=extra\n- baseapi.config [member] majority absent (10 SDKs); differs: dart=extra; ruby=extra\n- baseapi.apiclient [member] majority absent (11 SDKs); differs: dart=extra\n- baseapi.invokeapi [member] majority absent (9 SDKs); differs: dart=extra; elixir=extra; rust=extra\n- baseapi.invokeapi [params] majority (method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth, rawbody) (1 SDKs); differs: elixir=(method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth); rust=(params)\n- baseapi.invokeapiforresult [member] majority absent (9 SDKs); differs: dart=extra; elixir=extra; rust=extra\n- baseapi.invokeapiforresult [params] majority (method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth, rawbody, deserialize) (1 SDKs); differs: elixir=(method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth); rust=(params)\n- baseapi.invokeapiforemptyresult [member] majority absent (11 SDKs); differs: rust=extra\n- baseapi.buildcollectionparam [member] majority absent (11 SDKs); differs: elixir=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F662",
@@ -32178,9 +32179,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petapi.setpetavatar [params] majority (petid, body, requestcontenttype) (7 SDKs); differs: node=(petid, body, contenttype); php=(petid, body, contenttype); ruby=(petid, body, contenttype)\n- petapi.setpetavatarwithhttpinfo [params] majority (petid, body, requestcontenttype) (7 SDKs); differs: node=(petid, body, contenttype); php=(petid, body, contenttype); ruby=(petid, body, contenttype)\n- petapi.uploadpetdocument [params] majority (petid, options, requestcontenttype) (7 SDKs); differs: node=(petid, options, contenttype); php=(petid, options, contenttype); ruby=(petid, options, contenttype)\n- petapi.uploadpetdocumentwithhttpinfo [params] majority (petid, options, requestcontenttype) (7 SDKs); differs: node=(petid, options, contenttype); php=(petid, options, contenttype); ruby=(petid, options, contenttype)\n- petapi.config [member] majority absent (9 SDKs); differs: dart=extra; ruby=extra\n- petapi.apiclient [member] majority absent (10 SDKs); differs: dart=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F666",
@@ -32196,9 +32198,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `storeapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- storeapi.placeorder [optional] majority (order?) (7 SDKs); differs: java=(order)\n- storeapi.placeorderwithhttpinfo [optional] majority (order?) (7 SDKs); differs: java=(order)\n- storeapi.config [member] majority absent (9 SDKs); differs: dart=extra; ruby=extra\n- storeapi.apiclient [member] majority absent (10 SDKs); differs: dart=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F667",
@@ -32230,9 +32233,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `authenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- authenticator.isnoauth [member] majority absent (10 SDKs); differs: dart=extra; node=extra\n- authenticator.isnoauth [params] majority (auth) (1 SDKs); differs: dart=()",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F669",
@@ -32286,9 +32290,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `httpawareauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- httpawareauthenticator.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(arg1); go=(client); ruby=(client); rust=(client); swift=(client)\n- httpawareauthenticator.ishttpawareauthenticator [member] majority absent (11 SDKs); differs: node=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F672",
@@ -32309,9 +32314,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `oauth2authorizationcodeauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- oauth2authorizationcodeauthenticator.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(client); go=(client); ruby=(client); rust=(client); swift=(client)\n- oauth2authorizationcodeauthenticator.buildauthorizationurl [optional] majority (state?) (9 SDKs); differs: java=(state)\n- oauth2authorizationcodeauthenticator.tokenmanager [member] majority absent (10 SDKs); differs: ruby=extra\n- oauth2authorizationcodeauthenticator.authheadersorthrow [member] majority absent (11 SDKs); differs: swift=extra\n- oauth2authorizationcodeauthenticator.<ctor> [ctor] majority (host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes, refreshurl) (6 SDKs); differs: java=(host, clientid, clientsecret, authorizationurl, tokenurl, refreshurl, redirecturi, scopes); node=(host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes, refreshurl, tokenmanager); ruby=(host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes, refreshurl, tokenmanager)\n- oauth2authorizationcodeauthenticator.<ctor> [ctor-optional] majority (host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes, refreshurl?) (4 SDKs); differs: dart=(host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes?, refreshurl?); swift=(host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes?, refreshurl?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F673",
@@ -32331,9 +32337,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `oauth2clientcredentialsauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- oauth2clientcredentialsauthenticator.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(client); go=(client); ruby=(client); rust=(client); swift=(client)\n- oauth2clientcredentialsauthenticator.clientid [member] majority absent (10 SDKs); differs: python=extra\n- oauth2clientcredentialsauthenticator.clientsecret [member] majority absent (10 SDKs); differs: python=extra\n- oauth2clientcredentialsauthenticator.tokenurl [member] majority absent (10 SDKs); differs: python=extra\n- oauth2clientcredentialsauthenticator.scopes [member] majority absent (10 SDKs); differs: python=extra\n- oauth2clientcredentialsauthenticator.clientauthmethod [member] majority absent (10 SDKs); differs: python=extra\n- oauth2clientcredentialsauthenticator.<ctor> [ctor-optional] majority (host, clientid, clientsecret, tokenurl, scopes, clientauthmethod?) (6 SDKs); differs: dart=(host, clientid, clientsecret, tokenurl, scopes?, clientauthmethod?); python=(host, clientid, clientsecret, tokenurl, scopes?, clientauthmethod?); swift=(host, clientid, clientsecret, tokenurl, scopes?, clientauthmethod?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F674",
@@ -32353,9 +32360,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `oauth2implicitauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- oauth2implicitauthenticator.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(client); go=(); ruby=(client); rust=(client); swift=(client)\n- oauth2implicitauthenticator.buildauthorizationurl [optional] majority (state?) (9 SDKs); differs: java=(state)\n- oauth2implicitauthenticator.<ctor> [ctor-optional] majority (host, clientid, authorizationurl, scopes) (8 SDKs); differs: dart=(host, clientid, authorizationurl, scopes?); swift=(host, clientid, authorizationurl, scopes?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F675",
@@ -32376,9 +32384,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `oauth2passwordauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- oauth2passwordauthenticator.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(client); go=(client); ruby=(client); rust=(client); swift=(client)\n- oauth2passwordauthenticator.clientid [member] majority absent (10 SDKs); differs: python=extra\n- oauth2passwordauthenticator.clientsecret [member] majority absent (10 SDKs); differs: python=extra\n- oauth2passwordauthenticator.tokenurl [member] majority absent (10 SDKs); differs: python=extra\n- oauth2passwordauthenticator.username [member] majority absent (10 SDKs); differs: python=extra\n- oauth2passwordauthenticator.password [member] majority absent (10 SDKs); differs: python=extra\n- oauth2passwordauthenticator.scopes [member] majority absent (10 SDKs); differs: python=extra\n- oauth2passwordauthenticator.refreshurl [member] majority absent (10 SDKs); differs: python=extra\n- oauth2passwordauthenticator.clientauthmethod [member] majority absent (10 SDKs); differs: python=extra\n- oauth2passwordauthenticator.<ctor> [ctor] majority (host, clientid, clientsecret, tokenurl, username, password, scopes, refreshurl, clientauthmethod) (8 SDKs); differs: java=(host, clientid, clientsecret, tokenurl, refreshurl, username, password, scopes, clientauthmethod)\n- oauth2passwordauthenticator.<ctor> [ctor-optional] majority (host, clientid, clientsecret, tokenurl, username, password, scopes, refreshurl?, clientauthmethod?) (5 SDKs); differs: dart=(host, clientid, clientsecret, tokenurl, username, password, scopes?, refreshurl?, clientauthmethod?); python=(host, clientid, clientsecret, tokenurl, username, password, scopes?, refreshurl?, clientauthmethod?); swift=(host, clientid, clientsecret, tokenurl, username, password, scopes?, refreshurl?, clientauthmethod?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F676",
@@ -32401,9 +32410,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `oauth2tokenmanager`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- oauth2tokenmanager.exchanged [member] majority present (8 SDKs); differs: csharp=missing; dart=missing; go=missing; kotlin=missing\n- oauth2tokenmanager.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(client); go=(client); rust=(client); swift=(client)\n- oauth2tokenmanager.exchange [optional] majority (tokenurl, params, extraheaders?) (8 SDKs); differs: java=(tokenurl, params, extraheaders)\n- oauth2tokenmanager.expirysafetymarginms [member] majority absent (11 SDKs); differs: kotlin=extra\n- oauth2tokenmanager.maxexpiresinseconds [member] majority absent (11 SDKs); differs: kotlin=extra\n- oauth2tokenmanager.apiclient [member] majority absent (11 SDKs); differs: kotlin=extra\n- oauth2tokenmanager.expirysafetymargins [member] majority absent (11 SDKs); differs: ruby=extra\n- oauth2tokenmanager.maxexpiresins [member] majority absent (11 SDKs); differs: ruby=extra\n- oauth2tokenmanager.markexchanged [member] majority absent (8 SDKs); differs: node=extra; ruby=extra; rust=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F677",
@@ -32422,9 +32432,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `openidconnectauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- openidconnectauthenticator.setapiclient [params] majority (apiclient) (7 SDKs); differs: dart=(client); go=(client); rust=(client); swift=(client)\n- openidconnectauthenticator.buildauthorizationurl [optional] majority (state?) (9 SDKs); differs: java=(state)\n- openidconnectauthenticator.defaultdiscoverymaxageseconds [member] majority absent (11 SDKs); differs: ruby=extra\n- openidconnectauthenticator.maxdiscoverymaxageseconds [member] majority absent (11 SDKs); differs: ruby=extra\n- openidconnectauthenticator.<ctor> [ctor-optional] majority (host, openidconnecturl, clientid, clientsecret, redirecturi, scopes) (8 SDKs); differs: dart=(host, openidconnecturl, clientid, clientsecret, redirecturi, scopes?); swift=(host, openidconnecturl, clientid, clientsecret, redirecturi, scopes?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F678",
@@ -32440,9 +32451,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `abstractapiclient`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- abstractapiclient [type] majority absent (9 SDKs); differs: dart=AbstractApiClient; node=AbstractApiClient; php=AbstractApiClient\n- abstractapiclient.sendrequest [params] majority (method, url, headers, body, noredirect) (2 SDKs); differs: node=(method, url, headers, body, options)\n- abstractapiclient.validatemultipartfilename [member] majority present (2 SDKs); differs: node=missing\n- abstractapiclient.buildfilenamedirective [member] majority present (2 SDKs); differs: node=missing\n- abstractapiclient.ensuredecoded [member] majority absent (2 SDKs); differs: node=extra\n- abstractapiclient.decodebody [member] majority absent (2 SDKs); differs: node=extra\n- abstractapiclient.mimetypeforfilename [member] majority absent (2 SDKs); differs: node=extra\n- abstractapiclient.buildcontentdisposition [member] majority absent (2 SDKs); differs: node=extra\n- abstractapiclient.proxyauthheader [member] majority absent (2 SDKs); differs: dart=extra\n- abstractapiclient.decompressbytes [member] majority absent (2 SDKs); differs: dart=extra\n- abstractapiclient.isnetworkerror [member] majority absent (2 SDKs); differs: dart=extra\n- abstractapiclient.istimeoutmessage [member] majority absent (2 SDKs); differs: dart=extra\n- abstractapiclient.buildproxyauthheader [member] majority absent (2 SDKs); differs: dart=extra\n- abstractapiclient.validatemultipartfieldname [member] majority absent (2 SDKs); differs: dart=extra\n- abstractapiclient.escapemultipartfieldname [member] majority absent (2 SDKs); differs: dart=extra\n- abstractapiclient.rfc5987encodevalue [member] majority absent (2 SDKs); differs: dart=extra\n- abstractapiclient.<ctor> [ctor] majority (transportoptions) (2 SDKs); differs: dart=(transportoptions, httpclient, proxyauthheader)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F679",
@@ -32458,9 +32470,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `allowreservedvalue`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- allowreservedvalue [type] majority absent (9 SDKs); differs: dart=AllowReservedValue; node=AllowReservedValue; python=AllowReservedValue",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F680",
@@ -32495,9 +32508,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `client`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- client [type] majority present (11 SDKs); differs: ruby=missing\n- client.withtoken [params] majority (host, accesstoken, transportoptions) (10 SDKs); differs: php=(host, accesstoken, transportoptions, apiclient)\n- client.withauthenticator [params] majority (authenticator, transportoptions) (10 SDKs); differs: php=(authenticator, transportoptions, apiclient)\n- client.<ctor> [ctor] majority (authenticator, transportoptions) (7 SDKs); differs: php=(authenticator, transportoptions, apiclient)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F682",
@@ -32512,9 +32526,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `configuration`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- configuration.fromserver [member] majority absent (11 SDKs); differs: elixir=extra\n- configuration.<ctor> [ctor-optional] majority (baseurl?, defaultheaders?) (3 SDKs); differs: ruby=(baseurl, defaultheaders)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F683",
@@ -32556,9 +32571,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `defaultapiclient`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- defaultapiclient.sendrequest [params] majority (method, url, headers, body, noredirect) (8 SDKs); differs: node=(method, url, headers, body, options)\n- defaultapiclient.sendrequest [optional] majority (method, url, headers, body, noredirect?) (6 SDKs); differs: kotlin=(method, url, headers, body, noredirect); python=(method, url, headers, body?, noredirect?)\n- defaultapiclient.sensitiveheadernames [member] majority absent (11 SDKs); differs: csharp=extra\n- defaultapiclient.proxyauthorizationheader [member] majority absent (11 SDKs); differs: csharp=extra\n- defaultapiclient.validatemultipartfilename [member] majority absent (10 SDKs); differs: csharp=extra; rust=extra\n- defaultapiclient.buildfilenamedirective [member] majority absent (10 SDKs); differs: csharp=extra; rust=extra\n- defaultapiclient.rfc5987encodevalue [member] majority absent (10 SDKs); differs: csharp=extra; rust=extra\n- defaultapiclient.extrasensitiveheadernames [member] majority absent (11 SDKs); differs: ruby=extra\n- defaultapiclient.supportedencodings [member] majority absent (11 SDKs); differs: ruby=extra\n- defaultapiclient.builddispatcher [member] majority absent (11 SDKs); differs: node=extra\n- defaultapiclient.proxyauthheader [member] majority absent (10 SDKs); differs: dart=extra\n- defaultapiclient.isnetworkerror [member] majority absent (11 SDKs); differs: dart=extra\n- defaultapiclient.decompressbytes [member] majority absent (11 SDKs); differs: dart=extra\n- defaultapiclient.closed [member] majority absent (10 SDKs); differs: rust=extra\n- defaultapiclient.serializemultipartbody [member] majority absent (11 SDKs); differs: rust=extra\n- defaultapiclient.validatemultipartfieldname [member] majority absent (11 SDKs); differs: rust=extra\n- defaultapiclient.escapemultipartfieldname [member] majority absent (11 SDKs); differs: rust=extra\n- defaultapiclient.mimeforfilename [member] majority absent (11 SDKs); differs: rust=extra\n- defaultapiclient.parsecharset [member] majority absent (11 SDKs); differs: rust=extra\n- defaultapiclient.decodetextbody [member] majority absent (10 SDKs); differs: elixir=extra; rust=extra\n- defaultapiclient.decodetextbody [params] majority (bytes, contenttype) (1 SDKs); differs: elixir=(body, contenttype)\n- defaultapiclient.classifytransporterror [member] majority absent (11 SDKs); differs: elixir=extra\n- defaultapiclient.requestoptions [member] majority absent (11 SDKs); differs: elixir=extra\n- defaultapiclient.buildcontentdisposition [member] majority absent (11 SDKs); differs: elixir=extra\n- defaultapiclient.<ctor> [ctor] majority (transportoptions) (9 SDKs); differs: python=(transportoptions, poolmanager)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F685",
@@ -32594,9 +32610,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `iso8601duration`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- iso8601duration.formatprotobufduration [params] majority (duration) (1 SDKs); differs: swift=(interval)\n- iso8601duration.validatepartialtime [member] majority present (1 SDKs); differs: swift=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F687",
@@ -32638,9 +32655,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petstore`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petstore [type] majority absent (11 SDKs); differs: ruby=Petstore",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F689",
@@ -32657,9 +32675,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `serverconfiguration`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- serverconfiguration.<ctor> [ctor-optional] majority (urltemplate, description?, variables?) (5 SDKs); differs: csharp=(urltemplate, description, variables); java=(urltemplate, description, variables); kotlin=(urltemplate, description, variables); node=(urltemplate, description, variables)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F690",
@@ -32696,9 +32715,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `servervariable`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- servervariable.<ctor> [ctor-optional] majority (defaultvalue, description?, enumvalues?) (5 SDKs); differs: csharp=(defaultvalue, description, enumvalues); java=(defaultvalue, description, enumvalues); kotlin=(defaultvalue, description, enumvalues); node=(defaultvalue, description, enumvalues)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F692",
@@ -32713,9 +32733,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `transportoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- transportoptions.assertvalidproxy [member] majority absent (11 SDKs); differs: php=extra\n- transportoptions.validateproxy [member] majority absent (11 SDKs); differs: ruby=extra\n- transportoptions.<ctor> [ctor-optional] majority (verifyssl?, cacertpath?, proxy?, timeout?, followredirects?, maxredirects?, useragent?, defaultheaders?, injectrequestid?) (2 SDKs); differs: ruby=(verifyssl, cacertpath, proxy, timeout, followredirects, maxredirects, useragent, defaultheaders, injectrequestid)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F693",
@@ -32733,9 +32754,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `transportoptionsbuilder`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- transportoptionsbuilder.verifyssl [params] majority (verifyssl) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)\n- transportoptionsbuilder.cacertpath [params] majority (cacertpath) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)\n- transportoptionsbuilder.proxy [params] majority (proxy) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)\n- transportoptionsbuilder.timeout [params] majority (timeout) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)\n- transportoptionsbuilder.followredirects [params] majority (followredirects) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)\n- transportoptionsbuilder.maxredirects [params] majority (maxredirects) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)\n- transportoptionsbuilder.useragent [params] majority (useragent) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)\n- transportoptionsbuilder.injectrequestid [params] majority (injectrequestid) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)\n- transportoptionsbuilder.useragentopt [member] majority absent (10 SDKs); differs: rust=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F694",
@@ -32776,9 +32798,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `valueserializerallowreservedvalue`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- valueserializerallowreservedvalue [type] majority absent (11 SDKs); differs: ruby=ValueSerializerAllowReservedValue",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F696",
@@ -32799,9 +32822,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `apierror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- apierror.fromresponse [params] majority (statuscode, responseheaders, responsebody) (6 SDKs); differs: elixir=(statuscode, headers, body); go=(statuscode, headers, body); python=(statuscode, headers, body); ruby=(statuscode, headers, body); rust=(statuscode, headers, body); swift=(statuscode, headers, body)\n- apierror.detailmessage [member] majority absent (11 SDKs); differs: ruby=extra\n- apierror.parseerrorbody [member] majority absent (11 SDKs); differs: ruby=extra\n- apierror.registerstatuserror [member] majority absent (11 SDKs); differs: node=extra\n- apierror.underlyingerror [member] majority absent (10 SDKs); differs: dart=extra\n- apierror.withsource [member] majority absent (11 SDKs); differs: rust=extra\n- apierror.<ctor> [ctor] majority (statuscode, message, responseheaders, responsebody, errorbody, cause) (2 SDKs); differs: dart=(statuscode, message, responsebody, responseheaders, errorbody, underlyingerror); go=(statuscode, msg, responsebody, responseheaders, errorbody, cause); python=(statuscode, message, responseheaders, responsebody, errorbody); ruby=(arg); rust=(statuscode, message, responsebody, responseheaders)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F697",
@@ -32928,9 +32952,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `networkerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- networkerror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=(message, underlyingerror); go=(msg, cause); python=(message); ruby=(message)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F704",
@@ -32945,9 +32970,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `networktimeouterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- networktimeouterror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=(message, underlyingerror); go=(msg, cause)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F705",
@@ -32999,9 +33025,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `oauth2tokenerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- oauth2tokenerror [kind] majority type (11 SDKs); differs: swift=enum\n- oauth2tokenerror.<ctor> [ctor] majority (message) (3 SDKs); differs: java=(message, cause); kotlin=(message, cause)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F708",
@@ -33015,9 +33042,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `openapierror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- openapierror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=()",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F709",
@@ -33737,9 +33765,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `uploadpetdocumentoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- uploadpetdocumentoptions.isprimary [params] majority () (11 SDKs); differs: rust=(isprimary)\n- uploadpetdocumentoptions.primary [member] majority absent (11 SDKs); differs: rust=extra\n- uploadpetdocumentoptions.file [prop-optional] majority required (8 SDKs); differs: elixir=optional; go=optional",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "closed by direct batch 5: content type selector, csharp defaults, swift proxy error and the idiom allow rules",
+   "batch": null,
+   "commit": "b673c6290"
   },
   {
    "id": "F748",
