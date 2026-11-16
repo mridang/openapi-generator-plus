@@ -1,3 +1,4 @@
+import gzip
 import json
 import pytest
 import urllib3
@@ -63,6 +64,17 @@ class _EchoHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Encoding", "made-up-codec")
             self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if self.path == "/good-gzip":
+            payload = gzip.compress(b'{"decoded":true}')
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("X-Test-Header", "kept")
             self.end_headers()
             self.wfile.write(payload)
             return
@@ -171,6 +183,20 @@ class TestDefaultApiClientUnit:
         response = client.send_request("GET", f"{self.base_url}/empty-gzip", {}, None)
         assert response.status_code == 200
         assert response.body == ""
+
+    def test_a_decoded_body_drops_content_encoding_and_content_length(self) -> None:
+        """D92: the returned headers describe the body the caller receives."""
+        client = DefaultApiClient()
+        response = client.send_request("GET", f"{self.base_url}/good-gzip", {}, None)
+        assert json.loads(response.body) == {"decoded": True}
+        assert "content-encoding" not in response.headers
+        assert "content-length" not in response.headers
+        assert response.headers["x-test-header"] == "kept"
+
+    def test_an_undecoded_empty_body_keeps_its_headers(self) -> None:
+        client = DefaultApiClient()
+        response = client.send_request("GET", f"{self.base_url}/empty-gzip", {}, None)
+        assert response.headers["content-encoding"] == "gzip"
 
     def test_returns_non_2xx_status_code(self) -> None:
         client = DefaultApiClient()
@@ -318,6 +344,26 @@ class TestDefaultApiClientUnit:
         lower_headers = {k.lower(): v for k, v in response.headers.items()}
         assert "x-multi" in lower_headers
         assert "val1" in lower_headers["x-multi"] and "val2" in lower_headers["x-multi"]
+
+    @pytest.mark.parametrize(
+        ("declared", "expected"),
+        [
+            (None, "multipart/form-data"),
+            ("multipart/mixed", "multipart/mixed"),
+            ("multipart/related", "multipart/related"),
+            ("multipart/bad\r\nX: y", "multipart/form-data"),
+        ],
+    )
+    def test_multipart_content_type_carries_the_declared_subtype(
+        self, declared: Any, expected: str
+    ) -> None:
+        request_headers = {} if declared is None else {"Content-Type": declared}
+        client = DefaultApiClient()
+        response = client.send_request(
+            "POST", f"{self.base_url}/echo", request_headers, {"field": "value"}
+        )
+        sent = json.loads(response.body)["headers"]["content-type"]
+        assert sent.startswith(f"{expected}; boundary=")
 
 
 class TestCharsetDecoding:

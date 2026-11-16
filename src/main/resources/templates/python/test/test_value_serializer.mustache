@@ -273,8 +273,9 @@ class TestAllowReserved:
 
     @pytest.mark.parametrize('value', ['.', '..'])
     def test_path_dot_segment_is_rejected(self, value: str) -> None:
-        with pytest.raises(ValueError, match=r"Path parameter 'name' must not be '\.' or '\.\.'"):
+        with pytest.raises(ValueError) as exc_info:
             ValueSerializer.serialize_styled('name', value, 'path', 'str', None, 'simple', False)
+        assert str(exc_info.value) == "Path parameter 'name' must not be '.' or '..'"
 
     def test_path_value_with_inner_dots_is_kept(self) -> None:
         assert ValueSerializer.serialize_styled('name', 'a..b', 'path', 'str', None, 'simple', False) == 'a..b'

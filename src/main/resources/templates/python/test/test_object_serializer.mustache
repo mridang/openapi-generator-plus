@@ -168,6 +168,18 @@ class TestNonAsciiSerialization:
         result = ObjectSerializer().serialize('a\tb')
         assert r'\t' in result
 
+    @pytest.mark.parametrize('char', ['\u2028', '\u2029', '\x7f', '/', '<', '>', '&'])
+    def test_d84_characters_are_written_literally_in_a_string(self, char: str) -> None:
+        assert ObjectSerializer().serialize(f'a{char}b') == f'"a{char}b"'
+
+    @pytest.mark.parametrize('char', ['\u2028', '\u2029', '\x7f', '/', '<', '>', '&'])
+    def test_d84_characters_are_written_literally_in_a_model(self, char: str) -> None:
+        result = ObjectSerializer().serialize(Category(id=1, name=f'a{char}b'))
+        assert f'"name":"a{char}b"' in result.replace(' ', '')
+
+    def test_only_quote_backslash_and_controls_are_escaped(self) -> None:
+        assert ObjectSerializer().serialize('"\\\x01') == '"\\"\\\\\\u0001"'
+
 
 class TestDeserializationErrorWrapping:
     @pytest.mark.parametrize(
@@ -633,6 +645,161 @@ class TestExtraFieldsOnDeserialize:
         assert isinstance(category, Category)
         assert category.id == 1
         assert category.name == 'Dogs'
+
+
+class TestUnevaluatedPropertiesFalseRejectsExtraKeys:
+    """A model declaring ``unevaluatedProperties: false`` (StrictTag) refuses an
+    undeclared key; a model without it (Category) keeps ignoring one."""
+
+    def test_an_undeclared_key_is_rejected(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(
+                '{"id":1,"name":"x","unexpected":true}', 'StrictTag'
+            )
+
+    def test_the_declared_keys_still_decode(self) -> None:
+        from {{packageName}}.models.strict_tag import StrictTag
+
+        tag = ObjectSerializer().deserialize('{"id":1,"name":"x"}', 'StrictTag')
+        assert isinstance(tag, StrictTag)
+        assert (tag.id, tag.name) == (1, 'x')
+
+    def test_the_strict_flag_does_not_leak_onto_other_models(self) -> None:
+        category = ObjectSerializer().deserialize(
+            '{"id":1,"name":"Dogs","unexpected":true}', 'Category'
+        )
+        assert isinstance(category, Category)
+
+
+class TestFixtureModelsOnTheWire:
+    """Fixture rows every SDK asserts: the uuid property, the Error and Result
+    schemas, the hostile Availability members and the inline enum with
+    non-identifier wire values."""
+
+    _TRACKING_ID = 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F'
+
+    def test_a_uuid_property_is_written_in_lowercase(self) -> None:
+        import json
+        from {{packageName}}.models.order import Order
+
+        wire = json.loads(ObjectSerializer().serialize(Order(trackingId=self._TRACKING_ID)))
+        assert wire['trackingId'] == self._TRACKING_ID.lower()
+
+    def test_an_upper_case_uuid_decodes_and_comes_back_lowercase(self) -> None:
+        import json
+        from {{packageName}}.models.order import Order
+
+        order = ObjectSerializer().deserialize(
+            json.dumps({'trackingId': self._TRACKING_ID}), 'Order'
+        )
+        assert isinstance(order, Order)
+        assert str(order.tracking_id) == self._TRACKING_ID.lower()
+
+    def test_a_malformed_uuid_is_rejected_on_decode(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"trackingId":"not-a-uuid"}', 'Order')
+
+    def test_schemas_named_error_and_result_round_trip(self) -> None:
+        import json
+        from {{packageName}}.models.edge_cases import EdgeCases
+        from {{packageName}}.models.error import Error
+        from {{packageName}}.models.result import Result
+
+        wire = {'lastError': {'code': 1, 'message': 'm'}, 'outcome': {'ok': True}}
+        decoded = ObjectSerializer().deserialize(json.dumps(wire), 'EdgeCases')
+        assert isinstance(decoded, EdgeCases)
+        assert isinstance(decoded.last_error, Error)
+        assert isinstance(decoded.outcome, Result)
+        assert (decoded.last_error.code, decoded.last_error.message) == (1, 'm')
+        assert decoded.outcome.ok is True
+        assert json.loads(ObjectSerializer().serialize(decoded)) == wire
+
+    @pytest.mark.parametrize('wire', ["o'clock", 'a\\b', '$eq', '#{x}'])
+    def test_hostile_availability_members_map_to_their_wire_strings(self, wire: str) -> None:
+        import json
+        from {{packageName}}.models.availability import Availability
+
+        member = ObjectSerializer().deserialize(json.dumps(wire), 'Availability')
+        assert isinstance(member, Availability)
+        assert member.value == wire
+        assert ObjectSerializer().serialize(member) == json.dumps(wire, ensure_ascii=False)
+
+    @pytest.mark.parametrize('wire', ['In-Stock', 'on-hold', 'OUT_OF_STOCK'])
+    def test_inline_enum_values_round_trip_to_the_exact_string(self, wire: str) -> None:
+        import json
+        from {{packageName}}.models.edge_cases import EdgeCases, EdgeCasesPhaseEnum
+
+        decoded = ObjectSerializer().deserialize(json.dumps({'phase': wire}), 'EdgeCases')
+        assert isinstance(decoded, EdgeCases)
+        assert decoded.phase == EdgeCasesPhaseEnum(wire)
+        assert json.loads(ObjectSerializer().serialize(decoded)) == {'phase': wire}
+
+    def test_separator_wire_values_decode_to_distinct_members_and_re_encode(self) -> None:
+        import json
+        from {{packageName}}.models.separator import Separator
+
+        wires = [' ', '@@', 'a-b', 'a_b']
+        members = []
+        for wire in wires:
+            member = ObjectSerializer().deserialize(json.dumps(wire), 'Separator')
+            assert isinstance(member, Separator)
+            assert ObjectSerializer().serialize(member) == json.dumps(wire)
+            members.append(member)
+        assert len(set(members)) == 4
+
+    def test_a_content_encoded_property_round_trips_through_base64(self) -> None:
+        import json
+        from {{packageName}}.models.pet_passport import PetPassport
+
+        wire = json.loads(
+            ObjectSerializer().serialize(PetPassport(biometricChip=b'\x00\xfb\xff'))
+        )
+        assert wire['biometricChip'] == 'APv/'
+        decoded = ObjectSerializer().deserialize('{"biometricChip":"APv/"}', 'PetPassport')
+        assert isinstance(decoded, PetPassport)
+        assert decoded.biometric_chip == b'\x00\xfb\xff'
+
+    def test_a_prefix_items_tuple_keeps_its_mixed_element_types(self) -> None:
+        import json
+        from {{packageName}}.models.pet import Pet
+
+        pet = ObjectSerializer().deserialize(
+            '{"name":"n","photoUrls":[],"location":[1.5,2,"deck"]}', 'Pet'
+        )
+        assert isinstance(pet, Pet)
+        assert pet.location == [1.5, 2, 'deck']
+        assert json.loads(ObjectSerializer().serialize(pet))['location'] == [1.5, 2, 'deck']
+
+    def test_properties_named_after_keywords_and_literals_keep_their_wire_keys(self) -> None:
+        import json
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        wire = {
+            'and': True,
+            'or': False,
+            'not': True,
+            'class': 'c',
+            'return': 'r',
+            'null': 'n',
+            'true': True,
+            'false': False,
+            '2fa': True,
+        }
+        decoded = ObjectSerializer().deserialize(json.dumps(wire), 'EdgeCases')
+        assert isinstance(decoded, EdgeCases)
+        assert (decoded.and_, decoded.or_, decoded.not_) == (True, False, True)
+        assert (decoded.class_, decoded.return_, decoded.null) == ('c', 'r', 'n')
+        assert (decoded.true_, decoded.false_, decoded.n2fa) == (True, False, True)
+        assert json.loads(ObjectSerializer().serialize(decoded)) == wire
+
+    def test_a_duplicate_object_key_resolves_to_the_last_value(self) -> None:
+        category = ObjectSerializer().deserialize('{"id":1,"id":2,"name":"x"}', 'Category')
+        assert isinstance(category, Category)
+        assert category.id == 2
+
+    def test_an_unknown_inline_enum_value_is_rejected(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"phase":"in-stock"}', 'EdgeCases')
 
 
 class TestExcludeNoneOnSerialize:

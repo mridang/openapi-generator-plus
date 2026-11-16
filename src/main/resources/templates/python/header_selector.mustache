@@ -29,6 +29,12 @@ class HeaderSelector:
             if not content_type:
                 content_type = 'application/json'
             headers['Content-Type'] = content_type
+        elif content_type and content_type.lower().startswith('multipart/') and (
+            content_type.lower() != 'multipart/form-data'
+        ):
+            # The transport adds the boundary; it needs the declared subtype
+            # (multipart/mixed, multipart/related) to write it.
+            headers['Content-Type'] = content_type
 
         return headers
 

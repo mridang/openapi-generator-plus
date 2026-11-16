@@ -1,9 +1,18 @@
 {{>api_info}}
 
+import re
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Dict, Mapping, Optional
 from urllib.parse import urlparse, urlsplit
+
+
+_PROXY_USERINFO = re.compile(r'^([A-Za-z][A-Za-z0-9+.\-]*://)[^/?#]*@')
+
+
+def _proxy_in_message(proxy: str) -> str:
+    """The proxy URL for an error message, with any ``user:pass@`` userinfo shown as ``***@`` (D79)."""
+    return _PROXY_USERINFO.sub(r'\1***@', proxy)
 
 
 def _assert_valid_proxy(proxy: Optional[str]) -> None:
@@ -19,9 +28,9 @@ def _assert_valid_proxy(proxy: Optional[str]) -> None:
         return
     parsed = urlparse(proxy)
     if parsed.scheme not in ('http', 'https'):
-        raise ValueError(f"Invalid proxy URL (must use http or https scheme): {proxy}")
+        raise ValueError(f"Invalid proxy URL (must use http or https scheme): {_proxy_in_message(proxy)}")
     if not parsed.hostname:
-        raise ValueError(f"Invalid proxy URL (missing host): {proxy}")
+        raise ValueError(f"Invalid proxy URL (missing host): {_proxy_in_message(proxy)}")
 
 
 def _assert_valid_timeout(timeout: Optional[int]) -> None:
