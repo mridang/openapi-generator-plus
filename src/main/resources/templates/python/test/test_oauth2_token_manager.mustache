@@ -706,6 +706,18 @@ class TestRefreshGrant:
         assert client.send_request.call_count == 2
         assert manager.exchanged is False
 
+    def test_the_token_request_is_a_form_post_accepting_json(self) -> None:
+        manager, client = _manager_replying(
+            _token_reply(access_token="a1", expires_in=3600),
+        )
+
+        manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        call = client.send_request.call_args
+        assert call[0][0] == "POST"
+        assert call[0][2]["Content-Type"] == "application/x-www-form-urlencoded"
+        assert call[0][2]["Accept"] == "application/json"
+
     def test_an_expires_in_beyond_one_year_is_clamped_to_one_year(self) -> None:
         from unittest.mock import patch
 

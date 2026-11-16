@@ -285,6 +285,33 @@ Where: `readme.mustache`.
 - F215, F923, F834 (required plus nullable, S5): the petstore `RequiredNullable.note` is declared with an OAS 3.1 type array, and the golden still renders `note: StrictStr`, so the python model does not yet honour S5; fixing it needs the shared normaliser and a regenerated golden to verify.
 - F929: python's `get_auth_headers` is the blocking path that really performs the token exchange (the async layer runs it in `asyncio.to_thread`), so the D12 "use the async method" message does not apply; the matrix row saying python raises is wrong and is left for the owner.
 
+## Decisions taken in batch 7
+
+The audit's own proposal was used as the default where no owner decision existed.
+
+### Decoded bodies, proxy messages and the one-year ceiling (F1165, F1086, F1138, D92, D79, D08)
+Rule: when the body was decoded (non-empty, `Content-Encoding` other than identity) the returned headers drop `content-encoding` and `content-length`; an empty or undecoded body keeps them. Proxy validation errors show userinfo as `***@` (`_proxy_in_message`); the S15 repr redaction is unchanged. `expires_in` and an OIDC `max-age` are clamped to 31 536 000 s before any arithmetic.
+Where: `default_api_client.mustache`, `transport_options.mustache`, `auth/oauth/oauth2_token_manager.mustache`, `auth/oauth/openid_connect_authenticator.mustache`.
+Test: `test_default_api_client.mustache` (`TestHttpCompression`), `test_default_api_client_unit.mustache`, `test_transport_options.mustache`, `test_oauth2_token_manager.mustache`, `test_openid_connect_authenticator.mustache`.
+
+### multipart/* bodies (F1059)
+Rule: every `multipart/*` content type builds the parts envelope; the transport writes `<declared type>; boundary=...` (only a token matching `multipart/[a-z0-9!#$&^_.+-]+` is taken over from the caller header, anything else falls back to `multipart/form-data`). The header selector passes a non-form-data multipart subtype through to the transport.
+Where: `base_api.mustache`, `header_selector.mustache`, `default_api_client.mustache`.
+Test: `test_base_api.mustache`, `test_header_selector.mustache`, `test_default_api_client_unit.mustache`.
+
+### File header (F1156)
+Rule: the info description in the generated file header goes through `lambda.unescapeDocComment`, so `"quoted"` is not written as `\"quoted\"`.
+Where: `api_info.mustache`. Test: `test_metadata.mustache`.
+
+### Tests added for parity (F1111, F1126, F1127, F1068, F1166, F1169, F1075, F1121, F1148, F935)
+StrictTag extra-key rejection, the `getPetTag` byte parameters on the wire, the required header and cookie guards, `getPetSummary` (matrix date, date-array query, cookie, text/plain), ambient proxy variables ignored, the auth cookie reaching the wire, the token request headers, an explicit per-call `Accept`, D84 characters written literally, the exact dot-segment message.
+
+### Not done in batch 7 (python)
+- F1056 (header parameters named Accept, Content-Type, Authorization) needs the shared codegen filter.
+- F857, F856, F855, F858, F859, F860, F1060 (per-scheme authenticators, PKCE, discovery checks) are cross-language design work.
+- F1093 (credential strip by origin), F1080 (bounded ApiError body), F1100 (pagination), F1174, F1176 are design or gate work outside the templates.
+- F541 needs `PythonClientSpec.java`; F1072 needs a Java unit test class; F1153, F1154 are shared Java tests.
+
 ## Build-breaking rules
 
 - No generated file may carry `# ruff: noqa` or any blanket suppression; the only per-file ignores are `E402` for `models/*.py` and `errors/__init__.py`, named with a reason in `pyproject_toml.mustache`.

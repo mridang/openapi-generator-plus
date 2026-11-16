@@ -13,6 +13,7 @@ from {{packageName}}.api.options.add_pet_photos_options import AddPetPhotosOptio
 from {{packageName}}.api.options.delete_pet_options import DeletePetOptions
 from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
 from {{packageName}}.api.options.get_pet_by_name_options import GetPetByNameOptions
+from {{packageName}}.api.options.get_pet_summary_options import GetPetSummaryOptions
 from {{packageName}}.api.options.get_pet_tag_options import GetPetTagOptions
 from {{packageName}}.api.options.set_pet_preferences_options import SetPetPreferencesOptions
 from {{packageName}}.api.options.upload_pet_certificate_options import UploadPetCertificateOptions
@@ -46,7 +47,11 @@ class _RecordingApiClient:
         return ApiHttpResponse(status_code=200, body='{}', headers={'content-type': 'application/json'})
 
 
-async def _capture_get(call: Any) -> Dict[str, Any]:
+async def _capture_get(
+    call: Any,
+    content_type: str = 'application/json',
+    reply: bytes = b'{"id":1,"name":"x","photoUrls":[]}',
+) -> Dict[str, Any]:
     """Run ``call(api)`` against a one-shot local listener and return the raw
     request target and headers the server received."""
     captured: Dict[str, Any] = {}
@@ -56,9 +61,9 @@ async def _capture_get(call: Any) -> Dict[str, Any]:
             captured['path'] = self.path
             captured['headers'] = dict(self.headers.items())
             self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Type', content_type)
             self.end_headers()
-            self.wfile.write(b'{"id":1,"name":"x","photoUrls":[]}')
+            self.wfile.write(reply)
 
         def log_message(self, format: str, *args: object) -> None:
             pass
@@ -70,7 +75,7 @@ async def _capture_get(call: Any) -> Dict[str, Any]:
     thread.start()
     config = Configuration.builder().base_url(f'http://127.0.0.1:{port}').build()
     try:
-        await call(PetApi(config=config))
+        captured['result'] = await call(PetApi(config=config))
     finally:
         server.server_close()
     return captured
@@ -533,6 +538,43 @@ class TestPetApi:
         assert query in captured['path']
         sent = {name.lower(): value for name, value in captured['headers'].items()}
         assert sent['x-fingerprint'] == header
+
+    async def test_get_pet_summary_sends_matrix_path_date_array_query_and_cookie(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_summary(
+                7,
+                datetime.date(2024, 1, 5),
+                GetPetSummaryOptions(
+                    session='abc', days=[datetime.date(2024, 1, 1), datetime.date(2024, 2, 2)]
+                ),
+            ),
+            'text/plain',
+            b'done',
+        )
+        assert '/summary/;asOf=2024-01-05' in captured['path']
+        assert 'days=2024-01-01&days=2024-02-02' in captured['path']
+        sent = {name.lower(): value for name, value in captured['headers'].items()}
+        assert sent['cookie'] == 'session=abc'
+        assert sent['accept'] == 'text/plain'
+        assert captured['result'] == 'done'
+
+    async def test_get_pet_summary_requires_the_session_cookie(self) -> None:
+        api = PetApi(config=Configuration.builder().base_url('http://localhost').build())
+        with pytest.raises(
+            ValueError,
+            match="Missing the required parameter 'session' when calling PetApi.get_pet_summary",
+        ):
+            await api.get_pet_summary(7, datetime.date(2024, 1, 5), GetPetSummaryOptions(session=''))
+
+    async def test_get_pet_by_name_requires_the_correlation_header(self) -> None:
+        api = PetApi(config=Configuration.builder().base_url('http://localhost').build())
+        with pytest.raises(
+            ValueError,
+            match="Missing the required parameter 'x_correlation_id' when calling PetApi.get_pet_by_name",
+        ):
+            await api.get_pet_by_name(
+                'Fido', GetPetByNameOptions(category='c', x_correlation_id='')
+            )
 
     @pytest.mark.parametrize('name', ['.', '..'])
     async def test_get_pet_by_name_rejects_a_dot_segment(self, name: str) -> None:
