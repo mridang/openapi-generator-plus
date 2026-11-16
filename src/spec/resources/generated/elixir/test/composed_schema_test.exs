@@ -194,6 +194,28 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert length(String.split(serialized, ~s("notes"))) == 2
     end
 
+    test "an anyOf keeps its variants in declaration order, not alphabetical order" do
+      # TreatmentRecord declares Surgery before Medication, the reverse of
+      # alphabetical order: the first declared match is the actual instance.
+      json = ~s({"drugName":"a","procedureName":"b"})
+      result = PetstoreClient.ObjectSerializer.deserialize(json, "TreatmentRecord")
+
+      assert [%PetstoreClient.Models.Surgery{}, %PetstoreClient.Models.Medication{}] =
+               PetstoreClient.Models.TreatmentRecord.matched_instances(result)
+
+      assert %PetstoreClient.Models.Surgery{} =
+               PetstoreClient.Models.TreatmentRecord.actual_instance(result)
+    end
+
+    test "a shared property of two matched anyOf variants takes the later declared value" do
+      json = ~s({"drugName":"a","procedureName":"b","notes":"shared"})
+      result = PetstoreClient.ObjectSerializer.deserialize(json, "TreatmentRecord")
+      serialized = PetstoreClient.ObjectSerializer.serialize(result)
+
+      assert serialized =~ "shared"
+      assert length(String.split(serialized, ~s("notes"))) == 2
+    end
+
     test "raises for anyOf payload matching no variant" do
       # oneof-nondiscriminator-no-match-silent: a body matching neither
       # Medication nor Surgery must raise rather than return a silently-empty

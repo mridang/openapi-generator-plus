@@ -272,6 +272,14 @@ class OAuth2TokenManager:
             raise OAuth2TokenException(
                 "Token response missing or empty access_token field"
             )
+        # RFC 6749 section 7.1: a client must not use a token whose type it does
+        # not understand. Only a bearer token (any case) or an absent type is
+        # sent as "Bearer"; a DPoP or MAC token would be refused by the server.
+        token_type = token_data.get("token_type")
+        if token_type is not None and not (
+            isinstance(token_type, str) and token_type.lower() == "bearer"
+        ):
+            raise OAuth2TokenException("Unsupported token_type in token response")
         self._access_token = access_token
         new_refresh_token = token_data.get("refresh_token")
         if isinstance(new_refresh_token, str) and new_refresh_token:

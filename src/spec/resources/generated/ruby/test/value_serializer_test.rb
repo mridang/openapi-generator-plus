@@ -611,6 +611,36 @@ describe Petstore::Client::ValueSerializer do
     end
   end
 
+  # A DateTime is a Date in Ruby, so a format: date parameter must still drop
+  # the time of day.
+  describe 'format:date parameter given a date-time' do
+    require 'date'
+
+    it 'writes a DateTime as YYYY-MM-DD' do
+      value = DateTime.new(2024, 1, 15, 23, 59, 30)
+      result = Petstore::Client::ValueSerializer.serialize_styled('born_on', value, :query, 'Date', nil, 'form', true)
+      _(result).must_equal('2024-01-15')
+    end
+
+    it 'writes a Time as YYYY-MM-DD' do
+      value = Time.new(2024, 1, 15, 23, 59, 30, '+00:00')
+      result = Petstore::Client::ValueSerializer.serialize_styled('born_on', value, :path, 'Date', nil, 'simple', false)
+      _(result).must_equal('2024-01-15')
+    end
+
+    it 'writes every element of an array of date-times as YYYY-MM-DD' do
+      values = [DateTime.new(2024, 1, 15, 1, 2, 3), Date.new(2024, 2, 1)]
+      result = Petstore::Client::ValueSerializer.serialize_styled('days', values, :path, 'Array<Date>', nil, 'simple', false)
+      _(result).must_equal('2024-01-15,2024-02-01')
+    end
+
+    it 'keeps the time of a date-time parameter that is not a format: date' do
+      value = DateTime.new(2024, 1, 15, 1, 2, 3)
+      result = Petstore::Client::ValueSerializer.serialize_styled('at', value, :path, 'Time', nil, 'simple', false)
+      _(result).must_include('2024-01-15T01:02:03')
+    end
+  end
+
   # D47: an object value (a model or a Hash) is expanded by style and explode,
   # never rendered through its to_s.
   describe 'object values' do

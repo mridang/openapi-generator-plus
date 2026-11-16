@@ -502,6 +502,10 @@ class ObjectSerializer:
                 # the caller) instead of silently discarding them, matching the
                 # strict decoders in ruby/php/elixir/go/rust.
                 return base64.b64decode(data, validate=True)
+            if isinstance(data, (list, tuple, dict)):
+                # A container is never a base64 payload: reject it so a oneOf
+                # of [bytes, List[bytes]] falls through to the array variant.
+                raise ValueError(f'Expected a base64 string for bytes, got {type(data).__name__}')
             return data
         elif klass in self._PRIMITIVE_TYPES:
             try:

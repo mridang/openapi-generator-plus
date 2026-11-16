@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -16,6 +16,7 @@ import '../models/category.dart';
 import '../models/defaults.dart';
 import '../models/department.dart';
 import '../models/order.dart';
+import '../models/reserve_stock_response.dart';
 import '../models/stock_item.dart';
 import '../models/swatch.dart';
 import '../models/tree_node.dart';
@@ -907,6 +908,55 @@ class StoreApi extends BaseApi {
       auth: null,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
+    );
+  }
+
+  /// Reserve stock, answering with the existing or a new reservation
+  /// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+  Future<ReserveStockResponse> reserveStock() async {
+    final result = await reserveStockWithHttpInfo();
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as ReserveStockResponse` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for reserveStock but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the reserveStock operation and returns the full API result.
+  Future<ApiResult<ReserveStockResponse>> reserveStockWithHttpInfo() async {
+    var path = '/store/reservation';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<ReserveStockResponse>(
+      method: 'POST',
+      operation: 'StoreApi.reserveStock',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'ReserveStockResponse',
+      auth: noAuth,
+
+      deserialize: (body) =>
+          deserialize(body, ReserveStockResponse.fromJson)
+              as ReserveStockResponse,
     );
   }
 

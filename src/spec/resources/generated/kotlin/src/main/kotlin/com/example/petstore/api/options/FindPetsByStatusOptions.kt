@@ -9,6 +9,8 @@ import java.time.LocalDate
 class FindPetsByStatusOptions(
     /**
      * Status values that need to be considered for filter
+     * Example — Available only: `available`
+     * Example — Sold pets: `sold`
      *
      * @deprecated This parameter is deprecated.
      */

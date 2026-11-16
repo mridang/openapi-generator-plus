@@ -433,6 +433,7 @@ class DefaultApiClient:
     Header merge order (lowest to highest priority):
 
     1. :attr:`TransportOptions.default_headers` -- transport-level defaults
+       (left out of a ``no_redirect`` request, the OAuth2 token POST)
     2. Caller-provided headers (from :class:`BaseApi` -- includes config
        defaults, auth, operation headers)
     3. :attr:`TransportOptions.user_agent` -- injected if not already set
@@ -501,10 +502,13 @@ class DefaultApiClient:
                 try:
                     ctx = ssl.create_default_context()
                     ctx.load_verify_locations(cafile=transport_options.ca_cert_path)
-                except (OSError, ssl.SSLError) as e:
+                except ssl.SSLError as e:
                     raise ValueError(
-                        "failed to load CA certificate from "
-                        f"{transport_options.ca_cert_path!r}: {e}"
+                        f'failed to parse CA certificate from "{transport_options.ca_cert_path}": {e}'
+                    ) from e
+                except OSError as e:
+                    raise ValueError(
+                        f'failed to read CA certificate from "{transport_options.ca_cert_path}": {e}'
                     ) from e
             if not transport_options.verify_ssl:
                 kwargs["cert_reqs"] = "CERT_NONE"
@@ -682,7 +686,12 @@ class DefaultApiClient:
             )
 
         # --- Merge headers: transport defaults < caller headers < injected ---
-        merged_headers: Dict[str, str] = dict(self._transport_options.default_headers)
+        # A no_redirect request is a credential-bearing auth call (the OAuth2
+        # token POST): the caller's default headers meant for the API, such as
+        # an Authorization or API-key header, must never reach the token endpoint.
+        merged_headers: Dict[str, str] = (
+            {} if no_redirect else dict(self._transport_options.default_headers)
+        )
         _merge_headers(merged_headers, headers)
 
         # Header names are case-insensitive (RFC 9110 section 5.1): any case

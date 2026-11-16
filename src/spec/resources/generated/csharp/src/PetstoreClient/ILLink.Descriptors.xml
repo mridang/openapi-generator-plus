@@ -38,6 +38,9 @@
         <type fullname="PetstoreClient.Models.PhotoMetadataLocation" preserve="all" />
         <type fullname="PetstoreClient.Models.Priority" preserve="all" />
         <type fullname="PetstoreClient.Models.RequiredNullable" preserve="all" />
+        <type fullname="PetstoreClient.Models.Reservation" preserve="all" />
+        <type fullname="PetstoreClient.Models.ReservationReceipt" preserve="all" />
+        <type fullname="PetstoreClient.Models.ReserveStockResponse" preserve="all" />
         <type fullname="PetstoreClient.Models.Result" preserve="all" />
         <type fullname="PetstoreClient.Models.Separator" preserve="all" />
         <type fullname="PetstoreClient.Models.SetPetAvatarRequest" preserve="all" />

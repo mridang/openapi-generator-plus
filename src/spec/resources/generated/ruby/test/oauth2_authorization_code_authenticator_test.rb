@@ -242,6 +242,11 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.host).must_equal 'https://api.example.com'
   end
 
+  it 'refuses to produce headers before exchange_code was called' do
+    err = assert_raises(RuntimeError) { auth.auth_headers }
+    _(err.message).must_equal 'Must call exchange_code() before making API requests'
+  end
+
   # oauth-exchangecode-no-empty-code-guard: an empty/blank authorization
   # code must be rejected before issuing the token POST.
   it 'rejects an empty authorization code' do

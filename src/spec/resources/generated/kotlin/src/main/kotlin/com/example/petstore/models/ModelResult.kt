@@ -16,16 +16,11 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
 @Serializable
-data class Error(
+data class ModelResult(
     /**
-     * The `code` property.
+     * The `ok` property.
      */
-    @SerialName("code")
-    @Serializable(with = com.example.petstore.StrictIntSerializer::class)
-    val code: Int? = null,
-    /**
-     * The `message` property.
-     */
-    @SerialName("message")
-    val message: String? = null,
+    @SerialName("ok")
+    @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
+    val ok: Boolean? = null,
 )

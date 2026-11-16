@@ -55,6 +55,26 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       end
     end
 
+    test "a token of Unicode spaces is not blank: the printable ASCII rule rejects it" do
+      error =
+        assert_raise ArgumentError, fn ->
+          BearerAuthenticator.new("https://api.example.com", "\u00A0\u2003")
+        end
+
+      assert error.message ==
+               "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+    end
+
+    test "a token that merely begins with the word bearer is kept whole" do
+      auth = BearerAuthenticator.new("https://api.example.com", "bearerxyz")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer bearerxyz"
+    end
+
+    test "a doubled bearer prefix is stripped only once" do
+      auth = BearerAuthenticator.new("https://api.example.com", "Bearer Bearer xyz")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer Bearer xyz"
+    end
+
     # authenticator-secret-in-default-string-repr: the token must never
     # appear in the authenticator's default Inspect representation.
     test "default inspect/1 redacts the token but keeps the host" do

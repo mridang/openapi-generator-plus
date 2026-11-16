@@ -714,6 +714,47 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Order.self)
   }
 
+  /// Reserve stock, answering with the existing or a new reservation
+  /// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+  public func reserveStock() async throws -> ReserveStockResponse {
+    let result = try await reserveStockWithHTTPInfo()
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for reserveStock but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the reserveStock operation and returns the full API result.
+  public func reserveStockWithHTTPInfo() async throws -> ApiResult<ReserveStockResponse> {
+
+    let path = "/store/reservation"
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "ReserveStockResponse",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.reserveStock"
+    )
+
+    return try await invokeAPIForResult(params, as: ReserveStockResponse.self)
+  }
+
   /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
   ///
   /// - Parameters:

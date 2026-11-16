@@ -66,11 +66,18 @@ defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Regional do
 
     if server.region not in allowed_region do
       raise ArgumentError,
-            "Invalid value '#{server.region}' for server variable 'region'. Allowed values: #{inspect(allowed_region)}"
+            "Invalid value '#{server.region}' for server variable 'region'. Allowed values: [#{Enum.join(allowed_region, ", ")}]"
     end
 
-    "https://{region}.example.com/v1"
-    |> String.replace("{" <> "region" <> "}", to_string(server.region))
+    values = %{
+      "region" => to_string(server.region)
+    }
+
+    # One pass over the template: a placeholder that a substituted value
+    # introduces is never expanded again.
+    Regex.replace(~r/\{([^{}]+)\}/, "https://{region}.example.com/v1", fn placeholder, name ->
+      Map.get(values, name, placeholder)
+    end)
   end
 end
 
@@ -106,7 +113,7 @@ defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Mirror do
 
     if server.region not in allowed_region do
       raise ArgumentError,
-            "Invalid value '#{server.region}' for server variable 'region'. Allowed values: #{inspect(allowed_region)}"
+            "Invalid value '#{server.region}' for server variable 'region'. Allowed values: [#{Enum.join(allowed_region, ", ")}]"
     end
 
     # Like the global ServerConfiguration, refuse a value outside the variable's
@@ -115,12 +122,23 @@ defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Mirror do
 
     if server.channel not in allowed_channel do
       raise ArgumentError,
-            "Invalid value '#{server.channel}' for server variable 'channel'. Allowed values: #{inspect(allowed_channel)}"
+            "Invalid value '#{server.channel}' for server variable 'channel'. Allowed values: [#{Enum.join(allowed_channel, ", ")}]"
     end
 
-    "https://{region}.mirror.example.com/{channel}/v1"
-    |> String.replace("{" <> "region" <> "}", to_string(server.region))
-    |> String.replace("{" <> "channel" <> "}", to_string(server.channel))
+    values = %{
+      "region" => to_string(server.region),
+      "channel" => to_string(server.channel)
+    }
+
+    # One pass over the template: a placeholder that a substituted value
+    # introduces is never expanded again.
+    Regex.replace(
+      ~r/\{([^{}]+)\}/,
+      "https://{region}.mirror.example.com/{channel}/v1",
+      fn placeholder, name ->
+        Map.get(values, name, placeholder)
+      end
+    )
   end
 end
 
@@ -179,7 +197,7 @@ defmodule PetstoreClient.Api.GetStagingPetInfoServer.StagingServer do
 
     if server.environment not in allowed_environment do
       raise ArgumentError,
-            "Invalid value '#{server.environment}' for server variable 'environment'. Allowed values: #{inspect(allowed_environment)}"
+            "Invalid value '#{server.environment}' for server variable 'environment'. Allowed values: [#{Enum.join(allowed_environment, ", ")}]"
     end
 
     # Like the global ServerConfiguration, refuse a value outside the variable's
@@ -188,12 +206,23 @@ defmodule PetstoreClient.Api.GetStagingPetInfoServer.StagingServer do
 
     if server.version not in allowed_version do
       raise ArgumentError,
-            "Invalid value '#{server.version}' for server variable 'version'. Allowed values: #{inspect(allowed_version)}"
+            "Invalid value '#{server.version}' for server variable 'version'. Allowed values: [#{Enum.join(allowed_version, ", ")}]"
     end
 
-    "https://{environment}.example.com/api/{version}"
-    |> String.replace("{" <> "environment" <> "}", to_string(server.environment))
-    |> String.replace("{" <> "version" <> "}", to_string(server.version))
+    values = %{
+      "environment" => to_string(server.environment),
+      "version" => to_string(server.version)
+    }
+
+    # One pass over the template: a placeholder that a substituted value
+    # introduces is never expanded again.
+    Regex.replace(
+      ~r/\{([^{}]+)\}/,
+      "https://{environment}.example.com/api/{version}",
+      fn placeholder, name ->
+        Map.get(values, name, placeholder)
+      end
+    )
   end
 end
 
@@ -3110,7 +3139,7 @@ defmodule PetstoreClient.Api.PetApi do
           else
             raise ArgumentError,
                   "Unsupported request content-type '#{selected}' for set_pet_avatar; " <>
-                    "declared types are #{inspect(declared_content_types)}"
+                    "declared types are [#{Enum.join(declared_content_types, ", ")}]"
           end
       end
 
@@ -3836,7 +3865,7 @@ defmodule PetstoreClient.Api.PetApi do
           else
             raise ArgumentError,
                   "Unsupported request content-type '#{selected}' for upload_pet_document; " <>
-                    "declared types are #{inspect(declared_content_types)}"
+                    "declared types are [#{Enum.join(declared_content_types, ", ")}]"
           end
       end
 

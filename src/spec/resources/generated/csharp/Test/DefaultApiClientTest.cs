@@ -940,7 +940,7 @@ public class DefaultApiClientTest
      * ByteArrayContent so HttpClient emits the header.
      */
     [Fact]
-    public async Task post_with_null_body_sends_content_length_zero()
+    public async Task PostWithNullBodySendsContentLengthZero()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
@@ -965,7 +965,7 @@ public class DefaultApiClientTest
      * Set-Cookie response.
      */
     [Fact]
-    public async Task set_cookie_response_not_replayed_on_next_request()
+    public async Task SetCookieResponseNotReplayedOnNextRequest()
     {
         var client = new DefaultApiClient();
 

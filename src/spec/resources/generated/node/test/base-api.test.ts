@@ -1023,7 +1023,12 @@ describe("BaseApi body serialization", () => {
   });
 
   test("sends no body when null", async () => {
-    await api().call(
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    await testApi.call(
       "GET",
       "/test/echo",
       {},
@@ -1033,6 +1038,32 @@ describe("BaseApi body serialization", () => {
       "application/json",
       null,
     );
+    expect(client.capturedBody).toBeNull();
+    expect(
+      Object.keys(client.capturedHeaders).map((name) => name.toLowerCase()),
+    ).not.toContain("content-type");
+  });
+
+  test("a POST with a null body sends no body and no Content-Type", async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    await testApi.call(
+      "POST",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+    expect(client.capturedBody).toBeNull();
+    expect(
+      Object.keys(client.capturedHeaders).map((name) => name.toLowerCase()),
+    ).not.toContain("content-type");
   });
 
   test("serializes text/plain body", async () => {
@@ -1717,6 +1748,34 @@ describe("BaseApi WithHTTPInfo variant", () => {
     expect((result.data as { name: string }).name).toBe("WithInfoPet");
     expect(result.headers).toBeDefined();
     expect(result.rawBody).toBe('{"id":7,"name":"WithInfoPet"}');
+  });
+
+  test("the headers are a frozen copy of the response map", async () => {
+    const client = new CapturingApiClient();
+    client.responseHeaders = {
+      "content-type": "application/json",
+      "x-trace": "one",
+    };
+    const testApi = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    const result = await testApi.callForResult(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+    client.responseHeaders["x-trace"] = "two";
+    expect(result.headers["x-trace"]).toBe("one");
+    expect(Object.isFrozen(result.headers)).toBe(true);
+    expect(() => {
+      (result.headers as Record<string, string>)["x-trace"] = "three";
+    }).toThrow(TypeError);
   });
 });
 

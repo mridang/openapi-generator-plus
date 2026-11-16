@@ -213,6 +213,38 @@ fn test_transport_options_invalid_proxy_url_throws_exception() {
     }
 }
 
+/// F1065: an IPv6 literal host is a valid proxy host (brackets kept, userinfo
+/// allowed); an unterminated literal is rejected with the userinfo masked.
+#[test]
+fn test_transport_options_proxy_with_an_ipv6_literal_host() {
+    for proxy in [
+        "http://[::1]:3128",
+        "http://user@[::1]:3128",
+        "https://[2001:db8::1]",
+    ] {
+        let opts = TransportOptionsBuilder::new()
+            .proxy(proxy)
+            .build()
+            .expect("an IPv6 literal proxy host is valid");
+        assert_eq!(opts.proxy(), Some(proxy));
+    }
+    for (proxy, message) in [
+        ("http://[::1:3128", "Invalid proxy URL: http://[::1:3128"),
+        (
+            "http://user@[::1:3128",
+            "Invalid proxy URL: http://***@[::1:3128",
+        ),
+    ] {
+        let result = TransportOptionsBuilder::new().proxy(proxy).build();
+        assert_eq!(
+            result.err(),
+            Some(ConfigurationError::InvalidProxy(message.to_string())),
+            "unexpected result for {:?}",
+            proxy
+        );
+    }
+}
+
 /// URL schemes are case-insensitive, so an upper-case `HTTP` proxy is a valid
 /// proxy and is kept as written.
 #[test]

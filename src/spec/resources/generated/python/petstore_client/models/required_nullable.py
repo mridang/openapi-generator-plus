@@ -7,8 +7,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SerializationInfo, model_serializer
 from pydantic import StrictStr
+from typing import Any, Callable, Dict, Optional
 
 
 class RequiredNullable(BaseModel):
@@ -16,7 +17,20 @@ class RequiredNullable(BaseModel):
     RequiredNullable
     """
 
-    note: StrictStr = Field(alias="note")
+    note: Optional[StrictStr] = Field(alias="note")
+
+    @model_serializer(mode="wrap")
+    def _write_required_nullable(
+        self, handler: Callable[[Any], Dict[str, Any]], info: SerializationInfo
+    ) -> Dict[str, Any]:
+        """Always write the key of a required nullable property.
+
+        The serializer drops every None value, but a required property that
+        is nullable must stay on the wire as an explicit null.
+        """
+        data = handler(self)
+        data.setdefault("note" if info.by_alias else "note", None)
+        return data
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

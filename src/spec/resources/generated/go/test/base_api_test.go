@@ -307,6 +307,29 @@ func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 	}
 }
 
+// Several cookies from one authenticator go out in one fixed order, sorted by
+// name, whatever the map's iteration order.
+func TestBaseApi_SeveralAuthCookiesAreWrittenSortedByName(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+
+	auth := &baseApiAuth{
+		headers: map[string]string{},
+		query:   map[string]string{},
+		cookies: map[string]string{"zeta": "3", "alpha": "1", "mid": "2"},
+	}
+
+	_, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), &options.AddPetOptions{Auth: auth})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := client.capturedHeaders["Cookie"], "alpha=1; mid=2; zeta=3"; got != want {
+		t.Errorf("Cookie header = %q, want %q", got, want)
+	}
+}
+
 // injectableAuth is a per-call authenticator that needs the transport, like the
 // OAuth2 and OpenID Connect authenticators do for their token requests.
 type injectableAuth struct {

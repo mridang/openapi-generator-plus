@@ -49,6 +49,8 @@ public class StoreApi : BaseApi
 
     private static readonly string[] PlaceOrderAccepts = ["application/json"];
 
+    private static readonly string[] ReserveStockAccepts = ["application/json"];
+
     private static readonly string[] SearchStoreAccepts = ["application/json"];
 
     /// <summary>Initializes a new instance of <see cref="StoreApi"/> with defaults.</summary>
@@ -1250,6 +1252,77 @@ public class StoreApi : BaseApi
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.PlaceOrder"
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Reserve stock, answering with the existing or a new reservation
+    /// </summary>
+    /// <remarks>Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.</remarks>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[ReserveStockResponse]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ReserveStockResponse> ReserveStockAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<ReserveStockResponse>> task = ReserveStockWithHttpInfoAsync(
+            cancellationToken
+        );
+        ApiResult<ReserveStockResponse> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ReserveStock but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Reserve stock, answering with the existing or a new reservation (with HTTP info)
+    /// </summary>
+    /// <remarks>Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.</remarks>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<ReserveStockResponse>> ReserveStockWithHttpInfoAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/reservation";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<ReserveStockResponse>(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ReserveStockAccepts,
+                "application/json",
+                typeof(ReserveStockResponse),
+                NoAuth.Instance,
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.ReserveStock"
             )
             .ConfigureAwait(false);
     }

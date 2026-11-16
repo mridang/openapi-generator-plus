@@ -269,7 +269,7 @@ func TestOAuth2AuthCode_ThrowsBeforeExchangeCodeCalled(t *testing.T) {
 	}
 }
 
-func TestOAuth2AuthCode_auth_headers_before_exchange_returns_recoverable_error(t *testing.T) {
+func TestOAuth2AuthCode_AuthHeadersBeforeExchangeReturnsRecoverableError(t *testing.T) {
 	t.Parallel()
 	authObj := createAuthCodeAuthenticator()
 
@@ -302,7 +302,7 @@ func TestOAuth2AuthCode_GetHostReturnsConfiguredHost(t *testing.T) {
 	}
 }
 
-func TestOAuth2AuthCodeRedactsSecret(t *testing.T) {
+func TestOAuth2AuthCode_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	authObj := createAuthCodeAuthenticator()
 	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj)} {

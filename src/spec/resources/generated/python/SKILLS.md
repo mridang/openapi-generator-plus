@@ -238,23 +238,44 @@ transport = TransportOptions.builder().max_retries(0).build()
 
 A 401 on a call made with an OAuth2 or OpenID Connect authenticator drops the cached access token (the refresh token is kept) and sends the call once more with fresh headers; a second 401 raises `UnauthorizedException`. `authenticator.invalidate_access_token()` does it by hand. The authorization-code flow adds a PKCE `S256` challenge to the URL from `build_authorization_url()` and sends the verifier in `exchange_code()`, so use the same authenticator for both.
 
-### Your own pool manager and cancellation
+### Custom HTTP client
 
 ```python
 import urllib3
 
 pool = urllib3.PoolManager()
-client = Client(authenticator, pool_manager=pool)  # you close the pool
-client.close()  # cancels in-flight requests; the SDK never closes your pool
+client = Client(authenticator, pool_manager=pool)
 ```
 
-Cancelling the asyncio task awaiting an operation aborts its request.
+The SDK applies its timeout, user agent, redirect policy and request id on top of the pool manager, and never closes it: you own its lifecycle. Combining it with `proxy`, `ca_cert_path` or `verify_ssl(False)` raises `ValueError`; configure those on the pool manager instead.
+
+### Timeouts
+
+`timeout` is in milliseconds (default 10000) and is one end-to-end budget for the whole call, redirects and retries included. `None` removes it; a value below 1 raises `ValueError`; an exceeded budget raises `NetworkTimeoutException`.
+
+### Request id
+
+With `inject_request_id(True)` every request carries an `X-Request-ID` header unless you set one yourself.
+
+### Response compression
+
+Responses are decoded for you (`gzip` and `deflate`; `br` and `zstd` with `pip install petstore-client[compression]`). A decoded response drops `content-encoding` and `content-length` from its headers.
+
+### Cancellation
+
+```python
+client.close()
+```
+
+Cancelling the asyncio task awaiting an operation aborts its request, and `client.close()` cancels every request still in flight (those calls raise `RuntimeError`). It never closes a pool manager you supplied.
 
 ## API Methods
 
 Each API group is exposed as a typed attribute on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 All API methods are asynchronous; call them with `await`.
+
+Every operation also has a `<operation>_with_http_info` variant that returns an `ApiResult` carrying `status_code`, `headers` (a read-only copy), `raw_body` and the typed `data`.
 
 ## Models
 
@@ -263,8 +284,11 @@ Models are generated as pydantic models in `petstore_client.models`.
 ```python
 from petstore_client.models.account import Account
 
-model = Account()
+model = Account(username="example")
+model.username
 ```
+
+Required fields must be passed to the constructor; a missing one raises `pydantic.ValidationError`.
 
 ## Binary / File Uploads
 

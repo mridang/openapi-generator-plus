@@ -519,8 +519,10 @@ export class EdgeCases {
   }
 }
 
-export enum EdgeCasesPhaseEnum {
-  InStock = "In-Stock",
-  OnHold = "on-hold",
-  OUTOFSTOCK = "OUT_OF_STOCK",
-}
+export const EdgeCasesPhaseEnum = {
+  InStock: "In-Stock",
+  OnHold: "on-hold",
+  OUTOFSTOCK: "OUT_OF_STOCK",
+} as const;
+export type EdgeCasesPhaseEnum =
+  (typeof EdgeCasesPhaseEnum)[keyof typeof EdgeCasesPhaseEnum];

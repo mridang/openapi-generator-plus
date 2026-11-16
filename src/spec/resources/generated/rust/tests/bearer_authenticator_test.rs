@@ -76,6 +76,48 @@ fn test_bearer_rejects_invalid_tokens() {
     }
 }
 
+/// A token made only of Unicode spaces is not "empty" (the empty rule covers
+/// ASCII whitespace); the printable-ASCII rule rejects it instead.
+#[test]
+fn test_unicode_space_only_token_is_rejected_by_the_printable_ascii_rule() {
+    for token in ["\u{00A0}", "\u{2003}", " \u{00A0} "] {
+        match BearerAuthenticator::new("https://api.example.com", token) {
+            Err(ConfigurationError::InvalidArgument(reason)) => {
+                assert!(reason.contains("printable ASCII"), "{}", reason);
+                assert!(!reason.contains("must not be empty"), "{}", reason);
+            }
+            other => panic!(
+                "expected ConfigurationError::InvalidArgument for {:?}, got {:?}",
+                token, other
+            ),
+        }
+    }
+}
+
+/// The `Bearer ` prefix is removed once and only as a whole word: a token that
+/// merely starts with the letters is kept whole.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_prefix_is_stripped_once_and_only_as_a_whole_word() {
+    let twice = BearerAuthenticator::new("https://api.example.com", "Bearer Bearer xyz").unwrap();
+    assert_eq!(
+        twice
+            .auth_headers()
+            .await
+            .get("Authorization")
+            .map(|s| s.as_str()),
+        Some("Bearer Bearer xyz")
+    );
+    let lookalike = BearerAuthenticator::new("https://api.example.com", "bearerxyz").unwrap();
+    assert_eq!(
+        lookalike
+            .auth_headers()
+            .await
+            .get("Authorization")
+            .map(|s| s.as_str()),
+        Some("Bearer bearerxyz")
+    );
+}
+
 /// The default Debug representation must mask the stored token: the secret
 /// value must be absent and a `***` redaction marker present.
 #[test]

@@ -28,6 +28,8 @@ class ComposedSchemaTest {
       new TypeReference<PetFood>() {}.getType();
   private static final java.lang.reflect.Type PET_TREATMENT_TYPE =
       new TypeReference<PetTreatment>() {}.getType();
+  private static final java.lang.reflect.Type TREATMENT_RECORD_TYPE =
+      new TypeReference<TreatmentRecord>() {}.getType();
   private static final java.lang.reflect.Type ONE_OF_NO_DISCRIMINATOR_TYPE =
       new TypeReference<SetPetAvatarThumbnailRequest>() {}.getType();
   private final ObjectSerializer serializer = new ObjectSerializer();
@@ -261,6 +263,50 @@ class ComposedSchemaTest {
       assertThat(serialized).contains("from-surgery");
       assertThat(serialized).doesNotContain("from-medication");
       // `notes` appears exactly once — no duplicate key.
+      assertThat(serialized.split("\"notes\"", -1)).hasSize(2);
+    }
+  }
+
+  @Nested
+  @DisplayName("anyOf declared out of alphabetical order: TreatmentRecord")
+  class TreatmentRecordTests {
+
+    @Test
+    @DisplayName(
+        "tries the variants in declaration order and retains the first as the actual instance")
+    void testVariantsAreTriedInDeclarationOrder() {
+      String json = "{\"drugName\":\"a\",\"procedureName\":\"b\"}";
+      TreatmentRecord result =
+          Objects.requireNonNull(serializer.deserialize(json, TREATMENT_RECORD_TYPE));
+
+      assertThat(result.getMatchedInstances()).hasSize(2);
+      assertThat(result.getMatchedInstances().get(0)).isInstanceOf(Surgery.class);
+      assertThat(result.getMatchedInstances().get(1)).isInstanceOf(Medication.class);
+      assertThat(result.getActualInstance()).isInstanceOf(Surgery.class);
+    }
+
+    @Test
+    @DisplayName("a shared property keeps the value of the later declared variant, emitted once")
+    void testSharedPropertyCollisionKeepsTheLaterDeclaredVariant() {
+      TreatmentRecord medication =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"drugName\":\"a\",\"notes\":\"from-medication\"}", TREATMENT_RECORD_TYPE));
+      TreatmentRecord surgery =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"procedureName\":\"b\",\"notes\":\"from-surgery\"}", TREATMENT_RECORD_TYPE));
+      // Declaration order is Surgery, then Medication.
+      TreatmentRecord combined =
+          new TreatmentRecord(
+              java.util.List.of(
+                  Objects.requireNonNull(surgery.getActualInstance()),
+                  Objects.requireNonNull(medication.getActualInstance())));
+
+      String serialized = serializer.serialize(combined);
+
+      assertThat(serialized).contains("from-medication");
+      assertThat(serialized).doesNotContain("from-surgery");
       assertThat(serialized.split("\"notes\"", -1)).hasSize(2);
     }
   }

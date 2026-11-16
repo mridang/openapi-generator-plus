@@ -1,4 +1,4 @@
-.PHONY: build test lint format format-dotnet analyze docs clean
+.PHONY: build test lint format format-dotnet analyze audit docs clean
 
 build:
 	dotnet build
@@ -19,6 +19,11 @@ format-dotnet:
 
 analyze:
 	dotnet build --no-restore /warnaserror
+
+audit:
+	mkdir -p .out
+	dotnet list package --vulnerable --include-transitive | tee .out/audit.txt
+	@! grep -q "has the following vulnerable packages" .out/audit.txt
 
 docs:
 	dotnet tool restore

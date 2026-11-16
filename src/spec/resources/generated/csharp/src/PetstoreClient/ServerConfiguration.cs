@@ -70,7 +70,7 @@ public sealed class ServerConfiguration(
     public string GetUrl(Dictionary<string, string> overrides)
     {
         ArgumentNullException.ThrowIfNull(overrides);
-        string url = UrlTemplate;
+        Dictionary<string, string> resolved = [];
         foreach (KeyValuePair<string, ServerVariable> entry in Variables)
         {
             string varName = entry.Key;
@@ -88,9 +88,32 @@ public sealed class ServerConfiguration(
                 );
             }
 
-            url = url.Replace("{" + varName + "}", value, StringComparison.Ordinal);
+            resolved[varName] = value;
         }
-        return url;
+
+        /* One left-to-right pass: a value that itself contains a placeholder is
+         * copied as written and never expanded again. */
+        System.Text.StringBuilder url = new(UrlTemplate.Length);
+        int index = 0;
+        while (index < UrlTemplate.Length)
+        {
+            if (UrlTemplate[index] == '{')
+            {
+                int close = UrlTemplate.IndexOf('}', index + 1);
+                if (
+                    close > 0
+                    && resolved.TryGetValue(UrlTemplate[(index + 1)..close], out string? text)
+                )
+                {
+                    url.Append(text);
+                    index = close + 1;
+                    continue;
+                }
+            }
+            url.Append(UrlTemplate[index]);
+            index++;
+        }
+        return url.ToString();
     }
 }
 
@@ -113,6 +136,13 @@ public sealed record ServerVariable(
     IReadOnlyList<string> EnumValues
 )
 {
+    /// <summary>
+    /// Allowed values, or an empty list if any value is accepted. The list is copied when
+    /// the variable is created, so later changes to the caller's list do not reach it.
+    /// </summary>
+    public IReadOnlyList<string> EnumValues { get; init; } =
+        new ReadOnlyCollection<string>([.. EnumValues]);
+
     /// <summary>
     /// Create a server variable with no description and no restriction on its values.
     /// </summary>

@@ -230,7 +230,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
   @impl PetstoreClient.Auth.Authenticator
   def auth_headers(%__MODULE__{} = self) do
     unless PetstoreClient.Auth.OAuth.OAuth2TokenManager.exchanged?(self.token_manager) do
-      raise "Must call exchange_code before making API requests"
+      raise "Must call exchange_code() before making API requests"
     end
 
     params = %{

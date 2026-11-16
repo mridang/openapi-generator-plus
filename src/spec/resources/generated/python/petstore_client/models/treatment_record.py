@@ -16,7 +16,7 @@ class TreatmentRecord(BaseModel):
     Same members as PetTreatment declared in non-alphabetical order
     """
 
-    actual_instance: Optional[Union[Medication, Surgery]] = None
+    actual_instance: Optional[Union[Surgery, Medication]] = None
     # Retain-all (lossless) semantics: an anyOf payload may satisfy MORE than
     # one variant at once (the schema is documented as matching one variant,
     # another, OR BOTH). `matched_instances` holds EVERY variant the payload
@@ -24,14 +24,14 @@ class TreatmentRecord(BaseModel):
     # never silently dropped. `actual_instance` keeps pointing at the first
     # match for backward compatibility with single-variant callers and the
     # ObjectSerializer `hasattr(obj, 'actual_instance')` dispatch.
-    matched_instances: List[Union[Medication, Surgery]] = Field(default_factory=list)
+    matched_instances: List[Union[Surgery, Medication]] = Field(default_factory=list)
     # Declared-order tuple (NOT a set): the serializer trials these candidate
     # schemas in order so retained variants follow the declared order. A set
     # literal would iterate in hash order and make variant resolution
     # non-deterministic.
     any_of_schemas: ClassVar[Tuple[str, ...]] = (
-        "Medication",
         "Surgery",
+        "Medication",
     )
 
     # Pydantic default mode (lenient) is kept here. strict=True was tried
@@ -80,7 +80,7 @@ class TreatmentRecord(BaseModel):
             match += 1
         if match == 0:
             raise ValueError(
-                "No match found when setting `actual_instance` in TreatmentRecord with anyOf schemas: Medication, Surgery"
+                "No match found when setting `actual_instance` in TreatmentRecord with anyOf schemas: Surgery, Medication"
             )
         return v
 

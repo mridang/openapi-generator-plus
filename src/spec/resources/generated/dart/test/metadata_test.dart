@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -119,6 +119,56 @@ void main() {
         expect(skills, contains('on OpenAPIException catch'));
       },
     );
+  });
+
+  group('README.md', () {
+    test('names the builder setter that rejects a SOCKS proxy', () {
+      final readme = File(
+        '${Directory.current.path}/README.md',
+      ).readAsStringSync();
+      expect(
+        readme,
+        contains(
+          '`TransportOptionsBuilder.proxy()` accepts only `http://` '
+          'and `https://` URLs.',
+        ),
+      );
+      expect(readme, isNot(contains('`TransportOptions.proxy()`')));
+      expect(
+        () => TransportOptionsBuilder().proxy('socks5://proxy:1080').build(),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('file header', () {
+    test('prints the info description without backslash-escaped quotes', () {
+      /* F1156: the header comment of every generated source file renders the
+       * info description; a quote must not reach it as a backslash-quote. */
+      final headers = Directory('${Directory.current.path}/lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.dart'))
+          .map(
+            (file) => file
+                .readAsLinesSync()
+                .takeWhile((line) => line.startsWith('//'))
+                .toList(),
+          )
+          .where((lines) => lines.isNotEmpty)
+          .toList();
+      expect(headers, isNotEmpty);
+      for (final header in headers) {
+        for (final line in header) {
+          expect(
+            line.contains(r'\"'),
+            isFalse,
+            reason:
+                'header line must not carry a backslash-escaped quote: $line',
+          );
+        }
+      }
+    });
   });
 
   group('package barrel', () {

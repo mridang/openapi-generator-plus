@@ -575,6 +575,110 @@ describe("OpenIdConnectAuthenticator", () => {
     );
   });
 
+  const discoveryDocument = (
+    fields: Record<string, unknown>,
+  ): ApiHttpResponse[] => [
+    {
+      statusCode: 200,
+      body: JSON.stringify(fields),
+      headers: { "content-type": "application/json" },
+    },
+  ];
+
+  test.each(["https://other.example.com", "https://auth.example.com/tenant"])(
+    "discovery rejects an issuer %s that is not the discovery URL prefix",
+    async (issuer) => {
+      mockClient.responses = discoveryDocument({
+        issuer,
+        authorization_endpoint: "https://auth.example.com/authorize",
+        token_endpoint: "https://auth.example.com/token",
+      });
+
+      const error = await authenticator
+        .buildAuthorizationUrl()
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(SerializationError);
+      expect((error as Error).message).toBe(
+        "OIDC discovery document issuer does not match the discovery URL",
+      );
+    },
+  );
+
+  test.each(["https://auth.example.com", "https://auth.example.com/"])(
+    "discovery accepts the issuer %s, ignoring a trailing slash",
+    async (issuer) => {
+      mockClient.responses = discoveryDocument({
+        issuer,
+        authorization_endpoint: "https://auth.example.com/authorize",
+        token_endpoint: "https://auth.example.com/token",
+      });
+
+      const url = await authenticator.buildAuthorizationUrl();
+      expect(url.startsWith("https://auth.example.com/authorize?")).toBe(true);
+    },
+  );
+
+  test.each([
+    [
+      "authorization_endpoint",
+      "http://auth.example.com/authorize",
+      "https://auth.example.com/token",
+    ],
+    [
+      "token_endpoint",
+      "https://auth.example.com/authorize",
+      "http://auth.example.com/token",
+    ],
+    ["token_endpoint", "https://auth.example.com/authorize", "not a url"],
+  ])(
+    "discovery refuses a clear-text or unparseable %s",
+    async (field, authorizationEndpoint, tokenEndpoint) => {
+      mockClient.responses = discoveryDocument({
+        authorization_endpoint: authorizationEndpoint,
+        token_endpoint: tokenEndpoint,
+      });
+
+      const error = await authenticator
+        .buildAuthorizationUrl()
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(SerializationError);
+      expect((error as Error).message).toBe(
+        `OIDC discovery document field must be an https URL: ${field}`,
+      );
+    },
+  );
+
+  test.each([
+    "http://localhost:9000",
+    "http://127.0.0.1:9000",
+    "http://[::1]:9000",
+  ])("discovery accepts the loopback endpoints on %s", async (origin) => {
+    mockClient.responses = discoveryDocument({
+      authorization_endpoint: `${origin}/authorize`,
+      token_endpoint: `${origin}/token`,
+    });
+
+    const url = await authenticator.buildAuthorizationUrl();
+    expect(url.startsWith(`${origin}/authorize?`)).toBe(true);
+  });
+
+  test("a discovery URL that is not https is refused before any request is sent", async () => {
+    const insecure = new OpenIdConnectAuthenticator(
+      "https://api.example.com",
+      "http://auth.example.com/.well-known/openid-configuration",
+      "my-client-id",
+      "my-client-secret",
+      "https://myapp.example.com/callback",
+      [],
+    );
+    insecure.setApiClient(mockClient);
+
+    await expect(insecure.buildAuthorizationUrl()).rejects.toThrow(
+      "OIDC discovery URL must use https",
+    );
+    expect(mockClient.callCount).toBe(0);
+  });
+
   test("the redacted representation shows exactly the agreed non-secret fields", () => {
     expect(util.inspect(authenticator)).toBe(
       "OpenIdConnectAuthenticator(host=https://api.example.com, clientId=my-client-id, clientSecret=***)",

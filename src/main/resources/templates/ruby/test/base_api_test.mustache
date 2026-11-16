@@ -152,26 +152,26 @@ describe {{moduleName}}::Api::BaseApi do
   # The typed status routes answer on the path of a real operation, so the
   # error type is chosen from the status alone, whatever the route.
   {
-    '/test/status/400/pet/1' => [{{moduleName}}::Errors::BadRequestError, 400],
-    '/test/status/401/pet/1' => [{{moduleName}}::Errors::UnauthorizedError, 401],
-    '/test/status/403/pet/1' => [{{moduleName}}::Errors::ForbiddenError, 403],
-    '/test/status/404/pet/1' => [{{moduleName}}::Errors::NotFoundError, 404],
-    '/test/status/409/pet/1' => [{{moduleName}}::Errors::ConflictError, 409],
-    '/test/status/418/pet/1' => [{{moduleName}}::Errors::ClientError, 418],
-    '/test/status/422/pet/1' => [{{moduleName}}::Errors::UnprocessableEntityError, 422],
-    '/test/status/500/pet/1' => [{{moduleName}}::Errors::InternalServerError, 500],
-    '/test/status/502/pet/1' => [{{moduleName}}::Errors::ServerError, 502],
-    '/test/status/404/store/order/1' => [{{moduleName}}::Errors::NotFoundError, 404],
-    '/test/status/422/store/order/1' => [{{moduleName}}::Errors::UnprocessableEntityError, 422],
-    '/test/status/500/store/order/1' => [{{moduleName}}::Errors::InternalServerError, 500],
-    '/test/status/502/store/order/1' => [{{moduleName}}::Errors::ServerError, 502]
-  }.each do |path, (error_class, status)|
+    '/test/status/400/pet/1' => {{moduleName}}::Errors::BadRequestError,
+    '/test/status/401/pet/1' => {{moduleName}}::Errors::UnauthorizedError,
+    '/test/status/403/pet/1' => {{moduleName}}::Errors::ForbiddenError,
+    '/test/status/404/pet/1' => {{moduleName}}::Errors::NotFoundError,
+    '/test/status/409/pet/1' => {{moduleName}}::Errors::ConflictError,
+    '/test/status/418/pet/1' => {{moduleName}}::Errors::ClientError,
+    '/test/status/422/pet/1' => {{moduleName}}::Errors::UnprocessableEntityError,
+    '/test/status/500/pet/1' => {{moduleName}}::Errors::InternalServerError,
+    '/test/status/502/pet/1' => {{moduleName}}::Errors::ServerError,
+    '/test/status/404/store/order/1' => {{moduleName}}::Errors::NotFoundError,
+    '/test/status/422/store/order/1' => {{moduleName}}::Errors::UnprocessableEntityError,
+    '/test/status/500/store/order/1' => {{moduleName}}::Errors::InternalServerError,
+    '/test/status/502/store/order/1' => {{moduleName}}::Errors::ServerError
+  }.each do |path, error_class|
     it "maps #{path} to #{error_class}" do
       err = assert_raises(error_class) do
         api.call('GET', path, {}, {}, nil, ['application/json'], 'application/json', nil)
       end
       _(err).must_be_instance_of error_class
-      _(err.status_code).must_equal status
+      _(err.status_code).must_equal path[%r{/status/(\d+)}, 1].to_s.to_i
       _(err.error_body).must_be_kind_of Hash
     end
   end

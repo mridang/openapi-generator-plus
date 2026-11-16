@@ -149,6 +149,33 @@ describe Petstore::Client::Api::BaseApi do
     end
   end
 
+  # The typed status routes answer on the path of a real operation, so the
+  # error type is chosen from the status alone, whatever the route.
+  {
+    '/test/status/400/pet/1' => [Petstore::Client::Errors::BadRequestError, 400],
+    '/test/status/401/pet/1' => [Petstore::Client::Errors::UnauthorizedError, 401],
+    '/test/status/403/pet/1' => [Petstore::Client::Errors::ForbiddenError, 403],
+    '/test/status/404/pet/1' => [Petstore::Client::Errors::NotFoundError, 404],
+    '/test/status/409/pet/1' => [Petstore::Client::Errors::ConflictError, 409],
+    '/test/status/418/pet/1' => [Petstore::Client::Errors::ClientError, 418],
+    '/test/status/422/pet/1' => [Petstore::Client::Errors::UnprocessableEntityError, 422],
+    '/test/status/500/pet/1' => [Petstore::Client::Errors::InternalServerError, 500],
+    '/test/status/502/pet/1' => [Petstore::Client::Errors::ServerError, 502],
+    '/test/status/404/store/order/1' => [Petstore::Client::Errors::NotFoundError, 404],
+    '/test/status/422/store/order/1' => [Petstore::Client::Errors::UnprocessableEntityError, 422],
+    '/test/status/500/store/order/1' => [Petstore::Client::Errors::InternalServerError, 500],
+    '/test/status/502/store/order/1' => [Petstore::Client::Errors::ServerError, 502]
+  }.each do |path, (error_class, status)|
+    it "maps #{path} to #{error_class}" do
+      err = assert_raises(error_class) do
+        api.call('GET', path, {}, {}, nil, ['application/json'], 'application/json', nil)
+      end
+      _(err).must_be_instance_of error_class
+      _(err.status_code).must_equal status
+      _(err.error_body).must_be_kind_of Hash
+    end
+  end
+
   # ── Error body parsing ──
 
   it 'parses JSON error body' do
@@ -378,8 +405,14 @@ describe Petstore::Client::Api::BaseApi do
   end
 
   it 'sends no body when body is nil' do
-    api.call('GET', '/test/echo', {}, {}, nil,
-             ['application/json'], 'application/json', nil)
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', {}, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_body).must_be_nil
+    refute client.captured_headers.key?('Content-Type'), 'Content-Type must NOT be sent when body is nil'
+    refute client.captured_headers.key?('Content-Length'), 'Content-Length must NOT be set by the SDK when body is nil'
   end
 
   # ── Server variable overrides via Configuration ──
@@ -869,6 +902,7 @@ describe Petstore::Client::Api::BaseApi do
                   ['application/json'], 'application/json', nil)
     refute client.captured_headers.key?('Content-Type'),
            'Content-Type must NOT be sent when body is nil'
+    _(client.captured_body).must_be_nil
   end
 
   it 'empty string body includes Content-Type' do

@@ -17,7 +17,7 @@ import Testing
  * redaction guarantee. */
 @Suite final class ApiKeyAuthenticatorTests {
 
-  @Test func validHeaderKeyPasses() async throws {
+  @Test func testValidHeaderKeyPasses() async throws {
     let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com",
       keyParamName: "X-API-Key",
@@ -28,7 +28,7 @@ import Testing
     #expect(headers["X-API-Key"] == "abc123")
   }
 
-  @Test func validQueryKeyPasses() throws {
+  @Test func testValidQueryKeyPasses() throws {
     let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com",
       keyParamName: "api_key",
@@ -38,7 +38,7 @@ import Testing
     #expect(auth.queryParams() == ["api_key": "abc123"])
   }
 
-  @Test func validCookieKeyPasses() throws {
+  @Test func testValidCookieKeyPasses() throws {
     let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com",
       keyParamName: "session",
@@ -51,7 +51,7 @@ import Testing
   /* authenticator-secret-in-default-string-repr: the default string
    * representation must never expose the stored API key and must show the
    * `***` redaction marker. */
-  @Test func redactsSecret() async throws {
+  @Test func testRedactsSecret() async throws {
     let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com",
       keyParamName: "X-API-Key",
@@ -72,7 +72,7 @@ import Testing
   /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
    * included, so the redacted description is not enough: the reflection
    * must hide the secret too. */
-  @Test func dumpDoesNotLeakSecret() async throws {
+  @Test func testDumpDoesNotLeakSecret() async throws {
     let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "dump-secret-key",
       location: .header)
@@ -92,7 +92,7 @@ import Testing
     ("abc\n", ApiKeyLocation.cookie),
     ("kéy", ApiKeyLocation.header),
   ])
-  func invalidKeyIsRejectedAtConstruction(apiKey: String, location: ApiKeyLocation) {
+  func testInvalidKeyIsRejectedAtConstruction(apiKey: String, location: ApiKeyLocation) {
     let error = #expect(throws: ConfigurationError.self) {
       _ = try ApiKeyAuthenticator(
         host: "https://api.example.com",
@@ -133,7 +133,8 @@ import Testing
       "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"
     ),
   ])
-  func rejectionMessagesNameTheBranch(apiKey: String, location: ApiKeyLocation, message: String) {
+  func testRejectionMessagesNameTheBranch(apiKey: String, location: ApiKeyLocation, message: String)
+  {
     #expect(throws: ConfigurationError.invalidArgument(message)) {
       _ = try ApiKeyAuthenticator(
         host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: apiKey,
@@ -144,7 +145,7 @@ import Testing
   /* The printable-ASCII rule is for header values only: a query or cookie
    * value may carry any other character. */
   @Test(arguments: [ApiKeyLocation.query, ApiKeyLocation.cookie])
-  func nonAsciiKeyIsAcceptedOutsideTheHeader(location: ApiKeyLocation) throws {
+  func testNonAsciiKeyIsAcceptedOutsideTheHeader(location: ApiKeyLocation) throws {
     let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com", keyParamName: "k", apiKey: "kéy", location: location)
     let emitted = location == .query ? auth.queryParams() : auth.cookieParams()
@@ -153,14 +154,14 @@ import Testing
 
   /* Only ASCII whitespace counts as blank: a Unicode space is a valid key. */
   @Test(arguments: ["\u{A0}", "\u{2003}"])
-  func unicodeSpaceIsAValidKey(key: String) throws {
+  func testUnicodeSpaceIsAValidKey(key: String) throws {
     let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com", keyParamName: "k", apiKey: key, location: .query)
     #expect(auth.queryParams() == ["k": key])
   }
 
   /* The key is emitted at its own location and nowhere else. */
-  @Test func keyIsEmittedOnlyAtItsOwnLocation() async throws {
+  @Test func testKeyIsEmittedOnlyAtItsOwnLocation() async throws {
     let cases: [(ApiKeyLocation, [String: String], [String: String], [String: String])] = [
       (.header, ["k": "v"], [:], [:]),
       (.query, [:], ["k": "v"], [:]),
@@ -187,7 +188,7 @@ import Testing
     ("ApiKeyQuery", "api_key", ApiKeyLocation.query),
     ("SessionCookie", "SESSION_ID", ApiKeyLocation.cookie),
   ])
-  func schemeWrapperEmitsItsKeyAtItsSpecLocation(
+  func testSchemeWrapperEmitsItsKeyAtItsSpecLocation(
     scheme: String, name: String, location: ApiKeyLocation
   ) async throws {
     let auth = try Self.schemeWrapper(scheme, apiKey: "wrapped-key")
@@ -206,7 +207,7 @@ import Testing
     ("ApiKeyQuery", "api_key"),
     ("SessionCookie", "SESSION_ID"),
   ])
-  func schemeWrapperRejectsAnEmptyKeyEagerly(scheme: String, name: String) {
+  func testSchemeWrapperRejectsAnEmptyKeyEagerly(scheme: String, name: String) {
     #expect(
       throws: ConfigurationError.invalidArgument("API key value for '\(name)' must not be empty")
     ) {

@@ -278,6 +278,50 @@ fn test_pet_treatment_shared_property_collision_last_wins() {
 }
 
 #[test]
+fn test_treatment_record_declaration_order_decides_the_shared_property() {
+    /* TreatmentRecord lists Surgery before Medication, the reverse of
+     * PetTreatment. A payload satisfying both keeps both members, and on
+     * re-serialisation the LATER-declared member (Medication) wins the shared
+     * `notes` property, written once. */
+    let json_data = r#"{"drugName":"Amoxicillin","procedureName":"Spay","notes":"shared"}"#;
+    let record: TreatmentRecord =
+        serde_json::from_str(json_data).expect("failed to deserialize TreatmentRecord");
+    assert!(
+        record.surgery.is_some(),
+        "the Surgery variant must be retained"
+    );
+    assert!(
+        record.medication.is_some(),
+        "the Medication variant must be retained"
+    );
+
+    let record = TreatmentRecord {
+        surgery: Some(Surgery {
+            procedure_name: "Spay".to_string(),
+            notes: Some("from-surgery".to_string()),
+            ..Default::default()
+        }),
+        medication: Some(Medication {
+            drug_name: "Amoxicillin".to_string(),
+            notes: Some("from-medication".to_string()),
+            ..Default::default()
+        }),
+    };
+    let data = serde_json::to_string(&record).expect("failed to serialize TreatmentRecord");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized TreatmentRecord");
+    assert_eq!(
+        parsed["notes"], "from-medication",
+        "the later-declared member's notes must win, got: {data}"
+    );
+    assert_eq!(
+        data.matches(r#""notes""#).count(),
+        1,
+        "`notes` must appear once, got: {data}"
+    );
+}
+
+#[test]
 fn test_pet_treatment_no_match_errors() {
     /* oneof-nondiscriminator-no-match-silent: a payload matching neither
      * Medication nor Surgery must surface as a deserialization error. anyOf
@@ -919,6 +963,28 @@ fn test_edge_cases_keyword_named_properties_keep_their_wire_keys() {
     );
     let back: EdgeCases = serde_json::from_value(wire).expect("failed to decode EdgeCases");
     assert_eq!(edge, back);
+}
+
+/* F1124: constraint keywords are not enforced. A slug that breaks its pattern,
+ * a nickname that breaks its look-around pattern and a quantity above its
+ * maximum all decode as given, and the slug re-encodes unchanged. */
+#[test]
+fn test_constraint_keywords_are_not_enforced_on_decode() {
+    let edge: EdgeCases =
+        serde_json::from_str(r#"{"slug":"12/ab"}"#).expect("failed to decode EdgeCases");
+    assert_eq!(edge.slug.as_deref(), Some("12/ab"));
+    assert_eq!(
+        serde_json::to_string(&edge).expect("failed to encode EdgeCases"),
+        r#"{"slug":"12/ab"}"#
+    );
+
+    let pet: Pet =
+        serde_json::from_str(r#"{"name":"n","photoUrls":["u"],"nickname":"ZZZZZZZZZZ"}"#)
+            .expect("failed to decode Pet");
+    assert_eq!(pet.nickname.as_deref(), Some("ZZZZZZZZZZ"));
+
+    let order: Order = serde_json::from_str(r#"{"quantity":500}"#).expect("failed to decode Order");
+    assert_eq!(order.quantity, Some(500));
 }
 
 /* -- numeric schema defaults are exact typed values (F1115) -- */

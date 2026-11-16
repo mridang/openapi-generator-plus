@@ -39,6 +39,23 @@ func TestSkills_ErrorHandlingExampleEndsWithTheBaseApiErrorArm(t *testing.T) {
 	}
 }
 
+func TestSkills_ErrorHandlingNamesTheRootAndTheSiblingsOfApiError(t *testing.T) {
+	t.Parallel()
+	skills := readSourceFile(t, "../SKILLS.md")
+	for _, want := range []string{
+		"`OpenAPIError` (root interface)",
+		"  - `SerializationError`",
+		"  - `OAuth2ServerError`",
+		"  - `OAuth2TokenError`",
+		"var root petstore.OpenAPIError",
+		"} else if errors.As(err, &root) {",
+	} {
+		if !strings.Contains(skills, want) {
+			t.Errorf("expected the SKILLS.md error handling section to contain %q", want)
+		}
+	}
+}
+
 func TestSkills_ConfigurationDocumentsTheRetries(t *testing.T) {
 	t.Parallel()
 	skills := readSourceFile(t, "../SKILLS.md")

@@ -7,7 +7,7 @@ test:
 	mvn test -q -B
 
 lint:
-	mvn checkstyle:check spotbugs:check -q -B
+	mvn spotless:check checkstyle:check spotbugs:check -q -B
 
 checkstyle:
 	mvn checkstyle:check -q -B

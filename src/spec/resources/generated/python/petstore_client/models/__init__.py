@@ -36,6 +36,13 @@ from petstore_client.models.priority import Priority as Priority
 from petstore_client.models.required_nullable import (
     RequiredNullable as RequiredNullable,
 )
+from petstore_client.models.reservation import Reservation as Reservation
+from petstore_client.models.reservation_receipt import (
+    ReservationReceipt as ReservationReceipt,
+)
+from petstore_client.models.reserve_stock_response import (
+    ReserveStockResponse as ReserveStockResponse,
+)
 from petstore_client.models.result import Result as Result
 from petstore_client.models.separator import Separator as Separator
 from petstore_client.models.set_pet_avatar_request import (

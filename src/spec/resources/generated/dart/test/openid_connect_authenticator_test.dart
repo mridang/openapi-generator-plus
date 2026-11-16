@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -196,6 +196,107 @@ void main() {
         auth.buildAuthorizationUrl(),
         throwsA(isA<SerializationException>()),
       );
+    });
+
+    test(
+      'throws when the discovery issuer does not match the discovery URL',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"issuer":"https://evil.example.net",'
+          '"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
+
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              'OIDC discovery document issuer does not match the discovery URL',
+            ),
+          ),
+        );
+      },
+    );
+
+    test('accepts an issuer that differs only by a trailing slash', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"issuer":"https://auth.example.com/",'
+        '"authorization_endpoint":"https://auth.example.com/authorize",'
+        '"token_endpoint":"https://auth.example.com/token"}',
+      );
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      final url = await auth.buildAuthorizationUrl('s');
+
+      expect(url, startsWith('https://auth.example.com/authorize?'));
+    });
+
+    test('refuses a cleartext token_endpoint', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"authorization_endpoint":"https://auth.example.com/authorize",'
+        '"token_endpoint":"http://auth.example.com/token"}',
+      );
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.buildAuthorizationUrl(),
+        throwsA(
+          isA<SerializationException>().having(
+            (e) => e.message,
+            'message',
+            'OIDC discovery document field must be an https URL: token_endpoint',
+          ),
+        ),
+      );
+    });
+
+    test('refuses a cleartext authorization_endpoint', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"authorization_endpoint":"http://auth.example.com/authorize",'
+        '"token_endpoint":"https://auth.example.com/token"}',
+      );
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await expectLater(
+        auth.buildAuthorizationUrl(),
+        throwsA(
+          isA<SerializationException>().having(
+            (e) => e.message,
+            'message',
+            'OIDC discovery document field must be an https URL: authorization_endpoint',
+          ),
+        ),
+      );
+    });
+
+    test('allows a cleartext endpoint on a loopback host', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"authorization_endpoint":"http://127.0.0.1:9000/authorize",'
+        '"token_endpoint":"http://localhost:9000/token"}',
+      );
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      final url = await auth.buildAuthorizationUrl('s');
+
+      expect(url, startsWith('http://127.0.0.1:9000/authorize?'));
     });
 
     test(

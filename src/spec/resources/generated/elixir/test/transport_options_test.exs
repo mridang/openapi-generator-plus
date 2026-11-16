@@ -31,10 +31,9 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.max_redirects == nil
   end
 
-  test "user_agent defaults to non-empty string" do
+  test "user_agent defaults to the registry name, version and language" do
     opts = PetstoreClient.TransportOptions.new()
-    assert opts.user_agent != nil
-    assert String.length(opts.user_agent) > 0
+    assert opts.user_agent == "petstore_client/1.0.0 (elixir)"
   end
 
   test "default_headers defaults to empty map" do
@@ -170,6 +169,11 @@ defmodule PetstoreClient.TransportOptionsTest do
     for url <- ["http://proxy.example.com:3128", "https://proxy.example.com:3129"] do
       assert PetstoreClient.TransportOptions.new(proxy: url).proxy == url
     end
+  end
+
+  test "a proxy URL with an IPv6 literal host is accepted and kept verbatim" do
+    assert PetstoreClient.TransportOptions.new(proxy: "http://[::1]:3128").proxy ==
+             "http://[::1]:3128"
   end
 
   test "the README names the proxy option of new/1 as the SOCKS setter" do

@@ -778,6 +778,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
         end
 
       assert caught != nil, "expected auth_headers to raise before exchange_code"
+      assert caught.message == "Must call exchange_code() before making API requests"
 
       # Caller continues normally after rescuing -- no process crash.
       assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.host(auth) ==

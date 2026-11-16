@@ -1175,6 +1175,39 @@ class TestHeaderMergeIsCaseInsensitive:
         assert sent["Content-Type"] == "image/png"
 
 
+class TestAuthRequestsOmitTheCallersDefaultHeaders:
+    """A no_redirect request is the OAuth2 token POST: the transport's default
+    headers are meant for the API and never reach the identity provider."""
+
+    def _send(self, no_redirect: bool) -> dict[str, str]:
+        class _Pool:
+            def __init__(self) -> None:
+                self.sent: dict[str, str] = {}
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.sent = dict(kwargs.get("headers") or {})
+                return _FakeResp(200, {})
+
+        pool = _Pool()
+        options = TransportOptions.builder().default_header("X-Default", "d").build()
+        DefaultApiClient(options, pool_manager=pool).send_request(
+            "POST",
+            "https://example.com/token",
+            {"Accept": "application/json"},
+            "a=b",
+            no_redirect=no_redirect,
+        )
+        return pool.sent
+
+    def test_a_default_header_is_left_off_the_token_request(self) -> None:
+        sent = self._send(True)
+        assert "X-Default" not in sent
+        assert sent["Accept"] == "application/json"
+
+    def test_a_default_header_is_sent_on_an_ordinary_request(self) -> None:
+        assert self._send(False)["X-Default"] == "d"
+
+
 class TestRedirectLocationResolution:
     """A relative ``Location`` resolves per RFC 3986 against the request URL:
     a query-only reference keeps the base path, and dot segments are removed."""
@@ -1550,7 +1583,9 @@ class TestCaCertPathFailsFast:
             .ca_cert_path("/nonexistent/ca.pem")
             .build()
         )
-        with pytest.raises(ValueError, match="failed to load CA certificate"):
+        with pytest.raises(
+            ValueError, match='failed to read CA certificate from "/nonexistent/ca.pem"'
+        ):
             DefaultApiClient(transport)
 
 
@@ -1851,7 +1886,7 @@ class TestGarbageCaCertPath:
         assert type(excinfo.value) is ValueError
         assert not isinstance(excinfo.value, OpenAPIException)
         assert str(excinfo.value).startswith(
-            f"failed to load CA certificate from {str(ca_file)!r}: "
+            f'failed to parse CA certificate from "{ca_file}": '
         )
 
 
@@ -1916,6 +1951,15 @@ class TestResponseContentEncoding:
         assert str(excinfo.value.message).startswith(
             "Failed to decompress deflate response body: "
         )
+
+    def test_an_identity_encoded_response_is_passed_through_undecoded(self) -> None:
+        response = DefaultApiClient().send_request(
+            "GET", f"{self.base_url}/identity", {}, None
+        )
+
+        assert response.status_code == 200
+        assert response.body == "gzip, deflate, br, zstd"
+        assert response.headers["content-encoding"] == "identity"
 
     def test_advertises_every_supported_codec_by_default(self) -> None:
         response = DefaultApiClient().send_request(

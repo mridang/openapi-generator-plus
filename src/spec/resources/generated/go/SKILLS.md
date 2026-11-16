@@ -168,21 +168,25 @@ client := petstore.NewClient(fakeAuth{}, nil)
 
 ## Error Handling
 
-All API errors derive from `ApiError`. The error hierarchy is:
+Every failure the SDK produces satisfies the `OpenAPIError` interface, so one `errors.As` against it catches all of them. It has four direct kinds: `ApiError` (an HTTP response or a transport failure), `SerializationError` (a request or response body that cannot be encoded or decoded), `OAuth2ServerError` (the token endpoint answered with an error) and `OAuth2TokenError` (the token response was unusable). The last two surface from the first authenticated call, so they are siblings of `ApiError`, not subtypes of it: an `ApiError` branch alone lets them escape. The error hierarchy is:
 
-- `ApiError` (base)
-  - `ClientError` (4xx)
-    - `BadRequestError` (400)
-    - `UnauthorizedError` (401)
-    - `ForbiddenError` (403)
-    - `NotFoundError` (404)
-    - `ConflictError` (409)
-    - `UnprocessableEntityError` (422)
-    - `TooManyRequestsError` (429)
-  - `ServerError` (5xx)
-    - `InternalServerError` (500)
-  - `NetworkError` (no HTTP response, status 0)
-    - `NetworkTimeoutError` (the request timed out, status 0)
+- `OpenAPIError` (root interface)
+  - `SerializationError`
+  - `OAuth2ServerError`
+  - `OAuth2TokenError`
+  - `ApiError`
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```go
 import (
@@ -199,6 +203,7 @@ if err != nil {
     var clientErr *petstore.ClientError
     var serverErr *petstore.ServerError
     var apiErr *petstore.ApiError
+    var root petstore.OpenAPIError
     if errors.As(err, &notFound) {
         fmt.Printf("Not found: %s\n", notFound.Error())
     } else if errors.As(err, &clientErr) {
@@ -207,6 +212,8 @@ if err != nil {
         fmt.Printf("Server error: %s\n", serverErr.Error())
     } else if errors.As(err, &apiErr) {
         fmt.Printf("API error %d: %s\n", apiErr.StatusCode(), apiErr.Error())
+    } else if errors.As(err, &root) {
+        fmt.Printf("SDK error: %s\n", root.Error())
     }
 }
 ```
@@ -239,6 +246,34 @@ transport, err := petstore.NewTransportOptionsBuilder().
 ```
 
 A 401 on an OAuth2 or OpenID Connect request calls `InvalidateAccessToken` on the authenticator (the refresh token is kept) and replays the request once; a second 401 is an `UnauthorizedError`.
+
+### Custom HTTP client
+
+```go
+httpClient := &http.Client{Transport: &http.Transport{}}
+transport, err := petstore.NewTransportOptionsBuilder().
+    HttpClient(httpClient).
+    Build()
+```
+
+The SDK sends every request through your client (anything with a `Do(*http.Request)` method; `RoundTripper(rt)` wraps an `http.RoundTripper`) and never closes it. Combining it with `Proxy`, `CACertPath` or `VerifySsl(false)` fails at `Build()` with `ErrTransportConflict`.
+
+### Cancellation
+
+Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request and the error satisfies `errors.Is(err, context.Canceled)`. It is never reported as `NetworkTimeoutError`.
+
+```go
+ctx, cancel := context.WithCancel(context.Background())
+go func() { time.Sleep(time.Second); cancel() }()
+_, err := client.Pet.AddPet(ctx, pet, nil)
+if errors.Is(err, context.Canceled) {
+    fmt.Println("cancelled")
+}
+```
+
+### Raw responses, timeouts and the request id
+
+Each operation has a `...WithHTTPInfo` variant returning `*ApiResult[T]` (`StatusCode`, `Data`, `RawBody`, `Headers`). `Timeout` is one end-to-end budget in positive milliseconds. An `X-Request-ID` header is added to each request unless you set one.
 
 ## API Methods
 

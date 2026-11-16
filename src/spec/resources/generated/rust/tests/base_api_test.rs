@@ -1026,14 +1026,56 @@ async fn test_base_api_sets_cookie_from_auth() {
         .add_pet(pet, Some(&AddPetOptions::new().auth(Arc::new(auth))))
         .await;
     let headers = client.captured_headers.lock().unwrap();
-    if let Some(cookie) = headers.get("Cookie") {
-        assert!(
-            cookie.contains("session=abc123"),
-            "expected cookie to contain session=abc123, got: {}",
-            cookie
-        );
+    assert_eq!(
+        Some("session=abc123"),
+        headers.get("Cookie").map(|s| s.as_str())
+    );
+}
+
+struct ManyCookiesAuthenticator;
+
+impl petstore::auth::Authenticator for ManyCookiesAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
     }
-    // If no Cookie header, the authenticator may use a different mechanism - that's OK
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+    {
+        Box::pin(async move { HashMap::new() })
+    }
+
+    fn cookie_params(&self) -> HashMap<String, String> {
+        ["zeta", "mid", "alpha", "omega", "beta", "kappa", "delta"]
+            .iter()
+            .enumerate()
+            .map(|(i, name)| ((*name).to_string(), format!("v{}", i)))
+            .collect()
+    }
+}
+
+/* F1089: two or more authenticator cookies are written sorted by name, so the
+ * Cookie header has the same bytes on every run. */
+#[tokio::test]
+async fn test_base_api_writes_auth_cookies_sorted_by_name() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
+    let _ = api
+        .add_pet(
+            pet,
+            Some(&AddPetOptions::new().auth(Arc::new(ManyCookiesAuthenticator))),
+        )
+        .await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        Some("alpha=v2; beta=v4; delta=v6; kappa=v5; mid=v1; omega=v3; zeta=v0"),
+        headers.get("Cookie").map(|s| s.as_str())
+    );
 }
 
 struct InvalidCookieAuthenticator;

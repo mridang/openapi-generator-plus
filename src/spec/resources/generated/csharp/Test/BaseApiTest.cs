@@ -742,16 +742,18 @@ public class BaseApiTest
     [Fact]
     public async Task SendsNoBodyWhenNull()
     {
-        await Api()
-            .CallAsync<object>(
-                "GET",
-                "/test/echo",
-                new Dictionary<string, object?>(),
-                new Dictionary<string, string>(),
-                null,
-                ["application/json"],
-                "application/json"
-            );
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+        Assert.Null(client.CapturedBody);
     }
 
     [Fact]

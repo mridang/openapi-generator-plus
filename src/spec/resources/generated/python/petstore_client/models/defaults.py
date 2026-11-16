@@ -21,6 +21,10 @@ class DefaultsModeEnum(str, Enum):
     MEDIUM = "medium"
     HIGH = "high"
 
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)
+
 
 class Defaults(BaseModel):
     """

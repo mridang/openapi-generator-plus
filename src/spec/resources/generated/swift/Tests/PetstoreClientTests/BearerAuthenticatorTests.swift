@@ -17,25 +17,25 @@ import Testing
  * redaction guarantee. */
 @Suite final class BearerAuthenticatorTests {
 
-  @Test func rawTokenIsPrefixedWithBearer() async throws {
+  @Test func testRawTokenIsPrefixedWithBearer() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
     let headers = await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
   }
 
-  @Test func alreadyPrefixedTokenIsNotDoubled() async throws {
+  @Test func testAlreadyPrefixedTokenIsNotDoubled() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer xyz")
     let headers = await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
   }
 
-  @Test func lowercaseBearerPrefixIsStripped() async throws {
+  @Test func testLowercaseBearerPrefixIsStripped() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearer xyz")
     let headers = await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
   }
 
-  @Test func mixedCaseBearerPrefixIsStripped() async throws {
+  @Test func testMixedCaseBearerPrefixIsStripped() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "BeArEr xyz")
     let headers = await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer xyz")
@@ -44,7 +44,7 @@ import Testing
   /* authenticator-secret-in-default-string-repr: the default string
    * representation must never expose the stored token and must show the
    * `***` redaction marker. */
-  @Test func redactsSecret() async throws {
+  @Test func testRedactsSecret() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
     let description = String(describing: auth)
     #expect(!description.contains("token=xyz"))
@@ -57,7 +57,7 @@ import Testing
   /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
    * included, so the redacted description is not enough: the reflection
    * must hide the secret too. */
-  @Test func dumpDoesNotLeakSecret() async throws {
+  @Test func testDumpDoesNotLeakSecret() async throws {
     let auth = try BearerAuthenticator(host: "https://api.example.com", token: "dump-secret-token")
     var dumped = ""
     dump(auth, to: &dumped)
@@ -70,7 +70,7 @@ import Testing
    * inject or mangle it: each is rejected at construction with
    * ConfigurationError.invalidArgument, never a trap. */
   @Test(arguments: ["", "   ", "tok\r\nInjected: yes", "ñoño"])
-  func invalidTokenIsRejectedAtConstruction(token: String) {
+  func testInvalidTokenIsRejectedAtConstruction(token: String) {
     let error = #expect(throws: ConfigurationError.self) {
       _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
     }
@@ -83,7 +83,9 @@ import Testing
     }
   }
 
-  /* Each rejection branch reports its own exact message. */
+  /* Each rejection branch reports its own exact message. A token of Unicode
+   * spaces only is blank to a reader but not to the empty guard, so it is
+   * refused by the printable ASCII rule. */
   @Test(arguments: [
     ("", "Bearer token must not be empty"),
     ("  \n", "Bearer token must not be empty"),
@@ -92,8 +94,12 @@ import Testing
       "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"
     ),
     ("ñoño", "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
+    (
+      "\u{2003}\u{3000}",
+      "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"
+    ),
   ])
-  func rejectionMessagesNameTheBranch(token: String, message: String) {
+  func testRejectionMessagesNameTheBranch(token: String, message: String) {
     #expect(throws: ConfigurationError.invalidArgument(message)) {
       _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
     }
@@ -101,7 +107,7 @@ import Testing
 
   /* The prefix is removed once and only as a whole word: a token that
    * merely starts with the letters is left alone. */
-  @Test func prefixIsStrippedOnceAndOnlyAsWholeWord() async throws {
+  @Test func testPrefixIsStrippedOnceAndOnlyAsWholeWord() async throws {
     let twice = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer Bearer xyz")
     #expect(await twice.authHeaders()["Authorization"] == "Bearer Bearer xyz")
     let lookalike = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
@@ -113,7 +119,7 @@ import Testing
   /* Each HTTP bearer securityScheme generates a wrapper that sends the same
    * Bearer header, validates eagerly and masks the token in its repr. */
   @Test(arguments: ["PetStoreBearer", "ServiceToken"])
-  func schemeWrapperSendsBearerHeaderAndMasksTheToken(scheme: String) async throws {
+  func testSchemeWrapperSendsBearerHeaderAndMasksTheToken(scheme: String) async throws {
     let auth = try Self.schemeWrapper(scheme, token: "xyz")
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer xyz"])
     #expect(auth.queryParams().isEmpty)

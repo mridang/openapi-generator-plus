@@ -29,7 +29,9 @@ from petstore_client.models.pet import Pet
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
+from petstore_client.api_client import ApiClient
 from petstore_client.auth.authenticator import Authenticator
+from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator
 from petstore_client.errors import ApiException, NetworkException, OpenAPIException
 from petstore_client.errors.client_exception import ClientException
 from petstore_client.errors.server_exception import ServerException
@@ -830,9 +832,13 @@ class TestBodySerialization:
         echoed_body = _json.loads(result["body"])
         assert echoed_body["key"] == "value"
 
-    async def test_sends_no_body_when_none(self, api: Any) -> None:
-        await api.call(
-            "GET",
+    async def test_sends_no_body_when_none(self) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "POST",
             "/test/echo",
             {},
             {},
@@ -841,6 +847,7 @@ class TestBodySerialization:
             "application/json",
             None,
         )
+        assert client.captured_body is None
 
     async def test_serializes_text_plain_body(self) -> None:
         client = CapturingApiClient()
@@ -2227,6 +2234,41 @@ class OAuthStubAuthenticator(StubAuthenticator):
         if self._fail_second_fetch and self.fetches > 1:
             raise OpenAPIException("token endpoint refused")
         return {"Authorization": f"Bearer {self.token}"}
+
+
+class HttpAwareStubAuthenticator(StubAuthenticator, HttpAwareAuthenticator):
+    """Authenticator that needs the client's transport, like the OAuth2 ones."""
+
+    def __init__(self) -> None:
+        super().__init__({"Authorization": "Bearer per-call"})
+        self.injected: Optional[ApiClient] = None
+
+    def set_api_client(self, api_client: ApiClient) -> None:
+        self.injected = api_client
+
+
+class TestPerCallAuthenticatorGetsTheClient:
+    async def test_a_per_call_authenticator_is_given_the_client_of_the_call(
+        self, scripted: Any
+    ) -> None:
+        server = scripted(_OK)
+        api = _retry_api(server)
+        auth = HttpAwareStubAuthenticator()
+
+        await api.call(
+            "GET",
+            "/x",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            auth,
+        )
+
+        assert auth.injected is api._api_client
+        assert server.requests[0]["authorization"] == "Bearer per-call"
 
 
 class TestUnauthorizedReplay:

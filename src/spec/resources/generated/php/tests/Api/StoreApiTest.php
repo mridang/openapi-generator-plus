@@ -11,6 +11,14 @@ namespace PetstoreClient\Test\Api;
 use PetstoreClient\Api\StoreApi;
 use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
+use PetstoreClient\DefaultApiClient;
+use PetstoreClient\TransportOptions;
+use PetstoreClient\Errors\BadRequestException;
+use PetstoreClient\Errors\ClientException;
+use PetstoreClient\Errors\ConflictException;
+use PetstoreClient\Errors\ForbiddenException;
+use PetstoreClient\Errors\UnauthorizedException;
+use PetstoreClient\Errors\UnprocessableEntityException;
 use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\Category;
@@ -173,6 +181,31 @@ test('place order server error', function (): void {
 
     expect(fn () => $api->placeOrder($order))->toThrow(ServerException::class);
 });
+
+test('get order by id picks the status specific error class', function (int $status, string $expectedClass): void {
+    /* The typed mock routes answer getOrderById with each status and a JSON
+     * body, so the error is decoded through the real operation. */
+    $config = Configuration::builder()
+        ->baseUrl((getenv('CHASM_HTTP_URL') ?: '') . '/test/status/' . $status)
+        ->build();
+    $api = new StoreApi(
+        apiClient: new DefaultApiClient(TransportOptions::builder()->maxRetries(0)->build()),
+        config: $config
+    );
+
+    expect(fn () => $api->getOrderById(1))->toThrow(function (\Exception $e) use ($status, $expectedClass): void {
+        expect($e::class)->toBe($expectedClass);
+        expect($e->getCode())->toBe($status);
+    });
+})->with([
+    [400, BadRequestException::class],
+    [401, UnauthorizedException::class],
+    [403, ForbiddenException::class],
+    [409, ConflictException::class],
+    [418, ClientException::class],
+    [422, UnprocessableEntityException::class],
+    [502, ServerException::class],
+]);
 
 test('delete order not found', function (): void {
     $api = newStoreApiForMock(404, 'application/json', '{"message":"Order not found"}');

@@ -51,6 +51,12 @@ import Testing
     #expect(!(opts.userAgent?.isEmpty ?? true))
   }
 
+  /* D22: the default is '<registry name>/<version> (<language>)'. */
+  @Test func testUserAgentDefaultIsTheRegistryNameVersionAndLanguage() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(opts.userAgent == "PetstoreClient/1.0.0 (swift)")
+  }
+
   @Test func testDefaultHeadersDefaultsToEmpty() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(opts.defaultHeaders.isEmpty)
@@ -222,6 +228,21 @@ import Testing
     let opts = try TransportOptionsBuilder().proxy("HTTP://proxy.example.com:8080").build()
     #expect(opts.proxy?.host == "proxy.example.com")
     #expect(opts.proxy?.port == 8080)
+  }
+
+  /* An IPv6 literal host is accepted bracketed, and an unterminated one is
+   * refused. */
+  @Test func testProxyWithAnIpv6LiteralHostIsAccepted() throws {
+    let opts = try TransportOptionsBuilder().proxy("http://[::1]:3128").build()
+    #expect(opts.proxy?.host == "::1")
+    #expect(opts.proxy?.port == 3128)
+  }
+
+  @Test(arguments: ["http://[::1:3128", "http://user@[::1:3128"])
+  func testProxyWithAnUnterminatedIpv6LiteralIsRejected(url: String) {
+    #expect(throws: ConfigurationError.self) {
+      _ = try TransportOptionsBuilder().proxy(url).build()
+    }
   }
 
   @Test func testEmptyProxyStringClearsTheProxy() throws {

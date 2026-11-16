@@ -1129,6 +1129,69 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * Reserve stock, answering with the existing or a new reservation
+     * Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function reserveStock(): \PetstoreClient\Models\ReserveStockResponse
+    {
+        $apiResult = $this->reserveStockWithHttpInfo();
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for reserveStock but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\ReserveStockResponse $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\PetstoreClient\Models\ReserveStockResponse>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function reserveStockWithHttpInfo(): ApiResult
+    {
+        $path = '/store/reservation';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\ReserveStockResponse> $result */
+        $result = $this->invokeApiForResult(
+            'POST',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\ReserveStockResponse::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys
+        );
+        return $result;
+    }
+
+    /**
      * Searches the store; exercises content-encoded, Set and time-of-day parameters.
      * @param SearchStoreOptions|null $options Options for query, header, form, and cookie parameters
      * @return \Ds\Vector<\PetstoreClient\Models\Order>

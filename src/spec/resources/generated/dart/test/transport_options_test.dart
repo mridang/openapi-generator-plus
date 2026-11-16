@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -126,6 +126,17 @@ void main() {
       expect(opts.userAgent, isNotEmpty);
     });
 
+    test(
+      'the default userAgent is the registry name, the version and the language',
+      () {
+        final opts = TransportOptionsBuilder().build();
+        expect(
+          opts.userAgent,
+          matches(RegExp(r'^petstore_client/[^ ]+ \(dart\)$')),
+        );
+      },
+    );
+
     test('userAgent can be set to null to omit the header', () {
       final opts = TransportOptionsBuilder().userAgent(null).build();
       expect(opts.userAgent, isNull);
@@ -206,6 +217,7 @@ void main() {
         'ftp://user:secret@proxy:21':
             'Invalid proxy URL (must use http or https scheme)',
         'http://user:secret@:3128': 'Invalid proxy URL (missing host)',
+        'http://user:secret@[::1:3128': 'Invalid proxy URL',
       };
       rejected.forEach((url, message) {
         expect(
@@ -222,6 +234,30 @@ void main() {
         );
       });
     });
+
+    test(
+      'a proxy URL with user-info, an IPv6 literal or a path is accepted',
+      () {
+        for (final url in [
+          'http://user:pw@proxy:3128',
+          'http://[::1]:3128',
+          'http://proxy:3128/path?q=1',
+        ]) {
+          expect(
+            TransportOptionsBuilder().proxy(url).build().proxy,
+            equals(Uri.parse(url)),
+          );
+        }
+        expect(
+          TransportOptionsBuilder()
+              .proxy('http://[::1]:3128')
+              .build()
+              .proxy!
+              .host,
+          equals('::1'),
+        );
+      },
+    );
 
     test('an invalid proxy URL is rejected at build, not in the setter', () {
       final builder = TransportOptionsBuilder();

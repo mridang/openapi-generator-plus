@@ -67,8 +67,7 @@ public class TransportOptionsTest
     public void UserAgentDefaultsToNonEmptyString()
     {
         var opts = TransportOptions.Builder().Build();
-        Assert.NotNull(opts.UserAgent);
-        Assert.NotEmpty(opts.UserAgent!);
+        Assert.Equal("PetstoreClient/1.0.0 (csharp)", opts.UserAgent);
     }
 
     [Fact]
@@ -227,6 +226,26 @@ public class TransportOptionsTest
         );
         Assert.Contains(reason, ex.Message, StringComparison.Ordinal);
         Assert.False(typeof(OpenAPIException).IsInstanceOfType(ex));
+    }
+
+    [Fact]
+    public void ProxyUrlWithAnIpv6LiteralHostIsAccepted()
+    {
+        var opts = TransportOptions.Builder().Proxy("http://[::1]:3128").Build();
+
+        Assert.Equal("http://[::1]:3128", opts.Proxy);
+    }
+
+    [Theory]
+    [InlineData("http://[::1:3128")]
+    [InlineData("http://user@[::1:3128")]
+    public void ProxyUrlWithAnUnterminatedIpv6LiteralIsRejected(string proxy)
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy(proxy).Build()
+        );
+
+        Assert.Contains("Invalid proxy URL", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

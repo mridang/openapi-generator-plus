@@ -24,7 +24,7 @@ public enum OAuth2AuthorizationCodeError: Error, Equatable, LocalizedError {
   public var errorDescription: String? {
     switch self {
     case .codeNotExchanged:
-      return "Authorization code has not been exchanged; call exchangeCode(_:) first"
+      return "Must call exchangeCode() before making API requests"
     case .emptyCode:
       return "Authorization code must not be empty"
     }

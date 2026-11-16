@@ -37,6 +37,16 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     _(headers['Authorization']).must_equal 'Bearer xyz'
   end
 
+  it 'a token that merely begins with the letters bearer is kept whole' do
+    auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'bearerxyz')
+    _(auth.auth_headers['Authorization']).must_equal 'Bearer bearerxyz'
+  end
+
+  it 'a doubled prefix is stripped only once' do
+    auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'Bearer Bearer xyz')
+    _(auth.auth_headers['Authorization']).must_equal 'Bearer Bearer xyz'
+  end
+
   # bearer-no-empty-token-guard: an empty/whitespace token would emit a bare
   # "Authorization: Bearer " header, sending the request unauthenticated, so
   # the constructor must reject it.
@@ -47,6 +57,15 @@ describe Petstore::Client::Auth::BearerAuthenticator do
 
   it 'rejects a whitespace-only token' do
     _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', '   ') }).must_raise ArgumentError
+  end
+
+  # A Unicode space is not ASCII blank, so the printable-ASCII rule rejects it
+  # rather than the empty-token rule.
+  it 'a Unicode space is not blank, it fails the printable ASCII check instead' do
+    error = _(lambda {
+      Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "\u00A0")
+    }).must_raise ArgumentError
+    _(error.message).must_equal 'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
   end
 
   # RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing newlines

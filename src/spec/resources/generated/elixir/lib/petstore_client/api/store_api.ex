@@ -1624,6 +1624,96 @@ defmodule PetstoreClient.Api.StoreApi do
   end
 
   @doc """
+  Reserve stock, answering with the existing or a new reservation
+
+  Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+
+  ## Parameters
+
+    * `opts` - Keyword list.
+
+  ## Returns
+
+    * `{:ok, ReserveStockResponse}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec reserve_stock(t(), keyword()) ::
+          {:ok, PetstoreClient.Models.ReserveStockResponse.t()} | {:error, Exception.t()}
+  def reserve_stock(%__MODULE__{} = api, opts \\ []) do
+    case reserve_stock_with_http_info(api, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for reserve_stock but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `reserve_stock`. Raises on error.
+  """
+  @spec reserve_stock!(t(), keyword()) ::
+          PetstoreClient.Models.ReserveStockResponse.t()
+  def reserve_stock!(%__MODULE__{} = api, opts \\ []) do
+    case reserve_stock(api, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `reserve_stock` but returns the full `ApiResult`.
+  """
+  @spec reserve_stock_with_http_info(t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  def reserve_stock_with_http_info(%__MODULE__{} = api, opts \\ []) do
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
+
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
+    path = "/store/reservation"
+    query_params = []
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :POST,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "ReserveStockResponse",
+      auth
+    )
+  end
+
+  @doc """
   Searches the store; exercises content-encoded, Set and time-of-day parameters.
 
   ## Parameters

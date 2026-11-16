@@ -94,7 +94,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun `token_endpoint_redirect_is_rejected`() {
+    fun tokenEndpointRedirectIsRejected() {
         // Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
         // manager must refuse the whole 300-399 range (302 and 307 both checked
         // here, plus 301/303/308) rather than replaying the credential-bearing
@@ -568,8 +568,39 @@ class OAuth2TokenManagerTest {
                     )
                 }
             }
-        assertEquals("Token response is not a JSON object", ex.message)
+        assertEquals("Token response is not valid JSON", ex.message)
         assertNull(ex.cause)
+    }
+
+    @Test
+    fun unusableTokenBodiesGetTheirFixedMessages() {
+        val cases =
+            listOf(
+                "not json at all" to "Token response is not valid JSON",
+                "[1, 2]" to "Token response is not a JSON object",
+                "\"text\"" to "Token response is not a JSON object",
+                "{}" to "Token response missing or empty access_token field",
+                "{\"access_token\":\"\"}" to "Token response missing or empty access_token field",
+                "{\"access_token\":42}" to "Token response missing or empty access_token field",
+            )
+        for ((body, message) in cases) {
+            val client = FakeApiClient()
+            client.enqueue(body)
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+
+            val ex =
+                assertThrowsExactly(OAuth2TokenException::class.java) {
+                    runBlocking {
+                        manager.getAccessToken(
+                            "https://auth.example.com/token",
+                            mapOf("grant_type" to "client_credentials"),
+                        )
+                    }
+                }
+            assertEquals(message, ex.message, "body: $body")
+            assertNull(ex.cause)
+        }
     }
 
     @Test
@@ -603,7 +634,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun `token_response_missing_access_token_throws_typed_error`() {
+    fun tokenResponseMissingAccessTokenThrowsTypedError() {
         // A 2xx response whose body omits access_token must surface as the
         // typed OAuth2TokenException, not silently cache an empty token.
         val client = FakeApiClient()
@@ -624,7 +655,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun `token_endpoint_error_response_parsed_to_typed_error`() {
+    fun tokenEndpointErrorResponseParsedToTypedError() {
         // RFC 6749 §5.2: a 4xx response with a JSON error object must surface
         // as a typed OAuth2ServerException carrying code/description/uri.
         val client = FakeApiClient()
@@ -666,7 +697,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun `token_endpoint_error_with_non_string_error_code_is_not_coerced`() {
+    fun tokenEndpointErrorWithNonStringErrorCodeIsNotCoerced() {
         // RFC 6749 §5.2: error is a string. A numeric error must not be coerced
         // into the code "400"; the code stays null and the raw body is reported.
         val ex = oauth2ErrorFor("""{"error":400}""")
@@ -675,7 +706,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun `token_endpoint_error_with_non_string_description_keeps_the_code`() {
+    fun tokenEndpointErrorWithNonStringDescriptionKeepsTheCode() {
         // A non-string error_description or error_uri is dropped independently
         // and must not discard a valid error code.
         val ex =

@@ -312,6 +312,32 @@ fn test_api_error_body_nested_beyond_shared_cap_is_rejected() {
     );
 }
 
+/* D15 (F933): a malformed error body is a SerializationError whose message
+ * names the parse failure and which keeps the parser error as its source. */
+#[test]
+fn test_api_error_malformed_body_is_a_serialization_error_with_the_parse_message() {
+    let err = ApiError::new(400, "bad".to_string(), None, Some(r#"{"id":"#.to_string()));
+
+    assert!(
+        err.error_body().is_none(),
+        "a malformed body must not parse"
+    );
+    let failure = err
+        .typed_error_body::<serde_json::Value>()
+        .expect_err("a malformed body must be rejected");
+    assert!(
+        failure
+            .message()
+            .starts_with("failed to deserialize JSON: "),
+        "unexpected message {:?}",
+        failure.message()
+    );
+    assert!(
+        std::error::Error::source(&failure).is_some(),
+        "the parser error is the source"
+    );
+}
+
 #[test]
 fn test_api_error_body_with_leading_bom_parses() {
     let err = ApiError::new(

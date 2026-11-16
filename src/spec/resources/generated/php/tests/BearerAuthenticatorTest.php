@@ -72,6 +72,18 @@ test('bearer rejects ascii whitespace only token as empty', function (string $to
     'vertical tab' => ["\v"],
 ]);
 
+test('bearer rejects unicode space only token as non printable ascii', function (string $token): void {
+    /* A Unicode space is not blank by the ASCII rule, so it reaches the
+     * printable-ASCII rule and is rejected there, not as an empty token. */
+    expect(fn () => new BearerAuthenticator('https://api.example.com', $token))
+        ->toThrow(\InvalidArgumentException::class, 'printable ASCII');
+})->with([
+    'no-break space' => ["\u{00A0}"],
+    'em space' => ["\u{2003}"],
+    'ideographic space' => ["\u{3000}"],
+    'line separator' => ["\u{2028}"],
+]);
+
 test('token is masked in var_dump and print_r output', function (): void {
     /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
      * (var_dump / print_r / debug_zval_dump) and var_export-style traces use

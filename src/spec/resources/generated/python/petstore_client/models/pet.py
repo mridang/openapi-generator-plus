@@ -21,6 +21,10 @@ class PetStatusEnum(str, Enum):
     PENDING = "pending"
     SOLD = "sold"
 
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)
+
 
 class Pet(BaseModel):
     """

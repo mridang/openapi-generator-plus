@@ -16,11 +16,21 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
 @Serializable
-data class Result(
+data class Reservation(
     /**
-     * The `ok` property.
+     * The `reservationId` property.
+     *
+     * Example: `31`
      */
-    @SerialName("ok")
-    @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
-    val ok: Boolean? = null,
+    @SerialName("reservationId")
+    @Serializable(with = com.example.petstore.StrictLongSerializer::class)
+    val reservationId: Long,
+    /**
+     * The `quantity` property.
+     *
+     * Example: `4`
+     */
+    @SerialName("quantity")
+    @Serializable(with = com.example.petstore.StrictIntSerializer::class)
+    val quantity: Int,
 )

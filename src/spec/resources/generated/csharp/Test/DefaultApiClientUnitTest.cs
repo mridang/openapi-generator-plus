@@ -214,7 +214,7 @@ public class DefaultApiClientUnitTest
             new Dictionary<string, string>(),
             null
         );
-        Assert.False(string.IsNullOrEmpty(capturedUserAgent));
+        Assert.Equal("PetstoreClient/1.0.0 (csharp)", capturedUserAgent);
     }
 
     [Fact]
@@ -469,6 +469,44 @@ public class DefaultApiClientUnitTest
             null
         );
         Assert.Equal("custom-value", capturedValue);
+    }
+
+    [Fact]
+    public async Task NoRedirectRequestCarriesNoTransportDefaultHeadersButKeepsTheUserAgent()
+    {
+        /* The OAuth2 token POST is sent with noRedirect: a default Authorization
+           header meant for the API must not reach the authorization server. */
+        var captured = new Dictionary<string, string>();
+        var handler = new CapturingHandler(req =>
+        {
+            foreach (var header in req.Headers)
+            {
+                captured[header.Key] = string.Join(",", header.Value);
+            }
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions
+            .Builder()
+            .DefaultHeader("Authorization", "Bearer api-only")
+            .DefaultHeader("X-Custom", "custom-value")
+            .UserAgent("SdkDefault/9.9")
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://auth.example.com/token"),
+            new Dictionary<string, string>
+            {
+                ["Content-Type"] = "application/x-www-form-urlencoded",
+            },
+            "grant_type=client_credentials",
+            noRedirect: true
+        );
+
+        Assert.False(captured.ContainsKey("Authorization"));
+        Assert.False(captured.ContainsKey("X-Custom"));
+        Assert.Equal("SdkDefault/9.9", captured["User-Agent"]);
     }
 
     [Fact]
@@ -1489,6 +1527,68 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task AnIntermediateRedirectResponseIsReleasedWhenTheRedirectIsFollowed()
+    {
+        var handler = new ReleaseTrackingRedirectHandler([
+            (HttpStatusCode.Redirect, new Uri("http://origin.example.com/next")),
+        ]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.True(handler.Contents[0].Disposed, "the followed 3xx response must be released");
+    }
+
+    [Fact]
+    public async Task AnIntermediateRedirectResponseIsReleasedWhenTheRedirectIsRefused()
+    {
+        var handler = new ReleaseTrackingRedirectHandler([
+            (HttpStatusCode.Redirect, new Uri("ftp://origin.example.com/next")),
+        ]);
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://origin.example.com/start"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.True(handler.Contents[0].Disposed, "the refused 3xx response must be released");
+    }
+
+    [Fact]
+    public async Task EveryRedirectResponseIsReleasedWhenTheBudgetIsExhausted()
+    {
+        var handler = new ReleaseTrackingRedirectHandler([
+            (HttpStatusCode.Redirect, new Uri("http://origin.example.com/a")),
+            (HttpStatusCode.Redirect, new Uri("http://origin.example.com/b")),
+        ]);
+        var transport = TransportOptions.Builder().MaxRedirects(1).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://origin.example.com/start"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal(2, handler.Contents.Count);
+        Assert.All(handler.Contents, content => Assert.True(content.Disposed));
+    }
+
+    [Fact]
     public async Task CredentialsDroppedOnACrossOriginHopStayDroppedWhenTheChainReturns()
     {
         // F898: A -> B -> A. The hop to B strips the credentials; the hop back
@@ -1673,6 +1773,30 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task IdentityContentEncodingPassesTheBodyThroughUndecoded()
+    {
+        /* identity is the no-op coding (RFC 9110 section 8.4.1): the body is already
+           the payload, so it is returned as sent and is not refused as unsupported. */
+        var handler = new EncodedBodyHandler(
+            HttpStatusCode.OK,
+            Encoding.UTF8.GetBytes("{\"ok\":true}"),
+            contentEncoding: "identity",
+            contentType: "application/json"
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/identity-encoding"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal("{\"ok\":true}", response.Body);
+    }
+
+    [Fact]
     public async Task EmptyGzipBodyPassesThroughAsEmpty()
     {
         // A zero-byte body still declared Content-Encoding: gzip has nothing to
@@ -1822,6 +1946,11 @@ public class DefaultApiClientUnitTest
             "a configuration mistake must not be an SDK error"
         );
         Assert.NotNull(ex.InnerException);
+        Assert.StartsWith(
+            "failed to read CA certificate from \"/nonexistent/ca.pem\": ",
+            ex.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -1848,8 +1977,11 @@ public class DefaultApiClientUnitTest
             File.WriteAllText(path, contents);
             var transport = TransportOptions.Builder().CaCertPath(path).Build();
             var ex = Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
-            Assert.Contains("CA certificate from", ex.Message, StringComparison.Ordinal);
-            Assert.Contains(path, ex.Message, StringComparison.Ordinal);
+            Assert.StartsWith(
+                "failed to parse CA certificate from \"" + path + "\": ",
+                ex.Message,
+                StringComparison.Ordinal
+            );
             Assert.False(
                 typeof(OpenAPIException).IsInstanceOfType(ex),
                 "a configuration mistake must not be an SDK error"
@@ -2384,6 +2516,59 @@ public class DefaultApiClientUnitTest
             {
                 response.Headers.Location = step.Location;
             }
+            return Task.FromResult(response);
+        }
+    }
+
+    /// <summary>
+    /// A body that records whether it was disposed, so a test can tell that the
+    /// response carrying it was released.
+    /// </summary>
+    private sealed class DisposalTrackingContent : StringContent
+    {
+        public DisposalTrackingContent()
+            : base("") { }
+
+        public bool Disposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>
+    /// Plays the scripted (status, Location) pairs in order, then answers 200 OK,
+    /// and keeps every response body it handed out so its release can be checked.
+    /// </summary>
+    private sealed class ReleaseTrackingRedirectHandler : HttpMessageHandler
+    {
+        private readonly (HttpStatusCode Status, Uri Location)[] _script;
+
+        public ReleaseTrackingRedirectHandler((HttpStatusCode Status, Uri Location)[] script)
+        {
+            _script = script;
+        }
+
+        public List<DisposalTrackingContent> Contents { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            var content = new DisposalTrackingContent();
+            Contents.Add(content);
+            if (Contents.Count > _script.Length)
+            {
+                return Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK) { Content = content }
+                );
+            }
+            var step = _script[Contents.Count - 1];
+            var response = new HttpResponseMessage(step.Status) { Content = content };
+            response.Headers.Location = step.Location;
             return Task.FromResult(response);
         }
     }

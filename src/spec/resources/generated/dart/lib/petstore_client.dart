@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -75,9 +75,9 @@ export 'src/models/department.dart';
 export 'src/models/dry_food.dart';
 export 'src/models/edge_cases.dart';
 export 'src/models/employee.dart';
-export 'src/models/error.dart';
 export 'src/models/medication.dart';
 export 'src/models/metadata.dart';
+export 'src/models/model_error.dart';
 export 'src/models/order.dart';
 export 'src/models/pet.dart';
 export 'src/models/pet_criteria.dart';
@@ -90,6 +90,9 @@ export 'src/models/photo_metadata.dart';
 export 'src/models/photo_metadata_location.dart';
 export 'src/models/priority.dart';
 export 'src/models/required_nullable.dart';
+export 'src/models/reservation.dart';
+export 'src/models/reservation_receipt.dart';
+export 'src/models/reserve_stock_response.dart';
 export 'src/models/result.dart';
 export 'src/models/separator.dart';
 export 'src/models/set_pet_avatar_request.dart';

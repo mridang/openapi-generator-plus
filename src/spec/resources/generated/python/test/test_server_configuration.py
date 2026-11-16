@@ -133,7 +133,7 @@ class TestServerVariableResolution:
 
         assert str(exc_info.value) == (
             "Invalid value 'dev' for server variable 'env'. "
-            "Allowed values: ('prod', 'staging')"
+            "Allowed values: [prod, staging]"
         )
 
     def test_rejection_names_the_value_the_variable_and_the_allowed_values(
@@ -151,9 +151,27 @@ class TestServerVariableResolution:
             config.get_url({"version": "3"})
 
         assert str(exc_info.value) == (
-            "Invalid value '3' for server variable 'version'. "
-            "Allowed values: ('1', '2')"
+            "Invalid value '3' for server variable 'version'. Allowed values: [1, 2]"
         )
+
+    def test_a_placeholder_introduced_by_a_value_is_not_expanded(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com/{version}",
+            variables={
+                "env": ServerVariable(default_value="{version}"),
+                "version": ServerVariable(default_value="v2"),
+            },
+        )
+
+        assert config.get_url() == "https://{version}.api.example.com/v2"
+
+    def test_a_value_with_replacement_patterns_is_substituted_literally(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com",
+            variables={"env": ServerVariable(default_value="a\\1b$&")},
+        )
+
+        assert config.get_url() == "https://a\\1b$&.api.example.com"
 
     def test_a_variable_repeated_in_the_template_is_replaced_everywhere(self) -> None:
         config = ServerConfiguration(

@@ -361,7 +361,7 @@ class DefaultApiClientUnitTest {
         new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** When set, answers every send with this response instead of reaching the network. */
-    private java.net.http.HttpResponse<byte[]> scripted;
+    @javax.annotation.Nullable private java.net.http.HttpResponse<byte[]> scripted;
 
     @Override
     public java.util.Optional<java.net.CookieHandler> cookieHandler() {

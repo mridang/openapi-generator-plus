@@ -66,14 +66,17 @@ module Petstore::Client
       def initialize(region:)
         super()
         allowed = [GetMultiServerPetInfoServerRegionalRegion::US, GetMultiServerPetInfoServerRegionalRegion::EU, GetMultiServerPetInfoServerRegionalRegion::AP]
-        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'region'. Allowed values: %<allowed>s", value: region, allowed: allowed) unless allowed.include?(region)
+        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'region'. Allowed values: [%<allowed>s]", value: region, allowed: allowed.join(', ')) unless allowed.include?(region)
 
         @region = region
       end
 
       def url
-        url = 'https://{region}.example.com/v1'
-        url.gsub('{region}') { @region.to_s }
+        values = {
+          'region' => @region.to_s
+        }
+        # One pass: a placeholder that a substituted value introduces is never expanded again.
+        'https://{region}.example.com/v1'.gsub(/\{([^{}]+)\}/) { |placeholder| values.fetch(placeholder.delete_prefix('{').delete_suffix('}')) { placeholder } }
       end
     end
 
@@ -84,19 +87,22 @@ module Petstore::Client
       def initialize(region:, channel:)
         super()
         allowed = [GetMultiServerPetInfoServerMirrorRegion::US, GetMultiServerPetInfoServerMirrorRegion::EU]
-        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'region'. Allowed values: %<allowed>s", value: region, allowed: allowed) unless allowed.include?(region)
+        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'region'. Allowed values: [%<allowed>s]", value: region, allowed: allowed.join(', ')) unless allowed.include?(region)
 
         @region = region
         allowed = [GetMultiServerPetInfoServerChannel::A_B, GetMultiServerPetInfoServerChannel::IT_S]
-        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'channel'. Allowed values: %<allowed>s", value: channel, allowed: allowed) unless allowed.include?(channel)
+        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'channel'. Allowed values: [%<allowed>s]", value: channel, allowed: allowed.join(', ')) unless allowed.include?(channel)
 
         @channel = channel
       end
 
       def url
-        url = 'https://{region}.mirror.example.com/{channel}/v1'
-        url = url.gsub('{region}') { @region.to_s }
-        url.gsub('{channel}') { @channel.to_s }
+        values = {
+          'region' => @region.to_s,
+          'channel' => @channel.to_s
+        }
+        # One pass: a placeholder that a substituted value introduces is never expanded again.
+        'https://{region}.mirror.example.com/{channel}/v1'.gsub(/\{([^{}]+)\}/) { |placeholder| values.fetch(placeholder.delete_prefix('{').delete_suffix('}')) { placeholder } }
       end
     end
 
@@ -142,19 +148,22 @@ module Petstore::Client
       def initialize(environment:, version:)
         super()
         allowed = [GetStagingPetInfoServerEnvironment::STAGING, GetStagingPetInfoServerEnvironment::SANDBOX]
-        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'environment'. Allowed values: %<allowed>s", value: environment, allowed: allowed) unless allowed.include?(environment)
+        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'environment'. Allowed values: [%<allowed>s]", value: environment, allowed: allowed.join(', ')) unless allowed.include?(environment)
 
         @environment = environment
         allowed = [GetStagingPetInfoServerVersion::V2, GetStagingPetInfoServerVersion::V3]
-        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'version'. Allowed values: %<allowed>s", value: version, allowed: allowed) unless allowed.include?(version)
+        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'version'. Allowed values: [%<allowed>s]", value: version, allowed: allowed.join(', ')) unless allowed.include?(version)
 
         @version = version
       end
 
       def url
-        url = 'https://{environment}.example.com/api/{version}'
-        url = url.gsub('{environment}') { @environment.to_s }
-        url.gsub('{version}') { @version.to_s }
+        values = {
+          'environment' => @environment.to_s,
+          'version' => @version.to_s
+        }
+        # One pass: a placeholder that a substituted value introduces is never expanded again.
+        'https://{environment}.example.com/api/{version}'.gsub(/\{([^{}]+)\}/) { |placeholder| values.fetch(placeholder.delete_prefix('{').delete_suffix('}')) { placeholder } }
       end
     end
 
@@ -761,12 +770,8 @@ module Petstore::Client
       # Find pet by ID
       # Returns a single pet
       # @param pet_id [Integer] ID of pet to return
-      # Small breed ID
-      # A common small-breed pet identifier
-      # Example: 1
-      # Large breed ID
-      # A common large-breed pet identifier
-      # Example: 42
+      # Example for +pet_id+ — Small breed ID: 1
+      # Example for +pet_id+ — Large breed ID: 42
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
@@ -1314,7 +1319,7 @@ module Petstore::Client
           else
             raise ArgumentError,
                   "Unsupported request content-type '#{request_content_type}' for " \
-                  "set_pet_avatar; declared types are #{declared_consumes}"
+                  "set_pet_avatar; declared types are [#{declared_consumes.join(', ')}]"
           end
 
         invoke_api_for_result(
@@ -1624,7 +1629,7 @@ module Petstore::Client
           else
             raise ArgumentError,
                   "Unsupported request content-type '#{request_content_type}' for " \
-                  "upload_pet_document; declared types are #{declared_consumes}"
+                  "upload_pet_document; declared types are [#{declared_consumes.join(', ')}]"
           end
 
         invoke_api_for_result(

@@ -28,6 +28,14 @@ use PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 use PetstoreClient\Auth\OAuth\OAuth2PasswordAuthenticator;
 use PetstoreClient\Auth\OAuth\OpenIdConnectAuthenticator;
 use PetstoreClient\Configuration;
+use PetstoreClient\DefaultApiClient;
+use PetstoreClient\TransportOptions;
+use PetstoreClient\Errors\BadRequestException;
+use PetstoreClient\Errors\ClientException;
+use PetstoreClient\Errors\ConflictException;
+use PetstoreClient\Errors\ForbiddenException;
+use PetstoreClient\Errors\UnauthorizedException;
+use PetstoreClient\Errors\UnprocessableEntityException;
 use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\ApiResponse as ApiResponseModel;
@@ -216,7 +224,7 @@ test('set pet avatar rejects an unrecognised request content-type', function ():
     expect(fn () => $this->api->setPetAvatar(1, $body, 'application/unknown-type'))
         ->toThrow(
             \InvalidArgumentException::class,
-            "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are"
+            "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are ["
         );
     unlink($tmpFile);
 });
@@ -1027,6 +1035,31 @@ test('error handling server error', function (): void {
 
     expect(fn () => $api->getPetById(1))->toThrow(ServerException::class);
 });
+
+test('get pet by id picks the status specific error class', function (int $status, string $expectedClass): void {
+    /* The typed mock routes answer getPetById with each status and a JSON
+     * body, so the error is decoded through the real operation. */
+    $config = Configuration::builder()
+        ->baseUrl((getenv('CHASM_HTTP_URL') ?: '') . '/test/status/' . $status)
+        ->build();
+    $api = new PetApi(
+        apiClient: new DefaultApiClient(TransportOptions::builder()->maxRetries(0)->build()),
+        config: $config
+    );
+
+    expect(fn () => $api->getPetById(1))->toThrow(function (\Exception $e) use ($status, $expectedClass): void {
+        expect($e::class)->toBe($expectedClass);
+        expect($e->getCode())->toBe($status);
+    });
+})->with([
+    [400, BadRequestException::class],
+    [401, UnauthorizedException::class],
+    [403, ForbiddenException::class],
+    [409, ConflictException::class],
+    [418, ClientException::class],
+    [422, UnprocessableEntityException::class],
+    [502, ServerException::class],
+]);
 
 test('empty body for body returning op throws api exception', function (): void {
     /* getPetById declares a non-void return type. A 2xx with an empty body

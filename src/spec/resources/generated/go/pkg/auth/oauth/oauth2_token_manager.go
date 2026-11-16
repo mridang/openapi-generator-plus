@@ -12,7 +12,6 @@ package oauth
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"net/url"
 	"sort"
@@ -255,14 +254,32 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 		AccessToken  string          `json:"access_token"`
 		RefreshToken string          `json:"refresh_token"`
 		ExpiresIn    json.RawMessage `json:"expires_in"`
+		TokenType    json.RawMessage `json:"token_type"`
 	}
-	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
-		/* A 2xx answer the SDK cannot use is an *OAuth2TokenError. */
-		return errors_pkg.NewOAuth2TokenError(fmt.Sprintf("Token response is not valid JSON: %v", err))
+	/* A 2xx answer the SDK cannot use is an *OAuth2TokenError. The three
+	 * messages are fixed text with no parser detail, the same in every SDK. */
+	trimmedBody := strings.TrimSpace(resp.Body)
+	if !json.Valid([]byte(trimmedBody)) {
+		return errors_pkg.NewOAuth2TokenError("Token response is not valid JSON")
+	}
+	if !strings.HasPrefix(trimmedBody, "{") {
+		return errors_pkg.NewOAuth2TokenError("Token response is not a JSON object")
+	}
+	if err := json.Unmarshal([]byte(trimmedBody), &parsed); err != nil {
+		return errors_pkg.NewOAuth2TokenError("Token response missing or empty access_token field")
 	}
 
 	if parsed.AccessToken == "" {
 		return errors_pkg.NewOAuth2TokenError("Token response missing or empty access_token field")
+	}
+	/* RFC 6749 section 7.1: a token whose type is not understood must not be
+	 * used. Only a missing or `bearer` (any case) type is sent as a Bearer
+	 * credential; the offending value is not echoed. */
+	if len(parsed.TokenType) > 0 && string(parsed.TokenType) != "null" {
+		var tokenType string
+		if err := json.Unmarshal(parsed.TokenType, &tokenType); err != nil || !strings.EqualFold(tokenType, "bearer") {
+			return errors_pkg.NewOAuth2TokenError("Unsupported token_type in token response")
+		}
 	}
 	m.accessToken = parsed.AccessToken
 	if parsed.RefreshToken != "" {

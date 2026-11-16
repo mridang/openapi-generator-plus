@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -169,6 +169,22 @@ void main() {
               .having((e) => e.cause, 'cause', isA<TimeoutException>()),
         ),
       );
+    });
+
+    test('repeated response headers are joined in order', () async {
+      final resp = await DefaultApiClient().sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/response-headers',
+        {},
+        null,
+      );
+      expect(resp.headers['x-custom-header'], equals('foo'));
+      final link = resp.headers['link']!;
+      expect(link.indexOf('rel="next"'), greaterThanOrEqualTo(0));
+      expect(link.indexOf('rel="next"'), lessThan(link.indexOf('rel="prev"')));
+      final cookies = resp.headers['set-cookie']!;
+      expect(cookies.indexOf('a=1'), greaterThanOrEqualTo(0));
+      expect(cookies.indexOf('a=1'), lessThan(cookies.indexOf('b=2')));
     });
 
     test('injects custom User-Agent header', () async {

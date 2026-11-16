@@ -400,9 +400,37 @@ describe("DefaultApiClient CA certificate fail-fast", () => {
     }
     expect((caught as Error).constructor).toBe(TypeError);
     expect(caught).not.toBeInstanceOf(OpenAPIError);
-    expect((caught as Error).message).toBe(
-      'failed to read CA certificate from "/nonexistent/ca.pem"',
+    expect((caught as Error).message).toMatch(
+      /^failed to read CA certificate from "\/nonexistent\/ca\.pem": \S/,
     );
+    expect((caught as Error).cause).toBeInstanceOf(Error);
+  });
+
+  it("reads a directory as a failed read, not as a certificate", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-cert-"));
+    try {
+      const transport = TransportOptions.builder().caCertPath(dir).build();
+      expect(() => new DefaultApiClient(transport)).toThrow(TypeError);
+      expect(() => new DefaultApiClient(transport)).toThrow(
+        `failed to read CA certificate from "${dir}": `,
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("an empty caCertPath file is a failed parse", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-cert-"));
+    const empty = path.join(dir, "empty.pem");
+    fs.writeFileSync(empty, "");
+    try {
+      const transport = TransportOptions.builder().caCertPath(empty).build();
+      expect(() => new DefaultApiClient(transport)).toThrow(
+        `failed to parse CA certificate from "${empty}": no PEM blocks found or unparseable`,
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("throws TypeError at construction for a caCertPath that is not a PEM certificate", () => {
@@ -509,6 +537,35 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     expect((caught as Error).constructor).toBe(NetworkTimeoutError);
     expect(caught).toBeInstanceOf(NetworkError);
     expect((caught as NetworkTimeoutError).statusCode).toBe(0);
+  });
+
+  it("closing the client aborts a request that is still running instead of waiting for it", async () => {
+    const hanging = http.createServer(() => {
+      /* never respond */
+    });
+    await new Promise<void>((resolve) =>
+      hanging.listen(0, "127.0.0.1", resolve),
+    );
+    const port = (hanging.address() as { port: number }).port;
+    /* verifySsl(false) makes the client build its own dispatcher. */
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .verifySsl(false)
+        .timeout(null)
+        .maxRetries(0)
+        .build(),
+    );
+    const pending = client
+      .sendRequest("GET", `http://127.0.0.1:${port}/hang`, {}, null)
+      .catch((e: unknown) => e);
+    try {
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+      await client.close();
+      expect(await pending).toBeInstanceOf(NetworkError);
+    } finally {
+      hanging.closeAllConnections();
+      await new Promise<void>((resolve) => hanging.close(() => resolve()));
+    }
   });
 
   it("using a closed client throws the invalid-state Error", async () => {
@@ -1906,6 +1963,33 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     // than rejecting on the absent gzip stream.
     const out = await DefaultApiClient.ensureDecoded(Buffer.alloc(0), "gzip");
     expect(out.length).toBe(0);
+  });
+
+  it("passes a body declared Content-Encoding: identity through unchanged", async () => {
+    global.fetch = (async (): Promise<Response> => {
+      return new Response('{"userId":1}', {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Encoding": "identity",
+        },
+      });
+    }) as typeof fetch;
+
+    const client = new DefaultApiClient();
+    const response = await client.sendRequest(
+      "GET",
+      "http://api.example/identity",
+      {},
+      null,
+    );
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe('{"userId":1}');
+    const direct = await DefaultApiClient.ensureDecoded(
+      Buffer.from('{"userId":1}', "utf-8"),
+      "identity",
+    );
+    expect(direct.toString("utf-8")).toBe('{"userId":1}');
   });
 });
 

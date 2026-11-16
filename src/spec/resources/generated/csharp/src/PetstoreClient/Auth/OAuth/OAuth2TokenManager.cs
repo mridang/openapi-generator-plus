@@ -354,6 +354,24 @@ public sealed class OAuth2TokenManager
         {
             throw new OAuth2TokenException("Token response missing or empty access_token field");
         }
+        /* RFC 6749 section 7.1: a client must not use an access token whose type it
+         * does not understand. Only "bearer" (any case) or an absent token_type is
+         * sent as a Bearer credential; the value is not echoed. */
+        if (
+            root.TryGetProperty("token_type", out JsonElement tokenTypeElement)
+            && tokenTypeElement.ValueKind != JsonValueKind.Null
+            && !(
+                tokenTypeElement.ValueKind == JsonValueKind.String
+                && string.Equals(
+                    tokenTypeElement.GetString(),
+                    "bearer",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+        )
+        {
+            throw new OAuth2TokenException("Unsupported token_type in token response");
+        }
         if (
             root.TryGetProperty("refresh_token", out JsonElement refreshTokenElement)
             && refreshTokenElement.ValueKind == JsonValueKind.String

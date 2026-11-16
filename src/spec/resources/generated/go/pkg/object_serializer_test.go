@@ -2166,6 +2166,58 @@ func TestDeserialize_StrictBase64ForByteFields(t *testing.T) {
 	}
 }
 
+// A nickname longer than its declared maxLength is not enforced by the decoder:
+// the value decodes and goes back out unchanged.
+func TestDeserialize_NicknameBeyondItsMaxLengthRoundTrips(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"x","photoUrls":[],"nickname":"ZZZZZZZZZZ"}`), &pet); err != nil {
+		t.Fatalf("expected the long nickname to decode, got %v", err)
+	}
+	if pet.Nickname == nil || *pet.Nickname != "ZZZZZZZZZZ" {
+		t.Fatalf("expected nickname ZZZZZZZZZZ, got %v", pet.Nickname)
+	}
+	data, err := serialize(pet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"nickname":"ZZZZZZZZZZ"`) {
+		t.Errorf("expected the nickname to be re-encoded unchanged, got %s", data)
+	}
+}
+
+// BinaryVault equality compares byte arrays by content, never by reference,
+// for a bare array, a list of arrays and a map of arrays, and tells a list from
+// a map.
+func TestBinaryVault_EqualityComparesByteArraysByContent(t *testing.T) {
+	t.Parallel()
+	vaultOf := func(seal string, shard string, label string) models.BinaryVault {
+		sealBytes := []byte(seal)
+		shards := [][]byte{[]byte(shard)}
+		labels := map[string][]byte{"k": []byte(label)}
+		return models.BinaryVault{Seal: &sealBytes, Shards: &shards, Labels: &labels}
+	}
+	left := vaultOf("s", "a", "x")
+	if !left.Equal(vaultOf("s", "a", "x")) {
+		t.Error("expected vaults with equal bytes in fresh arrays to be equal")
+	}
+	for name, other := range map[string]models.BinaryVault{
+		"seal":   vaultOf("t", "a", "x"),
+		"shard":  vaultOf("s", "b", "x"),
+		"labels": vaultOf("s", "a", "y"),
+	} {
+		if left.Equal(other) {
+			t.Errorf("expected a different %s to make the vaults unequal", name)
+		}
+	}
+	bytesA := []byte("a")
+	asList := models.BinaryVault{Shards: &[][]byte{bytesA}}
+	asMap := models.BinaryVault{Labels: &map[string][]byte{"0": bytesA}}
+	if asList.Equal(asMap) {
+		t.Error("expected a list of byte arrays to differ from a map of them")
+	}
+}
+
 // A format:uri field accepts any absolute URI, whatever its scheme, and keeps
 // its text byte-for-byte; a relative reference, free text or an empty string
 // is a *SerializationError. A format:uri-reference field stays a plain string.

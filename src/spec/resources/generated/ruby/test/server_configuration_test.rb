@@ -59,6 +59,25 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'host' => 'a\\0b\\&c' })).must_equal 'https://a\\0b\\&c.example.com/a\\0b\\&c'
   end
 
+  it 'does not expand a placeholder that a substituted value introduces' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com/{version}',
+      variables: {
+        'env' => Petstore::Client::ServerVariable.new(default_value: 'prod'),
+        'version' => Petstore::Client::ServerVariable.new(default_value: 'v2')
+      }
+    )
+    _(config.url({ 'env' => '{version}' })).must_equal 'https://{version}.api.example.com/v2'
+  end
+
+  it 'leaves an undeclared placeholder in the template as written' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com/{unknown}',
+      variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
+    )
+    _(config.url).must_equal 'https://prod.api.example.com/{unknown}'
+  end
+
   it 'accepts an override value that is in the variable enum' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',
@@ -112,7 +131,7 @@ describe Petstore::Client::ServerConfiguration do
       }
     )
     err = _(-> { config.url({ 'env' => 'dev' }) }).must_raise ArgumentError
-    _(err.message).must_equal "Invalid value 'dev' for server variable 'env'. Allowed values: [\"prod\", \"staging\"]"
+    _(err.message).must_equal "Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]"
   end
 
   it 'rejects a default value that is not in the variable enum' do
@@ -123,7 +142,7 @@ describe Petstore::Client::ServerConfiguration do
       }
     )
     err = _(-> { config.url }).must_raise ArgumentError
-    _(err.message).must_equal "Invalid value 'qa' for server variable 'env'. Allowed values: [\"prod\", \"staging\"]"
+    _(err.message).must_equal "Invalid value 'qa' for server variable 'env'. Allowed values: [prod, staging]"
   end
 
   it 'accepts any override for a variable that declares no enum' do

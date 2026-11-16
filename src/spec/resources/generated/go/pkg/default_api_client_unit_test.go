@@ -758,6 +758,41 @@ func TestDefaultApiClient_MultipartRawBytesReusesFieldNameAndDefaultsToOctetStre
 
 // Gap BI / Gap F: filename directive + filename validation helpers.
 
+// A character outside the BMP is one rune: one underscore in the ASCII
+// fallback and its four UTF-8 bytes percent-encoded in filename*.
+func TestDefaultApiClient_BuildFilenameDirectiveNonBmpCharacterIsOneUnderscore(t *testing.T) {
+	t.Parallel()
+	directive := buildFilenameDirective("a\U0001F600.png")
+	want := `filename="a_.png"; filename*=UTF-8''a%F0%9F%98%80.png`
+	if directive != want {
+		t.Errorf("expected %q, got %q", want, directive)
+	}
+}
+
+// Content-Encoding: identity is not a compression: the body is passed through
+// as it is and the header is left alone.
+func TestDefaultApiClient_IdentityContentEncodingIsPassedThroughUndecoded(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "identity")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("plain body"))
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/x", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Body != "plain body" {
+		t.Errorf("expected the body untouched, got %q", resp.Body)
+	}
+	if got := resp.Headers["content-encoding"]; got != "identity" {
+		t.Errorf("expected Content-Encoding identity to stay, got %q", got)
+	}
+}
+
 func TestDefaultApiClient_BuildFilenameDirectiveNonAsciiEmitsRFC5987(t *testing.T) {
 	t.Parallel()
 	directive := buildFilenameDirective("日本.pdf")
@@ -853,8 +888,9 @@ func TestDefaultApiClient_RefusesBodyReplayOnHttpsToHttpDowngrade(t *testing.T) 
 	if err == nil {
 		t.Fatal("expected error refusing HTTPS→HTTP body replay, got nil")
 	}
-	if !strings.Contains(err.Error(), "HTTPS") || !strings.Contains(err.Error(), "HTTP") {
-		t.Errorf("expected downgrade refusal message, got %q", err.Error())
+	want := "refusing to replay request body across HTTPS->HTTP redirect: " + tlsServer.URL + "/issue -> " + plainServer.URL + "/leaked"
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("expected downgrade refusal message containing %q, got %q", want, err.Error())
 	}
 }
 

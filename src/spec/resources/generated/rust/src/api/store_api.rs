@@ -1419,6 +1419,81 @@ impl StoreApi {
         self.base.invoke_api_for_result::<Order>(params).await
     }
 
+    /// Reserve stock, answering with the existing or a new reservation
+    /// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+    pub async fn reserve_stock(
+        &self,
+    ) -> Result<ReserveStockResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.reserve_stock_with_http_info().await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for reserve_stock but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the reserve_stock operation and returns the full API result.
+    pub async fn reserve_stock_with_http_info(
+        &self,
+    ) -> Result<ApiResult<ReserveStockResponse>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.reserve_stock_invoke("application/json").await
+    }
+
+    /// Shared implementation for the reserve_stock operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn reserve_stock_invoke(
+        &self,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<ReserveStockResponse>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/reservation".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            method: "POST",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "ReserveStockResponse",
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base
+            .invoke_api_for_result::<ReserveStockResponse>(params)
+            .await
+    }
+
     /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
     /// * `q`: JSON-encoded query parameter (OAS `content`, not `schema`)
     /// * `options`: Options for query, header, form, and cookie parameters.

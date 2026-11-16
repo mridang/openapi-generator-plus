@@ -67,7 +67,7 @@ module Petstore::Client
       JSON.parse(json_string, symbolize_names: symbolize_names, allow_nan: false,
                               max_nesting: MAX_JSON_DEPTH)
     rescue JSON::ParserError => e
-      raise Errors::SerializationError.new("Failed to parse JSON: #{e.message}", e)
+      raise Errors::SerializationError.new("Failed to deserialize JSON: #{e.message}", e)
     end
 
     # Return the maximum nesting depth of +{+/+[+ containers in the JSON
@@ -172,7 +172,7 @@ module Petstore::Client
       # so a caller can `rescue SerializationError` and catch every bad-payload
       # case, rather than having unknown-enum / wrong-type leak a raw stdlib
       # ArgumentError while a missing-required-field is wrapped (dry-struct).
-      raise Errors::SerializationError.new("Failed to deserialize JSON to #{target_type}: #{e.message}", e)
+      raise Errors::SerializationError.new("Failed to deserialize JSON: #{e.message}", e)
     end
 
     # Convert a single scalar value to its string representation.

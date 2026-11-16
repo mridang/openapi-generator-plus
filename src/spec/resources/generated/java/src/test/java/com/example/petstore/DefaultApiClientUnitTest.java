@@ -280,6 +280,19 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/content-encoding-identity",
+        exchange -> {
+          // F1135: an identity-encoded body is the payload itself; the client
+          // must hand it through undecoded and keep its encoding header.
+          byte[] body = "{\"ok\":true}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Encoding", "identity");
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
         "/content-encoding-empty-gzip",
         exchange -> {
           // Gap AL: a zero-byte body that still advertises `Content-Encoding:
@@ -355,6 +368,9 @@ class DefaultApiClientUnitTest {
     private final List<java.net.http.HttpRequest> requests =
         new java.util.concurrent.CopyOnWriteArrayList<>();
 
+    /** When set, answers every send with this response instead of reaching the network. */
+    private java.net.http.HttpResponse<byte[]> scripted;
+
     @Override
     public java.util.Optional<java.net.CookieHandler> cookieHandler() {
       return delegate.cookieHandler();
@@ -401,19 +417,77 @@ class DefaultApiClientUnitTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> java.net.http.HttpResponse<T> send(
         java.net.http.HttpRequest request,
         java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler)
         throws IOException, InterruptedException {
       requests.add(request);
+      if (scripted != null) {
+        return (java.net.http.HttpResponse<T>) scripted;
+      }
       return delegate.send(request, responseBodyHandler);
     }
 
+    /** A redirect answer for {@code request}, pointing at {@code location}. */
+    static java.net.http.HttpResponse<byte[]> redirect(
+        int status, String location, java.net.http.HttpRequest request) {
+      java.net.http.HttpHeaders headers =
+          java.net.http.HttpHeaders.of(
+              Map.of("location", List.of(location)), (name, value) -> true);
+      return new java.net.http.HttpResponse<byte[]>() {
+        @Override
+        public int statusCode() {
+          return status;
+        }
+
+        @Override
+        public java.net.http.HttpRequest request() {
+          return request;
+        }
+
+        @Override
+        public java.util.Optional<java.net.http.HttpResponse<byte[]>> previousResponse() {
+          return java.util.Optional.empty();
+        }
+
+        @Override
+        public java.net.http.HttpHeaders headers() {
+          return headers;
+        }
+
+        @Override
+        public byte[] body() {
+          return new byte[0];
+        }
+
+        @Override
+        public java.util.Optional<javax.net.ssl.SSLSession> sslSession() {
+          return java.util.Optional.empty();
+        }
+
+        @Override
+        public java.net.URI uri() {
+          return request.uri();
+        }
+
+        @Override
+        public java.net.http.HttpClient.Version version() {
+          return java.net.http.HttpClient.Version.HTTP_1_1;
+        }
+      };
+    }
+
     @Override
+    @SuppressWarnings("unchecked")
     public <T> java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<T>> sendAsync(
         java.net.http.HttpRequest request,
         java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler) {
       requests.add(request);
+      if (scripted != null) {
+        return java.util.concurrent.CompletableFuture.completedFuture(
+            (java.net.http.HttpResponse<T>) scripted);
+      }
       return delegate.sendAsync(request, responseBodyHandler);
     }
 
@@ -720,6 +794,21 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void proxyPasswordKeepsALiteralPlusSign() throws Exception {
+    // F901: userinfo is percent-decoded, but a literal '+' is not a space.
+    String credentials = "svc" + ":" + "p" + "+" + "q%20r";
+    TransportOptions transport =
+        TransportOptions.builder().proxy("http://" + credentials + "@127.0.0.1:9999").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+
+    Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
+    field.setAccessible(true);
+    String expected =
+        "Basic " + Base64.getEncoder().encodeToString("svc:p+q r".getBytes(StandardCharsets.UTF_8));
+    assertEquals(expected, field.get(client));
+  }
+
+  @Test
   void leavesProxyAuthHeaderNullWhenProxyHasNoUserInfo() throws Exception {
     TransportOptions transport = TransportOptions.builder().proxy("http://127.0.0.1:9999").build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -941,9 +1030,8 @@ class DefaultApiClientUnitTest {
     assertNotNull(ex.getCause(), "original read/parse failure must be preserved as the cause");
     assertTrue(
         String.valueOf(ex.getMessage())
-            .toLowerCase(java.util.Locale.ROOT)
-            .contains("ca certificate"),
-        "message should name the CA certificate failure, was: " + ex.getMessage());
+            .startsWith("failed to read CA certificate from \"/nonexistent/ca.pem\": "),
+        "message should be the canonical read failure, was: " + ex.getMessage());
   }
 
   @Test
@@ -967,8 +1055,25 @@ class DefaultApiClientUnitTest {
     IllegalArgumentException ex =
         assertThrows(IllegalArgumentException.class, () -> new DefaultApiClient(transport));
     assertTrue(
-        String.valueOf(ex.getMessage()).contains(bogus.getAbsolutePath()),
-        "message should name the offending path, was: " + ex.getMessage());
+        String.valueOf(ex.getMessage())
+            .startsWith(
+                "failed to parse CA certificate from \"" + bogus.getAbsolutePath() + "\": "),
+        "message should be the canonical parse failure, was: " + ex.getMessage());
+  }
+
+  @Test
+  void emptyCaCertFileIsReportedAsNoPemBlocks() throws Exception {
+    java.io.File empty = java.io.File.createTempFile("empty-ca", ".pem");
+    empty.deleteOnExit();
+    TransportOptions transport =
+        TransportOptions.builder().caCertPath(empty.getAbsolutePath()).build();
+    IllegalArgumentException ex =
+        assertThrowsExactly(IllegalArgumentException.class, () -> new DefaultApiClient(transport));
+    assertEquals(
+        "failed to parse CA certificate from \""
+            + empty.getAbsolutePath()
+            + "\": no PEM blocks found or unparseable",
+        ex.getMessage());
   }
 
   @Test
@@ -1382,6 +1487,33 @@ class DefaultApiClientUnitTest {
     assertEquals(302, ex.getStatusCode());
     assertTrue(
         ex.toString().contains("Too many redirects (exceeded 2)"), "unexpected message: " + ex);
+  }
+
+  @Test
+  void redirectThatDowngradesHttpsToHttpRefusesToReplayTheBody() {
+    // D16: a 307 from https to http would send the body in cleartext.
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.scripted =
+        RecordingHttpClient.redirect(
+            307,
+            "http://other.example.invalid/y",
+            java.net.http.HttpRequest.newBuilder(
+                    java.net.URI.create("https://api.example.invalid/x"))
+                .build());
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class,
+            () -> client.sendRequest("POST", "https://api.example.invalid/x", Map.of(), "payload"));
+    assertEquals(307, ex.getStatusCode());
+    assertTrue(
+        ex.toString()
+            .contains(
+                "Refusing to replay request body across HTTPS->HTTP redirect: "
+                    + "https://api.example.invalid/x -> http://other.example.invalid/y"),
+        "was: " + ex);
   }
 
   @Test
@@ -1803,6 +1935,17 @@ class DefaultApiClientUnitTest {
         client.sendRequest("GET", baseUrl + "/content-encoding-empty-gzip", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertEquals("", response.body());
+  }
+
+  @Test
+  void identityEncodedBodyPassesThroughUndecodedAndKeepsItsHeaders() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/content-encoding-identity", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("{\"ok\":true}", response.body());
+    assertEquals("identity", response.headers().get("content-encoding"));
+    assertTrue(response.headers().containsKey("content-length"));
   }
 
   @Test

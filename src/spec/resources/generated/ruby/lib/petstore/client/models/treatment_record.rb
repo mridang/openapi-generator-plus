@@ -81,11 +81,16 @@ module Petstore::Client
 
       class << self
         # List of class defined in anyOf (OpenAPI v3)
+        #
+        # Rendered from +composedSchemas.anyOf+ rather than the +anyOf+ type
+        # name set: that set is sorted alphabetically, and the variants are
+        # tried in declaration order (D64), so the first declared variant is
+        # the first one retained. Duplicate type names collapse to one.
         def openapi_any_of
           %i[
-            Medication
             Surgery
-          ]
+            Medication
+          ].uniq
         end
 
         # The first retained variant of a built anyOf value.

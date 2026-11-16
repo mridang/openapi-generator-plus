@@ -29,14 +29,14 @@ class SetPetAvatarThumbnailRequest(BaseModel):
     # `get_discriminator_value` in `ObjectSerializer._deserialize_composed`,
     # which gives us the same explicit-error guarantee as the native form
     # without needing a template-level overhaul of the child models.
-    actual_instance: Optional[Union[List[bytes], bytes]] = None
+    actual_instance: Optional[Union[bytes, List[bytes]]] = None
     # Declared-order tuple (NOT a set): the serializer trials these candidate
     # schemas in order and the model validators promise "first declared
     # variant wins". A set literal would iterate in hash order and break that
     # contract, so we preserve the oneOf declaration order here.
     one_of_schemas: ClassVar[Tuple[str, ...]] = (
-        "List[bytes]",
         "bytes",
+        "List[bytes]",
     )
 
     # Pydantic default mode (lenient) is kept here. strict=True was tried
@@ -85,7 +85,7 @@ class SetPetAvatarThumbnailRequest(BaseModel):
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
         raise ValueError(
-            "No match found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: List[bytes], bytes. Details: "
+            "No match found when setting `actual_instance` in SetPetAvatarThumbnailRequest with oneOf schemas: bytes, List[bytes]. Details: "
             + ", ".join(error_messages)
         )
 

@@ -27,6 +27,16 @@ class TestBearerAuthenticator:
         auth = BearerAuthenticator(host="https://api.example.com", token="BeArEr xyz")
         assert auth.get_auth_headers()["Authorization"] == "Bearer xyz"
 
+    def test_the_prefix_is_removed_once_and_only_as_a_whole_word(self) -> None:
+        twice = BearerAuthenticator(
+            host="https://api.example.com", token="Bearer Bearer xyz"
+        )
+        assert twice.get_auth_headers()["Authorization"] == "Bearer Bearer xyz"
+        lookalike = BearerAuthenticator(
+            host="https://api.example.com", token="bearerxyz"
+        )
+        assert lookalike.get_auth_headers()["Authorization"] == "Bearer bearerxyz"
+
     def test_rejects_empty_token(self) -> None:
         # bearer-no-empty-token-guard: an empty token would emit a bare
         # "Authorization: Bearer " header and send the request unauthenticated,

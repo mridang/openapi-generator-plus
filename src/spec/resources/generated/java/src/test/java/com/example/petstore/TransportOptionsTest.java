@@ -239,7 +239,8 @@ class TransportOptionsTest {
         "not a valid url ^%$|Invalid proxy URL: not a valid url ^%$",
         "socks5://svc:s3cret@proxy.example.com:1080|Invalid proxy URL (must use http or https"
             + " scheme): socks5://***@proxy.example.com:1080",
-        "http://svc:s3cret@:8080|Invalid proxy URL (missing host): http://***@:8080"
+        "http://svc:s3cret@:8080|Invalid proxy URL (missing host): http://***@:8080",
+        "http://[::1:3128|Invalid proxy URL: http://[::1:3128"
       })
   @DisplayName("an unusable proxy URL is rejected with the exact message")
   void unusableProxyUrlIsRejectedWithTheExactMessage(String proxy, String message) {
@@ -267,6 +268,17 @@ class TransportOptionsTest {
     assertEquals(
         "HTTPS://proxy.example.com:8443",
         TransportOptions.builder().proxy("HTTPS://proxy.example.com:8443").build().getProxy());
+  }
+
+  @Test
+  @DisplayName("a proxy URL with an IPv6 literal host is accepted and kept verbatim")
+  void ipv6LiteralProxyUrlIsAcceptedAndKeptVerbatim() {
+    assertEquals(
+        "http://[::1]:3128",
+        TransportOptions.builder().proxy("http://[::1]:3128").build().getProxy());
+    assertEquals(
+        "https://[2001:db8::1]:8443/",
+        TransportOptions.builder().proxy("https://[2001:db8::1]:8443/").build().getProxy());
   }
 
   @Test
@@ -399,5 +411,17 @@ class TransportOptionsTest {
     // Proxy configuration must not throw on any JVM platform.
     assertDoesNotThrow(
         () -> TransportOptions.builder().proxy("http://proxy.example.com:8080").build());
+  }
+
+  // README
+
+  @Test
+  @DisplayName("the README names the builder setter that rejects a SOCKS proxy")
+  void readmeSocksNoteNamesTheBuilderProxySetter() throws java.io.IOException {
+    String readme = java.nio.file.Files.readString(java.nio.file.Path.of("README.md"));
+    assertTrue(
+        readme.contains(
+            "`TransportOptions.builder().proxy(...)` accepts only `http://` and `https://` URLs."));
+    assertFalse(readme.contains("TransportOptions.proxy()"));
   }
 }

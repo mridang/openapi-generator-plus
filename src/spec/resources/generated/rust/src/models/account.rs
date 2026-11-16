@@ -9,7 +9,7 @@
 
 /// Account is a model class generated from the OpenAPI schema.
 /// See <https://example.com/docs/account> Account \<docs\> & "notes" it's here
-#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Account {
     ///
     /// Read-only: set by the server. It is still sent and received like any
@@ -23,6 +23,18 @@ pub struct Account {
     /// received like any other field.
     #[serde(rename = "password", skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
+}
+
+/* A `format: password` property never reaches a log: `{:?}` shows it as
+ * `***`. The wire form is unchanged. */
+impl std::fmt::Debug for Account {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Account")
+            .field("id", &self.id)
+            .field("username", &self.username)
+            .field("password", &"***")
+            .finish()
+    }
 }
 
 impl Account {

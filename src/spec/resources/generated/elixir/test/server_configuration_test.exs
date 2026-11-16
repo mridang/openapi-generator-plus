@@ -73,8 +73,40 @@ defmodule PetstoreClient.ServerConfigurationTest do
       }
 
       assert_raise ArgumentError,
-                   ~s(Invalid value 'dev' for server variable 'env'. Allowed values: ["prod", "staging"]),
+                   ~s(Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]),
                    fn -> ServerConfiguration.url(config, %{"env" => "dev"}) end
+    end
+
+    test "the allowed values of a three-element enum render as a bracketed comma list" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{
+          "env" => %ServerVariable{default_value: "a", enum_values: ["a", "b", "c"]}
+        }
+      }
+
+      assert_raise ArgumentError,
+                   ~s(Invalid value 'z' for server variable 'env'. Allowed values: [a, b, c]),
+                   fn -> ServerConfiguration.url(config, %{"env" => "z"}) end
+    end
+
+    test "a placeholder introduced by a substituted value is not expanded again" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com/{version}",
+        variables: %{
+          "env" => %ServerVariable{default_value: "prod"},
+          "version" => %ServerVariable{default_value: "v2"}
+        }
+      }
+
+      assert ServerConfiguration.url(config, %{"env" => "{version}"}) ==
+               "https://{version}.api.example.com/v2"
+    end
+
+    test "a placeholder with no declared variable is left as written" do
+      config = %ServerConfiguration{url_template: "https://{unknown}.example.com"}
+
+      assert ServerConfiguration.url(config) == "https://{unknown}.example.com"
     end
 
     test "a default outside the enum is rejected" do
@@ -86,7 +118,7 @@ defmodule PetstoreClient.ServerConfigurationTest do
       }
 
       assert_raise ArgumentError,
-                   ~s(Invalid value 'dev' for server variable 'env'. Allowed values: ["prod", "staging"]),
+                   ~s(Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]),
                    fn -> ServerConfiguration.url(config) end
     end
 
@@ -131,6 +163,20 @@ defmodule PetstoreClient.ServerConfigurationTest do
 
       assert config.url_template == "https://{env}.api.example.com"
       assert config.description == "Deployment server"
+    end
+  end
+
+  describe "the hostile third global server" do
+    test "its url, description, default, variable description and enum values come through unchanged" do
+      config = PetstoreClient.Servers.server_2()
+      tenant = config.variables["tenant"]
+
+      assert config.url_template == "https://{tenant}.example.com/api"
+      assert config.description == ~S(Bob's "sandbox" & co: $5 #{x} a*/b)
+      assert tenant.default_value == "o'neil"
+      assert tenant.description == ~S(Tenant's "id")
+      assert tenant.enum_values == ["o'neil", "a&b"]
+      assert ServerConfiguration.url(config) == "https://o'neil.example.com/api"
     end
   end
 

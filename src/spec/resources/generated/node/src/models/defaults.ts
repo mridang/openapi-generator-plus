@@ -310,8 +310,10 @@ export class Defaults {
   }
 }
 
-export enum DefaultsModeEnum {
-  Low = "low",
-  Medium = "medium",
-  High = "high",
-}
+export const DefaultsModeEnum = {
+  Low: "low",
+  Medium: "medium",
+  High: "high",
+} as const;
+export type DefaultsModeEnum =
+  (typeof DefaultsModeEnum)[keyof typeof DefaultsModeEnum];

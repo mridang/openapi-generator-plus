@@ -16,3 +16,7 @@ class Priority(int, Enum):
     NUMBER_1 = 1
     NUMBER_2 = 2
     NUMBER_3 = 3
+
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)

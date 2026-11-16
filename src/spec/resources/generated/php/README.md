@@ -11,19 +11,7 @@ Auto-generated PHP SDK client for the Swagger Petstore - OpenAPI 3.0 API.
   `\Ds\Vector` / `\Ds\Set` / `\Ds\Map` classes with their native C
   implementations for ~5–10x throughput on container-heavy payloads)
 
-## Install
-
-```bash
-composer install
-```
-
-## Test
-
-```bash
-vendor/bin/pest
-```
-
-## Tooling
+### Tooling
 
 The generated project ships with a complete formatter, linter, static
 analyser, and Rector configuration. Run any of them via Composer's
@@ -39,17 +27,40 @@ vendor/bin/phpcs
 # Static analyser — PHPStan at level 9 (max)
 vendor/bin/phpstan analyse
 
+# Dependency audit — Composer advisories for the locked dependencies
+composer audit
+
 # Automated upgrades — Rector (UP_TO_PHP_84 + DEAD_CODE + CODE_QUALITY + EARLY_RETURN + TYPE_DECLARATION)
 vendor/bin/rector
 ```
 
-## Package
+## Installation
 
-- Name: `openapi/petstoreclient`
-- Namespace: `PetstoreClient`
-- Version: `1.0.0`
+```bash
+composer require openapi/petstoreclient
+```
 
-## Configuration
+## Usage
+
+```php
+use PetstoreClient\Client;
+
+$client = Client::withToken('https://api.example.com', 'your-token');
+
+/* $body is the \PetstoreClient\Models\Pet you want to send. */
+$result = $client->pet->addPet($body);
+$client->close();
+```
+
+Close the client to release its connections; a closed client throws `\LogicException`. Errors derive from `OpenAPIException`; `NetworkException` and `NetworkTimeoutException` mean no HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
+
+### Raw responses
+
+Every operation has a `...WithHttpInfo` variant returning an `ApiResult` with the public properties `statusCode`, `data`, `rawBody` and the lower-cased `headers`. It is the way to read a response header; a header repeated by the server arrives as one value joined with `, `.
+
+### Timeouts
+
+`TransportOptions::builder()->timeout(5000)` sets one end-to-end budget in milliseconds for the whole call, redirects and retries included. A call that exceeds it fails with `NetworkTimeoutException`; the default is 10 000 ms and `null` waits indefinitely.
 
 ### Automatic retries
 
@@ -63,7 +74,15 @@ $transport = TransportOptions::builder()->maxRetries(4)->build();
 
 A request is retried after a network error that happened before a response arrived, and after a 408, 409, 429 or 5xx response (not 501). The wait starts at 0.5 s, doubles up to 8 s and is shortened by up to 25% at random; a `Retry-After` header (seconds or an HTTP date, at most 60 s) replaces it. Retries never extend the request timeout: when the next wait would outlast what is left of it, the last failure is reported. A stream or multipart body is never retried, and every retry is a new request with freshly built authentication headers.
 
-## Custom HTTP client (PSR-18)
+### Expired tokens
+
+When an OAuth2 or OpenID Connect call is answered with 401, the cached access token is dropped (a refresh token is used first when there is one) and the request is sent once more with fresh headers. A second 401 is raised as `UnauthorizedException`. A stream or multipart body is not replayed, and API key, basic and bearer authenticators never replay.
+
+### Request id
+
+Set `TransportOptions::builder()->injectRequestId(true)` and the SDK adds a unique `X-Request-ID` header to every request unless you set your own (header names are matched case-insensitively). Quote it when you report a problem with a call.
+
+### Custom HTTP client
 
 By default the SDK sends requests through `DefaultApiClient`, which is backed by
 the Symfony HTTP client and needs no configuration. To drive the SDK with your
@@ -101,15 +120,23 @@ follow from PSR-18 being a deliberately minimal, send-only contract:
   you build it. The options still honoured are the request-data ones: default
   headers, User-Agent, and X-Request-ID.
 
-## Schema constraints
+## Build
 
-The constraint keywords `pattern`, `minLength`, `maxLength`, `minimum`,
-`maximum`, `multipleOf`, `minItems` and `maxItems` are validated by the server.
-The generated PHP models do not enforce them: the model layer only checks the
-declared types, required properties and `format: byte` base64 on decode, so a
-value that violates a constraint is sent as given and a response that violates
-one is decoded as given. Arrays declared `uniqueItems` are sent in the order of
-the collection the caller holds (insertion order of the `\Ds\Set`), not sorted.
+```bash
+composer install
+```
+
+## Test
+
+```bash
+vendor/bin/pest
+```
+
+## Package
+
+- Name: `openapi/petstoreclient`
+- Namespace: `PetstoreClient`
+- Version: `1.0.0`
 
 ## Caveats
 
@@ -133,6 +160,20 @@ emit JSON numbers from internal string/GMP representations, which
 breaks `format: int64` schema validation against strict mock servers
 (verified with Chasm). Documented as a known limitation.
 
+### Enum string form
+
+A generated enum is a PHP backed enum, which cannot be interpolated into a string. Read the wire value with `->value` (`$case->value`), and use `::tryFrom($value)` to map a string back to a case.
+
+### Schema constraints
+
+The constraint keywords `pattern`, `minLength`, `maxLength`, `minimum`,
+`maximum`, `multipleOf`, `minItems` and `maxItems` are validated by the server.
+The generated PHP models do not enforce them: the model layer only checks the
+declared types, required properties and `format: byte` base64 on decode, so a
+value that violates a constraint is sent as given and a response that violates
+one is decoded as given. Arrays declared `uniqueItems` are sent in the order of
+the collection the caller holds (insertion order of the `\Ds\Set`), not sorted.
+
 ## Not supported
 
 ### Webhooks and callbacks
@@ -143,6 +184,21 @@ per-operation `callbacks` — are intentionally skipped during code
 generation. If you need to receive webhook deliveries, write the
 handler yourself and use this SDK only to deserialize the incoming
 payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType`
+
+Request and response bodies in `application/xml` and the XML `nodeType`
+keyword are not generated (#70, #88). An operation that only declares XML has
+no usable body in this SDK.
+
+### Link Objects
+
+OpenAPI Link Objects are ignored (#78).
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes produce no authenticator (#90). Configure a client
+certificate on your own PSR-18 client and pass it through `Psr18ApiClient`.
 
 ### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
 

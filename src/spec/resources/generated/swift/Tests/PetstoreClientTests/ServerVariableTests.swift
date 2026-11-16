@@ -12,18 +12,18 @@ import Testing
 
 @Suite final class ServerVariableTests {
 
-  @Test func storesDefaultValue() {
+  @Test func testStoresDefaultValue() {
     let variable = ServerVariable(defaultValue: "prod")
     #expect(variable.defaultValue == "prod")
   }
 
-  @Test func defaultsToEmptyDescriptionAndEnumValues() {
+  @Test func testDefaultsToEmptyDescriptionAndEnumValues() {
     let variable = ServerVariable(defaultValue: "prod")
     #expect(variable.description == "")
     #expect(variable.enumValues.isEmpty)
   }
 
-  @Test func storesDescriptionAndEnumValues() {
+  @Test func testStoresDescriptionAndEnumValues() {
     let variable = ServerVariable(
       defaultValue: "prod",
       description: "The deployment environment",
@@ -37,7 +37,7 @@ import Testing
    * cleanly through ServerConfiguration; a default outside the constraint
    * is rejected. These lock the enum-validation contract at the variable
    * level. */
-  @Test func enumConstrainedDefaultResolves() throws {
+  @Test func testEnumConstrainedDefaultResolves() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.api.example.com",
       variables: [
@@ -47,7 +47,7 @@ import Testing
     #expect(try server.url() == "https://prod.api.example.com")
   }
 
-  @Test func enumConstrainedDefaultOutsideAllowedIsRejected() throws {
+  @Test func testEnumConstrainedDefaultOutsideAllowedIsRejected() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.api.example.com",
       variables: [

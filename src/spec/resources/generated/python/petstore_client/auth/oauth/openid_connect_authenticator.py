@@ -9,6 +9,7 @@ import json
 import re
 import time
 from typing import Dict, Mapping, Optional, Sequence, Tuple
+from urllib.parse import urlparse
 
 from ...api_client import ApiClient
 from ..http_aware_authenticator import HttpAwareAuthenticator
@@ -43,6 +44,18 @@ def _parse_max_age(headers: Optional[Mapping[str, str]]) -> int:
                     return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
             return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
     return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+
+
+def _is_secure_endpoint(url: str) -> bool:
+    """True for an https URL, or an http URL on a loopback host."""
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname
+    except ValueError:
+        return False
+    if parsed.scheme == "https":
+        return True
+    return parsed.scheme == "http" and host in ("localhost", "127.0.0.1", "::1")
 
 
 class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
@@ -155,6 +168,7 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             raise SerializationException(
                 "OIDC discovery document is missing 'token_endpoint'"
             )
+        self._validate_discovery(discovery, authorization_endpoint, token_endpoint)
         # The session (tokens and the exchanged flag) lives in the token manager,
         # which outlives discovery: a document that names the same endpoints keeps
         # the delegate, and one that names new endpoints gets a delegate built
@@ -189,6 +203,39 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             getattr(response, "headers", None)
         )
         return self._delegate
+
+    def _validate_discovery(
+        self,
+        discovery: Mapping[str, object],
+        authorization_endpoint: object,
+        token_endpoint: object,
+    ) -> None:
+        """Check the discovery document against the URL it was fetched from.
+
+        OpenID Connect Discovery 1.0 section 4.3 and RFC 8414 section 3.3: an
+        issuer the document states must equal the discovery URL minus its
+        well-known suffix. The endpoints must be https, except on a loopback
+        host (RFC 8252 section 8.3), so credentials never cross in clear text.
+
+        Raises:
+            SerializationException: If the issuer does not match or an
+                endpoint is not a secure URL.
+        """
+        issuer = discovery.get("issuer")
+        if isinstance(issuer, str):
+            expected = self._openid_connect_url.removesuffix(
+                "/.well-known/openid-configuration"
+            )
+            if issuer.rstrip("/") != expected.rstrip("/"):
+                raise SerializationException(
+                    "OIDC discovery issuer does not match the discovery URL"
+                )
+        for field, endpoint in (
+            ("authorization_endpoint", authorization_endpoint),
+            ("token_endpoint", token_endpoint),
+        ):
+            if not _is_secure_endpoint(str(endpoint)):
+                raise SerializationException(f"OIDC discovery '{field}' must use https")
 
     def build_authorization_url(self, state: Optional[str] = None) -> str:
         """Build the authorization URL using the discovered authorization endpoint.

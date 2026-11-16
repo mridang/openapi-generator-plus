@@ -281,6 +281,34 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
       manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
     end
     _(err).must_be_kind_of ::Petstore::Client::Errors::OpenAPIError
+    _(err.message).must_equal 'Token response missing or empty access_token field'
+  end
+
+  [
+    ['an empty string', { 'access_token' => '' }],
+    ['a non-string value', { 'access_token' => 42 }]
+  ].each do |label, payload|
+    it "an access_token that is #{label} is reported as missing or empty" do
+      client = FakeTokenClient.new([{ status: 200, body: payload }])
+      manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+      manager.api_client = client
+
+      err = assert_raises(Petstore::Client::Errors::OAuth2TokenError) do
+        manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+      end
+      _(err.message).must_equal 'Token response missing or empty access_token field'
+    end
+  end
+
+  it 'a 2xx token response that is a JSON array raises OAuth2TokenError saying it is not an object' do
+    client = FakeTokenClient.new([{ status: 200, body: '["access_token"]' }])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    err = assert_raises(Petstore::Client::Errors::OAuth2TokenError) do
+      manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    end
+    _(err.message).must_equal 'Token response is not a JSON object'
   end
 
   it 'a 2xx token response that is not JSON raises OAuth2TokenError' do
@@ -304,6 +332,25 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     end
     _(err.message).must_equal 'Token response is not valid JSON'
     _(err.cause).must_be_nil
+  end
+
+  it 'does not send the transport default headers to the token endpoint' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/token') do |env|
+        seen = env.request_headers.to_h.transform_keys(&:downcase)
+        [200, { 'content-type' => 'application/json' }, { 'access_token' => 'tok' }.to_json]
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.default_headers({ 'X-Api-Secret' => 'api-only' }).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.define_singleton_method(:build_connection) { Faraday.new('https://auth.example.com') { |f| f.adapter :test, stubs } }
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    _(manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })).must_equal 'tok'
+    _(seen).wont_include 'x-api-secret'
+    _(seen['content-type']).must_equal 'application/x-www-form-urlencoded'
   end
 
   it 'token endpoint error response parsed to typed OAuth2ServerError' do

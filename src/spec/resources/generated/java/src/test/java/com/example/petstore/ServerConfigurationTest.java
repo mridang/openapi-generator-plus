@@ -127,6 +127,59 @@ class ServerConfigurationTest {
   }
 
   @Test
+  void doesNotExpandAPlaceholderThatASubstitutedValueIntroduces() {
+    ServerConfiguration config =
+        new ServerConfiguration(
+            "https://{env}.api.example.com/{version}",
+            null,
+            Map.of(
+                "env", new ServerVariable("prod", null, List.of()),
+                "version", new ServerVariable("v1", null, List.of())));
+
+    assertEquals(
+        "https://{version}.api.example.com/v2",
+        config.getUrl(Map.of("env", "{version}", "version", "v2")));
+  }
+
+  @Test
+  void leavesAnUnknownPlaceholderInTheTemplateUntouched() {
+    ServerConfiguration config =
+        new ServerConfiguration(
+            "https://{env}.api.example.com/{other}",
+            null,
+            Map.of("env", new ServerVariable("prod", null, List.of())));
+
+    assertEquals("https://prod.api.example.com/{other}", config.getUrl());
+  }
+
+  @Test
+  void copiesTheCallersVariablesMapAtConstruction() {
+    java.util.Map<String, ServerVariable> source = new java.util.HashMap<>();
+    source.put("env", new ServerVariable("prod", null, List.of()));
+    ServerConfiguration config =
+        new ServerConfiguration("https://{env}.api.example.com", null, source);
+
+    source.put("env", new ServerVariable("other", null, List.of()));
+    source.put("extra", new ServerVariable("x", null, List.of()));
+
+    assertEquals("https://prod.api.example.com", config.getUrl());
+    assertEquals(1, config.getVariables().size());
+  }
+
+  @Test
+  void copiesTheCallersEnumListAtConstruction() {
+    java.util.List<String> allowed = new java.util.ArrayList<>(List.of("prod"));
+    ServerVariable variable = new ServerVariable("prod", null, allowed);
+    ServerConfiguration config =
+        new ServerConfiguration("https://{env}.api.example.com", null, Map.of("env", variable));
+
+    allowed.add("dev");
+
+    assertEquals(List.of("prod"), variable.getEnumValues());
+    assertThrowsExactly(IllegalArgumentException.class, () -> config.getUrl(Map.of("env", "dev")));
+  }
+
+  @Test
   void theThirdGlobalServerKeepsItsHostileTextUnchanged() {
     ServerConfiguration server = Servers.SERVER_2;
 

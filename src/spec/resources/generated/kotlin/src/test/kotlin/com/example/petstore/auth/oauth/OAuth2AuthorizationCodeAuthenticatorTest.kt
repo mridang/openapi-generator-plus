@@ -201,7 +201,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun `exchange_code_rejects_empty_or_blank_code`() {
+    fun exchangeCodeRejectsEmptyOrBlankCode() {
         // oauth-exchangecode-no-empty-code-guard: an empty/blank code must be
         // rejected before the token POST, with no request sent.
         val client = FakeApiClient()
@@ -223,7 +223,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun `exchange_code_rejects_whitespace_only_code`() {
+    fun exchangeCodeRejectsWhitespaceOnlyCode() {
         // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
         // distinct from the empty-string case and must also be rejected before
         // the token POST (isNotBlank guard), with no request sent.
@@ -346,7 +346,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun `auth_headers_before_exchange_returns_recoverable_error`() {
+    fun authHeadersBeforeExchangeReturnsRecoverableError() {
         val auth = createAuthenticator()
 
         // Calling getAuthHeaders before exchangeCode is a precondition
@@ -369,7 +369,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    fun `authorize_url_with_existing_query_string_uses_amp_separator`() {
+    fun authorizeUrlWithExistingQueryStringUsesAmpSeparator() {
         // RFC 6749 §3.1: the authorization endpoint URI MAY already include
         // a query component (e.g. tenant-scoped Auth0 URLs). The builder
         // must preserve existing query items alongside the OAuth2 ones

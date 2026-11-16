@@ -14,6 +14,92 @@ Tooling baked into the project:
 - **Linter / style:** `dotnet csharpier check` and `dotnet format --verify-no-changes`, with `EnforceCodeStyleInBuild=true` applying the `.editorconfig` code-style rules during the build
 - **Static analysis:** [`Microsoft.CodeAnalysis.NetAnalyzers`](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/overview) (Roslyn analyzers), with `EnableNETAnalyzers=true` and `AnalysisLevel=latest-all`
 
+## Installation
+
+```bash
+dotnet add package PetstoreClient
+```
+
+## Usage
+
+```csharp
+using PetstoreClient;
+
+using var client = Client.WithToken("https://api.example.com", "your-token");
+```
+
+The client is `IDisposable`: dispose it to release its connections. A disposed
+client throws `InvalidOperationException`. Errors derive from
+`OpenAPIException`; `ApiException` carries an HTTP response or a transport
+failure, `NetworkException` and `NetworkTimeoutException` mean no HTTP response
+arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md)
+for authentication, servers and error handling.
+
+### Raw responses
+
+Every operation has a `...WithHttpInfoAsync` variant returning an `ApiResult<T>`
+with `StatusCode`, `Data`, `RawBody` and the lower-cased `Headers`. It is the way
+to read a response header.
+
+### Timeouts
+
+`TransportOptionsBuilder.Timeout(5000)` sets one end-to-end budget in milliseconds
+(a positive integer) for the whole call, redirects and retries included; the
+default is 10000. A call that exceeds it fails with `NetworkTimeoutException`.
+
+### Automatic retries
+
+A failed request is retried automatically, twice by default:
+`TransportOptionsBuilder.MaxRetries(n)` sets the number of retries and `0`
+turns them off. A retry is made after a network error that happened before a
+response arrived and after the statuses 408, 409, 429 and 500-599 (not 501).
+The wait is 0.5 s doubling to 8 s with up to 25% jitter, or the `Retry-After`
+the server sent (seconds or an HTTP date, at most 60 s). Retries never extend
+the request timeout, cancelling stops them, every retry rebuilds the headers
+(so it carries current authentication), and a stream or multipart body is
+never retried.
+
+### Expired tokens
+
+When an OAuth2 or OpenID Connect call is answered with 401, the cached access
+token is dropped (the refresh token is kept) and the request is sent once more
+with fresh headers. A second 401 is raised as `UnauthorizedException`. A stream or
+multipart body is not replayed, and API key, basic and bearer authenticators never
+replay.
+
+### Request id
+
+`TransportOptionsBuilder.InjectRequestId(true)` adds a unique `X-Request-ID`
+header to every request unless you set your own (header names are matched
+case-insensitively). Quote it when you report a problem with a call.
+
+### Cancellation
+
+Every operation takes a trailing `CancellationToken cancellationToken = default`.
+Cancelling it aborts the in-flight request and raises
+`OperationCanceledException`, which is distinct from the
+`NetworkTimeoutException` raised when the request timeout elapses.
+`TransportOptionsBuilder.CancellationToken(...)` sets a client-level token that
+is linked with every call's token, so either one cancels the request. Pass
+the built options as the second constructor argument:
+`new Client(authenticator, transport)`.
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+await client.Store.GetInventoryAsync(cancellationToken: cts.Token);
+```
+
+### Custom HTTP transport
+
+`TransportOptionsBuilder.HttpClient(...)` carries requests on your own
+`HttpClient`, and `TransportOptionsBuilder.HttpMessageHandler(...)` wraps your
+own handler in the SDK's client. The SDK keeps its timeout, `User-Agent`,
+default headers and redirect policy on top and never disposes what you
+supplied: you own its lifecycle. The supplied client or handler owns its proxy,
+TLS and connection pool, so combining it with `Proxy`, `CaCertPath` or
+`VerifySsl(false)` fails in `Build()` with an `ArgumentException`, and so does
+a stock handler with `AllowAutoRedirect` turned on.
+
 ## Build
 
 ```bash
@@ -46,6 +132,14 @@ make analyze
 # or directly:
 dotnet build --no-restore /warnaserror
 ```
+
+## Dependency audit
+
+```bash
+make audit
+```
+
+Fails when a direct or transitive NuGet package has a known vulnerability (`dotnet list package --vulnerable --include-transitive`).
 
 ## Package
 
@@ -94,6 +188,13 @@ Supporting AOT would require regenerating the serialization layer with
 the System.Text.Json source generator. Use the (default, interpreted or
 trimmed) JIT/IL runtime instead.
 
+### Enum string forms
+
+A generated enum is a native C# `enum`, so `ToString()` and string interpolation give
+the member name (`Color.Red` prints `Red`), not the value on the wire (`red`). The
+wire value is written and read only by the enum's JSON converter; do not build
+URLs or log lines from `ToString()` when you need the wire value.
+
 ### Schema constraints
 
 The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
@@ -103,46 +204,6 @@ System.Text.Json enforces required members, integer ranges and wire types,
 and nothing else. The SDK does not check the remaining keywords before the
 request is sent. `uniqueItems` arrays are modelled as `HashSet<T>` and sent in
 the set's natural enumeration order, not sorted.
-
-### Retries
-
-A failed request is retried automatically, twice by default:
-`TransportOptionsBuilder.MaxRetries(n)` sets the number of retries and `0`
-turns them off. A retry is made after a network error that happened before a
-response arrived and after the statuses 408, 409, 429 and 500-599 (not 501).
-The wait is 0.5 s doubling to 8 s with up to 25% jitter, or the `Retry-After`
-the server sent (seconds or an HTTP date, at most 60 s). Retries never extend
-the request timeout, cancelling stops them, every retry rebuilds the headers
-(so it carries current authentication), and a stream or multipart body is
-never retried. A 401 on an OAuth2 or OpenID Connect call drops the cached
-access token (the refresh token is kept) and replays the request once.
-
-### Cancellation
-
-Every operation takes a trailing `CancellationToken cancellationToken = default`.
-Cancelling it aborts the in-flight request and raises
-`OperationCanceledException`, which is distinct from the
-`NetworkTimeoutException` raised when the request timeout elapses.
-`TransportOptionsBuilder.CancellationToken(...)` sets a client-level token that
-is linked with every call's token, so either one cancels the request. Pass
-the built options as the second constructor argument:
-`new Client(authenticator, transport)`.
-
-```csharp
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-await client.Store.GetInventoryAsync(cancellationToken: cts.Token);
-```
-
-### Custom HTTP transport
-
-`TransportOptionsBuilder.HttpClient(...)` carries requests on your own
-`HttpClient`, and `TransportOptionsBuilder.HttpMessageHandler(...)` wraps your
-own handler in the SDK's client. The SDK keeps its timeout, `User-Agent`,
-default headers and redirect policy on top and never disposes what you
-supplied: you own its lifecycle. The supplied client or handler owns its proxy,
-TLS and connection pool, so combining it with `Proxy`, `CaCertPath` or
-`VerifySsl(false)` fails in `Build()` with an `ArgumentException`, and so does
-a stock handler with `AllowAutoRedirect` turned on.
 
 ## Not supported
 
@@ -154,6 +215,22 @@ per-operation `callbacks` — are intentionally skipped during code
 generation. If you need to receive webhook deliveries, write the
 handler yourself and use this SDK only to deserialize the incoming
 payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType`
+
+Request and response bodies in `application/xml` and the XML `nodeType`
+keyword are not generated (#70, #88). An operation that only declares XML has
+no usable body in this SDK.
+
+### Link Objects
+
+OpenAPI Link Objects are ignored (#78).
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes produce no authenticator (#90). Configure a client
+certificate on your own `HttpClientHandler` and pass it with
+`TransportOptionsBuilder.HttpMessageHandler(...)`.
 
 ### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
 
@@ -167,7 +244,7 @@ validator library for your language.
 
 `TransportOptionsBuilder.Proxy(...)` accepts only `http://` and `https://` URLs.
 Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
-with an `ArgumentException` as soon as the proxy is set on the builder. SOCKS support would
+with an `ArgumentException` when `Build()` is called. SOCKS support would
 require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route

@@ -2472,8 +2472,8 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body
 		}
 		if !matched {
 			return nil, fmt.Errorf(
-				"unsupported request content-type %q for SetPetAvatar; declared types are %v",
-				requestContentType[0], declaredConsumes)
+				"unsupported request content-type %q for SetPetAvatar; declared types are %s",
+				requestContentType[0], bracketedList(declaredConsumes))
 		}
 	}
 
@@ -3034,8 +3034,8 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64,
 		}
 		if !matched {
 			return nil, fmt.Errorf(
-				"unsupported request content-type %q for UploadPetDocument; declared types are %v",
-				requestContentType[0], declaredConsumes)
+				"unsupported request content-type %q for UploadPetDocument; declared types are %s",
+				requestContentType[0], bracketedList(declaredConsumes))
 		}
 	}
 	/* When a multipart/form-data operation ALSO declares a raw binary request

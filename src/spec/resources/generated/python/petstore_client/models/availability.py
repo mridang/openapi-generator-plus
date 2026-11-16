@@ -20,3 +20,7 @@ class Availability(str, Enum):
     A_B = "a\\b"
     EQ = "$eq"
     X = "#{x}"
+
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)

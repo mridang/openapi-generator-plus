@@ -12,7 +12,7 @@ import Testing
 
 @Suite final class ApiResultTests {
 
-  @Test func storesAllFields() {
+  @Test func testStoresAllFields() {
     let result = ApiResult<String>(
       statusCode: 200,
       data: "payload",
@@ -25,7 +25,7 @@ import Testing
     #expect(result.headers["Content-Type"] == "application/json")
   }
 
-  @Test func dataMayBeNilForNoContent() {
+  @Test func testDataMayBeNilForNoContent() {
     let result = ApiResult<String>(
       statusCode: 204,
       data: nil,
@@ -38,7 +38,7 @@ import Testing
     #expect(result.headers.isEmpty)
   }
 
-  @Test func preservesAllHeaders() {
+  @Test func testPreservesAllHeaders() {
     let result = ApiResult<Int>(
       statusCode: 200,
       data: 42,

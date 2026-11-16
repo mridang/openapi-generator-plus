@@ -1190,17 +1190,27 @@ class BaseApiTest {
     @Test
     @DisplayName("sends no body when body is null")
     void sendsNoBodyWhenNull() throws ApiException {
-      api()
-          .call(
-              "GET",
-              "/test/echo",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"application/json"},
-              "application/json",
-              null,
-              null);
+      var client = new CapturingApiClient();
+      var testApi = new TestableApi(client, "http://localhost");
+      testApi.call(
+          "GET",
+          "/test/echo",
+          new HashMap<>(),
+          new HashMap<>(),
+          null,
+          new String[] {"application/json"},
+          "application/json",
+          null,
+          null);
+      assertNull(client.capturedBody, "a null body must reach the transport as no body");
+      for (String name : client.capturedHeaders.keySet()) {
+        assertFalse(
+            "content-type".equalsIgnoreCase(name),
+            "a body-less call must not carry Content-Type, found: " + name);
+        assertFalse(
+            "content-length".equalsIgnoreCase(name),
+            "a body-less call must not carry Content-Length, found: " + name);
+      }
     }
 
     @Test

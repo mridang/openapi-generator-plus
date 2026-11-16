@@ -1855,7 +1855,7 @@ class PetApi extends BaseApi
         if ($requestContentType !== null && !in_array($requestContentType, $declaredConsumes, true)) {
             throw new \InvalidArgumentException(
                 "Unsupported request content-type '" . $requestContentType
-                    . "' for setPetAvatar; declared types are " . implode(', ', $declaredConsumes)
+                    . "' for setPetAvatar; declared types are [" . implode(', ', $declaredConsumes) . ']'
             );
         }
         /** @var ApiResult<null> $result */
@@ -2302,7 +2302,7 @@ class PetApi extends BaseApi
         if ($requestContentType !== null && !in_array($requestContentType, $declaredConsumes, true)) {
             throw new \InvalidArgumentException(
                 "Unsupported request content-type '" . $requestContentType
-                    . "' for uploadPetDocument; declared types are " . implode(', ', $declaredConsumes)
+                    . "' for uploadPetDocument; declared types are [" . implode(', ', $declaredConsumes) . ']'
             );
         }
         /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */

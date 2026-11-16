@@ -61,6 +61,9 @@ __all__ = [
     "PhotoMetadataLocation",
     "Priority",
     "RequiredNullable",
+    "Reservation",
+    "ReservationReceipt",
+    "ReserveStockResponse",
     "Result",
     "Separator",
     "SetPetAvatarRequest",
@@ -189,6 +192,15 @@ from petstore_client.models.priority import (
 )
 from petstore_client.models.required_nullable import (
     RequiredNullable as RequiredNullable,
+)
+from petstore_client.models.reservation import (
+    Reservation as Reservation,
+)
+from petstore_client.models.reservation_receipt import (
+    ReservationReceipt as ReservationReceipt,
+)
+from petstore_client.models.reserve_stock_response import (
+    ReserveStockResponse as ReserveStockResponse,
 )
 from petstore_client.models.result import (
     Result as Result,

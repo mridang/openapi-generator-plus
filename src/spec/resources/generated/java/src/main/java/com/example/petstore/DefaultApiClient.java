@@ -298,9 +298,12 @@ public final class DefaultApiClient implements ApiClient {
       SSLContext sslContext = SSLContext.getInstance("TLS");
       sslContext.init(null, tmf.getTrustManagers(), null);
       return sslContext;
-    } catch (IOException | GeneralSecurityException e) {
+    } catch (IOException e) {
       throw new IllegalArgumentException(
-          "failed to read or parse CA certificate from " + caCertPath + ": " + e, e);
+          "failed to read CA certificate from \"" + caCertPath + "\": " + e.getMessage(), e);
+    } catch (GeneralSecurityException e) {
+      throw new IllegalArgumentException(
+          "failed to parse CA certificate from \"" + caCertPath + "\": " + e.getMessage(), e);
     }
   }
 
@@ -321,7 +324,7 @@ public final class DefaultApiClient implements ApiClient {
       certificates = cf.generateCertificates(fis);
     }
     if (certificates.isEmpty()) {
-      throw new java.security.cert.CertificateException("no certificate found");
+      throw new java.security.cert.CertificateException("no PEM blocks found or unparseable");
     }
     KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
     trustStore.load(null, null);

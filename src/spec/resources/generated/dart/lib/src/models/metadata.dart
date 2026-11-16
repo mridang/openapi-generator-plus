@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -80,6 +80,8 @@ class Metadata {
 
   /// Dumps every field and the additionalProperties map; lists, maps
   /// and byte data render element-wise through Dart's own container output.
+  /// A `format: password` property prints as `***`; the value on the wire is
+  /// unchanged.
   @override
   String toString() =>
       'Metadata(createdAt: $createdAt, additionalProperties: $additionalProperties)';

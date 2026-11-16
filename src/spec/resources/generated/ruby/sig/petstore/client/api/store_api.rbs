@@ -34,6 +34,8 @@ module Petstore::Client
       def get_tree_with_http_info: () -> ::Petstore::Client::ApiResult[Models::TreeNode]
       def place_order: (Models::Order? order) -> Models::Order
       def place_order_with_http_info: (Models::Order? order) -> ::Petstore::Client::ApiResult[Models::Order]
+      def reserve_stock: () -> Models::ReserveStockResponse
+      def reserve_stock_with_http_info: () -> ::Petstore::Client::ApiResult[Models::ReserveStockResponse]
       def search_store: (?Options::SearchStoreOptions? options) -> Array[Models::Order]
       def search_store_with_http_info: (?Options::SearchStoreOptions? options) -> ::Petstore::Client::ApiResult[Array[Models::Order]]
     end

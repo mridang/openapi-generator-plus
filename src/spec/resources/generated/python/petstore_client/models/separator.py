@@ -17,3 +17,7 @@ class Separator(str, Enum):
     VALUE_0040_0040 = "@@"
     A_B = "a-b"
     A_B_2 = "a_b"
+
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)

@@ -286,6 +286,27 @@ import Testing
     #expect(json.components(separatedBy: "\"notes\"").count == 2)
   }
 
+  /// TreatmentRecord declares the same members as PetTreatment in the other
+  /// order: variants are retained in declaration order (Surgery, Medication),
+  /// and the later-declared member (Medication) wins a shared property.
+  @Test func testTreatmentRecordRetainsVariantsInDeclarationOrderAndLastWins() throws {
+    let json = Data("{\"drugName\":\"Amoxicillin\",\"procedureName\":\"Spay\"}".utf8)
+    let record = try JSONDecoder().decode(TreatmentRecord.self, from: json)
+    #expect(record.matchedInstances().count == 2)
+    #expect(record.matchedInstances()[0] is Surgery)
+    #expect(record.matchedInstances()[1] is Medication)
+
+    let collision = try #require(
+      TreatmentRecord([
+        Surgery(procedureName: "Spay", notes: "from-surgery"),
+        Medication(drugName: "Amoxicillin", notes: "from-medication"),
+      ]))
+    let encoded = String(decoding: try JSONEncoder().encode(collision), as: UTF8.self)
+    #expect(encoded.contains("from-medication"))
+    #expect(!encoded.contains("from-surgery"))
+    #expect(encoded.components(separatedBy: "\"notes\"").count == 2)
+  }
+
   // MARK: - allOf: PetWithOwner extends Pet fields
 
   @Test func testPetWithOwnerDeserialize() throws {

@@ -22,6 +22,7 @@ import {
   Defaults,
   Department,
   Order,
+  ReserveStockResponse,
   StockItem,
   Swatch,
   TreeNode,
@@ -137,15 +138,16 @@ export class StoreApi extends BaseApi {
     let path = `/store/order/{orderId}`;
     path = path.replace(
       `{${"orderId"}}`,
-      ValueSerializer.serializeStyled(
-        "orderId",
-        orderId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "orderId",
+          orderId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -219,15 +221,16 @@ export class StoreApi extends BaseApi {
     let path = `/store/by-swatch/{pathSwatch}`;
     path = path.replace(
       `{${"pathSwatch"}}`,
-      ValueSerializer.serializeStyled(
-        "pathSwatch",
-        pathSwatch,
-        "path",
-        "Swatch",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "pathSwatch",
+          pathSwatch,
+          "path",
+          "Swatch",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     if (options?.querySwatch != null) {
@@ -598,15 +601,16 @@ export class StoreApi extends BaseApi {
     let path = `/store/order/{orderId}`;
     path = path.replace(
       `{${"orderId"}}`,
-      ValueSerializer.serializeStyled(
-        "orderId",
-        orderId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "orderId",
+          orderId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -672,15 +676,16 @@ export class StoreApi extends BaseApi {
     let path = `/store/order/by-tracking/{trackingId}`;
     path = path.replace(
       `{${"trackingId"}}`,
-      ValueSerializer.serializeStyled(
-        "trackingId",
-        trackingId,
-        "path",
-        "UUID",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "trackingId",
+          trackingId,
+          "path",
+          "UUID",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -1057,6 +1062,62 @@ export class StoreApi extends BaseApi {
       false,
       "model",
       "placeOrder",
+      requestOptions,
+    );
+  }
+
+  /**
+   * Reserve stock, answering with the existing or a new reservation
+   * Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @return ReserveStockResponse
+   * @throws {ApiError} if fails to make API call
+   */
+  async reserveStock(
+    requestOptions?: RequestOptions,
+  ): Promise<ReserveStockResponse> {
+    const reserveStockResult =
+      await this.reserveStockWithHttpInfo(requestOptions);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (reserveStockResult.data == null) {
+      throw new ApiError(
+        reserveStockResult.statusCode,
+        "Expected a response body for reserveStock but received none",
+        reserveStockResult.headers,
+        reserveStockResult.rawBody,
+        null,
+      );
+    }
+    return reserveStockResult.data as ReserveStockResponse;
+  }
+
+  /**
+   * Reserve stock, answering with the existing or a new reservation (with HTTP info)
+   * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
+   * @throws {ApiError} if fails to make API call
+   */
+  async reserveStockWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<ReserveStockResponse>> {
+    const path = `/store/reservation`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "POST",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) =>
+        ObjectSerializer.deserialize(json, ReserveStockResponse)!,
+      NO_AUTH,
+      false,
+      "model",
+      "reserveStock",
       requestOptions,
     );
   }

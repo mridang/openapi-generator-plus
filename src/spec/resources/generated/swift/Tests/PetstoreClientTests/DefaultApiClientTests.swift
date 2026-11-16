@@ -509,6 +509,21 @@ import Testing
       }
     }
 
+    /* A 3xx whose Location is absent or cannot be parsed is the response, not
+     * an exception: there is nowhere to follow it to. */
+    @Test(arguments: [nil, "http://[bad"] as [String?])
+    func testRedirectWithAbsentOrUnparseableLocationIsReturnedAsThe302(location: String?)
+      async throws
+    {
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
+      let client = makeClient(transport: transport) { _ in
+        (Data(), 302, location.map { ["Location": $0] } ?? [:])
+      }
+      let resp = try await client.sendRequest(
+        method: "GET", url: "https://example.com/start", headers: [:], body: nil)
+      #expect(resp.statusCode == 302)
+    }
+
     // MARK: - HTTPS -> HTTP body replay guard (Gap 3.3)
 
     /// An HTTPS -> HTTP redirect with a body in flight MUST be

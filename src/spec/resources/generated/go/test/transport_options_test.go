@@ -297,6 +297,12 @@ func TestTransportOptions_MissingCaCertFileIsRejected(t *testing.T) {
 	if !errors.Is(err, petstore.ErrInvalidCACertificate) {
 		t.Errorf("expected ErrInvalidCACertificate, got %v", err)
 	}
+	if want := `failed to read CA certificate from "/nonexistent/ca.pem": `; err == nil || !strings.HasPrefix(err.Error(), want) {
+		t.Errorf("expected a message starting with %q, got %v", want, err)
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected the read failure to stay reachable as the cause, got %v", err)
+	}
 	var root apierrors.OpenAPIError
 	if errors.As(err, &root) {
 		t.Errorf("a missing CA file must not be a OpenAPIError, got %T", err)
@@ -546,7 +552,7 @@ func TestTransportOptions_GarbagePemCaCertFileIsRejected(t *testing.T) {
 	if !errors.Is(err, petstore.ErrInvalidCACertificate) {
 		t.Fatalf("expected ErrInvalidCACertificate, got %v", err)
 	}
-	want := fmt.Sprintf("invalid CA certificate: no PEM certificate found in %q", path)
+	want := fmt.Sprintf("failed to parse CA certificate from %q: no PEM blocks found", path)
 	if err.Error() != want {
 		t.Errorf("expected message %q, got %q", want, err.Error())
 	}
@@ -584,6 +590,48 @@ func TestTransportOptions_ProxyRejectionMessages(t *testing.T) {
 		if err.Error() != tc.want {
 			t.Errorf("%q: expected message %q, got %q", tc.proxy, tc.want, err.Error())
 		}
+	}
+}
+
+// An empty file and a directory are told apart: the empty file is readable but
+// holds no certificate, a directory cannot be read.
+func TestTransportOptions_EmptyCaCertFileAndDirectoryGetTheirOwnMessages(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	empty := filepath.Join(dir, "empty.pem")
+	if err := os.WriteFile(empty, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := petstore.NewTransportOptionsBuilder().CACertPath(empty).Build()
+	if want := fmt.Sprintf("failed to parse CA certificate from %q: no PEM blocks found", empty); err == nil || err.Error() != want {
+		t.Errorf("empty file: expected %q, got %v", want, err)
+	}
+	_, err = petstore.NewTransportOptionsBuilder().CACertPath(dir).Build()
+	if !errors.Is(err, petstore.ErrInvalidCACertificate) {
+		t.Fatalf("directory: expected ErrInvalidCACertificate, got %v", err)
+	}
+	if want := fmt.Sprintf("failed to read CA certificate from %q: ", dir); !strings.HasPrefix(err.Error(), want) {
+		t.Errorf("directory: expected a message starting with %q, got %v", want, err)
+	}
+}
+
+// A bracketed IPv6 literal host is accepted and read back verbatim, and an
+// unterminated one is refused.
+func TestTransportOptions_ProxyUrlWithAnIpv6LiteralIsAcceptedAndAnUnterminatedOneRefused(t *testing.T) {
+	t.Parallel()
+	opts, err := petstore.NewTransportOptionsBuilder().Proxy("http://[::1]:3128").Build()
+	if err != nil {
+		t.Fatalf("expected the IPv6 proxy to be accepted, got %v", err)
+	}
+	if opts.Proxy() == nil || opts.Proxy().String() != "http://[::1]:3128" {
+		t.Errorf("expected proxy 'http://[::1]:3128' on read-back, got %v", opts.Proxy())
+	}
+	_, err = petstore.NewTransportOptionsBuilder().Proxy("http://[::1:3128").Build()
+	if !errors.Is(err, petstore.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL for an unterminated IPv6 literal, got %v", err)
+	}
+	if want := `invalid proxy URL "http://[::1:3128": missing ']' in host`; err.Error() != want {
+		t.Errorf("expected message %q, got %q", want, err.Error())
 	}
 }
 

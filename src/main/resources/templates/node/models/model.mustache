@@ -1105,17 +1105,8 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
     if (this.{{name}} != null) {
-      {{! A TypeScript numeric enum carries a reverse mapping, so
-          Object.values() yields BOTH the member-name strings and the
-          numeric wire values (e.g. ["NUMBER_1", 1]). Without filtering, a
-          string payload matching a member name ("NUMBER_1") would pass the
-          membership test and bypass validation. Drop the reverse-mapped
-          string keys by keeping only values v for which E[v] is not itself a
-          number. For a string enum (no reverse mapping) E[value] is
-          undefined, so every value is retained unchanged. }}
-      const {{name}}Values = Object.values({{classname}}{{enumName}}).filter(
-        (v) => typeof ({{classname}}{{enumName}} as Record<string, unknown>)[v as string] !== 'number'
-      );
+      {{! Enums are const objects (no numeric reverse mapping), so Object.values() yields exactly the wire values. }}
+      const {{name}}Values = Object.values({{classname}}{{enumName}});
       if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
         throw new TypeError(
           `Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}. ` +
@@ -1139,12 +1130,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{^isEnum}}
 {{#vendorExtensions.prop.complexTypeIsEnum}}
     if (this.{{name}} != null) {
-      {{! Numeric enums add a reverse mapping to Object.values(); drop the
-          reverse-mapped string keys so a string payload matching a member
-          name cannot bypass validation. See the inline-enum branch above. }}
-      const {{name}}Values = Object.values({{complexType}}).filter(
-        (v) => typeof ({{complexType}} as Record<string, unknown>)[v as string] !== 'number'
-      );
+      const {{name}}Values = Object.values({{complexType}});
       if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
         throw new TypeError(
           `Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}. ` +
@@ -1155,12 +1141,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vendorExtensions.prop.complexTypeIsEnum}}
 {{#vendorExtensions.prop.itemsComplexTypeIsEnum}}
     if (this.{{name}} != null && Array.isArray(this.{{name}})) {
-      {{! Numeric enums add a reverse mapping to Object.values(); drop the
-          reverse-mapped string keys so a string element matching a member
-          name cannot bypass validation. See the inline-enum branch above. }}
-      const {{name}}Values = Object.values({{items.complexType}}).filter(
-        (v) => typeof ({{items.complexType}} as Record<string, unknown>)[v as string] !== 'number'
-      );
+      const {{name}}Values = Object.values({{items.complexType}});
       for (const __v of this.{{name}} as readonly unknown[]) {
         if (!({{name}}Values as readonly unknown[]).includes(__v)) {
           throw new TypeError(

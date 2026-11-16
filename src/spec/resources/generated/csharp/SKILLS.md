@@ -265,7 +265,7 @@ Models are generated as C# classes under the `PetstoreClient.Models` namespace.
 ```csharp
 using PetstoreClient.Models;
 
-var model = new Account();
+var model = new Account("example");
 ```
 
 ## Binary / File Uploads

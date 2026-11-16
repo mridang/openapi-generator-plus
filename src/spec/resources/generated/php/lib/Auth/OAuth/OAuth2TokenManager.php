@@ -288,6 +288,13 @@ final class OAuth2TokenManager
         ) {
             throw new OAuth2TokenException('Token response missing or empty access_token field');
         }
+        /* RFC 6749 section 7.1: a token whose type is not understood must not
+         * be used. Only a missing type or `bearer` (any case) is accepted; the
+         * value is never echoed. */
+        $tokenType = $responseBody['token_type'] ?? null;
+        if ($tokenType !== null && (!is_string($tokenType) || strcasecmp($tokenType, 'bearer') !== 0)) {
+            throw new OAuth2TokenException('Unsupported token_type in token response');
+        }
         $this->accessToken = $responseBody['access_token'];
         if (isset($responseBody['refresh_token']) && is_string($responseBody['refresh_token']) && $responseBody['refresh_token'] !== '') {
             $this->refreshToken = $responseBody['refresh_token'];

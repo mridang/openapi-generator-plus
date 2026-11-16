@@ -489,7 +489,7 @@ describe("generated documentation", () => {
     }
   });
 
-  test("README documents schema constraints, uniqueItems order, cancellation and the custom fetch", () => {
+  test("README documents schema constraints, uniqueItems order, cancellation and the custom HTTP client", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",
@@ -501,9 +501,9 @@ describe("generated documentation", () => {
     expect(readme).toContain(
       "`uniqueItems` arrays are sent in the natural order",
     );
-    expect(readme).toContain("### Per-call cancellation");
+    expect(readme).toContain("### Cancellation");
     expect(readme).toContain("RequestOptions");
-    expect(readme).toContain("### Custom `fetch`");
+    expect(readme).toContain("### Custom HTTP client");
     expect(readme).not.toContain("no cancellation API");
   });
 

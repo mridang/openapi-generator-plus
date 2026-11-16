@@ -469,6 +469,36 @@ pub fn to_deep_object_map<T: Serialize>(
     }
 }
 
+/// Expands a deepObject query parameter into its `(param_name[key], value)`
+/// pairs: a model's properties in declaration order, a map's keys sorted, null
+/// properties left out and a nested value written as its JSON text (F1091).
+pub fn deep_object_pairs<T: Serialize + 'static>(
+    param_name: &str,
+    value: &T,
+) -> Result<Vec<(String, String)>, SerializationError> {
+    match serde_json::to_value(value) {
+        Ok(serde_json::Value::Object(fields)) => {
+            let mut pairs: Vec<(String, String)> = fields
+                .into_iter()
+                .filter(|(_, v)| !v.is_null())
+                .map(|(k, v)| (k, stringify(&v)))
+                .collect();
+            if std::any::type_name::<T>().contains("HashMap") {
+                pairs.sort_by(|a, b| a.0.cmp(&b.0));
+            }
+            Ok(pairs
+                .into_iter()
+                .map(|(k, v)| (format!("{}[{}]", param_name, k), v))
+                .collect())
+        }
+        Ok(_) => Ok(Vec::new()),
+        Err(e) => Err(SerializationError::new(
+            format!("failed to serialize deepObject parameter: {}", e),
+            Some(Box::new(e)),
+        )),
+    }
+}
+
 /// Returns the text of a scalar property of an object-valued parameter, and a
 /// `SerializationError` for a nested object or array (D47).
 fn scalar_param_text(name: &str, value: &serde_json::Value) -> Result<String, SerializationError> {
@@ -1007,6 +1037,88 @@ mod tests {
         assert_eq!(
             json,
             r#"{"alpha":2,"beta":4,"kappa":6,"mid":1,"omega":5,"zeta":0}"#
+        );
+    }
+
+    /* F1090: a typed map property (required or optional) is written in
+     * ascending key order too, whatever the value type. */
+    #[test]
+    fn test_typed_map_properties_are_written_in_ascending_key_order() {
+        use serde::Serialize;
+        #[derive(Serialize)]
+        struct Holder {
+            #[serde(serialize_with = "object_serializer::sorted_map::serialize")]
+            counts: std::collections::HashMap<String, i64>,
+            #[serde(serialize_with = "object_serializer::sorted_map::option")]
+            labels: Option<std::collections::HashMap<String, String>>,
+        }
+        let counts: std::collections::HashMap<String, i64> =
+            ["zeta", "mid", "alpha", "beta", "omega", "kappa"]
+                .iter()
+                .enumerate()
+                .map(|(i, key)| ((*key).to_string(), i64::try_from(i).expect("small index")))
+                .collect();
+        let labels: std::collections::HashMap<String, String> = ["y", "b", "x", "a", "m"]
+            .iter()
+            .map(|key| ((*key).to_string(), key.to_uppercase()))
+            .collect();
+        let json = object_serializer::serialize(&Holder {
+            counts,
+            labels: Some(labels),
+        })
+        .expect("serializes");
+        assert_eq!(
+            json,
+            r#"{"counts":{"alpha":2,"beta":3,"kappa":5,"mid":1,"omega":4,"zeta":0},"labels":{"a":"A","b":"B","m":"M","x":"X","y":"Y"}}"#
+        );
+        let absent = Holder {
+            counts: std::collections::HashMap::new(),
+            labels: None,
+        };
+        assert_eq!(
+            object_serializer::serialize(&absent).expect("serializes"),
+            r#"{"counts":{},"labels":null}"#
+        );
+    }
+
+    /* F1091: a deepObject parameter lists a model's properties in declaration
+     * order and a map's keys sorted, leaving out nulls. */
+    #[test]
+    fn test_deep_object_pairs_keep_model_declaration_order_and_sort_map_keys() {
+        use serde::Serialize;
+        #[derive(Serialize)]
+        struct Filter {
+            size: String,
+            color: Option<String>,
+            brand: Option<String>,
+            age: i32,
+        }
+        let model = Filter {
+            size: "large".to_string(),
+            color: None,
+            brand: Some("acme".to_string()),
+            age: 3,
+        };
+        assert_eq!(
+            vec![
+                ("filter[size]".to_string(), "large".to_string()),
+                ("filter[brand]".to_string(), "acme".to_string()),
+                ("filter[age]".to_string(), "3".to_string()),
+            ],
+            object_serializer::deep_object_pairs("filter", &model).expect("expands")
+        );
+        let mut map = std::collections::HashMap::new();
+        for key in ["size", "color", "brand", "age"] {
+            map.insert(key.to_string(), key.to_uppercase());
+        }
+        assert_eq!(
+            vec![
+                ("filter[age]".to_string(), "AGE".to_string()),
+                ("filter[brand]".to_string(), "BRAND".to_string()),
+                ("filter[color]".to_string(), "COLOR".to_string()),
+                ("filter[size]".to_string(), "SIZE".to_string()),
+            ],
+            object_serializer::deep_object_pairs("filter", &map).expect("expands")
         );
     }
 

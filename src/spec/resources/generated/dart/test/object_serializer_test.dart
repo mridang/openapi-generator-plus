@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -323,6 +323,22 @@ void main() {
       });
       expect(decoded.password, equals('p'));
     });
+
+    test(
+      'a format: password property is masked in toString and kept on the wire',
+      () {
+        final secret = ['s', 'e', 'c', 'r', 'e', 't'].join();
+        final account = Account(username: 'u', password: secret);
+        expect(account.toString(), isNot(contains(secret)));
+        expect(account.toString(), contains('password: ***'));
+        expect(account.toString(), contains('username: u'));
+        expect(account.password, equals(secret));
+        expect(
+          jsonDecode(serialize(account)),
+          equals({'username': 'u', 'password': secret}),
+        );
+      },
+    );
 
     test('stringify bool', () {
       expect(stringify(true), equals('true'));
@@ -667,6 +683,22 @@ void main() {
           )!;
           expect(decoded.separator!.value, equals(wire));
         }
+      },
+    );
+
+    test(
+      'a nickname longer than its declared maximum is accepted and round-trips',
+      () {
+        final nickname = List.filled(10, 'Z').join();
+        final decoded = deserialize<Pet>(
+          '{"name":"n","photoUrls":[],"nickname":"$nickname"}',
+          Pet.fromJson,
+        )!;
+        expect(decoded.nickname, equals(nickname));
+        expect(
+          jsonDecode(serialize(decoded)),
+          containsPair('nickname', nickname),
+        );
       },
     );
 

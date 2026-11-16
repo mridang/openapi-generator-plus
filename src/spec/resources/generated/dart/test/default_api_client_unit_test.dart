@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -738,6 +738,33 @@ void main() {
     );
 
     test(
+      'Content-Encoding: identity passes the body through undecoded',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response.headers.set('Content-Encoding', 'identity');
+          request.response.statusCode = 200;
+          request.response.add(utf8.encode('payload'));
+          request.response.close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          final response = await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/identity',
+            {},
+            null,
+          );
+          expect(response.statusCode, equals(200));
+          expect(response.body, equals('payload'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'deflate Content-Encoding with non-deflate body surfaces ApiException, not crash',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1089,7 +1116,12 @@ void main() {
                 .having(
                   (e) => e.message,
                   'message',
-                  contains('HTTPS->HTTP redirect'),
+                  equals(
+                    'Refusing to replay request body across '
+                    'HTTPS->HTTP redirect: '
+                    'https://127.0.0.1:${source.port}/secret -> '
+                    'http://127.0.0.1:${target.port}/landed',
+                  ),
                 ),
           ),
         );
@@ -1211,7 +1243,14 @@ void main() {
             isA<ApiException>()
                 .having((e) => e.runtimeType, 'runtimeType', ApiException)
                 .having((e) => e.statusCode, 'statusCode', 302)
-                .having((e) => e.message, 'message', contains('non-HTTP(S)')),
+                .having(
+                  (e) => e.message,
+                  'message',
+                  equals(
+                    'Refusing to follow redirect to non-HTTP(S) URL: '
+                    'file:///etc/passwd',
+                  ),
+                ),
           ),
         );
       } finally {
@@ -1630,6 +1669,67 @@ void main() {
       },
     );
 
+    /* The end-to-end timeout covers the whole redirect chain: three hops of
+     * 500 ms each are 1500 ms in all, which a 1200 ms budget cannot hold and a
+     * 5000 ms budget can. */
+    Future<HttpServer> slowChain() async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        final hop = int.parse(request.uri.pathSegments.last);
+        if (hop < 3) {
+          request.response
+            ..statusCode = 302
+            ..headers.set(
+              'Location',
+              'http://127.0.0.1:${server.port}/chain/${hop + 1}',
+            );
+        } else {
+          request.response.statusCode = 200;
+        }
+        await request.response.close();
+      });
+      return server;
+    }
+
+    test('the timeout covers the whole redirect chain', () async {
+      final server = await slowChain();
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().timeout(1200).build(),
+        );
+        await expectLater(
+          client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/chain/1',
+            {},
+            null,
+          ),
+          throwsA(isA<NetworkTimeoutException>()),
+        );
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('a redirect chain inside the budget completes', () async {
+      final server = await slowChain();
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().timeout(5000).build(),
+        );
+        final response = await client.sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/chain/1',
+          {},
+          null,
+        );
+        expect(response.statusCode, equals(200));
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
     test(
       'a server that never answers throws NetworkTimeoutException',
       () async {
@@ -1779,7 +1879,10 @@ void main() {
           isA<ArgumentError>().having(
             (e) => e.message,
             'message',
-            contains('CA certificate'),
+            startsWith(
+              'failed to read CA certificate from '
+              '"/nonexistent/ca.pem": ',
+            ),
           ),
         ),
       );
@@ -1825,7 +1928,10 @@ void main() {
               isA<ArgumentError>().having(
                 (e) => e.message,
                 'message',
-                contains('CA certificate'),
+                startsWith(
+                  'failed to parse CA certificate from '
+                  '"${badPem.path}": ',
+                ),
               ),
             ),
           );

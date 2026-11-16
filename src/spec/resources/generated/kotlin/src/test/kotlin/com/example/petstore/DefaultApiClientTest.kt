@@ -71,6 +71,25 @@ class DefaultApiClientTest {
     }
 
     @Nested
+    @DisplayName("response headers")
+    inner class ResponseHeaders {
+        @Test
+        @DisplayName("a repeated response header is joined and its name is lowercased")
+        fun repeatedResponseHeadersAreJoined() {
+            val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", "${ChasmContainer.getBaseUrl()}/test/response-headers", emptyMap(), null)
+                }
+            assertEquals(200, response.statusCode)
+            assertEquals("foo", response.headers["x-custom-header"])
+            val link = response.headers["link"]!!
+            assertTrue(link.contains("rel=\"next\""), link)
+            assertTrue(link.contains("rel=\"prev\""), link)
+        }
+    }
+
+    @Nested
     @DisplayName("TLS verification disabled")
     inner class TlsVerificationDisabled {
         @Test
@@ -158,7 +177,7 @@ class DefaultApiClientTest {
     inner class CustomCaBundle {
         @Test
         @DisplayName("invalid CA cert path surfaces an error (Gap T4)")
-        fun invalid_ca_cert_path_returns_error() {
+        fun invalidCaCertPathReturnsError() {
             val transport =
                 TransportOptions
                     .builder()
@@ -241,7 +260,7 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("proxy_with_credentials_injects_basic_authorization")
-        fun proxy_with_credentials_injects_basic_authorization() {
+        fun proxyWithCredentialsInjectsBasicAuthorization() {
             val transport =
                 TransportOptions
                     .builder()
@@ -260,7 +279,7 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("proxy_userinfo_user_pass_carried_as_basic_authorization")
-        fun proxy_userinfo_user_pass_carried_as_basic_authorization() {
+        fun proxyUserinfoUserPassCarriedAsBasicAuthorization() {
             val transport =
                 TransportOptions
                     .builder()
@@ -635,7 +654,7 @@ class DefaultApiClientTest {
     inner class RedirectMethodPreservation {
         @Test
         @DisplayName("307 preserves method and body (POST stays POST)")
-        fun redirect_307_preserves_method_and_body() {
+        fun redirect307PreservesMethodAndBody() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
             val response =
@@ -660,7 +679,7 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("307 replays multipart body to redirected location (T-new-3)")
-        fun multipart_body_replayed_on_307_redirect() {
+        fun multipartBodyReplayedOn307Redirect() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
             val formFields =
@@ -692,7 +711,7 @@ class DefaultApiClientTest {
 
         @Test
         @DisplayName("303 switches to GET and drops body")
-        fun redirect_303_switches_to_get_and_drops_body() {
+        fun redirect303SwitchesToGetAndDropsBody() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
             val response =
@@ -724,7 +743,7 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("N1: 302 HTTPS->HTTP with a body proceeds (body dropped, becomes GET)")
-        fun redirect_302_https_to_http_with_body_proceeds() {
+        fun redirect302HttpsToHttpWithBodyProceeds() {
             var hopCount = 0
             var secondHopMethod: String? = null
             val engine =
@@ -759,7 +778,7 @@ class DefaultApiClientTest {
 
         @Test
         @DisplayName("F839: redirect method rewriting follows RFC 9110 15.4")
-        fun redirect_method_rewriting_follows_rfc_9110() {
+        fun redirectMethodRewritingFollowsRfc9110() {
             val cases =
                 listOf(
                     Triple(301, "POST", "GET"),
@@ -802,7 +821,7 @@ class DefaultApiClientTest {
 
         @Test
         @DisplayName("N1: 307 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
-        fun redirect_307_https_to_http_with_body_throws() {
+        fun redirect307HttpsToHttpWithBodyThrows() {
             val engine =
                 MockEngine { _ ->
                     respond(
@@ -832,7 +851,7 @@ class DefaultApiClientTest {
 
         @Test
         @DisplayName("N1: 308 HTTPS->HTTP with a body throws (would replay payload in cleartext)")
-        fun redirect_308_https_to_http_with_body_throws() {
+        fun redirect308HttpsToHttpWithBodyThrows() {
             val engine =
                 MockEngine { _ ->
                     respond(
@@ -910,7 +929,7 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("each concurrent request keeps its own redirect count and refusal state")
-        fun concurrent_requests_do_not_share_redirect_state() {
+        fun concurrentRequestsDoNotShareRedirectState() {
             val engine =
                 MockEngine { req ->
                     val path = req.url.encodedPath
@@ -1040,7 +1059,7 @@ class DefaultApiClientTest {
         // it exercises the non-binary branch.
         @Test
         @DisplayName("multipart_field_name_with_crlf_rejected_on_string_value")
-        fun multipart_field_name_with_crlf_rejected_on_string_value() {
+        fun multipartFieldNameWithCrlfRejectedOnStringValue() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
             val badField = mapOf<String, Any?>("name\r\nInjected: yes" to "value")
@@ -1111,7 +1130,7 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("redirect_to_explicit_default_port_preserves_authorization")
-        fun redirect_to_explicit_default_port_preserves_authorization() {
+        fun redirectToExplicitDefaultPortPreservesAuthorization() {
             assertEquals(
                 443,
                 effectivePort(java.net.URI("https://host/x")),
@@ -1148,7 +1167,7 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("https_to_http_same_host_strips_authorization")
-        fun https_to_http_same_host_strips_authorization() {
+        fun httpsToHttpSameHostStripsAuthorization() {
             assertFalse(
                 sameOrigin(
                     java.net.URI("https://host:8443/x"),
@@ -1192,7 +1211,7 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("post_with_null_body_sends_content_length_zero")
-        fun post_with_null_body_sends_content_length_zero() {
+        fun postWithNullBodySendsContentLengthZero() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
             val response =

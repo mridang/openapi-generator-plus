@@ -51,6 +51,20 @@ class DefaultApiClient internal constructor(
                 "x-api-key",
                 "x-internal-key",
             )
+
+        /**
+         * Whether a header carries a credential and must not follow a cross-origin
+         * redirect: a name in [SENSITIVE_HEADER_NAMES], or any name that contains
+         * `key`, `token` or `secret`, whatever put the header there (a default
+         * header or a custom authenticator).
+         */
+        internal fun isSensitiveHeader(name: String): Boolean {
+            val lower = name.lowercase()
+            return lower in SENSITIVE_HEADER_NAMES ||
+                lower.contains("key") ||
+                lower.contains("token") ||
+                lower.contains("secret")
+        }
     }
 
     /*
@@ -320,7 +334,7 @@ class DefaultApiClient internal constructor(
                 if (!sameOrigin) {
                     val keysToRemove =
                         redirectHeaders.keys
-                            .filter { SENSITIVE_HEADER_NAMES.contains(it.lowercase()) }
+                            .filter { isSensitiveHeader(it) }
                     keysToRemove.forEach { redirectHeaders.remove(it) }
                     // The SDK's own proxy credentials authenticate to the proxy,
                     // which is the same for every hop, so they are re-applied

@@ -714,6 +714,47 @@ module Petstore::Client
         )
       end
 
+      # Reserve stock, answering with the existing or a new reservation
+      # Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+      # @return [ReserveStockResponse]
+      # @raise [ApiError] if fails to make API call
+      def reserve_stock
+        result = reserve_stock_with_http_info
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for reserve_stock but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def reserve_stock_with_http_info
+        path = '/store/reservation'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :POST, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'ReserveStockResponse',
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.reserve_stock'
+        )
+      end
+
       # Searches the store; exercises content-encoded, Set and time-of-day parameters.
       # @param options [SearchStoreOptions] options for query, header, form, and cookie parameters
       # @return [Array<Order>]

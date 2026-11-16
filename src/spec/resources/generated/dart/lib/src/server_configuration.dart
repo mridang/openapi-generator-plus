@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -70,7 +70,7 @@ class ServerConfiguration {
   /// Returns the fully resolved URL. Throws [ArgumentError] if an override
   /// value is not in the variable's enumValues.
   String url([Map<String, String>? overrides]) {
-    var result = urlTemplate;
+    final values = <String, String>{};
     for (final entry in variables.entries) {
       final varName = entry.key;
       final variable = entry.value;
@@ -89,8 +89,14 @@ class ServerConfiguration {
         }
       }
 
-      result = result.replaceAll('{$varName}', value);
+      values[varName] = value;
     }
-    return result;
+    /* One pass over the template: a placeholder that a substituted value
+     * introduces is never expanded again, whatever order the variables are
+     * declared in. */
+    return urlTemplate.replaceAllMapped(
+      RegExp(r'\{([^{}]*)\}'),
+      (match) => values[match[1]] ?? match[0]!,
+    );
   }
 }

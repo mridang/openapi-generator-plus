@@ -895,9 +895,49 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             // importing it would be an unused import.
             final Set<String> named = namedInSignatures(objs);
             imports.removeIf(imp -> !named.contains(imp.get("className")));
+            addSuccessVariantImports(objs, imports);
         }
         objs.put("usesValueSerializer", usesValueSerializer(objs));
         return objs;
+    }
+
+    /**
+     * An operation with several 2xx schemas decodes the body into the variant
+     * its status code names, so the API file needs each variant class as a
+     * value; the signature names only the union alias.
+     */
+    @SuppressWarnings("unchecked")
+    private static void addSuccessVariantImports(
+            OperationsMap objs, List<Map<String, String>> imports) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        final List<CodegenOperation> ops =
+                operations == null ? null : (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        final Set<String> present = new HashSet<>();
+        for (final Map<String, String> imp : imports) {
+            present.add(imp.get("className"));
+        }
+        for (final CodegenOperation op : ops) {
+            final Object deco = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (!(deco instanceof Map)) {
+                continue;
+            }
+            final Object variants = ((Map<String, Object>) deco).get("successVariants");
+            if (!(variants instanceof List)) {
+                continue;
+            }
+            for (final Object variant : (List<Object>) variants) {
+                final String type = String.valueOf(((Map<String, Object>) variant).get("returnType"));
+                if (present.add(type)) {
+                    final Map<String, String> imp = new java.util.LinkedHashMap<>();
+                    imp.put("className", type);
+                    imp.put("classname", type);
+                    imports.add(imp);
+                }
+            }
+        }
     }
 
     /**

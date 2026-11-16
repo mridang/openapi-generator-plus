@@ -1058,6 +1058,46 @@ describe Petstore::Client::ObjectSerializer do
     end
   end
 
+  describe 'values outside a pattern or a bound round trip' do
+    it 'decodes and writes a nickname longer than its maximum length' do
+      pet = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"nickname":"ZZZZZZZZZZ"}', 'Pet')
+      _(pet.nickname).must_equal('ZZZZZZZZZZ')
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(pet))['nickname']).must_equal('ZZZZZZZZZZ')
+    end
+
+    it 'decodes and writes a slug that matches its pattern' do
+      edge = Petstore::Client::ObjectSerializer.deserialize('{"slug":"12/ab"}', 'EdgeCases')
+      _(edge.slug).must_equal('12/ab')
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(edge))['slug']).must_equal('12/ab')
+    end
+  end
+
+  # Byte arrays compare by content, and a list of them is not a map of them.
+  describe 'BinaryVault equality' do
+    decode = lambda do |json|
+      Petstore::Client::ObjectSerializer.deserialize(json, 'BinaryVault')
+    end
+
+    it 'treats two vaults decoded from the same bytes as equal' do
+      json = '{"seal":"AQID","shards":["AQID","BAUG"],"labels":{"a":"AQID"}}'
+      _(decode.call(json)).must_equal(decode.call(json))
+      _(decode.call(json).hash).must_equal(decode.call(json).hash)
+    end
+
+    it 'tells vaults with different bytes apart' do
+      base = decode.call('{"seal":"AQID","shards":["AQID"],"labels":{"a":"AQID"}}')
+      _(base).wont_equal(decode.call('{"seal":"BAUG","shards":["AQID"],"labels":{"a":"AQID"}}'))
+      _(base).wont_equal(decode.call('{"seal":"AQID","shards":["BAUG"],"labels":{"a":"AQID"}}'))
+      _(base).wont_equal(decode.call('{"seal":"AQID","shards":["AQID"],"labels":{"a":"BAUG"}}'))
+    end
+
+    it 'does not confuse a list of byte arrays with a map of them' do
+      as_list = decode.call('{"shards":["AQID"]}')
+      as_map = decode.call('{"labels":{"0":"AQID"}}')
+      _(as_list).wont_equal(as_map)
+    end
+  end
+
   # A schema with additionalProperties keeps the extra keys next to the
   # declared properties, and a round trip writes them back.
   describe 'additionalProperties' do
@@ -1570,9 +1610,25 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.deserialize(within, 'Object')).wont_be_nil
 
       beyond = ('[' * 1500) + (']' * 1500)
-      _(proc {
+      err = assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize(beyond, 'Object')
-      }).must_raise(Petstore::Client::Errors::SerializationError)
+      end
+      _(err.message).must_equal('JSON nesting depth 1500 exceeds limit 1000')
+    end
+
+    it 'prefixes the parser detail of a malformed payload with the canonical deserialize wording' do
+      err = assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.deserialize('{"id":', 'Object')
+      end
+      _(err.message).must_match(/\AFailed to deserialize JSON: ./)
+      _(err.cause).must_be_kind_of(JSON::ParserError)
+    end
+
+    it 'prefixes the detail of a failed serialize with the canonical serialize wording' do
+      err = assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.serialize(Float::NAN)
+      end
+      _(err.message).must_match(/\AFailed to serialize object to JSON: ./)
     end
   end
 
@@ -1583,14 +1639,14 @@ describe Petstore::Client::ObjectSerializer do
       err = assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('{"quantity":1.5}', 'Petstore::Client::Models::Order')
       end
-      _(err.message).must_equal('Failed to deserialize JSON to Petstore::Client::Models::Order: Expected Integer, got Float: 1.5')
+      _(err.message).must_equal('Failed to deserialize JSON: Expected Integer, got Float: 1.5')
     end
 
     it 'refuses a quoted number for an int64 property' do
       err = assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('{"id":"7"}', 'Petstore::Client::Models::Order')
       end
-      _(err.message).must_equal('Failed to deserialize JSON to Petstore::Client::Models::Order: Expected Integer, got String: "7"')
+      _(err.message).must_equal('Failed to deserialize JSON: Expected Integer, got String: "7"')
     end
 
     it 'keeps an int64 above 2**53 exact through decode and encode' do

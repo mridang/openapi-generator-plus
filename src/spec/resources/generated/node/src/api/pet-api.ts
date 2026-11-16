@@ -49,21 +49,27 @@ export abstract class GetMultiServerPetInfoServer {
   abstract getUrl(): string;
 }
 
-export enum GetMultiServerPetInfoServerRegionalRegion {
-  US = "us",
-  EU = "eu",
-  AP = "ap",
-}
+export const GetMultiServerPetInfoServerRegionalRegion = {
+  US: "us",
+  EU: "eu",
+  AP: "ap",
+} as const;
+export type GetMultiServerPetInfoServerRegionalRegion =
+  (typeof GetMultiServerPetInfoServerRegionalRegion)[keyof typeof GetMultiServerPetInfoServerRegionalRegion];
 
-export enum GetMultiServerPetInfoServerMirrorRegion {
-  US = "us",
-  EU = "eu",
-}
+export const GetMultiServerPetInfoServerMirrorRegion = {
+  US: "us",
+  EU: "eu",
+} as const;
+export type GetMultiServerPetInfoServerMirrorRegion =
+  (typeof GetMultiServerPetInfoServerMirrorRegion)[keyof typeof GetMultiServerPetInfoServerMirrorRegion];
 
-export enum GetMultiServerPetInfoServerChannel {
-  A_B = "a&b",
-  IT_S = "it's",
-}
+export const GetMultiServerPetInfoServerChannel = {
+  A_B: "a&b",
+  IT_S: "it's",
+} as const;
+export type GetMultiServerPetInfoServerChannel =
+  (typeof GetMultiServerPetInfoServerChannel)[keyof typeof GetMultiServerPetInfoServerChannel];
 /**
  * Primary
  */
@@ -158,15 +164,19 @@ export abstract class GetStagingPetInfoServer {
   abstract getUrl(): string;
 }
 
-export enum GetStagingPetInfoServerEnvironment {
-  STAGING = "staging",
-  SANDBOX = "sandbox",
-}
+export const GetStagingPetInfoServerEnvironment = {
+  STAGING: "staging",
+  SANDBOX: "sandbox",
+} as const;
+export type GetStagingPetInfoServerEnvironment =
+  (typeof GetStagingPetInfoServerEnvironment)[keyof typeof GetStagingPetInfoServerEnvironment];
 
-export enum GetStagingPetInfoServerVersion {
-  V2 = "v2",
-  V3 = "v3",
-}
+export const GetStagingPetInfoServerVersion = {
+  V2: "v2",
+  V3: "v3",
+} as const;
+export type GetStagingPetInfoServerVersion =
+  (typeof GetStagingPetInfoServerVersion)[keyof typeof GetStagingPetInfoServerVersion];
 /**
  * Staging server
  */
@@ -353,15 +363,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/photos`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -451,15 +462,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/treatment`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -515,15 +527,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -622,27 +635,29 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/documents/{documentId}`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     path = path.replace(
       `{${"documentId"}}`,
-      ValueSerializer.serializeStyled(
-        "documentId",
-        documentId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "documentId",
+          documentId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -710,15 +725,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/born-on/{bornOn}`;
     path = path.replace(
       `{${"bornOn"}}`,
-      ValueSerializer.serializeStyled(
-        "bornOn",
-        ValueSerializer.stringifyDate(bornOn),
-        "path",
-        "Date",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "bornOn",
+          ValueSerializer.stringifyDate(bornOn),
+          "path",
+          "Date",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -743,8 +759,8 @@ export class PetApi extends BaseApi {
    * Finds Pets by status
    * @param options options for query, header, form, and cookie parameters
    * @param options.status Status values that need to be considered for filter (optional) (deprecated)
-   * @example Available only - available
-   * @example Sold pets - sold
+   * @example options.status: Available only - available
+   * @example options.status: Sold pets - sold
    * @param options.filter Filter criteria as key-value pairs (optional)
    * @param options.bornAfter Only return pets born on or after this date (optional)
    * @param options.n2ndPage  (optional)
@@ -918,15 +934,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/external`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const serverUrl = server ? server.getUrl() : null;
     const queryParams: Record<string, unknown> = {};
@@ -1002,15 +1019,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/multi`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const serverUrl = server ? server.getUrl() : null;
     const queryParams: Record<string, unknown> = {};
@@ -1083,15 +1101,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/avatar`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -1158,15 +1177,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/avatar/thumbnail`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -1191,8 +1211,8 @@ export class PetApi extends BaseApi {
    * Find pet by ID
    * Returns a single pet
    * @param petId ID of pet to return (required)
-   * @example Small breed ID - 1
-   * @example Large breed ID - 42
+   * @example petId: Small breed ID - 1
+   * @example petId: Large breed ID - 42
    * @param requestOptions optional per-call options; `requestOptions.signal` cancels this call
    * @return Pet
    * @throws {ApiError} if fails to make API call
@@ -1242,15 +1262,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const serverUrl = server ? server.getUrl() : null;
     const queryParams: Record<string, unknown> = {};
@@ -1338,15 +1359,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/byName/{name}`;
     path = path.replace(
       `{${"name"}}`,
-      ValueSerializer.serializeStyled(
-        "name",
-        name,
-        "path",
-        "string",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "name",
+          name,
+          "path",
+          "string",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     if (options?.category != null) {
@@ -1440,15 +1462,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/passport`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -1526,27 +1549,29 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/photos/{photoId}`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     path = path.replace(
       `{${"photoId"}}`,
-      ValueSerializer.serializeStyled(
-        "photoId",
-        photoId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "photoId",
+          photoId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -1635,27 +1660,29 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/summary/{asOf}`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     path = path.replace(
       `{${"asOf"}}`,
-      ValueSerializer.serializeStyled(
-        "asOf",
-        ValueSerializer.stringifyDate(asOf),
-        "path",
-        "Date",
-        null,
-        "matrix",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "asOf",
+          ValueSerializer.stringifyDate(asOf),
+          "path",
+          "Date",
+          null,
+          "matrix",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     if (options?.days != null) {
@@ -1780,27 +1807,29 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/tag/{tagName}`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "matrix",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "matrix",
+          false,
+        ) as string,
     );
     path = path.replace(
       `{${"tagName"}}`,
-      ValueSerializer.serializeStyled(
-        "tagName",
-        tagName,
-        "path",
-        "string",
-        null,
-        "label",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "tagName",
+          tagName,
+          "path",
+          "string",
+          null,
+          "label",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     if (options?.colors != null) {
@@ -1998,15 +2027,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/staging`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const serverUrl = server ? server.getUrl() : null;
     const queryParams: Record<string, unknown> = {};
@@ -2078,15 +2108,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/avatar`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -2170,15 +2201,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/avatar/thumbnail`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -2261,15 +2293,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/preferences`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -2365,15 +2398,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -2453,15 +2487,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/certificate`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -2555,15 +2590,16 @@ export class PetApi extends BaseApi {
     let path = `/pet/{petId}/documents`;
     path = path.replace(
       `{${"petId"}}`,
-      ValueSerializer.serializeStyled(
-        "petId",
-        petId,
-        "path",
-        "number",
-        null,
-        "simple",
-        false,
-      ) as string,
+      () =>
+        ValueSerializer.serializeStyled(
+          "petId",
+          petId,
+          "path",
+          "number",
+          null,
+          "simple",
+          false,
+        ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};

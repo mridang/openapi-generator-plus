@@ -16,3 +16,7 @@ class Color(str, Enum):
     RED = "red"
     GREEN = "green"
     BLUE = "blue"
+
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)

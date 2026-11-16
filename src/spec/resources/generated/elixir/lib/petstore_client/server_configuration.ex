@@ -86,15 +86,22 @@ defmodule PetstoreClient.ServerConfiguration do
   """
   @spec url(t(), %{optional(String.t()) => String.t()}) :: String.t()
   def url(%__MODULE__{} = server_config, overrides \\ %{}) do
-    Enum.reduce(server_config.variables, server_config.url_template, fn {var_name, var}, acc ->
-      value = Map.get(overrides, var_name, var.default_value)
+    values =
+      Map.new(server_config.variables, fn {var_name, var} ->
+        value = Map.get(overrides, var_name, var.default_value)
 
-      if var.enum_values != [] and value not in var.enum_values do
-        raise ArgumentError,
-              "Invalid value '#{value}' for server variable '#{var_name}'. Allowed values: #{inspect(var.enum_values)}"
-      end
+        if var.enum_values != [] and value not in var.enum_values do
+          raise ArgumentError,
+                "Invalid value '#{value}' for server variable '#{var_name}'. Allowed values: [#{Enum.join(var.enum_values, ", ")}]"
+        end
 
-      String.replace(acc, "{#{var_name}}", value)
+        {var_name, value}
+      end)
+
+    # One pass over the template: a placeholder that a substituted value
+    # introduces is never expanded again.
+    Regex.replace(~r/\{([^{}]+)\}/, server_config.url_template, fn placeholder, var_name ->
+      Map.get(values, var_name, placeholder)
     end)
   end
 end

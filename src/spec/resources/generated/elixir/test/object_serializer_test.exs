@@ -672,6 +672,38 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
   end
 
+  describe "BinaryVault byte-array equality" do
+    defp decode_vault(seal, shards, labels) do
+      json = Jason.encode!(%{"seal" => seal, "shards" => shards, "labels" => labels})
+      PetstoreClient.ObjectSerializer.deserialize(json, "BinaryVault")
+    end
+
+    test "two vaults decoded from equal bytes are equal, whatever the shape" do
+      left = decode_vault("c2VhbA==", ["YQ==", "Yg=="], %{"k" => "YQ=="})
+      right = decode_vault("c2VhbA==", ["YQ==", "Yg=="], %{"k" => "YQ=="})
+
+      assert left.seal == "seal"
+      assert left.shards == ["a", "b"]
+      assert left.labels == %{"k" => "a"}
+      assert left == right
+    end
+
+    test "a different byte in the bare array, the list or the map makes the vaults differ" do
+      base = decode_vault("c2VhbA==", ["YQ==", "Yg=="], %{"k" => "YQ=="})
+
+      refute base == decode_vault("eA==", ["YQ==", "Yg=="], %{"k" => "YQ=="})
+      refute base == decode_vault("c2VhbA==", ["YQ==", "eA=="], %{"k" => "YQ=="})
+      refute base == decode_vault("c2VhbA==", ["YQ==", "Yg=="], %{"k" => "eA=="})
+    end
+
+    test "a list of byte arrays is distinct from a map of them" do
+      listed = decode_vault("c2VhbA==", ["YQ=="], %{})
+      mapped = decode_vault("c2VhbA==", [], %{"0" => "YQ=="})
+
+      refute listed == mapped
+    end
+  end
+
   describe "encode_base64_param/1" do
     test "encodes bytes as padded standard-alphabet base64" do
       assert PetstoreClient.ObjectSerializer.encode_base64_param("hi") == "aGk="
@@ -1599,6 +1631,22 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "EdgeCases.slug accepts a value matching its pattern" do
       edge = PetstoreClient.ObjectSerializer.deserialize(~s({"slug":"12/ab"}), "EdgeCases")
       assert edge.slug == "12/ab"
+    end
+
+    test "a nickname longer than its declared maximum still decodes and round-trips" do
+      json = ~s({"name":"n","photoUrls":[],"nickname":"ZZZZZZZZZZ"})
+      decoded = PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
+
+      assert decoded.nickname == "ZZZZZZZZZZ"
+
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(decoded))["nickname"] ==
+               "ZZZZZZZZZZ"
+    end
+
+    test "a quantity above its declared maximum still decodes" do
+      decoded = PetstoreClient.ObjectSerializer.deserialize(~s({"quantity":500}), "Order")
+
+      assert decoded.quantity == 500
     end
 
     test "a date-time without an offset is rejected whatever the host zone" do

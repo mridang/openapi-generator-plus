@@ -879,7 +879,7 @@ func TestPathEncodingParity_SimpleStyleArrayEncodesEachItem(t *testing.T) {
 // Gap W1 regression: every per-item path value in a styled array must be
 // percent-encoded BEFORE being joined with the structural separator.
 // Otherwise '/', '?', '#', space leak into the URL.
-func Test_path_array_item_with_reserved_char_is_percent_encoded(t *testing.T) {
+func TestValueSerializer_PathArrayItemWithReservedCharIsPercentEncoded(t *testing.T) {
 	t.Parallel()
 	items := []string{"a/b", "c"}
 

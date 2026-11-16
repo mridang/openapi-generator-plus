@@ -13,6 +13,8 @@ import { TransportOptions } from "../../src/transport-options.js";
 import {
   Account,
   Availability,
+  Defaults,
+  DefaultsModeEnum,
   Order,
   OrderStatusEnum,
   Category,
@@ -337,6 +339,41 @@ describe("StoreApi response shapes", () => {
       expect(result.priority).toBe(Priority.NUMBER_2);
       expect(result.availability).toBe(Availability.OnHold);
       expect(result.matrix).toEqual([[1, 2], [3]]);
+    } finally {
+      close();
+    }
+  });
+
+  test("getDefaults fills the schema defaults for absent fields and keeps an explicit null", async () => {
+    const body = '{"label":null,"retries":7}';
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      body,
+    );
+    try {
+      const result = await mockApi.getDefaults();
+      expect(result).toBeInstanceOf(Defaults);
+      expect(result.retries).toBe(7);
+      expect(result.label).toBeNull();
+      expect(result.mode).toBe(DefaultsModeEnum.Medium);
+      expect(result.ceiling).toBe(9000000000);
+    } finally {
+      close();
+    }
+  });
+
+  test("getDefaults fills every default when the body is an empty object", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      "{}",
+    );
+    try {
+      const result = await mockApi.getDefaults();
+      expect(result.retries).toBe(3);
+      expect(result.label).toBe("untitled");
+      expect(result.scale).toBe(0.25);
     } finally {
       close();
     }

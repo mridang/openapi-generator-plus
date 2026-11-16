@@ -207,7 +207,7 @@ transport = Petstore::Client::TransportOptions.builder
 client = Petstore::Client::Petstore.new(authenticator, transport)
 ```
 
-### Custom Faraday Connection
+### Custom HTTP client
 
 Supply your own `Faraday::Connection` to control the adapter or middleware. The SDK still applies its timeouts, user agent, redirect policy and query encoding on top, and never closes a connection you supplied. Combining it with `proxy`, `ca_cert_path` or `verify_ssl(false)` raises `ArgumentError`; configure those on the connection instead.
 
@@ -226,6 +226,10 @@ client = Petstore::Client::Petstore.new(authenticator, transport)
 transport = Petstore::Client::TransportOptions.builder.max_retries(0).build
 ```
 
+### Cancellation
+
+The SDK has no cancellation API of its own. Ruby's native mechanisms (`Timeout`, killing the thread) apply; the request timeout is the only bound the SDK enforces.
+
 ### Timeouts
 
 `timeout` is in milliseconds and is one end-to-end budget for the whole call, redirects and retries included. A non-positive value raises `ArgumentError`; an exceeded budget raises `NetworkTimeoutError`.
@@ -233,10 +237,6 @@ transport = Petstore::Client::TransportOptions.builder.max_retries(0).build
 ### Request id
 
 With `inject_request_id` on (the default) every request carries an `X-Request-ID` header unless you set one yourself.
-
-### Cancellation
-
-The SDK has no cancellation API of its own. Ruby's native mechanisms (`Timeout`, killing the thread) apply; the request timeout is the only bound the SDK enforces.
 
 ## API Methods
 

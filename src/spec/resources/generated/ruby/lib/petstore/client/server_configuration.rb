@@ -53,15 +53,23 @@ module Petstore::Client
     # @return [String] the fully resolved URL
     # @raise [ArgumentError] if an override value is not in the variable's enum
     def url(overrides = {})
-      result = url_template
+      # @type var values: Hash[String, String]
+      values = {}
       variables.each do |var_name, var|
         value = overrides.fetch(var_name, var.default_value)
-        raise ArgumentError, "Invalid value '#{value}' for server variable '#{var_name}'. Allowed values: #{var.enum_values}" unless var.enum_values.empty? || var.enum_values.include?(value)
+        unless var.enum_values.empty? || var.enum_values.include?(value)
+          raise ArgumentError,
+                "Invalid value '#{value}' for server variable '#{var_name}'. " \
+                "Allowed values: [#{var.enum_values.join(', ')}]"
+        end
 
-        # Block form: a replacement string would expand backslash sequences in the value.
-        result = result.gsub("{#{var_name}}") { value }
+        values[var_name] = value
       end
-      result
+
+      # One pass over the template: a placeholder that a substituted value
+      # introduces is never expanded again. The block form also keeps a value
+      # with backslash sequences literal.
+      url_template.gsub(/\{([^{}]+)\}/) { |placeholder| values.fetch(placeholder.delete_prefix('{').delete_suffix('}')) { placeholder } }
     end
   end
 end

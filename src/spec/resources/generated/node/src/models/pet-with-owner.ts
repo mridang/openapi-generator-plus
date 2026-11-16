@@ -493,8 +493,10 @@ export class PetWithOwner {
   }
 }
 
-export enum PetWithOwnerStatusEnum {
-  Available = "available",
-  Pending = "pending",
-  Sold = "sold",
-}
+export const PetWithOwnerStatusEnum = {
+  Available: "available",
+  Pending: "pending",
+  Sold: "sold",
+} as const;
+export type PetWithOwnerStatusEnum =
+  (typeof PetWithOwnerStatusEnum)[keyof typeof PetWithOwnerStatusEnum];

@@ -41,6 +41,9 @@ public interface IApiClient : IDisposable
     /// cannot replay the credentialed body to an attacker-controlled URL
     /// (Gap 3.2).
     ///
+    /// A no-redirect request is sent to the authorization server, so the
+    /// default transport also leaves the caller's default headers off it.
+    ///
     /// The default implementation delegates to the four-argument overload;
     /// transport implementations that own the redirect loop should implement
     /// this method and honour the flag.

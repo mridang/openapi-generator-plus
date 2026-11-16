@@ -16,6 +16,7 @@ import {
 import { OpenAPIError, SerializationError } from "../src/errors/index.js";
 import {
   Account,
+  BinaryVault,
   Category,
   EdgeCases,
   ModelError,
@@ -734,14 +735,14 @@ describe("ObjectSerializer", () => {
     test("rejects a nested model that is missing its required field", () => {
       const json = { value: "root", child: {} };
       expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(
-        /^Failed to deserialize object: value is required$/,
+        /^Failed to deserialize JSON: value is required$/,
       );
     });
 
     test("rejects a nested model field of the wrong primitive type", () => {
       const json = { value: "root", child: { value: 5 } };
       expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(
-        /^Failed to deserialize object: value must be a string, got number$/,
+        /^Failed to deserialize JSON: value must be a string, got number$/,
       );
     });
 
@@ -751,7 +752,7 @@ describe("ObjectSerializer", () => {
         child: { value: "a", child: { value: "b", child: {} } },
       };
       expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(
-        /^Failed to deserialize object: value is required$/,
+        /^Failed to deserialize JSON: value is required$/,
       );
     });
 
@@ -769,21 +770,21 @@ describe("ObjectSerializer", () => {
     test("rejects a wrong-typed field on a nested single model", () => {
       const json = { name: "x", photoUrls: [], category: { id: "42" } };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
-        /^Failed to deserialize object: id must be a number, got string$/,
+        /^Failed to deserialize JSON: id must be a number, got string$/,
       );
     });
 
     test("rejects a wrong-typed field on a model inside an array", () => {
       const json = { name: "x", photoUrls: [], tags: [{ id: 1 }, { id: "7" }] };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
-        /^Failed to deserialize object: id must be a number, got string$/,
+        /^Failed to deserialize JSON: id must be a number, got string$/,
       );
     });
 
     test("applies required-field checks to a nested Pet", () => {
       const json = { pet: {} };
       expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
-        /^Failed to deserialize object: name is required$/,
+        /^Failed to deserialize JSON: name is required$/,
       );
     });
 
@@ -804,7 +805,7 @@ describe("ObjectSerializer", () => {
         const json = { name: "x", photoUrls: [], category: value };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
           new RegExp(
-            `^Failed to deserialize object: category must be an object, got ${received}$`,
+            `^Failed to deserialize JSON: category must be an object, got ${received}$`,
           ),
         );
       },
@@ -820,7 +821,7 @@ describe("ObjectSerializer", () => {
         const json = { name: "x", photoUrls: [], tags: value };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
           new RegExp(
-            `^Failed to deserialize object: tags must be an array, got ${received}$`,
+            `^Failed to deserialize JSON: tags must be an array, got ${received}$`,
           ),
         );
       },
@@ -836,7 +837,7 @@ describe("ObjectSerializer", () => {
         const json = { name: "x", photoUrls: [], tags: [{ id: 1 }, element] };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
           new RegExp(
-            `^Failed to deserialize object: tags elements must be objects, got ${received}$`,
+            `^Failed to deserialize JSON: tags elements must be objects, got ${received}$`,
           ),
         );
       },
@@ -845,14 +846,14 @@ describe("ObjectSerializer", () => {
     test("rejects a non-string element of a string set", () => {
       const json = { name: "x", photoUrls: ["a", 1] };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
-        /^Failed to deserialize object: photoUrls elements must be strings, got number$/,
+        /^Failed to deserialize JSON: photoUrls elements must be strings, got number$/,
       );
     });
 
     test("rejects a non-string element of a string set on a nested model", () => {
       const json = { pet: { name: "x", photoUrls: [true] } };
       expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
-        /^Failed to deserialize object: photoUrls elements must be strings, got boolean$/,
+        /^Failed to deserialize JSON: photoUrls elements must be strings, got boolean$/,
       );
     });
 
@@ -910,7 +911,7 @@ describe("ObjectSerializer", () => {
 
     test("decode rejects a missing key", () => {
       expect(() => ObjectSerializer.deserialize({}, RequiredNullable)).toThrow(
-        /^Failed to deserialize object: note is required$/,
+        /^Failed to deserialize JSON: note is required$/,
       );
     });
 
@@ -989,7 +990,7 @@ describe("ObjectSerializer", () => {
     test("rejects a fractional number for an int64 field", () => {
       const json = { id: 1.5, name: "x", photoUrls: [] };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
-        /^Failed to deserialize object: id must be an integer, got 1\.5$/,
+        /^Failed to deserialize JSON: id must be an integer, got 1\.5$/,
       );
     });
 
@@ -997,7 +998,7 @@ describe("ObjectSerializer", () => {
       expect(() =>
         ObjectSerializer.deserialize({ quantity: 7.5 }, Order),
       ).toThrow(
-        /^Failed to deserialize object: quantity must be an integer, got 7\.5$/,
+        /^Failed to deserialize JSON: quantity must be an integer, got 7\.5$/,
       );
     });
 
@@ -1074,7 +1075,7 @@ describe("ObjectSerializer", () => {
       expect(() =>
         ObjectSerializer.deserialize({ shipDate: value }, Order),
       ).toThrow(
-        `Failed to deserialize object: shipDate must be a valid Date, got ${String(value)}`,
+        `Failed to deserialize JSON: shipDate must be a valid Date, got ${String(value)}`,
       );
     });
 
@@ -1095,7 +1096,7 @@ describe("ObjectSerializer", () => {
       expect(() =>
         ObjectSerializer.deserialize({ shipDate: "garbage" }, Order),
       ).toThrow(
-        /^Failed to deserialize object: shipDate must be a valid Date, got garbage$/,
+        /^Failed to deserialize JSON: shipDate must be a valid Date, got garbage$/,
       );
     });
   });
@@ -2302,6 +2303,21 @@ describe("ObjectSerializer", () => {
         /^Failed to deserialize JSON: /,
       );
     });
+
+    test("a serialize failure names its detail and keeps the cause", () => {
+      const unserializable = { count: BigInt(1) };
+      let caught: unknown;
+      try {
+        ObjectSerializer.serialize(unserializable);
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeInstanceOf(SerializationError);
+      expect((caught as SerializationError).message).toMatch(
+        /^Failed to serialize object to JSON: \S/,
+      );
+      expect((caught as SerializationError).cause).toBeInstanceOf(TypeError);
+    });
   });
 });
 
@@ -2439,6 +2455,30 @@ describe("model value-equality", () => {
       category: new Category({ id: 2, name: "Cats" }),
     });
     expect(a.equals(c)).toBe(false);
+  });
+
+  test("equality compares byte arrays by content (bare, list and map)", () => {
+    const vault = (
+      seal: number[],
+      shard: number[],
+      label: number[],
+    ): BinaryVault =>
+      new BinaryVault({
+        seal: Buffer.from(seal),
+        shards: [Buffer.from(shard)],
+        labels: { a: Buffer.from(label) },
+      });
+    const base = vault([1, 2, 3], [4, 5], [6]);
+    expect(base.equals(vault([1, 2, 3], [4, 5], [6]))).toBe(true);
+    expect(base.equals(vault([1, 2, 9], [4, 5], [6]))).toBe(false);
+    expect(base.equals(vault([1, 2, 3], [4, 9], [6]))).toBe(false);
+    expect(base.equals(vault([1, 2, 3], [4, 5], [9]))).toBe(false);
+  });
+
+  test("a list of byte arrays is not equal to a map of them", () => {
+    const asList = new BinaryVault({ shards: [Buffer.from([1])] });
+    const asMap = new BinaryVault({ labels: { 0: Buffer.from([1]) } });
+    expect(asList.equals(asMap)).toBe(false);
   });
 });
 
@@ -2723,10 +2763,51 @@ describe("toBinary", () => {
       expect(new Set(members).size).toBe(4);
     });
 
+    test("a model enum accepts its literal wire values and keeps member access", () => {
+      const literal: Separator = "a-b";
+      const member: Separator = Separator.AB2;
+      const numeric: Priority = 2;
+
+      expect(literal).toBe("a-b");
+      expect(member).toBe("a_b");
+      expect(numeric).toBe(Priority.NUMBER_2);
+      // @ts-expect-error a string that is not a wire value is not a Separator
+      const unknownValue: Separator = "not-a-separator";
+      expect(unknownValue).toBe("not-a-separator");
+    });
+
     test("an order quantity above its declared maximum still decodes", () => {
       expect(
         ObjectSerializer.deserialize({ quantity: 500 }, Order)!.quantity,
       ).toBe(500);
+    });
+
+    test("a nickname longer than its declared maximum still decodes and round-trips", () => {
+      const pet = ObjectSerializer.deserialize(
+        { name: "x", photoUrls: [], nickname: "ZZZZZZZZZZ" },
+        Pet,
+      )!;
+
+      expect(pet.nickname).toBe("ZZZZZZZZZZ");
+      expect(JSON.parse(ObjectSerializer.serialize(pet)).nickname).toBe(
+        "ZZZZZZZZZZ",
+      );
+    });
+
+    test("a slug is constructed and decoded as written, whatever its pattern says", () => {
+      expect(new EdgeCases({ slug: "12/ab" }).slug).toBe("12/ab");
+      const decoded = ObjectSerializer.deserialize(
+        { slug: "12/ab" },
+        EdgeCases,
+      )!;
+
+      expect(decoded.slug).toBe("12/ab");
+      expect(JSON.parse(ObjectSerializer.serialize(decoded)).slug).toBe(
+        "12/ab",
+      );
+      expect(
+        ObjectSerializer.deserialize({ slug: "ab/12" }, EdgeCases)!.slug,
+      ).toBe("ab/12");
     });
 
     test("a prefixItems location decodes as a heterogeneous array and re-encodes unchanged", () => {

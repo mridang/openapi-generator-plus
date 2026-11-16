@@ -88,6 +88,26 @@ describe Petstore::Client::DefaultApiClient do
     _(seen.values).must_equal ['caller']
   end
 
+  it 'leaves the default headers off a request that asks for none, keeping the SDK headers' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') do |env|
+        seen = env.request_headers.to_h.transform_keys(&:downcase)
+        [200, {}, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder
+      .default_headers({ 'X-Token' => 'default' }).user_agent('sdk-ua/1').build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/echo', { 'Accept' => 'application/json' }, nil,
+                          no_default_headers: true)
+    end
+    _(seen).wont_include 'x-token'
+    _(seen['user-agent']).must_equal 'sdk-ua/1'
+    _(seen['accept']).must_equal 'application/json'
+  end
+
   def sent_query(query)
     sent = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -618,6 +638,32 @@ describe Petstore::Client::DefaultApiClient do
     end
     _(captured_body.to_s).must_include 'Content-Type: application/pdf'
     stubs.verify_stubbed_calls
+  end
+
+  {
+    'photo.jpg' => 'image/jpeg',
+    'photo.jpeg' => 'image/jpeg',
+    'anim.gif' => 'image/gif',
+    'data.json' => 'application/json'
+  }.each do |filename, mime|
+    it "sets #{mime} for a #{File.extname(filename)} upload" do
+      captured_body = nil
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/upload') do |env|
+          captured_body = env.body
+          [200, {}, '{}']
+        end
+      end
+      require 'stringio'
+      io = StringIO.new('bytes')
+      io.define_singleton_method(:path) { filename }
+      client = Petstore::Client::DefaultApiClient.new
+      client.stub(:build_connection, stub_connection(stubs)) do
+        client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+      end
+      _(captured_body.to_s).must_include "Content-Type: #{mime}"
+      stubs.verify_stubbed_calls
+    end
   end
 
   it 'falls back to application/octet-stream for unknown extension' do
@@ -1844,5 +1890,18 @@ describe Petstore::Client::DefaultApiClient do
     _(outcome.status_code).must_equal 503
     _(envs.length).must_equal 1
     _(delays).must_be_empty
+  end
+end
+
+# The SDK follows redirects itself (so credentials can be stripped per origin),
+# so it must not depend on, or load, Faraday's own redirect middleware.
+describe 'Petstore::Client redirect dependencies' do
+  it 'does not load the Faraday follow_redirects middleware' do
+    _($LOADED_FEATURES.grep(%r{faraday/follow_redirects})).must_be_empty
+  end
+
+  it 'does not declare the faraday-follow_redirects gem' do
+    spec = Gem::Specification.load('petstore_client.gemspec')
+    _(spec.runtime_dependencies.map(&:name)).wont_include 'faraday-follow_redirects'
   end
 end

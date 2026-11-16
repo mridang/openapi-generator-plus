@@ -144,7 +144,13 @@ module Petstore::Client
           end
 
           headers = { 'Accept' => 'application/json' }
-          response = client.send_request(:get, @openid_connect_url, headers, nil)
+          response = if client.is_a?(::Petstore::Client::DefaultApiClient)
+                       # Discovery goes to the identity provider: the transport's
+                       # default headers (meant for the API) stay off it.
+                       client.send_request(:get, @openid_connect_url, headers, nil, no_default_headers: true)
+                     else
+                       client.send_request(:get, @openid_connect_url, headers, nil)
+                     end
           # Guard the discovery HTTP status before parsing: a 500 returning
           # an HTML error page would otherwise surface as a confusing
           # "invalid JSON" error. Surface the real failure instead, as the

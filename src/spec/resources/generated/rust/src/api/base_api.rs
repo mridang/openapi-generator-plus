@@ -227,8 +227,12 @@ impl BaseApi {
              * mistake, reported as ConfigurationError::InvalidArgument. */
             let cookies = auth.cookie_params();
             if !cookies.is_empty() {
+                /* A map has no order, so the cookies are written sorted by
+                 * name and the header bytes are the same on every run. */
+                let mut ordered: Vec<(&String, &String)> = cookies.iter().collect();
+                ordered.sort();
                 let mut cookie_parts: Vec<String> = Vec::with_capacity(cookies.len());
-                for (k, v) in &cookies {
+                for (k, v) in ordered {
                     if !is_valid_cookie_name(k) {
                         return Err(Box::new(ConfigurationError::InvalidArgument(format!(
                             "Cookie name '{}' contains characters forbidden by RFC 6265",

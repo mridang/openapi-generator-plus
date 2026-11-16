@@ -11,6 +11,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    SerializationInfo,
     ValidationInfo,
     model_serializer,
     model_validator,
@@ -108,7 +109,7 @@ class Metadata(BaseModel):
 
     @model_serializer(mode="wrap")
     def _flatten_additional_properties(
-        self, handler: Callable[[Any], Dict[str, Any]]
+        self, handler: Callable[[Any], Dict[str, Any]], info: SerializationInfo
     ) -> Dict[str, Any]:
         """Re-flatten additional_properties to top level on serialize.
 

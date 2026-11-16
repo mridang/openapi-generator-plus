@@ -237,7 +237,7 @@ impl ApiClient for DefaultApiClient {
                         "ApiClient has been closed and can no longer send requests".to_string(),
                     )) as Box<dyn std::error::Error + Send + Sync>
                 })?;
-            let mut merged: HashMap<String, String> = if options.skip_default_headers {
+            let mut merged: HashMap<String, String> = if options.no_redirect {
                 HashMap::new()
             } else {
                 self.transport_options.default_headers()
@@ -1715,6 +1715,17 @@ mod tests {
             directive.starts_with("filename=\""),
             "must still include an ASCII fallback filename=\"...\", got: {}",
             directive
+        );
+    }
+
+    /* F1136: a filename outside the BMP (an emoji) is one character, so the
+     * ASCII fallback has one underscore for it, and filename* carries its four
+     * UTF-8 bytes. */
+    #[test]
+    fn test_build_filename_directive_non_bmp_character_is_one_underscore_in_the_fallback() {
+        assert_eq!(
+            "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
+            build_filename_directive("\u{1F600}.png")
         );
     }
 

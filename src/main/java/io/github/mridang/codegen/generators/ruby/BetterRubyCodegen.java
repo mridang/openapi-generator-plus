@@ -1287,6 +1287,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     @Override
     protected String generateOptionsFileContent(
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        capturePluralExamplesForParameters(optionsParams);
         final List<Map<String, Object>> params = new ArrayList<>();
         boolean hasAnyRequired = false;
         for (final CodegenParameter p : optionsParams) {

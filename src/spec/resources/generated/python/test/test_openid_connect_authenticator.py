@@ -257,6 +257,64 @@ def _discovery_client(cache_control: Any) -> MagicMock:
     return mock_client
 
 
+def _client_serving(document: dict[str, str]) -> MagicMock:
+    mock_client = MagicMock()
+    mock_client.send_request.return_value = ApiHttpResponse(
+        status_code=200,
+        body=json.dumps(document),
+        headers={"content-type": "application/json"},
+    )
+    return mock_client
+
+
+class TestDiscoveryDocumentIsChecked:
+    _OK = {
+        "authorization_endpoint": "https://auth.example.com/authorize",
+        "token_endpoint": "https://auth.example.com/token",
+    }
+
+    def _authenticator_serving(self, **overrides: str) -> OpenIdConnectAuthenticator:
+        auth = _create_authenticator()
+        auth.set_api_client(_client_serving({**self._OK, **overrides}))
+        return auth
+
+    def test_an_issuer_for_another_server_is_rejected(self) -> None:
+        auth = self._authenticator_serving(issuer="https://evil.example.com")
+        with pytest.raises(
+            SerializationException,
+            match="OIDC discovery issuer does not match the discovery URL",
+        ):
+            auth.build_authorization_url()
+
+    def test_an_issuer_with_a_trailing_slash_is_accepted(self) -> None:
+        auth = self._authenticator_serving(issuer="https://auth.example.com/")
+        assert auth.build_authorization_url().startswith(
+            "https://auth.example.com/authorize?"
+        )
+
+    def test_a_document_without_an_issuer_is_accepted(self) -> None:
+        auth = self._authenticator_serving()
+        assert auth.build_authorization_url().startswith(
+            "https://auth.example.com/authorize?"
+        )
+
+    @pytest.mark.parametrize("field", ["authorization_endpoint", "token_endpoint"])
+    def test_a_clear_text_endpoint_is_rejected(self, field: str) -> None:
+        auth = self._authenticator_serving(**{field: "http://auth.example.com/x"})
+        with pytest.raises(
+            SerializationException, match=f"OIDC discovery '{field}' must use https"
+        ):
+            auth.build_authorization_url()
+
+    def test_a_loopback_http_endpoint_is_accepted(self) -> None:
+        auth = self._authenticator_serving(
+            authorization_endpoint="http://localhost:8080/authorize"
+        )
+        assert auth.build_authorization_url().startswith(
+            "http://localhost:8080/authorize?"
+        )
+
+
 class TestDiscoveryCacheLifetime:
     @pytest.mark.parametrize(
         ("headers", "expected"),

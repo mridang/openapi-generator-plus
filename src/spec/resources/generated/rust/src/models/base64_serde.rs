@@ -97,8 +97,12 @@ pub mod map {
         data: &HashMap<String, Vec<u8>>,
         s: S,
     ) -> Result<S::Ok, S::Error> {
-        let mut map = s.serialize_map(Some(data.len()))?;
-        for (k, v) in data {
+        /* Ascending key order, so the bytes do not depend on the per-process
+         * `HashMap` order (F1090). */
+        let mut entries: Vec<(&String, &Vec<u8>)> = data.iter().collect();
+        entries.sort_by(|a, b| a.0.cmp(b.0));
+        let mut map = s.serialize_map(Some(entries.len()))?;
+        for (k, v) in entries {
             map.serialize_entry(k, &STANDARD.encode(v))?;
         }
         map.end()
@@ -152,5 +156,70 @@ pub mod map_option {
                 .map(Some),
             None => Ok(None),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::{Deserialize, Serialize};
+    use std::collections::HashMap;
+
+    #[derive(Serialize, Deserialize)]
+    struct Bare {
+        #[serde(with = "super::map")]
+        blobs: HashMap<String, Vec<u8>>,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct Optional {
+        #[serde(with = "super::map_option")]
+        blobs: Option<HashMap<String, Vec<u8>>>,
+    }
+
+    fn blobs() -> HashMap<String, Vec<u8>> {
+        (0..16u8)
+            .rev()
+            .map(|i| (format!("key{:02}", i), vec![i]))
+            .collect()
+    }
+
+    fn expected() -> String {
+        let entries: Vec<String> = (0..16u8)
+            .map(|i| {
+                use base64::{engine::general_purpose::STANDARD, Engine as _};
+                format!("\"key{:02}\":\"{}\"", i, STANDARD.encode([i]))
+            })
+            .collect();
+        let mut json = String::from("{\"blobs\":");
+        json.push('{');
+        json.push_str(&entries.join(","));
+        json.push_str("}}");
+        json
+    }
+
+    /* A map of byte arrays is written in ascending key order, so the body
+     * bytes are the same in every process. */
+    #[test]
+    fn test_map_of_byte_arrays_is_written_in_ascending_key_order() {
+        let json = serde_json::to_string(&Bare { blobs: blobs() }).expect("serializes");
+        assert_eq!(expected(), json);
+    }
+
+    #[test]
+    fn test_optional_map_of_byte_arrays_is_written_in_ascending_key_order() {
+        let json = serde_json::to_string(&Optional {
+            blobs: Some(blobs()),
+        })
+        .expect("serializes");
+        assert_eq!(expected(), json);
+        let none = serde_json::to_string(&Optional { blobs: None }).expect("serializes");
+        assert_eq!("{\"blobs\":null}", none);
+    }
+
+    #[test]
+    fn test_map_of_byte_arrays_round_trips_by_content() {
+        let json = serde_json::to_string(&Bare { blobs: blobs() }).expect("serializes");
+        let back: Bare = serde_json::from_str(&json).expect("deserializes");
+        assert_eq!(blobs(), back.blobs);
     }
 }

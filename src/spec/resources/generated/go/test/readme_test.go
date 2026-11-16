@@ -92,3 +92,45 @@ func TestReadme_ConfigurationSectionDocumentsTheRetries(t *testing.T) {
 		}
 	}
 }
+
+func TestReadme_HasTheSharedSectionsInTheSharedOrder(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	position := -1
+	for _, heading := range []string{
+		"## Installation", "## Usage", "## Configuration", "### Raw responses", "### Timeouts", "### Retries",
+		"### Expired tokens", "### Request id", "### Cancellation", "### Custom HTTP client", "## Build", "## Test",
+		"## Caveats", "### Schema constraints", "## Not supported", "### Webhooks and callbacks",
+		"### XML bodies and `nodeType`", "### Link Objects", "### Mutual TLS security schemes",
+	} {
+		next := strings.Index(readme, "\n"+heading+"\n")
+		if next < 0 {
+			t.Errorf("expected the README to contain the heading %q", heading)
+			continue
+		}
+		if next < position {
+			t.Errorf("expected the heading %q to come after the previous one", heading)
+		}
+		position = next
+	}
+	if !strings.Contains(readme, "go get petstore") {
+		t.Errorf("expected the README to carry the install command")
+	}
+}
+
+func TestSkills_ConfigurationHasTheSharedSubsectionsInTheSharedOrder(t *testing.T) {
+	t.Parallel()
+	skills := readSourceFile(t, "../SKILLS.md")
+	position := -1
+	for _, heading := range []string{"### Custom Transport Options", "### Retries", "### Custom HTTP client", "### Cancellation", "### Raw responses, timeouts and the request id"} {
+		next := strings.Index(skills, "\n"+heading+"\n")
+		if next < 0 {
+			t.Errorf("expected SKILLS.md to contain the heading %q", heading)
+			continue
+		}
+		if next < position {
+			t.Errorf("expected the heading %q to come after the previous one", heading)
+		}
+		position = next
+	}
+}

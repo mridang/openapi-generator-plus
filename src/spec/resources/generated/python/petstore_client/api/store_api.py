@@ -15,6 +15,7 @@ from petstore_client.models.category import Category
 from petstore_client.models.defaults import Defaults
 from petstore_client.models.department import Department
 from petstore_client.models.order import Order
+from petstore_client.models.reserve_stock_response import ReserveStockResponse
 from petstore_client.models.stock_item import StockItem
 from petstore_client.models.swatch import Swatch
 from petstore_client.models.tree_node import TreeNode
@@ -974,6 +975,57 @@ class StoreApi(BaseApi):
             "Order",
             None,
             operation_name="place_order",
+        )
+
+    async def reserve_stock(
+        self,
+    ) -> ReserveStockResponse:
+        """Reserve stock, answering with the existing or a new reservation
+        Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+
+        :return: ReserveStockResponse
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.reserve_stock_with_http_info()
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for reserve_stock but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def reserve_stock_with_http_info(
+        self,
+    ) -> "ApiResult[ReserveStockResponse]":
+        """Reserve stock, answering with the existing or a new reservation (with HTTP info)
+        Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/reservation"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "POST",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "ReserveStockResponse",
+            NO_AUTH,
+            operation_name="reserve_stock",
         )
 
     async def search_store(

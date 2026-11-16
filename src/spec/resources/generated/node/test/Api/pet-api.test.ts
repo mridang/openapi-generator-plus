@@ -1409,6 +1409,19 @@ describe("PetApi against a recording client", () => {
     expect(recorded[0]!.url).toContain("/pet/byName/a..b?");
   });
 
+  test.each(["a$&b", "US$$", "x$'y", "$1"])(
+    "getPetByName puts the value %p in the path as written, never as a replacement pattern",
+    async (name) => {
+      await recordingApi.getPetByName(name, {
+        category: "sample",
+        xCorrelationId: "sample-correlation",
+      });
+
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]!.url).toContain(`/pet/byName/${name}?`);
+    },
+  );
+
   test("getPetTag percent-encodes # in an allowReserved value", async () => {
     await recordingApi.getPetTag(5, "sample", {
       revision: "v1.0/beta:rc1#frag",

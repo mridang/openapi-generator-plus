@@ -374,6 +374,24 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Applies {@link #toModelName} to a reference to a schema named like a
+     * standard-library type. The base class returns the raw schema name for a
+     * {@code $ref}, so without this a property typed {@code Result} would
+     * resolve to {@code kotlin.Result} while the model file declares
+     * {@code ModelResult}. Only references are rewritten: the mapped
+     * {@code List}, {@code Map} and {@code Set} types keep their names.
+     */
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        if (schema != null && schema.get$ref() != null && KOTLIN_BUILT_IN_TYPES.contains(type)) {
+            return toModelName(type);
+        }
+        return type;
+    }
+
+    /**
      * The names the generated operations add to their own signature or declare as
      * locals, so a path or body parameter that carries one is suffixed instead of
      * redeclaring it (F1055).

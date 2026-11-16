@@ -24,6 +24,7 @@ import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department
 import com.example.petstore.models.Order
+import com.example.petstore.models.ReserveStockResponse
 import com.example.petstore.models.StockItem
 import com.example.petstore.models.Swatch
 import com.example.petstore.models.TreeNode
@@ -670,6 +671,42 @@ class StoreApi : BaseApi {
             "application/json",
             null,
             "StoreApi.placeOrder",
+        )
+    }
+
+    /**
+     * Reserve stock, answering with the existing or a new reservation
+     * Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+
+     * @return ReserveStockResponse
+     * @throws ApiException if fails to make API call
+     */
+    suspend fun reserveStock(): ReserveStockResponse =
+        reserveStockWithHttpInfo().let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for reserveStock but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [reserveStock] but returns the full [ApiResult] (status code, headers and body). */
+    suspend fun reserveStockWithHttpInfo(): ApiResult<ReserveStockResponse> {
+        var path = "/store/reservation"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<ReserveStockResponse>(
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            NoAuth,
+            "StoreApi.reserveStock",
         )
     }
 

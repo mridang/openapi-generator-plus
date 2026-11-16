@@ -42,6 +42,12 @@ describe Petstore::Client::TransportOptions do
     _(opts.user_agent).wont_be_empty
   end
 
+  it 'user_agent defaults to the published gem name, the version and the language' do
+    opts = Petstore::Client::TransportOptions.builder.build
+    _(opts.user_agent).must_equal 'petstore_client/1.0.0 (ruby)'
+    _(opts.user_agent).must_match(%r{\A[A-Za-z0-9_.-]+/\d+\.\d+\.\d+\S* \(ruby\)\z})
+  end
+
   it 'default_headers defaults to empty map' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.default_headers).must_be_empty
@@ -127,6 +133,19 @@ describe Petstore::Client::TransportOptions do
       Petstore::Client::TransportOptions.builder.proxy('http://[bad').build
     end
     _(error).must_be_instance_of ArgumentError
+  end
+
+  it 'a proxy URL with an IPv6 literal host is accepted and kept verbatim' do
+    opts = Petstore::Client::TransportOptions.builder.proxy('http://[::1]:3128').build
+    _(opts.proxy).must_equal 'http://[::1]:3128'
+  end
+
+  it 'a proxy URL with an unterminated IPv6 literal is refused' do
+    error = assert_raises(ArgumentError) do
+      Petstore::Client::TransportOptions.builder.proxy('http://[::1:3128').build
+    end
+    _(error.message).must_start_with 'Invalid proxy URL ('
+    _(error.message).must_end_with '): http://[::1:3128'
   end
 
   it 'constructing directly with a non-http proxy scheme raises ArgumentError' do

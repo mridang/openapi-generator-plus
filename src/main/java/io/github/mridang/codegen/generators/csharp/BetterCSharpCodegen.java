@@ -903,6 +903,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @Override
     protected String generateOptionsFileContent(
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        /* The shared pass that attaches the named examples runs after the
+         * options files are written, so attach them to these parameters first. */
+        capturePluralExamplesForParameters(optionsParams);
         final List<Map<String, Object>> params = new ArrayList<>();
         boolean hasAnyModelImports = false;
         for (final CodegenParameter p : optionsParams) {

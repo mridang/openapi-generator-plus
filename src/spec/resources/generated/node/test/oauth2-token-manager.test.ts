@@ -382,6 +382,49 @@ describe("OAuth2TokenManager", () => {
     expect((error as Error).message).toBe("Token response is not valid JSON");
   });
 
+  test.each([
+    [
+      "is not valid JSON",
+      '{"access_token":',
+      "Token response is not valid JSON",
+    ],
+    [
+      "is not a JSON object",
+      '["access_token"]',
+      "Token response is not a JSON object",
+    ],
+    ["is a bare JSON string", '"tok"', "Token response is not a JSON object"],
+    [
+      "has no access_token",
+      JSON.stringify({ refresh_token: "x" }),
+      "Token response missing or empty access_token field",
+    ],
+    [
+      "has an empty access_token",
+      JSON.stringify({ access_token: "" }),
+      "Token response missing or empty access_token field",
+    ],
+    [
+      "has a non-string access_token",
+      JSON.stringify({ access_token: 7 }),
+      "Token response missing or empty access_token field",
+    ],
+  ])(
+    "a 2xx token response that %s says exactly that",
+    async (_label, body, message) => {
+      mockClient.responseStatus = 200;
+      mockClient.responseBody = body;
+
+      const error = await tokenManager
+        .getAccessToken("https://auth.example.com/token", {
+          grant_type: "client_credentials",
+        })
+        .catch((e: unknown) => e);
+      expect((error as Error).constructor).toBe(OAuth2TokenError);
+      expect((error as Error).message).toBe(message);
+    },
+  );
+
   test.each(["0x10", "1e3", "3600d", "Infinity", "+3600"])(
     "expires_in %p is not a decimal number and marks the token stale",
     async (raw) => {

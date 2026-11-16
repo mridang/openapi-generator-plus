@@ -54,4 +54,16 @@ public class ServerVariableTest
         Assert.Equal(first.Description, second.Description);
         Assert.Equal(first.EnumValues, second.EnumValues);
     }
+
+    [Fact]
+    public void CopiesTheCallersEnumListAtConstruction()
+    {
+        var allowed = new List<string> { "api", "staging" };
+        var variable = new ServerVariable("api", null, allowed);
+
+        allowed.Add("prod");
+        allowed[0] = "changed";
+
+        Assert.Equal(new[] { "api", "staging" }, variable.EnumValues);
+    }
 }

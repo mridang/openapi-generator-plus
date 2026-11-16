@@ -131,6 +131,41 @@ defmodule PetstoreClient.Api.StoreApiTest do
              PetstoreClient.Api.StoreApi.place_order(api, order)
   end
 
+  # F1161: the typed status routes of the mock answer getOrderById with each
+  # status, and the matching status-specific error struct is chosen. The route
+  # /test/status/<code>/store/order/<id> is reached by putting the status in
+  # the base URL.
+  test "get_order_by_id picks the status-specific error struct for each typed route" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(max_retries: 0))
+
+    cases = [
+      {400, PetstoreClient.Errors.BadRequestError},
+      {401, PetstoreClient.Errors.UnauthorizedError},
+      {403, PetstoreClient.Errors.ForbiddenError},
+      {409, PetstoreClient.Errors.ConflictError},
+      {418, PetstoreClient.Errors.ClientError},
+      {422, PetstoreClient.Errors.UnprocessableEntityError},
+      {502, PetstoreClient.Errors.ServerError}
+    ]
+
+    for {status, module} <- cases do
+      config =
+        PetstoreClient.Configuration.new(
+          base_url: "#{chasm_url}/test/status/#{status}",
+          default_headers: %{}
+        )
+
+      api = PetstoreClient.Api.StoreApi.new(client, config)
+
+      assert {:error, error} = PetstoreClient.Api.StoreApi.get_order_by_id(api, 1)
+      assert error.__struct__ == module
+      assert error.status_code == status
+    end
+  end
+
   test "delete_order 404 returns error" do
     api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
 

@@ -18,6 +18,12 @@ from typing import Optional, Dict
 class FindPetsByStatusOptions:
     """Options for the find_pets_by_status operation."""
 
+    # Example for `status`: Available only
+    # Show only pets currently in stock
+    # >>> available
+    # Example for `status`: Sold pets
+    # Show pets that have been sold
+    # >>> sold
     # .. deprecated:: This parameter is deprecated.
     status: Optional[StrictStr] = None
     filter: Optional[Dict[str, StrictStr]] = None

@@ -133,6 +133,12 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
           "on HttpAwareAuthenticator before making API requests.",
       );
     }
+    /* The discovery document names the endpoints that later receive the
+     * client secret, the authorization code and the refresh token, so it is
+     * only fetched over https (or from a loopback host, RFC 8252 section 8.3). */
+    if (!OpenIdConnectAuthenticator.isSecureOrLoopback(this.openIdConnectUrl)) {
+      throw new TypeError("OIDC discovery URL must use https");
+    }
     const response = await this.apiClient.sendRequest(
       "GET",
       this.openIdConnectUrl,
@@ -167,6 +173,7 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       );
     }
     const discovery = parsed as Record<string, unknown>;
+    this.requireMatchingIssuer(discovery);
     /* Reject a malformed/partial discovery document before building the
      * delegate: an absent/null/empty authorization_endpoint or
      * token_endpoint would otherwise be passed through as `undefined` and
@@ -187,6 +194,16 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
         "OIDC discovery document is missing 'token_endpoint'",
       );
     }
+    for (const [field, endpoint] of [
+      ["authorization_endpoint", authorizationEndpoint],
+      ["token_endpoint", tokenEndpoint],
+    ]) {
+      if (!OpenIdConnectAuthenticator.isSecureOrLoopback(endpoint)) {
+        throw new SerializationError(
+          `OIDC discovery document field must be an https URL: ${field}`,
+        );
+      }
+    }
     const delegate = new OAuth2AuthorizationCodeAuthenticator(
       this.host,
       this.clientId,
@@ -205,6 +222,54 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       Date.now() +
       OpenIdConnectAuthenticator.parseMaxAge(response.headers) * 1000;
     return delegate;
+  }
+
+  /**
+   * Reject a discovery document whose `issuer` differs from the discovery URL
+   * without its `/.well-known/openid-configuration` suffix (OpenID Connect
+   * Discovery 1.0 section 4.3), compared without a trailing slash. A document
+   * without a string issuer, or a discovery URL of another shape, is not
+   * checked.
+   *
+   * @throws SerializationError if the issuer does not match
+   */
+  private requireMatchingIssuer(discovery: Record<string, unknown>): void {
+    const suffix = "/.well-known/openid-configuration";
+    const issuer = discovery.issuer;
+    if (typeof issuer !== "string" || !this.openIdConnectUrl.endsWith(suffix)) {
+      return;
+    }
+    const expected = this.openIdConnectUrl.slice(
+      0,
+      this.openIdConnectUrl.length - suffix.length,
+    );
+    if (issuer.replace(/\/$/, "") !== expected.replace(/\/$/, "")) {
+      throw new SerializationError(
+        "OIDC discovery document issuer does not match the discovery URL",
+      );
+    }
+  }
+
+  /**
+   * An https URL, or an http URL whose host is a loopback address (RFC 8252
+   * section 8.3); anything unparseable is refused.
+   */
+  private static isSecureOrLoopback(url: string): boolean {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return false;
+    }
+    if (parsed.protocol === "https:") {
+      return true;
+    }
+    return (
+      parsed.protocol === "http:" &&
+      (parsed.hostname === "localhost" ||
+        parsed.hostname === "127.0.0.1" ||
+        parsed.hostname === "[::1]")
+    );
   }
 
   /**

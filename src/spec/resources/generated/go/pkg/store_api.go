@@ -1715,6 +1715,113 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order) (*A
 	}, nil
 }
 
+// ReserveStock Reserve stock, answering with the existing or a new reservation
+// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+func (a *StoreApi) ReserveStock(ctx context.Context) (*ReserveStockResponse, error) {
+	result, err := a.ReserveStockWithHTTPInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("ReserveStock", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// ReserveStockWithHTTPInfo performs the ReserveStock operation and returns the full API result.
+func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context) (*ApiResult[ReserveStockResponse], error) {
+
+	path := "/store/reservation"
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		order:        []string{},
+		method:       "POST",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "ReserveStockResponse",
+		auth:         noAuth,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data ReserveStockResponse
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *ReserveStockResponse
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[ReserveStockResponse]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, decErr
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.ReserveStock: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[ReserveStockResponse]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
 // SearchStore Searches the store; exercises content-encoded, Set and time-of-day parameters.
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param q: JSON-encoded query parameter (OAS `content`, not `schema`)

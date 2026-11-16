@@ -331,6 +331,83 @@ func TestOpenIdConnect_MissingTokenEndpointErrors(t *testing.T) {
 	}
 }
 
+// OIDC Discovery 1.0 section 4.3: a document whose issuer is not the URL it was
+// fetched from is refused; one without an issuer, or with a matching one
+// (trailing slash aside), is accepted.
+func TestOpenIdConnect_DiscoveryIssuerMustMatchTheDiscoveryUrl(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		issuer   string
+		accepted bool
+	}{
+		{`"issuer":"https://auth.example.com",`, true},
+		{`"issuer":"https://auth.example.com/",`, true},
+		{``, true},
+		{`"issuer":"https://evil.example.com",`, false},
+	}
+	for _, tc := range cases {
+		client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+			{body: `{` + tc.issuer + `"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+		}}
+		authObj := createOpenIdConnectAuthenticator()
+		authObj.SetApiClient(client)
+		_, err := authObj.BuildAuthorizationURL("")
+		if tc.accepted {
+			if err != nil {
+				t.Errorf("%q: expected the document to be accepted, got %v", tc.issuer, err)
+			}
+			continue
+		}
+		var serErr *apierrors.SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%q: expected *SerializationError, got %T: %v", tc.issuer, err, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "oidc discovery document issuer does not match the discovery URL") {
+			t.Errorf("%q: unexpected message %v", tc.issuer, err)
+		}
+	}
+}
+
+// The code and the client secret travel to the discovered endpoints: clear text
+// is refused unless the host is loopback.
+func TestOpenIdConnect_DiscoveryRefusesClearTextEndpointsExceptLoopback(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		endpoint string
+		accepted bool
+	}{
+		{"https://idp.example.com/token", true},
+		{"http://127.0.0.1:8080/token", true},
+		{"http://localhost:8080/token", true},
+		{"http://[::1]:8080/token", true},
+		{"http://idp.example.com/token", false},
+		{"ftp://idp.example.com/token", false},
+	}
+	for _, tc := range cases {
+		client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+			{body: `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"` + tc.endpoint + `"}`, statusCode: 200},
+		}}
+		authObj := createOpenIdConnectAuthenticator()
+		authObj.SetApiClient(client)
+		_, err := authObj.BuildAuthorizationURL("")
+		if tc.accepted {
+			if err != nil {
+				t.Errorf("%q: expected the endpoint to be accepted, got %v", tc.endpoint, err)
+			}
+			continue
+		}
+		var serErr *apierrors.SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%q: expected *SerializationError, got %T: %v", tc.endpoint, err, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "oidc discovery token_endpoint must use https") {
+			t.Errorf("%q: unexpected message %v", tc.endpoint, err)
+		}
+	}
+}
+
 // oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
 // surface as a status error, not a misleading JSON-parse failure.
 func TestOpenIdConnect_DiscoveryNon2xxErrors(t *testing.T) {
@@ -376,7 +453,7 @@ func TestOpenIdConnect_GetHostReturnsConfiguredHost(t *testing.T) {
 	}
 }
 
-func TestOpenIdConnectRedactsSecret(t *testing.T) {
+func TestOpenIdConnect_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	authObj := createOpenIdConnectAuthenticator()
 	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj)} {

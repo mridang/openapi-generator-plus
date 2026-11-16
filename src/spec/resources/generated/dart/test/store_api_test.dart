@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -20,6 +20,27 @@ StoreApi _newStoreApiForIntegration() {
       .build();
   final client = DefaultApiClient();
   return StoreApi(apiClient: client, config: config);
+}
+
+/// Serves [body] as JSON for every request, so a response shape can be
+/// decoded without the mock container.
+Future<HttpServer> _serveJson(String body) async {
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  server.listen((request) {
+    request.response
+      ..statusCode = 200
+      ..headers.contentType = ContentType.json
+      ..write(body)
+      ..close();
+  });
+  return server;
+}
+
+StoreApi _storeApiFor(HttpServer server) {
+  final config = ConfigurationBuilder()
+      .baseUrl('http://localhost:${server.port}')
+      .build();
+  return StoreApi(apiClient: DefaultApiClient(), config: config);
 }
 
 void main() {
@@ -480,6 +501,80 @@ void main() {
         final ts = result[0]['t'];
         expect(ts, isA<DateTime>());
         expect(ts!.toUtc().year, equals(2020));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('getSwatch decodes a bare enum', () async {
+      final server = await _serveJson('"green"');
+      try {
+        expect(await _storeApiFor(server).getSwatch(), equals(Swatch.green));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('getTree decodes the self-recursive model', () async {
+      final server = await _serveJson(
+        '{"value":"a","child":{"value":"b","child":{"value":"c"}}}',
+      );
+      try {
+        final tree = await _storeApiFor(server).getTree();
+        expect(tree.value, equals('a'));
+        expect(tree.child?.value, equals('b'));
+        expect(tree.child?.child?.value, equals('c'));
+        expect(tree.child?.child?.child, isNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('getDepartment decodes the mutually recursive models', () async {
+      final server = await _serveJson(
+        '{"name":"d","lead":{"name":"e","department":{"name":"d2"}}}',
+      );
+      try {
+        final department = await _storeApiFor(server).getDepartment();
+        expect(department.name, equals('d'));
+        expect(department.lead?.name, equals('e'));
+        expect(department.lead?.department?.name, equals('d2'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test(
+      'getDefaults applies the typed schema defaults to an empty object',
+      () async {
+        final server = await _serveJson('{}');
+        try {
+          final defaults = await _storeApiFor(server).getDefaults();
+          expect(defaults.retries, equals(3));
+          expect(defaults.label, equals('untitled'));
+          expect(defaults.ratio, equals(1.5));
+          expect(defaults.scale, equals(0.25));
+          expect(defaults.weight, equals(2.0));
+          expect(defaults.ceiling, equals(9000000000));
+          expect(defaults.swatch, equals(Swatch.green));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test('getStockItem decodes the int enum and the nested arrays', () async {
+      final server = await _serveJson('{"priority":2,"matrix":[[1,2],[3]]}');
+      try {
+        final item = await _storeApiFor(server).getStockItem(null);
+        expect(item.priority, equals(Priority.number2));
+        expect(
+          item.matrix,
+          equals([
+            [1, 2],
+            [3],
+          ]),
+        );
       } finally {
         await server.close();
       }

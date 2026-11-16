@@ -496,6 +496,14 @@ class TestOAuth2TokenManager:
                 '{"access_token": ""}',
                 "Token response missing or empty access_token field",
             ),
+            (
+                '{"access_token": "t", "token_type": "DPoP"}',
+                "Unsupported token_type in token response",
+            ),
+            (
+                '{"access_token": "t", "token_type": 7}',
+                "Unsupported token_type in token response",
+            ),
         ],
     )
     def test_token_error_messages_are_the_canonical_text(
@@ -516,6 +524,25 @@ class TestOAuth2TokenManager:
                 {"grant_type": "client_credentials"},
             )
         assert str(exc_info.value) == message
+
+    @pytest.mark.parametrize("token_type", ["bearer", "Bearer", "BEARER", None])
+    def test_a_bearer_or_absent_token_type_is_accepted(self, token_type: Any) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        payload: dict[str, Any] = {"access_token": "tok", "expires_in": 3600}
+        if token_type is not None:
+            payload["token_type"] = token_type
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps(payload),
+            headers={"content-type": "application/json"},
+        )
+        manager.set_api_client(mock_client)
+
+        token = manager.get_access_token(
+            "https://auth.example.com/token", {"grant_type": "client_credentials"}
+        )
+        assert token == "tok"
 
     def test_token_endpoint_error_response_parsed_to_typed_error(self) -> None:
         # RFC 6749 §5.2: a 4xx response with a JSON error object must surface

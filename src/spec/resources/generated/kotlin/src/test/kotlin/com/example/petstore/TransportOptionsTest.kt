@@ -341,6 +341,16 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("the README names the builder proxy setter in its SOCKS section")
+        fun readmeNamesTheBuilderProxySetter() {
+            val readme = java.io.File("README.md").readText()
+            assertTrue(
+                readme.contains("`TransportOptions.builder().proxy(...)` accepts only `http://` and `https://` URLs."),
+            )
+            assertFalse(readme.contains("`TransportOptions.proxy()`"))
+        }
+
+        @Test
         @DisplayName("an empty or scheme-less proxy URL is rejected with its message")
         fun schemelessProxyUrlIsRejected() {
             for (proxy in listOf("", "proxy:3128", "not a valid url ^%$")) {

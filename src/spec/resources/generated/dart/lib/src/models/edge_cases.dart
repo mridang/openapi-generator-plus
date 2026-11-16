@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -8,7 +8,7 @@
 import '../object_serializer.dart';
 
 import 'color.dart';
-import 'error.dart';
+import 'model_error.dart';
 import 'result.dart';
 import 'separator.dart';
 
@@ -76,7 +76,7 @@ class EdgeCases {
 
   final bool? false_;
 
-  final Error? lastError;
+  final ModelError? lastError;
 
   final Result? outcome;
 
@@ -151,7 +151,7 @@ class EdgeCases {
       false_: json['false'] as bool?,
 
       lastError: json['lastError'] != null
-          ? Error.fromJson(json['lastError'] as Map<String, dynamic>)
+          ? ModelError.fromJson(json['lastError'] as Map<String, dynamic>)
           : null,
       outcome: json['outcome'] != null
           ? Result.fromJson(json['outcome'] as Map<String, dynamic>)
@@ -294,6 +294,8 @@ class EdgeCases {
 
   /// Dumps every field; lists, maps
   /// and byte data render element-wise through Dart's own container output.
+  /// A `format: password` property prints as `***`; the value on the wire is
+  /// unchanged.
   @override
   String toString() =>
       'EdgeCases(freeFormAny: $freeFormAny, favoriteColor: $favoriteColor, permissionsNote: $permissionsNote, and: $and, or: $or, not: $not, class_: $class_, return_: $return_, retryAfter: $retryAfter, expiresAt: $expiresAt, n2fa: $n2fa, separator: $separator, null_: $null_, true_: $true_, false_: $false_, lastError: $lastError, outcome: $outcome, cutoff: $cutoff, phase: $phase, slug: $slug)';

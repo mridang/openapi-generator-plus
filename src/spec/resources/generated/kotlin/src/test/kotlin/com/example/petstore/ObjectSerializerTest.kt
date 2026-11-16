@@ -1389,6 +1389,23 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("constraint keywords are not enforced: slug, nickname and quantity decode as given")
+        fun constraintKeywordsAreNotEnforced() {
+            // F1124: pattern, minLength/maxLength and maximum never reject a value on decode.
+            val edge = serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"slug\":\"12/ab\"}")
+            assertEquals("12/ab", edge!!.slug)
+            assertTrue(serializer.serialize(edge).contains("\"slug\":\"12/ab\""))
+            val pet =
+                serializer.deserialize<com.example.petstore.models.Pet>(
+                    "{\"name\":\"n\",\"photoUrls\":[\"u\"],\"nickname\":\"ZZZZZZZZZZ\"}",
+                )
+            assertEquals("ZZZZZZZZZZ", pet!!.nickname)
+            assertTrue(serializer.serialize(pet).contains("\"nickname\":\"ZZZZZZZZZZ\""))
+            val order = serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":500}")
+            assertEquals(500, order!!.quantity)
+        }
+
+        @Test
         @DisplayName("keyword-named and digit-leading properties keep their wire keys")
         fun keywordAndDigitLeadingPropertiesKeepWireKeys() {
             // F1114/F1113: the identifier is mangled, the wire key never is.

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -223,6 +223,8 @@ class Defaults {
 
   /// Dumps every field; lists, maps
   /// and byte data render element-wise through Dart's own container output.
+  /// A `format: password` property prints as `***`; the value on the wire is
+  /// unchanged.
   @override
   String toString() =>
       'Defaults(retries: $retries, mode: $mode, label: $label, greeting: $greeting, swatch: $swatch, ratio: $ratio, scale: $scale, weight: $weight, ceiling: $ceiling)';

@@ -36,6 +36,7 @@ from ..errors import (
 )
 from ..errors.serialization_exception import SerializationException
 from ..auth.authenticator import Authenticator
+from ..auth.http_aware_authenticator import HttpAwareAuthenticator
 
 T = TypeVar("T")
 
@@ -202,6 +203,16 @@ class BaseApi:
             effective_auth = auth
         else:
             effective_auth = self._authenticator
+
+        # The client injects its transport into the authenticator it was built
+        # with. A per-call OAuth2 or OpenID Connect authenticator was never
+        # given one, so hand it this API's own client before it fetches a token.
+        if (
+            auth is not None
+            and effective_auth is auth
+            and isinstance(auth, HttpAwareAuthenticator)
+        ):
+            auth.set_api_client(self._api_client)
 
         if effective_auth is not None:
             query_params.update(effective_auth.get_query_params())

@@ -56,6 +56,21 @@ class ClientTest {
   }
 
   @Test
+  void customTransportWithoutCloseCanBeClosedTwice() {
+    // F1123: close is on the ApiClient contract with a no-op default, so a
+    // transport that implements only the send method is still closable.
+    ApiClient transport =
+        (method, url, headers, body) -> new ApiHttpResponse(200, "", java.util.Map.of());
+
+    transport.close();
+    transport.close();
+
+    assertEquals(
+        200,
+        transport.sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null).statusCode());
+  }
+
+  @Test
   void constructWithAuthenticatorAndTransportOptions() throws ApiException {
     TransportOptions transport = TransportOptions.builder().build();
 

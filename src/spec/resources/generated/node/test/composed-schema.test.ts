@@ -42,14 +42,14 @@ describe("Composed Schema", () => {
   test("oneOf: a discriminated variant missing its required field is rejected", () => {
     const data = { foodType: "dry" };
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
-      /^Failed to deserialize object: weightKg is required$/,
+      /^Failed to deserialize JSON: weightKg is required$/,
     );
   });
 
   test("oneOf: a discriminated variant with a wrong-typed field is rejected", () => {
     const data = { foodType: "dry", weightKg: "heavy" };
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
-      /^Failed to deserialize object: weightKg must be a number, got string$/,
+      /^Failed to deserialize JSON: weightKg must be a number, got string$/,
     );
   });
 

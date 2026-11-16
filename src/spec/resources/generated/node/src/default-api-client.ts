@@ -83,7 +83,7 @@ export class DefaultApiClient extends AbstractApiClient {
         caCert = fs.readFileSync(caCertPath);
       } catch (e) {
         throw new TypeError(
-          `failed to read CA certificate from "${caCertPath}"`,
+          `failed to read CA certificate from "${caCertPath}": ${e instanceof Error ? e.message : String(e)}`,
           { cause: e },
         );
       }
@@ -168,12 +168,14 @@ export class DefaultApiClient extends AbstractApiClient {
   /**
    * Closes the undici dispatcher (and any underlying connection pool) if one
    * was created, then marks the client closed. After calling this the client
-   * must not be reused.
+   * must not be reused. A request still running through that dispatcher is
+   * aborted (it fails with a {@link NetworkError}) rather than waited for, so
+   * closing never hangs on a call that has no timeout.
    */
   override async close(): Promise<void> {
     this.closed = true;
     if (this.dispatcher != null) {
-      await this.dispatcher.close();
+      await this.dispatcher.destroy();
     }
   }
 }

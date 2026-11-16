@@ -652,6 +652,27 @@ describe Petstore::Client::DefaultApiClient do
     end
   end
 
+  describe 'response shapes through the mock server' do
+    it 'keeps every value of a repeated response header, in order' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+      response = Petstore::Client::DefaultApiClient.new.send_request(:GET, "#{chasm_url}/test/response-headers", {}, nil)
+
+      _(response.headers['x-custom-header']).must_equal('foo')
+      link = response.headers['link']
+      _(link.index('rel="next"')).must_be :<, link.index('rel="prev"')
+      cookies = response.headers['set-cookie']
+      _(cookies.index('a=1')).must_be :<, cookies.index('b=2')
+    end
+
+    it 'returns a 200 without a body as an empty body, not an error' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+      response = Petstore::Client::DefaultApiClient.new.send_request(:GET, "#{chasm_url}/test/empty", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      _(response.body.to_s).must_be_empty
+    end
+  end
+
   describe 'client lifecycle (Gap T6)' do
     # Gap T6: #close releases the underlying connection and is idempotent.
     # A request issued on a closed client must raise the invalid-state

@@ -364,7 +364,7 @@ F1080 (the rendered `ApiError.toString()` cap, escapes and header masks; control
 Each uses the audit's own proposal as the default; none was re-opened with the owner.
 
 ### Enums are a const object plus a literal union (F846)
-Rule: every generated enum (model, inline model field, operation parameter, server variable) is `export const X = { Member: 'wire' } as const;` with `export type X = (typeof X)[keyof typeof X];`. Member access is unchanged (`Availability.OnHold`) and a plain literal (`'on-hold'`, `2`) is assignable. Numeric enums lose the TypeScript reverse mapping, so the membership filters are now a no-op for them but stay.
+Rule: every generated enum (model, inline model field, operation parameter, server variable) is `export const X = { Member: 'wire' } as const;` with `export type X = (typeof X)[keyof typeof X];`. Member access is unchanged (`Availability.OnHold`) and a plain literal (`'on-hold'`, `2`) is assignable. Numeric enums lose the TypeScript reverse mapping, so the membership checks read `Object.values` directly with no reverse-mapping filter.
 Where: `models/model.mustache`, `api/apis.mustache`. Test: `test/object-serializer.test.mustache` (`a model enum accepts its literal wire values`).
 
 ### Closing aborts running requests (F1078)

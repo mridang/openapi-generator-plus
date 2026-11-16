@@ -123,6 +123,10 @@ OAuth2 authenticators resolve the access token by making an HTTP call to the tok
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
 
+#### Expired tokens
+
+When the API answers an OAuth2 or OpenID Connect request with `401`, the authenticator drops the cached access token (`invalidate_access_token()`, the refresh token is kept) and the request is sent once more with fresh headers. A second `401` is reported as `UnauthorizedError`. A multipart body is not replayed; API key, basic and bearer authenticators never replay.
+
 #### Token caching
 
 The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry, or half the lifetime for a token that lives less than two minutes (a 60 second token is reused for 30 seconds). The margin is applied once. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. A token response without `expires_in` is cached until you invalidate it.
@@ -251,9 +255,24 @@ A call is retried up to `max_retries` times (default 2; `.max_retries(0)` disabl
 let transport = TransportOptions::builder().max_retries(0).build()?;
 ```
 
+### Custom HTTP client
+
+```rust
+let http = reqwest::Client::builder()
+    .redirect(reqwest::redirect::Policy::none())
+    .build()?;
+let client = Client::with_http_client(Box::new(authenticator), http, None)?;
+```
+
+The SDK sends every request through your `reqwest::Client` and never shuts it down. Combining it with `proxy`, `ca_cert_path` or `verify_ssl(false)` fails with `ConfigurationError::InvalidArgument`.
+
 ### Cancellation
 
 The SDK adds no cancellation parameter: drop the future to cancel a call, or wrap it in `tokio::time::timeout` or `tokio::select!`. `TransportOptions::timeout` bounds a call and fails with `NetworkTimeoutError`; cancellation is never reported as one.
+
+### Raw responses, timeouts and the request id
+
+Each operation has a `..._with_http_info` variant returning `ApiResult<T>` (`status_code()`, `data()`, `raw_body()`, `headers()`). `timeout` is one end-to-end budget in milliseconds (default 10000). `inject_request_id(true)` adds an `X-Request-ID` header to each request unless you set one.
 
 ## API Methods
 

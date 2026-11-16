@@ -301,6 +301,40 @@ describe("ApiError", () => {
     });
   });
 
+  describe("TooManyRequestsError.retryAfter", () => {
+    const tooMany = (headers: Record<string, string> | null) =>
+      new TooManyRequestsError("m", headers);
+
+    test.each([
+      ["seconds", { "retry-after": "7" }, 7],
+      ["fractional seconds", { "Retry-After": " 1.5 " }, 1.5],
+      [
+        "a date in the past",
+        { "retry-after": "Wed, 21 Oct 2015 07:28:00 GMT" },
+        0,
+      ],
+    ])("reads %s", (_label, headers, expected) => {
+      expect(tooMany(headers).retryAfter).toBe(expected);
+    });
+
+    test("reads an HTTP date as the seconds left until it", () => {
+      const seconds = tooMany({
+        "retry-after": new Date(Date.now() + 30_000).toUTCString(),
+      }).retryAfter;
+      expect(seconds).toBeGreaterThanOrEqual(28);
+      expect(seconds).toBeLessThanOrEqual(31);
+    });
+
+    test.each([
+      ["no headers", null],
+      ["no Retry-After", { "x-other": "1" }],
+      ["an unparseable value", { "retry-after": "soon" }],
+      ["an empty value", { "retry-after": "" }],
+    ])("is null with %s", (_label, headers) => {
+      expect(tooMany(headers).retryAfter).toBeNull();
+    });
+  });
+
   describe("fromResponse", () => {
     test.each([
       [400, BadRequestError],

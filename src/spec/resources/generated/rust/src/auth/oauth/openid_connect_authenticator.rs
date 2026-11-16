@@ -13,7 +13,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::api_client::{ApiClient, RequestOptions};
+use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_authorization_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
 use crate::auth::Authenticator;
@@ -197,13 +197,7 @@ impl OpenIdConnectAuthenticator {
         /* Discovery is an HTTP call like any other: a transport failure is
          * already a NetworkError or NetworkTimeoutError and passes through. */
         let response = client
-            .send_request_with_options(
-                "GET",
-                &self.openid_connect_url,
-                &headers,
-                None,
-                &RequestOptions::new().skip_default_headers(true),
-            )
+            .send_request("GET", &self.openid_connect_url, &headers, None)
             .await?;
 
         /* oauth-oidc-discovery-no-status-check: reject a non-2xx discovery

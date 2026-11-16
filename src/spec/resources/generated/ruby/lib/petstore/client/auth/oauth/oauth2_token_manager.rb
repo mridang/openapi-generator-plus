@@ -202,10 +202,13 @@ module Petstore::Client
           # normalise both ('*' -> %2A, %7E -> '~') so every SDK emits
           # byte-identical bodies (space stays '+' for the form).
           body = URI.encode_www_form(params).gsub('%7E', '~').gsub('*', '%2A')
-          response = client.send_request(
-            :post, token_url, headers, body,
-            no_redirect: true
-          )
+          response = if client.is_a?(::Petstore::Client::DefaultApiClient)
+                       # The token endpoint belongs to the identity provider: the
+                       # transport's default headers (meant for the API) stay off it.
+                       client.send_request(:post, token_url, headers, body, no_redirect: true, no_default_headers: true)
+                     else
+                       client.send_request(:post, token_url, headers, body, no_redirect: true)
+                     end
           status = response.status_code
           # RFC 6749 §3.2 forbids redirects at the token endpoint. With
           # no_redirect: true the transport surfaces the 3xx verbatim rather

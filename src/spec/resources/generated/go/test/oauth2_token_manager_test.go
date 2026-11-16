@@ -457,6 +457,70 @@ func TestOAuth2TokenManager_UnusableAnswersAndTransportFailuresAreTyped(t *testi
 	}
 }
 
+// The three unusable 2xx answers carry fixed text with no parser detail.
+func TestOAuth2TokenManager_UnusableTokenResponsesUseTheFixedMessages(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		body string
+		want string
+	}{
+		{`<html>ok</html>`, "Token response is not valid JSON"},
+		{`{"access_token":`, "Token response is not valid JSON"},
+		{`["a"]`, "Token response is not a JSON object"},
+		{`null`, "Token response is not a JSON object"},
+		{`{"refresh_token":"x"}`, "Token response missing or empty access_token field"},
+		{`{"access_token":""}`, "Token response missing or empty access_token field"},
+	}
+	for _, tc := range cases {
+		manager := oauth.NewOAuth2TokenManager()
+		manager.SetApiClient(newFakeTokenClient(fakeResponse{body: tc.body, statusCode: 200}))
+		_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "client_credentials"})
+		var typed *apierrors.OAuth2TokenError
+		if !errors.As(err, &typed) {
+			t.Errorf("%q: expected *OAuth2TokenError, got %T: %v", tc.body, err, err)
+			continue
+		}
+		if typed.Error() != tc.want {
+			t.Errorf("%q: expected message %q, got %q", tc.body, tc.want, typed.Error())
+		}
+	}
+}
+
+// RFC 6749 section 7.1: only a bearer token (any case) or an absent type is
+// used; the refusal does not echo the issued type.
+func TestOAuth2TokenManager_ATokenTypeThatIsNotBearerIsRefusedWithoutEchoingIt(t *testing.T) {
+	t.Parallel()
+	for _, tokenType := range []string{`"DPoP"`, `"MAC"`, `42`} {
+		manager := oauth.NewOAuth2TokenManager()
+		manager.SetApiClient(newFakeTokenClient(fakeResponse{
+			body: `{"access_token":"tok","token_type":` + tokenType + `}`, statusCode: 200,
+		}))
+		_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "client_credentials"})
+		var typed *apierrors.OAuth2TokenError
+		if !errors.As(err, &typed) {
+			t.Errorf("token_type %s: expected *OAuth2TokenError, got %T: %v", tokenType, err, err)
+			continue
+		}
+		if want := "Unsupported token_type in token response"; typed.Error() != want {
+			t.Errorf("token_type %s: expected message %q, got %q", tokenType, want, typed.Error())
+		}
+	}
+}
+
+func TestOAuth2TokenManager_ABearerOrMissingTokenTypeIsAccepted(t *testing.T) {
+	t.Parallel()
+	for _, tokenType := range []string{`,"token_type":"bearer"`, `,"token_type":"Bearer"`, `,"token_type":"BEARER"`, `,"token_type":null`, ``} {
+		manager := oauth.NewOAuth2TokenManager()
+		manager.SetApiClient(newFakeTokenClient(fakeResponse{
+			body: `{"access_token":"tok"` + tokenType + `}`, statusCode: 200,
+		}))
+		got, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "client_credentials"})
+		if err != nil || got != "tok" {
+			t.Errorf("%q: expected the token, got %q, %v", tokenType, got, err)
+		}
+	}
+}
+
 func TestOAuth2TokenManager_ExpiresInShortLivedTokenDoesNotStorm(t *testing.T) {
 	t.Parallel()
 	// Gap CM: a short-lived token (expires_in < buffer) must produce exactly

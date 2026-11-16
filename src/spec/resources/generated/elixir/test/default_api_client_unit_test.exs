@@ -345,8 +345,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     client = PetstoreClient.DefaultApiClient.new()
     PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
     assert_receive {:captured_headers, headers}, 5000
-    assert headers["user-agent"] != nil
-    assert String.length(headers["user-agent"]) > 0
+    assert headers["user-agent"] == "petstore_client/1.0.0 (elixir)"
   end
 
   test "injects X-Request-ID when enabled" do
@@ -794,6 +793,15 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute PetstoreClient.Errors.NetworkError.network_error?(err)
   end
 
+  test "the refused body replay across an HTTPS to HTTP redirect names both URLs without credentials" do
+    assert PetstoreClient.DefaultApiClient.replay_refusal_message(
+             "https://user:pw@api.example.com/a?token=SECRET",
+             "http://api.example.com/b?token=SECRET#frag"
+           ) ==
+             "Refusing to replay request body across HTTPS->HTTP redirect: " <>
+               "https://api.example.com/a -> http://api.example.com/b"
+  end
+
   test "a 3xx whose Location is absent or unparseable comes back as the response, never an exception" do
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -1014,6 +1022,43 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     # A NetworkTimeoutError is a NetworkError, which is an ApiError.
     assert PetstoreClient.Errors.NetworkError.network_error?(err)
     assert PetstoreClient.Errors.ApiError.api_error?(err)
+  end
+
+  # Cancellation is the process exit that ends the call: a caller shut down
+  # while its request is in flight ends with no reply, and the SDK never
+  # surfaces an error of its own for it.
+  test "cancelling an in-flight call ends the caller without an SDK error" do
+    {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(socket)
+    test_pid = self()
+
+    # Accept and hold the connection without ever answering.
+    spawn(fn ->
+      {:ok, conn} = :gen_tcp.accept(socket)
+      send(test_pid, :request_accepted)
+      Process.sleep(5_000)
+      :gen_tcp.close(conn)
+    end)
+
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(timeout: 30_000))
+
+    task =
+      Task.async(fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://127.0.0.1:#{port}/slow",
+          %{},
+          nil
+        )
+      end)
+
+    assert_receive :request_accepted, 5_000
+    ref = task.ref
+    assert Task.shutdown(task, :brutal_kill) == nil
+    refute_receive {^ref, _reply}, 100
+    :gen_tcp.close(socket)
   end
 
   # The one `:timeout` option arms four separate deadlines, and each of them
@@ -1578,6 +1623,20 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       for status <- [307, 308], method <- [:post, :put, :patch, :delete, :get, :head] do
         assert DefaultApiClient.redirect_method(status, method) == method
       end
+    end
+  end
+
+  describe "the ApiClient behaviour" do
+    test "close/1 is optional, so a minimal custom transport need not implement it" do
+      optional = PetstoreClient.ApiClient.behaviour_info(:optional_callbacks)
+
+      assert {:close, 1} in optional
+      assert {:close, 1} in PetstoreClient.ApiClient.behaviour_info(:callbacks)
+    end
+
+    test "the default transport implements close/1" do
+      assert Code.ensure_loaded?(PetstoreClient.DefaultApiClient)
+      assert function_exported?(PetstoreClient.DefaultApiClient, :close, 1)
     end
   end
 end

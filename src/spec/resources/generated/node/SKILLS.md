@@ -316,6 +316,33 @@ const client = new Client(authenticator, transport);
 
 `TransportOptions.builder().maxRetries(n)` sets the automatic retries (default `2`, `0` disables them). A request is retried after a network error before any response and after a `408`, `409`, `429` or `5xx` other than `501`, waiting 0.5 s doubling to 8 s with up to 25% jitter or the server's `Retry-After` (at most 60 s). The retries share the single `timeout` and stop when the call is cancelled; each one rebuilds the headers and asks the authenticator again.
 
+### Custom HTTP client
+
+```typescript
+const transport = TransportOptions.builder()
+  .fetch((input, init) => fetch(input, init))
+  .build();
+```
+
+`TransportOptions.builder().fetch(myFetch).fetchOptions({ keepalive: true })` sends every request through your own `fetch`. SDK defaults (timeout, user agent, redirect policy) still apply; the SDK never closes what you supply, and a custom `fetch` combined with `proxy`, `caCertPath` or `verifySsl(false)` throws a `TypeError`.
+
+### Cancellation
+
+Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSignal }`). A client-level signal goes in the third constructor argument and is merged with the per-call signal; either one cancels the call. Cancellation rejects with the signal's reason (an `AbortError` by default), never `NetworkTimeoutError`.
+
+```typescript
+const controller = new AbortController();
+// An operation with optional parameters takes them before the signal: pass `undefined` to skip them.
+const perCall = client.pet.addPet(new Pet(), { signal: controller.signal });
+const cancellable = new Client(authenticator, undefined, {
+  signal: controller.signal,
+});
+```
+
+### Raw responses, timeouts and the request id
+
+Each operation has a `...WithHttpInfo` variant returning `ApiResult<T>` (`statusCode`, `data`, `rawBody`, `headers`). `timeout` is one end-to-end budget in positive milliseconds (default 10000; `null` waits indefinitely). `TransportOptions.builder().injectRequestId(true)` adds an `X-Request-ID` header to each request unless you set one.
+
 ## API Methods
 
 Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
@@ -331,23 +358,6 @@ import { Account } from "petstore-client";
 
 const model = new Account();
 ```
-
-## Cancellation
-
-Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSignal }`). A client-level signal goes in the third constructor argument and is merged with the per-call signal; either one cancels the call. Cancellation rejects with the signal's reason (an `AbortError` by default), never `NetworkTimeoutError`.
-
-```typescript
-const controller = new AbortController();
-// An operation with optional parameters takes them before the signal: pass `undefined` to skip them.
-const perCall = client.pet.addPet(new Pet(), { signal: controller.signal });
-const cancellable = new Client(authenticator, undefined, {
-  signal: controller.signal,
-});
-```
-
-## Custom fetch
-
-`TransportOptions.builder().fetch(myFetch).fetchOptions({ keepalive: true })` sends every request through your own `fetch`. SDK defaults (timeout, user agent, redirect policy) still apply; the SDK never closes what you supply, and a custom `fetch` combined with `proxy`, `caCertPath` or `verifySsl(false)` throws a `TypeError`.
 
 ## Binary / File Uploads
 

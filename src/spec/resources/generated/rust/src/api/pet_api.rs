@@ -114,11 +114,10 @@ pub struct GetMultiServerPetInfoServerRegional {
 
 impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerRegional {
     fn get_url(&self) -> String {
-        let mut url = "https://{region}.example.com/v1".to_string();
-
-        url = url.replace(&("{".to_owned() + "region" + "}"), self.region.as_str());
-
-        url
+        crate::server_configuration::expand_placeholders(
+            "https://{region}.example.com/v1",
+            &[("region", self.region.as_str())],
+        )
     }
 }
 
@@ -131,12 +130,13 @@ pub struct GetMultiServerPetInfoServerMirror {
 
 impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerMirror {
     fn get_url(&self) -> String {
-        let mut url = "https://{region}.mirror.example.com/{channel}/v1".to_string();
-
-        url = url.replace(&("{".to_owned() + "region" + "}"), self.region.as_str());
-        url = url.replace(&("{".to_owned() + "channel" + "}"), self.channel.as_str());
-
-        url
+        crate::server_configuration::expand_placeholders(
+            "https://{region}.mirror.example.com/{channel}/v1",
+            &[
+                ("region", self.region.as_str()),
+                ("channel", self.channel.as_str()),
+            ],
+        )
     }
 }
 
@@ -203,15 +203,13 @@ pub struct GetStagingPetInfoServerStagingServer {
 
 impl GetStagingPetInfoServer for GetStagingPetInfoServerStagingServer {
     fn get_url(&self) -> String {
-        let mut url = "https://{environment}.example.com/api/{version}".to_string();
-
-        url = url.replace(
-            &("{".to_owned() + "environment" + "}"),
-            self.environment.as_str(),
-        );
-        url = url.replace(&("{".to_owned() + "version" + "}"), self.version.as_str());
-
-        url
+        crate::server_configuration::expand_placeholders(
+            "https://{environment}.example.com/api/{version}",
+            &[
+                ("environment", self.environment.as_str()),
+                ("version", self.version.as_str()),
+            ],
+        )
     }
 }
 
@@ -1009,10 +1007,7 @@ impl PetApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.filter {
-                for (k, v) in value_serializer::serialize_deep_object(
-                    "filter",
-                    &object_serializer::to_deep_object_map(val)?,
-                ) {
+                for (k, v) in object_serializer::deep_object_pairs("filter", val)? {
                     query_params.push((k, v, false));
                 }
             }
@@ -2532,10 +2527,7 @@ impl PetApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.criteria_deep {
-                for (k, v) in value_serializer::serialize_deep_object(
-                    "criteriaDeep",
-                    &object_serializer::to_deep_object_map(val)?,
-                ) {
+                for (k, v) in object_serializer::deep_object_pairs("criteriaDeep", val)? {
                     query_params.push((k, v, false));
                 }
             }
@@ -2782,8 +2774,9 @@ impl PetApi {
         if !DECLARED_CONSUMES.contains(&request_content_type) {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "Unsupported request content-type '{}' for set_pet_avatar; declared types are {:?}",
-                    request_content_type, DECLARED_CONSUMES
+                    "Unsupported request content-type '{}' for set_pet_avatar; declared types are [{}]",
+                    request_content_type,
+                    DECLARED_CONSUMES.join(", ")
                 )),
             ));
         }
@@ -3338,8 +3331,9 @@ impl PetApi {
         if !DECLARED_CONSUMES.contains(&request_content_type) {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "Unsupported request content-type '{}' for upload_pet_document; declared types are {:?}",
-                    request_content_type, DECLARED_CONSUMES
+                    "Unsupported request content-type '{}' for upload_pet_document; declared types are [{}]",
+                    request_content_type,
+                    DECLARED_CONSUMES.join(", ")
                 )),
             ));
         }

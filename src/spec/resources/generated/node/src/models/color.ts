@@ -8,8 +8,9 @@
 /**
  * A standalone, reusable colour enumeration
  */
-export enum Color {
-  Red = "red",
-  Green = "green",
-  Blue = "blue",
-}
+export const Color = {
+  Red: "red",
+  Green: "green",
+  Blue: "blue",
+} as const;
+export type Color = (typeof Color)[keyof typeof Color];

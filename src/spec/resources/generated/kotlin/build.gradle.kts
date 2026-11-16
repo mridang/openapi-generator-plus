@@ -35,6 +35,16 @@ repositories {
     mavenCentral()
 }
 
+// A stable module name for the JPMS: without it the jar's file name decides the
+// automatic module name, which changes with every version.
+tasks.withType<Jar>().configureEach {
+    if (name == "jvmJar") {
+        manifest {
+            attributes("Automatic-Module-Name" to "com.example.petstore")
+        }
+    }
+}
+
 kotlin {
     // Use whatever JDK is on PATH (Docker container provides a recent JDK).
     // Toolchain auto-provisioning requires extra repos configured; we skip that.

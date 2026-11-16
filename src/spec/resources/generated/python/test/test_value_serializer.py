@@ -577,6 +577,34 @@ class TestValueSerializerFormatDatePath:
     formats via ``isoformat()``.
     """
 
+    @pytest.mark.parametrize("location", ["path", "query", "header"])
+    def test_a_datetime_for_a_date_parameter_sends_only_the_date(
+        self, location: str
+    ) -> None:
+        moment = datetime.datetime(
+            2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc
+        )
+        assert ValueSerializer.serialize(moment, location, "date") == "2024-01-15"
+
+    def test_a_datetime_for_a_styled_date_parameter_sends_only_the_date(self) -> None:
+        moment = datetime.datetime(
+            2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc
+        )
+        assert (
+            ValueSerializer.serialize_styled(
+                "asOf", moment, "path", "date", None, "matrix", False
+            )
+            == ";asOf=2024-01-15"
+        )
+
+    def test_a_datetime_for_a_date_time_parameter_keeps_the_time(self) -> None:
+        moment = datetime.datetime(
+            2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc
+        )
+        assert ValueSerializer.serialize(moment, "query", "string").startswith(
+            "2024-01-15T13:45:30"
+        )
+
     def test_date_in_path_returns_yyyy_mm_dd(self) -> None:
         date = datetime.date(2024, 1, 15)
         assert ValueSerializer.serialize(date, "path", "string") == "2024-01-15"

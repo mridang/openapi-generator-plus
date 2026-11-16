@@ -18,6 +18,7 @@ use std::thread;
 use petstore::api::options::*;
 use petstore::api::*;
 use petstore::models::*;
+use petstore::OpenAPIErrorExt;
 use petstore::*;
 
 fn new_store_api_for_integration() -> StoreApi {
@@ -311,6 +312,53 @@ async fn test_store_api_get_order_not_found() {
         .downcast_ref::<NotFoundError>()
         .unwrap_or_else(|| panic!("a 404 must be a NotFoundError, got: {}", err));
     assert_eq!(not_found.client_error().api_error().status_code(), 404);
+}
+
+/* F1161: the mock's typed status routes answer get_order_by_id with each
+ * status, and the matching error kind is chosen. */
+#[tokio::test]
+async fn test_store_api_get_order_by_id_picks_the_status_specific_error_kind() {
+    let chasm_url = testcontainers_helper::chasm_url();
+    for status in [400u16, 401, 403, 404, 409, 418, 422, 500, 502] {
+        let config = ConfigurationBuilder::new()
+            .base_url(&format!("{}/test/status/{}", chasm_url, status))
+            .build();
+        let transport = TransportOptions::builder()
+            .max_retries(0)
+            .build()
+            .expect("valid transport options");
+        let api = StoreApi::new(
+            Arc::new(DefaultApiClient::new(Some(transport))),
+            config,
+            None,
+        );
+
+        let err = api
+            .get_order_by_id(1)
+            .await
+            .expect_err("a typed status route answers with an error status");
+
+        let kind = err
+            .api_error_kind()
+            .unwrap_or_else(|| panic!("status {}: not an API error: {}", status, err));
+        assert!(
+            matches!(
+                (status, &kind),
+                (400, ApiErrorKind::BadRequest(_))
+                    | (401, ApiErrorKind::Unauthorized(_))
+                    | (403, ApiErrorKind::Forbidden(_))
+                    | (404, ApiErrorKind::NotFound(_))
+                    | (409, ApiErrorKind::Conflict(_))
+                    | (418, ApiErrorKind::ClientError(_))
+                    | (422, ApiErrorKind::UnprocessableEntity(_))
+                    | (500, ApiErrorKind::InternalServerError(_))
+                    | (502, ApiErrorKind::ServerError(_))
+            ),
+            "status {}: unexpected kind {:?}",
+            status,
+            kind
+        );
+    }
 }
 
 #[tokio::test]

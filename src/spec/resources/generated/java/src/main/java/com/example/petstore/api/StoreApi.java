@@ -21,6 +21,7 @@ import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Department;
 import com.example.petstore.models.Order;
+import com.example.petstore.models.ReserveStockResponse;
 import com.example.petstore.models.StockItem;
 import com.example.petstore.models.Swatch;
 import com.example.petstore.models.TreeNode;
@@ -80,6 +81,9 @@ public class StoreApi extends BaseApi {
 
   private static final java.lang.reflect.Type placeOrderTypeRef =
       new TypeReference<Order>() {}.getType();
+
+  private static final java.lang.reflect.Type reserveStockTypeRef =
+      new TypeReference<ReserveStockResponse>() {}.getType();
 
   private static final java.lang.reflect.Type searchStoreTypeRef =
       new TypeReference<List<Order>>() {}.getType();
@@ -778,6 +782,43 @@ public class StoreApi extends BaseApi {
         "application/json",
         placeOrderTypeRef,
         null);
+  }
+
+  /**
+   * Reserve stock, answering with the existing or a new reservation Answers 200 with the existing
+   * Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies
+   * have different schemas.
+   *
+   * @return {@code ReserveStockResponse}
+   * @throws ApiException if fails to make API call
+   */
+  public ReserveStockResponse reserveStock() {
+    return requireBody(reserveStockWithHttpInfo(), "reserveStock");
+  }
+
+  /**
+   * Reserve stock, answering with the existing or a new reservation Answers 200 with the existing
+   * Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies
+   * have different schemas.
+   *
+   * @return the API result wrapping {@code ReserveStockResponse}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<ReserveStockResponse> reserveStockWithHttpInfo() {
+    String path = "/store/reservation";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "reserveStock",
+        "POST",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        reserveStockTypeRef,
+        NO_AUTH);
   }
 
   /**

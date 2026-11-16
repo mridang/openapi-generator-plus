@@ -22,8 +22,8 @@ class TreatmentRecord
     private static function anyOfCandidates(): array
     {
         return [
-            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('Medication')),
-            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('Surgery')),
+            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Surgery::class)),
+            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Medication::class)),
         ];
     }
 

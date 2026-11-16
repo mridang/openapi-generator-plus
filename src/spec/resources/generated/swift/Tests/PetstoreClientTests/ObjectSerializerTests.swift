@@ -739,6 +739,71 @@ import Testing
     let _: any OpenAPIError = error
   }
 
+  // MARK: - Byte arrays compare by content
+
+  /* A bare byte array, a list of them and a map of them are equal when the
+   * bytes are, whichever instance they came from, and differ when a byte
+   * does. */
+  @Test func testByteArraysCompareByContent() throws {
+    let json = "{\"seal\":\"AQID\",\"shards\":[\"AQID\",\"BAU=\"],\"labels\":{\"k\":\"AQID\"}}"
+    let first = try #require(try ObjectSerializer.deserialize(json, as: BinaryVault.self))
+    let second = try #require(try ObjectSerializer.deserialize(json, as: BinaryVault.self))
+    #expect(first == second)
+    #expect(first.seal == Data([1, 2, 3]))
+    #expect(first.shards == [Data([1, 2, 3]), Data([4, 5])])
+    #expect(first.labels == ["k": Data([1, 2, 3])])
+
+    #expect(
+      first != BinaryVault(seal: Data([1, 2, 4]), shards: first.shards, labels: first.labels))
+    #expect(
+      first != BinaryVault(seal: first.seal, shards: [Data([1, 2, 3])], labels: first.labels))
+    #expect(first != BinaryVault(seal: first.seal, shards: first.shards, labels: ["k": Data([9])]))
+  }
+
+  // MARK: - Constraint keywords are not enforced (D55, F027)
+
+  /* The pattern, length and range keywords of the fixture models are
+   * documentation: values outside them decode and encode as given. */
+  @Test func testConstraintKeywordsAreNotEnforced() throws {
+    let edge = try #require(
+      try ObjectSerializer.deserialize("{\"slug\":\"12/ab\"}", as: EdgeCases.self))
+    #expect(edge.slug == "12/ab")
+    #expect(try ObjectSerializer.serialize(edge).contains("\"slug\":\"12/ab\""))
+
+    let pet = try #require(
+      try ObjectSerializer.deserialize(
+        "{\"name\":\"x\",\"photoUrls\":[],\"nickname\":\"ZZZZZZZZZZ\"}", as: Pet.self))
+    #expect(pet.nickname == "ZZZZZZZZZZ")
+    #expect(try ObjectSerializer.serialize(pet).contains("\"nickname\":\"ZZZZZZZZZZ\""))
+
+    let order = try #require(
+      try ObjectSerializer.deserialize("{\"quantity\":500}", as: Order.self))
+    #expect(order.quantity == 500)
+    #expect(try ObjectSerializer.serialize(order).contains("\"quantity\":500"))
+  }
+
+  // MARK: - Failure text carries the detail (D15)
+
+  /* The rendered text of a serialization failure is the fixed sentence, a
+   * colon, and what the encoder or decoder said. */
+  @Test func testSerializeFailureTextCarriesTheEncoderDetail() {
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.serialize(Double.nan)
+    }
+    #expect(error?.message == "Failed to serialize object to JSON")
+    #expect(error?.errorDescription?.hasPrefix("Failed to serialize object to JSON: ") == true)
+    #expect(error?.errorDescription?.count ?? 0 > "Failed to serialize object to JSON: ".count)
+  }
+
+  @Test func testDeserializeFailureTextCarriesTheDecoderDetail() {
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"a\":\"x\"}", as: [String: Int].self)
+    }
+    #expect(error?.message == "Failed to deserialize JSON")
+    #expect(error?.errorDescription?.hasPrefix("Failed to deserialize JSON: ") == true)
+    #expect(error?.errorDescription?.count ?? 0 > "Failed to deserialize JSON: ".count)
+  }
+
   // MARK: - Integer fields reject a fraction or an exponent
 
   /* JSONDecoder on its own decodes 7.0 and 1e2 into an Int; the other SDKs

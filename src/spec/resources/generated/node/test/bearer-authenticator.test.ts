@@ -41,6 +41,26 @@ describe("BearerAuthenticator", () => {
     },
   );
 
+  it("a token that merely begins with the word bearer is kept whole", () => {
+    const auth = new BearerAuthenticator(
+      "https://api.example.com",
+      "bearerxyz",
+    );
+    expect(auth.getAuthHeaders()).toEqual({
+      Authorization: "Bearer bearerxyz",
+    });
+  });
+
+  it("the prefix is stripped only once", () => {
+    const auth = new BearerAuthenticator(
+      "https://api.example.com",
+      "Bearer Bearer xyz",
+    );
+    expect(auth.getAuthHeaders()).toEqual({
+      Authorization: "Bearer Bearer xyz",
+    });
+  });
+
   it("rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
     expect(
       () =>

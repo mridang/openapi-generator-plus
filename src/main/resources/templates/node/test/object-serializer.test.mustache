@@ -1118,10 +1118,9 @@ describe('ObjectSerializer', () => {
   });
 
   describe('IntegerEnumValidation', () => {
-    // An integer-backed enum is emitted as a TypeScript numeric enum, which
-    // carries a reverse mapping — so Object.values(Priority) contains the
-    // member-name strings too. Validation must reject a string payload that
-    // happens to match a member name; only the numeric wire values are valid.
+    // An integer-backed enum is a const object of its numeric wire values.
+    // Validation must reject a string payload that happens to match a member
+    // name; only the numeric wire values are valid.
 
     test('rejects a reverse-mapped member name string as priority', () => {
       expect(

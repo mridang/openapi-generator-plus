@@ -106,6 +106,33 @@ class BearerAuthenticatorTest {
   }
 
   @Test
+  void aUnicodeSpaceIsNotBlankSoThePrintableAsciiCheckRejectsIt() {
+    for (char space : new char[] {(char) 0xA0, (char) 0x2003}) {
+      String token = String.valueOf(space);
+      IllegalArgumentException ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> new BearerAuthenticator("https://api.example.com", token));
+      assertEquals(
+          "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+          ex.getMessage());
+    }
+  }
+
+  @Test
+  void aTokenThatMerelyBeginsWithTheWordBearerIsKeptWhole() {
+    BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "bearerxyz");
+    assertEquals("Bearer bearerxyz", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void aDoubledBearerPrefixIsStrippedOnlyOnce() {
+    BearerAuthenticator auth =
+        new BearerAuthenticator("https://api.example.com", "Bearer Bearer xyz");
+    assertEquals("Bearer Bearer xyz", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
   void schemeWrappersEmitTheSameBearerHeaderAndKeepTheirOwnName() {
     PetStoreBearerAuthenticator store =
         new PetStoreBearerAuthenticator("https://api.example.com", "xyz");

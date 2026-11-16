@@ -299,7 +299,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     }
 
     assert_raise ArgumentError,
-                 ~s(Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: ["staging", "sandbox"]),
+                 ~s(Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: [staging, sandbox]),
                  fn -> PetstoreClient.Api.GetStagingPetInfoServer.StagingServer.url(server) end
   end
 
@@ -307,7 +307,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     server = %PetstoreClient.Api.GetStagingPetInfoServer.StagingServer{environment: "staging"}
 
     assert_raise ArgumentError,
-                 ~s(Invalid value '' for server variable 'version'. Allowed values: ["v2", "v3"]),
+                 ~s(Invalid value '' for server variable 'version'. Allowed values: [v2, v3]),
                  fn -> PetstoreClient.Api.GetStagingPetInfoServer.StagingServer.url(server) end
   end
 
@@ -1127,7 +1127,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     regional = %PetstoreClient.Api.GetMultiServerPetInfoServer.Regional{region: "mars"}
 
     assert_raise ArgumentError,
-                 ~s(Invalid value 'mars' for server variable 'region'. Allowed values: ["us", "eu", "ap"]),
+                 ~s(Invalid value 'mars' for server variable 'region'. Allowed values: [us, eu, ap]),
                  fn ->
                    PetstoreClient.Api.PetApi.get_multi_server_pet_info(api, 5, server: regional)
                  end
@@ -1152,7 +1152,7 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     assert_raise ArgumentError,
                  ~s(Unsupported request content-type 'application/unknown-type' for set_pet_avatar; ) <>
-                   ~s(declared types are ["image/jpeg", "image/png", "application/json"]),
+                   ~s(declared types are [image/jpeg, image/png, application/json]),
                  fn ->
                    PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>,
                      content_type: "application/unknown-type"
@@ -1168,7 +1168,7 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     assert_raise ArgumentError,
                  ~s(Unsupported request content-type 'application/unknown-type' for upload_pet_document; ) <>
-                   ~s(declared types are ["multipart/form-data", "application/octet-stream"]),
+                   ~s(declared types are [multipart/form-data, application/octet-stream]),
                  fn ->
                    PetstoreClient.Api.PetApi.upload_pet_document(
                      api,

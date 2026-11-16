@@ -235,6 +235,7 @@ module {{moduleName}}
     def transmit(method, url, headers, body, no_redirect, deadline, no_default_headers)
       # Field names are case-insensitive (RFC 9110 section 5.1): a caller's
       # header replaces a default of the same name whatever its casing.
+      # @type var defaults: Hash[String, String]
       defaults = no_default_headers ? {} : @transport_options.default_headers
       merged = defaults.reject { |name, _v| header?(headers, name.to_s) }.merge(headers)
       # RFC 9110 §5.1: field names are case-insensitive, so a caller's

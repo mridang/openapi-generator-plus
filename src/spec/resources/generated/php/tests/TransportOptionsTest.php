@@ -272,6 +272,22 @@ test('constructor rejects a proxy that has no usable scheme or host', function (
     'host and port without a scheme' => ['proxy.example.com:3128'],
 ]);
 
+test('constructor accepts a proxy url with an ipv6 literal host', function (string $proxy): void {
+    expect((new TransportOptions(proxy: $proxy))->proxy)->toBe($proxy);
+})->with([
+    'loopback' => ['http://[::1]:3128'],
+    'without a port' => ['https://[2001:db8::1]'],
+    'with userinfo' => ['http://user:pw@[::1]:3128'],
+]);
+
+test('constructor rejects a proxy url with an unterminated ipv6 literal host', function (string $proxy): void {
+    expect(fn () => new TransportOptions(proxy: $proxy))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL');
+})->with([
+    'no closing bracket' => ['http://[::1:3128'],
+    'bracket only' => ['http://['],
+]);
+
 test('debug output masks the proxy password and credential default headers', function (): void {
     $opts = TransportOptions::builder()
         ->proxy('http://user:s3cr3t@proxy.example.com:8080')

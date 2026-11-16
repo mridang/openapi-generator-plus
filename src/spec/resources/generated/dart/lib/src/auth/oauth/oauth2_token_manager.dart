@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -263,6 +263,14 @@ class OAuth2TokenManager {
       throw OAuth2TokenException(
         'Token response missing or empty access_token field',
       );
+    }
+    /* RFC 6749 section 7.1: a token whose type is not understood must not be
+     * used. Only a missing or `bearer` (any case) type is sent as a Bearer
+     * credential; the offending value is not echoed. */
+    final tokenType = parsed['token_type'];
+    if (tokenType != null &&
+        !(tokenType is String && tokenType.toLowerCase() == 'bearer')) {
+      throw OAuth2TokenException('Unsupported token_type in token response');
     }
     _accessToken = accessTokenValue;
     final newRefreshToken = parsed['refresh_token'];

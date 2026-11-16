@@ -21,6 +21,10 @@ class EdgeCasesPhaseEnum(str, Enum):
     ON_HOLD = "on-hold"
     OUT_OF_STOCK = "OUT_OF_STOCK"
 
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)
+
 
 class EdgeCases(BaseModel):
     """

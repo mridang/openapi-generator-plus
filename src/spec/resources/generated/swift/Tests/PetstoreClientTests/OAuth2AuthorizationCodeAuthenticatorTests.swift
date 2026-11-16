@@ -265,6 +265,13 @@ import Testing
         == "Authorization code must not be empty")
   }
 
+  /* D09: the precondition text names the method with its parentheses. */
+  @Test func testCodeNotExchangedErrorCarriesTheCanonicalMessage() {
+    #expect(
+      OAuth2AuthorizationCodeError.codeNotExchanged.localizedDescription
+        == "Must call exchangeCode() before making API requests")
+  }
+
   @Test func testExchangeCodeRejectsWhitespaceOnlyCode() async {
     let client = MockApiClient()
     let auth = createAuthenticator()
