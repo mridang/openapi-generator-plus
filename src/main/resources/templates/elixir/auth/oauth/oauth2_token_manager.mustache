@@ -13,16 +13,18 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
 
   use Agent
 
-  # Safety margin (in seconds) applied to token expiry checks so that we
-  # refresh slightly before the token actually expires, avoiding a race
-  # against the server clock.
-  @expiry_safety_margin_s 60
+  # One safety margin, applied once when the expiry is stored, so that a token
+  # is refreshed slightly before it lapses (avoiding a race against the server
+  # clock). It is capped at half the lifetime, so a 60 s token is reused for
+  # 30 s instead of never. Expiry is kept on the monotonic clock, so a wall
+  # clock step cannot make a token look valid for longer or lapse at once.
+  @max_expiry_margin_ms 60_000
 
   @type state :: %{
           api_client: term() | nil,
           access_token: String.t() | nil,
           refresh_token: String.t() | nil,
-          token_expiry: float() | nil,
+          token_expiry: integer() | nil,
           token_exchanged: boolean()
         }
 
@@ -51,6 +53,18 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
   @spec set_api_client(pid(), term()) :: :ok
   def set_api_client(manager, client) do
     Agent.update(manager, &Map.put(&1, :api_client, client))
+  end
+
+  @doc """
+  Stop the token manager. Idempotent; the cached tokens are dropped, and a
+  later `get_access_token/5` or `exchange/4` raises `OAuth2TokenError`.
+  """
+  @spec stop(pid()) :: :ok
+  def stop(manager) do
+    if Process.alive?(manager), do: Agent.stop(manager)
+    :ok
+  catch
+    :exit, _ -> :ok
   end
 
   @doc """
@@ -113,12 +127,10 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
       Agent.get_and_update(
         manager,
         fn state ->
-          now = System.system_time(:second)
+          now = System.monotonic_time(:millisecond)
 
           cond do
-            state.access_token &&
-                (is_nil(state.token_expiry) ||
-                   now < state.token_expiry - @expiry_safety_margin_s) ->
+            state.access_token && (is_nil(state.token_expiry) || now < state.token_expiry) ->
               {{:ok, state.access_token}, state}
 
             params["grant_type"] != "refresh_token" and is_binary(state.refresh_token) and
@@ -159,6 +171,10 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
       {:ok, token} -> token
       {:raise, exception, stacktrace} -> reraise exception, stacktrace
     end
+  catch
+    :exit, {reason, _} when reason in [:noproc, :normal, :shutdown] ->
+      raise {{moduleName}}.Errors.OAuth2TokenError,
+        message: "The token manager is stopped (the client was closed)"
   end
 
   @doc """
@@ -192,6 +208,10 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
       {:ok, token} -> token
       {:raise, exception, stacktrace} -> reraise exception, stacktrace
     end
+  catch
+    :exit, {reason, _} when reason in [:noproc, :normal, :shutdown] ->
+      raise {{moduleName}}.Errors.OAuth2TokenError,
+        message: "The token manager is stopped (the client was closed)"
   end
 
   defp maybe_put(map, params, key) do
@@ -258,7 +278,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
       case client do
         %{__struct__: mod} = c ->
           if function_exported?(mod, :send_request, 6) do
-            mod.send_request(c, :post, token_url, headers, body, no_redirect: true)
+            mod.send_request(c, :post, token_url, headers, body, no_redirect: true, no_default_headers: true)
           else
             mod.send_request(c, :post, token_url, headers, body)
           end
@@ -287,9 +307,13 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
         {:ok, %{} = map} ->
           map
 
+        {:ok, _} ->
+          raise {{moduleName}}.Errors.OAuth2TokenError,
+                message: "Token response is not a JSON object"
+
         _ ->
           raise {{moduleName}}.Errors.OAuth2TokenError,
-                message: "Token response is not a valid token JSON object"
+                message: "Token response is not valid JSON"
       end
 
     access_token = parsed["access_token"]
@@ -297,6 +321,24 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
     unless is_binary(access_token) and access_token != "" do
       raise {{moduleName}}.Errors.OAuth2TokenError,
             message: "Token response missing or empty access_token field"
+    end
+
+    # RFC 6749 section 7.1: a client must not use an access token whose type it
+    # does not understand. Only "Bearer" (any case), or none, is sent as such;
+    # the value is not echoed.
+    case parsed["token_type"] do
+      nil ->
+        :ok
+
+      type when is_binary(type) ->
+        unless String.downcase(type, :ascii) == "bearer" do
+          raise {{moduleName}}.Errors.OAuth2TokenError,
+            message: "Unsupported token_type in token response"
+        end
+
+      _ ->
+        raise {{moduleName}}.Errors.OAuth2TokenError,
+          message: "Unsupported token_type in token response"
     end
 
     new_state = %{state | access_token: access_token}
@@ -309,11 +351,14 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
 
     new_state =
       cond do
+        # A grant response without expires_in (RFC 6749 section 5.1 makes it
+        # RECOMMENDED) clears the expiry: the token is cached until a 401 or
+        # invalidate_access_token/1, never kept against a lapsed expiry.
         not Map.has_key?(parsed, "expires_in") ->
-          new_state
+          %{new_state | token_expiry: nil}
 
         is_nil(parsed["expires_in"]) ->
-          new_state
+          %{new_state | token_expiry: nil}
 
         true ->
           # RFC 6749 §5.1 says expires_in is a JSON number, but real-world
@@ -324,12 +369,12 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
           # (preferable to caching a token of unknown lifetime forever).
           case parse_expires_in(parsed["expires_in"]) do
             expires_in when expires_in > 0 ->
-              buffer_secs = min(expires_in, 30)
-              expiry = System.system_time(:second) + expires_in - buffer_secs
-              %{new_state | token_expiry: expiry}
+              lifetime_ms = expires_in * 1000
+              margin_ms = min(@max_expiry_margin_ms, div(lifetime_ms, 2))
+              %{new_state | token_expiry: System.monotonic_time(:millisecond) + lifetime_ms - margin_ms}
 
             _ ->
-              %{new_state | token_expiry: System.system_time(:second)}
+              %{new_state | token_expiry: System.monotonic_time(:millisecond)}
           end
       end
 

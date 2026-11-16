@@ -79,12 +79,18 @@ defmodule {{moduleName}}.TransportOptionsTest do
     assert opts.max_redirects == nil
   end
 
-  test "a negative timeout is rejected at construction" do
-    assert_raise ArgumentError, fn ->
-      {{moduleName}}.TransportOptions.new(timeout: -1)
+  test "a zero or negative timeout is rejected with the canonical message" do
+    for bad <- [-1, 0] do
+      err =
+        assert_raise ArgumentError, fn ->
+          {{moduleName}}.TransportOptions.new(timeout: bad)
+        end
+
+      assert err.message ==
+               "Invalid timeout: must be a positive number of milliseconds (got #{bad})"
     end
 
-    assert {{moduleName}}.TransportOptions.new(timeout: 0).timeout == 0
+    assert {{moduleName}}.TransportOptions.new(timeout: nil).timeout == nil
   end
 
   test "invalid proxy URL throws exception" do

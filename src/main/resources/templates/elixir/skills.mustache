@@ -125,7 +125,7 @@ When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a
 
 #### Token caching
 
-The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+The token manager caches the access token in memory and refreshes it before its declared expiry, by one margin of at most `60` seconds and never more than half of `expires_in` (a 60 second token is reused for 30 seconds). Expiry is measured on the monotonic clock, so a wall clock change does not extend or cut a token's life. A token response without `expires_in` is cached until the API answers 401 or the token is invalidated.
 
 #### Client authentication method
 
@@ -238,7 +238,7 @@ client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
 
 ### Custom HTTP Transport
 
-Pass Req options such as an `:adapter` function or a `:plug` through `req_options`. The SDK's own settings (timeouts, retries, redirect policy, proxy, TLS, user agent) are applied on top, and the SDK never closes anything you supply. Combining `:connect_options` or `:finch` with `proxy`, `ca_cert_path` or `verify_ssl: false` raises `ArgumentError`.
+Pass Req options such as an `:adapter` function or a `:plug` through `req_options`. The SDK's own settings (timeouts, redirect policy, proxy, TLS, user agent) are applied on top, and the SDK never closes anything you supply. Combining `:connect_options` or `:finch` with `proxy`, `ca_cert_path` or `verify_ssl: false` raises `ArgumentError`.
 
 ```elixir
 transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: &MyApp.Http.adapter/1])
@@ -246,16 +246,43 @@ transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: &MyApp.Ht
 client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
 ```
 
+### Closing the client
+
+`{{moduleName}}.{{clientClassName}}.close/1` releases the transport the client created and stops the processes its authenticator started (OAuth2 token managers, OpenID Connect discovery). It is idempotent, and a call through a closed client raises. A transport you supply through `req_options` is never closed by the SDK.
+
+```elixir
+:ok = {{moduleName}}.{{clientClassName}}.close(client)
+```
+
+### Cancellation
+
+There is no cancellation argument. The SDK uses the platform's own mechanism: stop the process that is making the call, or set `timeout` on `TransportOptions`, which ends the call with `NetworkTimeoutError`.
+
+### Timeouts and retries
+
+`timeout` on `TransportOptions` is one end-to-end budget in milliseconds. The SDK does not retry a failed request.
+
 ## API Methods
 
 Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 
-Models are generated as Elixir structs under the `{{moduleName}}.Models` namespace.
+Models are generated as Elixir structs under the `{{moduleName}}.Models` namespace. A property the spec marks required (and that has no default) is an enforced key: the struct cannot be built without it, so the example gives each one; replace `nil` with a value of the field's type.
 
 ```elixir
-{{#models}}{{#model}}{{#-first}}model = %{{moduleName}}.Models.{{classname}}{}{{/-first}}{{/model}}{{/models}}
+{{#models}}{{#model}}{{#-first}}model = %{{moduleName}}.Models.{{classname}}{
+{{#requiredVars}}
+{{^defaultValue}}
+  {{name}}: nil,
+{{/defaultValue}}
+{{#defaultValue}}
+{{#isDiscriminator}}
+  {{name}}: nil,
+{{/isDiscriminator}}
+{{/defaultValue}}
+{{/requiredVars}}
+}{{/-first}}{{/model}}{{/models}}
 ```
 
 ## Binary / File Uploads

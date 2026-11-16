@@ -152,9 +152,13 @@ defmodule {{moduleName}}.ObjectSerializer do
 
     case Jason.encode(sanitized) do
       {:ok, json} -> json
-      {:error, reason} -> raise {{moduleName}}.Errors.SerializationError, message: "Failed to serialize: #{inspect(reason)}"
+      {:error, reason} -> raise {{moduleName}}.Errors.SerializationError, message: "Failed to serialize object to JSON: #{error_detail(reason)}"
     end
   end
+
+  defp error_detail(reason) when is_binary(reason), do: reason
+  defp error_detail(reason) when is_exception(reason), do: Exception.message(reason)
+  defp error_detail(reason), do: inspect(reason)
 
   # A model's JSON object is written with its keys in schema declaration order
   # (the model's `json_key_order/0`), then any captured additional properties,
@@ -225,7 +229,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   def deserialize(json_string, target_type) when is_binary(json_string) do
     case parse_json(json_string) do
       {:ok, data} -> convert_guarded(data, target_type)
-      {:error, reason} -> raise {{moduleName}}.Errors.SerializationError, message: "Failed to parse JSON: #{inspect(reason)}"
+      {:error, reason} -> raise {{moduleName}}.Errors.SerializationError, message: "Failed to deserialize JSON: #{error_detail(reason)}"
     end
   end
 

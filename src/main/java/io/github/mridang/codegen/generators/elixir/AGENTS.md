@@ -36,7 +36,7 @@ The `elixir-plus` generator (`BetterElixirCodegen`) emits a Mix project: a `lib/
 | Required operation options | A missing required option raises `ArgumentError` at call time; options structs do not use `@enforce_keys` | `@enforce_keys` would raise a `KeyError` when the struct is built, so the error would differ from the other SDKs. |
 | Error hierarchy | No inheritance: `api_error?/1` is the is-a predicate and `exceptions/0` lists the hierarchy for `rescue` clauses | Exceptions are plain structs. |
 | Union models | oneOf/anyOf `build` returns the matched variant (anyOf may return an `AnyOfComposite` struct); there is no wrapper object, so `actual_instance`/`matched_instances` are module functions | Elixir has no wrapper class to hold a value. |
-| Authenticators | A behaviour plus `__using__/1`; the token manager is an Agent started by `start_link/1`; `NO_AUTH` is a unique atom | OTP conventions; no implementation inheritance. |
+| Authenticators | A behaviour plus `__using__/1`; the token manager is an Agent started by `start_link/1` and stopped by `Client.close/1` (optional `close/1` callback); `NO_AUTH` is a unique atom | OTP conventions; no implementation inheritance. |
 | Sync only | One `get_auth_headers`, no async variant | The HTTP client is synchronous. |
 | Binary and `format: number` | `format: binary` is raw bytes; bare `number` is the native `float()`, and a caller who needs exact decimals parses the body with `Decimal` (documented in the README) | Erlang floats are IEEE-754 doubles. |
 | uniqueItems | Held as a `MapSet`, sent in the `MapSet`'s own order, not sorted (S6) | The natural collection order is the rule across all languages. |
@@ -89,7 +89,7 @@ Rule: Req, Jason, Mime and an optional Brotli are the runtime dependencies. A pu
 
 ### Out of scope (S11, issues #53, #70, #78, #88, #90)
 
-Rule: callbacks and webhooks, XML bodies, Link Objects and mutual TLS are not generated, and the README says so. Why: closed backlog issues. Where: `readme.mustache` (the "Not supported" section names webhooks and callbacks, `dependentRequired` and SOCKS; the XML, Link Object and mutual TLS lines are intended and not confirmed there). Test: none.
+Rule: callbacks and webhooks, XML bodies, Link Objects and mutual TLS are not generated, and the README says so. Why: closed backlog issues. Where: `readme.mustache` (the "Not supported" section names webhooks and callbacks, `dependentRequired` and SOCKS; the XML, Link Object and mutual TLS lines landed in batch 6). Test: none.
 
 ### Scope order, UUID case, blank keys, error cause (S14, F018, F288, F217, F274, F275)
 
@@ -101,7 +101,7 @@ Rule: `inspect/1` of `TransportOptions` shows the proxy password and every sensi
 
 ### Timeouts, redirects, proxy and CA validation (S16, F094, F407, F295, F121)
 
-Rule: `timeout` is one end-to-end budget: the deadline is fixed once and every redirect hop spends what is left, enforced by running each hop in a `Task` and shutting it down on overrun. `ca_cert_path` is validated whenever it is set, even with `verify_ssl: false`. A caller-supplied stream or file handle is never closed by the SDK. Rejecting `timeout <= 0` is intended: `TransportOptions` still accepts `0` and rejects only negatives. Moving proxy validation to `build()` has no Elixir meaning (there is no builder); it is checked in `new/1`. Why: Req's `:receive_timeout` is per chunk and resets on every packet, so it cannot bound a slow trickle. Where: `default_api_client.mustache` (`do_request_with_redirects`), `transport_options.mustache`. Test: `test/default_api_client_test.mustache`, `test/transport_options_test.mustache`.
+Rule: `timeout` is one end-to-end budget: the deadline is fixed once and every redirect hop spends what is left, enforced by running each hop in a `Task` and shutting it down on overrun. `ca_cert_path` is validated whenever it is set, even with `verify_ssl: false`. A caller-supplied stream or file handle is never closed by the SDK. `timeout <= 0` is rejected with `Invalid timeout: must be a positive number of milliseconds (got N)` (`nil` still means no timeout). Moving proxy validation to `build()` has no Elixir meaning (there is no builder); it is checked in `new/1`. Why: Req's `:receive_timeout` is per chunk and resets on every packet, so it cannot bound a slow trickle. Where: `default_api_client.mustache` (`do_request_with_redirects`), `transport_options.mustache`. Test: `test/default_api_client_test.mustache`, `test/transport_options_test.mustache`.
 
 ### No ambient proxy, caCertPath pins, SDK proxy credentials survive redirects (F090, F020, F091)
 
@@ -117,15 +117,15 @@ Rule: `User-Agent` and `X-Request-ID` are injected only when no header of any ca
 
 ### OAuth token handling (F016, F017, F119, F112, F113, F286, F292, F293, F116)
 
-Rule: OIDC rediscovery keeps the token manager and its exchanged flag; a refresh carries client authentication through `get_access_token/5` with a `:refresh_url` option; `exchange/4` replaces the session only on success and restores it on failure; an empty implicit-flow token counts as unset; the token body and authorize URL use one fixed key order and drop an empty `state`; OIDC always requests `openid`. Intended and not in the templates: the single-flight discovery fetch, the one-year ceiling and decimal grammar for `expires_in`, and the canonical message `Must call exchange_code() before making API requests` (the template word differs). Why: shared OAuth contract. Where: `auth/oauth/*.mustache`. Test: `test/oauth2_token_manager_test.mustache` and the per-flow authenticator tests.
+Rule: OIDC rediscovery keeps the token manager and its exchanged flag; a refresh carries client authentication through `get_access_token/5` with a `:refresh_url` option; `exchange/4` replaces the session only on success and restores it on failure; an empty implicit-flow token counts as unset; the token body and authorize URL use one fixed key order and drop an empty `state`; OIDC always requests `openid`. Still intended and not in the templates: the single-flight discovery fetch, the one-year ceiling and decimal grammar for `expires_in`, and the canonical message `Must call exchange_code() before making API requests` (the template word differs). Why: shared OAuth contract. Where: `auth/oauth/*.mustache`. Test: `test/oauth2_token_manager_test.mustache` and the per-flow authenticator tests.
 
 ### Error messages (F115, F245, F260, F267, F409, F099, F100)
 
-Rule: intended, not landed. One wording set for token and discovery errors (`Token response is not valid JSON` versus `... is not a JSON object`), serializer errors (`Failed to serialize object to JSON: <detail>`, `Failed to deserialize JSON: <detail>`), redirect refusals (capitalised canonical strings), `Response headers: <compact JSON, sorted keys>`, use after close (`ApiClient has been closed and can no longer send requests`, a `RuntimeError`), and real response headers on every `ApiError` raised for a response that arrived but was unusable. The templates still carry older lower-case or longer wording. Why: byte-identical messages across twelve. Where: `default_api_client.mustache`, `object_serializer.mustache`, `errors/api_error.mustache`, `auth/oauth/*.mustache`. Test: `test/api_error_test.mustache` (add table rows for the exact rendering).
+Rule: landed in batch 6. One wording set for token and discovery errors (`Token response is not valid JSON` versus `... is not a JSON object`), serializer errors (`Failed to serialize object to JSON: <detail>`, `Failed to deserialize JSON: <detail>`), redirect refusals (capitalised canonical strings), `Response headers: <compact JSON, sorted keys>`, use after close (`ApiClient has been closed and can no longer send requests`, a `RuntimeError`), and real response headers on every `ApiError` raised for a response that arrived but was unusable. Pinned by tests in `api_error_test`, `object_serializer_test`, `oauth2_token_manager_test`, `default_api_client_test` and `default_api_client_unit_test`. Why: byte-identical messages across twelve. Where: `default_api_client.mustache`, `object_serializer.mustache`, `errors/api_error.mustache`, `auth/oauth/*.mustache`. Test: `test/api_error_test.mustache` (add table rows for the exact rendering).
 
 ### Response bodies: binary, byte, non-JSON (F033, F085, F149, F150, F151, F153, F155)
 
-Rule: a `format: binary` return is raw bytes, never JSON-parsed; `format: byte` follows the JSON path with one strict base64 decoder; a non-JSON success Content-Type returns the text for a `String.t()` return and raises `SerializationError` otherwise. The `binary_return` option and the strict final clause are intended; the template still has the older fallback. Why: one rule per Content-Type class. Where: `base_api.mustache`, `api/api.mustache`. Test: `test/base_api_test.mustache`.
+Rule: a `format: binary` return is raw bytes, never JSON-parsed; `format: byte` follows the JSON path with one strict base64 decoder; a non-JSON success Content-Type returns the text for a `String.t()` return and raises `SerializationError` otherwise. The strict final clause landed in batch 6 (`String` and `String.t()` returns keep the text). Why: one rule per Content-Type class. Where: `base_api.mustache`, `api/api.mustache`. Test: `test/base_api_test.mustache`.
 
 ### Request bodies: binary, multipart, form (F035, F084, F214, F216, F087)
 
@@ -202,3 +202,47 @@ Rule: the Elixir rules in the allow-list are settled and the API-surface check m
 - Regenerate the golden with `mvn test -Dtest='Generate*ClientTest,FixtureVocabularyLeakTest' -DforkCount=0 -Djacoco.skip=true -DfailIfNoTests=false`, then commit all twelve goldens current.
 - Save build output to a file and grep it; never pipe it into `tail`.
 - `python3 etc/api-surface.py check` after any change to a public Elixir signature.
+
+## Decisions taken in batch 6
+
+Each entry uses the audit finding's own proposal as the default. The owner may revisit any of them.
+
+### Token expiry and refresh (F854, F1046, F1045, F1054)
+
+Rule: one safety margin, applied once when the expiry is stored: `min(60 s, expires_in / 2)`, so a 60 s token is reused for 30 s. Expiry is kept on the monotonic clock (`System.monotonic_time(:millisecond)`), in the token manager and in the OIDC discovery expiry. A grant or refresh response without `expires_in` clears the expiry (cached until a 401 or `invalidate_access_token/1`); `expires_in <= 0` or unparseable is stale at once. Where: `auth/oauth/oauth2_token_manager.mustache`, `auth/oauth/openid_connect_authenticator.mustache`. Test: `test/oauth2_token_manager_test.mustache` (31, 60, 90 and 120 s tokens are reused; `expires_in` 0 refetches; refresh without `expires_in` is cached).
+
+### OIDC discovery (F1052, F859, F860)
+
+Rule: a failed rediscovery keeps serving the previous delegate (stale-if-error) and retries on the next call; `max-age=0` still means a fetch per use (the floor was not added). The document's `issuer` must equal the discovery URL minus `/.well-known/openid-configuration` (trailing slash ignored; a missing issuer is refused; a discovery URL without the suffix is not compared), and `authorization_endpoint` and `token_endpoint` must be https unless the host is loopback; both raise `SerializationError`. Token and discovery requests pass `no_default_headers: true` to `send_request/6`, so `TransportOptions.default_headers` never reach the identity provider. Not applied: https checks on the `tokenUrl`/`authorizationUrl` the wrapper constructors receive. Test: `test/openid_connect_authenticator_test.mustache`, `test/default_api_client_unit_test.mustache`.
+
+### token_type (F863)
+
+Rule: `token_type` of any case of `bearer`, or absent, is accepted; anything else raises `OAuth2TokenError` with `Unsupported token_type in token response` (the value is not echoed). Test: `test/oauth2_token_manager_test.mustache`.
+
+### Closing (F824, F1049)
+
+Rule: `Client.close/1` closes the `DefaultApiClient` the client built and calls the authenticator's optional `close/1` (`HttpAwareAuthenticator` callback; the three token-flow authenticators and OIDC implement it by stopping their `OAuth2TokenManager` and the discovery cache). It is idempotent. The `Client` struct now carries `api_client` and `authenticator`. A call on a stopped token manager raises `OAuth2TokenError` (`The token manager is stopped (the client was closed)`) instead of exiting with `:noproc`. Not done: starting the managers under an SDK-owned supervisor; they stay `Agent.start_link` processes linked to the caller that built the authenticator, so closing is the way to release them. Test: `test/client_test.mustache`, `test/oauth2_token_manager_test.mustache`.
+
+### Error messages and URLs (F861, F925, F927, F922, F926, F931, F933, F924)
+
+Rule: redirect refusals use the D16 strings (`Refusing to follow redirect to non-HTTP(S) URL: <url>`, `Refusing to replay request body across HTTPS->HTTP redirect: <current> -> <next>`, `Too many redirects (exceeded N)`) and the URLs in them go through `DefaultApiClient.redact_url/1` (query, userinfo and fragment dropped) so a query-parameter API key never lands in a message. `ApiError.message/1` renders `Response headers:` as compact JSON with sorted keys. Token errors are `Token response is not valid JSON`, `... is not a JSON object`, `... missing or empty access_token field`. Serializer errors are `Failed to serialize object to JSON: <detail>` and `Failed to deserialize JSON: <detail>`. Test: the mirror test of each source file above.
+
+### Headers (F1044)
+
+Rule: the transport default headers and the caller's headers merge case-insensitively (the later layer wins and keeps its spelling), and a caller's `accept-encoding` of any casing suppresses the SDK's. Where: `default_api_client.mustache` (`merge_headers/2`, `has_header?/2`). Test: `test/default_api_client_unit_test.mustache`.
+
+### Non-JSON success bodies (F149)
+
+Rule: a non-JSON success Content-Type on a `String`/`String.t()` return keeps the text; any other non-binary return raises `SerializationError`. Test: `test/base_api_test.mustache`.
+
+### format: password (F867)
+
+Rule: a model with a `format: password` property derives `Inspect` with those fields excluded (`vendorExtensions.x-has-password-field`, set in `BetterElixirCodegen.postProcessModelProperty`). The field type stays `String.t()`. Test: `test/object_serializer_test.mustache`.
+
+### Documentation (F883, F884, F885, F887, F888, F889, F890)
+
+Rule: the README gained a `Usage` section (install line, quick start, link to SKILLS.md, custom HTTP client, cancellation, closing, raw responses and request id), and `Not supported` now names XML bodies, Link Objects, mutual TLS, automatic retries and per-call options. The word "retries" is gone from the custom-transport text. SKILLS `Models` builds the first model with its enforced keys set to `nil` placeholders, and gained `Closing the client`, `Cancellation` and `Timeouts and retries`.
+
+### Skipped in batch 6 (needs a cross-language decision or shared Java)
+
+F056, F057, F823, F827, F828, F830, F834, F835, F836, F837, F838, F840, F843, F855, F856, F857, F858, F862, F865, F866, F872, F893, F894, F929, F1048: each changes the public surface of all twelve SDKs or the shared generator, or (F872) rests on a compile check that was not run. F258 stays a documented limitation. F090, F215, F228, F278, F405, F803, F831, F839, F054 were already conforming.

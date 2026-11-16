@@ -37,6 +37,39 @@ defmodule {{moduleName}}.ClientTest do
     assert %{{moduleName}}.{{clientClassName}}{} = client
   end
 
+  test "close releases the transport and the authenticator's token manager" do
+    authenticator =
+      {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+        "{{{basePath}}}",
+        "id",
+        "secret",
+        "https://auth.example.com/token",
+        []
+      )
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+    manager = authenticator.token_manager
+    assert Process.alive?(manager)
+
+    assert {{moduleName}}.{{clientClassName}}.close(client) == :ok
+    refute Process.alive?(manager)
+    assert {{moduleName}}.{{clientClassName}}.close(client) == :ok
+
+    err =
+      assert_raise RuntimeError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(client.api_client, :get, "http://127.0.0.1:1/never", %{}, nil)
+      end
+
+    assert err.message == "ApiClient has been closed and can no longer send requests"
+  end
+
+  test "close works for an authenticator that starts nothing" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+
+    assert {{moduleName}}.{{clientClassName}}.close(client) == :ok
+  end
+
   test "BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
     assert_raise ArgumentError, fn ->
       {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "tok\r\nInjected: yes")

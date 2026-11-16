@@ -43,6 +43,32 @@ mix dialyzer
 - Name: `{{packageName}}`
 - Version: `{{packageVersion}}`
 
+## Usage
+
+Add `{:{{packageName}}, "~> {{packageVersion}}"}` to the `deps` in `mix.exs`, then:
+
+```elixir
+client = {{moduleName}}.{{clientClassName}}.with_token("https://api.example.com", "your-token")
+```
+
+[SKILLS.md](SKILLS.md) covers authentication, error handling, transport options and models.
+
+### Custom HTTP client
+
+Pass Req options such as an `:adapter` or a `:plug` through `TransportOptions.new(req_options: [...])`. The SDK's own settings win and the SDK never closes a transport you supply.
+
+### Cancellation
+
+There is no cancellation argument. A caller stops a call by terminating the process that made it (a process exit signal, the idiom here), and `timeout` on `TransportOptions` ends a call with `NetworkTimeoutError`.
+
+### Closing the client
+
+`{{moduleName}}.{{clientClassName}}.close/1` releases the transport the client created and the processes its authenticator started. It is idempotent.
+
+### Raw responses, request id and logging
+
+Every operation has a `_with_http_info` variant that returns the status, headers and body as an `ApiResult`. With `inject_request_id: true` on `TransportOptions`, the SDK sends an `X-Request-ID` it generates, unless the caller already set one. The SDK sends `Accept-Encoding` for the codecs it can decode and decodes them. It does not log.
+
 ## Caveats
 
 ### Decimal / `format: number` precision
@@ -101,11 +127,19 @@ HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
 
-### Per-call cancellation
+### Automatic retries
 
-The SDK has no cancellation API of its own. To bound how long a call can
-take, set the request timeout on `TransportOptions`; a call that exceeds it
-fails with `NetworkTimeoutError`.
+The SDK does not retry a failed request.
+
+### XML bodies, Link Objects and mutual TLS
+
+XML request and response bodies (including `xml` `nodeType` annotations),
+OpenAPI Link Objects and `mutualTLS` security schemes are not generated.
+
+### Per-call options
+
+There is no per-call timeout or header override. Set `timeout` and
+`default_headers` on `TransportOptions` for the whole client.
 
 ### `LICENSE` file is not auto-emitted
 
