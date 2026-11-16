@@ -1242,6 +1242,46 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     }
 
     /**
+     * Puts the oneOf and anyOf variant names of each model back into the order
+     * the spec declares them. The parent keeps them in a sorted set, but the
+     * runtime tries the variants in the order of the {@code one_of_schemas} and
+     * {@code any_of_schemas} tuples, so a payload that fits several variants
+     * must resolve to the first declared one, as in the other SDKs.
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            if (model == null || model.getComposedSchemas() == null) {
+                continue;
+            }
+            if (model.oneOf != null) {
+                model.oneOf = inDeclaredOrder(model.oneOf, model.getComposedSchemas().getOneOf());
+            }
+            if (model.anyOf != null) {
+                model.anyOf = inDeclaredOrder(model.anyOf, model.getComposedSchemas().getAnyOf());
+            }
+        }
+        return result;
+    }
+
+    private static Set<String> inDeclaredOrder(
+            Set<String> names, @Nullable List<CodegenProperty> declared) {
+        if (declared == null || names.isEmpty()) {
+            return names;
+        }
+        final Set<String> ordered = new java.util.LinkedHashSet<>();
+        for (final CodegenProperty variant : declared) {
+            if (names.contains(variant.dataType)) {
+                ordered.add(variant.dataType);
+            }
+        }
+        ordered.addAll(names);
+        return ordered;
+    }
+
+    /**
      * Escapes text for the inside of a double-quoted Python string literal, so
      * an apiKey scheme name holding a quote, a backslash or a control
      * character cannot break the generated authenticator wrapper.

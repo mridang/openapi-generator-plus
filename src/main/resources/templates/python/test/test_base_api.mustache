@@ -542,9 +542,12 @@ class TestBodySerialization:
         echoed_body = _json.loads(result['body'])
         assert echoed_body['key'] == 'value'
 
-    async def test_sends_no_body_when_none(self, api: Any) -> None:
-        await api.call('GET', '/test/echo', {}, {}, None,
-                       ['application/json'], 'application/json', None)
+    async def test_sends_no_body_when_none(self) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(api_client=client, config=Configuration(base_url='http://localhost'))
+        await stub.call('POST', '/test/echo', {}, {}, None,
+                        ['application/json'], 'application/json', None)
+        assert client.captured_body is None
 
     async def test_serializes_text_plain_body(self) -> None:
         client = CapturingApiClient()

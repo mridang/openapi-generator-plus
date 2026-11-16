@@ -280,6 +280,10 @@ The SDK applies its timeout, user agent, redirect policy and request id on top o
 
 With `inject_request_id(True)` every request carries an `X-Request-ID` header unless you set one yourself.
 
+### Response compression
+
+Responses are decoded for you (`gzip` and `deflate`; `br` and `zstd` with `pip install {{projectName}}[compression]`). A decoded response drops `content-encoding` and `content-length` from its headers.
+
 ### Cancellation
 
 ```python

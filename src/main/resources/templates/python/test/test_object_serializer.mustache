@@ -1402,6 +1402,15 @@ class TestByteModelFieldHoldsRawBytes:
         assert restored.shards == [b'a', self.RAW]
         assert restored.labels == {'k': b'test'}
 
+    def test_equality_compares_byte_contents_bare_listed_and_mapped(self) -> None:
+        vault = self._vault()
+        first = vault(seal=bytes(self.RAW), shards=[bytes(self.RAW)], labels={'k': bytes(self.RAW)})
+        second = vault(seal=bytes(self.RAW), shards=[bytes(self.RAW)], labels={'k': bytes(self.RAW)})
+        assert first == second
+        assert first != vault(seal=b'other', shards=[bytes(self.RAW)], labels={'k': bytes(self.RAW)})
+        assert first != vault(seal=bytes(self.RAW), shards=[b'other'], labels={'k': bytes(self.RAW)})
+        assert first != vault(seal=bytes(self.RAW), shards=[bytes(self.RAW)], labels={'k': b'other'})
+
     def test_pet_passport_thumbnail_and_scans_round_trip(self) -> None:
         wire = '{"thumbnail":"dGVzdA==","scans":["AQID"]}'
         passport = ObjectSerializer().deserialize(wire, 'PetPassport')

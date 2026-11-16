@@ -65,6 +65,10 @@ The authorization-code flow uses PKCE (`S256`): `build_authorization_url()` crea
 
 A token response whose `token_type` is not `bearer` (any case) raises `OAuth2TokenException`, and an OpenID Connect discovery document whose `issuer` differs from the discovery URL, or whose endpoints are not https (loopback hosts excepted), raises `SerializationException`.
 
+### Response compression
+
+The client sends an `Accept-Encoding` header naming the codecs it can decode (`gzip` and `deflate` always; `br` and `zstd` when the optional extra is installed with `pip install {{projectName}}[compression]`) and decodes the body for you. A decoded response drops `content-encoding` and `content-length` from `headers`; a body sent with `Content-Encoding: identity` is passed through untouched.
+
 ### Raw responses
 
 Every operation has a `<operation>_with_http_info` variant returning an `ApiResult` with `status_code`, `headers` (a read-only copy), `raw_body` and the typed `data`.

@@ -1852,6 +1852,15 @@ class TestResponseContentEncoding:
             "Failed to decompress deflate response body: "
         )
 
+    def test_an_identity_encoded_response_is_passed_through_undecoded(self) -> None:
+        response = DefaultApiClient().send_request(
+            "GET", f"{self.base_url}/identity", {}, None
+        )
+
+        assert response.status_code == 200
+        assert response.body == "gzip, deflate, br, zstd"
+        assert response.headers["content-encoding"] == "identity"
+
     def test_advertises_every_supported_codec_by_default(self) -> None:
         response = DefaultApiClient().send_request(
             "GET", f"{self.base_url}/accept-encoding", {}, None
