@@ -889,7 +889,9 @@ describe {{moduleName}}::Api::PetApi do
       end
 
       config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
-      api = {{moduleName}}::Api::PetApi.new(nil, config)
+      # The server answers one request, so the transport must not send a second.
+      transport = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.max_retries(0).build)
+      api = {{moduleName}}::Api::PetApi.new(transport, config)
       [api, server, thread]
     end
 
