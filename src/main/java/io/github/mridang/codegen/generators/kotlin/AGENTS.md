@@ -328,3 +328,9 @@ Each follows the audit's own proposal, because the owner had not decided; reopen
 - **F1079.** Already conforming: `timeout(0)` is refused with the D77 message.
 - **Test parity added (F1144, F1146, F1113/F1114, F1148, F1162, F1127, F1069).** `ObjectSerializerTest` pins the hostile Availability members, the EdgeCases.phase wire values, keyword and digit-leading wire keys, literal U+2028/2029/DEL, and exact plain-notation decimals; `StoreApiTest` pins the lowercase uuid path; `PetApiTest` pins the header and cookie guards.
 - **F864.** Already conforming since batch 6: `additionalProperties` is a constructor parameter, so `copy()` carries it.
+- **F859.** OIDC discovery must carry an `issuer` equal to the discovery URL (minus `/.well-known/openid-configuration`, trailing slash ignored) and, unless the discovery URL is itself `http`, https endpoints.
+- **F855.** A 401 answer calls `HttpAwareAuthenticator.invalidateAccessToken()` (default no-op, overridden by the OAuth2 and OIDC authenticators), so a revoked token is dropped; there is no automatic retry.
+- **F860.** A `noRedirect` request (the token POST) does not receive `TransportOptions.defaultHeaders`; header layering is case-insensitive, the later layer replaces the earlier one. The OIDC discovery GET still receives them.
+- **D92 (F1165).** A decoded response body drops `Content-Encoding` and `Content-Length` from the returned headers.
+- **F861.** `NetworkException` and `NetworkTimeoutException` messages drop the query and fragment of any URL in the Ktor message (`redactUrlsInMessage`).
+- **F1084.** SKILLS.md lists `{{errorPrefix}}Exception` with its `SerializationException`, `OAuth2ServerException` and `OAuth2TokenException` siblings.
