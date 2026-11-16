@@ -159,6 +159,54 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * Core types the generated sources use unqualified. A schema named like one would shadow it
+     * in every file that imports the models (D45, F173).
+     */
+    private static final Set<String> CORE_TYPE_CLASHES =
+            Set.of(
+                    "String", "int", "double", "num", "bool", "List", "Map", "Set", "Object",
+                    "Null", "Future", "Stream", "Type", "Function", "Duration", "DateTime", "Uri",
+                    "Error", "Exception", "Iterable");
+
+    /**
+     * Prefixes a schema named like a {@code dart:core} type with {@code Model} (D45, F173), so
+     * {@code Error} becomes {@code ModelError} instead of shadowing {@code Error}.
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        return CORE_TYPE_CLASHES.contains(modelName) ? "Model" + modelName : modelName;
+    }
+
+    /**
+     * Applies {@link #toModelName} to a reference to such a schema. The base class returns the raw
+     * schema name for a {@code $ref}, so without this a property typed {@code Error} would name
+     * {@code dart:core}'s {@code Error} while the model file declares {@code ModelError}.
+     */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        if (schema.get$ref() != null && CORE_TYPE_CLASHES.contains(type)) {
+            return "Model" + type;
+        }
+        return type;
+    }
+
+    /**
+     * Names of the arguments the generated operations add to their own signature or body. A path
+     * or body parameter named like one would be declared twice, so the shared {@code toParamName}
+     * suffixes it with {@code Param} (F1055).
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "options", "server", "requestContentType", "path", "auth", "serverUrl",
+                "queryParams", "headerParams", "cookieParts", "operationCookieValueRe", "formBody",
+                "requestBody", "declaredConsumes");
+    }
+
+    /**
      * Escapes a reserved word by appending an underscore suffix
      * instead of prepending one. In Dart, names starting with
      * underscore are library-private, so we avoid the prefix.

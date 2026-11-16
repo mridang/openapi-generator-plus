@@ -14,6 +14,7 @@ analyze:
 	dart analyze --fatal-warnings --fatal-infos
 
 lint: analyze
+	dart format --output=none --set-exit-if-changed .
 
 format:
 	dart format .
