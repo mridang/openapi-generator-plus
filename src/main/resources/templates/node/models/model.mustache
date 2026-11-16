@@ -472,7 +472,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * ("3600s"), not ISO-8601 ("PT1H") — protobuf-JSON APIs reject the ISO form.
    */
   @Transform(({ value }) => (typeof value === 'string' ? durationFromProtoJson(value) : value), { toClassOnly: true })
-  @Transform(({ value }) => (value instanceof Temporal.Duration ? durationToProtoJson(value) : value), { toPlainOnly: true })
+  @Transform(({ value }) => (isTemporalValue(value, 'Duration') ? durationToProtoJson(value as Temporal.Duration) : value), { toPlainOnly: true })
 {{/vendorExtensions.isDurationFormat}}
 {{#isByteArray}}
   /** 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary. */
@@ -914,7 +914,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null) {
       if (typeof this.{{name}} === 'string') {
         this.{{name}} = Temporal.PlainTime.from(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
-      } else if (!(this.{{name}} instanceof Temporal.PlainTime)) {
+      } else if (!isTemporalValue(this.{{name}}, 'PlainTime')) {
         throw new TypeError(`{{name}} must be a Temporal.PlainTime or ISO time string, got ${typeof this.{{name}}}`);
       }
     }
@@ -929,7 +929,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null) {
       if (typeof this.{{name}} === 'string') {
         this.{{name}} = durationFromProtoJson(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
-      } else if (!(this.{{name}} instanceof Temporal.Duration)) {
+      } else if (!isTemporalValue(this.{{name}}, 'Duration')) {
         throw new TypeError(`{{name}} must be a Temporal.Duration or protobuf-JSON duration string, got ${typeof this.{{name}}}`);
       }
     }

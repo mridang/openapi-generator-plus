@@ -7,9 +7,8 @@ import { ApiError } from './errors/index{{importFileExtension}}';
 import { NetworkError } from './errors/network-error{{importFileExtension}}';
 import { NetworkTimeoutError } from './errors/network-timeout-error{{importFileExtension}}';
 import type { ApiHttpResponse } from './api-http-response{{importFileExtension}}';
-import { ObjectSerializer } from './object-serializer{{importFileExtension}}';
+import { ObjectSerializer, isTemporalValue } from './object-serializer{{importFileExtension}}';
 import { TransportOptions } from './transport-options{{importFileExtension}}';
-import { Temporal } from 'temporal-polyfill';
 
 /**
  * Header names that MUST be stripped when following a cross-origin
@@ -712,14 +711,7 @@ export abstract class AbstractApiClient implements ApiClient {
     /* A date, date-time, time or duration is a primitive in the schema, so
      * it is a plain text part in its canonical stringify form; only a
      * model, map or array is a JSON part. */
-    const isScalarObject =
-      value instanceof Date ||
-      value instanceof Temporal.PlainDate ||
-      value instanceof Temporal.PlainTime ||
-      value instanceof Temporal.PlainDateTime ||
-      value instanceof Temporal.Instant ||
-      value instanceof Temporal.ZonedDateTime ||
-      value instanceof Temporal.Duration;
+    const isScalarObject = value instanceof Date || isTemporalValue(value);
     if (typeof value === 'object' && value !== null && !isScalarObject) {
       AbstractApiClient.assertNoControlChars(name, 'multipart field name');
       const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');

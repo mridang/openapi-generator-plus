@@ -1448,6 +1448,27 @@ describe('ObjectSerializer', () => {
         expect(JSON.parse(json)).toEqual({ ttl: '300s' });
       });
 
+      test('a Duration from another Temporal implementation is recognised structurally', () => {
+        class ForeignDuration {
+          readonly [Symbol.toStringTag] = 'Temporal.Duration';
+          weeks = 0;
+          days = 0;
+          hours = 1;
+          minutes = 0;
+          seconds = 0;
+          milliseconds = 0;
+          microseconds = 0;
+          nanoseconds = 0;
+        }
+        const foreign = new ForeignDuration() as unknown as Temporal.Duration;
+
+        expect(ObjectSerializer.stringify(foreign)).toBe('3600s');
+        expect(JSON.parse(ObjectSerializer.serialize({ ttl: foreign }))).toEqual({ ttl: '3600s' });
+        expect(JSON.parse(ObjectSerializer.serialize(new EdgeCases({ retryAfter: foreign })))).toMatchObject({
+          retryAfter: '3600s'
+        });
+      });
+
       describe('durationToProtoJson', () => {
         test('zero', () => {
           expect(durationToProtoJson(Temporal.Duration.from({ seconds: 0 }))).toBe('0s');

@@ -1,6 +1,7 @@
 {{>api_info}}
 
 import { ObjectSerializer } from './object-serializer{{importFileExtension}}';
+import { SerializationError } from './errors/serialization-error{{importFileExtension}}';
 
 /**
  * Serializes parameter values for HTTP requests based on their location and format.
@@ -77,7 +78,7 @@ export class ValueSerializer {
     collectionFormat: string | null,
     style: string | null,
     explode: boolean
-  ): string | string[] | undefined {
+  ): string | string[] | ExplodedObject | undefined {
     /* Path parameters are required components of the URL — accepting an
      * empty string would silently produce a malformed URL like
      * `/resource//details`, which most servers route to 404 instead of
@@ -112,6 +113,10 @@ export class ValueSerializer {
 
     const encodeIfPath = (s: string) =>
       location === 'path' ? ValueSerializer.encodePathSegment(s) : s;
+
+    if (ValueSerializer.isObjectValue(value)) {
+      return ValueSerializer.styleObject(paramName, value, style, explode, encodeIfPath);
+    }
 
     switch (style) {
       case 'matrix': {
@@ -314,21 +319,102 @@ export class ValueSerializer {
   }
 
   /**
+   * Whether a parameter value is an object (a model or a free-form map) that
+   * the OAS style rules expand into name and value pairs, as opposed to a
+   * scalar-like value (a `Date`, a byte array or a Temporal value).
+   */
+  private static isObjectValue(value: unknown): value is object {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      return false;
+    }
+    if (value instanceof Date || value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
+      return false;
+    }
+    const tag = (value as { [Symbol.toStringTag]?: unknown })[Symbol.toStringTag];
+    return !(typeof tag === 'string' && tag.startsWith('Temporal.'));
+  }
+
+  /**
+   * The ordered, wire-keyed name and value pairs of an object-valued
+   * parameter. Wire names, canonical date-times and omitted nulls follow the
+   * body path (it goes through {@link ObjectSerializer.serialize}).
+   *
+   * @param paramName the parameter name, for the error message
+   * @param value the model or map to expand
+   * @returns the pairs in declaration order, with null leaves dropped
+   * @throws SerializationError if a leaf is itself an object or an array
+   */
+  static toWireMap(paramName: string, value: object): Array<[string, string]> {
+    const plain: unknown = JSON.parse(ObjectSerializer.serialize(value));
+    if (plain === null || typeof plain !== 'object' || Array.isArray(plain)) {
+      throw new SerializationError(`Parameter '${paramName}' must serialize to an object`);
+    }
+    const pairs: Array<[string, string]> = [];
+    for (const [key, leaf] of Object.entries(plain as Record<string, unknown>)) {
+      if (leaf === null || leaf === undefined) {
+        continue;
+      }
+      if (typeof leaf === 'object') {
+        throw new SerializationError(
+          `Parameter '${paramName}' has a nested value under '${key}', ` +
+            `which cannot be written in this style`
+        );
+      }
+      pairs.push([key, String(leaf)]);
+    }
+    return pairs;
+  }
+
+  /**
+   * Expand an object-valued parameter per the OAS style and explode rules.
+   * A query parameter of style `form` with `explode: true` becomes one query
+   * entry per property ({@link ExplodedObject}); every other combination is
+   * a single string.
+   */
+  private static styleObject(
+    paramName: string,
+    value: object,
+    style: string,
+    explode: boolean,
+    encode: (s: string) => string
+  ): string | ExplodedObject {
+    const pairs = ValueSerializer.toWireMap(paramName, value).map(
+      ([k, v]) => [encode(k), encode(v)] as [string, string]
+    );
+    const flat = pairs.flat();
+    const joined = pairs.map(([k, v]) => `${k}=${v}`);
+    switch (style) {
+      case 'matrix':
+        return explode ? joined.map((pair) => `;${pair}`).join('') : `;${paramName}=${flat.join(',')}`;
+      case 'label':
+        return explode ? '.' + joined.join('.') : '.' + flat.join(',');
+      case 'simple':
+        return explode ? joined.join(',') : flat.join(',');
+      case 'spaceDelimited':
+        return flat.join(' ');
+      case 'pipeDelimited':
+        return flat.join('|');
+      default:
+        return explode ? new ExplodedObject(pairs) : flat.join(',');
+    }
+  }
+
+  /**
    * Wraps `value` in an {@link AllowReservedValue} when the parameter declares
    * `allowReserved: true`; otherwise returns it unchanged. The query-string
    * builder unwraps the marker and encodes the value with
    * {@link encodeQueryAllowingReserved} so RFC 3986 reserved characters stay
    * literal on the wire.
    *
-   * @param value the serialized query value (a string, or a string[] for
-   *   exploded parameters)
+   * @param value the serialized query value (a string, a string[] for
+   *   exploded arrays, or an {@link ExplodedObject} for an exploded object)
    * @param allowReserved whether the parameter preserves reserved characters
    * @returns the value, wrapped iff `allowReserved` is true
    */
   static maybeAllowReserved(
-    value: string | string[] | undefined,
+    value: string | string[] | ExplodedObject | undefined,
     allowReserved: boolean
-  ): string | string[] | AllowReservedValue | undefined {
+  ): string | string[] | ExplodedObject | AllowReservedValue | undefined {
     if (value === null || value === undefined || !allowReserved) {
       return value;
     }
@@ -353,8 +439,8 @@ export class ValueSerializer {
     if (value == null) {
       return result;
     }
-    for (const [key, val] of Object.entries(value)) {
-      result[`${paramName}[${key}]`] = ObjectSerializer.stringify(val);
+    for (const [key, val] of ValueSerializer.toWireMap(paramName, value)) {
+      result[`${paramName}[${key}]`] = val;
     }
     return result;
   }
@@ -370,5 +456,19 @@ export class ValueSerializer {
  * @remarks The wrapped value is a string, or a string[] for exploded parameters.
  */
 export class AllowReservedValue {
-  constructor(readonly value: string | string[]) {}
+  constructor(readonly value: string | string[] | ExplodedObject) {}
+}
+
+/**
+ * The query entries of an object-valued parameter of style `form` with
+ * `explode: true`: one `name=value` entry per property, under the property's
+ * own wire name rather than the parameter's. The query-string builder expands
+ * it; any other consumer sees the entries joined with `&`.
+ */
+export class ExplodedObject {
+  constructor(readonly entries: ReadonlyArray<readonly [string, string]>) {}
+
+  toString(): string {
+    return this.entries.map(([k, v]) => `${k}=${v}`).join('&');
+  }
 }

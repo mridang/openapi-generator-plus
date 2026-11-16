@@ -10,9 +10,8 @@ import { ApiError, SerializationError } from '../errors/index{{importFileExtensi
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { DefaultApiClient } from '#transport';
 import { HeaderSelector } from '../header-selector{{importFileExtension}}';
-import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
-import { Temporal } from 'temporal-polyfill';
-import { AllowReservedValue, ValueSerializer } from '../value-serializer{{importFileExtension}}';
+import { ObjectSerializer, isTemporalValue } from '../object-serializer{{importFileExtension}}';
+import { AllowReservedValue, ExplodedObject, ValueSerializer } from '../value-serializer{{importFileExtension}}';
 import { injectTraceContext } from '../trace-context-util{{importFileExtension}}';
 
 /**
@@ -130,6 +129,13 @@ export abstract class BaseApi {
         }
         const encodeQueryValue = (v: string): string =>
           allowReserved ? ValueSerializer.encodeQueryAllowingReserved(v) : ValueSerializer.encodeQueryComponent(v);
+        if (value instanceof ExplodedObject) {
+          /* An exploded object contributes one entry per property, under the
+           * property's own name. */
+          return value.entries.map(
+            ([name, entry]) => `${ValueSerializer.encodeQueryComponent(name)}=${encodeQueryValue(entry)}`
+          );
+        }
         const encodedKey = ValueSerializer.encodeQueryComponent(k);
         return Array.isArray(value)
           ? value.map((item) => `${encodedKey}=${encodeQueryValue(String(item))}`)
@@ -402,14 +408,7 @@ export abstract class BaseApi {
        * encoding (no OAS encoding style is emitted), so it is rejected
        * instead of being sent as '[object Object]'. */
       const isScalarObject = (value: object): boolean =>
-        value instanceof Date ||
-        value instanceof Uint8Array ||
-        value instanceof Temporal.PlainDate ||
-        value instanceof Temporal.PlainTime ||
-        value instanceof Temporal.PlainDateTime ||
-        value instanceof Temporal.Instant ||
-        value instanceof Temporal.ZonedDateTime ||
-        value instanceof Temporal.Duration;
+        value instanceof Date || value instanceof Uint8Array || isTemporalValue(value);
       const scalar = (key: string, value: unknown): string => {
         if (typeof value === 'object' && value !== null && !isScalarObject(value)) {
           throw new SerializationError(

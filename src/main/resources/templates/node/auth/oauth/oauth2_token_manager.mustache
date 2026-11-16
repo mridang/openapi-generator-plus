@@ -21,6 +21,9 @@ export class OAuth2TokenManager {
    */
   private static readonly EXPIRY_SAFETY_MARGIN_MS = 60_000;
 
+  /** Longest lifetime (one year, in seconds) a server-supplied `expires_in` may claim. */
+  private static readonly MAX_EXPIRES_IN_SECONDS = 31_536_000;
+
   private apiClient: ApiClient | null = null;
   private accessToken: string | null = null;
   private tokenExpiry: number | null = null;
@@ -309,7 +312,10 @@ export class OAuth2TokenManager {
        * parse digit strings; on anything unparseable or non-positive,
        * mark the token as immediately stale so the next call refetches
        * (preferable to caching a token of unknown lifetime forever). */
-      const expiresIn = OAuth2TokenManager.parseExpiresIn(json.expires_in);
+      const expiresIn = Math.min(
+        OAuth2TokenManager.parseExpiresIn(json.expires_in),
+        OAuth2TokenManager.MAX_EXPIRES_IN_SECONDS
+      );
       if (expiresIn > 0) {
         this.tokenLifetimeMs = expiresIn * 1000;
         this.tokenExpiry = Date.now() + this.tokenLifetimeMs;
@@ -319,13 +325,6 @@ export class OAuth2TokenManager {
     }
   }
 
-  /**
-   * Defensive parse of the `expires_in` field per RFC 6749 §5.1.
-   *
-   * Returns `0` (caller skips caching) when the value is missing,
-   * unparseable, or non-positive. Accepts integers, floors floats,
-   * and parses digit strings (e.g. `"3600"` from Salesforce).
-   */
   /**
    * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
    * {@link OAuth2ServerError}. Falls back to a generic error using the raw
@@ -350,6 +349,13 @@ export class OAuth2TokenManager {
     return new OAuth2ServerError(statusCode, null, null, null, body);
   }
 
+  /**
+   * Defensive parse of the `expires_in` field per RFC 6749 §5.1.
+   *
+   * Returns `0` (caller skips caching) when the value is missing,
+   * unparseable, or non-positive. Accepts integers, floors floats,
+   * and parses digit strings (e.g. `"3600"` from Salesforce).
+   */
   private static parseExpiresIn(raw: unknown): number {
     if (raw === null || raw === undefined) {
       return 0;

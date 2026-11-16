@@ -1473,6 +1473,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     serializerImports.add("durationFromProtoJson");
                     serializerImports.add("durationToProtoJson");
                 }
+                if (model.vars.stream()
+                        .anyMatch(
+                                v ->
+                                        Boolean.TRUE.equals(v.vendorExtensions.get("isTimeFormat"))
+                                                || Boolean.TRUE.equals(v.vendorExtensions.get("isDurationFormat")))) {
+                    serializerImports.add("isTemporalValue");
+                }
                 if (Boolean.TRUE.equals(modelMap.get("hasBufferImport"))) {
                     serializerImports.add("decodeBase64");
                 }

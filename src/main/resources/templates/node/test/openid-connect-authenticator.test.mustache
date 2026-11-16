@@ -93,6 +93,37 @@ describe('OpenIdConnectAuthenticator', () => {
     expect(url).toContain('response_type=code');
   });
 
+  test.each([
+    [[], 'openid'],
+    [['profile'], 'openid profile'],
+    [['openid'], 'openid'],
+    [['OpenID'], 'openid OpenID']
+  ] as Array<[string[], string]>)('the openid scope is always requested for scopes %j', async (scopes, expected) => {
+    const oidc = new OpenIdConnectAuthenticator(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my-client-id',
+      'my-client-secret',
+      'https://myapp.example.com/callback',
+      scopes
+    );
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token'
+        }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+    oidc.setApiClient(mockClient);
+
+    const url = await oidc.buildAuthorizationUrl();
+
+    expect(new URL(url).searchParams.get('scope')).toBe(expected);
+  });
+
   test('fetches discovery document', async () => {
     mockClient.responses = [
       {
@@ -289,6 +320,13 @@ describe('OpenIdConnectAuthenticator', () => {
       const [first, second] = await urlsAfter(61, 'public, max-age=60');
 
       expect(first).toContain('https://auth.example.com/authorize-1?');
+      expect(second).toContain('https://auth.example.com/authorize-2?');
+      expect(mockClient.callCount).toBe(2);
+    });
+
+    test('a max-age beyond one year is clamped to one year', async () => {
+      const [, second] = await urlsAfter(31_536_001, 'max-age=99999999999');
+
       expect(second).toContain('https://auth.example.com/authorize-2?');
       expect(mockClient.callCount).toBe(2);
     });

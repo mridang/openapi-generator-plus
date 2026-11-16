@@ -711,6 +711,34 @@ describe('OAuth2TokenManager', () => {
     }
   });
 
+  test('an expires_in beyond one year is clamped to one year', async () => {
+    let n = 0;
+    const stepClient: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        n++;
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ access_token: `clamp${n}`, expires_in: 9999999999 }),
+          headers: { 'content-type': 'application/json' }
+        };
+      }
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(stepClient);
+    const originalNow = Date.now;
+
+    try {
+      await manager.getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' });
+      Date.now = () => originalNow() + 31_536_000_000;
+      const second = await manager.getAccessToken('https://auth.example.com/token', {
+        grant_type: 'client_credentials'
+      });
+      expect(second).toBe('clamp2');
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
   test.each([['DPoP'], ['MAC'], [42]])('token_type %p is refused without echoing it', async (tokenType) => {
     mockClient.responseBody = JSON.stringify({ access_token: 'tok', token_type: tokenType });
 

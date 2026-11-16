@@ -9,7 +9,7 @@ import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../../src/api-http-response{{importFileExtension}}';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
-import { Pet, PetStatusEnum, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index{{importFileExtension}}';
+import { Pet, PetCriteria, PetStatusEnum, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index{{importFileExtension}}';
 import { ApiError } from '../../src/errors/api-error{{importFileExtension}}';
 import { InternalServerError, NotFoundError } from '../../src/errors/index{{importFileExtension}}';
 import { SerializationError } from '../../src/errors/serialization-error{{importFileExtension}}';
@@ -1182,6 +1182,22 @@ describe('PetApi against a recording client', () => {
 
     expect(recorded[0]!.url).toContain(query);
     expect(recorded[0]!.headers['X-Fingerprint']).toBe(header);
+  });
+
+  test('getPetTag expands the object-valued criteria parameters per their styles', async () => {
+    const criteria = new PetCriteria({ breed: 'lab', min_age: 3 });
+
+    await recordingApi.getPetTag(5, 'sample', {
+      criteria,
+      criteriaCsv: criteria,
+      criteriaDeep: criteria,
+      xCriteria: criteria,
+    });
+
+    expect(new URL(recorded[0]!.url).search).toContain(
+      'breed=lab&min_age=3&criteriaCsv=breed%2Clab%2Cmin_age%2C3&criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3',
+    );
+    expect(recorded[0]!.headers['X-Criteria']).toBe('breed,lab,min_age,3');
   });
 
   test('without a variant the client base URL is used', async () => {
