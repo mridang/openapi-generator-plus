@@ -56,8 +56,15 @@ final class TransportOptions
         public readonly bool $injectRequestId = false,
     ) {
         self::assertValidProxy($proxy);
-        if ($timeout !== null && $timeout < 0) {
-            throw new \InvalidArgumentException("Invalid timeout (must not be negative): $timeout");
+        if ($timeout !== null && $timeout <= 0) {
+            throw new \InvalidArgumentException(
+                "Invalid timeout: must be a positive number of milliseconds (got $timeout)"
+            );
+        }
+        if ($maxRedirects !== null && $maxRedirects < 0) {
+            throw new \InvalidArgumentException(
+                "Invalid maxRedirects: must not be negative (got $maxRedirects)"
+            );
         }
     }
 

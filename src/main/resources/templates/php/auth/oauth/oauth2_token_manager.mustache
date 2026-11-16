@@ -30,13 +30,6 @@ use {{invokerPackage}}\Errors\{{errorPrefix}}Exception;
  */
 final class OAuth2TokenManager
 {
-    /**
-     * Safety margin (in seconds) applied to token expiry checks so that we
-     * refresh slightly before the token actually expires, avoiding a race
-     * against the server clock.
-     */
-    private const int EXPIRY_SAFETY_MARGIN_S = 60;
-
     /** @var ApiClient|null The shared API client for making token requests. */
     private ?ApiClient $apiClient = null;
 
@@ -92,7 +85,7 @@ final class OAuth2TokenManager
         ?string $refreshUrl = null
     ): string {
         $stillFresh = $this->tokenExpiry === null
-            || microtime(true) < ($this->tokenExpiry - self::EXPIRY_SAFETY_MARGIN_S);
+            || microtime(true) < $this->tokenExpiry;
         if ($this->accessToken !== null && $stillFresh) {
             return $this->accessToken;
         }
@@ -265,11 +258,15 @@ final class OAuth2TokenManager
             throw self::parseOAuth2ServerError($response->statusCode, $response->body);
         }
 
-        /** @var array<string, mixed>|null $responseBody */
-        $responseBody = json_decode($response->body, true);
-        if (!is_array($responseBody)) {
+        try {
+            $responseBody = json_decode($response->body, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw new OAuth2TokenException('Token response is not valid JSON');
+        }
+        if (!is_array($responseBody) || ($responseBody !== [] && array_is_list($responseBody))) {
             throw new OAuth2TokenException('Token response is not a JSON object');
         }
+        /** @var array<string, mixed> $responseBody */
         if (!isset($responseBody['access_token'])
             || !is_string($responseBody['access_token'])
             || $responseBody['access_token'] === ''
@@ -289,11 +286,18 @@ final class OAuth2TokenManager
              * (preferable to caching a token of unknown lifetime forever). */
             $expiresIn = self::parseExpiresIn($responseBody['expires_in']);
             if ($expiresIn > 0) {
+                /* One margin only: the token is refreshed 30 s early, never
+                 * more than its whole lifetime, so a 60 s token is reused
+                 * for 30 s and not refetched on every call. */
                 $bufferSecs = min($expiresIn, 30);
                 $this->tokenExpiry = microtime(true) + $expiresIn - $bufferSecs;
             } else {
                 $this->tokenExpiry = microtime(true);
             }
+        } else {
+            /* No expires_in: the new token has no known lifetime, so a stale
+             * expiry left by an earlier grant must not outlive it. */
+            $this->tokenExpiry = null;
         }
     }
 

@@ -585,10 +585,15 @@ class ObjectSerializer
             /* A whole-number float keeps its ".0" (1.0, not 1), like the
              * other SDKs; (string) drops the fraction. Non-finite values and
              * exponent forms already carry their own marker. */
-            $text = (string) $value;
-            return is_finite($value) && !str_contains($text, '.') && !str_contains($text, 'E')
-                ? $text . '.0'
-                : $text;
+            if (!is_finite($value)) {
+                return (string) $value;
+            }
+            /* (string) honours the precision ini (default 14) and would cut
+             * 0.1234567890123456 to 14 digits; json_encode writes the
+             * shortest round-trip form, the same bytes as a JSON body, and
+             * PRESERVE_ZERO_FRACTION keeps the ".0" of a whole number. */
+            $text = json_encode($value, JSON_PRESERVE_ZERO_FRACTION);
+            return $text === false ? (string) $value : str_replace('e', 'E', $text);
         }
 
         if (is_int($value)) {

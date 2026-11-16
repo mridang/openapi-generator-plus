@@ -98,10 +98,19 @@ test('follow redirects defaults to true with null max redirects', function (): v
     expect($opts->maxRedirects)->toBeNull();
 });
 
-test('a negative timeout throws exception', function (): void {
+test('rejects a negative timeout with the canonical message', function (): void {
     expect(fn () => TransportOptions::builder()->timeout(-1)->build())
-        ->toThrow(\InvalidArgumentException::class);
-    expect(TransportOptions::builder()->timeout(0)->build()->timeout)->toBe(0);
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got -1)');
+});
+
+test('rejects a zero timeout with the canonical message', function (): void {
+    expect(fn () => TransportOptions::builder()->timeout(0)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
+});
+
+test('rejects a negative maxRedirects', function (): void {
+    expect(fn () => TransportOptions::builder()->maxRedirects(-1)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRedirects: must not be negative (got -1)');
 });
 
 test('invalid proxy url throws exception', function (): void {

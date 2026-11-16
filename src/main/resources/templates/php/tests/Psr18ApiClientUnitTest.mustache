@@ -482,6 +482,20 @@ test('psr18 multipart png file gets image png content type', function (): void {
     }
 });
 
+test('psr18 multipart file that can no longer be read throws instead of sending an empty part', function (): void {
+    $stub = new StubPsr18Client(psr18Response(200, '{}'));
+    $client = newPsr18Client($stub);
+    $path = tempnam(sys_get_temp_dir(), 'part');
+    assert($path !== false);
+    file_put_contents($path, 'bytes');
+    $file = new \SplFileObject($path);
+    unlink($path);
+
+    expect(fn (): mixed => $client->sendRequest('POST', 'http://example.com/upload', [], ['file' => $file]))
+        ->toThrow(\InvalidArgumentException::class, 'Failed to read multipart file');
+    expect($stub->requests)->toBe([]);
+});
+
 test('psr18 multipart psr7 stream part is sent as a file part with its bytes', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $client = newPsr18Client($stub);
