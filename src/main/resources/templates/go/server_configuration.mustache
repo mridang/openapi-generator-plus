@@ -145,7 +145,10 @@ func (s *ServerConfiguration) Variables() map[string]ServerVariable {
 //
 // Returns the fully resolved URL.
 func (s *ServerConfiguration) URL(overrides map[string]string) (string, error) {
-	result := s.urlTemplate
+	/* Every placeholder is replaced in one pass over the template, so a value
+	 * that itself contains "{other}" is never expanded again, and the result
+	 * does not depend on map iteration order. */
+	replacements := make([]string, 0, len(s.variables)*2)
 	for varName, variable := range s.variables {
 		value := variable.defaultValue
 		if override, ok := overrides[varName]; ok {
@@ -165,9 +168,9 @@ func (s *ServerConfiguration) URL(overrides map[string]string) (string, error) {
 			}
 		}
 
-		result = strings.ReplaceAll(result, "{"+varName+"}", value)
+		replacements = append(replacements, "{"+varName+"}", value)
 	}
-	return result, nil
+	return strings.NewReplacer(replacements...).Replace(s.urlTemplate), nil
 }
 
 // bracketedList renders a list of values as [a, b, c], the one rendering every

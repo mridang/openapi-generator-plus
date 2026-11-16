@@ -188,3 +188,27 @@ func TestServerConfiguration_RejectionMessageNamesValueVariableAndAllowedValues(
 		t.Errorf("expected message %q, got %v", want, err)
 	}
 }
+
+// A value that introduces a placeholder is substituted literally: the result
+// never depends on which variable is visited first.
+func TestServerConfiguration_AValueIsNeverExpandedAgain(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.api.example.com/{version}",
+		"",
+		map[string]{{packageName}}.ServerVariable{
+			"env":     {{packageName}}.NewServerVariable("{version}", "", nil),
+			"version": {{packageName}}.NewServerVariable("v2", "", nil),
+		},
+	)
+
+	for i := 0; i < 20; i++ {
+		got, err := server.URL(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := "https://{version}.api.example.com/v2"; got != want {
+			t.Fatalf("expected %q, got %q", want, got)
+		}
+	}
+}

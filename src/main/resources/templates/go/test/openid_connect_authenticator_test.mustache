@@ -445,7 +445,7 @@ func TestOpenIdConnect_GetHostReturnsConfiguredHost(t *testing.T) {
 	}
 }
 
-func TestOpenIdConnectRedactsSecret(t *testing.T) {
+func TestOpenIdConnect_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	authObj := createOpenIdConnectAuthenticator()
 	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj)} {
