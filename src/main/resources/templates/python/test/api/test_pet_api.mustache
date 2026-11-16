@@ -7,7 +7,13 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Dict, List, cast
 from urllib.parse import unquote
-from {{packageName}}.api.pet_api import GetExternalPetInfoServer, PetApi
+from {{packageName}}.api.pet_api import (
+    GetExternalPetInfoServer,
+    GetMultiServerPetInfoServerChannel,
+    GetMultiServerPetInfoServerMirror,
+    GetMultiServerPetInfoServerMirrorRegion,
+    PetApi,
+)
 from {{packageName}}.api.options.add_pet_options import AddPetOptions
 from {{packageName}}.api.options.add_pet_photos_options import AddPetPhotosOptions
 from {{packageName}}.api.options.delete_pet_options import DeletePetOptions
@@ -28,6 +34,7 @@ from {{packageName}}.errors.not_found_exception import NotFoundException
 from {{packageName}}.models.api_response import ApiResponse
 from {{packageName}}.models.medication import Medication
 from {{packageName}}.models.pet import Pet, PetStatusEnum
+from {{packageName}}.models.swatch import Swatch
 from {{packageName}}.models.pet_criteria import PetCriteria
 from {{packageName}}.models.pet_treatment import PetTreatment
 from {{packageName}}.models.pet_passport import PetPassport
@@ -420,6 +427,68 @@ class TestPetApi:
         # The multipart envelope carries the file part and is NOT the bare bytes.
         assert b"Content-Disposition" in multipart["body"]
         assert multipart["body"] != file_bytes
+
+    async def test_upload_pet_document_sends_scalar_parts_as_plain_text(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.upload_pet_document(
+                1,
+                UploadPetDocumentOptions(
+                    file=b'doc-data',
+                    is_primary=True,
+                    page_count=3,
+                    taken_at=datetime.datetime(2024, 1, 15, 10, 30, tzinfo=datetime.timezone.utc),
+                    swatch=Swatch.RED,
+                ),
+            ),
+            'application/json',
+            b'{}',
+        )
+        body = captured['body']
+        for name, text in [
+            ('isPrimary', 'true'),
+            ('pageCount', '3'),
+            ('takenAt', '2024-01-15T10:30:00.000+00:00'),
+            ('swatch', 'red'),
+        ]:
+            assert f'name="{name}"\r\n\r\n{text}\r\n' in body
+
+    @pytest.mark.parametrize(
+        ('channel', 'expected'),
+        [
+            (GetMultiServerPetInfoServerChannel.A_B, 'https://eu.mirror.example.com/a&b/v1'),
+            (GetMultiServerPetInfoServerChannel.IT_S, "https://eu.mirror.example.com/it's/v1"),
+        ],
+    )
+    def test_the_mirror_operation_server_resolves_raw_reserved_characters(
+        self, channel: GetMultiServerPetInfoServerChannel, expected: str
+    ) -> None:
+        server = GetMultiServerPetInfoServerMirror(
+            GetMultiServerPetInfoServerMirrorRegion.EU, channel
+        )
+        assert server.get_url() == expected
+
+    async def test_get_pet_tag_wires_the_matrix_and_label_path_styles(self) -> None:
+        captured = await _capture_get(lambda api: api.get_pet_tag(7, 'cute'))
+        assert captured['path'].startswith('/pet/;petId=7/tag/.cute')
+
+    async def test_find_pets_by_status_sends_a_deep_object_filter_in_key_order(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.find_pets_by_status(
+                FindPetsByStatusOptions(filter={'color': 'red', 'size': 'xl'})
+            ),
+            'application/json',
+            b'[]',
+        )
+        assert 'filter%5Bcolor%5D=red&filter%5Bsize%5D=xl' in captured['path']
+
+    async def test_a_digit_leading_query_parameter_keeps_its_wire_name(self) -> None:
+        captured = await _capture_get(
+            lambda api: api.find_pets_by_status(FindPetsByStatusOptions(n2nd_page=3)),
+            'application/json',
+            b'[]',
+        )
+        assert '2ndPage=3' in captured['path']
+        assert 'n2nd' not in captured['path']
 
     async def test_add_pet_photos(self) -> None:
         metadata = PhotoMetadata(caption='Test photo', isPrimary=True)

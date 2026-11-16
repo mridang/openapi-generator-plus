@@ -734,6 +734,69 @@ class TestFixtureModelsOnTheWire:
         assert decoded.phase == EdgeCasesPhaseEnum(wire)
         assert json.loads(ObjectSerializer().serialize(decoded)) == {'phase': wire}
 
+    def test_separator_wire_values_decode_to_distinct_members_and_re_encode(self) -> None:
+        import json
+        from {{packageName}}.models.separator import Separator
+
+        wires = [' ', '@@', 'a-b', 'a_b']
+        members = []
+        for wire in wires:
+            member = ObjectSerializer().deserialize(json.dumps(wire), 'Separator')
+            assert isinstance(member, Separator)
+            assert ObjectSerializer().serialize(member) == json.dumps(wire)
+            members.append(member)
+        assert len(set(members)) == 4
+
+    def test_a_content_encoded_property_round_trips_through_base64(self) -> None:
+        import json
+        from {{packageName}}.models.pet_passport import PetPassport
+
+        wire = json.loads(
+            ObjectSerializer().serialize(PetPassport(biometricChip=b'\x00\xfb\xff'))
+        )
+        assert wire['biometricChip'] == 'APv/'
+        decoded = ObjectSerializer().deserialize('{"biometricChip":"APv/"}', 'PetPassport')
+        assert isinstance(decoded, PetPassport)
+        assert decoded.biometric_chip == b'\x00\xfb\xff'
+
+    def test_a_prefix_items_tuple_keeps_its_mixed_element_types(self) -> None:
+        import json
+        from {{packageName}}.models.pet import Pet
+
+        pet = ObjectSerializer().deserialize(
+            '{"name":"n","photoUrls":[],"location":[1.5,2,"deck"]}', 'Pet'
+        )
+        assert isinstance(pet, Pet)
+        assert pet.location == [1.5, 2, 'deck']
+        assert json.loads(ObjectSerializer().serialize(pet))['location'] == [1.5, 2, 'deck']
+
+    def test_properties_named_after_keywords_and_literals_keep_their_wire_keys(self) -> None:
+        import json
+        from {{packageName}}.models.edge_cases import EdgeCases
+
+        wire = {
+            'and': True,
+            'or': False,
+            'not': True,
+            'class': 'c',
+            'return': 'r',
+            'null': 'n',
+            'true': True,
+            'false': False,
+            '2fa': True,
+        }
+        decoded = ObjectSerializer().deserialize(json.dumps(wire), 'EdgeCases')
+        assert isinstance(decoded, EdgeCases)
+        assert (decoded.and_, decoded.or_, decoded.not_) == (True, False, True)
+        assert (decoded.class_, decoded.return_, decoded.null) == ('c', 'r', 'n')
+        assert (decoded.true_, decoded.false_, decoded.n2fa) == (True, False, True)
+        assert json.loads(ObjectSerializer().serialize(decoded)) == wire
+
+    def test_a_duplicate_object_key_resolves_to_the_last_value(self) -> None:
+        category = ObjectSerializer().deserialize('{"id":1,"id":2,"name":"x"}', 'Category')
+        assert isinstance(category, Category)
+        assert category.id == 2
+
     def test_an_unknown_inline_enum_value_is_rejected(self) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"phase":"in-stock"}', 'EdgeCases')
