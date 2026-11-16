@@ -75,9 +75,23 @@ case "$cmd" in
     cd "$root"
     # Leaked mock-server containers and networks from earlier runs exhaust Docker's address
     # pools and make the next run fail to start its containers; sweep them first.
-    echo '{"hook_event_name":"SessionStart"}' | "$root/.claude/hooks/docker-guard.sh" > /dev/null 2>&1 || true
+    # Only sweep when no other check is running: a second run's sweep would delete the first
+    # run's live containers. Each run records its pid; a pid file whose process is gone is stale.
+    active="${TMPDIR:-/tmp}/ci-local-active"
+    mkdir -p "$active"
+    others=0
+    for f in "$active"/*; do
+      [ -e "$f" ] || continue
+      if kill -0 "$(basename "$f")" 2> /dev/null; then others=$((others + 1)); else rm -f "$f"; fi
+    done
+    touch "$active/$$"
+    trap 'rm -f "$active/$$"' EXIT
+    if [ "$others" -eq 0 ]; then
+      echo '{"hook_event_name":"SessionStart"}' | "$root/.claude/hooks/docker-guard.sh" > /dev/null 2>&1 || true
+    fi
     sha="$(git rev-parse HEAD)"
-    out="${TMPDIR:-/tmp}/ci-local-${sha:0:9}"
+    # One output folder per run: parallel runs on the same commit must not share logs.
+    out="${TMPDIR:-/tmp}/ci-local-${sha:0:9}-$(basename "$root")-$$"
     mkdir -p "$out"
     dirty_before="$(git status --porcelain)"
     quick=0
