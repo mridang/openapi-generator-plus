@@ -1257,6 +1257,43 @@ fn start_truncated_body_server() -> String {
     base_url
 }
 
+/* F1063: the client keeps no cookie jar, so a Set-Cookie on one response never
+ * comes back as a Cookie header on the next request. */
+#[tokio::test]
+async fn test_a_response_cookie_is_never_replayed() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+    thread::spawn(move || {
+        for (index, stream) in listener.incoming().take(2).enumerate() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+            let cookie = if index == 0 { "Set-Cookie: sid=abc; Path=/\r\n" } else { "" };
+            let response = format!(
+                "HTTP/1.1 200 OK\r\n{}Content-Length: 0\r\nConnection: close\r\n\r\n",
+                cookie
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    for _ in 0..2 {
+        client
+            .send_request("GET", &format!("{}/session", base_url), &headers, None)
+            .await
+            .expect("the request must succeed");
+    }
+
+    let first = rx.recv().expect("expected the first request");
+    let second = rx.recv().expect("expected the second request");
+    assert!(!first.to_lowercase().contains("cookie:"), "got: {}", first);
+    assert!(!second.to_lowercase().contains("cookie:"), "got: {}", second);
+}
+
 /// Gap AL: starts a server that LIES about its body encoding — it sets
 /// `Content-Encoding: gzip` on the response but writes a plain, non-gzip body.
 /// The client attempts to inflate the body and fails.
