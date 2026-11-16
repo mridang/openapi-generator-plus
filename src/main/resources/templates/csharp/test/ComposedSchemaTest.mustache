@@ -192,6 +192,42 @@ public class ComposedSchemaTest
     }
 
     [Fact]
+    public void AnyOfRetainsVariantsInDeclarationOrderSoTheFirstDeclaredIsTheActualInstance()
+    {
+        // TreatmentRecord declares Surgery then Medication, the reverse of
+        // PetTreatment, so the same payload retains the variants in the other order.
+        var json = "{\"drugName\":\"a\",\"procedureName\":\"b\"}";
+
+        var record = _serializer.Deserialize<TreatmentRecord>(json)!;
+        var treatment = _serializer.Deserialize<PetTreatment>(json)!;
+
+        Assert.IsType<Surgery>(record.ActualInstance);
+        Assert.IsType<Medication>(treatment.ActualInstance);
+        Assert.Collection(
+            record.MatchedInstances,
+            first => Assert.IsType<Surgery>(first),
+            second => Assert.IsType<Medication>(second));
+    }
+
+    [Fact]
+    public void AnyOfSharedPropertyCollisionTheLaterDeclaredVariantWinsInTheOtherOrder()
+    {
+        // In TreatmentRecord Medication is declared last, so its `notes` wins.
+        var surgery = _serializer.Deserialize<TreatmentRecord>(
+            "{\"procedureName\":\"Spay\",\"notes\":\"from-surgery\"}")!
+            .MatchedInstances.OfType<Surgery>().Single();
+        var medication = _serializer.Deserialize<TreatmentRecord>(
+            "{\"drugName\":\"Amoxicillin\",\"notes\":\"from-medication\"}")!
+            .MatchedInstances.OfType<Medication>().Single();
+        var combined = new TreatmentRecord(new List<object> { surgery, medication });
+
+        var serialized = _serializer.Serialize(combined);
+
+        Assert.Contains("from-medication", serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain("from-surgery", serialized, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AnyOfNoMatchThrows()
     {
         // oneof-nondiscriminator-no-match-silent: a payload matching neither
