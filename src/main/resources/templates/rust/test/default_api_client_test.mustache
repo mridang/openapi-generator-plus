@@ -108,6 +108,26 @@ async fn test_custom_ca_cert_replaces_the_system_trust_store() {
     );
 }
 
+/* F1161: the mock's `/test/response-headers` answers with repeated Link and
+ * Set-Cookie headers; they arrive joined, in order, under lower-cased names. */
+#[tokio::test]
+async fn test_default_api_client_joins_the_repeated_headers_the_mock_sends() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let resp = DefaultApiClient::new(None)
+        .send_request("GET", &format!("{}/test/response-headers", chasm_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(resp.status_code(), 200);
+    assert!(resp.headers().contains_key("x-custom-header"), "{:?}", resp.headers());
+    let link = resp.headers().get("link").expect("expected a link header");
+    let (next, prev) = (link.find("next"), link.find("prev"));
+    assert!(next.is_some() && prev > next, "expected both Link entries in order, got {:?}", link);
+    let cookie = resp.headers().get("set-cookie").expect("expected a set-cookie header");
+    let (first, second) = (cookie.find("a=1"), cookie.find("b=2"));
+    assert!(first.is_some() && second > first, "expected both Set-Cookie entries in order, got {:?}", cookie);
+}
+
 #[tokio::test]
 async fn test_default_api_client_makes_http_request_through_proxy() {
     let chasm_url = testcontainers_helper::chasm_internal_http_url();
