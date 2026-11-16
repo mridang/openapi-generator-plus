@@ -1398,6 +1398,28 @@ describe {{moduleName}}::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  # The client keeps no cookie jar: a Set-Cookie answer is returned to the
+  # caller and never replayed on a later request.
+  it 'does not replay a Set-Cookie response header on the next request' do
+    seen = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/first') { [200, { 'content-type' => 'text/plain', 'set-cookie' => 'sid=abc' }, 'ok'] }
+      stub.get('/second') do |env|
+        seen << env.request_headers.transform_keys(&:downcase)
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      first = client.send_request('GET', 'http://localhost/first', {}, nil)
+      client.send_request('GET', 'http://localhost/second', {}, nil)
+      _(first.headers['set-cookie']).must_equal 'sid=abc'
+    end
+    _(seen.length).must_equal 1
+    _(seen.first.key?('cookie')).must_equal false
+    stubs.verify_stubbed_calls
+  end
+
   # ── redirect origin comparison ──
   # Credentials follow a redirect only to the same origin: scheme, host and
   # effective port. An explicit default port (:80 on http, :443 on https) names

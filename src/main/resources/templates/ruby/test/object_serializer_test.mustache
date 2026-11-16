@@ -1042,6 +1042,22 @@ describe {{moduleName}}::ObjectSerializer do
     end
   end
 
+  # S3 / D55: the client does not enforce pattern, minimum or maximum; a value
+  # outside the declared bounds decodes as sent and the server owns validation.
+  describe 'schema constraints are not enforced' do
+    it 'decodes a quantity above its maximum' do
+      order = {{moduleName}}::ObjectSerializer.deserialize('{"quantity":500}', 'Order')
+      _(order.quantity).must_equal(500)
+    end
+
+    it 'decodes a nickname and a slug that violate their patterns' do
+      pet = {{moduleName}}::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"nickname":"X!"}', 'Pet')
+      _(pet.nickname).must_equal('X!')
+      edge = {{moduleName}}::ObjectSerializer.deserialize('{"slug":"not-a-slug"}', 'EdgeCases')
+      _(edge.slug).must_equal('not-a-slug')
+    end
+  end
+
   # D46: Availability members that are special inside a string literal keep
   # their exact wire value through decode and encode.
   describe 'Availability members with literal-special characters' do
@@ -1053,6 +1069,15 @@ describe {{moduleName}}::ObjectSerializer do
         _(item.availability).must_equal(value)
         _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(item))['availability']).must_equal(value)
       end
+    end
+  end
+
+  # A JSON body that repeats an object key resolves to the last value.
+  describe 'duplicate object keys' do
+    it 'resolves a repeated key to the last value' do
+      json = '{"name":"first","name":"second","photoUrls":[]}'
+      pet = {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
+      _(pet.name).must_equal('second')
     end
   end
 
