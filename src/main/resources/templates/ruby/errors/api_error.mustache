@@ -149,7 +149,7 @@ module {{moduleName}}
       #
       # @return [String]
       def rendered_body
-        text = response_body.to_s
+        text = response_body.to_s.scrub
         excess = text.bytesize - MAX_RENDERED_BODY_BYTES
         text = text.byteslice(0, MAX_RENDERED_BODY_BYTES).to_s.scrub if excess.positive?
         text = text.gsub(/[\x00-\x1f\x7f]/) do |char|
