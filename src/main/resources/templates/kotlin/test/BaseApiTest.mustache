@@ -169,6 +169,137 @@ class BaseApiTest {
         assertEquals(0, ok.invalidations)
     }
 
+    /* Answers with the given statuses in turn (the last one repeats) and keeps what it was sent. */
+    class ScriptedApiClient(private val statuses: List<Int>) : ApiClient {
+        val sentHeaders = mutableListOf<Map<String, String>>()
+        val sentBodies = mutableListOf<Any?>()
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean
+        ): ApiHttpResponse {
+            sentHeaders.add(headers.toMap())
+            sentBodies.add(body)
+            val status = statuses[minOf(sentHeaders.size - 1, statuses.size - 1)]
+            return ApiHttpResponse(status, "{}", mapOf("Content-Type" to "application/json"))
+        }
+    }
+
+    /* Hands out a new token on every call; once invalidated it can fail to get another. */
+    class RotatingOAuthAuthenticator(private val failAfterInvalidate: Boolean = false) :
+        {{invokerPackage}}.auth.HttpAwareAuthenticator {
+        var issued = 0
+        var invalidations = 0
+        override fun setApiClient(apiClient: ApiClient) {
+            // The rotating authenticator never calls back into the client.
+        }
+        override fun invalidateAccessToken() {
+            invalidations++
+        }
+        override fun getHost(): String = ""
+        override suspend fun getAuthHeaders(): Map<String, String> {
+            if (failAfterInvalidate && invalidations > 0) {
+                throw OAuth2TokenException("refresh failed")
+            }
+            issued++
+            return mapOf("Authorization" to "Bearer t$issued")
+        }
+    }
+
+    @Test
+    @DisplayName("F855: a 401 drops the cached token and replays the request once with a fresh one")
+    fun unauthorizedAnswerReplaysTheRequestOnceWithAFreshToken() {
+        val client = ScriptedApiClient(listOf(401, 200))
+        val auth = RotatingOAuthAuthenticator()
+        val replaying = object : {{apiPackage}}.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+            suspend fun call(body: Any?) =
+                invokeApi("POST", "/items", mutableMapOf(), mutableMapOf(), body, arrayOf("application/json"), "text/plain", auth)
+        }
+
+        val response = runBlocking { replaying.call("payload") }
+
+        assertEquals(200, response.statusCode)
+        assertEquals(2, client.sentHeaders.size)
+        assertEquals("Bearer t1", client.sentHeaders[0]["Authorization"])
+        assertEquals("Bearer t2", client.sentHeaders[1]["Authorization"])
+        assertEquals(listOf<Any?>("payload", "payload"), client.sentBodies)
+        assertEquals(1, auth.invalidations)
+    }
+
+    @Test
+    @DisplayName("F855: a second 401 is reported as Unauthorized and the request is not sent a third time")
+    fun aSecondUnauthorizedAnswerIsReported() {
+        val client = ScriptedApiClient(listOf(401))
+        val auth = RotatingOAuthAuthenticator()
+        val replaying = object : {{apiPackage}}.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+            suspend fun call() =
+                invokeApi("GET", "/items", mutableMapOf(), mutableMapOf(), null, arrayOf("application/json"), "application/json", auth)
+        }
+
+        assertThrowsExactly(UnauthorizedException::class.java) { runBlocking { replaying.call() } }
+
+        assertEquals(2, client.sentHeaders.size)
+        assertEquals(1, auth.invalidations)
+    }
+
+    @Test
+    @DisplayName("F855: a multipart body is not replayed after a 401")
+    fun aMultipartBodyIsNotReplayed() {
+        val client = ScriptedApiClient(listOf(401, 200))
+        val auth = RotatingOAuthAuthenticator()
+        val api = object : {{apiPackage}}.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+            suspend fun call() =
+                invokeApi(
+                    "POST",
+                    "/upload",
+                    mutableMapOf(),
+                    mutableMapOf(),
+                    mapOf("file" to "bytes".toByteArray()),
+                    arrayOf("application/json"),
+                    "multipart/form-data",
+                    auth,
+                )
+        }
+
+        assertThrowsExactly(UnauthorizedException::class.java) { runBlocking { api.call() } }
+
+        assertEquals(1, client.sentHeaders.size)
+        assertEquals(1, auth.invalidations, "the cached token is still dropped")
+    }
+
+    @Test
+    @DisplayName("F855: a failed re-authentication leaves the 401 as the answer")
+    fun aFailedReauthenticationLeavesTheUnauthorizedAnswer() {
+        val client = ScriptedApiClient(listOf(401, 200))
+        val auth = RotatingOAuthAuthenticator(failAfterInvalidate = true)
+        val api = object : {{apiPackage}}.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+            suspend fun call() =
+                invokeApi("GET", "/items", mutableMapOf(), mutableMapOf(), null, arrayOf("application/json"), "application/json", auth)
+        }
+
+        assertThrowsExactly(UnauthorizedException::class.java) { runBlocking { api.call() } }
+
+        assertEquals(1, client.sentHeaders.size)
+    }
+
+    @Test
+    @DisplayName("F855: static credentials never replay a 401")
+    fun staticAuthenticatorsDoNotReplay() {
+        val client = ScriptedApiClient(listOf(401, 200))
+        val auth = TestAuthenticator(mapOf("Authorization" to "Bearer static"), emptyMap(), emptyMap())
+        val api = object : {{apiPackage}}.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+            suspend fun call() =
+                invokeApi("GET", "/items", mutableMapOf(), mutableMapOf(), null, arrayOf("application/json"), "application/json", auth)
+        }
+
+        assertThrowsExactly(UnauthorizedException::class.java) { runBlocking { api.call() } }
+
+        assertEquals(1, client.sentHeaders.size)
+    }
+
     @Test
     @DisplayName("F1121: an explicit Accept header parameter beats the configured default and the negotiated Accept")
     fun headerParamAcceptWinsOverDefaultAndNegotiated() {
