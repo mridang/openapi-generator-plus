@@ -1088,263 +1088,857 @@
    "reason": "node builds and validates the multipart filename inside buildContentDisposition"
   },
   {
-   "element": ["baseapi.noauth","oauth2authorizationcodeauthenticator.tokenmanager","oauth2tokenmanager.markexchanged"],
+   "element": [
+    "baseapi.noauth",
+    "oauth2authorizationcodeauthenticator.tokenmanager",
+    "oauth2tokenmanager.markexchanged"
+   ],
    "aspect": "member",
-   "languages": ["ruby","node"],
+   "languages": [
+    "ruby",
+    "node"
+   ],
    "value": "extra*",
    "reason": "ruby and node have no package-private visibility: the NO_AUTH sentinel, the token manager hand-over and markExchanged are used by other generated classes and by the tests"
   },
   {
-   "element": ["baseapi.config","baseapi.apiclient","petapi.config","petapi.apiclient","storeapi.config","storeapi.apiclient"],
+   "element": [
+    "baseapi.config",
+    "baseapi.apiclient",
+    "petapi.config",
+    "petapi.apiclient",
+    "storeapi.config",
+    "storeapi.apiclient"
+   ],
    "aspect": "member",
-   "languages": ["dart"],
+   "languages": [
+    "dart"
+   ],
    "value": "extra*",
    "reason": "dart has no protected visibility across libraries: the generated api classes live in other files than BaseApi, so these fields are public"
   },
   {
-   "element": ["oauth2authorizationcodeauthenticator.<ctor>","oauth2clientcredentialsauthenticator.<ctor>"],
+   "element": [
+    "oauth2authorizationcodeauthenticator.<ctor>",
+    "oauth2clientcredentialsauthenticator.<ctor>"
+   ],
    "aspect": "ctor-optional",
-   "languages": ["elixir"],
+   "languages": [
+    "elixir"
+   ],
    "reason": "elixir folds the optional constructor arguments into one trailing opts keyword list, which is how its constructors take options"
   },
   {
-   "element": ["apierror.<ctor>","networkerror.<ctor>","networktimeouterror.<ctor>","openapierror.<ctor>"],
+   "element": [
+    "apierror.<ctor>",
+    "networkerror.<ctor>",
+    "networktimeouterror.<ctor>",
+    "openapierror.<ctor>",
+    "badrequesterror.<ctor>",
+    "conflicterror.<ctor>",
+    "forbiddenerror.<ctor>",
+    "internalservererror.<ctor>",
+    "notfounderror.<ctor>",
+    "toomanyrequestserror.<ctor>",
+    "unauthorizederror.<ctor>",
+    "unprocessableentityerror.<ctor>",
+    "clienterror.<ctor>",
+    "servererror.<ctor>"
+   ],
    "aspect": "ctor-optional",
-   "languages": ["node"],
-   "reason": "node error constructors take the standard ES2022 options bag ({ cause }) as their last argument, which is what Error itself takes"
+   "languages": [
+    "node"
+   ],
+   "reason": "node error constructors, the status errors included, take the standard ES2022 options bag ({ cause }) as their last argument, which is what Error itself takes (S14)"
   },
   {
-   "element": ["apierror.<ctor>","networkerror.<ctor>","networktimeouterror.<ctor>"],
+   "element": [
+    "apierror.<ctor>",
+    "networkerror.<ctor>",
+    "networktimeouterror.<ctor>"
+   ],
    "aspect": "ctor",
-   "languages": ["python","ruby"],
+   "languages": [
+    "python",
+    "ruby"
+   ],
    "reason": "python records the cause with raise ... from and ruby with the built-in Exception#cause, so neither takes it as a constructor argument"
   },
   {
    "element": "oauth2tokenmanager.exchanged",
    "aspect": "member",
-   "languages": ["dart","csharp","go","kotlin"],
+   "languages": [
+    "dart",
+    "csharp",
+    "go",
+    "kotlin"
+   ],
    "reason": "the exchanged flag is internal session state: dart, csharp and go keep it on the authorization code authenticator and kotlin keeps it internal to the token manager; a missing exchangeCode() fails the same way in every SDK"
   },
   {
    "element": "oauth2tokenmanager.setapiclient",
    "aspect": "member",
-   "languages": ["kotlin"],
+   "languages": [
+    "kotlin"
+   ],
    "reason": "kotlin sets the token manager API client through an internal property, since the token manager is internal support code"
   },
   {
    "element": "requirednullable.note",
    "aspect": "prop-optional",
-   "languages": ["kotlin"],
+   "languages": [
+    "kotlin"
+   ],
    "reason": "a required nullable property is String? with no default in kotlin: the caller must still pass it, which the surface check reads as optional because of the question mark"
   },
   {
-   "element": ["objectserializer.*","valueserializer.*","headerselector.*"],
+   "element": [
+    "objectserializer.*",
+    "valueserializer.*",
+    "headerselector.*"
+   ],
    "aspect": "params",
-   "languages": ["*"],
+   "languages": [
+    "*"
+   ],
    "reason": "internal support helper called only by the generated code, never by users: its parameter names and optional arguments follow each language, and the wire bytes it produces are checked by the shared petstore tests"
   },
   {
-   "element": ["objectserializer.*","valueserializer.*","headerselector.*"],
+   "element": [
+    "objectserializer.*",
+    "valueserializer.*",
+    "headerselector.*"
+   ],
    "aspect": "optional",
-   "languages": ["*"],
+   "languages": [
+    "*"
+   ],
    "reason": "internal support helper called only by the generated code, never by users: its parameter names and optional arguments follow each language, and the wire bytes it produces are checked by the shared petstore tests"
   },
   {
-   "element": ["configurationbuilder.*","transportoptionsbuilder.*"],
+   "element": [
+    "configurationbuilder.*",
+    "transportoptionsbuilder.*"
+   ],
    "aspect": "params",
-   "languages": ["swift","ruby","rust","dart","go"],
+   "languages": [
+    "swift",
+    "ruby",
+    "rust",
+    "dart",
+    "go"
+   ],
    "reason": "builder setters take the value positionally and these languages name that parameter val; the call site is the same"
   },
   {
-   "element": ["apiclient.sendrequest","defaultapiclient.sendrequest","abstractapiclient.sendrequest"],
+   "element": [
+    "apiclient.sendrequest",
+    "defaultapiclient.sendrequest",
+    "abstractapiclient.sendrequest"
+   ],
    "aspect": "optional",
-   "languages": ["python","node","elixir","kotlin"],
+   "languages": [
+    "python",
+    "node",
+    "elixir",
+    "kotlin"
+   ],
    "reason": "each language passes the per-request redirect option in its own way: python with a defaulted body, node with an options object, elixir with a keyword list, kotlin by inheriting the interface default; the behaviour is the same"
   },
   {
-   "element": ["apiclient.sendrequest","defaultapiclient.sendrequest","abstractapiclient.sendrequest"],
+   "element": [
+    "apiclient.sendrequest",
+    "defaultapiclient.sendrequest",
+    "abstractapiclient.sendrequest"
+   ],
    "aspect": "params",
-   "languages": ["python","node","elixir","kotlin"],
+   "languages": [
+    "python",
+    "node",
+    "elixir",
+    "kotlin"
+   ],
    "reason": "each language passes the per-request redirect option in its own way: python with a defaulted body, node with an options object, elixir with a keyword list, kotlin by inheriting the interface default; the behaviour is the same"
   },
   {
-   "element": ["baseapi.invokeapi","baseapi.invokeapiforresult"],
+   "element": [
+    "baseapi.invokeapi",
+    "baseapi.invokeapiforresult"
+   ],
    "aspect": "params",
-   "languages": ["elixir","rust","dart"],
+   "languages": [
+    "elixir",
+    "rust",
+    "dart"
+   ],
    "reason": "internal helper that the generated api classes call; elixir passes the trailing arguments as options and rust as a parameter struct"
   },
   {
    "element": "servervariable.<ctor>",
    "aspect": "ctor-optional",
-   "languages": ["csharp"],
+   "languages": [
+    "csharp"
+   ],
    "reason": "a csharp record parameter default must be a compile-time constant, so the optional description and values are provided by overloaded constructors; a call site is the same"
   },
   {
-   "element": ["oauth2authorizationcodeauthenticator.<ctor>","oauth2clientcredentialsauthenticator.<ctor>","oauth2implicitauthenticator.<ctor>","oauth2passwordauthenticator.<ctor>","openidconnectauthenticator.<ctor>"],
+   "element": [
+    "oauth2authorizationcodeauthenticator.<ctor>",
+    "oauth2clientcredentialsauthenticator.<ctor>",
+    "oauth2implicitauthenticator.<ctor>",
+    "oauth2passwordauthenticator.<ctor>",
+    "openidconnectauthenticator.<ctor>"
+   ],
    "aspect": "ctor-optional",
-   "languages": ["swift","dart","python"],
+   "languages": [
+    "swift",
+    "dart",
+    "python"
+   ],
    "reason": "these languages default the optional scopes (and refresh URL and client auth method) with default arguments; the languages without default arguments take them in an overload, so every call that works in one works in the others"
   },
   {
    "element": "oauth2tokenerror.<ctor>",
    "aspect": "ctor",
-   "languages": ["java","kotlin"],
+   "languages": [
+    "java",
+    "kotlin"
+   ],
    "reason": "java and kotlin exceptions take an optional cause for chaining, which every SDK also supports through its own mechanism"
   },
   {
-   "element": ["client.<ctor>","defaultapiclient.<ctor>","abstractapiclient.<ctor>"],
+   "element": [
+    "client.<ctor>",
+    "defaultapiclient.<ctor>",
+    "abstractapiclient.<ctor>"
+   ],
    "aspect": "ctor",
-   "languages": ["php","python","dart"],
+   "languages": [
+    "php",
+    "python",
+    "dart"
+   ],
    "reason": "the extra trailing argument injects the HTTP client (PSR-18 in php, a urllib3 pool in python, an http client in dart) for tests and custom transports; the other SDKs inject it through a different constructor or builder"
   },
   {
    "element": "client.<ctor>",
    "aspect": "params",
-   "languages": ["php"],
+   "languages": [
+    "php"
+   ],
    "reason": "the extra trailing argument injects the PSR-18 HTTP client"
   },
   {
-   "element": ["client.withtoken","client.withauthenticator"],
+   "element": [
+    "client.withtoken",
+    "client.withauthenticator"
+   ],
    "aspect": "params",
-   "languages": ["php"],
+   "languages": [
+    "php"
+   ],
    "reason": "the extra trailing argument injects the PSR-18 HTTP client"
   },
   {
    "element": "*.setapiclient",
    "aspect": "params",
-   "languages": ["swift","dart","ruby"],
+   "languages": [
+    "swift",
+    "dart",
+    "ruby"
+   ],
    "reason": "setApiClient takes its one argument positionally in these languages, so the parameter name is not part of the call"
   },
   {
    "element": "*.setapiclient",
    "aspect": "optional",
-   "languages": ["elixir"],
+   "languages": [
+    "elixir"
+   ],
    "reason": "elixir passes the client as the one positional argument; the surface check reads its unnamed argument as optional"
   },
   {
-   "element": ["petapi.*","storeapi.*"],
+   "element": [
+    "petapi.*",
+    "storeapi.*"
+   ],
    "aspect": "optional",
-   "languages": ["elixir"],
+   "languages": [
+    "elixir"
+   ],
    "reason": "elixir folds the optional server and content-type selectors into one trailing opts keyword list"
   },
   {
    "element": "oauth2tokenmanager.getaccesstoken",
    "aspect": "optional",
-   "languages": ["elixir"],
+   "languages": [
+    "elixir"
+   ],
    "reason": "elixir folds the optional refresh URL into a trailing opts keyword list"
   },
   {
-   "element": ["storeapi.placeorder","storeapi.placeorderwithhttpinfo","oauth2tokenmanager.exchange","oauth2authorizationcodeauthenticator.buildauthorizationurl","oauth2implicitauthenticator.buildauthorizationurl","openidconnectauthenticator.buildauthorizationurl"],
+   "element": [
+    "storeapi.placeorder",
+    "storeapi.placeorderwithhttpinfo",
+    "oauth2tokenmanager.exchange",
+    "oauth2authorizationcodeauthenticator.buildauthorizationurl",
+    "oauth2implicitauthenticator.buildauthorizationurl",
+    "openidconnectauthenticator.buildauthorizationurl"
+   ],
    "aspect": "optional",
-   "languages": ["java"],
+   "languages": [
+    "java"
+   ],
    "reason": "java has no optional arguments: the argument is annotated @Nullable and the caller passes null when it has no value"
   },
   {
    "element": "apierror.fromresponse",
    "aspect": "params",
-   "languages": ["swift","python","ruby"],
+   "languages": [
+    "swift",
+    "python",
+    "ruby"
+   ],
    "reason": "fromResponse takes its three arguments positionally in every call; only the parameter names differ"
   },
   {
    "element": "apierror.fromresponse",
    "aspect": "optional",
-   "languages": ["elixir"],
+   "languages": [
+    "elixir"
+   ],
    "reason": "elixir's from_response takes the same three positional arguments; the names differ"
   },
   {
    "element": "authenticator.isnoauth",
    "aspect": "*",
-   "languages": ["node","dart"],
+   "languages": [
+    "node",
+    "dart"
+   ],
    "reason": "internal type-guard helper used by the generated code to tell an unauthenticated operation from an authenticated one; the other SDKs keep this check private or inline"
   },
   {
    "element": "httpawareauthenticator.ishttpawareauthenticator",
    "aspect": "member",
-   "languages": ["node"],
+   "languages": [
+    "node"
+   ],
    "value": "extra*",
    "reason": "node uses a type-guard function where the other SDKs use an interface check; it is not part of the call surface"
   },
   {
-   "element": ["configuration.fromserver","transportoptions.assertvalidproxy","transportoptions.validateproxy","transportoptionsbuilder.useragentopt","oauth2authorizationcodeauthenticator.authheadersorthrow","apierror.detailmessage","apierror.registerstatuserror","apierror.withsource","uploadpetdocumentoptions.primary"],
+   "element": [
+    "configuration.fromserver",
+    "transportoptions.assertvalidproxy",
+    "transportoptions.validateproxy",
+    "transportoptionsbuilder.useragentopt",
+    "oauth2authorizationcodeauthenticator.authheadersorthrow",
+    "apierror.detailmessage",
+    "apierror.registerstatuserror",
+    "apierror.withsource",
+    "uploadpetdocumentoptions.primary"
+   ],
    "aspect": "member",
-   "languages": ["elixir","php","ruby","rust","swift","node"],
+   "languages": [
+    "elixir",
+    "php",
+    "ruby",
+    "rust",
+    "swift",
+    "node"
+   ],
    "value": "extra*",
    "reason": "language-specific helper on a type that already has the shared surface: a validation helper the builder calls, a Result-style accessor, or a registration hook; it adds no capability that another SDK lacks"
   },
   {
-   "element": ["baseapi.config","petapi.config","storeapi.config"],
+   "element": [
+    "baseapi.config",
+    "petapi.config",
+    "storeapi.config"
+   ],
    "aspect": "member",
-   "languages": ["ruby"],
+   "languages": [
+    "ruby"
+   ],
    "value": "extra*",
    "reason": "ruby exposes the API-level configuration as a reader the subclasses use, since it has no protected visibility across the generated files"
   },
   {
-   "element": ["baseapi.invokeapi","baseapi.invokeapiforresult","baseapi.invokeapiforemptyresult","baseapi.buildcollectionparam"],
+   "element": [
+    "baseapi.invokeapi",
+    "baseapi.invokeapiforresult",
+    "baseapi.invokeapiforemptyresult",
+    "baseapi.buildcollectionparam"
+   ],
    "aspect": "member",
-   "languages": ["elixir","dart","rust"],
+   "languages": [
+    "elixir",
+    "dart",
+    "rust"
+   ],
    "value": "extra*",
    "reason": "helper that the generated api classes call; these languages have no protected visibility across files"
   },
   {
-   "element": ["apierror.cause","networkerror.cause","networktimeouterror.cause"],
+   "element": [
+    "apierror.cause",
+    "networkerror.cause",
+    "networktimeouterror.cause",
+    "badrequesterror.cause",
+    "conflicterror.cause",
+    "forbiddenerror.cause",
+    "internalservererror.cause",
+    "notfounderror.cause",
+    "toomanyrequestserror.cause",
+    "unauthorizederror.cause",
+    "unprocessableentityerror.cause",
+    "clienterror.cause",
+    "servererror.cause"
+   ],
    "aspect": "member",
-   "languages": ["dart"],
+   "languages": [
+    "dart"
+   ],
    "value": "extra*",
-   "reason": "dart has no built-in exception chaining, so the wrapped error is a field called cause"
+   "reason": "dart has no built-in exception chaining, so the wrapped error is a field called cause on every error type (S14: dart `cause` field, no chaining)"
   },
   {
-   "element": ["networkerror.<ctor>","networktimeouterror.<ctor>"],
+   "element": [
+    "networkerror.<ctor>",
+    "networktimeouterror.<ctor>"
+   ],
    "aspect": "ctor-optional",
-   "languages": ["dart"],
+   "languages": [
+    "dart"
+   ],
    "reason": "dart exceptions take the cause as an optional named argument"
   },
   {
    "element": "openapierror.<ctor>",
    "aspect": "ctor",
-   "languages": ["dart"],
+   "languages": [
+    "dart"
+   ],
    "reason": "openapierror is the sealed base class in dart; the subclasses carry the message and cause"
   },
   {
    "element": "oauth2authorizationcodeauthenticator.<ctor>",
    "aspect": "ctor",
-   "languages": ["ruby","node"],
-   "reason": "the trailing token manager argument hands an existing session to the rediscovered OpenID Connect delegate; java and kotlin do it with a package-private constructor"
+   "languages": [
+    "ruby",
+    "node",
+    "php",
+    "python"
+   ],
+   "reason": "the trailing token manager argument hands an existing session to the rediscovered OpenID Connect delegate (D01, F016: rediscovery must not discard the exchanged session); java and kotlin do it with a package-private constructor"
   },
   {
    "element": "apierror.<ctor>",
    "aspect": "ctor",
-   "languages": ["rust"],
+   "languages": [
+    "rust"
+   ],
    "reason": "rust parses the error body itself and attaches the cause with with_source, so its constructor takes only the status, message, headers and body"
   },
   {
-   "element": ["abstractapiclient","allowreservedvalue","petstore","valueserializerallowreservedvalue"],
+   "element": [
+    "abstractapiclient",
+    "allowreservedvalue",
+    "petstore",
+    "valueserializerallowreservedvalue"
+   ],
    "aspect": "type",
-   "languages": ["node","php","dart","python","ruby"],
+   "languages": [
+    "node",
+    "php",
+    "dart",
+    "python",
+    "ruby"
+   ],
    "reason": "internal support type: a shared base class or marker value that the other SDKs inline or hide, not a type users construct"
   },
   {
    "element": "oauth2tokenerror",
    "aspect": "kind",
-   "languages": ["swift"],
+   "languages": [
+    "swift"
+   ],
    "reason": "swift models the OAuth2 token error as an enum, which is how its error types are written"
   },
   {
    "element": "iso8601duration.formatprotobufduration",
    "aspect": "params",
-   "languages": ["swift"],
+   "languages": [
+    "swift"
+   ],
    "reason": "positional argument; only the parameter name differs"
   },
   {
-   "element": ["configuration.<ctor>","transportoptions.<ctor>"],
+   "element": [
+    "configuration.<ctor>",
+    "transportoptions.<ctor>"
+   ],
    "aspect": "ctor-optional",
-   "languages": ["ruby"],
+   "languages": [
+    "ruby"
+   ],
    "reason": "these value objects are built through their builder, which supplies every default; their keyword constructor takes all values"
   },
   {
    "element": "uploadpetdocumentoptions.isprimary",
    "aspect": "params",
-   "languages": ["rust"],
+   "languages": [
+    "rust"
+   ],
    "reason": "rust options are a struct with a builder; the isPrimary builder method takes the value where the other SDKs expose a plain field"
+  },
+  {
+   "element": [
+    "apiclient.sendrequest",
+    "defaultapiclient.sendrequest",
+    "petapi.*",
+    "storeapi.*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "csharp"
+   ],
+   "value": "*cancellationtoken)",
+   "reason": "S7 cancellation: csharp takes a trailing `CancellationToken cancellationToken = default` on every operation and on sendRequest (Azure SDK guideline), after the optional-parameters object (S8)"
+  },
+  {
+   "element": [
+    "petapi.*",
+    "storeapi.*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "node"
+   ],
+   "value": "*requestoptions)",
+   "reason": "S7 cancellation: node takes a trailing per-call options object `{ signal?: AbortSignal }` (RequestOptions) on every operation, like the OpenAI and Stripe SDKs; S8 puts it after the optional-parameters object"
+  },
+  {
+   "element": [
+    "apiclient.closed",
+    "client.closed"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "value": "extra*",
+   "reason": "closed state: rust's facade and ApiClient trait expose is_closed() (F824, rust AGENTS); go and ruby/elixir already spell the closed state through allowed idiom members, and the other SDKs reject use after close without a predicate"
+  },
+  {
+   "element": [
+    "client.withtoken",
+    "client.withauthenticator"
+   ],
+   "aspect": "params",
+   "languages": [
+    "python"
+   ],
+   "value": "*poolmanager)",
+   "reason": "S9 injected transport: python's standard HTTP client object is the urllib3 PoolManager, passed as a trailing `pool_manager` (python AGENTS, S9 entry)"
+  },
+  {
+   "element": [
+    "client.withtoken",
+    "client.withauthenticator",
+    "client.<ctor>"
+   ],
+   "aspect": "params",
+   "languages": [
+    "node"
+   ],
+   "value": "*clientoptions)",
+   "reason": "S9 injected transport: node accepts `fetch` and `fetchOptions` through a trailing ClientOptions argument"
+  },
+  {
+   "element": "client.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "node"
+   ],
+   "value": "*clientoptions)",
+   "reason": "S9 injected transport: node's Client takes a trailing ClientOptions (`fetch`, `fetchOptions`)"
+  },
+  {
+   "element": "client.withhttpclient",
+   "aspect": "member",
+   "languages": [
+    "php",
+    "rust"
+   ],
+   "value": "extra*",
+   "reason": "S9 injected transport: php (PSR-18 client) and rust (reqwest::Client, Client::with_http_client) take a caller-owned HTTP client through a named factory; the other SDKs take it through a builder or constructor argument"
+  },
+  {
+   "element": "client.withhttpclient",
+   "aspect": "params",
+   "languages": [
+    "rust"
+   ],
+   "reason": "S9 injected transport: php also needs the PSR-17 request and stream factories next to the PSR-18 client; rust's reqwest::Client carries both, so it takes only the client"
+  },
+  {
+   "element": [
+    "configuration.signal",
+    "configurationbuilder.signal"
+   ],
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "value": "extra*",
+   "reason": "S7 cancellation: node's Configuration takes an optional client-level `signal` (AbortSignal) merged with the per-call signal"
+  },
+  {
+   "element": [
+    "transportoptions.httpclient",
+    "transportoptionsbuilder.httpclient"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java",
+    "kotlin",
+    "csharp",
+    "dart",
+    "go"
+   ],
+   "value": "extra*",
+   "reason": "S9 injected transport: every client builder accepts the language's standard HTTP client object (java.net.http.HttpClient, Ktor HttpClient, System.Net.Http.HttpClient, http.Client, go's HttpDoer-compatible *http.Client) and never closes it"
+  },
+  {
+   "element": [
+    "transportoptions.cancellationtoken",
+    "transportoptionsbuilder.cancellationtoken"
+   ],
+   "aspect": "member",
+   "languages": [
+    "csharp"
+   ],
+   "value": "extra*",
+   "reason": "S7 cancellation: csharp takes a builder-level CancellationToken linked with the per-call token"
+  },
+  {
+   "element": [
+    "transportoptions.httpmessagehandler",
+    "transportoptionsbuilder.httpmessagehandler"
+   ],
+   "aspect": "member",
+   "languages": [
+    "csharp"
+   ],
+   "value": "extra*",
+   "reason": "S9 injected transport: csharp's HttpClient is built from a caller-supplied HttpMessageHandler, the .NET transport extension point"
+  },
+  {
+   "element": [
+    "transportoptions.connection",
+    "transportoptionsbuilder.connection",
+    "transportoptions.validateconnection"
+   ],
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "value": "extra*",
+   "reason": "S9 injected transport: ruby accepts a caller-owned Faraday connection, and fails fast on conflicts with its own proxy, TLS and pool settings through validate_connection!"
+  },
+  {
+   "element": [
+    "transportoptions.redactheaders",
+    "transportoptions.redacturl"
+   ],
+   "aspect": "member",
+   "languages": [
+    "ruby",
+    "node"
+   ],
+   "value": "extra*",
+   "reason": "S15 secrets: the string forms of Configuration and TransportOptions redact credentials; ruby and node expose the redaction helpers (redact_headers, redact_url, redactHeaders) on TransportOptions"
+  },
+  {
+   "element": [
+    "transportoptions.fetch",
+    "transportoptions.fetchoptions",
+    "transportoptionsbuilder.fetch",
+    "transportoptionsbuilder.fetchoptions"
+   ],
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "value": "extra*",
+   "reason": "S9 injected transport: node accepts the standard `fetch` function and `fetchOptions`"
+  },
+  {
+   "element": [
+    "transportoptions.session",
+    "transportoptionsbuilder.session"
+   ],
+   "aspect": "member",
+   "languages": [
+    "swift"
+   ],
+   "value": "extra*",
+   "reason": "S9 injected transport: swift's `TransportOptions.session(_:)` takes a caller-owned URLSession"
+  },
+  {
+   "element": "transportoptionsbuilder.roundtripper",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "value": "extra*",
+   "reason": "S9 injected transport: go accepts a caller-supplied http.RoundTripper (wrapped by the SDK) next to HttpClient"
+  },
+  {
+   "element": [
+    "oauth2authorizationcodeauthenticator.tokenmanager"
+   ],
+   "aspect": "member",
+   "languages": [
+    "php",
+    "python"
+   ],
+   "value": "extra*",
+   "reason": "D01, F016: the authorization code authenticator exposes its token manager so the OpenID Connect delegate rebuilt on rediscovery keeps the exchanged session; php and python have no package-private visibility"
+  },
+  {
+   "element": "requirednullable.note",
+   "aspect": "prop-optional",
+   "languages": [
+    "csharp",
+    "dart",
+    "go",
+    "rust",
+    "swift"
+   ],
+   "reason": "S5 required plus nullable: the property is a nullable type (T?, *T, Option<T>) so an explicit null is legal, while decode still requires the key and encode always writes it; the surface check reads the nullable spelling as optional (same as the already allowed kotlin `String?`)"
+  },
+  {
+   "element": "requesthandle",
+   "aspect": "type",
+   "languages": [
+    "python"
+   ],
+   "reason": "S7 cancellation: python adds no operation parameter; RequestHandle is the thread-safe abort handle behind `close()` cancelling in-flight requests of the synchronous urllib3 client that asyncio.to_thread calls into"
+  },
+  {
+   "element": "requestoptions",
+   "aspect": "type",
+   "languages": [
+    "node"
+   ],
+   "reason": "S7 cancellation: node's RequestOptions is the per-call `{ signal?: AbortSignal }` options object"
+  },
+  {
+   "element": "requestoptions.signal",
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "value": "extra*",
+   "reason": "S7 cancellation: the per-call `{ signal?: AbortSignal }` merged with the client-level signal"
+  },
+  {
+   "element": "requestoptions.noredirect",
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "value": "missing",
+   "reason": "node's RequestOptions is the S7 per-call signal object only; the per-request redirect refusal is the separate noRedirect argument of sendRequest (see the allowed sendrequest rules), not a field of it"
+  },
+  {
+   "element": "requestoptions.context",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "value": "extra*",
+   "reason": "S7 cancellation: go's per-call context.Context travels in RequestOptions.Context, merged with the client base context that Close() cancels"
+  },
+  {
+   "element": "clientoptions",
+   "aspect": "type",
+   "languages": [
+    "node"
+   ],
+   "reason": "S9 injected transport: node's ClientOptions carries the standard `fetch` function and `fetchOptions`"
+  },
+  {
+   "element": "httpdoer",
+   "aspect": "type",
+   "languages": [
+    "go"
+   ],
+   "reason": "S9 injected transport: go accepts any interface with Do(*http.Request) (HttpDoer, satisfied by *http.Client) as its standard HTTP client object"
+  },
+  {
+   "element": [
+    "badrequesterror.<ctor>",
+    "conflicterror.<ctor>",
+    "forbiddenerror.<ctor>",
+    "internalservererror.<ctor>",
+    "notfounderror.<ctor>",
+    "toomanyrequestserror.<ctor>",
+    "unauthorizederror.<ctor>",
+    "unprocessableentityerror.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "D26: ruby takes keyword arguments of the same names instead of positional ones, so their order is not part of the call; the cause comes from the built-in Exception#cause (S14), not a constructor argument"
+  },
+  {
+   "element": [
+    "apierror.<ctor>",
+    "networkerror.<ctor>"
+   ],
+   "aspect": "ctor-optional",
+   "languages": [
+    "python"
+   ],
+   "reason": "python exceptions may be built bare like BaseException(): the message defaults to None; the cause is a keyword argument (D26, D27, S14)"
+  },
+  {
+   "element": "apierror.forunusableresponse",
+   "aspect": "member",
+   "languages": [
+    "java",
+    "csharp"
+   ],
+   "reason": "tracked as F1177: a public factory only java and csharp have; to be made non-public or added everywhere"
+  },
+  {
+   "element": "apierror.forunusableresponse",
+   "aspect": "optional",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "tracked as F1177: csharp orders innerException before responseHeaders; to be aligned with the canonical (statusCode, message, responseHeaders, cause)"
+  },
+  {
+   "element": "metadata.setadditionalproperty",
+   "aspect": "member",
+   "languages": [
+    "java"
+   ],
+   "reason": "tracked as F1178: java/AGENTS.md keeps it public while API_SURFACE.md D51 says java drops it; the two documents must be reconciled"
+  },
+  {
+   "element": "configurationerror",
+   "aspect": "cases",
+   "languages": [
+    "swift"
+   ],
+   "reason": "tracked as F1179 (parked F699): swift still has proxyUnsupported and tlsOptionsUnsupported where D76 folds them into invalidProxy and invalidCaCertificate and adds invalidTimeout"
   }
  ]
 }

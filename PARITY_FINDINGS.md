@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 117, duplicate 88, false-positive 81, fixed 597, forced 4, needs-spec 2, open 269, parked 13, partial 5. Severity: critical 3, high 69, medium 795, low 309.
+Status counts: deferred 117, duplicate 88, false-positive 81, fixed 597, forced 4, needs-spec 2, open 272, parked 13, partial 5. Severity: critical 3, high 69, medium 796, low 311.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -1182,6 +1182,9 @@ Status counts: deferred 117, duplicate 88, false-positive 81, fixed 597, forced 
 | F1174 | medium | open | CI/spec classes | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The public-API parity gate (`etc/api-surface.py check`, 2591 lines plus an allow-list) is named as a required step in AGENTS.md but runs in neither etc/ci-local.sh nor any workflow, and the tool has n |
 | F1175 | medium | open | fixture rows | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The OAS 3.1 prefixItems fixture (GeoPoint, the type of Pet.location: number, number, string) is set, sent or decoded as a heterogeneous array by no test in any SDK |
 | F1176 | medium | open | CI/spec classes | node, rust, elixir, python, kotlin, csharp | Each SDK's declared minimum runtime is never tested: node engines >=22 runs only on node:24, rust-version 1.85 only on rust:1.96, elixir ~> 1.17 only on 1.19, python >=3.13 only on 3.14, kotlin jvmTar |
+| F1177 | medium | open | api-surface | java, csharp | java and csharp expose a public ApiException.forUnusableResponse factory the other ten SDKs do not have |
+| F1178 | low | open | api-surface | java | java Model.setAdditionalProperty is public although API_SURFACE.md D51 says java drops it |
+| F1179 | low | open | api-surface | swift | swift ConfigurationError still has proxyUnsupported and tlsOptionsUnsupported although D76 folds them into invalidProxy and invalidCaCertificate and adds invalidTimeout |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -12870,3 +12873,24 @@ Every spec class runs the golden in one Docker image per language, pinned to the
 - `src/spec/java/io/github/mridang/codegen/spec/rust/RustSpec.java:20` — return DockerImageName.parse("rust:1.96-slim");
 - `src/spec/java/io/github/mridang/codegen/spec/python/PythonSpec.java:20` — return DockerImageName.parse("python:3.14-alpine");
 - `src/spec/java/io/github/mridang/codegen/spec/kotlin/KotlinSpec.java:20` — "gradle:9-jdk21@sha256:4a011ed0edfe2feb7dace27d1fedf22caf217918b59932a95605cb7beec142c4");
+
+## F1177 [medium] java and csharp expose a public ApiException.forUnusableResponse factory the other ten SDKs do not have
+- Status: **open** | Lens: api-surface | Category: api-shape | Unit-testable (reviewer's view): True
+- SDKs: java, csharp
+
+etc/api-surface.py check reports a public static factory forunusableresponse on apierror in java and csharp only, and csharp orders innerException before responseHeaders against the canonical (statusCode, message, responseHeaders, cause). It is in no decision. Make it non-public or give every SDK the same shape.
+- `etc/api-surface.py` — etc/api-surface.py check output, apierror.forunusableresponse
+
+## F1178 [low] java Model.setAdditionalProperty is public although API_SURFACE.md D51 says java drops it
+- Status: **open** | Lens: api-surface | Category: docs | Unit-testable (reviewer's view): False
+- SDKs: java
+
+API_SURFACE.md D51 says java has no setAdditionalProperty because every SDK exposes a plain additionalProperties map; java/AGENTS.md says it is public so callers can send extra keys. The documents contradict each other; decide which wins and align the other.
+- `etc/api-surface.py` — etc/api-surface.py check output, metadata.setadditionalproperty
+
+## F1179 [low] swift ConfigurationError still has proxyUnsupported and tlsOptionsUnsupported although D76 folds them into invalidProxy and invalidCaCertificate and adds invalidTimeout
+- Status: **open** | Lens: api-surface | Category: api-shape | Unit-testable (reviewer's view): True
+- SDKs: swift
+
+A decided harmonisation (D76) is not implemented in swift (parked as F699 in swift/AGENTS.md). Implement it so the case set matches the other SDKs.
+- `etc/api-surface.py` — etc/api-surface.py check output, configurationerror cases
