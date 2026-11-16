@@ -1,6 +1,21 @@
 {{>api_info}}
 import Foundation
 
+/// A clock that a change of the wall clock does not move, so a token or a
+/// discovery document is not kept too long, or dropped at once, when the system
+/// time is set. Seconds from an arbitrary start: only differences mean
+/// anything. On Apple platforms it is `CLOCK_MONOTONIC`, which keeps counting
+/// while the machine sleeps; elsewhere `systemUptime`.
+enum MonotonicClock {
+    static func now() -> TimeInterval {
+        #if canImport(Darwin)
+        return TimeInterval(clock_gettime_nsec_np(CLOCK_MONOTONIC)) / 1_000_000_000
+        #else
+        return ProcessInfo.processInfo.systemUptime
+        #endif
+    }
+}
+
 /// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and refreshing.
 ///
 /// Uses the shared ``ApiClient`` instance so that token exchange requests honour
@@ -22,13 +37,13 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     private var apiClient: ApiClient?
     private var accessToken: String = ""
     private var _refreshToken: String = ""
-    /// Cached token expiry instant, or `nil` when the token response omitted
+    /// Cached token expiry on the ``MonotonicClock``, or `nil` when the token response omitted
     /// `expires_in`. A `nil` expiry means "cache indefinitely" (valid until
     /// explicitly invalidated), matching the other SDKs (Java treats a null
     /// expiry as never-expiring; Go treats a zero Date the same way). The
     /// previous `.distantPast` sentinel made every no-expiry token look stale,
     /// so it was refetched on every request.
-    private var tokenExpiry: Date?
+    private var tokenExpiry: TimeInterval?
     /// Set once an explicit ``exchange(tokenURL:params:extraHeaders:)`` succeeds.
     private var _exchanged: Bool = false
     /// In-flight refresh task, if any. While non-nil, concurrent callers await
@@ -95,7 +110,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
              * already taken off when the expiry was stored. */
             if !accessToken.isEmpty {
                 if let expiry = tokenExpiry {
-                    if Date() < expiry {
+                    if MonotonicClock.now() < expiry {
                         return .cached(accessToken)
                     }
                 } else {
@@ -262,11 +277,11 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     /// (preferable to caching forever). One safety margin of
     /// `min(60, expires_in / 2)` seconds is taken off the real lifetime here
     /// and nowhere else, so a 60 second token is reused for 30 seconds.
-    static func expiry(for expiresIn: Int, now: Date = Date()) -> Date {
+    static func expiry(for expiresIn: Int, now: TimeInterval = MonotonicClock.now()) -> TimeInterval {
         if expiresIn > 0 {
             let lifetime = TimeInterval(expiresIn)
             let margin = min(maxExpirySafetyMargin, lifetime / 2)
-            return now.addingTimeInterval(lifetime - margin)
+            return now + (lifetime - margin)
         }
         return now
     }

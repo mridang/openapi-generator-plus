@@ -361,13 +361,23 @@ import Testing
      * for 30 s and a 3600 s token for 3540 s. */
     @Test(arguments: [(1, 0.5), (30, 15.0), (60, 30.0), (90, 45.0), (120, 60.0), (3600, 3540.0)])
     func testExpiryTakesOneMarginOfAtMostSixtySeconds(expiresIn: Int, reusableFor: Double) {
-        let now = Date(timeIntervalSince1970: 1_000_000)
+        let now: TimeInterval = 1_000_000
         let expiry = OAuth2TokenManager.expiry(for: expiresIn, now: now)
-        #expect(expiry.timeIntervalSince(now) == reusableFor)
+        #expect(expiry - now == reusableFor)
+    }
+
+    /* F1054: expiry is read off a clock that a wall-clock change does not
+     * move: it never runs backwards and it ticks in real time. */
+    @Test func testExpiryClockIsMonotonic() async throws {
+        let first = MonotonicClock.now()
+        try await Task.sleep(nanoseconds: 20_000_000)
+        let second = MonotonicClock.now()
+        #expect(second > first)
+        #expect(second - first < 5)
     }
 
     @Test func testNonPositiveExpiresInIsStaleImmediately() {
-        let now = Date(timeIntervalSince1970: 1_000_000)
+        let now: TimeInterval = 1_000_000
         #expect(OAuth2TokenManager.expiry(for: 0, now: now) == now)
         #expect(OAuth2TokenManager.expiry(for: -5, now: now) == now)
     }

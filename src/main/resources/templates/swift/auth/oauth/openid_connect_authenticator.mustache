@@ -19,7 +19,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     private var apiClient: ApiClient?
     private var delegate: OAuth2AuthorizationCodeAuthenticator?
     private var discoveredEndpoints: String?
-    private var discoveryExpiry: Date = Date(timeIntervalSince1970: 0)
+    private var discoveryExpiry: TimeInterval = -.infinity
     private let lock = NSLock()
 
     /// Creates a new OpenID Connect authenticator.
@@ -88,7 +88,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     /// recommended default of 86400 seconds when absent.
     private func resolveDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
         let existing: OAuth2AuthorizationCodeAuthenticator? = lock.withLock {
-            if let d = delegate, Date() < discoveryExpiry {
+            if let d = delegate, MonotonicClock.now() < discoveryExpiry {
                 return d
             }
             return nil
@@ -220,7 +220,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
             }
             self.delegate = current
             self.discoveredEndpoints = endpoints
-            self.discoveryExpiry = Date().addingTimeInterval(TimeInterval(maxAge))
+            self.discoveryExpiry = MonotonicClock.now() + TimeInterval(maxAge)
             return current
         }
         resolved.setApiClient(client)
