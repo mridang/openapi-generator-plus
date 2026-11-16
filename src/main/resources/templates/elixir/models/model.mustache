@@ -451,6 +451,11 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{/requiredVars}}
   ]
   {{/hasRequired}}
+  {{#vendorExtensions.x-has-password-field}}
+  # format: password fields stay out of inspect/1 and log lines.
+  @derive {Inspect, except: [{{#vars}}{{#isPassword}}:{{name}}, {{/isPassword}}{{/vars}}]}
+
+  {{/vendorExtensions.x-has-password-field}}
   defstruct [
   {{#vars}}
 {{#defaultValue}}

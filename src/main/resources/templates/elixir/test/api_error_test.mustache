@@ -63,7 +63,15 @@ defmodule {{moduleName}}.ApiErrorTest do
       )
 
     assert {{moduleName}}.Errors.ApiError.message(full) ==
-             ~s(boom\nHTTP status code: 502\nResponse headers: %{"x-id" => "1"}\nResponse body: upstream down)
+             ~s(boom\nHTTP status code: 502\nResponse headers: {"x-id":"1"}\nResponse body: upstream down)
+
+    sorted =
+      {{moduleName}}.Errors.ApiError.exception(
+        message: "boom",
+        response_headers: %{"b" => "2", "a" => "1"}
+      )
+
+    assert {{moduleName}}.Errors.ApiError.message(sorted) == ~s(boom\nResponse headers: {"a":"1","b":"2"})
 
     bare =
       {{moduleName}}.Errors.ApiError.exception(

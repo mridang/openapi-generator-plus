@@ -294,6 +294,44 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert headers["x-request-id"] == "caller-id"
   end
 
+  test "a caller header replaces a default header of another casing" do
+    {base_url, _port} = start_header_capture_server()
+    transport = {{moduleName}}.TransportOptions.new(default_headers: %{"accept" => "text/plain"})
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    {{moduleName}}.DefaultApiClient.send_request(
+      client, :get, "#{base_url}/test", %{"Accept" => "application/json"}, nil
+    )
+
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["accept"] == "application/json"
+  end
+
+  test "a caller's lower-case accept-encoding suppresses the SDK's own" do
+    {base_url, _port} = start_header_capture_server()
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    {{moduleName}}.DefaultApiClient.send_request(
+      client, :get, "#{base_url}/test", %{"accept-encoding" => "identity"}, nil
+    )
+
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["accept-encoding"] == "identity"
+  end
+
+  test "no_default_headers keeps the transport default headers off the call" do
+    {base_url, _port} = start_header_capture_server()
+    transport = {{moduleName}}.TransportOptions.new(default_headers: %{"X-Api-Key" => "for-the-api"})
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    {{moduleName}}.DefaultApiClient.send_request(
+      client, :get, "#{base_url}/test", %{}, nil, no_default_headers: true
+    )
+
+    assert_receive {:captured_headers, headers}, 5000
+    refute Map.has_key?(headers, "x-api-key")
+  end
+
   test "generates unique X-Request-ID per request" do
     # Need two separate header capture servers for two requests
     {base_url1, _} = start_header_capture_server()
@@ -593,7 +631,28 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
 
     # The redirect response arrived, so the error keeps its real status.
     assert err.status_code == 302
+    assert err.message == "Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd"
     refute {{moduleName}}.Errors.NetworkError.network_error?(err)
+  end
+
+  test "redirect refusal messages never carry a query-parameter credential" do
+    {source_url, _} = start_redirect_server(302, "file:///etc/passwd?api_key=SECRET")
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    err =
+      assert_raise {{moduleName}}.Errors.ApiError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{}, nil)
+      end
+
+    refute err.message =~ "SECRET"
+  end
+
+  test "redact_url drops the query, userinfo and fragment" do
+    assert {{moduleName}}.DefaultApiClient.redact_url("https://u:p@h.example/pet?api_key=SECRET#frag") ==
+             "https://h.example/pet"
+
+    assert {{moduleName}}.DefaultApiClient.redact_url("http://h.example:8080/a/b") == "http://h.example:8080/a/b"
   end
 
   # A malformed or non-HTTP request URL is a caller mistake: ArgumentError,

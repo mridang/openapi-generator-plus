@@ -25,6 +25,8 @@ defmodule {{moduleName}}.{{clientClassName}} do
   """
 
   @type t :: %__MODULE__{
+          api_client: {{moduleName}}.DefaultApiClient.t(),
+          authenticator: term(),
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
@@ -35,6 +37,8 @@ defmodule {{moduleName}}.{{clientClassName}} do
         }
 
   defstruct [
+    :api_client,
+    :authenticator,
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
@@ -77,6 +81,8 @@ defmodule {{moduleName}}.{{clientClassName}} do
       )
 
     %__MODULE__{
+      api_client: api_client,
+      authenticator: authenticator,
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
@@ -130,5 +136,23 @@ defmodule {{moduleName}}.{{clientClassName}} do
   @spec with_authenticator(term(), {{moduleName}}.TransportOptions.t() | nil) :: t()
   def with_authenticator(authenticator, transport_options \\ nil) do
     new(authenticator, transport_options)
+  end
+
+  @doc """
+  Releases the transport this client created and the processes its
+  authenticator started (OAuth2 token managers, OpenID Connect discovery).
+
+  Idempotent. After it returns, a call through this client raises. A transport
+  supplied through `TransportOptions` `req_options` is never closed by the SDK.
+  """
+  @spec close(t()) :: :ok
+  def close(%__MODULE__{api_client: api_client, authenticator: authenticator}) do
+    if is_map(authenticator) and Map.has_key?(authenticator, :__struct__) and
+         Code.ensure_loaded?(authenticator.__struct__) and
+         function_exported?(authenticator.__struct__, :close, 1) do
+      authenticator.__struct__.close(authenticator)
+    end
+
+    {{moduleName}}.DefaultApiClient.close(api_client)
   end
 end

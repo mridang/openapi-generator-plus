@@ -22,8 +22,10 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
@@ -178,6 +180,23 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     @Override
     protected NamingConvention getEnumCasing() {
         return NamingConvention.SNAKE_CASE;
+    }
+
+    /**
+     * Marks a model that has a {@code format: password} property, so the model
+     * template derives an {@code Inspect} that leaves those fields out and the
+     * plaintext never reaches {@code inspect/1} or a log line (F867).
+     *
+     * @param model    the model being processed
+     * @param property the property just processed
+     */
+    @Override
+    public void postProcessModelProperty(
+            final CodegenModel model, final CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        if (property.isPassword) {
+            model.vendorExtensions.put("x-has-password-field", true);
+        }
     }
 
     /**
