@@ -1271,6 +1271,16 @@ import Testing
             "byte field must round-trip the exact bytes")
     }
 
+    /* An OAS 3.1 contentEncoding: base64 property is normalised to a byte
+       field, so it is base64 on the wire and bytes in the model. */
+    @Test func testContentEncodedPropertyRoundTripsThroughBase64() throws {
+        let original = Data([0x01, 0x00, 0xFE])
+        let json = try ObjectSerializer.serialize(PetPassport(biometricChip: original))
+        #expect(json.contains("\"biometricChip\":\"\(original.base64EncodedString())\""))
+        let decoded = try ObjectSerializer.deserialize(json, as: PetPassport.self)
+        #expect(decoded?.biometricChip == original)
+    }
+
     // PetPassport.scans is an array-of-byte (`[Data]`); each element must
     // independently round-trip through base64 with its bytes intact.
     @Test func testFormatByteArrayRoundTripsThroughBase64() throws {

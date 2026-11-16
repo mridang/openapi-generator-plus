@@ -129,6 +129,23 @@ import Testing
         #expect(second == "tok1")
     }
 
+    /* The token request is a form post that asks for JSON, and it is never
+       replayed across a redirect. */
+    @Test func testTokenRequestIsAFormPostAskingForJson() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        _ = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token", params: ["grant_type": "client_credentials"])
+
+        #expect(client.lastMethod == "POST")
+        #expect(client.lastHeaders["Content-Type"] == "application/x-www-form-urlencoded")
+        #expect(client.lastHeaders["Accept"] == "application/json")
+        #expect(client.lastNoRedirect)
+    }
+
     @Test func testRefetchesTokenWhenExpired() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":0}"))
