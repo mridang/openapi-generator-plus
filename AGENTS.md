@@ -40,6 +40,13 @@ rules hold for every session and every agent, however the work starts:
   it in parallel, and the parity-guard (`.claude/agents/parity-guard.md`) reviews all twelve together,
   with each language's part also reviewed by its idiom agent. A change found mid-session becomes a
   ledger item; it is never fixed in one language alone.
+- **Standing audit agents (read-only, rerun at any time).** `.claude/agents/oas-conformance-auditor.md`
+  inventories every feature of an OpenAPI version from the official spec and decides with file
+  evidence whether each of the twelve SDKs supports it (matrix, inventory and drafted issues, one
+  issue and one pull request per gap). `.claude/agents/test-parity-auditor.md` proves the twelve test
+  suites cover the same things under the same names and structure, differing only by idiom, and lists
+  every coverage gap and name drift. Both write only into a scratch directory; findings go to the
+  ledger through `etc/parity-findings.py`.
 - **One ledger.** `PARITY_FINDINGS.json`, maintained only through
   `etc/parity-findings.py`, is the only list of findings. Reviews (`/parity-review`),
   agents and the guard report into it; `etc/parity-findings.py count` is the single
