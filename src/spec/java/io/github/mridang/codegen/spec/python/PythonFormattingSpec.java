@@ -74,4 +74,15 @@ public class PythonFormattingSpec extends AbstractFormattingSpec implements Pyth
                 + "        # A common large-breed pet identifier\n"
                 + "        # >>> 42\n");
   }
+
+  /** F893: the examples of an optional (options-object) parameter are kept in the API reference. */
+  @Test
+  void optionalParameterExamplesShouldBeKept() throws java.io.IOException {
+    Path options = tempOutputDir.resolve("petstore_client/api/options/find_pets_by_status_options.py");
+    String src = java.nio.file.Files.readString(options);
+    assertThat(src)
+        .as("python find_pets_by_status_options.py should keep the examples of `status`")
+        .contains("# Example for `status`: Available only\n")
+        .contains("# Example for `status`: Sold pets\n");
+  }
 }

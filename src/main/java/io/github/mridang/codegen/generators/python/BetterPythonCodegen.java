@@ -1506,6 +1506,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             importSet.add("from typing import " + String.join(", ", typingNames));
         }
 
+        /* The shared pass that attaches the examples to the parameters runs after
+         * the options files are written, so attach them here for the doc comments. */
+        capturePluralExamplesForParameters(optionsParams);
         final List<Map<String, Object>> requiredParams = new ArrayList<>();
         final List<Map<String, Object>> optionalParams = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
@@ -1513,6 +1516,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             param.put("paramName", p.paramName);
             param.put("dataType", p.dataType);
             param.put("deprecated", p.isDeprecated);
+            param.put("vendorExtensions", p.vendorExtensions);
             if (p.required) {
                 requiredParams.add(param);
             } else {
