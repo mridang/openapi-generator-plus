@@ -133,14 +133,14 @@ import Testing
     /* A format: password property never reaches a log; the wire form is
        unchanged. */
     @Test func testPasswordPropertyIsMaskedInTheStringForms() throws {
-        let account = Account(username: "u", password: "s3cret-value")
-        #expect(!String(describing: account).contains("s3cret-value"))
-        #expect(!String(reflecting: account).contains("s3cret-value"))
+        let account = Account(username: "u", password: "hide-me")
+        #expect(!String(describing: account).contains("hide-me"))
+        #expect(!String(reflecting: account).contains("hide-me"))
         var dumped = ""
         dump(account, to: &dumped)
-        #expect(!dumped.contains("s3cret-value"))
+        #expect(!dumped.contains("hide-me"))
         #expect(String(describing: account).contains("***"))
-        #expect(try ObjectSerializer.serialize(account).contains("\"password\":\"s3cret-value\""))
+        #expect(try ObjectSerializer.serialize(account).contains("\"password\":\"hide-me\""))
     }
 
     @Test func testPlaceOrderServerError() async throws {
