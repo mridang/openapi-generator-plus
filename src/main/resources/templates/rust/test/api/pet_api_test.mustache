@@ -932,6 +932,25 @@ async fn test_pet_api_find_pets_by_status_digit_leading_query_param_keeps_its_wi
     assert!(request_line.contains("2ndPage=2"), "got request line: {}", request_line);
 }
 
+/* F1142: an operation whose request body is an anyOf wrapper puts exactly the
+ * variant the caller passed on the wire, with its path parameter resolved. */
+#[tokio::test]
+async fn test_pet_api_add_pet_treatment_sends_the_chosen_variant_as_the_body() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let input = serde_json::json!({"drugName": "Amoxicillin", "dosage": "500mg"});
+    let treatment: PetTreatment =
+        serde_json::from_value(input.clone()).expect("the variant must decode");
+
+    let _ = api.add_pet_treatment(5, treatment, None).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(request_line.starts_with("POST /pet/5/treatment"), "got: {}", request_line);
+    let body = request.split("\r\n\r\n").nth(1).expect("a request body");
+    let sent: serde_json::Value = serde_json::from_str(body).expect("the body is JSON");
+    assert_eq!(input, sent);
+}
+
 /// A path parameter of exactly `.` or `..` is a dot segment the URL parser
 /// would collapse, re-routing the request. It is rejected before dispatch: the
 /// client points at a closed port, so any request would fail with a network
