@@ -1108,6 +1108,28 @@ final class PetApiTests {
         #expect(response.body.isEmpty)
     }
 
+    /* The typed status routes answer with the named status and a JSON object,
+       which the SDK maps to the error type of that status. */
+    @Test(arguments: [
+        ("pet/1", 400, "BadRequestError"), ("pet/1", 401, "UnauthorizedError"),
+        ("pet/1", 403, "ForbiddenError"), ("pet/1", 404, "NotFoundError"),
+        ("pet/1", 409, "ConflictError"), ("pet/1", 418, "ClientError"),
+        ("pet/1", 422, "UnprocessableEntityError"), ("pet/1", 500, "InternalServerError"),
+        ("pet/1", 502, "ServerError"),
+        ("store/order/1", 404, "NotFoundError"), ("store/order/1", 422, "UnprocessableEntityError"),
+        ("store/order/1", 500, "InternalServerError"), ("store/order/1", 502, "ServerError"),
+    ])
+    func testTypedStatusRoutesMapToTheirErrorType(route: String, status: Int, typeName: String) async throws {
+        let client = DefaultApiClient()
+        let response = try await client.sendRequest(
+            method: "GET", url: "\(chasmHttpUrl)/test/status/\(status)/\(route)", headers: [:], body: nil)
+        #expect(response.statusCode == status)
+        let error = ApiError.fromResponse(
+            statusCode: response.statusCode, headers: response.headers, body: response.body)
+        #expect(String(describing: type(of: error)) == typeName)
+        #expect(error.errorBody is [String: Any])
+    }
+
     // MARK: - Redirects through the mock server
 
     /* A 3xx without a Location header is returned as the response. */

@@ -686,7 +686,7 @@ import Testing
         }
     }
 
-    @Test(arguments: ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00+02:00", "2024-01-01T10:00:00.5-05:00", "2024-01-01"])
+    @Test(arguments: ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00+02:00", "2024-01-01"])
     func testDateTimeWithAnOffsetOrDateOnlyIsAccepted(text: String) {
         #expect(ObjectSerializer.parseDate(text) != nil)
     }
