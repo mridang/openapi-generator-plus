@@ -104,7 +104,7 @@ pub trait {{errorPrefix}}ErrorExt {
     }
 }
 
-impl {{errorPrefix}}ErrorExt for (dyn std::error::Error + Send + Sync + 'static) {
+impl {{errorPrefix}}ErrorExt for dyn std::error::Error + Send + Sync + 'static {
     fn as_api_error(&self) -> Option<&ApiError> {
         if let Some(e) = self.downcast_ref::<ApiError>() {
             return Some(e);

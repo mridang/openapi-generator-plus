@@ -98,7 +98,7 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
     thread::sleep(std::time::Duration::from_millis(50));
 
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
-    let client = DefaultApiClient::new(None);
+    let client = DefaultApiClient::new(Some(TransportOptions::builder().max_retries(0).build().expect("valid transport options")));
     (PetApi::new(Arc::new(client), config, None), base_url)
 }
 
@@ -1527,4 +1527,33 @@ fn test_operation_prose_is_raw_and_rustdoc_safe() {
         options.contains("    /// Session token: \"a\\<b\\>\" & it's required\n"),
         "options field description must be raw prose"
     );
+}
+
+/* F823: the default transport retries a 503 and sends the call again as a
+ * fresh request. */
+#[tokio::test]
+async fn test_pet_api_retries_a_503_with_the_default_transport() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let served = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let served_by_server = served.clone();
+    thread::spawn(move || {
+        for status in [503, 200] {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            served_by_server.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let response = format!(
+                "HTTP/1.1 {} X\r\nRetry-After: 0\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                status
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+    let config = ConfigurationBuilder::new().base_url(&format!("http://{}", addr)).build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+
+    api.delete_pet(1, None).await.expect("the retry gets the 200");
+
+    assert_eq!(2, served.load(std::sync::atomic::Ordering::SeqCst));
 }

@@ -5,7 +5,9 @@ use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
 
-use crate::api_client::{insert_header, remove_header, ApiClient, MultipartValue, RequestBody};
+use crate::api_client::{
+    insert_header, remove_header, ApiClient, MultipartValue, RequestBody, RequestOptions,
+};
 use crate::errors::api_error::ApiError;
 use crate::api_http_response::ApiHttpResponse;
 use crate::api_result::ApiResult;
@@ -266,31 +268,84 @@ impl BaseApi {
             remove_header(&mut headers, "Content-Type");
         }
 
-        /* Send request */
-        let mut response = self
+        /* Send the request. A failed call is sent again up to `max_retries`
+         * times (network failure before a response; 408, 409, 429, 500-599
+         * except 501), each time as a fresh request with its authentication
+         * headers applied again. The retries share the transport's end-to-end
+         * timeout, so a retry that would not fit in what is left is not made,
+         * and dropping the returned future cancels the wait between attempts.
+         * A multipart body is never sent twice. */
+        let replayable = !matches!(serialized_body, Some(RequestBody::Multipart(_)));
+        let max_retries = if replayable { self.api_client.max_retries() } else { 0 };
+        let deadline = self
             .api_client
-            .send_request(params.method, &request_url, &headers, serialized_body.as_ref())
-            .await?;
-
-        /* A 401 on a request signed by a token flow means the cached token was
-         * revoked or rotated: drop it, get a new one (a refresh grant first) and
-         * replay the request once. A multipart body is not replayed, and a
-         * failure to re-authenticate leaves the original 401 to be reported. */
-        if response.status_code() == 401 && !matches!(serialized_body, Some(RequestBody::Multipart(_))) {
-            if let Some(auth) = effective_auth {
-                if auth.invalidate_access_token().await {
-                    if let Ok(fresh) = auth.try_auth_headers().await {
-                        for (k, v) in fresh {
-                            insert_header(&mut headers, k, v);
+            .request_timeout()
+            .map(|budget| std::time::Instant::now() + budget);
+        let send_options = RequestOptions::new().deadline(deadline);
+        let mut attempt: u32 = 0;
+        let mut renewed_after_401 = false;
+        let response = loop {
+            let sent = self
+                .api_client
+                .send_request_with_options(
+                    params.method,
+                    &request_url,
+                    &headers,
+                    serialized_body.as_ref(),
+                    &send_options,
+                )
+                .await;
+            let response = match sent {
+                Ok(response) => response,
+                Err(err) => {
+                    if attempt < max_retries && is_retryable_error(err.as_ref()) {
+                        let delay = retry_delay(attempt, None);
+                        if fits_budget(deadline, delay)
+                            && refresh_request_headers(effective_auth, &mut headers).await
+                        {
+                            tokio::time::sleep(delay).await;
+                            attempt += 1;
+                            continue;
                         }
-                        response = self
-                            .api_client
-                            .send_request(params.method, &request_url, &headers, serialized_body.as_ref())
-                            .await?;
+                    }
+                    return Err(err);
+                }
+            };
+
+            /* A 401 on a request signed by a token flow means the cached token
+             * was revoked or rotated: drop it, get a new one (a refresh grant
+             * first) and replay the request once. A multipart body is not
+             * replayed, and a failure to re-authenticate leaves the original
+             * 401 to be reported. */
+            if response.status_code() == 401 && !renewed_after_401 && replayable {
+                renewed_after_401 = true;
+                if let Some(auth) = effective_auth {
+                    if auth.invalidate_access_token().await {
+                        if let Ok(fresh) = auth.try_auth_headers().await {
+                            for (k, v) in fresh {
+                                insert_header(&mut headers, k, v);
+                            }
+                            continue;
+                        }
                     }
                 }
             }
-        }
+
+            if attempt < max_retries && is_retryable_status(response.status_code()) {
+                let retry_after = response
+                    .headers()
+                    .iter()
+                    .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
+                    .and_then(|(_, value)| parse_retry_after(value));
+                let delay = retry_delay(attempt, retry_after);
+                if fits_budget(deadline, delay) && refresh_request_headers(effective_auth, &mut headers).await {
+                    tokio::time::sleep(delay).await;
+                    attempt += 1;
+                    continue;
+                }
+            }
+            break response;
+        };
 
         /* Check for errors */
         if response.status_code() < 200 || response.status_code() >= 300 {
@@ -438,6 +493,94 @@ impl BaseApi {
             response.headers().clone(),
         ))
     }
+}
+
+/* Retry policy (F823). The numbers follow the other SDKs: 0.5 s doubling to
+ * 8 s, 25% jitter, a Retry-After honoured up to 60 s. */
+const RETRY_BASE_DELAY_MS: u64 = 500;
+const RETRY_MAX_DELAY_MS: u64 = 8_000;
+const RETRY_AFTER_CAP_MS: u64 = 60_000;
+
+/// Whether a response status is worth sending the request again for.
+pub(crate) fn is_retryable_status(status: u16) -> bool {
+    matches!(status, 408 | 409 | 429) || ((500..600).contains(&status) && status != 501)
+}
+
+/// Whether a transport error happened before a response and may be retried: a
+/// [`NetworkError`](crate::errors::NetworkError) whose cause is not a failure
+/// to read a body that had already started to arrive. A timeout has used up
+/// the end-to-end budget and is never retried.
+pub(crate) fn is_retryable_error(err: &(dyn std::error::Error + Send + Sync + 'static)) -> bool {
+    if err.downcast_ref::<crate::errors::NetworkError>().is_none() {
+        return false;
+    }
+    let mut cause = err.source();
+    while let Some(c) = cause {
+        if let Some(e) = c.downcast_ref::<reqwest::Error>() {
+            return !(e.is_body() || e.is_decode());
+        }
+        cause = c.source();
+    }
+    true
+}
+
+/// Parses a `Retry-After` value: whole seconds or an HTTP date. A date in the
+/// past is a zero wait; anything else unparseable is `None`.
+pub(crate) fn parse_retry_after(value: &str) -> Option<std::time::Duration> {
+    let value = value.trim();
+    if let Ok(seconds) = value.parse::<u64>() {
+        return Some(std::time::Duration::from_secs(seconds));
+    }
+    let date = chrono::DateTime::parse_from_rfc2822(value).ok()?;
+    let wait = date.with_timezone(&chrono::Utc) - chrono::Utc::now();
+    Some(wait.to_std().unwrap_or_default())
+}
+
+/// The wait before retry number `attempt + 1` (`attempt` counts from 0): the
+/// `Retry-After` value capped at 60 s when the server sent one, otherwise 0.5 s
+/// doubled per attempt up to 8 s and reduced by up to 25% jitter.
+pub(crate) fn retry_delay(attempt: u32, retry_after: Option<std::time::Duration>) -> std::time::Duration {
+    match retry_after {
+        Some(wait) => wait.min(std::time::Duration::from_millis(RETRY_AFTER_CAP_MS)),
+        None => {
+            let base = RETRY_BASE_DELAY_MS
+                .saturating_mul(1u64 << attempt.min(16))
+                .min(RETRY_MAX_DELAY_MS);
+            let random = f64::from(uuid::Uuid::new_v4().as_u128() as u32) / f64::from(u32::MAX);
+            std::time::Duration::from_millis((base as f64 * (1.0 - 0.25 * random)) as u64)
+        }
+    }
+}
+
+/// Whether a wait of `delay` leaves time in the end-to-end budget for another
+/// request. Without a deadline there is no budget to protect.
+fn fits_budget(deadline: Option<std::time::Instant>, delay: std::time::Duration) -> bool {
+    match deadline {
+        Some(deadline) => std::time::Instant::now() + delay < deadline,
+        None => true,
+    }
+}
+
+/// Prepares the headers of a retry: the authentication headers are asked for
+/// again (a token may have been renewed since the first attempt) and the trace
+/// context is injected again. `false` when the authenticator cannot produce
+/// credentials, in which case the call is not retried.
+async fn refresh_request_headers(
+    auth: Option<&dyn Authenticator>,
+    headers: &mut HashMap<String, String>,
+) -> bool {
+    if let Some(auth) = auth {
+        match auth.try_auth_headers().await {
+            Ok(fresh) => {
+                for (k, v) in fresh {
+                    insert_header(headers, k, v);
+                }
+            }
+            Err(_) => return false,
+        }
+    }
+    trace_context_util::inject_trace_context(headers);
+    true
 }
 
 /// Reports whether the transport hands a response with this media type back as
@@ -608,12 +751,81 @@ fn is_valid_cookie_value(value: &str) -> bool {
  * drive the public API surface remain in `tests/base_api_test.rs`. */
 #[cfg(test)]
 mod tests {
-    use super::{serialize_body, BaseApi, InvokeApiParams};
+    use super::{
+        fits_budget, is_retryable_error, is_retryable_status, parse_retry_after, retry_delay,
+        serialize_body, BaseApi, InvokeApiParams,
+    };
     use crate::api_client::{ApiClient, RequestBody};
     use crate::api_http_response::ApiHttpResponse;
     use crate::ConfigurationBuilder;
     use std::collections::HashMap;
     use std::sync::Arc;
+
+    /* F823: the retry policy. */
+    #[test]
+    fn test_retryable_statuses_are_408_409_429_and_5xx_except_501() {
+        for status in [408, 409, 429, 500, 502, 503, 504, 599] {
+            assert!(is_retryable_status(status), "status {}", status);
+        }
+        for status in [200, 301, 400, 401, 403, 404, 422, 501] {
+            assert!(!is_retryable_status(status), "status {}", status);
+        }
+    }
+
+    #[test]
+    fn test_only_a_network_error_before_a_response_is_retryable() {
+        let refused = crate::errors::NetworkError::try_from(crate::errors::ApiError::new(
+            0,
+            "refused".to_string(),
+            None,
+            None,
+        ))
+        .expect("status 0");
+        assert!(is_retryable_error(&refused));
+        assert!(!is_retryable_error(&crate::errors::SerializationError::new("x".to_string(), None)));
+        assert!(!is_retryable_error(&crate::errors::ApiError::new(500, "x".to_string(), None, None)));
+    }
+
+    #[test]
+    fn test_retry_after_parses_seconds_and_http_dates() {
+        use std::time::Duration;
+        assert_eq!(Some(Duration::from_secs(7)), parse_retry_after(" 7 "));
+        assert_eq!(Some(Duration::ZERO), parse_retry_after("Sun, 06 Nov 1994 08:49:37 GMT"));
+        let later = chrono::Utc::now() + chrono::Duration::seconds(30);
+        let wait = parse_retry_after(&later.format("%a, %d %b %Y %H:%M:%S GMT").to_string())
+            .expect("an HTTP date");
+        assert!(wait <= Duration::from_secs(30) && wait >= Duration::from_secs(28), "{:?}", wait);
+        assert_eq!(None, parse_retry_after("soon"));
+        assert_eq!(None, parse_retry_after("-3"));
+    }
+
+    #[test]
+    fn test_backoff_doubles_from_half_a_second_to_eight_seconds_with_jitter() {
+        use std::time::Duration;
+        for (attempt, base_ms) in [(0u32, 500u64), (1, 1_000), (2, 2_000), (3, 4_000), (4, 8_000), (9, 8_000)] {
+            for _ in 0..20 {
+                let delay = retry_delay(attempt, None);
+                assert!(delay <= Duration::from_millis(base_ms), "attempt {}: {:?}", attempt, delay);
+                assert!(delay >= Duration::from_millis(base_ms * 3 / 4), "attempt {}: {:?}", attempt, delay);
+            }
+        }
+    }
+
+    #[test]
+    fn test_retry_after_replaces_the_backoff_and_is_capped_at_sixty_seconds() {
+        use std::time::Duration;
+        assert_eq!(Duration::from_secs(3), retry_delay(0, Some(Duration::from_secs(3))));
+        assert_eq!(Duration::from_secs(60), retry_delay(0, Some(Duration::from_secs(3_600))));
+    }
+
+    #[test]
+    fn test_a_wait_must_fit_the_remaining_budget() {
+        use std::time::{Duration, Instant};
+        assert!(fits_budget(None, Duration::from_secs(600)));
+        let deadline = Instant::now() + Duration::from_secs(10);
+        assert!(fits_budget(Some(deadline), Duration::from_secs(1)));
+        assert!(!fits_budget(Some(deadline), Duration::from_secs(20)));
+    }
 
     /// Answers every request with a fixed body and Content-Type.
     struct FixedResponseClient {

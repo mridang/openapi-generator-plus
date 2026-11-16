@@ -154,6 +154,17 @@ impl ApiClient for DefaultApiClient {
         DefaultApiClient::close(self);
     }
 
+    fn max_retries(&self) -> u32 {
+        self.transport_options.max_retries()
+    }
+
+    fn request_timeout(&self) -> Option<Duration> {
+        self.transport_options
+            .timeout()
+            .and_then(|ms| u64::try_from(ms).ok())
+            .map(Duration::from_millis)
+    }
+
     fn is_closed(&self) -> bool {
         DefaultApiClient::is_closed(self)
     }
@@ -284,11 +295,12 @@ impl ApiClient for DefaultApiClient {
             /* One end-to-end budget covers the first request and every redirect
              * hop: each request gets only what is left of it, so a chain of
              * slow hops cannot restart the clock. */
-            let deadline = self
-                .transport_options
-                .timeout()
-                .and_then(|ms| u64::try_from(ms).ok())
-                .map(|ms| std::time::Instant::now() + Duration::from_millis(ms));
+            let deadline = options.deadline.or_else(|| {
+                self.transport_options
+                    .timeout()
+                    .and_then(|ms| u64::try_from(ms).ok())
+                    .map(|ms| std::time::Instant::now() + Duration::from_millis(ms))
+            });
 
             let mut request_builder = http_client.request(http_method, parsed_url);
             if let Some(deadline) = deadline {

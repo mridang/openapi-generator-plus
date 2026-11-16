@@ -53,6 +53,11 @@ pub struct RequestOptions {
     /// the request. Token and discovery requests set it, so a credential meant
     /// for the API is never sent to an identity provider.
     pub skip_default_headers: bool,
+    /// The instant by which the whole call must have finished. A caller that
+    /// sends several requests under one end-to-end timeout (the retry loop of
+    /// `BaseApi`) sets it, so the transport gives each request only what is
+    /// left of the budget. `None` lets the transport start its own timeout.
+    pub deadline: Option<std::time::Instant>,
 }
 
 impl RequestOptions {
@@ -64,6 +69,12 @@ impl RequestOptions {
     /// Sets the `skip_default_headers` flag.
     pub fn skip_default_headers(mut self, value: bool) -> Self {
         self.skip_default_headers = value;
+        self
+    }
+
+    /// Sets the end-to-end deadline shared by the requests of one call.
+    pub fn deadline(mut self, value: Option<std::time::Instant>) -> Self {
+        self.deadline = value;
         self
     }
 
@@ -121,6 +132,21 @@ pub trait ApiClient: Send + Sync {
         _options: &RequestOptions,
     ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         self.send_request(method, url, headers, body)
+    }
+
+    /// The number of times a failed call is sent again (network failure before
+    /// a response, or a status of 408, 409, 429, 500-599 except 501). The
+    /// default is `0`, so a custom client never retries; `DefaultApiClient`
+    /// returns `TransportOptions::max_retries`.
+    fn max_retries(&self) -> u32 {
+        0
+    }
+
+    /// The end-to-end timeout of one call, which the retries of that call
+    /// share. The default is `None` (no limit known to the caller);
+    /// `DefaultApiClient` returns `TransportOptions::timeout`.
+    fn request_timeout(&self) -> Option<std::time::Duration> {
+        None
     }
 
     /// Releases any resources held by this client (connection pool, sockets).

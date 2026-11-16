@@ -59,6 +59,23 @@ cargo fix --edition
 - Edition: `2021`
 - MSRV: `1.85`
 
+## Configuration
+
+### Automatic retries
+
+A failed call is sent again up to `max_retries` times, two by default;
+`TransportOptions::builder().max_retries(0)` turns retries off. The call is
+retried after a network error that happened before a response, and after a
+response with status 408, 409, 429 or 500-599 (not 501). The wait starts at
+0.5 s, doubles up to 8 s, and carries up to 25% jitter. A `Retry-After` header
+(seconds or an HTTP date) replaces the wait, up to 60 s. Every retry is a fresh
+request with its authentication headers applied again, and all of them share
+the one end-to-end `timeout`: a retry that would not fit in what is left is not
+made, and the last failure is returned. A call with a multipart body is never
+retried, and dropping the future cancels the wait between attempts. Retries
+apply to the generated operations; a request sent straight through
+`DefaultApiClient` is not retried.
+
 ## Caveats
 
 ### Decimal / `format: number` precision
@@ -105,12 +122,6 @@ turns a response value into the next call. Make the follow-up call yourself.
 A `mutualTLS` security scheme (OAS 3.1) produces no authenticator. To present a
 client certificate, build the `reqwest::Client` yourself (with an identity) and
 pass it to `with_http_client`.
-
-### Automatic retries
-
-The SDK does not retry a failed request, with or without a backoff. Wrap the
-call in your own retry policy; a `NetworkError` or a 5xx `ApiError` is the
-usual trigger.
 
 ### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
 
