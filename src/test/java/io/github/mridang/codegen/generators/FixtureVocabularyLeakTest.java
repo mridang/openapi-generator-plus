@@ -70,12 +70,12 @@ class FixtureVocabularyLeakTest {
      * and OAuth itself.
      *
      * <p>Every SDK has a Content-Type guess and an access-token expiry, so
-     * {@code mimeTypeForFilename} and a comment about {@code expiresAt} are
+     * {@code mimeTypeForFilename}, a comment about {@code expiresAt} and the {@code Retry-After} header handling in {@code retryAfter} are
      * the generator's own words, not the fixture's. Nothing here may be a
      * name the fixture invented — that is the whole point of the check.
      */
     private static final Set<String> SHARED_WITH_PROTOCOL_VOCABULARY =
-            Set.of("mimeType", "expiresAt");
+            Set.of("mimeType", "expiresAt", "retryAfter");
 
     @Test
     void generatedSdksContainNoFixtureVocabulary() throws IOException {
