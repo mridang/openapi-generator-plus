@@ -157,9 +157,6 @@ abstract class AbstractApiClient implements ApiClient {
     }
 
     final proxyAuth = _proxyAuthHeader;
-    if (proxyAuth != null) {
-      merged['Proxy-Authorization'] = proxyAuth;
-    }
 
     /* A malformed request URL or a header value the transport would refuse
      * is a caller mistake: an ArgumentError, raised here before the
@@ -176,6 +173,14 @@ abstract class AbstractApiClient implements ApiClient {
     }
     if (!uri.hasScheme || uri.host.isEmpty) {
       throw ArgumentError('Request URL must be absolute');
+    }
+    /* The proxy credential goes only on a plain-http request, which the proxy
+     * itself reads. On an https target it would travel inside the TLS tunnel
+     * to the origin (dart:io answers the proxy's 407 on the CONNECT request
+     * through addProxyCredentials), so the API server and the identity
+     * provider never see it. */
+    if (proxyAuth != null && uri.scheme.toLowerCase() != 'https') {
+      merged['Proxy-Authorization'] = proxyAuth;
     }
     merged.forEach((name, value) {
       if (name.isEmpty || RegExp(r"[^!#$%&'*+\-.^_`|~0-9A-Za-z]").hasMatch(name)) {
@@ -352,10 +357,9 @@ abstract class AbstractApiClient implements ApiClient {
           /* The SDK's own Proxy-Authorization authenticates to the proxy,
            * which is the same for every hop, so it is re-applied after the
            * cross-origin strip (which removes only caller credentials). On a
-           * cross-origin hop to an https target it is NOT re-added: there it
-           * would travel inside the tunnel to an unrelated origin. */
-          if (proxyAuth != null &&
-              !(crossOrigin && nextUri.scheme.toLowerCase() == 'https')) {
+           * hop to an https target it is NOT re-added: there it would travel
+           * inside the tunnel to the origin. */
+          if (proxyAuth != null && nextUri.scheme.toLowerCase() != 'https') {
             redirectHeaders.removeWhere(
                 (k, _) => k.toLowerCase() == 'proxy-authorization');
             redirectHeaders['Proxy-Authorization'] = proxyAuth;

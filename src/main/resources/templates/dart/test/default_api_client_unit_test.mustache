@@ -10,6 +10,22 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
 
+/* A transport-free client that holds a proxy credential, so the headers the
+ * SDK builds can be read from a stub instead of a real proxy tunnel. */
+class _ProxyCredentialClient extends AbstractApiClient {
+  _ProxyCredentialClient(http.Client inner)
+      : super(
+          TransportOptionsBuilder().build(),
+          inner,
+          AbstractApiClient.buildProxyAuthHeader(
+            Uri.parse('http://user:pass@proxy.test:3128'),
+          ),
+        );
+
+  @override
+  Uint8List decompressBytes(Uint8List bytes, String contentEncoding) => bytes;
+}
+
 class _CloseTrackingClient extends http.BaseClient {
   _CloseTrackingClient(this._inner);
 
@@ -2233,6 +2249,28 @@ void main() {
         await proxy.close();
       }
     });
+
+    for (final target in <List<Object>>[
+      ['http://api.test/x', true],
+      ['https://api.test/x', false],
+    ]) {
+      final url = target[0] as String;
+      final sent = target[1] as bool;
+      test('$url ${sent ? 'carries' : 'does not carry'} the proxy credential',
+          () async {
+        Map<String, String>? seen;
+        final stub = MockClient((request) async {
+          seen = request.headers;
+          return http.Response('ok', 200);
+        });
+        await _ProxyCredentialClient(stub).sendRequest('GET', url, {}, null);
+        final header = seen?.entries
+            .where((e) => e.key.toLowerCase() == 'proxy-authorization')
+            .map((e) => e.value)
+            .toList();
+        expect(header, sent ? equals(['Basic dXNlcjpwYXNz']) : isEmpty);
+      });
+    }
   });
 }
 {{/generateTests}}
