@@ -1426,4 +1426,24 @@ class PetApiTest {
         assertThat(PetApi.class.getMethod("getPetByName", String.class, GetPetByNameOptions.class)
                 .isAnnotationPresent(Deprecated.class)).isFalse();
     }
+
+    @Test
+    void testGetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes() throws Exception {
+        Object[][] table = {
+            {400, {{invokerPackage}}.errors.BadRequestException.class},
+            {401, {{invokerPackage}}.errors.UnauthorizedException.class},
+            {403, {{invokerPackage}}.errors.ForbiddenException.class},
+            {409, {{invokerPackage}}.errors.ConflictException.class},
+            {418, {{invokerPackage}}.errors.ClientException.class},
+            {422, {{invokerPackage}}.errors.UnprocessableEntityException.class},
+            {502, {{invokerPackage}}.errors.ServerException.class},
+        };
+        for (Object[] row : table) {
+            PetApi routed = new PetApi(new DefaultApiClient(), Configuration.builder()
+                    .baseUrl(ChasmContainer.getBaseUrl() + "/test/status/" + row[0])
+                    .build());
+            Class<?> expected = (Class<?>) row[1];
+            assertThatThrownBy(() -> routed.getPetById(1L)).isExactlyInstanceOf(expected);
+        }
+    }
 }
