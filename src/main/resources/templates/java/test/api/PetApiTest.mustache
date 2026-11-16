@@ -6,6 +6,7 @@ import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.ApiHttpResponse;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.DefaultApiClient;
+import {{invokerPackage}}.TransportOptions;
 import {{invokerPackage}}.ChasmContainer;
 import {{invokerPackage}}.auth.AdminBasicAuthenticator;
 import {{invokerPackage}}.auth.PetStoreBearerAuthenticator;
@@ -1439,7 +1440,9 @@ class PetApiTest {
             {502, {{invokerPackage}}.errors.ServerException.class},
         };
         for (Object[] row : table) {
-            PetApi routed = new PetApi(new DefaultApiClient(), Configuration.builder()
+            PetApi routed = new PetApi(
+                    new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+                    Configuration.builder()
                     .baseUrl(ChasmContainer.getBaseUrl() + "/test/status/" + row[0])
                     .build());
             Class<?> expected = (Class<?>) row[1];

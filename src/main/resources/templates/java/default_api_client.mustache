@@ -432,6 +432,10 @@ public final class DefaultApiClient implements ApiClient {
             mergedHeaders.put("X-Request-ID", UUID.randomUUID().toString());
         }
 
+        /* A stream body is single-use and a multipart handle may wrap one, so
+         * such a request is sent once and never retried. */
+        final boolean replayable = isReplayableBody(body);
+
         HttpRequest.BodyPublisher bodyPublisher;
         if (body == null) {
             /* HttpRequest.BodyPublishers.noBody() reports contentLength == 0,
@@ -511,7 +515,8 @@ public final class DefaultApiClient implements ApiClient {
         }
 
         try {
-            HttpResponse<byte[]> response = sendWithRetry(builder.build(), deadlineNanos);
+            HttpResponse<byte[]> response =
+                    sendWithBackoff(builder.build(), deadlineNanos, replayable);
 
             /*
              * Manual redirect handling when maxRedirects is configured. The
@@ -626,7 +631,7 @@ public final class DefaultApiClient implements ApiClient {
                     for (Map.Entry<String, String> entry : redirectHeaders.entrySet()) {
                         redirectBuilder.header(entry.getKey(), entry.getValue());
                     }
-                    response = sendWithRetry(redirectBuilder.build(), deadlineNanos);
+                    response = sendWithBackoff(redirectBuilder.build(), deadlineNanos, replayable);
                     currentMethod = nextMethod;
                     currentBody = nextBody;
                     currentHeaders = redirectHeaders;
@@ -725,6 +730,170 @@ public final class DefaultApiClient implements ApiClient {
             cancelled.initCause(e);
             throw cancelled;
         }
+    }
+
+    /** First retry delay in milliseconds; each further retry doubles it. */
+    private static final long BACKOFF_INITIAL_MILLIS = 500L;
+    /** Ceiling of the retry delay in milliseconds. */
+    private static final long BACKOFF_MAX_MILLIS = 8_000L;
+    /** The most a server's {@code Retry-After} can make a retry wait, in milliseconds. */
+    private static final long RETRY_AFTER_MAX_MILLIS = 60_000L;
+
+    /**
+     * Send a request, retrying a network error that happened before any response
+     * arrived and a retryable status up to {@code maxRetries} times.
+     *
+     * <p>A retry waits the backoff delay (or the server's {@code Retry-After})
+     * and is a fresh {@link HttpRequest} built from the original, so it carries
+     * the same headers, authentication included. The wait and the retry draw
+     * from the one end-to-end deadline: when the remaining budget cannot cover
+     * the wait, the last outcome is returned (or thrown) unchanged, so retrying
+     * never extends the timeout. A timeout, a TLS handshake failure and an
+     * interrupt are never retried.
+     */
+    private HttpResponse<byte[]> sendWithBackoff(
+            HttpRequest request, long deadlineNanos, boolean replayable)
+            throws IOException, InterruptedException {
+        final int maxRetries = replayable ? transportOptions.getMaxRetries() : 0;
+        int retries = 0;
+        HttpRequest current = request;
+        while (true) {
+            final int attempt = retries;
+            HttpResponse<byte[]> response;
+            try {
+                response = sendWithRetry(current, deadlineNanos);
+            } catch (HttpTimeoutException | javax.net.ssl.SSLHandshakeException notRetried) {
+                throw notRetried;
+            } catch (IOException e) {
+                if (attempt >= maxRetries) {
+                    throw e;
+                }
+                HttpRequest next = waitAndRebuild(
+                        request, backoffMillis(attempt, jitterSample()), deadlineNanos);
+                if (next == null) {
+                    throw e;
+                }
+                current = next;
+                retries++;
+                continue;
+            }
+            if (attempt >= maxRetries || !isRetryableStatus(response.statusCode())) {
+                return response;
+            }
+            long delay = response.headers()
+                    .firstValue("retry-after")
+                    .map(value -> retryAfterMillis(value, java.time.Instant.now()))
+                    .filter(millis -> millis >= 0L)
+                    .orElseGet(() -> backoffMillis(attempt, jitterSample()));
+            HttpRequest next = waitAndRebuild(request, delay, deadlineNanos);
+            if (next == null) {
+                return response;
+            }
+            current = next;
+            retries++;
+        }
+    }
+
+    private static double jitterSample() {
+        return java.util.concurrent.ThreadLocalRandom.current().nextDouble();
+    }
+
+    /**
+     * Wait {@code delayMillis} and build the next attempt as a fresh request,
+     * with the timeout set to what is left of the end-to-end budget.
+     *
+     * @return the request to send, or {@code null} when the budget cannot cover the wait
+     */
+    @Nullable
+    private static HttpRequest waitAndRebuild(
+            HttpRequest request, long delayMillis, long deadlineNanos)
+            throws InterruptedException {
+        HttpRequest.Builder next = HttpRequest.newBuilder(request, (name, value) -> true);
+        if (request.timeout().isPresent()) {
+            long remainingNanos = deadlineNanos - System.nanoTime();
+            if (remainingNanos <= java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(delayMillis)) {
+                return null;
+            }
+            Thread.sleep(delayMillis);
+            remainingNanos = deadlineNanos - System.nanoTime();
+            if (remainingNanos <= 0L) {
+                return null;
+            }
+            next.timeout(Duration.ofNanos(remainingNanos));
+        } else {
+            Thread.sleep(delayMillis);
+        }
+        return next.build();
+    }
+
+    /** Whether a status is worth another attempt: 408, 409, 429 and 5xx except 501. */
+    static boolean isRetryableStatus(int status) {
+        return status == 408
+                || status == 409
+                || status == 429
+                || (status >= 500 && status <= 599 && status != 501);
+    }
+
+    /**
+     * The delay before retry number {@code retry} (0 for the first): 0.5 s doubling
+     * to a cap of 8 s, reduced by up to 25% of jitter.
+     *
+     * @param retry  zero-based retry number
+     * @param sample a uniform random value in [0, 1)
+     * @return the delay in milliseconds
+     */
+    static long backoffMillis(int retry, double sample) {
+        long base = Math.min(BACKOFF_MAX_MILLIS, BACKOFF_INITIAL_MILLIS << Math.min(retry, 10));
+        return (long) (base * (1.0 - 0.25 * sample));
+    }
+
+    /**
+     * Parse a {@code Retry-After} value (RFC 9110 section 10.2.3): a number of
+     * seconds or an HTTP date, capped at 60 s.
+     *
+     * @return the delay in milliseconds, or -1 when the value is unusable
+     */
+    static long retryAfterMillis(String value, java.time.Instant now) {
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return -1L;
+        }
+        if (trimmed.chars().allMatch(c -> c >= '0' && c <= '9')) {
+            if (trimmed.length() > 9) {
+                return RETRY_AFTER_MAX_MILLIS;
+            }
+            return Math.min(Long.parseLong(trimmed) * 1000L, RETRY_AFTER_MAX_MILLIS);
+        }
+        try {
+            java.time.ZonedDateTime date = java.time.ZonedDateTime.parse(
+                    trimmed, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME);
+            long millis = Duration.between(now, date.toInstant()).toMillis();
+            return Math.max(0L, Math.min(millis, RETRY_AFTER_MAX_MILLIS));
+        } catch (java.time.format.DateTimeParseException unparseable) {
+            return -1L;
+        }
+    }
+
+    /** A body that can be sent again: not a stream, and not a multipart map holding one. */
+    static boolean isReplayableBody(@Nullable Object body) {
+        if (body instanceof InputStream) {
+            return false;
+        }
+        if (body instanceof Map<?, ?> parts) {
+            for (Object part : parts.values()) {
+                if (part instanceof InputStream) {
+                    return false;
+                }
+                if (part instanceof Iterable<?> items) {
+                    for (Object item : items) {
+                        if (item instanceof InputStream) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     /**

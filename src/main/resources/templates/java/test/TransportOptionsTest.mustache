@@ -95,6 +95,22 @@ class TransportOptionsTest {
     }
 
     @Test
+    @DisplayName("maxRetries defaults to 2 and 0 disables retries")
+    void maxRetriesDefaultsToTwo() {
+        assertEquals(2, TransportOptions.builder().build().getMaxRetries());
+        assertEquals(0, TransportOptions.builder().maxRetries(0).build().getMaxRetries());
+        assertEquals(5, TransportOptions.builder().maxRetries(5).build().getMaxRetries());
+    }
+
+    @Test
+    @DisplayName("a negative maxRetries is rejected")
+    void negativeMaxRetriesIsRejected() {
+        IllegalArgumentException ex = assertThrowsExactly(
+                IllegalArgumentException.class, () -> TransportOptions.builder().maxRetries(-1));
+        assertEquals("Invalid maxRetries: must not be negative (got -1)", ex.getMessage());
+    }
+
+    @Test
     @DisplayName("userAgent defaults to non-empty string")
     void userAgentDefaultsToNonEmptyString() {
         TransportOptions opts = TransportOptions.builder().build();
@@ -245,6 +261,7 @@ class TransportOptionsTest {
         assertSame(builder, builder.timeout(null));
         assertSame(builder, builder.followRedirects(true));
         assertSame(builder, builder.maxRedirects(null));
+        assertSame(builder, builder.maxRetries(2));
         assertSame(builder, builder.userAgent(null));
         assertSame(builder, builder.defaultHeader("X-Key", "val"));
         assertSame(builder, builder.defaultHeaders(new HashMap<>()));

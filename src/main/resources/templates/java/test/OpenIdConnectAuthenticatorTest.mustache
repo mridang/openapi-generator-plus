@@ -71,7 +71,9 @@ class OpenIdConnectAuthenticatorTest {
         String url = auth.buildAuthorizationUrl("");
 
         assertFalse(url.contains("state"), url);
-        assertEquals(auth.buildAuthorizationUrl(null), url);
+        assertEquals(
+                auth.buildAuthorizationUrl(null).replaceAll("&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256$", ""),
+                url.replaceAll("&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256$", ""));
     }
 
     @Test
@@ -530,5 +532,77 @@ class OpenIdConnectAuthenticatorTest {
                         + ", redirectUri=https://app.example.com/callback"
                         + ", scopes=[openid, profile])",
                 repr);
+    }
+
+    @javax.annotation.Nullable
+    private static String formField(String body, String name) {
+        for (String pair : body.split("&")) {
+            if (pair.startsWith(name + "=")) {
+                return pair.substring(name.length() + 1);
+            }
+        }
+        return null;
+    }
+
+    @Test
+    void rediscoveryKeepsThePkceVerifierOfTheAuthorizationUrl() {
+        var gets = new java.util.concurrent.atomic.AtomicInteger(0);
+        AtomicReference<String> exchangeBody = new AtomicReference<>();
+        ApiClient client = (method, url, headers, body) -> {
+            if ("GET".equals(method)) {
+                String host = gets.incrementAndGet() == 1 ? "auth" : "login";
+                return new ApiHttpResponse(200,
+                        "{\"authorization_endpoint\":\"https://" + host + ".example.com/authorize\","
+                                + "\"token_endpoint\":\"https://" + host + ".example.com/token\"}",
+                        Map.of("Cache-Control", "max-age=0"));
+            }
+            exchangeBody.set(body != null ? body.toString() : "");
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
+        };
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        String url = auth.buildAuthorizationUrl("s");
+        auth.exchangeCode("oidc-code");
+
+        assertEquals(2, gets.get(), "the exchange rediscovered new endpoints");
+        String verifier = java.util.Objects.requireNonNull(
+                formField(java.util.Objects.requireNonNull(exchangeBody.get()), "code_verifier"));
+        assertEquals(
+                formField(url.substring(url.indexOf('?') + 1), "code_challenge"),
+                OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifier));
+        assertTrue(url.contains("code_challenge_method=S256"), url);
+        assertFalse(url.contains("nonce"), url);
+    }
+
+    @Test
+    void invalidatingTheTokenKeepsTheRefreshTokenAndNeedsNoDiscovery() {
+        java.util.List<String> posts = new java.util.ArrayList<>();
+        var gets = new java.util.concurrent.atomic.AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            if ("GET".equals(method)) {
+                gets.incrementAndGet();
+                return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+            }
+            posts.add(body != null ? body.toString() : "");
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"at" + posts.size()
+                            + "\",\"refresh_token\":\"rt\",\"expires_in\":3600}",
+                    Map.of());
+        };
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.invalidateAccessToken();
+        assertEquals(0, gets.get(), "nothing is discovered just to drop a token");
+
+        auth.exchangeCode("oidc-code");
+        assertEquals("Bearer at1", auth.getAuthHeaders().get("Authorization"));
+        auth.invalidateAccessToken();
+
+        assertEquals("Bearer at2", auth.getAuthHeaders().get("Authorization"));
+        assertEquals("refresh_token", formField(posts.get(1), "grant_type"));
+        assertEquals("rt", formField(posts.get(1), "refresh_token"));
     }
 }

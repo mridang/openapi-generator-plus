@@ -34,4 +34,17 @@ public interface HttpAwareAuthenticator extends Authenticator {
      * @param apiClient the shared API client instance
      */
     void setApiClient(ApiClient apiClient);
+
+    /**
+     * Drop the cached access token so the next request fetches (or refreshes)
+     * a new one, keeping any refresh token.
+     *
+     * <p>{@code BaseApi} calls this when the API answers {@code 401}, then sends
+     * the request once more with fresh authentication headers. The default does
+     * nothing, so an authenticator without a cached token is never replayed
+     * against.
+     */
+    default void invalidateAccessToken() {
+        /* No cached token to drop by default. */
+    }
 }

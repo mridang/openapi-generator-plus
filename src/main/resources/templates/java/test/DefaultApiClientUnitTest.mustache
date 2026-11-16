@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
@@ -839,7 +840,7 @@ class DefaultApiClientUnitTest {
     // A send-phase transport failure (connection refused on a closed port)
     // must surface as a NetworkException (an ApiException with status 0)
     // whose getCause() is the underlying IOException.
-    DefaultApiClient client = new DefaultApiClient();
+    DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
     {{invokerPackage}}.errors.NetworkException ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException.class, () ->
         client.sendRequest("GET", "http://127.0.0.1:1/never", Map.of(), null));
     assertInstanceOf(ApiException.class, ex);
@@ -1635,7 +1636,7 @@ class DefaultApiClientUnitTest {
     try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
       java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
       String url = "http://127.0.0.1:" + silent.getLocalPort() + "/create";
-      DefaultApiClient client = new DefaultApiClient();
+      DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
       assertThrowsExactly(
           {{invokerPackage}}.errors.NetworkException.class,
           () -> client.sendRequest("POST", url, Map.of(), "payload"));
@@ -1648,7 +1649,7 @@ class DefaultApiClientUnitTest {
     try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
       java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
       String url = "http://127.0.0.1:" + silent.getLocalPort() + "/read";
-      DefaultApiClient client = new DefaultApiClient();
+      DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
       assertThrowsExactly(
           {{invokerPackage}}.errors.NetworkException.class,
           () -> client.sendRequest("GET", url, Map.of(), null));
@@ -1726,7 +1727,7 @@ class DefaultApiClientUnitTest {
               });
       thread.setDaemon(true);
       thread.start();
-      DefaultApiClient client = new DefaultApiClient();
+      DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
       {{invokerPackage}}.errors.NetworkException ex = assertThrowsExactly(
           {{invokerPackage}}.errors.NetworkException.class, () ->
               client.sendRequest("GET", "http://127.0.0.1:" + truncating.getLocalPort() + "/x",
@@ -1916,6 +1917,288 @@ class DefaultApiClientUnitTest {
                   null));
     } finally {
       server.stop(0);
+    }
+  }
+
+  /** What a scripted server answers: a status and an optional Retry-After value. */
+  private record Reply(int status, String retryAfter) {}
+
+  /** A throwaway server that answers request number n (from 1) with {@code script(n)}. */
+  private static HttpServer scriptedServer(
+      java.util.function.IntFunction<Reply> script,
+      java.util.concurrent.atomic.AtomicInteger hits)
+      throws IOException {
+    HttpServer scripted = HttpServer.create(new InetSocketAddress(0), 0);
+    scripted.createContext(
+        "/",
+        exchange -> {
+          exchange.getRequestBody().readAllBytes();
+          Reply reply = script.apply(hits.incrementAndGet());
+          if (!reply.retryAfter().isEmpty()) {
+            exchange.getResponseHeaders().add("Retry-After", reply.retryAfter());
+          }
+          byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(reply.status(), body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    scripted.start();
+    return scripted;
+  }
+
+  private static String urlOf(HttpServer scripted) {
+    return "http://localhost:" + scripted.getAddress().getPort() + "/resource";
+  }
+
+  @Test
+  void retriesAServerErrorByDefaultUntilItSucceeds() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n <= 2 ? new Reply(503, "0") : new Reply(200, ""), hits);
+    try {
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+      assertEquals(200, response.statusCode());
+      assertEquals(3, hits.get(), "the default is two retries");
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void stopsAfterMaxRetriesAndReturnsTheLastResponse() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(1).build());
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      assertEquals(2, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void maxRetriesZeroSendsTheRequestOnce() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      assertEquals(1, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void retriesExactlyTheRetryableStatuses() throws Exception {
+    for (int status : new int[] {408, 409, 429, 500, 502, 503, 504, 599}) {
+      var hits = new java.util.concurrent.atomic.AtomicInteger();
+      HttpServer scripted =
+          scriptedServer(n -> n == 1 ? new Reply(status, "0") : new Reply(200, ""), hits);
+      try {
+        ApiHttpResponse response =
+            new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+        assertEquals(200, response.statusCode(), "status " + status);
+        assertEquals(2, hits.get(), "status " + status + " is retried");
+      } finally {
+        scripted.stop(0);
+      }
+    }
+    for (int status : new int[] {400, 401, 403, 404, 422, 501}) {
+      var hits = new java.util.concurrent.atomic.AtomicInteger();
+      HttpServer scripted = scriptedServer(n -> new Reply(status, "0"), hits);
+      try {
+        ApiHttpResponse response =
+            new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+        assertEquals(status, response.statusCode());
+        assertEquals(1, hits.get(), "status " + status + " is not retried");
+      } finally {
+        scripted.stop(0);
+      }
+    }
+  }
+
+  @Test
+  void retryAfterSecondsSetTheWait() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n == 1 ? new Reply(429, "1") : new Reply(200, ""), hits);
+    try {
+      long startedNanos = System.nanoTime();
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+      long elapsedMillis = (System.nanoTime() - startedNanos) / 1_000_000L;
+      assertEquals(200, response.statusCode());
+      assertTrue(elapsedMillis >= 900, "waited the Retry-After second, took " + elapsedMillis);
+      assertTrue(elapsedMillis < 4000, "did not fall back to a longer wait: " + elapsedMillis);
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void retryAfterIsParsedAsSecondsOrAnHttpDateAndCappedAtSixtySeconds() {
+    java.time.Instant now = java.time.Instant.parse("2026-01-01T00:00:00Z");
+    assertEquals(0L, DefaultApiClient.retryAfterMillis("0", now));
+    assertEquals(7000L, DefaultApiClient.retryAfterMillis(" 7 ", now));
+    assertEquals(60_000L, DefaultApiClient.retryAfterMillis("120", now));
+    assertEquals(60_000L, DefaultApiClient.retryAfterMillis("99999999999999", now));
+    assertEquals(
+        30_000L, DefaultApiClient.retryAfterMillis("Thu, 01 Jan 2026 00:00:30 GMT", now));
+    assertEquals(
+        60_000L, DefaultApiClient.retryAfterMillis("Thu, 01 Jan 2026 01:00:00 GMT", now));
+    assertEquals(0L, DefaultApiClient.retryAfterMillis("Wed, 31 Dec 2025 23:00:00 GMT", now));
+    assertEquals(-1L, DefaultApiClient.retryAfterMillis("soon", now));
+    assertEquals(-1L, DefaultApiClient.retryAfterMillis("-5", now));
+    assertEquals(-1L, DefaultApiClient.retryAfterMillis("", now));
+  }
+
+  @Test
+  void backoffDoublesFromHalfASecondToEightSecondsWithQuarterJitter() {
+    assertEquals(500L, DefaultApiClient.backoffMillis(0, 0.0));
+    assertEquals(1000L, DefaultApiClient.backoffMillis(1, 0.0));
+    assertEquals(2000L, DefaultApiClient.backoffMillis(2, 0.0));
+    assertEquals(4000L, DefaultApiClient.backoffMillis(3, 0.0));
+    assertEquals(8000L, DefaultApiClient.backoffMillis(4, 0.0));
+    assertEquals(8000L, DefaultApiClient.backoffMillis(40, 0.0));
+    assertEquals(375L, DefaultApiClient.backoffMillis(0, 1.0));
+    assertEquals(6000L, DefaultApiClient.backoffMillis(9, 1.0));
+  }
+
+  @Test
+  void aRetryAfterBeyondTheRemainingBudgetNeverExtendsTheTimeout() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "30"), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(1500).maxRetries(5).build());
+      long startedNanos = System.nanoTime();
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      long elapsedMillis = (System.nanoTime() - startedNanos) / 1_000_000L;
+      assertEquals(1, hits.get(), "the wait does not fit the budget, so no retry is sent");
+      assertTrue(elapsedMillis < 1500, "returned without waiting: " + elapsedMillis);
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void retriesSpendTheSameTimeoutBudgetAsTheFirstAttempt() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "1"), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(1700).maxRetries(5).build());
+      long startedNanos = System.nanoTime();
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      long elapsedMillis = (System.nanoTime() - startedNanos) / 1_000_000L;
+      assertEquals(2, hits.get(), "one one-second wait fits, the second does not");
+      assertTrue(elapsedMillis < 1700, "the budget was extended: " + elapsedMillis);
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void aNetworkErrorBeforeAnyResponseIsRetriedEvenForPost() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/create";
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(1).build());
+      assertThrowsExactly(
+          {{invokerPackage}}.errors.NetworkException.class,
+          () -> client.sendRequest("POST", url, Map.of(), "payload"));
+      assertEquals(2, accepted.get(), "one retry after the network error");
+    }
+  }
+
+  @Test
+  void aStreamBodyIsNeverRetried() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    try {
+      ApiHttpResponse response =
+          new DefaultApiClient()
+              .sendRequest(
+                  "PUT",
+                  urlOf(scripted),
+                  Map.of(),
+                  new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
+      assertEquals(503, response.statusCode());
+      assertEquals(1, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void onlyStreamsAndMultipartHandlesHoldingOneAreNotReplayable() {
+    assertTrue(DefaultApiClient.isReplayableBody(null));
+    assertTrue(DefaultApiClient.isReplayableBody("text"));
+    assertTrue(DefaultApiClient.isReplayableBody(new byte[] {1}));
+    assertTrue(DefaultApiClient.isReplayableBody(Map.of("field", "value")));
+    assertFalse(DefaultApiClient.isReplayableBody(new java.io.ByteArrayInputStream(new byte[0])));
+    assertFalse(
+        DefaultApiClient.isReplayableBody(
+            Map.of("file", new java.io.ByteArrayInputStream(new byte[0]))));
+    assertFalse(
+        DefaultApiClient.isReplayableBody(
+            Map.of("files", List.of(new java.io.ByteArrayInputStream(new byte[0])))));
+  }
+
+  @Test
+  void eachRetryIsAFreshRequestCarryingTheSameAuthenticationHeaders() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n == 1 ? new Reply(500, "0") : new Reply(200, ""), hits);
+    try {
+      RecordingHttpClient transport = new RecordingHttpClient();
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+      client.sendRequest("GET", urlOf(scripted), Map.of("Authorization", "Bearer abc"), null);
+      assertEquals(2, transport.requests.size());
+      assertNotSame(transport.requests.get(0), transport.requests.get(1));
+      for (java.net.http.HttpRequest sent : transport.requests) {
+        assertEquals("Bearer abc", sent.headers().firstValue("Authorization").orElse(""));
+      }
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void cancellationDuringTheBackoffWaitSurfacesAsCancellation() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "30"), hits);
+    Thread caller = Thread.currentThread();
+    Thread interrupter =
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(400);
+              } catch (InterruptedException ignored) {
+                return;
+              }
+              caller.interrupt();
+            });
+    interrupter.setDaemon(true);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(null).build());
+      interrupter.start();
+      assertThrowsExactly(
+          java.util.concurrent.CancellationException.class,
+          () -> client.sendRequest("GET", urlOf(scripted), Map.of(), null));
+      assertEquals(1, hits.get());
+    } finally {
+      Thread.interrupted();
+      scripted.stop(0);
     }
   }
 }
