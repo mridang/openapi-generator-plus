@@ -130,6 +130,19 @@ import Testing
         #expect(result.password == "p")
     }
 
+    /* A format: password property never reaches a log; the wire form is
+       unchanged. */
+    @Test func testPasswordPropertyIsMaskedInTheStringForms() throws {
+        let account = Account(username: "u", password: "s3cret-value")
+        #expect(!String(describing: account).contains("s3cret-value"))
+        #expect(!String(reflecting: account).contains("s3cret-value"))
+        var dumped = ""
+        dump(account, to: &dumped)
+        #expect(!dumped.contains("s3cret-value"))
+        #expect(String(describing: account).contains("***"))
+        #expect(try ObjectSerializer.serialize(account).contains("\"password\":\"s3cret-value\""))
+    }
+
     @Test func testPlaceOrderServerError() async throws {
         let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
         let error = await #expect(throws: InternalServerError.self) {

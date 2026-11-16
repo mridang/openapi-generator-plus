@@ -20,10 +20,13 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -787,6 +790,24 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return spec.paramNames().stream()
                 .map(name -> name + ": String")
                 .collect(Collectors.joining(", "));
+    }
+
+    /**
+     * Flags the models that hold a {@code format: password} property, so the
+     * model template can keep the value out of reflection, {@code print} and
+     * {@code dump}.
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            if (model == null || model.isEnum || model.vars == null) {
+                continue;
+            }
+            modelMap.put("hasPasswordVars", model.vars.stream().anyMatch(v -> v.isPassword));
+        }
+        return result;
     }
 
     private static String formatSwiftScopes(@Nullable Map<String, String> scopes) {

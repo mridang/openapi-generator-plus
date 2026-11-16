@@ -432,6 +432,23 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     }
 {{/isAdditionalPropertiesTrue}}
 }
+{{#hasPasswordVars}}
+
+/* A `format: password` property never reaches a log: reflection, print and
+   dump show it as ***. The wire form is unchanged. */
+extension {{classname}}: CustomReflectable {
+    public var customMirror: Mirror {
+        return Mirror(
+            self,
+            children: [
+{{#vars}}
+                (label: "{{name}}", value: {{#isPassword}}"***" as Any{{/isPassword}}{{^isPassword}}{{name}} as Any{{/isPassword}}),
+{{/vars}}
+            ],
+            displayStyle: .struct)
+    }
+}
+{{/hasPasswordVars}}
 
 {{#isAdditionalPropertiesTrue}}
 extension {{classname}}.CodingKeys: CaseIterable {
