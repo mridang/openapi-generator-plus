@@ -406,6 +406,41 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
+        public void DeserializeFailureCarriesTheCanonicalPrefixAndDetail()
+        {
+            // D15: `Failed to deserialize JSON: <detail>`, keeping the cause.
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("{"));
+            Assert.StartsWith("Failed to deserialize JSON: ", ex.Message, StringComparison.Ordinal);
+            Assert.NotNull(ex.InnerException);
+        }
+
+        [Fact]
+        public void SerializeFailureCarriesTheCanonicalPrefixAndDetail()
+        {
+            // D15: `Failed to serialize object to JSON: <detail>`.
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Serialize(double.NaN));
+            Assert.StartsWith("Failed to serialize object to JSON: ", ex.Message, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void NestingBeyondTheDepthLimitIsRefusedBeforeParsing()
+        {
+            // D15: the SDK's own pre-scan reports the first depth over the cap.
+            string json = new string('[', 1001) + new string(']', 1001);
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>(json));
+            Assert.Equal("JSON nesting depth 1001 exceeds limit 1000", ex.Message);
+        }
+
+        [Fact]
+        public void BracketsInsideStringsDoNotCountTowardsTheDepthLimit()
+        {
+            string json = "{\"name\":\"" + new string('[', 2000) + "\\\"[\"}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(2000, category!.Name!.TakeWhile(c => c == '[').Count());
+        }
+
+        [Fact]
         public void TruncatedJsonThrowsSerializationException()
         {
             var ex = Assert.Throws<SerializationException>(() => _serializer.Deserialize<Category>("{"));
@@ -1240,6 +1275,32 @@ public static class ObjectSerializerTest
         {
             Assert.Throws<SerializationException>(
                 () => _serializer.Deserialize<GuidHolder>("{\"id\":\"not-a-guid\"}"));
+        }
+
+        [Fact]
+        public void UuidIsWrittenLowercaseHyphenated()
+        {
+            // format: uuid. Parsed from an upper-case, braced or bare-hex form,
+            // the wire value is always lowercase and hyphenated, in a body and
+            // as a path, query or header value.
+            var id = Guid.Parse("550E8400-E29B-41D4-A716-446655440000");
+
+            Assert.Contains(
+                "\"id\":\"550e8400-e29b-41d4-a716-446655440000\"",
+                _serializer.Serialize(new GuidHolder { Id = id }),
+                StringComparison.Ordinal);
+            Assert.Equal("550e8400-e29b-41d4-a716-446655440000", ObjectSerializer.Stringify(id));
+            Assert.Equal("550e8400-e29b-41d4-a716-446655440000", ObjectSerializer.ToPathValue(id));
+        }
+
+        [Theory]
+        [InlineData("{\"id\":\"550e8400e29b41d4a716446655440000\"}")]
+        [InlineData("{\"id\":\"{550e8400-e29b-41d4-a716-446655440000}\"}")]
+        [InlineData("{\"id\":\"550e8400-e29b-41d4-a716\"}")]
+        [InlineData("{\"id\":12}")]
+        public void MalformedUuidFailsToDeserialize(string json)
+        {
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<GuidHolder>(json));
         }
     }
 

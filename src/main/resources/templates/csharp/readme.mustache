@@ -111,11 +111,12 @@ Cancelling it aborts the in-flight request and raises
 `OperationCanceledException`, which is distinct from the
 `NetworkTimeoutException` raised when the request timeout elapses.
 `TransportOptionsBuilder.CancellationToken(...)` sets a client-level token that
-is linked with every call's token, so either one cancels the request.
+is linked with every call's token, so either one cancels the request. Pass
+the built options as the second constructor argument:
+`new {{clientClassName}}(authenticator, transport)`.
 
 ```csharp
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-var transport = TransportOptions.Builder().CancellationToken(clientToken).Build();
 await client.Store.GetInventoryAsync(cancellationToken: cts.Token);
 ```
 

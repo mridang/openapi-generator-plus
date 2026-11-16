@@ -71,11 +71,11 @@ internal partial class ObjectSerializer
         }
         catch (JsonException e)
         {
-            throw new SerializationException("Failed to serialize object to JSON", e);
+            throw new SerializationException($"Failed to serialize object to JSON: {e.Message}", e);
         }
         catch (NotSupportedException e)
         {
-            throw new SerializationException("Failed to serialize object to JSON", e);
+            throw new SerializationException($"Failed to serialize object to JSON: {e.Message}", e);
         }
         catch (ArgumentException e)
         {
@@ -84,7 +84,7 @@ internal partial class ObjectSerializer
                cannot be written as valid JSON" (RFC 8259 §6). Wrap it so the SDK
                never leaks a native serde exception and non-finite floats reject
                with the SDK's SerializationException, matching the other SDKs. */
-            throw new SerializationException("Failed to serialize object to JSON", e);
+            throw new SerializationException($"Failed to serialize object to JSON: {e.Message}", e);
         }
     }
 
@@ -111,6 +111,7 @@ internal partial class ObjectSerializer
         {
             json = json[1..];
         }
+        RejectExcessiveDepth(json);
         T? result;
         try
         {
@@ -119,14 +120,14 @@ internal partial class ObjectSerializer
         catch (JsonException e)
         {
             throw new SerializationException(
-                $"Failed to deserialize JSON to {typeof(T)}",
+                $"Failed to deserialize JSON: {e.Message}",
                 e
             );
         }
         catch (NotSupportedException e)
         {
             throw new SerializationException(
-                $"Failed to deserialize JSON to {typeof(T)}",
+                $"Failed to deserialize JSON: {e.Message}",
                 e
             );
         }
@@ -135,12 +136,60 @@ internal partial class ObjectSerializer
             /* A converter that parses a scalar (date, number, duration) must
                never leak the BCL parse failure: it is a wire-shape error. */
             throw new SerializationException(
-                $"Failed to deserialize JSON to {typeof(T)}",
+                $"Failed to deserialize JSON: {e.Message}",
                 e
             );
         }
         RejectNullModelElements(result, typeof(T));
         return result;
+    }
+
+    /// <summary>
+    /// Refuses a document nested deeper than <see cref="MaxJsonDepth"/> before
+    /// any parsing, with the message every SDK shares. The scan skips string
+    /// contents, so brackets inside a string never count.
+    /// </summary>
+    private static void RejectExcessiveDepth(string json)
+    {
+        int depth = 0;
+        bool inString = false;
+        bool escaped = false;
+        foreach (char c in json)
+        {
+            if (inString)
+            {
+                if (escaped)
+                {
+                    escaped = false;
+                }
+                else if (c == '\\')
+                {
+                    escaped = true;
+                }
+                else if (c == '"')
+                {
+                    inString = false;
+                }
+                continue;
+            }
+            if (c == '"')
+            {
+                inString = true;
+            }
+            else if (c is '{' or '[')
+            {
+                depth++;
+                if (depth > MaxJsonDepth)
+                {
+                    throw new SerializationException(
+                        $"JSON nesting depth {depth} exceeds limit {MaxJsonDepth}");
+                }
+            }
+            else if (c is '}' or ']')
+            {
+                depth--;
+            }
+        }
     }
 
     /// <summary>
@@ -180,7 +229,7 @@ internal partial class ObjectSerializer
             if (element is null)
             {
                 throw new SerializationException(
-                    $"Failed to deserialize JSON to {targetType}: null element in a collection of {elementType.Name}");
+                    $"Failed to deserialize JSON: null element in a collection of {elementType.Name}");
             }
         }
     }

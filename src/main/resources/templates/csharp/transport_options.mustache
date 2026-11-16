@@ -226,7 +226,7 @@ public sealed class TransportOptionsBuilder
         if (timeout is < 0)
         {
             throw new ArgumentException(
-                $"Invalid timeout (must not be negative): {timeout}",
+                $"Invalid timeout: must be a positive number of milliseconds (got {timeout})",
                 nameof(timeout)
             );
         }
@@ -248,6 +248,13 @@ public sealed class TransportOptionsBuilder
     /// <returns>This builder.</returns>
     public TransportOptionsBuilder MaxRedirects(int? maxRedirects)
     {
+        if (maxRedirects is < 0)
+        {
+            throw new ArgumentException(
+                $"Invalid maxRedirects: must not be negative (got {maxRedirects})",
+                nameof(maxRedirects)
+            );
+        }
         _maxRedirects = maxRedirects;
         return this;
     }
