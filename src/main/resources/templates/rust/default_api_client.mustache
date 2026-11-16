@@ -206,7 +206,11 @@ impl ApiClient for DefaultApiClient {
                         "ApiClient has been closed and can no longer send requests".to_string(),
                     )) as Box<dyn std::error::Error + Send + Sync>
                 })?;
-            let mut merged: HashMap<String, String> = self.transport_options.default_headers();
+            let mut merged: HashMap<String, String> = if options.skip_default_headers {
+                HashMap::new()
+            } else {
+                self.transport_options.default_headers()
+            };
             for (k, v) in &headers {
                 insert_header(&mut merged, k.clone(), v.clone());
             }

@@ -162,6 +162,10 @@ impl BaseApi {
             None => self.authenticator.as_ref().map(|a| a.as_ref()),
         };
         if let Some(auth) = effective_auth {
+            /* A per-call authenticator never met the client's constructor, so it
+             * gets this API's transport before it is asked for headers. An
+             * authenticator that already has one keeps it. */
+            auth.inject_api_client(self.api_client.clone());
             for (k, v) in auth.query_params() {
                 /* The authenticator's value replaces an operation query
                  * parameter of the same name, so the name is sent once. */
@@ -263,10 +267,30 @@ impl BaseApi {
         }
 
         /* Send request */
-        let response = self
+        let mut response = self
             .api_client
             .send_request(params.method, &request_url, &headers, serialized_body.as_ref())
             .await?;
+
+        /* A 401 on a request signed by a token flow means the cached token was
+         * revoked or rotated: drop it, get a new one (a refresh grant first) and
+         * replay the request once. A multipart body is not replayed, and a
+         * failure to re-authenticate leaves the original 401 to be reported. */
+        if response.status_code() == 401 && !matches!(serialized_body, Some(RequestBody::Multipart(_))) {
+            if let Some(auth) = effective_auth {
+                if auth.invalidate_access_token().await {
+                    if let Ok(fresh) = auth.try_auth_headers().await {
+                        for (k, v) in fresh {
+                            insert_header(&mut headers, k, v);
+                        }
+                        response = self
+                            .api_client
+                            .send_request(params.method, &request_url, &headers, serialized_body.as_ref())
+                            .await?;
+                    }
+                }
+            }
+        }
 
         /* Check for errors */
         if response.status_code() < 200 || response.status_code() >= 300 {

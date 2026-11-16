@@ -41,6 +41,9 @@ pub struct OAuth2TokenManager {
      * the tokens, so it survives anything that rebuilds the authenticator
      * around this manager (OIDC rediscovery). */
     exchanged: AtomicBool,
+    /* PKCE code verifier of the last authorization URL, kept here with the
+     * session so rebuilding the authenticator (OIDC rediscovery) keeps it. */
+    pkce_verifier: std::sync::Mutex<Option<String>>,
 }
 
 #[derive(Clone)]
@@ -70,6 +73,41 @@ impl OAuth2TokenManager {
                 token_expiry: None,
             }),
             exchanged: AtomicBool::new(false),
+            pkce_verifier: std::sync::Mutex::new(None),
+        }
+    }
+
+    /// Creates a PKCE verifier (RFC 7636, 43 URL-safe characters from 32 random
+    /// bytes), remembers it for the next code exchange and returns its S256
+    /// challenge.
+    pub(crate) fn begin_pkce(&self) -> String {
+        use base64::Engine as _;
+        use sha2::{Digest, Sha256};
+        let mut random = Vec::with_capacity(32);
+        random.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
+        random.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
+        let verifier = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&random[..32]);
+        let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(Sha256::digest(verifier.as_bytes()));
+        *self.pkce_verifier.lock().unwrap() = Some(verifier);
+        challenge
+    }
+
+    /// Returns the PKCE verifier waiting for a code exchange, if any.
+    pub(crate) fn pkce_verifier(&self) -> Option<String> {
+        self.pkce_verifier.lock().unwrap().clone()
+    }
+
+    /// Forgets the PKCE verifier once its code has been exchanged.
+    pub(crate) fn clear_pkce(&self) {
+        *self.pkce_verifier.lock().unwrap() = None;
+    }
+
+    /// Injects the API client only when none was injected before.
+    pub fn ensure_api_client(&self, client: Arc<dyn ApiClient>) {
+        let mut slot = self.api_client.write().unwrap();
+        if slot.is_none() {
+            *slot = Some(client);
         }
     }
 
@@ -283,7 +321,7 @@ impl OAuth2TokenManager {
          * those credentials verbatim to an attacker-chosen URL. 301/302/303
          * still drop the body so they remain permitted by the redirect
          * loop. */
-        let request_options = RequestOptions::new().no_redirect(true);
+        let request_options = RequestOptions::new().no_redirect(true).skip_default_headers(true);
         let response = client
             .send_request_with_options(
                 "POST",

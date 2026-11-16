@@ -1739,3 +1739,136 @@ async fn test_base_api_inherited_security_op_applies_client_authenticator() {
         "an inherited-security op with a configured client authenticator must apply its credential"
     );
 }
+
+/* F855, F856: a token-flow authenticator is told to drop its token when the
+ * API answers 401, the request is replayed once with the new credentials, and
+ * a per-call authenticator is handed the transport before it is used. */
+struct RenewableAuthenticator {
+    generation: std::sync::atomic::AtomicUsize,
+    injected: std::sync::atomic::AtomicUsize,
+}
+
+impl RenewableAuthenticator {
+    fn new() -> Self {
+        RenewableAuthenticator {
+            generation: std::sync::atomic::AtomicUsize::new(0),
+            injected: std::sync::atomic::AtomicUsize::new(0),
+        }
+    }
+}
+
+impl {{packageName}}::auth::Authenticator for RenewableAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>,
+    > {
+        Box::pin(async move {
+            let mut headers = HashMap::new();
+            headers.insert(
+                "Authorization".to_string(),
+                format!("Bearer gen{}", self.generation.load(std::sync::atomic::Ordering::SeqCst)),
+            );
+            headers
+        })
+    }
+
+    fn inject_api_client(&self, _client: Arc<dyn {{packageName}}::api_client::ApiClient>) {
+        self.injected.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn invalidate_access_token<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
+        Box::pin(async move {
+            self.generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            true
+        })
+    }
+}
+
+/// Answers the statuses in order and records the Authorization header of each request.
+struct StatusSequenceApiClient {
+    statuses: Mutex<Vec<u16>>,
+    authorizations: Mutex<Vec<Option<String>>>,
+}
+
+impl {{packageName}}::api_client::ApiClient for StatusSequenceApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        headers: &HashMap<String, String>,
+        _body: Option<&{{packageName}}::api_client::RequestBody>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        self.authorizations.lock().unwrap().push(headers.get("Authorization").cloned());
+        let status = self.statuses.lock().unwrap().remove(0);
+        Box::pin(async move {
+            Ok({{packageName}}::api_http_response::ApiHttpResponse::new(status, "{}".to_string(), {
+                let mut h = HashMap::new();
+                h.insert("Content-Type".to_string(), "application/json".to_string());
+                h
+            }))
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_a_401_renews_the_token_and_replays_the_request_once() {
+    let client = Arc::new(StatusSequenceApiClient {
+        statuses: Mutex::new(vec![401, 200]),
+        authorizations: Mutex::new(Vec::new()),
+    });
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = Arc::new(RenewableAuthenticator::new());
+
+    api.delete_pet(1, Some(&DeletePetOptions::new().auth(auth.clone())))
+        .await
+        .expect("the replay with the new token succeeds");
+
+    assert_eq!(
+        vec![Some("Bearer gen0".to_string()), Some("Bearer gen1".to_string())],
+        *client.authorizations.lock().unwrap()
+    );
+}
+
+#[tokio::test]
+async fn test_a_second_401_is_reported_after_one_replay() {
+    let client = Arc::new(StatusSequenceApiClient {
+        statuses: Mutex::new(vec![401, 401]),
+        authorizations: Mutex::new(Vec::new()),
+    });
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = Arc::new(RenewableAuthenticator::new());
+
+    let err = api
+        .delete_pet(1, Some(&DeletePetOptions::new().auth(auth.clone())))
+        .await
+        .expect_err("a 401 that survives the replay is an error");
+
+    assert!(err.downcast_ref::<UnauthorizedError>().is_some(), "got: {}", err);
+    assert_eq!(2, client.authorizations.lock().unwrap().len());
+}
+
+#[tokio::test]
+async fn test_a_per_call_authenticator_is_given_the_transport() {
+    let client = Arc::new(StatusSequenceApiClient {
+        statuses: Mutex::new(vec![200]),
+        authorizations: Mutex::new(Vec::new()),
+    });
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client, config, None);
+    let auth = Arc::new(RenewableAuthenticator::new());
+
+    api.delete_pet(1, Some(&DeletePetOptions::new().auth(auth.clone())))
+        .await
+        .expect("delete_pet failed");
+
+    assert_eq!(1, auth.injected.load(std::sync::atomic::Ordering::SeqCst));
+}
