@@ -1069,6 +1069,23 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return out;
     }
 
+    /**
+     * Returns the input type of a parameter. A binary upload (a file or binary
+     * parameter, or an array of them) accepts a {@code Blob} (which includes a
+     * {@code File}) as well as a {@code Buffer}, because the transport sends
+     * both and fetch-only runtimes hold a {@code Blob}.
+     */
+    static String uploadType(CodegenParameter p) {
+        final boolean upload =
+                p.isFile
+                        || p.isBinary
+                        || (p.items != null && (p.items.isFile || p.items.isBinary));
+        if (upload && p.dataType != null) {
+            return p.dataType.replaceAll("\\bBuffer\\b", "Buffer | Blob");
+        }
+        return p.dataType;
+    }
+
     private static String nullableType(String dataType, boolean isNullable) {
         return isNullable ? dataType + " | null" : dataType;
     }
@@ -1319,7 +1336,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
             param.put("paramName", p.paramName);
-            param.put("dataType", p.dataType);
+            param.put("dataType", uploadType(p));
             param.put("required", p.required);
             param.put("isNullable", Boolean.TRUE.equals(p.isNullable));
             // Thread the spec parameter's deprecated flag into the Options field so

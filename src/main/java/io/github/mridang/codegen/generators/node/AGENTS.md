@@ -234,7 +234,7 @@ Test: none beyond the golden.
 
 ## Known limitations and out of scope
 
-Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; the pinned swagger-parser rejects 3.2 documents (#50). The fetch-only transport cannot do proxies, a custom CA or disabled TLS verification and throws `TypeError` at construction. `Decimal` decode is lossy (F075, F133) until a reviver using `context.source` lands. int64 values beyond 2^53 are not preserved. The F469 and F470 container leaf and bare primitive checks cannot be locked until the petstore has those operations (spec change needed). The F446 raw operation-server description interpolated into a block comment, and F278 (api key scheme name pasted raw), are open. F782 (the `additionalProperties` accessor shares a class with an index signature of another type) and F779 (the petstore needs a model with `additionalProperties: {type: string}`) are open. F749 (a flaky base-api 400 test on a cold start) is open. F191: typedoc is warnings-fatal in the Makefile but no spec runs it. Integer-enum casing is parked (F308), and the missing discriminator default (F129), the object-valued parameters (F063) and `format: time` parameters (F071) are parked as shared steps. The sorted-`Set` proposal (D69) and F090 environment proxy handling are not applied to node: node ignores ambient proxy variables because it only uses `TransportOptions.proxy`.
+Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; the pinned swagger-parser rejects 3.2 documents (#50). The fetch-only transport cannot do proxies, a custom CA or disabled TLS verification and throws `TypeError` at construction. `Decimal` decode is lossy (F075, F133) until a reviver using `context.source` lands. int64 values beyond 2^53 are not preserved. The F469 and F470 container leaf and bare primitive checks cannot be locked until the petstore has those operations (spec change needed). The F446 raw operation-server description interpolated into a block comment is open. F779 (the petstore needs a model with `additionalProperties: {type: string}`) is open and needs a shared spec change; until then the index signature and the `additionalProperties` accessor are `unknown`-typed (F782: the typed branches were dead code and are gone, so the accessor can no longer conflict with the index signature). F278 is closed (`quoteSingle` escapes the scheme name, pinned by `BetterNodeCodegenTest`). F749 is closed (the base-api test warms the connection up in a `beforeAll`). F848 (error bodies decoded against a declared error schema), F846 (string enums as a const object plus literal union) and F852 (`prefixItems` tuples, under epic #96) are open. F191: typedoc is warnings-fatal in the Makefile but no spec runs it. Integer-enum casing is parked (F308), and the missing discriminator default (F129), the object-valued parameters (F063) and `format: time` parameters (F071) are parked as shared steps. The sorted-`Set` proposal (D69) and F090 environment proxy handling are not applied to node: node ignores ambient proxy variables because it only uses `TransportOptions.proxy`.
 
 ## Build-breaking rules
 
@@ -262,3 +262,45 @@ Rule: the `Client` facade has `close()` and `[Symbol.asyncDispose]()`, which clo
 Why: byte-identical behaviour across the twelve SDKs.
 Where: `client.mustache`, `errors/too-many-requests-error.mustache`, `abstract_api_client.mustache`.
 Test: `test/client.test.mustache`, `test/api-error.test.mustache`, `test/base-api.test.mustache`, `test/default-api-client-unit.test.mustache`. F833 (content cookie bytes) and F832 (operation name in the content-type error) already conformed; `test/value-serializer.test.mustache` pins the cookie bytes.
+
+## Decisions taken in batch 6
+
+Each uses the audit's own proposal as the default; none was re-opened with the owner.
+
+### Request bodies keep their required fields (F845)
+Rule: `DeepInput<T>` no longer makes every property optional; it keeps the model's own optionality and only relaxes class-ness (method members dropped, nested models plain). `addPet({})` is a compile error; a constructed `Pet` still type-checks. A required field that has a default stays required in the type.
+Where: `deep_input.mustache`. Test: `test/base-api.test.mustache` (`@ts-expect-error` on a body without `photoUrls`).
+
+### Binary uploads accept a `Blob` (F847)
+Rule: file and binary parameters of an Options class are typed `Buffer | Blob` (`Array<Buffer | Blob>`); a `File` is a `Blob`. Response bodies stay `Buffer`. Request-body parameters are unchanged.
+Where: `BetterNodeCodegen.uploadType`, `api/apis.mustache` (`requestBody` union), `skills.mustache`. Test: `BetterNodeCodegenTest`.
+
+### Constraints are documented, not enforced (F851; S3 stands)
+Rule: `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems` and `maxItems` render as doc-comment tags on a model property.
+Where: `models/model.mustache`. Test: `test/metadata.test.mustache`.
+
+### Bundling (F853)
+Rule: `package.json` declares `sideEffects: ["./dist/src/object-serializer.js"]` (the only module with an import-time side effect, `reflect-metadata`); the README tells size-sensitive callers to import one API class. Standalone operation functions would change the API surface and are not done.
+Where: `package.mustache`, `readme.mustache`. Test: `test/metadata.test.mustache`.
+
+### Documentation (F849, F850, F883, F886, F888)
+Rule: the README opens with a Quick start (install by name, construct, one call, catch `ApiError`) and links SKILLS.md; its "Not supported" part lists XML bodies, Link Objects and mutual TLS; the cancellation sample uses a real first operation with the per-call `{ signal }` and no `Configuration` route; SKILLS Testing shows a stub `fetch` through `TransportOptions`.
+Where: `readme.mustache`, `skills.mustache`. Test: `test/client.test.mustache` (`generated documentation`).
+
+### Wire and error details
+- F913: a bare `charset=utf-16` honours a byte-order mark and defaults to big-endian only without one (`decodeBody`).
+- F914: `deserializeMap` defines each key with `Object.defineProperty`, and model constructors skip an own `__proto__` key, so the wire key cannot re-prototype the result.
+- F915: a `Uint8Array`, other typed array or `ArrayBuffer` body is sent as raw bytes, never as multipart.
+- F916, F917, F921: the redirect refusals carry the real lower-cased response headers; the too-many-redirects error is raised only when the last 3xx still has a `Location`; the messages follow D16 (`Refusing to replay request body across HTTPS->HTTP redirect: <from> -> <to>`, `Too many redirects (exceeded <N>)`).
+- F861: the two redirect messages mask every query value as `***` (`AbstractApiClient.redactUrl`).
+- F920: header merging is case-insensitive in the transport and in `BaseApi`; a later layer replaces an earlier one of any case, and the body-less `Content-Type` removal ignores case.
+- F860: `SendRequestOptions.noDefaultHeaders`; the OAuth2 token request and OIDC discovery set it, so `TransportOptions.defaultHeaders` never reach the identity provider.
+- F854, F910: one expiry margin, applied when the cached token is read, `min(60 s, lifetime / 2)`; the stored expiry is the real one. A token with `expires_in` of 90 s or less is reused.
+- F911: a token response without `expires_in` clears the stored expiry (no `expires_in` means no expiry).
+- F863: a `token_type` other than `bearer` (any case) is an `OAuth2TokenError` with the fixed message `Unsupported token_type in token response`; an absent one is accepted.
+- F924: a non-positive or NaN timeout throws `TypeError` `Invalid timeout: must be a positive number of milliseconds (got N)` (S16).
+- F925: use-after-close says `ApiClient has been closed and can no longer send requests` (D29).
+- F927, F931, F933: the redirect refusal messages, the empty-code message and the depth and parse messages are pinned by exact-message tests; `parseJson` says `Failed to deserialize JSON:` (D15).
+- F290 already conformed (the sync accessor throws and names `...Async`).
+Where: `abstract_api_client.mustache`, `base_api.mustache`, `object_serializer.mustache`, `models/model.mustache`, `transport_options.mustache`, `auth/oauth/oauth2_token_manager.mustache`, `auth/oauth/openid_connect_authenticator.mustache`, `api_client.mustache`.
+Test: `test/default-api-client-unit.test.mustache`, `test/base-api.test.mustache`, `test/object-serializer.test.mustache`, `test/oauth2-token-manager.test.mustache`, `test/transport-options.test.mustache`, `test/oauth2-auth-code-authenticator.test.mustache`.

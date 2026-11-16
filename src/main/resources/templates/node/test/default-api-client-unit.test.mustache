@@ -494,6 +494,17 @@ describe('DefaultApiClient.decodeBody charset handling', () => {
     // big-endian choice rather than an accidental round-trip.
     expect(new TextDecoder('utf-16le').decode(buf)).not.toBe('Log');
   });
+
+  it('decodes a little-endian BOM utf-16 body as little-endian', () => {
+    // FF FE then "AB" little-endian: a bare utf-16 label must honour the BOM.
+    const buf = Buffer.from([0xff, 0xfe, 0x41, 0x00, 0x42, 0x00]);
+    expect(DefaultApiClient.decodeBody(buf, 'text/plain; charset=utf-16')).toBe('AB');
+  });
+
+  it('decodes a big-endian BOM utf-16 body as big-endian', () => {
+    const buf = Buffer.from([0xfe, 0xff, 0x00, 0x41, 0x00, 0x42]);
+    expect(DefaultApiClient.decodeBody(buf, 'text/plain; charset=utf-16')).toBe('AB');
+  });
 });
 
 describe('DefaultApiClient.buildContentDisposition multipart filename safety', () => {
@@ -994,6 +1005,25 @@ describe('HTTPS -> HTTP body replay guard', () => {
     expect(call).toBe(1);
   });
 
+  it('refuses with the canonical message and masks query values in it', async () => {
+    global.fetch = (async (): Promise<Response> =>
+      new Response(null, {
+        status: 307,
+        headers: { Location: 'http://evil.example/steal?api_key=SECRET' },
+      })) as typeof fetch;
+
+    const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+    const error = await client
+      .sendRequest('POST', 'https://secure.example/pet?api_key=SECRET', {}, 'body')
+      .catch((e: unknown) => e);
+
+    expect((error as ApiError).message).toBe(
+      'Refusing to replay request body across HTTPS->HTTP redirect: '
+        + 'https://secure.example/pet?api_key=*** -> http://evil.example/steal?api_key=***',
+    );
+    expect((error as ApiError).responseHeaders).toHaveProperty('location');
+  });
+
   it('allows HTTPS -> HTTPS replay (no downgrade)', async () => {
     let call = 0;
     global.fetch = (async (): Promise<Response> => {
@@ -1161,6 +1191,8 @@ describe('redirect to non-HTTP(S) scheme is refused', () => {
     // with the 3xx status, never a NetworkError.
     expect((error as Error).constructor).toBe(ApiError);
     expect((error as ApiError).statusCode).toBe(302);
+    // D13: a refusal keeps the real response headers, never null.
+    expect((error as ApiError).responseHeaders).not.toBeNull();
   });
 });
 
@@ -1262,6 +1294,24 @@ describe('redirect exhaustion throws', () => {
       .catch((e: unknown) => e);
     expect((error as Error).constructor).toBe(ApiError);
     expect((error as ApiError).statusCode).toBe(302);
+    expect((error as ApiError).message).toContain('Too many redirects (exceeded 3)');
+    expect((error as ApiError).responseHeaders).toHaveProperty('location');
+  });
+
+  it('returns the last 3xx when the budget is used up and it has no Location', async () => {
+    let n = 0;
+    global.fetch = (async (): Promise<Response> => {
+      n++;
+      if (n === 1) {
+        return new Response(null, { status: 302, headers: { Location: 'http://api.example/b' } });
+      }
+      return new Response('terminal', { status: 302 });
+    }) as typeof fetch;
+
+    const transport = TransportOptions.builder().followRedirects(true).maxRedirects(1).build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest('GET', 'http://api.example/a', {}, null);
+    expect(response.statusCode).toBe(302);
   });
 });
 
@@ -1279,6 +1329,67 @@ describe('use-after-close', () => {
       .catch((e: unknown) => e);
     expect((error as Error).constructor).toBe(Error);
     expect(error).not.toBeInstanceOf(ApiError);
+    expect((error as Error).message).toBe(
+      'ApiClient has been closed and can no longer send requests'
+    );
+  });
+});
+
+describe('request header and byte body handling', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('lets a caller header replace a default of another case', async () => {
+    let seen: Record<string, string> = {};
+    global.fetch = (async (_url: unknown, init: { headers: Record<string, string> }) => {
+      seen = init.headers;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const transport = TransportOptions.builder()
+      .defaultHeaders({ accept: 'application/vnd.x+json' })
+      .build();
+    const client = new DefaultApiClient(transport);
+    await client.sendRequest('GET', 'http://api.example/x', { Accept: 'application/json' }, null);
+    const accepts = Object.keys(seen).filter((key) => key.toLowerCase() === 'accept');
+    expect(accepts).toEqual(['Accept']);
+  });
+
+  it('leaves the default headers off a request that asks for noDefaultHeaders', async () => {
+    let seen: Record<string, string> = {};
+    global.fetch = (async (_url: unknown, init: { headers: Record<string, string> }) => {
+      seen = init.headers;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const transport = TransportOptions.builder()
+      .defaultHeaders({ Authorization: 'Bearer api-only' })
+      .build();
+    const client = new DefaultApiClient(transport);
+    await client.sendRequest('POST', 'http://idp.example/token', {}, 'a=b', { noDefaultHeaders: true });
+    expect(Object.keys(seen).map((key) => key.toLowerCase())).not.toContain('authorization');
+  });
+
+  it('sends a plain Uint8Array body as raw bytes, not multipart', async () => {
+    let seenBody: unknown;
+    let seenHeaders: Record<string, string> = {};
+    global.fetch = (async (
+      _url: unknown,
+      init: { body: unknown; headers: Record<string, string> }
+    ) => {
+      seenBody = init.body;
+      seenHeaders = init.headers;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = new DefaultApiClient();
+    await client.sendRequest(
+      'PUT',
+      'http://api.example/x',
+      { 'Content-Type': 'image/png' },
+      new Uint8Array([1, 2, 3]) as unknown as Buffer
+    );
+    expect(Buffer.from(seenBody as Uint8Array)).toEqual(Buffer.from([1, 2, 3]));
+    expect(seenHeaders['Content-Type']).toBe('image/png');
   });
 });
 

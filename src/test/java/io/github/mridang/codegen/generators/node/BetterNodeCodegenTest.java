@@ -3,6 +3,7 @@ package io.github.mridang.codegen.generators.node;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
+import org.openapitools.codegen.CodegenParameter;
 
 /**
  * Validates {@link BetterNodeCodegen#quoteSingle(String)}, which turns an
@@ -25,5 +26,22 @@ class BetterNodeCodegenTest {
     @Test
     void leavesDollarLiteral() {
         assertEquals("'$apiKey'", BetterNodeCodegen.quoteSingle("$apiKey"));
+    }
+
+    @Test
+    void uploadParametersAcceptABlobAsWellAsABuffer() {
+        final CodegenParameter file = new CodegenParameter();
+        file.isFile = true;
+        file.dataType = "Array<Buffer>";
+        assertEquals("Array<Buffer | Blob>", BetterNodeCodegen.uploadType(file));
+        file.dataType = "Buffer";
+        assertEquals("Buffer | Blob", BetterNodeCodegen.uploadType(file));
+    }
+
+    @Test
+    void nonUploadParametersKeepTheirType() {
+        final CodegenParameter plain = new CodegenParameter();
+        plain.dataType = "string";
+        assertEquals("string", BetterNodeCodegen.uploadType(plain));
     }
 }

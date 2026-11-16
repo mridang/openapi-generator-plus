@@ -176,7 +176,7 @@ const client = {{clientClassName}}.withToken(Servers.SERVER_0.getUrl(), 'your-to
 
 ## Testing
 
-The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+To stub responses, pass your own `fetch` through `TransportOptions` and return a canned `Response`; to control credentials, substitute a fake `Authenticator` that returns a known header map. Together they let a test run without a network.
 
 ```typescript
 import { {{clientClassName}}, type Authenticator } from '{{npmName}}';
@@ -194,6 +194,17 @@ const fake: Authenticator = {
 };
 
 const client = new {{clientClassName}}(fake);
+```
+
+Stubbing the transport so that every call receives a canned response:
+
+```typescript
+import { {{clientClassName}}, TransportOptions } from '{{npmName}}';
+
+const stub: typeof fetch = async () =>
+  new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+const transport = TransportOptions.builder().fetch(stub).build();
+const client = new {{clientClassName}}(fake, transport);
 ```
 
 ## Error Handling
@@ -270,7 +281,8 @@ Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSigna
 
 ```typescript
 const controller = new AbortController();
-const perCall = api.someOperation(requiredArg, { signal: controller.signal });
+// An operation with optional parameters takes them before the signal: pass `undefined` to skip them.
+const perCall = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{ signal: controller.signal }){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
 const cancellable = new {{clientClassName}}(authenticator, undefined, { signal: controller.signal });
 ```
 
@@ -280,7 +292,7 @@ const cancellable = new {{clientClassName}}(authenticator, undefined, { signal: 
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `Buffer`. Binary response bodies are returned as `Buffer`.
+File upload parameters are typed as `Buffer | Blob` (a `File` is a `Blob`). Binary response bodies are returned as `Buffer`.
 
 ## Comment Style
 
