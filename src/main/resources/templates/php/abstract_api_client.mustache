@@ -290,9 +290,23 @@ abstract class AbstractApiClient implements ApiClient
 
                     $redirectHeaders = $currentHeaders;
                     if ($crossOrigin) {
+                        /* Besides the fixed list, a header is a credential when
+                         * its name says so (key, token, secret, auth,
+                         * credential: the rule that redacts string forms) or
+                         * when the caller set it as a transport default, since
+                         * defaults and custom authenticators are where an
+                         * arbitrary secret header comes from. */
+                        $defaultHeaderNames = array_change_key_case($this->transportOptions->defaultHeaders, CASE_LOWER);
                         foreach (array_keys($redirectHeaders) as $hname) {
                             $lower = strtolower((string) $hname);
-                            if (in_array($lower, static::SENSITIVE_HEADER_NAMES, true)) {
+                            if (
+                                in_array($lower, static::SENSITIVE_HEADER_NAMES, true)
+                                || preg_match('/key|token|secret|auth|credential/', $lower) === 1
+                                || (
+                                    $lower !== 'user-agent'
+                                    && array_key_exists($lower, $defaultHeaderNames)
+                                )
+                            ) {
                                 unset($redirectHeaders[$hname]);
                             }
                         }

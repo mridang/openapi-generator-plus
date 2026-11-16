@@ -818,6 +818,45 @@ test('cross origin redirect strips api key header', function (): void {
 });
 {{/hasApiKeyHeaderNames}}
 
+test('cross origin redirect strips credential looking and default headers but keeps the rest', function (): void {
+    $seen = [];
+    $hop = 0;
+    $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$seen, &$hop): MockResponse {
+        $hop++;
+        if ($hop === 1) {
+            return new MockResponse('', [
+                'http_code' => 302,
+                'response_headers' => ['Location' => 'https://other.example.com/final'],
+            ]);
+        }
+        /** @var array<int, string> $lines */
+        $lines = $options['headers'] ?? [];
+        foreach ($lines as $line) {
+            $parts = explode(':', $line, 2);
+            if (count($parts) === 2) {
+                $seen[strtolower(trim($parts[0]))] = trim($parts[1]);
+            }
+        }
+        return new MockResponse('ok', ['http_code' => 200]);
+    });
+    $transport = TransportOptions::builder()
+        ->followRedirects(true)
+        ->defaultHeaders(['X-Tenant' => 'acme'])
+        ->build();
+    $client = new StubbedDefaultApiClient($mock, $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', [
+        'X-Auth-Token' => 'secret-1',
+        'Api-Key' => 'secret-2',
+        'X-Trace' => 'keep-me',
+    ], null);
+
+    expect($seen)->not->toHaveKey('x-auth-token');
+    expect($seen)->not->toHaveKey('api-key');
+    expect($seen)->not->toHaveKey('x-tenant');
+    expect($seen['x-trace'] ?? null)->toBe('keep-me');
+});
+
 test('cross origin redirect strips authorization and cookie', function (): void {
     /* The classic credential carriers (Authorization, Cookie,
      * Proxy-Authorization) are ALWAYS stripped on a cross-origin hop,
