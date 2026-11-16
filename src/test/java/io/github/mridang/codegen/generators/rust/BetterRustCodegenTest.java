@@ -2,6 +2,11 @@ package io.github.mridang.codegen.generators.rust;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.media.StringSchema;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class BetterRustCodegenTest {
@@ -20,5 +25,18 @@ class BetterRustCodegenTest {
     assertThat(codegen.toRustStringLiteral("https://auth.example.com/oauth/token?a=b&c=d"))
         .isEqualTo("\"https://auth.example.com/oauth/token?a=b&c=d\"");
     assertThat(codegen.toRustStringLiteral("")).isEqualTo("\"\"");
+  }
+
+  @Test
+  void aDefaultWrittenNextToARefToAnEnumNamesTheTypedMember() {
+    final StringSchema availability = new StringSchema();
+    availability.setEnum(List.of("Available", "on-hold"));
+    codegen.setOpenAPI(
+        new OpenAPI().components(new Components().addSchemas("Availability", availability)));
+    final Schema<?> reference = new Schema<>();
+    reference.set$ref("#/components/schemas/Availability");
+    reference.setDefault("on-hold");
+
+    assertThat(codegen.toDefaultValue(reference)).isEqualTo("Availability::OnHold");
   }
 }

@@ -595,7 +595,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
-        if (resolved.getDefault() != null) {
+        // A default written next to a $ref (an OAS 3.1 sibling keyword) wins
+        // over the component's own default (D60).
+        final Object siblingDefault = schema.get$ref() != null ? schema.getDefault() : null;
+        final Object effectiveDefault =
+                siblingDefault != null ? siblingDefault : resolved.getDefault();
+        if (effectiveDefault != null) {
             if (schema.get$ref() != null
                     && resolved.getEnum() != null
                     && !resolved.getEnum().isEmpty()
@@ -603,21 +608,21 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 // A default on a referenced string enum names the declared variant.
                 return toModelName(ModelUtils.getSimpleRef(schema.get$ref()))
                         + "::"
-                        + toEnumVarName(String.valueOf(resolved.getDefault()), "String");
+                        + toEnumVarName(String.valueOf(effectiveDefault), "String");
             }
             if (ModelUtils.isNumberSchema(resolved)) {
                 // A floating-point literal needs a decimal point: `Some(2)` is
                 // an integer and does not coerce to f32/f64.
-                final String literal = resolved.getDefault().toString();
+                final String literal = effectiveDefault.toString();
                 return literal.matches("-?\\d+") ? literal + ".0" : literal;
             }
             if (ModelUtils.isStringSchema(resolved)) {
-                return "String::from(" + toRustStringLiteral(String.valueOf(resolved.getDefault())) + ")";
+                return "String::from(" + toRustStringLiteral(String.valueOf(effectiveDefault)) + ")";
             } else if (ModelUtils.isBooleanSchema(resolved)) {
-                return resolved.getDefault().toString();
+                return effectiveDefault.toString();
             } else if (ModelUtils.isIntegerSchema(resolved)
                     || ModelUtils.isNumberSchema(resolved)) {
-                return resolved.getDefault().toString();
+                return effectiveDefault.toString();
             }
         }
         return null;
