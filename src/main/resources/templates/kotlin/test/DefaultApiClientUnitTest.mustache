@@ -1678,7 +1678,7 @@ class DefaultApiClientUnitTest {
         @Test
         @DisplayName("connection refused raises NetworkException with status 0 and the cause kept")
         fun connectionRefusedRaisesNetworkException() {
-            val apiClient = DefaultApiClient()
+            val apiClient = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
             val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) {
                 runBlocking {
                     apiClient.sendRequest("GET", "http://127.0.0.1:1/never", emptyMap(), null)
@@ -1809,6 +1809,312 @@ class DefaultApiClientUnitTest {
             }
             assertInstanceOf(kotlinx.coroutines.CancellationException::class.java, caught)
             assertFalse(caught is ApiException, "cancellation must not be rewrapped, was: $caught")
+        }
+    }
+
+    @Nested
+    @DisplayName("automatic retries")
+    inner class AutomaticRetries {
+
+        private val sleeps = mutableListOf<Long>()
+        private val seenHeaders = mutableListOf<Headers>()
+        private val seenBodies = mutableListOf<String>()
+        private var requestCount = 0
+
+        /* Each answer is a status code to respond with or a Throwable to fail with; the last one
+         * repeats. The retry pause is recorded in `sleeps` and not waited for. */
+        private fun retrying(
+            answers: List<Any>,
+            maxRetries: Int = 2,
+            timeout: Long? = null,
+            injectRequestId: Boolean = false,
+            retryAfter: String? = null,
+            jitter: Double = 0.0,
+        ): DefaultApiClient {
+            val engine =
+                MockEngine { request ->
+                    val answer = answers[minOf(requestCount, answers.size - 1)]
+                    requestCount++
+                    seenHeaders.add(request.headers)
+                    seenBodies.add(String(request.body.toByteArray(), Charsets.UTF_8))
+                    if (answer is Throwable) {
+                        throw answer
+                    }
+                    respond(
+                        content = "{}",
+                        status = HttpStatusCode.fromValue(answer as Int),
+                        headers =
+                            if (retryAfter == null) {
+                                headersOf("Content-Type", "application/json")
+                            } else {
+                                headersOf("Content-Type" to listOf("application/json"), "Retry-After" to listOf(retryAfter))
+                            },
+                    )
+                }
+            val httpClient =
+                HttpClient(engine) {
+                    followRedirects = false
+                    install(io.ktor.client.plugins.HttpTimeout)
+                }
+            val transport =
+                TransportOptions.builder()
+                    .timeout(timeout)
+                    .maxRetries(maxRetries)
+                    .injectRequestId(injectRequestId)
+                    .build()
+            val apiClient = DefaultApiClient(httpClient, transport)
+            apiClient.sleeper = { sleeps.add(it) }
+            apiClient.jitterSource = { jitter }
+            return apiClient
+        }
+
+        private fun get(
+            apiClient: DefaultApiClient,
+            headers: Map<String, String> = emptyMap(),
+        ): ApiHttpResponse {
+            return runBlocking { apiClient.sendRequest("GET", "http://localhost/items", headers, null) }
+        }
+
+        @Test
+        @DisplayName("a 503 is sent again until it succeeds")
+        fun aRetryableStatusIsSentAgain() {
+            val apiClient = retrying(listOf(503, 503, 200))
+
+            val response = get(apiClient)
+
+            assertEquals(200, response.statusCode)
+            assertEquals(3, requestCount)
+            assertEquals(2, sleeps.size)
+        }
+
+        @Test
+        @DisplayName("the last answer is returned once the retries are spent")
+        fun theLastAnswerIsReturnedWhenRetriesAreSpent() {
+            val apiClient = retrying(listOf(500))
+
+            val response = get(apiClient)
+
+            assertEquals(500, response.statusCode)
+            assertEquals(3, requestCount, "the first attempt and two retries")
+        }
+
+        @Test
+        @DisplayName("maxRetries 0 sends the request once")
+        fun maxRetriesZeroDisablesRetries() {
+            val apiClient = retrying(listOf(503, 200), maxRetries = 0)
+
+            val response = get(apiClient)
+
+            assertEquals(503, response.statusCode)
+            assertEquals(1, requestCount)
+            assertTrue(sleeps.isEmpty())
+        }
+
+        @Test
+        @DisplayName("maxRetries bounds the number of retries")
+        fun maxRetriesBoundsTheNumberOfRetries() {
+            val apiClient = retrying(listOf(503), maxRetries = 4)
+
+            get(apiClient)
+
+            assertEquals(5, requestCount)
+            assertEquals(4, sleeps.size)
+        }
+
+        @Test
+        @DisplayName("408, 409, 429 and every 5xx but 501 are retried")
+        fun retryableStatusesAreRetried() {
+            for (status in listOf(408, 409, 429, 500, 502, 503, 504, 599)) {
+                requestCount = 0
+                get(retrying(listOf(status), maxRetries = 1))
+                assertEquals(2, requestCount, "status $status must be retried once")
+            }
+        }
+
+        @Test
+        @DisplayName("200, 201, 301, 400, 401, 403, 404, 422 and 501 are not retried")
+        fun otherStatusesAreNotRetried() {
+            for (status in listOf(200, 201, 301, 400, 401, 403, 404, 422, 501)) {
+                requestCount = 0
+                get(retrying(listOf(status)))
+                assertEquals(1, requestCount, "status $status must not be retried")
+            }
+        }
+
+        @Test
+        @DisplayName("a network error before a response is retried")
+        fun aNetworkErrorIsRetried() {
+            val apiClient = retrying(listOf(java.io.IOException("connection reset"), 200))
+
+            val response = get(apiClient)
+
+            assertEquals(200, response.statusCode)
+            assertEquals(2, requestCount)
+        }
+
+        @Test
+        @DisplayName("a network error that persists is reported after the retries")
+        fun aPersistentNetworkErrorIsReported() {
+            val apiClient = retrying(listOf(java.io.IOException("connection reset")))
+
+            assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) { get(apiClient) }
+
+            assertEquals(3, requestCount)
+        }
+
+        @Test
+        @DisplayName("a timeout is not retried")
+        fun aTimeoutIsNotRetried() {
+            val apiClient = retrying(listOf(java.net.SocketTimeoutException("socket timed out")))
+
+            assertThrowsExactly({{invokerPackage}}.errors.NetworkTimeoutException::class.java) { get(apiClient) }
+
+            assertEquals(1, requestCount)
+        }
+
+        @Test
+        @DisplayName("the backoff starts at 0.5 s, doubles and stops at 8 s")
+        fun backoffDoublesUpToEightSeconds() {
+            val apiClient = retrying(listOf(503), maxRetries = 6, jitter = 0.0)
+
+            get(apiClient)
+
+            assertEquals(listOf(500L, 1000L, 2000L, 4000L, 8000L, 8000L), sleeps)
+        }
+
+        @Test
+        @DisplayName("the jitter takes at most a quarter off the backoff")
+        fun jitterTakesAtMostAQuarterOff() {
+            val longest = retrying(listOf(503), maxRetries = 1, jitter = 0.0)
+            get(longest)
+            assertEquals(listOf(500L), sleeps)
+
+            sleeps.clear()
+            requestCount = 0
+            val shortest = retrying(listOf(503), maxRetries = 1, jitter = 0.999999)
+            get(shortest)
+            assertEquals(1, sleeps.size)
+            assertTrue(sleeps[0] in 375L..376L, "the shortest wait is 75% of 500 ms, got ${sleeps[0]}")
+        }
+
+        @Test
+        @DisplayName("Retry-After in seconds replaces the backoff")
+        fun retryAfterSecondsIsHonoured() {
+            val apiClient = retrying(listOf(429, 200), retryAfter = "2")
+
+            get(apiClient)
+
+            assertEquals(listOf(2000L), sleeps)
+        }
+
+        @Test
+        @DisplayName("Retry-After is capped at 60 seconds")
+        fun retryAfterIsCappedAtSixtySeconds() {
+            val apiClient = retrying(listOf(503, 200), retryAfter = "3600")
+
+            get(apiClient)
+
+            assertEquals(listOf(60_000L), sleeps)
+        }
+
+        @Test
+        @DisplayName("Retry-After accepts an HTTP date and ignores one that is malformed")
+        fun retryAfterParsing() {
+            val now = java.time.Instant.parse("2030-01-01T00:00:00Z")
+            assertEquals(
+                10_000L,
+                RetryPolicy.parseRetryAfter("Tue, 01 Jan 2030 00:00:10 GMT", now),
+            )
+            assertEquals(0L, RetryPolicy.parseRetryAfter("Mon, 31 Dec 2029 23:59:00 GMT", now))
+            assertEquals(60_000L, RetryPolicy.parseRetryAfter("Tue, 01 Jan 2030 01:00:00 GMT", now))
+            assertEquals(1500L, RetryPolicy.parseRetryAfter(" 1.5 ", now))
+            assertNull(RetryPolicy.parseRetryAfter("soon", now))
+            assertNull(RetryPolicy.parseRetryAfter("-5", now))
+            assertNull(RetryPolicy.parseRetryAfter("", now))
+            assertNull(RetryPolicy.parseRetryAfter(null, now))
+            assertEquals(500L, RetryPolicy.delayMillis(0, "soon", 0.0, now))
+        }
+
+        @Test
+        @DisplayName("the retries never extend the end-to-end timeout")
+        fun retriesStayInsideTheTimeoutBudget() {
+            val apiClient = retrying(listOf(503, 200), timeout = 1000L, retryAfter = "5")
+
+            val response = get(apiClient)
+
+            assertEquals(503, response.statusCode, "a 5 s wait cannot fit in a 1 s budget")
+            assertEquals(1, requestCount)
+            assertTrue(sleeps.isEmpty())
+        }
+
+        @Test
+        @DisplayName("a retry whose wait fits in the timeout budget is sent")
+        fun aWaitThatFitsTheBudgetIsTaken() {
+            val apiClient = retrying(listOf(503, 200), timeout = 60_000L)
+
+            val response = get(apiClient)
+
+            assertEquals(200, response.statusCode)
+            assertEquals(2, requestCount)
+        }
+
+        @Test
+        @DisplayName("cancelling the caller during the wait stops the retrying")
+        fun cancellationStopsTheRetrying() {
+            val apiClient = retrying(listOf(503), retryAfter = "30")
+            apiClient.sleeper = { kotlinx.coroutines.delay(it) }
+            var caught: Throwable? = null
+            runBlocking {
+                val job =
+                    launch {
+                        try {
+                            apiClient.sendRequest("GET", "http://localhost/items", emptyMap(), null)
+                        } catch (e: Throwable) {
+                            caught = e
+                            throw e
+                        }
+                    }
+                while (requestCount == 0) {
+                    kotlinx.coroutines.delay(10)
+                }
+                kotlinx.coroutines.delay(50)
+                job.cancel()
+                job.join()
+            }
+            assertInstanceOf(kotlinx.coroutines.CancellationException::class.java, caught)
+            assertEquals(1, requestCount)
+        }
+
+        @Test
+        @DisplayName("every retry is a fresh request that carries the caller's headers again")
+        fun everyRetryIsAFreshRequest() {
+            val apiClient = retrying(listOf(503, 503, 200), injectRequestId = true)
+
+            get(apiClient, mapOf("Authorization" to "Bearer t", "X-Custom" to "v"))
+
+            assertEquals(3, seenHeaders.size)
+            for (headers in seenHeaders) {
+                assertEquals("Bearer t", headers["Authorization"])
+                assertEquals("v", headers["X-Custom"])
+            }
+            assertEquals(3, seenHeaders.map { it["X-Request-ID"] }.toSet().size, "a new request id each time")
+        }
+
+        @Test
+        @DisplayName("a request body is sent again unchanged")
+        fun aBodyIsReplayed() {
+            val apiClient = retrying(listOf(503, 200))
+
+            runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://localhost/items",
+                    mapOf("Content-Type" to "application/json"),
+                    "{\"a\":1}",
+                )
+            }
+
+            assertEquals(listOf("{\"a\":1}", "{\"a\":1}"), seenBodies)
         }
     }
 }

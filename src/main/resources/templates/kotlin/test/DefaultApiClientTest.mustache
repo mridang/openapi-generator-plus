@@ -100,7 +100,7 @@ class DefaultApiClientTest {
         @Test
         @DisplayName("the default transport rejects a certificate from an untrusted CA")
         fun defaultTransportRejectsUntrustedCa() {
-            val client = DefaultApiClient(TransportOptions.builder().build())
+            val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
             val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) {
                 runBlocking {
                     client.sendRequest("GET", "${ChasmContainer.getHttpsBaseUrl()}/test/echo", emptyMap(), null)
@@ -120,6 +120,7 @@ class DefaultApiClientTest {
                 .proxy(SquidContainer.getProxyUrl())
                 .verifySsl(true)
                 .caCertPath(caCertPath)
+                .maxRetries(0)
                 .build()
             val client = DefaultApiClient(transport)
             val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) {

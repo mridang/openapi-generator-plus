@@ -78,7 +78,8 @@ class DefaultApiClient internal constructor(
      * Create a client with a pre-configured Ktor [HttpClient].
      *
      * Uses default [TransportOptions] for header injection settings, without an
-     * end-to-end timeout budget: the supplied client owns its own timeouts.
+     * end-to-end timeout budget (the supplied client owns its own timeouts) and
+     * without automatic retries, so a test sees exactly one request per call.
      *
      * Internal test-only seam: a Ktor [HttpClient] is an internal transport
      * type and must not appear in the public API. Production callers construct
@@ -86,7 +87,7 @@ class DefaultApiClient internal constructor(
      *
      * @param httpClient the Ktor client to use
      */
-    internal constructor(httpClient: HttpClient) : this(httpClient, TransportOptions.builder().timeout(null).build())
+    internal constructor(httpClient: HttpClient) : this(httpClient, TransportOptions.builder().timeout(null).maxRetries(0).build())
 
     /**
      * Create a client configured from the given [TransportOptions].
@@ -109,11 +110,25 @@ class DefaultApiClient internal constructor(
     constructor() : this(TransportOptions.builder().build())
 
     /**
-     * Send an HTTP request and return the response.
+     * Pause between two attempts. Internal test seam: a test replaces it to run the backoff
+     * without waiting; production code always suspends with [kotlinx.coroutines.delay], which
+     * a cancelled caller interrupts.
+     */
+    internal var sleeper: suspend (Long) -> Unit = { kotlinx.coroutines.delay(it) }
+
+    /** Source of the backoff jitter, a value in `[0, 1)`. Internal test seam. */
+    internal var jitterSource: () -> Double = { java.util.concurrent.ThreadLocalRandom.current().nextDouble() }
+
+    /**
+     * Send an HTTP request and return the response, sending it again after a retryable failure.
      *
-     * Merges transport-level headers, follows redirects manually (stripping
-     * sensitive headers on cross-origin hops), and maps transport failures to
-     * [NetworkException] / [NetworkTimeoutException].
+     * A network error that happened before a response, and a 408, 409, 429 or 5xx (except 501)
+     * answer, is retried up to [TransportOptions.maxRetries] times. The wait before a retry is
+     * the response's `Retry-After` (capped at 60 s) or 0.5 s doubling to 8 s with up to 25%
+     * jitter. All attempts and waits share the one end-to-end [TransportOptions.timeout]: a wait
+     * that would outlast what is left stops the retrying and the last outcome is reported.
+     * A timeout is never retried. Every body this client sends is held in memory, so each retry
+     * replays it; every retry is a fresh request whose headers are merged again.
      *
      * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
      * @param url Fully qualified URL
@@ -134,6 +149,63 @@ class DefaultApiClient internal constructor(
         if (closed) {
             throw IllegalStateException("ApiClient has been closed and can no longer send requests")
         }
+        // `timeout` is one end-to-end budget for the whole call: every attempt, every redirect
+        // hop, the body read and every wait between retries draw from it.
+        val budget = TimeoutBudget(transportOptions.timeout)
+        var attempt = 0
+        while (true) {
+            val response =
+                try {
+                    sendOnce(method, url, headers, body, noRedirect, budget)
+                } catch (e: NetworkException) {
+                    if (e is NetworkTimeoutException) {
+                        throw e
+                    }
+                    val pause = retryPause(attempt, null, budget) ?: throw e
+                    sleeper(pause)
+                    attempt++
+                    continue
+                }
+            val pause =
+                if (RetryPolicy.isRetryableStatus(response.statusCode)) {
+                    retryPause(attempt, response.headers["retry-after"], budget)
+                } else {
+                    null
+                }
+            if (pause == null) {
+                return response
+            }
+            sleeper(pause)
+            attempt++
+        }
+    }
+
+    /**
+     * How long to wait before attempt number [attempt] + 1, or null when no retry is left or the
+     * wait would outlast what remains of the end-to-end budget.
+     */
+    private fun retryPause(
+        attempt: Int,
+        retryAfter: String?,
+        budget: TimeoutBudget,
+    ): Long? {
+        if (attempt >= transportOptions.maxRetries) {
+            return null
+        }
+        val pause = RetryPolicy.delayMillis(attempt, retryAfter, jitterSource())
+        val remaining = budget.remainingMillis()
+        return if (remaining != null && pause >= remaining) null else pause
+    }
+
+    /** One attempt: merge the headers, send, follow redirects and read the whole response. */
+    private suspend fun sendOnce(
+        method: String,
+        url: String,
+        headers: Map<String, String>,
+        body: Any?,
+        noRedirect: Boolean,
+        budget: TimeoutBudget,
+    ): ApiHttpResponse {
         val mergedHeaders = mutableMapOf<String, String>()
         /* The token POST (noRedirect) goes to the identity provider, another origin: the caller's
          * default headers (an API Authorization or key header) are not sent there (F860). */
@@ -159,11 +231,8 @@ class DefaultApiClient internal constructor(
             mergedHeaders["Proxy-Authorization"] = proxyAuthHeader
         }
 
-        // `timeout` is one end-to-end budget for the whole call: every redirect
-        // hop and the body read draw from it. Each hop is sent with what is
-        // left, and a hop is never started once the budget is spent.
-        val budget = TimeoutBudget(transportOptions.timeout)
-
+        // Each hop is sent with what is left of the end-to-end budget, and a hop
+        // is never started once the budget is spent.
         var response =
             try {
                 httpClient.request(url) {
@@ -544,6 +613,9 @@ class DefaultApiClient internal constructor(
 internal class TimeoutBudget(private val timeoutMillis: Long?) {
     private val deadline: Long? = timeoutMillis?.let { System.nanoTime() + it * 1_000_000L }
 
+    /** Milliseconds left, or null when there is no timeout. May be zero or negative once spent. */
+    fun remainingMillis(): Long? = deadline?.let { (it - System.nanoTime()) / 1_000_000L }
+
     /** Arms [builder] with the remaining budget, or throws when it is spent. */
     fun applyTo(builder: HttpRequestBuilder) {
         val end = deadline ?: return
@@ -558,6 +630,64 @@ internal class TimeoutBudget(private val timeoutMillis: Long?) {
             requestTimeoutMillis = remaining
             connectTimeoutMillis = remaining
             socketTimeoutMillis = remaining
+        }
+    }
+}
+
+/**
+ * The rules of the automatic retries: which statuses are retried and how long to wait.
+ *
+ * The backoff starts at 0.5 s and doubles up to 8 s, and up to 25% of it is shaved off at random
+ * so that many clients do not retry in step. A `Retry-After` header, as a number of seconds or an
+ * HTTP date, replaces the backoff and is capped at 60 s.
+ */
+internal object RetryPolicy {
+    private const val INITIAL_DELAY_MILLIS = 500L
+    private const val MAX_DELAY_MILLIS = 8_000L
+    private const val MAX_RETRY_AFTER_MILLIS = 60_000L
+    private const val JITTER_SHARE = 0.25
+    private val SECONDS = Regex("^[0-9]+(\\.[0-9]+)?$")
+
+    /** True for 408, 409, 429 and every 5xx except 501. */
+    fun isRetryableStatus(status: Int): Boolean =
+        status == 408 || status == 409 || status == 429 || (status in 500..599 && status != 501)
+
+    /**
+     * The wait in milliseconds before the retry that follows attempt number [attempt] (the first
+     * attempt is 0). [jitter] is a value in `[0, 1)`; [retryAfter] is the raw header, if any.
+     */
+    fun delayMillis(
+        attempt: Int,
+        retryAfter: String?,
+        jitter: Double,
+        now: java.time.Instant = java.time.Instant.now(),
+    ): Long {
+        val requested = parseRetryAfter(retryAfter, now)
+        if (requested != null) {
+            return requested
+        }
+        val doubled = if (attempt >= 5) MAX_DELAY_MILLIS else minOf(INITIAL_DELAY_MILLIS shl attempt, MAX_DELAY_MILLIS)
+        return (doubled * (1.0 - JITTER_SHARE * jitter)).toLong()
+    }
+
+    /** The `Retry-After` value in milliseconds, capped at 60 s, or null when absent or unusable. */
+    fun parseRetryAfter(
+        value: String?,
+        now: java.time.Instant,
+    ): Long? {
+        val text = value?.trim()
+        if (text.isNullOrEmpty()) {
+            return null
+        }
+        if (SECONDS.matches(text)) {
+            val seconds = text.toDouble()
+            return if (seconds >= MAX_RETRY_AFTER_MILLIS / 1000.0) MAX_RETRY_AFTER_MILLIS else (seconds * 1000).toLong()
+        }
+        return try {
+            val date = java.time.ZonedDateTime.parse(text, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME)
+            java.time.Duration.between(now, date.toInstant()).toMillis().coerceIn(0L, MAX_RETRY_AFTER_MILLIS)
+        } catch (_: java.time.format.DateTimeParseException) {
+            null
         }
     }
 }

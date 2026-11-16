@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test
 class BaseApiTest {
 
     class TestableApi(baseUrl: String) : {{apiPackage}}.BaseApi(
-        DefaultApiClient(),
+        DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
         Configuration.builder().baseUrl(baseUrl).build()
     ) {
         suspend fun call(
