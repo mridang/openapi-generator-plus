@@ -288,8 +288,9 @@ module {{moduleName}}
           # (preferable to caching a token of unknown lifetime forever).
           expires_in = parse_expires_in(raw)
 
-          @token_expiry = Time.now.to_f + [expires_in, 0].max
-          @token_margin = [EXPIRY_SAFETY_MARGIN_S, expires_in / 2.0].min
+          lifetime = [expires_in, 0].max
+          @token_expiry = Time.now.to_f + lifetime
+          @token_margin = [EXPIRY_SAFETY_MARGIN_S, lifetime / 2.0].min
         end
 
         def parse_expires_in(raw)

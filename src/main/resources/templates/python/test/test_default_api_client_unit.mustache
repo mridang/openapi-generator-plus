@@ -656,7 +656,7 @@ class _FakeResp:
 
     def __init__(self, status: int, headers: dict[str, Any]) -> None:
         self.status = status
-        self.headers = headers
+        self.headers = urllib3.HTTPHeaderDict(headers)
         self.released = False
 
     def read(self) -> bytes:

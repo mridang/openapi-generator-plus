@@ -1160,7 +1160,7 @@ describe('redirect method rewriting (RFC 9110 section 15.4)', () => {
     const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
     await expect(
       client.sendRequest('PUT', 'https://secure.example/start', {}, '{"x":1}'),
-    ).rejects.toThrow(/downgrade/);
+    ).rejects.toThrow(/Refusing to replay request body across HTTPS->HTTP redirect/);
   });
 });
 

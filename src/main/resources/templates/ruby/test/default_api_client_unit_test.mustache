@@ -836,7 +836,7 @@ describe {{moduleName}}::DefaultApiClient do
       err = assert_raises({{moduleName}}::Errors::ApiError) do
         client.send_request(:POST, 'https://localhost/upload', {}, 'secret=payload')
       end
-      _(err.message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
+      _(err.detail_message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
       # A refused redirect is a response that could not be used: an
       # ApiError with the 3xx status, never a NetworkError.
       _(err).must_be_instance_of {{moduleName}}::Errors::ApiError
@@ -904,7 +904,7 @@ describe {{moduleName}}::DefaultApiClient do
       err = assert_raises({{moduleName}}::Errors::ApiError) do
         client.send_request(:GET, 'http://localhost/loop', {}, nil)
       end
-      _(err.message).must_equal 'Too many redirects (exceeded 2)'
+      _(err.detail_message).must_equal 'Too many redirects (exceeded 2)'
       # A refused redirect is a response that could not be used: an
       # ApiError with the 3xx status, never a NetworkError.
       _(err).must_be_instance_of {{moduleName}}::Errors::ApiError
@@ -969,7 +969,7 @@ describe {{moduleName}}::DefaultApiClient do
       err = assert_raises({{moduleName}}::Errors::ApiError) do
         client.send_request(:GET, 'http://localhost/evil', {}, nil)
       end
-      _(err.message).must_equal 'Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd'
+      _(err.detail_message).must_equal 'Refusing to follow redirect to non-HTTP(S) URL: file:///etc/passwd'
       # A refused redirect is a response that could not be used: an
       # ApiError with the 3xx status, never a NetworkError.
       _(err).must_be_instance_of {{moduleName}}::Errors::ApiError

@@ -69,7 +69,7 @@ describe('{{clientClassName}}', () => {
 
     const api = client as unknown as { ownedClient: ApiClient };
     await expect(api.ownedClient.sendRequest('GET', 'http://example.invalid/', {}, null)).rejects.toThrow(
-      'ApiClient has been closed and can no longer be used',
+      'ApiClient has been closed and can no longer send requests',
     );
   });
 

@@ -1439,12 +1439,12 @@ class DefaultApiClientUnitTest {
           new Thread(
               () -> {
                 try (java.net.Socket first = silent.accept()) {
-                  Thread.sleep(1500);
+                  Thread.sleep(first.isClosed() ? 0 : 1500);
                 } catch (IOException | InterruptedException ignored) {
                   return;
                 }
                 try (java.net.Socket second = silent.accept()) {
-                  Thread.sleep(6000);
+                  Thread.sleep(second.isClosed() ? 0 : 6000);
                 } catch (IOException | InterruptedException ignored) {
                   // The test is over.
                 }

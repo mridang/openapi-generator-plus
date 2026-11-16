@@ -785,7 +785,7 @@ void main() {
       expect(client.requestCount, equals(1));
     });
 
-    test('a refresh response without expires_in keeps the existing expiry', () async {
+    test('a refresh response without expires_in clears the stale expiry', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
@@ -799,8 +799,8 @@ void main() {
       final second = await manager.getAccessToken(tokenUrl, original);
       final third = await manager.getAccessToken(tokenUrl, original);
 
-      expect([first, second, third], equals(['tok1', 'tok2', 'tok3']));
-      expect(client.requestCount, equals(3));
+      expect([first, second, third], equals(['tok1', 'tok2', 'tok2']));
+      expect(client.requestCount, equals(2));
     });
 
     test('a non-string refresh_token is ignored', () async {

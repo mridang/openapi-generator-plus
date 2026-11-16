@@ -469,7 +469,8 @@ func TestOpenIdConnect_FailedRediscoveryKeepsUsingThePreviousDelegate(t *testing
 		t.Errorf("expected discovery, token and one failed rediscovery, got %d requests", client.requestCount())
 	}
 
-	failing := &recordingTokenClient{responses: []fakeResponse{{body: `down`, statusCode: 503}}}
+	outage := fakeResponse{body: `down`, statusCode: 503}
+	failing := &recordingTokenClient{responses: []fakeResponse{outage}}
 	first := createOpenIdConnectAuthenticator()
 	first.SetApiClient(failing)
 	if _, err := first.BuildAuthorizationURL(""); err == nil {

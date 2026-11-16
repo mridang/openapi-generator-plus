@@ -234,14 +234,16 @@ export abstract class AbstractApiClient implements ApiClient {
       body = Buffer.from(await body.arrayBuffer());
     }
 
-    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
-     * header replaces a default of the same name whatever the case, so one
-     * value goes on the wire, never two. */
+    /* Binary views and raw buffers are normalised to a Buffer. */
     if (ArrayBuffer.isView(body) && !Buffer.isBuffer(body)) {
-      body = Buffer.from(body.buffer, body.byteOffset, body.byteLength);
+      const view = body as unknown as ArrayBufferView;
+      body = Buffer.from(view.buffer, view.byteOffset, view.byteLength);
     } else if (body instanceof ArrayBuffer) {
       body = Buffer.from(body);
     }
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
+     * header replaces a default of the same name whatever the case, so one
+     * value goes on the wire, never two. */
     const callerNames = new Set(Object.keys(headers).map((key) => key.toLowerCase()));
     const mergedHeaders: Record<string, string> = {};
     const defaultHeaders = options?.noDefaultHeaders === true ? {} : this.transportOptions.defaultHeaders;
