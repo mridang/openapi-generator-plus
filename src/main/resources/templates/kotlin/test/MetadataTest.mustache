@@ -153,6 +153,22 @@ class MetadataTest {
     }
 
     @Test
+    @DisplayName("deprecated operations and schemas carry the Kotlin @Deprecated marker")
+    fun testDeprecationMarkers() {
+        // F1155: reflection, so the test itself does not call a deprecated member.
+        val api = Class.forName("{{apiPackage}}.PetApi")
+        for (name in listOf("findPetsByStatus", "getPetById")) {
+            val methods = api.declaredMethods.filter { it.name == name || it.name.startsWith("$name-") }
+            assertTrue(methods.isNotEmpty(), "PetApi.$name must exist")
+            assertTrue(methods.all { it.isAnnotationPresent(Deprecated::class.java) }, "PetApi.$name must be @Deprecated")
+        }
+        assertTrue(
+            Class.forName("{{modelPackage}}.Tag").isAnnotationPresent(Deprecated::class.java),
+            "the deprecated Tag schema must be @Deprecated",
+        )
+    }
+
+    @Test
     @DisplayName("file header prints the info description without backslash-escaped quotes")
     fun testFileHeaderDescriptionIsUnescaped() {
         // F1156: the header comment of every generated source file renders the
