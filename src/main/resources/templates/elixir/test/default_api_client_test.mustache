@@ -529,7 +529,7 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     # redirects" error. The refusal did not leak onto A or B above.
     Enum.each(refuse_results, fn result ->
       assert {:error, %{{moduleName}}.Errors.ApiError{message: message, status_code: status}} = result
-      assert message =~ "Too many redirects (exceeded"
+      assert message == "Too many redirects (exceeded 0)"
       # A refused redirect is a response that arrived but cannot be used: it
       # carries the redirect's real status, never 0.
       assert status == 302

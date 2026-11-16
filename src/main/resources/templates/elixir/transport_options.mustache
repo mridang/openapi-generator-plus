@@ -108,6 +108,13 @@ defmodule {{moduleName}}.TransportOptions do
 
   def redact_proxy(proxy), do: proxy
 
+  # An error message names the offending proxy value, so its userinfo
+  # (`user:pass@`, with or without a scheme) is replaced by `***@`.
+  @spec mask_userinfo(String.t()) :: String.t()
+  defp mask_userinfo(proxy) do
+    Regex.replace(~r{\A((?:[a-zA-Z][a-zA-Z0-9+.-]*://)?)[^/@]*@}, proxy, "\\1***@")
+  end
+
   @doc false
   @spec redact_headers(term()) :: term()
   def redact_headers(headers) when is_map(headers) do
@@ -171,12 +178,12 @@ defmodule {{moduleName}}.TransportOptions do
 
       unless parsed.scheme in ["http", "https"] do
         raise ArgumentError,
-              "Invalid proxy URL (must use http or https scheme): #{result.proxy}"
+              "Invalid proxy URL (must use http or https scheme): #{mask_userinfo(result.proxy)}"
       end
 
       if is_nil(parsed.host) or parsed.host == "" do
         raise ArgumentError,
-              "Invalid proxy URL (missing host): #{result.proxy}"
+              "Invalid proxy URL (missing host): #{mask_userinfo(result.proxy)}"
       end
     end
 
