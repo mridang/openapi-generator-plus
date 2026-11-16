@@ -793,8 +793,8 @@ import Testing
             Issue.record("Expected OAuth2TokenError when access_token is missing")
         } catch let error as OAuth2TokenError {
             switch error {
-            case .missingAccessToken:
-                break
+            case .missingAccessToken(let message):
+                #expect(message == "Token response missing or empty access_token field")
             default:
                 Issue.record("expected .missingAccessToken, got \(error)")
             }
@@ -820,14 +820,38 @@ import Testing
             Issue.record("Expected OAuth2TokenError for a non-JSON token response")
         } catch let error as OAuth2TokenError {
             switch error {
-            case .invalidResponse:
-                break
+            case .invalidResponse(let message):
+                #expect(message == "Token response is not valid JSON")
             default:
                 Issue.record("expected .invalidResponse, got \(error)")
             }
         } catch {
             Issue.record("expected OAuth2TokenError, got \(error)")
         }
+    }
+
+    /* D07: the three token failures have one canonical text each, with no
+       parser detail. */
+    @Test(arguments: [
+        ("[1,2]", "Token response is not a JSON object"),
+        ("\"text\"", "Token response is not a JSON object"),
+        ("", "Token response is not valid JSON"),
+        ("{\"access_token\":\"\"}", "Token response missing or empty access_token field"),
+        ("{\"access_token\":42}", "Token response missing or empty access_token field"),
+        ("{}", "Token response missing or empty access_token field"),
+    ])
+    func testTokenFailuresCarryTheCanonicalMessage(body: String, message: String) async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: body))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let error = await #expect(throws: OAuth2TokenError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"])
+        }
+        #expect(error?.errorDescription == message)
     }
 
     /// RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a

@@ -52,12 +52,25 @@ public class ApiError: {{errorPrefix}}Error, LocalizedError, @unchecked Sendable
             msg += "\nHTTP status code: \(statusCode)"
         }
         if let headers = responseHeaders, !headers.isEmpty {
-            msg += "\nResponse headers: \(headers)"
+            msg += "\nResponse headers: \(Self.compactJson(headers))"
         }
         if let body = responseBody, !body.isEmpty {
             msg += "\nResponse body: \(body)"
         }
         return msg
+    }
+
+    /// The headers as compact JSON with the keys sorted and `/` left as it is
+    /// (`{"a":"b"}`), so the rendered text is the same on every run.
+    static func compactJson(_ headers: [String: String]) -> String {
+        guard
+            let data = try? JSONSerialization.data(
+                withJSONObject: headers, options: [.sortedKeys, .withoutEscapingSlashes]),
+            let text = String(data: data, encoding: .utf8)
+        else {
+            return "\(headers)"
+        }
+        return text
     }
 
     /// Deserialize the raw response body into the given type.

@@ -39,7 +39,7 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
         case .invalidProxy(let message):
             return message
         case .invalidServerVariable(let variable, let value, let allowed):
-            return "Invalid value '\(value)' for server variable '\(variable)'. Allowed values: \(allowed)"
+            return "Invalid value '\(value)' for server variable '\(variable)'. Allowed values: [\(allowed.joined(separator: ", "))]"
         case .invalidCACertificate(let message):
             return message
         case .invalidTimeout(let value):

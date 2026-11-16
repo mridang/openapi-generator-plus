@@ -438,7 +438,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         if let requestContentType {
             guard declaredRequestContentTypes.contains(requestContentType) else {
                 throw ConfigurationError.invalidArgument(
-                    "Unsupported request content-type '\(requestContentType)' for {{operationId}}; declared types are \(declaredRequestContentTypes)")
+                    "Unsupported request content-type '\(requestContentType)' for {{operationId}}; declared types are [\(declaredRequestContentTypes.joined(separator: ", "))]")
             }
             effectiveRequestContentType = requestContentType
         } else {

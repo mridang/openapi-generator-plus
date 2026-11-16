@@ -121,8 +121,16 @@ import Testing
             responseHeaders: ["a": "b"])
         #expect(
             full.errorDescription
-                == "not found\nHTTP status code: 404\nResponse headers: [\"a\": \"b\"]\nResponse body: {}"
+                == "not found\nHTTP status code: 404\nResponse headers: {\"a\":\"b\"}\nResponse body: {}"
         )
+
+        let several = ApiError(
+            statusCode: 302, message: "moved",
+            responseHeaders: ["location": "https://a.example/x", "b": "2", "a": "1"])
+        #expect(
+            several.errorDescription
+                == "moved\nHTTP status code: 302\nResponse headers: "
+                + "{\"a\":\"1\",\"b\":\"2\",\"location\":\"https://a.example/x\"}")
 
         let emptyParts = ApiError(
             statusCode: 500, message: "boom", responseBody: "", responseHeaders: [:])

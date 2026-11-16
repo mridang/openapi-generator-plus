@@ -356,40 +356,27 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             throw Self.parseOAuth2ServerError(statusCode: response.statusCode, body: response.body)
         }
 
-        guard let data = response.body.data(using: .utf8) else {
-            throw OAuth2TokenError.invalidResponse("Token response body is not valid UTF-8")
+        /* The body is parsed once, dynamically, so expires_in can arrive as a
+         * number or a quoted string (Salesforce, some Apigee deployments), and
+         * the three failures carry the canonical text with no parser detail. */
+        guard let data = response.body.data(using: .utf8),
+            let json = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+        else {
+            throw OAuth2TokenError.invalidResponse("Token response is not valid JSON")
         }
-
-        /* expires_in is decoded via JSONSerialization rather than Decodable so
-         * the parse does not fail when providers send it as a quoted string
-         * (Salesforce, some Apigee deployments) or as a JSON float. */
-        struct TokenResponse: Decodable {
-            let accessToken: String?
-            let refreshToken: String?
-
-            enum CodingKeys: String, CodingKey {
-                case accessToken = "access_token"
-                case refreshToken = "refresh_token"
-            }
+        guard let rawJson = json as? [String: Any] else {
+            throw OAuth2TokenError.invalidResponse("Token response is not a JSON object")
         }
-
-        let parsed: TokenResponse
-        do {
-            parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
-        } catch {
-            throw OAuth2TokenError.invalidResponse("Token response is not a valid token JSON object")
-        }
-        guard let accessTokenValue = parsed.accessToken, !accessTokenValue.isEmpty else {
+        guard let accessTokenValue = rawJson["access_token"] as? String, !accessTokenValue.isEmpty else {
             throw OAuth2TokenError.missingAccessToken(
                 "Token response missing or empty access_token field"
             )
         }
-        let rawJson = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-        let rawExpiresIn = rawJson?["expires_in"]
+        let rawExpiresIn = rawJson["expires_in"]
         let hasExpiresIn = rawExpiresIn != nil && !(rawExpiresIn is NSNull)
         let expiresIn = Self.parseExpiresIn(rawExpiresIn)
 
-        let refreshTokenValue = parsed.refreshToken.flatMap { $0.isEmpty ? nil : $0 }
+        let refreshTokenValue = (rawJson["refresh_token"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         return TokenResult(
             accessToken: accessTokenValue,
             refreshToken: refreshTokenValue,

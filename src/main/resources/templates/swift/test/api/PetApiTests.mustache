@@ -245,6 +245,27 @@ final class PetApiTests {
         }
     }
 
+    /* D20: the refusal names the value, the operation and the declared types. */
+    @Test func testUnknownRequestContentTypeMessageIsCanonical() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let error = await #expect(throws: ConfigurationError.self) {
+            try await api.setPetAvatar(
+                petId: 1, body: Data([0xFF]), requestContentType: "application/unknown-type")
+        }
+        guard case .invalidArgument(let message)? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        #expect(
+            message
+                == "Unsupported request content-type 'application/unknown-type' for setPetAvatar; "
+                + "declared types are [image/jpeg, image/png, application/json]")
+        #expect(mockClient.lastURL.isEmpty)
+    }
+
     // binary-body-raw-bytes: a request body declared type:string format:binary
     // (operation setPetAvatar, declared Content-Type image/jpeg) must be
     // transmitted as the EXACT raw bytes with the declared Content-Type — never
