@@ -118,6 +118,39 @@ import Testing
         #expect(value.contains("filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf"))
     }
 
+    /* A character outside the BMP is one underscore in the ASCII fallback and
+     * its four UTF-8 bytes in filename*. */
+    @Test func testContentDispositionNonBmpFilenameIsOneUnderscoreAndFourBytes() throws {
+        let value = try BaseApi.buildContentDisposition(name: "file", filename: "a\u{1F600}b.txt")
+        #expect(value.contains("filename=\"a_b.txt\""))
+        #expect(value.contains("filename*=UTF-8''a%F0%9F%98%80b.txt"))
+    }
+
+    @Test(arguments: [
+        ("a.jpg", "image/jpeg"), ("a.JPEG", "image/jpeg"), ("a.gif", "image/gif"),
+        ("a.webp", "image/webp"), ("a.svg", "image/svg+xml"), ("a.json", "application/json"),
+        ("a.zip", "application/zip"), ("a.txt", "text/plain"), ("a.csv", "text/csv"),
+        ("a.html", "text/html"), ("a.mp4", "video/mp4"), ("a.mp3", "audio/mpeg"),
+        ("a.xyz123", "application/octet-stream"), ("nodot", "application/octet-stream"),
+    ])
+    func testMimeTypeForFilenameCoversTheTable(filename: String, mime: String) {
+        #expect(BaseApi.mimeTypeForFilename(filename) == mime)
+    }
+
+    /* Authenticator cookies go out sorted by name, so two or more are in the
+     * same order on every run; a bad name or value is refused. */
+    @Test func testCookieHeaderValueIsSortedByName() throws {
+        let value = try BaseApi.cookieHeaderValue(["b": "2", "c": "3", "a": "1", "d": "4"])
+        #expect(value == "a=1; b=2; c=3; d=4")
+    }
+
+    @Test(arguments: [["bad name": "x"], ["name": "a;b"]])
+    func testCookieHeaderValueRefusesForbiddenCharacters(cookies: [String: String]) {
+        #expect(throws: ConfigurationError.self) {
+            _ = try BaseApi.cookieHeaderValue(cookies)
+        }
+    }
+
     @Test func testBinaryOperationAnsweredWithJsonReturnsTheRawBytes() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":7,\"name\":\"photo\"}"

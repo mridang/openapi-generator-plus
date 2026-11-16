@@ -355,6 +355,24 @@ import FoundationNetworking
             "expected application/pdf for .pdf filename, got: \(bodyStr)")
     }
 
+    @Test(arguments: [
+        ("a.jpg", "image/jpeg"), ("a.JPEG", "image/jpeg"), ("a.gif", "image/gif"),
+        ("a.webp", "image/webp"), ("a.svg", "image/svg+xml"), ("a.json", "application/json"),
+        ("a.zip", "application/zip"), ("a.txt", "text/plain"), ("a.csv", "text/csv"),
+        ("a.html", "text/html"), ("a.mp4", "video/mp4"), ("a.mp3", "audio/mpeg"),
+    ])
+    func testMultipartMimeTableCoversMoreThanPngAndPdf(filename: String, mime: String) {
+        #expect(DefaultApiClient.mimeTypeForFilename(filename) == mime)
+    }
+
+    /* A character outside the BMP is one underscore in the ASCII fallback and
+     * its four UTF-8 bytes in filename*. */
+    @Test func testMultipartNonBmpFilenameIsOneUnderscoreAndFourBytes() throws {
+        let value = try DefaultApiClient.buildContentDisposition(name: "file", filename: "a\u{1F600}b.txt")
+        #expect(value.contains("filename=\"a_b.txt\""))
+        #expect(value.contains("filename*=UTF-8''a%F0%9F%98%80b.txt"))
+    }
+
     @Test func testMultipartFallsBackToOctetStreamForUnknownExtension() throws {
         let formParts: [String: Any] = ["data.xyz123": Data([0x01])]
         let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
@@ -1192,6 +1210,21 @@ import FoundationNetworking
         let supplied = try TransportOptionsBuilder().session(session).build()
         let client = try DefaultApiClient(transportOptions: supplied)
         #expect(client.appliesRedirectRules)
+        client.close()
+    }
+
+    /* A minimal custom transport that does not implement close() is still
+     * closable: the protocol extension supplies a no-op. */
+    @Test func testCloseHasANoOpDefaultForAMinimalTransport() {
+        struct MinimalClient: ApiClient {
+            func sendRequest(
+                method: String, url: String, headers: [String: String], body: Any?
+            ) async throws -> ApiHttpResponse {
+                return ApiHttpResponse(statusCode: 204, body: "", headers: [:])
+            }
+        }
+        let client: any ApiClient = MinimalClient()
+        client.close()
         client.close()
     }
 
