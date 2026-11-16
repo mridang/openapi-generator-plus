@@ -2018,6 +2018,39 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void UuidPropertyIsWrittenLowercaseAndDecodedFromUppercase()
+        {
+            Order? decoded = _serializer.Deserialize<Order>(
+                "{\"trackingId\":\"E621E1F8-C36C-495A-93FC-0C247A3E6E5F\"}");
+
+            Assert.Equal(Guid.Parse("e621e1f8-c36c-495a-93fc-0c247a3e6e5f"), decoded!.TrackingId);
+            Assert.Contains(
+                "\"trackingId\":\"e621e1f8-c36c-495a-93fc-0c247a3e6e5f\"",
+                _serializer.Serialize(decoded),
+                StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void MalformedUuidPropertyIsRejectedOnDecode()
+        {
+            Assert.Throws<SerializationException>(
+                () => _serializer.Deserialize<Order>("{\"trackingId\":\"not-a-uuid\"}"));
+        }
+
+        [Theory]
+        [InlineData(" ", Separator.SPACE1)]
+        [InlineData("@@", Separator.VALUE00400040)]
+        [InlineData("a-b", Separator.AB)]
+        [InlineData("a_b", Separator.AB2)]
+        public void SeparatorKeepsEachWireValueDistinct(string wire, Separator member)
+        {
+            EdgeCases? decoded = _serializer.Deserialize<EdgeCases>("{\"separator\":\"" + wire + "\"}");
+
+            Assert.Equal(member, decoded!.Separator);
+            Assert.Contains("\"separator\":\"" + wire + "\"", _serializer.Serialize(decoded), StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void ReadOnlyPropertyIsStillDecoded()
         {
             Account? decoded = _serializer.Deserialize<Account>("{\"id\":7,\"username\":\"u\"}");
