@@ -399,6 +399,39 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task NoRedirectRequestCarriesNoTransportDefaultHeadersButKeepsTheUserAgent()
+    {
+        /* The OAuth2 token POST is sent with noRedirect: a default Authorization
+           header meant for the API must not reach the authorization server. */
+        var captured = new Dictionary<string, string>();
+        var handler = new CapturingHandler(req =>
+        {
+            foreach (var header in req.Headers)
+            {
+                captured[header.Key] = string.Join(",", header.Value);
+            }
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder()
+            .DefaultHeader("Authorization", "Bearer api-only")
+            .DefaultHeader("X-Custom", "custom-value")
+            .UserAgent("SdkDefault/9.9")
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://auth.example.com/token"),
+            new Dictionary<string, string> { ["Content-Type"] = "application/x-www-form-urlencoded" },
+            "grant_type=client_credentials",
+            noRedirect: true);
+
+        Assert.False(captured.ContainsKey("Authorization"));
+        Assert.False(captured.ContainsKey("X-Custom"));
+        Assert.Equal("SdkDefault/9.9", captured["User-Agent"]);
+    }
+
+    [Fact]
     public async Task CallerHeadersOverrideDefaults()
     {
         string? capturedAccept = null;
