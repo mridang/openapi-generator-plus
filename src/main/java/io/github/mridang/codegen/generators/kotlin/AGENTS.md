@@ -319,3 +319,10 @@ Each follows the audit's own proposal, because the owner had not decided; reopen
 - One language end to end with Maven: `mvn verify -Dgroups=kotlin`.
 - The kotlin specs individually: `KotlinBuildSpec` (`gradle assemble compileTestKotlinJvm`), `KotlinFormattingSpec` (`gradle ktlintCheck`), `KotlinLintingSpec` (`gradle detekt`), `KotlinReservedWordsSpec` (dumps the real keyword list in the Gradle container and compares it to `reserved-words/kotlin.txt`), `KotlinClientSpec` (generated client structure and the petstore run).
 - After any template change, regenerate the golden and review the diff in `src/spec/resources/generated/kotlin/`, then run the generated client's own `make` gates, not only the golden's tests.
+
+## Decisions taken in batch 7
+
+- **F854/F895.** The stored expiry margin is min(60 s, expires_in / 2); `expires_in` 0 is how tests get an already-stale token.
+- **F1156.** `api_info.mustache` renders the info description through `unescapeDocComment`; `MetadataTest` asserts no generated header line holds a backslash-escaped quote.
+- **F1086.** Proxy URL configuration errors print the URL with its user-info replaced by `***@` (D79); `TransportOptionsTest` pins it.
+- **F1079.** Already conforming: `timeout(0)` is refused with the D77 message.
