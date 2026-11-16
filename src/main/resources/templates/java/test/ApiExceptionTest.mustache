@@ -93,6 +93,31 @@ class ApiExceptionTest {
     }
 
     @Test
+    void renderedFormMasksTheAuthenticationChallengeHeadersToo() {
+        ApiException ex = new ApiException(
+                401, "no", new java.util.LinkedHashMap<>(Map.of(
+                        "www-authenticate", "Bearer realm=r", "proxy-authenticate", "Basic",
+                        "x-auth-token", "t", "authorization", "a", "proxy-authorization", "p",
+                        "cookie", "c", "content-type", "text/plain")), null);
+
+        assertEquals(
+                "no\nHTTP status code: 401\nResponse headers: "
+                        + "{\"authorization\":\"***\",\"content-type\":\"text/plain\",\"cookie\":\"***\","
+                        + "\"proxy-authenticate\":\"***\",\"proxy-authorization\":\"***\","
+                        + "\"www-authenticate\":\"***\",\"x-auth-token\":\"***\"}",
+                ex.toString());
+    }
+
+    @Test
+    void renderedBodyEscapesTabsAndOtherControlCharacters() {
+        ApiException ex = new ApiException(500, "boom", Map.of(), "a\tb\u0001c\u007fd");
+
+        assertEquals(
+                "boom\nHTTP status code: 500\nResponse body: a\\tb\\u0001c\\u007fd",
+                ex.toString());
+    }
+
+    @Test
     void renderedBodyIsCappedAndControlCharactersAreEscaped() {
         String longBody = "x".repeat(1030);
         ApiException capped = new ApiException(500, "boom", Map.of(), longBody);
