@@ -867,6 +867,71 @@ async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
     );
 }
 
+/* D28: the REQUIRED header `X-Correlation-Id` is guarded like the required
+ * query parameter: an empty value is refused before any request is sent. */
+#[tokio::test]
+async fn test_pet_api_get_pet_by_name_empty_required_header_errors() {
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let opts = GetPetByNameOptions { category: "cats".to_string(), x_correlation_id: String::new() };
+    let err = api
+        .get_pet_by_name("rex".to_string(), Some(&opts))
+        .await
+        .expect_err("an empty required header must be rejected");
+    assert_eq!(
+        err.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Missing the required parameter 'X-Correlation-Id' when calling PetApi.get_pet_by_name"
+                .to_string()
+        ))
+    );
+}
+
+/* The REQUIRED cookie `session` of get_pet_summary: an empty value is refused,
+ * and so is a value holding a character outside the RFC 6265 cookie-octet set. */
+#[tokio::test]
+async fn test_pet_api_get_pet_summary_guards_the_required_cookie() {
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).expect("a valid date");
+
+    let empty = api
+        .get_pet_summary(1, as_of, Some(&GetPetSummaryOptions::new(String::new())))
+        .await
+        .expect_err("an empty required cookie must be rejected");
+    assert_eq!(
+        empty.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Missing the required parameter 'session' when calling PetApi.get_pet_summary".to_string()
+        ))
+    );
+
+    let forbidden = api
+        .get_pet_summary(1, as_of, Some(&GetPetSummaryOptions::new("a;b".to_string())))
+        .await
+        .expect_err("a cookie value holding a semicolon must be rejected");
+    assert_eq!(
+        forbidden.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Cookie value for 'session' contains characters forbidden by RFC 6265".to_string()
+        ))
+    );
+}
+
+/* F1113: a digit-leading query parameter keeps its original wire name even
+ * though its Rust identifier needs a letter prefix. */
+#[tokio::test]
+async fn test_pet_api_find_pets_by_status_digit_leading_query_param_keeps_its_wire_name() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let _ = api
+        .find_pets_by_status(Some(&FindPetsByStatusOptions::new().n2nd_page(2)))
+        .await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(request_line.contains("2ndPage=2"), "got request line: {}", request_line);
+}
+
 /// A path parameter of exactly `.` or `..` is a dot segment the URL parser
 /// would collapse, re-routing the request. It is rejected before dispatch: the
 /// client points at a closed port, so any request would fail with a network
