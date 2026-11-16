@@ -29,6 +29,7 @@ module Faraday
 
   class Connection
     def ssl: () -> SSLOptions
+    def adapter: (Symbol, *untyped) ?{ (untyped) -> void } -> void
     def options: () -> RequestOptions
   end
 

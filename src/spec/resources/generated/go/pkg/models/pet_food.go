@@ -21,6 +21,19 @@ type PetFood struct {
 
 // NewPetFood wraps an already-decoded variant so a request body can be built without decoding JSON text.
 func NewPetFood(actualInstance any) PetFood {
+	/* Decoding stores a variant by value, so a pointer to a variant is stored by value
+	 * too: a type switch on ActualInstance then sees the same type however the union
+	 * was built. */
+	switch v := actualInstance.(type) {
+	case *DryFood:
+		if v != nil {
+			actualInstance = *v
+		}
+	case *WetFood:
+		if v != nil {
+			actualInstance = *v
+		}
+	}
 	return PetFood{value: actualInstance}
 }
 

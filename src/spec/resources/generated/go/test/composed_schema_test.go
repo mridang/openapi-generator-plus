@@ -142,6 +142,15 @@ func TestPetFood_SerializeDryFood(t *testing.T) {
 	}
 }
 
+func TestPetFood_ConstructedFromAPointerStoresTheVariantByValue(t *testing.T) {
+	t.Parallel()
+	food := models.NewPetFood(models.NewDryFood(2.5))
+
+	if _, ok := food.ActualInstance().(models.DryFood); !ok {
+		t.Fatalf("expected a pointer variant to be stored as a DryFood value, got %T", food.ActualInstance())
+	}
+}
+
 func TestPetFood_ConstructedFromVariantSerializesWithoutDecoding(t *testing.T) {
 	t.Parallel()
 	food := models.NewPetFood(*models.NewDryFood(2.5))

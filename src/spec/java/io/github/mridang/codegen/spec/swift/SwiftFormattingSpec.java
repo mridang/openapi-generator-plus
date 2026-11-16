@@ -15,7 +15,7 @@ public class SwiftFormattingSpec extends AbstractFormattingSpec implements Swift
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"swift-format lint --recursive Sources Tests"};
+        return new String[] {"swift-format lint --strict --recursive Sources Tests"};
     }
 
     @Override

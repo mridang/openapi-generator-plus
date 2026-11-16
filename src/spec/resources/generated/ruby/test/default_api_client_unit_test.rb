@@ -1459,6 +1459,19 @@ describe Petstore::Client::DefaultApiClient do
     thread.join
   end
 
+  it 'raises NetworkError when the body is shorter than its Content-Length' do
+    port, thread = serve_once do |socket|
+      socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n" \
+                   "Connection: close\r\n\r\n{\"a\":")
+    end
+
+    err = assert_raises(Petstore::Client::Errors::NetworkError) do
+      Petstore::Client::DefaultApiClient.new.send_request('GET', "http://127.0.0.1:#{port}/short", {}, nil)
+    end
+    _(err.status_code).must_equal 0
+    thread.join
+  end
+
   it 'raises NetworkTimeoutError when the body stalls after the response head' do
     port, thread = serve_once do |socket|
       socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{\"a\":")

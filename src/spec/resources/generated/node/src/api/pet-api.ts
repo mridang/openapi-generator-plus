@@ -82,6 +82,13 @@ export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoSe
   readonly region: GetMultiServerPetInfoServerRegionalRegion;
   constructor(region: GetMultiServerPetInfoServerRegionalRegion) {
     super();
+    if (
+      !Object.values(GetMultiServerPetInfoServerRegionalRegion).includes(region)
+    ) {
+      throw new Error(
+        `Invalid value '${String(region)}' for server variable 'region'`,
+      );
+    }
     this.region = region;
   }
   getUrl(): string {
@@ -105,7 +112,19 @@ export class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServ
     channel: GetMultiServerPetInfoServerChannel,
   ) {
     super();
+    if (
+      !Object.values(GetMultiServerPetInfoServerMirrorRegion).includes(region)
+    ) {
+      throw new Error(
+        `Invalid value '${String(region)}' for server variable 'region'`,
+      );
+    }
     this.region = region;
+    if (!Object.values(GetMultiServerPetInfoServerChannel).includes(channel)) {
+      throw new Error(
+        `Invalid value '${String(channel)}' for server variable 'channel'`,
+      );
+    }
     this.channel = channel;
   }
   getUrl(): string {
@@ -159,7 +178,19 @@ export class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServe
     version: GetStagingPetInfoServerVersion,
   ) {
     super();
+    if (
+      !Object.values(GetStagingPetInfoServerEnvironment).includes(environment)
+    ) {
+      throw new Error(
+        `Invalid value '${String(environment)}' for server variable 'environment'`,
+      );
+    }
     this.environment = environment;
+    if (!Object.values(GetStagingPetInfoServerVersion).includes(version)) {
+      throw new Error(
+        `Invalid value '${String(version)}' for server variable 'version'`,
+      );
+    }
     this.version = version;
   }
   getUrl(): string {

@@ -317,6 +317,11 @@ class OAuth2TokenManager {
                 } else {
                     Clock.System.now().toEpochMilliseconds()
                 }
+        } else {
+            /* No expires_in: the lifetime is unknown, so the token has no expiry (as in
+             * the other SDKs) instead of keeping the previous token's stale one, which
+             * would refresh again on the very next call. */
+            this.tokenExpiryMs = null
         }
     }
 

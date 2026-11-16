@@ -464,6 +464,24 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task DigitLeadingQueryParameterIsSentUnderItsWireName()
+    {
+        var client = new CapturingApiClient();
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config);
+        try
+        {
+            await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { N2ndPage = 2 });
+        }
+        catch (OpenAPIException)
+        {
+            // Response deserialization may fail; we only care about the captured URL
+        }
+        // The sanitised identifier N2ndPage is a C# name only: the wire key stays 2ndPage.
+        Assert.Contains("2ndPage=2", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task AllowEmptyValueParamIncludedWhenEmpty()
     {
         var client = new CapturingApiClient();

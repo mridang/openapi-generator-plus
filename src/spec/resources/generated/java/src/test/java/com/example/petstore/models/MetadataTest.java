@@ -9,6 +9,7 @@
 package com.example.petstore.models;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.petstore.ObjectSerializer;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -51,8 +52,8 @@ class MetadataTest {
 
     assertThat(metadata.getAdditionalProperties().get("customField")).isEqualTo("hello");
     java.util.Map<String, Object> extras = metadata.getAdditionalProperties();
-    org.junit.jupiter.api.Assertions.assertThrows(
-        UnsupportedOperationException.class, () -> extras.put("other", "x"));
+    assertThatThrownBy(() -> extras.put("other", "x"))
+        .isInstanceOf(UnsupportedOperationException.class);
   }
 
   @Test

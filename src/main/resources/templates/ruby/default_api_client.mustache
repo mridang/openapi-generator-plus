@@ -522,6 +522,12 @@ module {{moduleName}}
           f.options.write_timeout = timeout_secs
         end
 
+        # A body that ends before its Content-Length is a failed transfer, not a
+        # short 200: Net::HTTP ignores the early EOF unless told otherwise.
+        f.adapter :net_http do |http|
+          http.ignore_eof = false
+        end
+
         # Gap BH: do not register the Faraday follow_redirects middleware
         # here -- it carries Authorization across cross-origin 3xx, leaking
         # bearer tokens. We follow redirects ourselves in send_request with

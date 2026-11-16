@@ -52,6 +52,11 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
   constructor({{#serverVariables}}{{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) {
     super();
 {{#serverVariables}}
+{{#hasEnumValues}}
+    if (!Object.values({{serverTypeName}}{{enumTypeName}}).includes({{camelName}})) {
+      throw new Error(`Invalid value '${String({{camelName}})}' for server variable '{{name}}'`);
+    }
+{{/hasEnumValues}}
     this.{{camelName}} = {{camelName}};
 {{/serverVariables}}
   }

@@ -515,6 +515,17 @@ type {{classname}} struct {
 
 // New{{classname}} wraps an already-decoded variant so a request body can be built without decoding JSON text.
 func New{{classname}}(actualInstance any) {{classname}} {
+	/* Decoding stores a variant by value, so a pointer to a variant is stored by value
+	 * too: a type switch on ActualInstance then sees the same type however the union
+	 * was built. */
+	switch v := actualInstance.(type) {
+{{#oneOf}}
+	case *{{{.}}}:
+		if v != nil {
+			actualInstance = *v
+		}
+{{/oneOf}}
+	}
 	return {{classname}}{value: actualInstance}
 }
 

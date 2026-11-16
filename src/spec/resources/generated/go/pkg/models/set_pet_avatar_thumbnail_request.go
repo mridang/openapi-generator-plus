@@ -21,6 +21,19 @@ type SetPetAvatarThumbnailRequest struct {
 
 // NewSetPetAvatarThumbnailRequest wraps an already-decoded variant so a request body can be built without decoding JSON text.
 func NewSetPetAvatarThumbnailRequest(actualInstance any) SetPetAvatarThumbnailRequest {
+	/* Decoding stores a variant by value, so a pointer to a variant is stored by value
+	 * too: a type switch on ActualInstance then sees the same type however the union
+	 * was built. */
+	switch v := actualInstance.(type) {
+	case *[][]byte:
+		if v != nil {
+			actualInstance = *v
+		}
+	case *[]byte:
+		if v != nil {
+			actualInstance = *v
+		}
+	}
 	return SetPetAvatarThumbnailRequest{value: actualInstance}
 }
 

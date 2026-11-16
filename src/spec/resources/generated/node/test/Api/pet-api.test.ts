@@ -1132,22 +1132,26 @@ describe("PetApi request content-type selector", () => {
 });
 
 describe("PetApi operation servers", () => {
-  test("a server variable value containing replacement patterns is substituted literally", () => {
+  test.each(["a$&b", "{version}", "unknown"])(
+    "a server variable value outside the declared enum is rejected: %s",
+    (value) => {
+      expect(
+        () =>
+          new GetStagingPetInfoServerStagingServer(
+            value as unknown as GetStagingPetInfoServerEnvironment,
+            GetStagingPetInfoServerVersion.V2,
+          ),
+      ).toThrow(/Invalid value .* for server variable 'environment'/);
+    },
+  );
+
+  test("a declared server variable value is substituted into the URL", () => {
     const server = new GetStagingPetInfoServerStagingServer(
-      "a$&b" as unknown as GetStagingPetInfoServerEnvironment,
+      GetStagingPetInfoServerEnvironment.STAGING,
       GetStagingPetInfoServerVersion.V2,
     );
 
-    expect(server.getUrl()).toBe("https://a$&b.example.com/api/v2");
-  });
-
-  test("a server variable value containing another placeholder is not substituted again", () => {
-    const server = new GetStagingPetInfoServerStagingServer(
-      "{version}" as unknown as GetStagingPetInfoServerEnvironment,
-      GetStagingPetInfoServerVersion.V2,
-    );
-
-    expect(server.getUrl()).toBe("https://{version}.example.com/api/v2");
+    expect(server.getUrl()).toBe("https://staging.example.com/api/v2");
   });
 
   test("a server variant documents itself with the operation server description", () => {
