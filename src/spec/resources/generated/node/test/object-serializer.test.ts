@@ -2356,3 +2356,21 @@ describe("reattachAdditionalProperties", () => {
     });
   });
 });
+
+describe("toBinary", () => {
+  test("returns the bytes of a JSON document answered to a binary operation", () => {
+    const bytes = ObjectSerializer.toBinary({ id: 7, name: "photo" });
+
+    expect(Buffer.isBuffer(bytes)).toBe(true);
+    expect(JSON.parse(bytes.toString("utf8"))).toEqual({
+      id: 7,
+      name: "photo",
+    });
+  });
+
+  test("passes a Buffer through unchanged", () => {
+    const buffer = Buffer.from([1, 2, 3]);
+
+    expect(ObjectSerializer.toBinary(buffer)).toBe(buffer);
+  });
+});

@@ -73,6 +73,9 @@ case "$cmd" in
   check)
     resolve_maven
     cd "$root"
+    # Leaked mock-server containers and networks from earlier runs exhaust Docker's address
+    # pools and make the next run fail to start its containers; sweep them first.
+    echo '{"hook_event_name":"SessionStart"}' | "$root/.claude/hooks/docker-guard.sh" > /dev/null 2>&1 || true
     sha="$(git rev-parse HEAD)"
     out="${TMPDIR:-/tmp}/ci-local-${sha:0:9}"
     mkdir -p "$out"

@@ -309,10 +309,18 @@ abstract class BaseApi {
                     //     as a decoded string, so the raw bytes are its UTF-8.
                     //   * binary content types: base64-encoded by the transport.
                     if (headerSelector.isJsonMime(responseContentType)) {
-                        val inner = objectSerializer.deserialize<String>(response.body) ?: ""
-                        java.util.Base64
-                            .getDecoder()
-                            .decode(inner) as T
+                        val document = response.body.trimStart()
+                        if (document.startsWith("{") || document.startsWith("[")) {
+                            // A JSON document (content negotiation answered the
+                            // binary operation with its application/json variant):
+                            // the caller gets its raw bytes.
+                            response.body.toByteArray(Charsets.UTF_8) as T
+                        } else {
+                            val inner = objectSerializer.deserialize<String>(response.body) ?: ""
+                            java.util.Base64
+                                .getDecoder()
+                                .decode(inner) as T
+                        }
                     } else if (isTextResponseContentType(responseContentType)) {
                         response.body.toByteArray(Charsets.UTF_8) as T
                     } else {

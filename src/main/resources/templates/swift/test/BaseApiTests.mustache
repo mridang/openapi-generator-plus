@@ -57,6 +57,20 @@ import Testing
         }
     }
 
+    // MARK: - Binary response answered with JSON
+
+    @Test func testBinaryOperationAnsweredWithJsonReturnsTheRawBytes() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":7,\"name\":\"photo\"}"
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let photo = try await api.getPetPhoto(petId: 1, photoId: 1)
+
+        #expect(String(data: photo, encoding: .utf8) == "{\"id\":7,\"name\":\"photo\"}")
+    }
+
     // MARK: - Error dispatch
 
     @Test func testErrorDispatch400() async throws {

@@ -941,6 +941,19 @@ export class ObjectSerializer {
   }
 
   /**
+   * The bytes of a binary response that came back as JSON, which happens when an
+   * operation declares both a binary and an application/json response and the
+   * server picks the JSON one. The caller gets the bytes of that JSON document,
+   * never the parsed object cast to a Buffer.
+   */
+  static toBinary(json: unknown): Buffer {
+    if (Buffer.isBuffer(json)) {
+      return json;
+    }
+    return Buffer.from(typeof json === 'string' ? json : JSON.stringify(json), 'utf8');
+  }
+
+  /**
    * Validate the type of a primitive or date leaf of a container response
    * (a map or array element). A plain `as number` cast is erased at compile
    * time, so `{"a": "5"}` for a `Record<string, number>` would be returned as

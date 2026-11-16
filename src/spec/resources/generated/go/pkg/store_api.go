@@ -97,7 +97,11 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(account Account) (*ApiResult[Accoun
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -260,7 +264,11 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetB
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -355,7 +363,11 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo() (*ApiResult[Defaults], error) {
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -450,7 +462,11 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo() (*ApiResult[Department], error) {
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -545,7 +561,11 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo() (*ApiResult[[]map[string]C
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -640,7 +660,11 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -735,7 +759,11 @@ func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -839,7 +867,11 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -942,7 +974,11 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(trackingId uuid.UUID) (*ApiR
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1042,7 +1078,11 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1137,7 +1177,11 @@ func (a *StoreApi) GetSwatchWithHTTPInfo() (*ApiResult[Swatch], error) {
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1232,7 +1276,11 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1327,7 +1375,11 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]Dat
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1422,7 +1474,11 @@ func (a *StoreApi) GetTreeWithHTTPInfo() (*ApiResult[TreeNode], error) {
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1517,7 +1573,11 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
@@ -1633,7 +1693,11 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(options *opts.SearchStoreOptions) (*A
 					Headers:    response.Headers,
 				}, nil
 			}
-			if err := deserialize([]byte(response.Body), &data); err != nil {
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {

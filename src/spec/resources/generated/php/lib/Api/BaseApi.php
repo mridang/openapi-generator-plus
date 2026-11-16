@@ -229,6 +229,12 @@ class BaseApi
                  * the decode never touches a text/plain payload. */
                 $decoded = base64_decode($response->body, true);
                 $data = $decoded === false ? $response->body : $decoded;
+            } elseif ($returnType === 'string' && is_array(json_decode($response->body, true))) {
+                /* A binary operation that also declares application/json (content
+                 * negotiation) can be answered with a JSON document, which is not a
+                 * string: hand back its raw bytes, as every SDK does, instead of
+                 * letting the string cast turn the decoded array into "Array". */
+                $data = $response->body;
             } elseif ($returnType !== null) {
                 $data = ObjectSerializer::deserialize($response->body, $returnType, []);
             }

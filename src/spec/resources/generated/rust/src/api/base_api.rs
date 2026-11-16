@@ -342,15 +342,20 @@ impl BaseApi {
                         .decode(s.as_bytes())
                         .unwrap_or_default(),
                     /* JSON array of byte values -- already the target shape. */
-                    Ok(arr @ serde_json::Value::Array(_)) => {
+                    Ok(serde_json::Value::Array(items))
+                        if items.iter().all(|v| v.as_u64().is_some_and(|n| n <= 255)) =>
+                    {
                         return Ok(ApiResult::new(
                             response.status_code(),
-                            serde_json::from_value(arr).ok(),
+                            serde_json::from_value(serde_json::Value::Array(items)).ok(),
                             response.body().to_string(),
                             response.headers().clone(),
                         ));
                     }
-                    _ => Vec::new(),
+                    /* Any other JSON document (content negotiation answered the
+                     * binary operation with its application/json variant): the
+                     * caller gets its raw bytes, never an empty body. */
+                    _ => response.body().as_bytes().to_vec(),
                 }
             } else {
                 /* Non-JSON content-type: transport layer base64-encoded the raw

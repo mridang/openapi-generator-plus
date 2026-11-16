@@ -30,6 +30,24 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Exception dispatch
 
+  test "a binary return type gets the raw bytes of a JSON body", %{state: state} do
+    assert {:ok, body} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["image/jpeg", "application/json"],
+               "application/json",
+               "binary()"
+             )
+
+    assert is_binary(body)
+    assert %{"method" => "GET"} = Jason.decode!(body)
+  end
+
   test "raises BadRequestError for status 400", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(

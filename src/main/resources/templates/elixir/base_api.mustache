@@ -253,6 +253,13 @@ defmodule {{moduleName}}.Api.BaseApi do
               {{moduleName}}.HeaderSelector.json_mime?(resp_content_type)
 
           cond do
+            is_json and return_type == "binary()" and json_document?(response.body) ->
+              # A binary operation that also declares application/json (content
+              # negotiation) answered with a JSON document: the caller gets its raw
+              # bytes, never a decode error. A JSON string literal (format: byte)
+              # still goes through the base64 path below.
+              response.body
+
             is_json ->
               # A 2xx body that does not match the declared schema is a
               # contract violation; propagate the decode error to the
@@ -291,6 +298,14 @@ defmodule {{moduleName}}.Api.BaseApi do
          raw_body: response.body,
          headers: response.headers
        }}
+  end
+
+  defp json_document?(body) do
+    case String.trim_leading(body) do
+      "{" <> _ -> true
+      "[" <> _ -> true
+      _ -> false
+    end
   end
 
   @doc """

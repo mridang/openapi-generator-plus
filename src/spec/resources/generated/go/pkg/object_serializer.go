@@ -126,6 +126,14 @@ func unescapeLineSeparators(data []byte) []byte {
 
 // isJSONNull reports whether data is exactly the JSON literal null, ignoring
 // surrounding whitespace and a leading UTF-8 byte order mark.
+// looksLikeJSONDocument reports whether body is a JSON object or array. A binary
+// operation that also declares application/json can be answered with one; it is
+// returned as raw bytes instead of failing to decode into a byte slice.
+func looksLikeJSONDocument(body string) bool {
+	trimmed := strings.TrimLeft(body, " \t\r\n")
+	return strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")
+}
+
 func isJSONNull(data []byte) bool {
 	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 	return string(bytes.TrimSpace(data)) == "null"

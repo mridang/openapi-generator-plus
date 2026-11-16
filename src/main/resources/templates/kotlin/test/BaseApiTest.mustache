@@ -133,6 +133,15 @@ class BaseApiTest {
 
     private fun api() = TestableApi(ChasmContainer.getBaseUrl())
 
+    @Test
+    @DisplayName("a binary return type gets the raw bytes of a JSON body")
+    fun binaryReturnTypeGetsTheRawBytesOfAJsonBody() {
+        val client = CapturingApiClient()
+        val testApi = TestableApiWithClient(client, "http://localhost")
+        val result = runBlocking { testApi.callForResult<ByteArray>("GET", "/test/echo") }
+        assertEquals("{}", String(result.data!!, Charsets.UTF_8))
+    }
+
     @Nested
     @DisplayName("exception dispatch")
     inner class ExceptionDispatch {

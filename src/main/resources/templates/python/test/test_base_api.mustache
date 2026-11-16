@@ -182,6 +182,17 @@ class TestSuccessDeserialization:
         assert result is not None
         assert 'hello world' in result
 
+    async def test_binary_return_type_gets_the_raw_bytes_of_a_json_body(self, api: Any) -> None:
+        # A binary operation that also declares application/json (content
+        # negotiation) can be answered with a JSON document: the caller gets its
+        # raw bytes, never a parsed dict.
+        import json
+
+        result = await api.call('GET', '/test/echo', {}, {}, None,
+                                ['application/json'], 'application/json', 'bytes')
+        assert isinstance(result, bytes)
+        assert json.loads(result)['method'] == 'GET'
+
     async def test_returns_none_when_return_type_is_none(self, api: Any) -> None:
         result = await api.call('GET', '/test/echo', {}, {}, None,
                                 ['application/json'], 'application/json', None)

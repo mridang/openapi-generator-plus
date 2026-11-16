@@ -639,6 +639,30 @@ test('skips deserialization for non json content type', function (): void {
     expect($result)->toBe('hello');
 });
 
+test('a binary return type gets the raw bytes of a JSON body', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"id":7,"name":"photo"}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['image/jpeg', 'application/json'], 'application/json', 'string');
+    expect($result)->toBe('{"id":7,"name":"photo"}');
+});
+
 test('deserializes vendor json mime types', function (): void {
     $client = new class implements ApiClient {
         public function close(): void

@@ -1930,3 +1930,17 @@ func TestError_SchemaNamedErrorKeepsItsNameAndRoundTrips(t *testing.T) {
 		t.Errorf("expected %s on the wire, got %s", wire, out)
 	}
 }
+
+func TestLooksLikeJSONDocument(t *testing.T) {
+	for body, want := range map[string]bool{
+		`{"id":7}`:         true,
+		"  \n[1,2]":        true,
+		`"aGVsbG8="`:       false,
+		"plain text":       false,
+		"":                 false,
+	} {
+		if got := looksLikeJSONDocument(body); got != want {
+			t.Errorf("looksLikeJSONDocument(%q) = %v, want %v", body, got, want)
+		}
+	}
+}

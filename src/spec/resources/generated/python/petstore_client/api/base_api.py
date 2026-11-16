@@ -394,6 +394,16 @@ class BaseApi:
                     data = response.body
             else:
                 data = self._object_serializer.deserialize(response.body, return_type)
+                if return_type == "bytes" and not isinstance(data, (bytes, bytearray)):
+                    # A binary operation that may also answer application/json (content
+                    # negotiation) gets a JSON document that is not a base64 string:
+                    # hand back the raw body bytes, the same as every SDK that returns
+                    # the bytes of whatever body arrived.
+                    data = (
+                        response.body.encode("utf-8")
+                        if isinstance(response.body, str)
+                        else response.body
+                    )
 
         return ApiResult(
             status_code=response.status_code,
