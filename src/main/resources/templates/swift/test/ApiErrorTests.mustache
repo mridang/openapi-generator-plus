@@ -383,7 +383,8 @@ import Testing
     @Test func testConnectionRefusedIsNetworkError() async throws {
         // Port 9 (discard) on loopback is not listening, so the connection is
         // refused and no HTTP response exists.
-        let client = DefaultApiClient()
+        let client = try DefaultApiClient(
+            transportOptions: try TransportOptionsBuilder().maxRetries(0).build())
         do {
             _ = try await client.sendRequest(
                 method: "GET", url: "http://127.0.0.1:9/refused", headers: [:], body: nil)

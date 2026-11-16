@@ -279,6 +279,112 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// Merges headers according to the priority order documented on the class,
     /// then dispatches via URLSession.
     public func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> ApiHttpResponse {
+        return try await sendRequest(
+            method: method, url: url, headers: headers, body: body, noRedirect: noRedirect,
+            refreshHeaders: nil)
+    }
+
+    /// Sends a request and retries it per ``TransportOptions/maxRetries``.
+    ///
+    /// A retry is a fresh request: the headers are rebuilt from `headers`
+    /// (and, when `refreshHeaders` is given, merged over with the result of
+    /// calling it, so authentication headers are applied again), and the
+    /// request id is regenerated. The retry budget never extends the
+    /// ``TransportOptions/timeout``, and a `noRedirect` request (the OAuth2
+    /// token call) is never retried.
+    public func sendRequest(
+        method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
+        refreshHeaders: (@Sendable () async throws -> [String: String])?
+    ) async throws -> ApiHttpResponse {
+        let maxRetries = noRedirect || !DefaultApiClient.isReplayable(body) ? 0 : transportOptions.maxRetries
+        if maxRetries == 0 {
+            return try await sendOnce(
+                method: method, url: url, headers: headers, body: body, noRedirect: noRedirect,
+                budget: nil)
+        }
+        let started = Date()
+        let total: TimeInterval? = transportOptions.timeout.map { TimeInterval($0) / 1000.0 }
+        var current = headers
+        var attempt = 0
+        while true {
+            let remaining: TimeInterval? = total.map { $0 - Date().timeIntervalSince(started) }
+            var delay: TimeInterval = 0
+            var failure: Error?
+            var response: ApiHttpResponse?
+            do {
+                let received = try await sendOnce(
+                    method: method, url: url, headers: current, body: body, noRedirect: noRedirect,
+                    budget: remaining)
+                if attempt >= maxRetries || !DefaultApiClient.isRetryableStatus(received.statusCode) {
+                    return received
+                }
+                response = received
+                delay = DefaultApiClient.retryDelay(
+                    attempt: attempt, retryAfter: received.headers["retry-after"])
+            } catch let error where DefaultApiClient.isRetryableError(error) {
+                if attempt >= maxRetries { throw error }
+                failure = error
+                delay = DefaultApiClient.retryDelay(attempt: attempt, retryAfter: nil)
+            }
+            /* The wait must fit in what is left of the one end-to-end budget;
+               otherwise the last outcome stands. */
+            if let remaining = remaining, delay >= remaining {
+                if let response = response { return response }
+                throw failure ?? CancellationError()
+            }
+            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            attempt += 1
+            if let refresh = refreshHeaders {
+                current = BaseApi.mergeHeaders(current, overriding: try await refresh())
+            }
+        }
+    }
+
+    /// Whether a body can be sent again. Everything this SDK builds is held in
+    /// memory; only a stream is consumed by its first send.
+    static func isReplayable(_ body: Any?) -> Bool {
+        return !(body is InputStream)
+    }
+
+    /// Statuses worth retrying: 408, 409, 429 and 500 to 599 except 501.
+    static func isRetryableStatus(_ status: Int) -> Bool {
+        return status == 408 || status == 409 || status == 429 || (status >= 500 && status <= 599 && status != 501)
+    }
+
+    /// A network error that happened before any response. A timeout is the
+    /// end-to-end budget running out, so it is not retried.
+    static func isRetryableError(_ error: Error) -> Bool {
+        return error is NetworkError && !(error is NetworkTimeoutError)
+    }
+
+    /// Seconds to wait before retry number `attempt + 1`: the `Retry-After`
+    /// value (delta seconds or an HTTP date, capped at 60 s) when the server
+    /// sent a usable one, otherwise 0.5 s doubling up to 8 s with up to 25%
+    /// jitter taken off.
+    static func retryDelay(
+        attempt: Int, retryAfter: String?, now: Date = Date(),
+        jitter: Double = Double.random(in: 0..<1)
+    ) -> TimeInterval {
+        if let header = retryAfter?.trimmingCharacters(in: .whitespaces), !header.isEmpty {
+            if let seconds = Double(header), seconds >= 0 {
+                return min(seconds, 60)
+            }
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(identifier: "GMT")
+            formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+            if let date = formatter.date(from: header) {
+                return min(max(date.timeIntervalSince(now), 0), 60)
+            }
+        }
+        let base = min(0.5 * pow(2.0, Double(min(attempt, 10))), 8.0)
+        return base * (1.0 - 0.25 * jitter)
+    }
+
+    private func sendOnce(
+        method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
+        budget: TimeInterval?
+    ) async throws -> ApiHttpResponse {
         /* Using the client after close() must surface a ConfigurationError, not a
            foreign URLSession invalidation exception. */
         if closedFlag.isSet {
@@ -322,8 +428,10 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         /* A supplied session carries none of the SDK's timeouts (they are set
            on a session the SDK builds itself), so apply the timeout to the
            request. */
-        if !ownsSession, let timeout = transportOptions.timeout {
-            request.timeoutInterval = TimeInterval(timeout) / 1000.0
+        let effectiveTimeout: TimeInterval? =
+            budget ?? transportOptions.timeout.map { TimeInterval($0) / 1000.0 }
+        if !ownsSession, let timeout = effectiveTimeout {
+            request.timeoutInterval = timeout
         }
 
         if let formParts = BaseApi.formFields(body) {
@@ -377,7 +485,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             (data, response, task) = try await DefaultApiClient.performDataTask(
                 on: activeSession, for: request,
                 taskDelegate: (!ownsSession && !noRedirect) ? sessionDelegate : nil,
-                deadline: transportOptions.timeout.map { TimeInterval($0) / 1000.0 })
+                deadline: effectiveTimeout)
         } catch let undecodable as UndecodableBody {
             /* The server answered but its body cannot be decoded: an ApiError
                carrying the real status code, never a NetworkError. */
