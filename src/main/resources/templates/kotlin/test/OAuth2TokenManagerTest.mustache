@@ -27,6 +27,8 @@ class OAuth2TokenManagerTest {
             private set
         var lastNoRedirect: Boolean? = null
             private set
+        var lastHeaders: Map<String, String> = emptyMap()
+            private set
         val bodies = mutableListOf<String?>()
 
         fun enqueue(body: String, statusCode: Int = 200) {
@@ -44,8 +46,23 @@ class OAuth2TokenManagerTest {
             lastBody = body?.toString()
             bodies.add(lastBody)
             lastNoRedirect = noRedirect
+            lastHeaders = headers
             return responses.poll() ?: throw IllegalStateException("No responses queued")
         }
+    }
+
+    @Test
+    fun tokenRequestIsAFormPostAcceptingJson() {
+        // F1075: RFC 6749 section 4.4.2 / 5.1 headers of the token request.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok","expires_in":3600}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        runBlocking {
+            manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+        }
+        assertEquals("application/x-www-form-urlencoded", client.lastHeaders["Content-Type"])
+        assertEquals("application/json", client.lastHeaders["Accept"])
     }
 
     @Test

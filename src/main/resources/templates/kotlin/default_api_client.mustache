@@ -380,10 +380,20 @@ class DefaultApiClient internal constructor(
         } else {
             java.util.Base64.getEncoder().encodeToString(rawBytes)
         }
+        /* D92: the returned headers describe the body the caller receives, so once the body was
+         * decoded they no longer carry the Content-Encoding or the (encoded) Content-Length. */
+        val decodedBody =
+            wireBytes.isNotEmpty() && contentEncoding.trim().lowercase() !in listOf("", "identity")
+        val returnedHeaders =
+            if (decodedBody) {
+                responseHeaders.filterKeys { !it.equals("content-encoding", true) && !it.equals("content-length", true) }
+            } else {
+                responseHeaders
+            }
         return ApiHttpResponse(
             statusCode = response.status.value,
             body = responseBody,
-            headers = responseHeaders,
+            headers = returnedHeaders,
         )
     }
 

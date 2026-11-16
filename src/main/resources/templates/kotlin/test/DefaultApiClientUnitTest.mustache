@@ -1321,6 +1321,62 @@ class DefaultApiClientUnitTest {
     }
 
     @Nested
+    @DisplayName("decoded response headers")
+    inner class DecodedResponseHeaders {
+
+        @Test
+        @DisplayName("D92: a decoded body drops Content-Encoding and Content-Length from the returned headers")
+        fun decodedBodyDropsEncodingAndLength() {
+            val gzipped =
+                java.io.ByteArrayOutputStream().also { out ->
+                    java.util.zip.GZIPOutputStream(out).use { it.write("{\"a\":1}".toByteArray()) }
+                }.toByteArray()
+            val engine = MockEngine { _ ->
+                respond(
+                    content = gzipped,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(
+                        "Content-Type" to listOf("application/json"),
+                        "Content-Encoding" to listOf("gzip"),
+                        "Content-Length" to listOf(gzipped.size.toString()),
+                        "X-Kept" to listOf("yes"),
+                    ),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+
+            val response = runBlocking { apiClient.sendRequest("GET", "http://localhost/gz", emptyMap(), null) }
+
+            assertEquals("{\"a\":1}", response.body)
+            assertNull(response.headers["content-encoding"])
+            assertNull(response.headers["content-length"])
+            assertEquals("yes", response.headers["x-kept"])
+        }
+
+        @Test
+        @DisplayName("F1063: a Set-Cookie of one response is never replayed as a Cookie header")
+        fun setCookieIsNeverReplayed() {
+            val cookies = mutableListOf<String?>()
+            val engine = MockEngine { request ->
+                cookies.add(request.headers["Cookie"])
+                respond(
+                    content = "{}",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type" to listOf("application/json"), "Set-Cookie" to listOf("sid=1; Path=/")),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/a", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/b", emptyMap(), null)
+            }
+
+            assertEquals(listOf<String?>(null, null), cookies)
+        }
+    }
+
+    @Nested
     @DisplayName("Content-Encoding lie")
     inner class ContentEncodingLie {
 

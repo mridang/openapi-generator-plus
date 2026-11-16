@@ -399,12 +399,14 @@ class BaseApiTest {
                 emptyMap(),
                 mapOf("session" to "abc123")
             )
+            val client = CapturingApiClient()
             runBlocking {
-                api().call(
+                TestableApiWithClient(client, "http://localhost").call(
                     "GET", "/test/echo",
                     auth = auth
                 )
             }
+            assertEquals("session=abc123", client.capturedHeaders["Cookie"])
         }
 
         @Test
