@@ -9,6 +9,7 @@ require 'securerandom'
 require 'openssl'
 require 'base64'
 require 'stringio'
+require 'time'
 require 'timeout'
 require 'zlib'
 require 'uri'
@@ -50,6 +51,24 @@ module {{moduleName}}
     # so the cross-origin filter can compare case-insensitively.
     # The verbs Faraday's run_request accepts.
     STANDARD_METHODS = %i[get post put delete head patch options trace].freeze
+
+    # Statuses worth sending again: request timeout, conflict, rate limit and
+    # every server error except 501 (not implemented), which a retry cannot fix.
+    RETRYABLE_STATUS_CODES = [408, 409, 429, *((500..599).to_a - [501])].freeze
+
+    # The wait before the first retry, in seconds; it doubles up to the cap.
+    RETRY_BASE_DELAY_S = 0.5
+
+    # The longest backoff wait, in seconds, before jitter.
+    RETRY_MAX_DELAY_S = 8.0
+
+    # The share of a backoff wait that jitter may take off it.
+    RETRY_JITTER = 0.25
+
+    # The longest wait a +Retry-After+ header may ask for, in seconds.
+    RETRY_AFTER_CAP_S = 60.0
+
+    private_constant :RETRYABLE_STATUS_CODES, :RETRY_BASE_DELAY_S, :RETRY_MAX_DELAY_S, :RETRY_JITTER, :RETRY_AFTER_CAP_S
 
     EXTRA_SENSITIVE_HEADER_NAMES = %w[{{#apiKeyHeaderNames}} {{nameLower}}{{/apiKeyHeaderNames}}].freeze
 
@@ -98,7 +117,14 @@ module {{moduleName}}
     # Send an HTTP request with transport-level settings applied.
     #
     # Merges headers according to the priority order documented on the class,
-    # then dispatches via Faraday.
+    # then dispatches via Faraday. A failed request is sent again as
+    # {TransportOptions#max_retries} allows: after a network error that
+    # happened before any response, and after a 408, 409, 429 or 5xx (not 501)
+    # response. The wait is an exponential backoff (0.5 s doubling to 8 s,
+    # with 25% jitter) or the +Retry-After+ header (seconds or an HTTP date,
+    # at most 60 s). The {TransportOptions#timeout} budget covers the whole
+    # call, retries included, so no retry starts once it is spent. A body that
+    # cannot be sent twice (a multipart form or a stream) is never retried.
     #
     # @param method [Symbol] HTTP method (:get, :post, :put, :delete, etc.)
     # @param url [String] fully qualified URL
@@ -109,14 +135,100 @@ module {{moduleName}}
     #   OAuth2 token-endpoint POST so credentials in the form body are
     #   never silently replayed to a redirect target — the token manager
     #   inspects and rejects the 3xx itself (Bucket 3.2).
+    # @param retry_headers [Proc, nil] returns the complete headers of a retry
+    #   (authentication included, so a renewed token is picked up); without it
+    #   a retry reuses +headers+
     # @return [ApiHttpResponse] the HTTP response
-    def send_request(method, url, headers, body, no_redirect: false)
+    def send_request(method, url, headers, body, no_redirect: false, retry_headers: nil)
       # Bucket 3: using the client after #close has released its connection
       # pool is a caller error. Surface it loudly as a RuntimeError (the
       # invalid-state error) instead of lazily rebuilding a connection (which
       # would make close a silent no-op), matching the other SDKs.
       raise 'ApiClient has been closed and can no longer send requests' if @closed
 
+      # The timeout is one budget for the whole call: every redirect hop and
+      # every retry is sent with what is left of it, measured on the monotonic
+      # clock.
+      timeout_ms = @transport_options.timeout
+      deadline = timeout_ms ? (Process.clock_gettime(Process::CLOCK_MONOTONIC) + (timeout_ms / 1000.0)).to_f : nil
+
+      response = transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers)
+      content_type = response.headers['content-type'].to_s
+      # A malformed Content-Encoding body (a truncated/garbage
+      # gzip/deflate/br/zstd payload) arrived with a real response, so it
+      # surfaces as an ApiError carrying that response's status rather than
+      # a network error or a raw Zlib / decoder exception.
+      decoded_body = begin
+        decompress_body(response.body, response.headers['content-encoding'])
+      rescue StandardError => e
+        raise unusable_response(response, "Failed to decompress #{response.headers['content-encoding']} response body: #{e.message}")
+      end
+      response_body = if text_content_type?(content_type)
+                        decode_text_body(decoded_body.to_s, content_type)
+                      else
+                        Base64.strict_encode64(decoded_body.to_s)
+                      end
+
+      # Gap BE+BF: response header keys are normalised to lowercase so
+      # callers can look them up consistently regardless of the casing the
+      # server used (HTTP header names are case-insensitive per RFC 7230
+      # section 3.2, and HTTP/2 mandates lowercase on the wire). Repeated
+      # header lines (for example multiple Link or Set-Cookie headers) are
+      # joined with ", " to preserve order per RFC 7230 section 3.2.2.
+      # Faraday already collapses repeated headers into either a comma-
+      # joined string or an array depending on the header; here we
+      # normalise both shapes. The joined form is not directly parseable
+      # for Set-Cookie; callers needing structured cookie access should
+      # use HTTP::Cookie.parse or read the raw Faraday::Utils::Headers.
+      normalized_headers = {} #: Hash[String, String]
+      response.headers.each do |name, value|
+        joined = value.is_a?(Array) ? value.join(', ') : value.to_s
+        normalized_headers[name.to_s.downcase] = joined
+      end
+      # D92: once the body has been decoded, Content-Encoding and Content-Length
+      # describe bytes the caller no longer holds, so they are not returned. An
+      # identity or empty body keeps both.
+      content_encoding = normalized_headers['content-encoding'].to_s.strip.downcase
+      unless response.body.to_s.empty? || ['', 'identity'].include?(content_encoding)
+        normalized_headers.delete('content-encoding')
+        normalized_headers.delete('content-length')
+      end
+
+      ApiHttpResponse.new(
+        status_code: response.status,
+        body: response_body,
+        headers: normalized_headers
+      )
+    end
+
+    # Releases the Faraday connection and its underlying socket pool and
+    # marks the client closed. Subsequent calls to {#send_request} raise a
+    # RuntimeError rather than silently rebuilding a connection. It is safe
+    # to call this method repeatedly (idempotent).
+    #
+    # A connection supplied through {TransportOptions::Builder#connection}
+    # belongs to the caller and is never closed here.
+    def close
+      conn = @connection
+      @connection = nil
+      @closed = true
+      conn.close if conn.respond_to?(:close)
+    end
+
+    # Returns the list of supported content encodings.
+    # @return [String]
+    def self.supported_encodings
+      encodings = 'gzip, deflate'
+      encodings += ', br' if defined?(Brotli)
+      encodings += ', zstd' if defined?(Zstd)
+      encodings
+    end
+
+    private
+
+    # One attempt: merge the headers, send the request (following redirects)
+    # and return the Faraday response, or raise the SDK's network error.
+    def transmit(method, url, headers, body, no_redirect, deadline)
       # Field names are case-insensitive (RFC 9110 section 5.1): a caller's
       # header replaces a default of the same name whatever its casing.
       merged = @transport_options.default_headers.reject { |name, _v| header?(headers, name.to_s) }.merge(headers)
@@ -150,11 +262,6 @@ module {{moduleName}}
       end
 
       merged['Accept-Encoding'] ||= self.class.supported_encodings
-
-      # The timeout is one budget for the whole call: every redirect hop is
-      # sent with what is left of it, measured on the monotonic clock.
-      timeout_ms = @transport_options.timeout
-      deadline = timeout_ms ? (Process.clock_gettime(Process::CLOCK_MONOTONIC) + (timeout_ms / 1000.0)).to_f : nil
 
       begin
         response = run_hop(method.downcase.to_sym, url, serialized_body, merged, deadline)
@@ -281,78 +388,111 @@ module {{moduleName}}
       rescue URI::InvalidURIError => e
         raise ArgumentError, "Invalid request URL (#{e.message}): #{url}"
       end
-      content_type = response.headers['content-type'].to_s
-      # A malformed Content-Encoding body (a truncated/garbage
-      # gzip/deflate/br/zstd payload) arrived with a real response, so it
-      # surfaces as an ApiError carrying that response's status rather than
-      # a network error or a raw Zlib / decoder exception.
-      decoded_body = begin
-        decompress_body(response.body, response.headers['content-encoding'])
-      rescue StandardError => e
-        raise unusable_response(response, "Failed to decompress #{response.headers['content-encoding']} response body: #{e.message}")
-      end
-      response_body = if text_content_type?(content_type)
-                        decode_text_body(decoded_body.to_s, content_type)
-                      else
-                        Base64.strict_encode64(decoded_body.to_s)
-                      end
-
-      # Gap BE+BF: response header keys are normalised to lowercase so
-      # callers can look them up consistently regardless of the casing the
-      # server used (HTTP header names are case-insensitive per RFC 7230
-      # section 3.2, and HTTP/2 mandates lowercase on the wire). Repeated
-      # header lines (for example multiple Link or Set-Cookie headers) are
-      # joined with ", " to preserve order per RFC 7230 section 3.2.2.
-      # Faraday already collapses repeated headers into either a comma-
-      # joined string or an array depending on the header; here we
-      # normalise both shapes. The joined form is not directly parseable
-      # for Set-Cookie; callers needing structured cookie access should
-      # use HTTP::Cookie.parse or read the raw Faraday::Utils::Headers.
-      normalized_headers = {} #: Hash[String, String]
-      response.headers.each do |name, value|
-        joined = value.is_a?(Array) ? value.join(', ') : value.to_s
-        normalized_headers[name.to_s.downcase] = joined
-      end
-      # D92: once the body has been decoded, Content-Encoding and Content-Length
-      # describe bytes the caller no longer holds, so they are not returned. An
-      # identity or empty body keeps both.
-      content_encoding = normalized_headers['content-encoding'].to_s.strip.downcase
-      unless response.body.to_s.empty? || ['', 'identity'].include?(content_encoding)
-        normalized_headers.delete('content-encoding')
-        normalized_headers.delete('content-length')
-      end
-
-      ApiHttpResponse.new(
-        status_code: response.status,
-        body: response_body,
-        headers: normalized_headers
-      )
+      response
     end
 
-    # Releases the Faraday connection and its underlying socket pool and
-    # marks the client closed. Subsequent calls to {#send_request} raise a
-    # RuntimeError rather than silently rebuilding a connection. It is safe
-    # to call this method repeatedly (idempotent).
-    #
-    # A connection supplied through {TransportOptions::Builder#connection}
-    # belongs to the caller and is never closed here.
-    def close
-      conn = @connection
-      @connection = nil
-      @closed = true
-      conn.close if conn.respond_to?(:close)
+    # Send the request, and send it again after a failure that is worth
+    # another try, as far as +max_retries+, the body and the deadline allow.
+    # The last failure is what the caller gets.
+    def transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers)
+      max_retries = replayable_body?(body) ? @transport_options.max_retries : 0
+      attempt = 0
+      current_headers = headers
+      loop do
+        # @type var failure: Errors::NetworkError?
+        failure = nil
+        # @type var response: untyped
+        response = nil
+        begin
+          response = transmit(method, url, current_headers, body, no_redirect, deadline)
+          return response unless attempt < max_retries && RETRYABLE_STATUS_CODES.include?(response.status.to_i)
+        rescue Errors::NetworkError => e
+          raise unless attempt < max_retries && retryable_network_error?(e)
+
+          failure = e
+        end
+        delay = retry_delay(attempt, response)
+        # No retry may start once the budget would be spent by the wait.
+        out_of_time = deadline && (Process.clock_gettime(Process::CLOCK_MONOTONIC) + delay) >= deadline
+        return give_up(failure, response) if out_of_time
+
+        if retry_headers
+          renewed = renewed_headers(retry_headers)
+          return give_up(failure, response) if renewed.nil?
+
+          current_headers = renewed
+        end
+        pause(delay)
+        attempt += 1
+      end
     end
 
-    # Returns the list of supported content encodings.
-    # @return [String]
-    def self.supported_encodings
-      encodings = 'gzip, deflate'
-      encodings += ', br' if defined?(Brotli)
-      encodings += ', zstd' if defined?(Zstd)
-      encodings
+    # End the retrying: raise the last network failure, or hand back the last
+    # response when there was one.
+    def give_up(failure, response)
+      raise failure if failure
+
+      response
     end
 
-    private
+    # Whether a failed attempt may be tried again. A TLS failure is a setup
+    # problem (an untrusted or mismatched certificate) that another try cannot
+    # fix.
+    def retryable_network_error?(error)
+      !error.cause.is_a?(Faraday::SSLError)
+    end
+
+    # The headers of a retry, or +nil+ when they cannot be built (a failed
+    # re-authentication), which ends the retrying.
+    def renewed_headers(retry_headers)
+      retry_headers.call
+    rescue {{apiErrorParent}}
+      nil
+    end
+
+    # Whether a request body can be sent a second time: none, or a string.
+    def replayable_body?(body)
+      body.nil? || body.is_a?(String)
+    end
+
+    # The seconds to wait before retry number +attempt+ + 1: the +Retry-After+
+    # header of +response+ when it carries a usable one, else an exponential
+    # backoff with jitter.
+    def retry_delay(attempt, response)
+      asked = response && retry_after(response.headers)
+      return asked if asked
+
+      backoff = [RETRY_BASE_DELAY_S * (2**attempt), RETRY_MAX_DELAY_S].min
+      backoff * (1.0 - (RETRY_JITTER * rand))
+    end
+
+    # The wait a +Retry-After+ header asks for (delta-seconds or an HTTP date),
+    # capped, or +nil+ when there is none or it cannot be read.
+    def retry_after(headers)
+      pair = headers.find { |name, _value| name.to_s.casecmp?('retry-after') }
+      return nil unless pair
+
+      text = pair.last.to_s.strip
+      seconds = if text.match?(/\A\d+(?:\.\d+)?\z/)
+                  text.to_f
+                else
+                  http_date_wait(text)
+                end
+      seconds && [[seconds, 0.0].max, RETRY_AFTER_CAP_S].min
+    end
+
+    # Seconds from now until the HTTP date +text+ (negative once it is past),
+    # or +nil+ when +text+ is not an HTTP date.
+    def http_date_wait(text)
+      Time.httpdate(text) - Time.now
+    rescue ArgumentError
+      nil
+    end
+
+    # Wait +seconds+ between two attempts.
+    def pause(seconds)
+      sleep(seconds)
+    end
 
     # Send one hop of a call. With a +deadline+ (a monotonic clock reading)
     # the hop's connect, write and read timeouts are what remains of the

@@ -44,6 +44,11 @@ describe {{moduleName}}::DefaultApiClient do
     Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
   end
 
+  # Options that send every request once, for tests that expect one failure.
+  def single_attempt
+    {{moduleName}}::TransportOptions.builder.max_retries(0).build
+  end
+
   def stub_connection_with_query_encoder(stubs)
     Faraday.new('http://localhost') do |f|
       f.options.params_encoder = {{moduleName}}::DefaultApiClient::QueryParamsEncoder
@@ -1154,7 +1159,7 @@ describe {{moduleName}}::DefaultApiClient do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/slow') { raise Faraday::TimeoutError, 'execution expired' }
     end
-    client = {{moduleName}}::DefaultApiClient.new
+    client = {{moduleName}}::DefaultApiClient.new(single_attempt)
     client.stub(:build_connection, stub_connection(stubs)) do
       err = assert_raises({{moduleName}}::Errors::NetworkTimeoutError) do
         client.send_request('GET', 'http://localhost/slow', {}, nil)
@@ -1178,7 +1183,7 @@ describe {{moduleName}}::DefaultApiClient do
         end
       end
     end
-    client = {{moduleName}}::DefaultApiClient.new
+    client = {{moduleName}}::DefaultApiClient.new(single_attempt)
     client.stub(:build_connection, stub_connection(stubs)) do
       err = assert_raises({{moduleName}}::Errors::NetworkTimeoutError) do
         client.send_request('GET', 'http://localhost/connect-timeout', {}, nil)
@@ -1200,7 +1205,7 @@ describe {{moduleName}}::DefaultApiClient do
         end
       end
     end
-    client = {{moduleName}}::DefaultApiClient.new
+    client = {{moduleName}}::DefaultApiClient.new(single_attempt)
     client.stub(:build_connection, stub_connection(stubs)) do
       err = assert_raises({{moduleName}}::Errors::NetworkTimeoutError) do
         client.send_request('POST', 'http://localhost/write-timeout', {}, 'body')
@@ -1213,7 +1218,7 @@ describe {{moduleName}}::DefaultApiClient do
 
   it 'raises NetworkError when the connection is refused' do
     # Nothing listens on port 1, so the connect is refused for real.
-    client = {{moduleName}}::DefaultApiClient.new
+    client = {{moduleName}}::DefaultApiClient.new(single_attempt)
     err = assert_raises({{moduleName}}::Errors::NetworkError) do
       client.send_request('GET', 'http://127.0.0.1:1/refused', {}, nil)
     end
@@ -1234,7 +1239,7 @@ describe {{moduleName}}::DefaultApiClient do
         [502, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, 'not-actually-gzip']
       end
     end
-    client = {{moduleName}}::DefaultApiClient.new
+    client = {{moduleName}}::DefaultApiClient.new(single_attempt)
     client.stub(:build_connection, stub_connection(stubs)) do
       err = assert_raises({{moduleName}}::Errors::ApiError) do
         client.send_request('GET', 'http://localhost/gz', {}, nil)
@@ -1607,7 +1612,7 @@ describe {{moduleName}}::DefaultApiClient do
     end
 
     err = assert_raises({{moduleName}}::Errors::NetworkError) do
-      {{moduleName}}::DefaultApiClient.new.send_request('GET', "http://127.0.0.1:#{port}/truncated", {}, nil)
+      {{moduleName}}::DefaultApiClient.new(single_attempt).send_request('GET', "http://127.0.0.1:#{port}/truncated", {}, nil)
     end
     _(err).must_be_instance_of {{moduleName}}::Errors::NetworkError
     _(err.status_code).must_equal 0
@@ -1622,7 +1627,7 @@ describe {{moduleName}}::DefaultApiClient do
     end
 
     err = assert_raises({{moduleName}}::Errors::NetworkError) do
-      {{moduleName}}::DefaultApiClient.new.send_request('GET', "http://127.0.0.1:#{port}/short", {}, nil)
+      {{moduleName}}::DefaultApiClient.new(single_attempt).send_request('GET', "http://127.0.0.1:#{port}/short", {}, nil)
     end
     _(err.status_code).must_equal 0
     thread.join
@@ -1642,5 +1647,206 @@ describe {{moduleName}}::DefaultApiClient do
     _(err.status_code).must_equal 0
     _(err.cause).must_be_kind_of Faraday::TimeoutError
     thread.join
+  end
+
+  # ── F823: automatic retries with backoff ──
+  #
+  # The stub answers every attempt through +respond+ (called with the attempt
+  # number), the recorded pauses replace real sleeping, and +envs+ keeps each
+  # attempt's request.
+  def run_retry_probe(options: nil, verb: :get, headers: {}, body: nil, retry_headers: nil, &respond)
+    envs = []
+    delays = []
+    # One stub per possible attempt: the adapter consumes a stub per request.
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      10.times do
+        stub.public_send(verb, '/r') do |env|
+          envs << env
+          respond.call(envs.length)
+        end
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new(options || {{moduleName}}::TransportOptions.builder.build)
+    client.define_singleton_method(:pause) { |seconds| delays << seconds }
+    outcome = nil
+    client.stub(:build_connection, stub_connection(stubs)) do
+      outcome = begin
+        client.send_request(verb, 'http://localhost/r', headers, body, retry_headers: retry_headers)
+      rescue {{moduleName}}::Errors::NetworkError => e
+        e
+      end
+    end
+    [outcome, envs, delays]
+  end
+
+  def ok_after(attempts, failure)
+    ->(attempt) { attempt > attempts ? [200, { 'content-type' => 'text/plain' }, 'ok'] : failure }
+  end
+
+  it 'sends the request again after a 503 and returns the later success' do
+    outcome, envs, delays = run_retry_probe(&ok_after(2, [503, {}, 'busy']))
+
+    _(outcome.status_code).must_equal 200
+    _(outcome.body).must_equal 'ok'
+    _(envs.length).must_equal 3
+    _(delays.length).must_equal 2
+  end
+
+  it 'backs off from 0.5 s, doubling, with up to 25% jitter' do
+    _outcome, _envs, delays = run_retry_probe(options: {{moduleName}}::TransportOptions.builder.max_retries(5).build) do
+      [503, {}, 'busy']
+    end
+
+    _(delays.length).must_equal 5
+    [0.5, 1.0, 2.0, 4.0, 8.0].zip(delays).each do |ceiling, delay|
+      _(delay).must_be :<=, ceiling
+      _(delay).must_be :>=, ceiling * 0.75
+    end
+  end
+
+  [408, 409, 429, 500, 502, 503, 504, 599].each do |status|
+    it "retries a #{status} response and returns it once the retries are spent" do
+      outcome, envs, = run_retry_probe { [status, {}, 'no'] }
+
+      _(outcome.status_code).must_equal status
+      _(envs.length).must_equal 3
+    end
+  end
+
+  [400, 401, 403, 404, 422, 501].each do |status|
+    it "does not retry a #{status} response" do
+      outcome, envs, delays = run_retry_probe { [status, {}, 'no'] }
+
+      _(outcome.status_code).must_equal status
+      _(envs.length).must_equal 1
+      _(delays).must_be_empty
+    end
+  end
+
+  it 'sends once and never pauses when max_retries is 0' do
+    outcome, envs, delays = run_retry_probe(options: single_attempt) { [503, {}, 'busy'] }
+
+    _(outcome.status_code).must_equal 503
+    _(envs.length).must_equal 1
+    _(delays).must_be_empty
+  end
+
+  it 'sends 1 + max_retries requests at most' do
+    options = {{moduleName}}::TransportOptions.builder.max_retries(1).build
+    _outcome, envs, = run_retry_probe(options: options) { [503, {}, 'busy'] }
+
+    _(envs.length).must_equal 2
+  end
+
+  it 'waits as long as a Retry-After header in seconds says' do
+    _outcome, _envs, delays = run_retry_probe(&ok_after(1, [429, { 'retry-after' => '3' }, 'slow down']))
+
+    _(delays).must_equal [3.0]
+  end
+
+  it 'caps a Retry-After wait at 60 seconds' do
+    _outcome, _envs, delays = run_retry_probe(&ok_after(1, [503, { 'Retry-After' => '3600' }, 'later']))
+
+    _(delays).must_equal [60.0]
+  end
+
+  it 'reads a Retry-After header that is an HTTP date' do
+    date = (Time.now.utc + 30).httpdate
+    _outcome, _envs, delays = run_retry_probe(&ok_after(1, [503, { 'retry-after' => date }, 'later']))
+
+    _(delays.first).must_be_within_delta 30, 1.5
+  end
+
+  it 'falls back to the backoff when Retry-After cannot be read' do
+    _outcome, _envs, delays = run_retry_probe(&ok_after(1, [503, { 'retry-after' => 'soon' }, 'later']))
+
+    _(delays.first).must_be :<=, 0.5
+    _(delays.first).must_be :>=, 0.375
+  end
+
+  it 'retries a network error and returns the later success' do
+    flaky = lambda do |attempt|
+      raise Faraday::ConnectionFailed, 'reset' if attempt < 3
+
+      [200, { 'content-type' => 'text/plain' }, 'ok']
+    end
+    outcome, envs, = run_retry_probe(&flaky)
+
+    _(outcome.status_code).must_equal 200
+    _(envs.length).must_equal 3
+  end
+
+  it 'raises the last network error once the retries are spent' do
+    outcome, envs, delays = run_retry_probe { raise Faraday::ConnectionFailed, 'down' }
+
+    _(outcome).must_be_instance_of {{moduleName}}::Errors::NetworkError
+    _(outcome.status_code).must_equal 0
+    _(envs.length).must_equal 3
+    _(delays.length).must_equal 2
+  end
+
+  it 'does not retry a TLS failure' do
+    outcome, envs, = run_retry_probe { raise Faraday::SSLError, 'bad certificate' }
+
+    _(outcome).must_be_instance_of {{moduleName}}::Errors::NetworkError
+    _(envs.length).must_equal 1
+  end
+
+  it 'does not send a multipart body twice' do
+    outcome, envs, delays = run_retry_probe(verb: :post, body: { 'field' => 'value' }) { [503, {}, 'busy'] }
+
+    _(outcome.status_code).must_equal 503
+    _(envs.length).must_equal 1
+    _(delays).must_be_empty
+  end
+
+  it 'sends a string body again on a retry' do
+    _outcome, envs, = run_retry_probe(verb: :post, body: 'payload', &ok_after(1, [503, {}, 'busy']))
+
+    _(envs.map(&:body)).must_equal %w[payload payload]
+  end
+
+  it 'never lets a retry start after the timeout budget is spent' do
+    options = {{moduleName}}::TransportOptions.builder.timeout(1000).build
+    outcome, envs, delays = run_retry_probe(options: options, &ok_after(1, [503, { 'retry-after' => '30' }, 'later']))
+
+    _(outcome.status_code).must_equal 503
+    _(envs.length).must_equal 1
+    _(delays).must_be_empty
+  end
+
+  it 'raises the network error instead of waiting past the timeout budget' do
+    options = {{moduleName}}::TransportOptions.builder.timeout(100).build
+    outcome, envs, delays = run_retry_probe(options: options) { raise Faraday::ConnectionFailed, 'down' }
+
+    _(outcome).must_be_kind_of {{moduleName}}::Errors::NetworkError
+    _(envs.length).must_equal 1
+    _(delays).must_be_empty
+  end
+
+  it 'rebuilds the headers of a retry, authentication included' do
+    renewed = -> { { 'Authorization' => 'Bearer new' } }
+    _outcome, envs, = run_retry_probe(
+      headers: { 'Authorization' => 'Bearer old' }, retry_headers: renewed, &ok_after(1, [503, {}, 'busy'])
+    )
+
+    _(envs.map { |env| env.request_headers['Authorization'] }).must_equal ['Bearer old', 'Bearer new']
+  end
+
+  it 'gives a retry a new request id' do
+    options = {{moduleName}}::TransportOptions.builder.inject_request_id(true).build
+    _outcome, envs, = run_retry_probe(options: options, &ok_after(1, [503, {}, 'busy']))
+
+    ids = envs.map { |env| env.request_headers['X-Request-ID'] }
+    _(ids.uniq.length).must_equal 2
+  end
+
+  it 'stops retrying when the headers of a retry cannot be built' do
+    broken = -> { raise {{moduleName}}::Errors::OAuth2TokenError, 'no token' }
+    outcome, envs, delays = run_retry_probe(retry_headers: broken) { [503, {}, 'busy'] }
+
+    _(outcome.status_code).must_equal 503
+    _(envs.length).must_equal 1
+    _(delays).must_be_empty
   end
 end

@@ -27,10 +27,16 @@ describe 'README' do
   end
 
   it 'lists the unsupported features and says uniqueItems order is unspecified' do
-    ['### XML bodies and `nodeType`', '### Link Objects', '### Mutual TLS security schemes', '### Automatic retries'].each do |heading|
+    ['### XML bodies and `nodeType`', '### Link Objects', '### Mutual TLS security schemes'].each do |heading|
       _(readme).must_include heading
     end
     _(readme).wont_include 'ascending natural order'
     _(readme).must_include '## Development'
+  end
+
+  it 'documents the retry option and no longer says requests are never retried' do
+    _(readme).must_include '### Automatic retries'
+    _(readme).must_include 'max_retries(n)'
+    _(readme).wont_include 'never retries'
   end
 end
