@@ -216,12 +216,29 @@ public class BaseApi: @unchecked Sendable {
         }
 
         /* Send request */
-        let response = try await apiClient.sendRequest(
+        var response = try await apiClient.sendRequest(
             method: params.method,
             url: requestURL,
             headers: headers,
             body: serializedBody
         )
+
+        /* A revoked or rotated token keeps failing while it is cached. On a 401
+         * from a request that carried a token this SDK fetched, drop the token,
+         * obtain a new one (a refresh grant first) and replay the request once.
+         * A failed re-authentication leaves the 401 as it is. */
+        if response.statusCode == 401, let invalidating = effectiveAuth as? AccessTokenInvalidating {
+            invalidating.invalidateAccessToken()
+            if let fresh = try? await invalidating.authHeaders() {
+                headers = Self.mergeHeaders(headers, overriding: fresh)
+                response = try await apiClient.sendRequest(
+                    method: params.method,
+                    url: requestURL,
+                    headers: headers,
+                    body: serializedBody
+                )
+            }
+        }
 
         /* Check for errors */
         if response.statusCode < 200 || response.statusCode >= 300 {

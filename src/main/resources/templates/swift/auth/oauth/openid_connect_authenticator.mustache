@@ -9,7 +9,7 @@ import Foundation
 /// Conforms to ``HttpAwareAuthenticator`` so that both the discovery request and
 /// subsequent token exchange requests use the shared ``ApiClient`` with the same
 /// transport configuration (proxy, TLS, timeouts) as regular API calls.
-public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
+public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, AccessTokenInvalidating, @unchecked Sendable {
     private let _host: String
     private let openIDConnectURL: String
     private let clientID: String
@@ -39,6 +39,13 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
         /* OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid". */
         self.scopes = ["openid"] + scopes.filter { $0 != "openid" }
         super.init()
+    }
+
+    /// Drops the cached access token so that the next call fetches a fresh one
+    /// (a refresh grant first when a refresh token is held). The SDK calls this
+    /// itself when the API answers 401.
+    public func invalidateAccessToken() {
+        lock.withLock { delegate }?.invalidateAccessToken()
     }
 
     /// Returns the API base URL.
