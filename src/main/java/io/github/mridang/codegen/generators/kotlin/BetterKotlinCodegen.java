@@ -331,6 +331,16 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         };
     }
 
+    /**
+     * A schema named like a built-in type ({@code String}, {@code Any},
+     * {@code Int}) would shadow it across the whole models package, so it is
+     * generated with a {@code Model} prefix.
+     */
+    @Override
+    protected String getModelNameCollisionPrefix() {
+        return "Model";
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getUniqueItemsSetType() {
@@ -995,6 +1005,9 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 if (markEquality(prop)) {
                     hasContentEqualsField = true;
                 }
+                if (markPasswordRedaction(prop)) {
+                    hasContentEqualsField = true;
+                }
             }
             // A model with an additionalProperties overflow bucket also needs the
             // hand-written equals/hashCode: the bucket is a @Transient property in
@@ -1158,6 +1171,9 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                     if (markEquality(prop)) {
                         hasContentEqualsField = true;
                     }
+                    if (markPasswordRedaction(prop)) {
+                        hasContentEqualsField = true;
+                    }
                 }
                 model.vars = flattened;
                 if (hasContentEqualsField) {
@@ -1166,6 +1182,23 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             }
         }
         return result;
+    }
+
+    /**
+     * Marks a {@code format: password} property so the model's hand-written
+     * {@code toString} prints {@code ***} instead of the secret. The synthesized
+     * data-class {@code toString} would print it verbatim, so a model that
+     * carries such a property always gets the explicit override.
+     *
+     * @param prop the property to inspect
+     * @return {@code true} when the property is a password
+     */
+    private static boolean markPasswordRedaction(final CodegenProperty prop) {
+        if (prop.isPassword) {
+            prop.vendorExtensions.put("redactInToString", true);
+            return true;
+        }
+        return false;
     }
 
     /**

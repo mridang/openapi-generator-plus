@@ -75,21 +75,21 @@ Why: container leaves had bypassed the strict primitive checks in six SDKs. Kotl
 Where: `object_serializer.mustache` (`deserialize`, the `Strict*Serializer` objects).
 Test: generated `ObjectSerializerTest` (`getInventory` and `getMatrix` rows).
 
-### Content parameters use the SDK serializer in every location (S2, F054, D80, 2026-11-16) - query implemented, header, path and cookie pending
+### Content parameters use the SDK serializer in every location (S2, F054, D80, 2026-11-16) - implemented
 Rule: `content:` parameters are encoded through `objectSerializer.serialize` in query, header, path and cookie, with identical bytes in all twelve.
-Why: twelve different JSON encoders were in use. The query branch is already canonical in kotlin; the other three locations still need the same branch. See also D50.
+Why: twelve different JSON encoders were in use. Query, header, path and cookie all go through `ValueSerializer.serializeContent`, which calls the SDK serializer. See also D50.
 Where: `api/api.mustache`, `object_serializer.mustache`.
-Test: generated `PetApiTest` rows for a content-encoded parameter in each location.
+Test: generated `ValueSerializerTest` (`serializeContent` rows for header, path and cookie).
 
-### Schema constraints are not enforced (S3, F056, D55, 2026-11-16) - implemented, README rename pending
+### Schema constraints are not enforced (S3, F056, D55, 2026-11-16) - implemented
 Rule: the client does not promise to enforce pattern, minLength, maxLength, minimum, maximum, multipleOf, minItems or maxItems, and kotlin adds no enforcement.
-Why: the server owns validation; only python enforces, because pydantic does it natively and cheaply. The README section must be titled "Schema constraints"; kotlin's is still "Numeric / string constraint validation" and `dependentRequired` sits beside it.
+Why: the server owns validation; only python enforces, because pydantic does it natively and cheaply. The README section is titled "Schema constraints" and sits under Caveats; `dependentRequired` stays under Not supported.
 Where: `readme.mustache`.
 Test: none (absence); the petstore declares no such keyword.
 
-### allOf with a discriminator is a sealed interface plus flattened data classes (S4, F057, F802, 2026-11-16) - pending
+### allOf with a discriminator is a sealed interface plus flattened data classes (S4, F057, F802, 2026-11-16) - implemented
 Rule: the discriminated parent becomes a sealed interface, each subtype is a flattened data class that lists the common fields, and the subtype carries the discriminator. A model reused in two unions must not be re-parented: inheritance (here, the sealed interface) is only for the allOf-with-discriminator parent, and plain unions use interfaces or sealed types.
-Why: an `open data class` does not compile, which is why kotlin cannot inherit like java, csharp, node, python, ruby, php and dart. Today `model.mustache` emits a hand-written discriminating wrapper (`actualInstance` plus a serializer reading the discriminator) for discriminated oneOf; that wrapper stays for oneOf.
+Why: an `open data class` does not compile, which is why kotlin cannot inherit like java, csharp, node, python, ruby, php and dart. `model.mustache` renders the discriminated parent (`isDiscriminatedBase`) as a sealed interface with a discriminator-reading serializer, and each subtype lists the common fields and implements it. Discriminated oneOf keeps its hand-written wrapper (`actualInstance` plus a serializer reading the discriminator).
 Where: `models/model.mustache`.
 Test: the discriminated fixtures in the petstore (`DryFood`, `WetFood`, `PetFood`) through `ComposedSchemaTest` and `ObjectSerializerTest`.
 
@@ -99,27 +99,27 @@ Why: kotlin's `explicitNulls` and `encodeDefaults` are Json-wide, so the behavio
 Where: `models/model.mustache` (constructor property line), `object_serializer.mustache`.
 Test: `ObjectSerializerTest.requiredNullablePropertyKeepsItsKey`. The API surface check reads the `?` as optional, which `etc/api-surface-allow.json` allows for `requirednullable.note` on kotlin.
 
-### uniqueItems order is unspecified; do not sort (S6, F319, 2026-11-16) - pending removal of the sort
+### uniqueItems order is unspecified; do not sort (S6, F319, F871, 2026-11-16) - implemented
 Rule: sets go on the wire in the language's natural collection order (`LinkedHashSet` insertion order), documented in the README. Kotlin must not sort them.
-Why: this supersedes D69, which proposed ascending scalar order. The current `object_serializer.mustache` still rewrites set arrays with `SCALAR_ORDER`; that code is to be removed, not extended.
-Where: `object_serializer.mustache` (`isSetDescriptor`, `SCALAR_ORDER`), `BetterKotlinCodegen.getUniqueItemsSetType`.
-Test: generated `ObjectSerializerTest`.
+Why: this supersedes D69, which proposed ascending scalar order. The sort (`sortScalarSets`, `SCALAR_ORDER`) is removed from `object_serializer.mustache`; the README says the order is unspecified.
+Where: `object_serializer.mustache`, `BetterKotlinCodegen.getUniqueItemsSetType`.
+Test: generated `ObjectSerializerTest` (`scalarSetKeepsItsInsertionOrderOnTheWire`).
 
-### Cancellation is coroutine cancellation (S7, F228, 2026-11-16) - implemented in the transport, README pending
+### Cancellation is coroutine cancellation (S7, F228, F885, 2026-11-16) - implemented
 Rule: no new parameter. Cancelling the calling coroutine aborts the request and raises `CancellationException`, never the timeout error; `NetworkTimeoutException` is only for the SDK's timeout.
-Why: structured concurrency is what Kotlin callers already use (`withTimeout`, scope cancellation); a wrapper options object would be less natural. The transport rethrows `kotlinx.coroutines.CancellationException` untouched. The README still says "The SDK has no cancellation API of its own", which must be updated to name coroutine cancellation.
-Where: `default_api_client.mustache` (the catch that rethrows cancellation), `readme.mustache`.
+Why: structured concurrency is what Kotlin callers already use (`withTimeout`, scope cancellation); a wrapper options object would be less natural. The transport rethrows `kotlinx.coroutines.CancellationException` untouched. The README has a top-level Cancellation section naming coroutine cancellation and `withTimeout`, and SKILLS has the same under Configuration.
+Where: `default_api_client.mustache` (the catch that rethrows cancellation), `readme.mustache`, `skills.mustache`.
 Test: generated `DefaultApiClientTest`.
 
-### Parameter order (S8, F803, 2026-11-16, owner confirmation pending) - follows the shared rule
+### Parameter order (S8, F803, 2026-11-16, owner confirmation pending) - implemented
 Rule: required parameters, then server, then the optional-parameters Options object; kotlin has no per-call cancellation handle because the coroutine context carries it. Adding security never moves an argument.
 Why: adding a security scheme must not break existing server-only call sites.
 Where: `api/api.mustache`, `api/options.mustache`.
 Test: generated `PetApiTest`.
 
-### Injected transport (S9, F405, 2026-11-16) - pending
+### Injected transport (S9, F405, 2026-11-16) - implemented
 Rule: the client builder accepts a Ktor `HttpClient`, keeps the SDK defaults applied, never closes a caller-supplied client, and fails fast on conflicts with the SDK's own proxy, TLS or pool settings.
-Why: OpenAI, Stainless, Speakeasy, Fern, Azure and Stripe SDKs all accept the standard client. Today `DefaultApiClient` has only an internal constructor taking an `HttpClient` and its `close()` closes it, so ownership must be tracked when the public path lands.
+Why: OpenAI, Stainless, Speakeasy, Fern, Azure and Stripe SDKs all accept the standard client. `TransportOptions.builder().httpClient(...)` is the public path, `build()` rejects the conflicting settings, and `Client` is `AutoCloseable` and closes only a transport it created.
 Where: `client.mustache`, `configuration.mustache`, `default_api_client.mustache`, `http_client_factory_jvm.mustache`.
 Test: generated `ClientTest`, `DefaultApiClientTest`.
 
@@ -160,10 +160,10 @@ Where: `default_api_client.mustache`, `http_client_factory_jvm.mustache`, `trans
 Test: generated `DefaultApiClientTest`, `TransportOptionsTest`.
 
 ### Response and error shape (D13, D15, D16, D17, D18, D27, D92)
-Rule: an `ApiException` for an unusable response carries the real response headers; serializer messages are `Failed to serialize object to JSON: ...` and `Failed to deserialize JSON: ...`; the too-many-redirects message is `Too many redirects (exceeded N)`; the rendered `Response headers:` line is compact JSON with sorted keys; a leading BOM is stripped inside `parseToJsonElement` so the error-body path matches success; `ApiResult.headers` is a defensive copy (`headers.toMap()`); headers returned to the caller drop `Content-Encoding` and `Content-Length` after a decode.
+Rule: an `ApiException` for an unusable response carries the real response headers (every redirect refusal included); serializer messages are `Failed to serialize object to JSON: ...` and `Failed to deserialize JSON: ...`; the too-many-redirects message is `Too many redirects (exceeded N)`; the rendered `Response headers:` line is compact JSON with sorted keys (`ApiException.toString`); a leading BOM is stripped inside `parseToJsonElement` so the error-body path matches success; `ApiResult.headers` is a defensive copy (`response.headers.toMap()` in `invokeApiForResult`); headers returned to the caller drop `Content-Encoding` and `Content-Length` after a decode.
 Why: one message grammar and one header contract in all twelve.
 Where: `api_error.mustache`, `object_serializer.mustache`, `default_api_client.mustache`, `api_result.mustache`.
-Test: generated `ApiExceptionTest`, `ApiResultTest`, `ObjectSerializerTest`, `DefaultApiClientTest`.
+Test: generated `ApiExceptionTest`, `BaseApiTest`, `ObjectSerializerTest`, `DefaultApiClientUnitTest`.
 
 ### Request-header and User-Agent handling (D21, D22)
 Rule: the User-Agent and X-Request-ID injection checks are case-insensitive (`keys.none { it.equals(name, ignoreCase = true) }`) and the caller's header always wins; the default User-Agent product token is the artifactId, which defaults to the invoker package's last segment plus `-client`, so `com.example.petstore` gives `petstore-client`.
@@ -209,7 +209,7 @@ Test: generated `ObjectSerializerTest`.
 
 ### Equality and string form of models (D23, D24, F321, F455)
 Rule: models with a `ByteArray`, `Array`, `List<ByteArray>`, `Map<String, ByteArray>` or `BigDecimal` property, or an additionalProperties bucket, get a hand-written `equals`/`hashCode` (`contentEquals`, per-key comparison for maps, numeric comparison for `BigDecimal`, the `@Transient` bucket folded in); such models also get a field-dumping `toString` that is element-wise for byte arrays and appends the bucket; union wrappers get `equals`/`hashCode` too.
-Why: the synthesized data-class `equals` compares arrays by identity and excludes the `@Transient` bucket. `List<BigDecimal>` and `Map<String, BigDecimal>` fields still compare scale-sensitively because `eqDecimal` covers only a direct `BigDecimal` property; that is open (F455, needs a spec), see Known limitations.
+Why: the synthesized data-class `equals` compares arrays by identity and excludes the `@Transient` bucket (which is now a constructor parameter, see batch 6, so `copy()` carries it). `List<BigDecimal>` and `Map<String, BigDecimal>` fields still compare scale-sensitively because `eqDecimal` covers only a direct `BigDecimal` property; that is open (F455, needs a spec), see Known limitations.
 Where: `BetterKotlinCodegen.postProcessModels`, `models/model.mustache`.
 Test: generated `ObjectSerializerTest` and the model tests.
 
@@ -273,10 +273,24 @@ Why: not forced, but deferred; do not flag the absence of the ban.
 Where: `KotlinFormattingSpec.java`.
 Test: `KotlinFormattingSpec`.
 
+### Decisions taken in batch 6
+
+Each follows the audit's own proposal, because the owner had not decided; reopen only with new evidence.
+
+- **Redirect edge cases (F904, F902, F861).** A 3xx without a usable `Location` is returned unchanged even when the redirect budget is spent (the too-many-redirects error needs a followable `Location`); `maxRedirects` must not be negative (`Invalid maxRedirects: must not be negative (got N)`); the HTTPS-to-HTTP refusal carries the response headers; URLs in refusal messages drop their query and fragment, so a query-parameter API key never reaches a message (`redactUrl`).
+- **Timeout (D77, F924).** `timeout` must be null or greater than zero: `Invalid timeout: must be a positive number of milliseconds (got N)`. Zero is no longer accepted.
+- **Header and charset parsing (F905, F906, F901).** `Accept-Encoding` presence is case-insensitive like User-Agent; the response charset is read from a parameter named `charset` in any letter case with optional spaces around `=`, never from a name that only ends in it; a literal `+` in proxy userinfo is kept (`%2B` before `URLDecoder`).
+- **OAuth tokens (F854, F895, F863).** One expiry margin of 30 s is applied when the expiry is stored and none when it is read, so a token valid for 60 s is reused for 30 s; a token valid for 30 s or less is fetched again on every call. A `token_type` other than `Bearer` (any letter case) is refused with `Unsupported token_type in token response`; a missing or null one is accepted. The empty-code message is `Authorization code must not be empty` (blank is still rejected).
+- **Per-call authenticators (F856).** `BaseApi.invokeApi` hands the API's own transport to an `HttpAwareAuthenticator` passed per call, so a per-call OAuth2 or OpenID Connect authenticator no longer fails with the not-injected error. It does so on every call, which is idempotent.
+- **Models (F864, F867, F869).** `additionalProperties` is a `@Transient` constructor parameter (default empty), so a caller can supply it and `copy()` carries it (the copy shares the same map instance); a `format: password` property prints as `***` in `toString` (such a model gets the hand-written `equals`/`hashCode`/`toString`); every enum's `toString()` is its wire value.
+- **Names (F173).** `getModelNameCollisionPrefix` is `Model`, so a schema named `String`, `Any`, `Int` and the other language primitives becomes `ModelString` and so on.
+- **Docs (F883, F884, F885, F887, F888, F889, F890).** README has Installation and Usage, then Cancellation, Custom HTTP client and Raw responses/timeouts/request ids, then Caveats (decimal precision, Schema constraints) and Not supported (webhooks and callbacks, XML bodies, Link Objects, mutualTLS, automatic retries, `dependentRequired`, SOCKS, LICENSE, URI normalization). SKILLS has the Custom HTTP client and Cancellation sections, a model sample that sets its required properties, and the 30 s token margin.
+- **Not applicable to kotlin.** F929: the token-flow authenticators are `suspend`-only, so there is no sync accessor to guard. F149, F832, F839, F054, F057, F803: already conforming (the code and tests existed; only this file was stale).
+
 ## Known limitations and out of scope
 
-- Kotlin has no public injected-transport, no discriminated-allOf sealed interface, header/path/cookie content parameters through the serializer, and README text for cancellation and "Schema constraints" yet: these are owner decisions S9, S4, S2 and S7, listed above as pending.
-- `List<BigDecimal>` and `Map<String, BigDecimal>` fields compare scale-sensitively (F455, needs a spec; reported by the kotlin fix agent, unverified).
+- `List<BigDecimal>` and `Map<String, BigDecimal>` fields compare scale-sensitively (F455): the petstore declares no such field, so no test can lock a fix. Needs `weightHistory: {type: array, items: {type: number}}` and `weightByDate: {type: object, additionalProperties: {type: number}}` on Pet, then `eqListDecimal`/`eqMapDecimal` in `postProcessModels` and the model template.
+- Skipped in batch 6 because they need a cross-language decision or a shared-Java change: automatic retries (F823), per-call request options (F827), one configuration object (F828), request context on errors (F830), a `retryAfter` accessor on `TooManyRequestsException` (F831), tri-state optional nullable fields (F834), open enums and unions (F835), multi-value headers (F836), the streaming transport contract (F837), shared method classification (F838), form-style cookie encoding (F840), the 3.1 fallback wrappers (F843), 401 token invalidation (F855), per-scheme authenticators (F857), PKCE and nonce (F858), OIDC issuer and https checks (F859), default headers on token requests (F860), credential providers (F862), typed additionalProperties (F865), the `$ref` sibling default (F866), the binary request type (F826), the response size cap (F908), package metadata (F894), parameter example docs (F893), environment proxies (F090).
 - Strict-key `unevaluatedProperties` is not on the production deserialize path (second audit tail).
 - Multipart tests are structural, not byte-level, because Ktor's body is opaque to the test.
 - Overflowing double literals such as `1e400` decode to Infinity in kotlin (F390, parked: the stated no-non-finite contract is unmet in java, kotlin, python, node, ruby, php, dart).
@@ -285,6 +299,7 @@ Test: `KotlinFormattingSpec`.
 - The debug string field sets of the OAuth2 authenticators differ per language (F285), not harmonised.
 - OpenAPI 3.1 and 3.2 features follow the epics #96 (3.1) and #49 (3.2); loading 3.2 documents is #50 because the pinned swagger-parser rejects it. SOCKS proxies are not supported (the README says so).
 - F287 (constructor shape drift, `refreshUrl` position) is done for kotlin; F332 (binary responses stream-typed) is done for kotlin.
+- Redirect refusals, the too-many-redirects message, `Invalid timeout` and the serializer messages now use the D16, D77 and D15 wording.
 - Not classified: D68 (a model missing required properties cannot be built) is marked "Needs user" for java, node and rust and "already canonical" for kotlin; the owner has not decided it.
 
 ## Build-breaking rules
