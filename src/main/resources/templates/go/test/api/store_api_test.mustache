@@ -27,14 +27,20 @@ func newStoreApiForIntegration(t *testing.T) *{{packageName}}.StoreApi {
 		BaseURL(chasmURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	/* These tests expect exactly one request: retries are covered in
+	 * base_api_test. */
+	transport, err := {{packageName}}.NewTransportOptionsBuilder().MaxRetries(0).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := {{packageName}}.NewDefaultApiClient(transport)
 	return {{packageName}}.NewStoreApi(client, config, nil)
 }
 
 func newStoreApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.StoreApi {
 	t.Helper()
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := {{packageName}}.NewDefaultApiClient(noRetryTransport(t))
 	return {{packageName}}.NewStoreApi(client, config, nil)
 }
 
@@ -92,7 +98,7 @@ func TestStoreApi_GetOrderByIdPicksTheStatusSpecificErrorClass(t *testing.T) {
 		config := {{packageName}}.NewConfigurationBuilder().
 			BaseURL(fmt.Sprintf("%s/test/status/%d", chasmURL, tc.status)).
 			Build()
-		api := {{packageName}}.NewStoreApi({{packageName}}.NewDefaultApiClient(nil), config, nil)
+		api := {{packageName}}.NewStoreApi({{packageName}}.NewDefaultApiClient(noRetryTransport(t)), config, nil)
 		_, err := api.GetOrderById(context.Background(), int64(1))
 		if err == nil {
 			t.Fatalf("status %d: expected an error", tc.status)

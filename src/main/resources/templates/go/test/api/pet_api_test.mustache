@@ -47,14 +47,20 @@ func newPetApiForIntegration(t *testing.T) *{{packageName}}.PetApi {
 		BaseURL(chasmURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	/* These tests expect exactly one request: retries are covered in
+	 * base_api_test. */
+	transport, err := {{packageName}}.NewTransportOptionsBuilder().MaxRetries(0).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := {{packageName}}.NewDefaultApiClient(transport)
 	return {{packageName}}.NewPetApi(client, config, nil)
 }
 
 func newPetApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.PetApi {
 	t.Helper()
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
-	client := {{packageName}}.NewDefaultApiClient(nil)
+	client := {{packageName}}.NewDefaultApiClient(noRetryTransport(t))
 	return {{packageName}}.NewPetApi(client, config, nil)
 }
 
