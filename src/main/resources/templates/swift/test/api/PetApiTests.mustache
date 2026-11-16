@@ -582,6 +582,18 @@ final class PetApiTests {
                 try await $0.getMultiServerPetInfo(
                     petId: 3, server: GetMultiServerPetInfoServerRegional(region: .AP))
             } == "https://ap.example.com/v1/pet/3/multi")
+        /* The Mirror server's variables hold reserved characters that go into
+           the URL as they are, with no entity escaping. */
+        #expect(
+            try await operationServerUrl {
+                try await $0.getMultiServerPetInfo(
+                    petId: 3, server: GetMultiServerPetInfoServerMirror(region: .EU, channel: .A_B))
+            } == "https://eu.mirror.example.com/a&b/v1/pet/3/multi")
+        #expect(
+            try await operationServerUrl {
+                try await $0.getMultiServerPetInfo(
+                    petId: 3, server: GetMultiServerPetInfoServerMirror(region: .US, channel: .IT_S))
+            } == "https://us.mirror.example.com/it's/v1/pet/3/multi")
     }
 
     /* Without a server of its own the call uses the configured base URL. */

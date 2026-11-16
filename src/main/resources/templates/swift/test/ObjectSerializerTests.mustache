@@ -658,6 +658,21 @@ import Testing
         #expect(decoded?.ceiling == 9_000_000_000)
     }
 
+    /* D84: request JSON writes the line separators U+2028 and U+2029, the
+       slash and the HTML characters as they are, and escapes only the quote,
+       the backslash and control characters. */
+    @Test func testRequestJsonWritesLineSeparatorsAndSlashLiterally() throws {
+        struct Holder: Codable { let text: String }
+        let json = try ObjectSerializer.serialize(Holder(text: "a\u{2028}b\u{2029}c/<>&"))
+        #expect(json == "{\"text\":\"a\u{2028}b\u{2029}c/<>&\"}")
+    }
+
+    @Test func testRequestJsonEscapesQuoteBackslashAndControlCharacters() throws {
+        struct Holder: Codable { let text: String }
+        let json = try ObjectSerializer.serialize(Holder(text: "q\"b\\\n"))
+        #expect(json == #"{"text":"q\"b\\\n"}"#)
+    }
+
     // MARK: - Every wire-shape failure is a SerializationError
 
     /* Malformed JSON, a wrong primitive type, a missing required field, an

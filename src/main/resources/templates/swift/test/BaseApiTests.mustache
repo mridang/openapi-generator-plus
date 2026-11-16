@@ -396,6 +396,26 @@ import Testing
         #expect(accepts.values.first == "application/xml")
     }
 
+    /* An Accept the operation sets itself beats both the configured default
+       and the negotiated one. */
+    @Test func testHeaderParameterAcceptWinsOverConfigDefaultAndNegotiated() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder()
+            .baseURL("https://example.com")
+            .defaultHeader(name: "Accept", value: "text/plain")
+            .build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let params = BaseApi.InvokeAPIParams(
+            method: "GET", path: "/items", queryParams: [:],
+            headerParams: ["Accept": "application/xml"], body: nil,
+            accepts: ["application/json"], contentType: "application/json",
+            returnType: "String", auth: BaseApi.noAuthSentinel)
+
+        _ = try await api.invokeAPI(params)
+
+        #expect(mockClient.lastHeaders["Accept"] == "application/xml")
+    }
+
     @Test func testMergeHeadersReplacesEverySpellingOfAName() {
         let merged = BaseApi.mergeHeaders(
             ["Accept": "a", "ACCEPT": "b", "X-Other": "o"], overriding: ["accept": "c"])
@@ -715,6 +735,20 @@ import Testing
             .server(Servers.server1, variables: ["environment": "invalid"])
             .build()
         }
+    }
+
+    /* The third global server carries quotes, an ampersand, a dollar sign and
+       an interpolation opener in its text; all of it round-trips unchanged. */
+    @Test func testHostileGlobalServerTextRoundTripsUnchanged() throws {
+        let server = Servers.server2
+        #expect(server.urlTemplate == "https://{tenant}.example.com/api")
+        #expect(server.description == "Bob's \"sandbox\" & co: $5 #{x} a*/b")
+        let tenant = try #require(server.variables["tenant"])
+        #expect(tenant.defaultValue == "o'neil")
+        #expect(tenant.description == "Tenant's \"id\"")
+        #expect(tenant.enumValues == ["o'neil", "a&b"])
+        #expect(try server.url() == "https://o'neil.example.com/api")
+        #expect(try server.url(variables: ["tenant": "a&b"]) == "https://a&b.example.com/api")
     }
 
     // MARK: - Query serialization
