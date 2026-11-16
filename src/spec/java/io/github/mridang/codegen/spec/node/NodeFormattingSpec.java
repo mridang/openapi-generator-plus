@@ -46,4 +46,13 @@ public class NodeFormattingSpec extends AbstractFormattingSpec implements NodeSp
             "Generated TypeScript code is not properly formatted:\n%s", result.output())
         .isTrue();
   }
+
+  @Test
+  void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+    String src = java.nio.file.Files.readString(tempOutputDir.resolve("src/api/pet-api.ts"));
+    assertThat(src)
+        .as("node pet-api.ts should attribute plural examples to their parameter")
+        .contains("@example petId: Small breed ID - 1")
+        .contains("@example petId: Large breed ID - 42");
+  }
 }

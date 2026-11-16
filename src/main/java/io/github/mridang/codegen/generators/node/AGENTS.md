@@ -197,7 +197,7 @@ Where: `abstract_api_client.mustache` (`buildContentDisposition`), `value_serial
 Test: `test/value-serializer.test.mustache`, `test/base-api.test.mustache`.
 
 ### Codegen escaping and names (D40, D41, D42, D43, D46, D60, D61)
-Rule: string literals use the shared escaper; doc prose and manifest descriptions use triple braces with a `*/` guard and `lambda.jsonString` in `package.mustache`; one `export enum` per server variable; a `$ref` enum default becomes the typed member (`Availability.OnHold`); a branded decimal default is `'1.5' as Decimal`.
+Rule: string literals use the shared escaper; doc prose and manifest descriptions use triple braces with a `*/` guard and `lambda.jsonString` in `package.mustache`; one const object plus literal union per server variable (F846); a `$ref` enum default becomes the typed member (`Availability.OnHold`); a branded decimal default is `'1.5' as Decimal`.
 Why: a literal must evaluate to exactly the spec's bytes.
 Where: `BetterNodeCodegen.toDefaultValue`, `toEnumVarName`, `api/apis.mustache`, `servers.mustache`, `package.mustache`.
 Test: `NodeReservedWordsSpec`, golden diff.
@@ -234,7 +234,7 @@ Test: none beyond the golden.
 
 ## Known limitations and out of scope
 
-Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; the pinned swagger-parser rejects 3.2 documents (#50). The fetch-only transport cannot do proxies, a custom CA or disabled TLS verification and throws `TypeError` at construction. `Decimal` decode is lossy (F075, F133) until a reviver using `context.source` lands. int64 values beyond 2^53 are not preserved. The F469 and F470 container leaf and bare primitive checks cannot be locked until the petstore has those operations (spec change needed). The F446 raw operation-server description interpolated into a block comment is open. F779 (the petstore needs a model with `additionalProperties: {type: string}`) is open and needs a shared spec change; until then the index signature and the `additionalProperties` accessor are `unknown`-typed (F782: the typed branches were dead code and are gone, so the accessor can no longer conflict with the index signature). F278 is closed (`quoteSingle` escapes the scheme name, pinned by `BetterNodeCodegenTest`). F749 is closed (the base-api test warms the connection up in a `beforeAll`). F848 (error bodies decoded against a declared error schema), F846 (string enums as a const object plus literal union) and F852 (`prefixItems` tuples, under epic #96) are open. F191: typedoc is warnings-fatal in the Makefile but no spec runs it. Integer-enum casing is parked (F308), and the missing discriminator default (F129), and `format: time` parameters (F071) are parked as shared steps. The sorted-`Set` proposal (D69) and F090 environment proxy handling are not applied to node: node ignores ambient proxy variables because it only uses `TransportOptions.proxy`.
+Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; the pinned swagger-parser rejects 3.2 documents (#50). The fetch-only transport cannot do proxies, a custom CA or disabled TLS verification and throws `TypeError` at construction. `Decimal` decode is lossy (F075, F133) until a reviver using `context.source` lands. int64 values beyond 2^53 are not preserved. The F469 and F470 container leaf and bare primitive checks cannot be locked until the petstore has those operations (spec change needed). The F446 raw operation-server description interpolated into a block comment is open. F779 (the petstore needs a model with `additionalProperties: {type: string}`) is open and needs a shared spec change; until then the index signature and the `additionalProperties` accessor are `unknown`-typed (F782: the typed branches were dead code and are gone, so the accessor can no longer conflict with the index signature). F278 is closed (`quoteSingle` escapes the scheme name, pinned by `BetterNodeCodegenTest`). F749 is closed (the base-api test warms the connection up in a `beforeAll`). F848 (error bodies decoded against a declared error schema) and F852 (`prefixItems` tuples, under epic #96) are open. F191: typedoc is warnings-fatal in the Makefile but no spec runs it. Integer-enum casing is parked (F308), and the missing discriminator default (F129), and `format: time` parameters (F071) are parked as shared steps. The sorted-`Set` proposal (D69) and F090 environment proxy handling are not applied to node: node ignores ambient proxy variables because it only uses `TransportOptions.proxy`.
 
 ## Build-breaking rules
 
@@ -358,3 +358,39 @@ Where: `abstract_api_client.mustache`, `transport_options.mustache`, `api_client
 
 ### Already conforming
 F1080 (the rendered `ApiError.toString()` cap, escapes and header masks; control characters are `\n`, `\r`, `\t` and `\uNNNN`, the JS idiom). F825 is rust only.
+
+## Decisions taken in batch 10
+
+Each uses the audit's own proposal as the default; none was re-opened with the owner.
+
+### Enums are a const object plus a literal union (F846)
+Rule: every generated enum (model, inline model field, operation parameter, server variable) is `export const X = { Member: 'wire' } as const;` with `export type X = (typeof X)[keyof typeof X];`. Member access is unchanged (`Availability.OnHold`) and a plain literal (`'on-hold'`, `2`) is assignable. Numeric enums lose the TypeScript reverse mapping, so the membership filters are now a no-op for them but stay.
+Where: `models/model.mustache`, `api/apis.mustache`. Test: `test/object-serializer.test.mustache` (`a model enum accepts its literal wire values`).
+
+### Closing aborts running requests (F1078)
+Rule: `DefaultApiClient.close()` calls `dispatcher.destroy()`, not `close()`, so a request still running through the SDK's own dispatcher (proxy, custom CA or `verifySsl(false)`) fails with `NetworkError` instead of keeping `close()` waiting. A client on the default global `fetch` has no dispatcher and nothing to abort.
+Where: `default_api_client.mustache`. Test: `test/default-api-client-unit.test.mustache`.
+
+### Path values are never replacement patterns (F1057)
+Rule: the path parameter token is replaced with a function, so `$&`, `$$`, `$'` and `` $` `` in a value reach the URL as written. Test: `test/api/pet-api.test.mustache` (`getPetByName puts the value ... in the path as written`).
+
+### OIDC discovery is checked (F859)
+Rule: the discovery URL must be https (or an http loopback host: `localhost`, `127.0.0.1`, `[::1]`), else `TypeError('OIDC discovery URL must use https')` before any request; a document `issuer` that differs from the discovery URL minus `/.well-known/openid-configuration` (trailing slash ignored) is a `SerializationError`; `authorization_endpoint` and `token_endpoint` must be https or loopback (`OIDC discovery document field must be an https URL: <field>`). The base OAuth2 constructors do not check their URLs yet.
+Where: `auth/oauth/openid_connect_authenticator.mustache`. Test: `test/openid-connect-authenticator.test.mustache`.
+
+### Error and message details
+- F831: `TooManyRequestsError.retryAfter` is the `Retry-After` header as seconds (the header's seconds, or the time left to its HTTP date, never negative); `null` when absent or unparseable. Test: `test/api-error.test.mustache`.
+- F1104: the model decode failure says `Failed to deserialize JSON: <detail>` (it said `Failed to deserialize object`), the D15 stem. A serialize failure keeps its cause. Test: `test/object-serializer.test.mustache`, `test/composed-schema.test.mustache`.
+- F1103: the CA read failure appends the cause (`failed to read CA certificate from "<path>": <cause>`); the parse message is unchanged. Test: `test/default-api-client-unit.test.mustache` (missing file, directory, empty file, garbage).
+- F1160: `ApiResult.headers` is a frozen copy of the transport map (D27). Test: `test/base-api.test.mustache`.
+- F1071: the doc comment names the parameter (`@example petId: Small breed ID - 1`, `@example options.<name>: ...` for options). Test: `NodeFormattingSpec.pluralExamplesShouldBeAttributedToParameter`.
+
+### Tooling and documentation
+- F1088: `make lint` also runs `prettier --check .`. F1077: `make audit` runs `npm audit --omit=dev`; the README has a "Dependency audit" section.
+- F884, F889, F890: the README has Raw responses, Timeouts, Automatic retries, Expired tokens, Request id, Cancellation and Custom HTTP client under Quick start (before Develop), and Schema constraints under Caveats; SKILLS has Custom Transport Options, Retries, Custom HTTP client, Cancellation and Raw responses, timeouts and the request id under Configuration. Test: `test/client.test.mustache` (`generated documentation`).
+
+### Tests added to close parity gaps
+F926 (the three token-response messages as a table), F1065 (IPv6 proxy), F1074 (`bearerxyz` kept whole, doubled prefix stripped once), F1167 (default user agent is `<name>/<version> (node)` read from `package.json`), F1170 (null body sends no body and no `Content-Type`, GET and POST), F1112 (BinaryVault equality, bare, list and map), F1124 (`nickname` `ZZZZZZZZZZ`, `slug` `12/ab`), F1135 (identity `Content-Encoding`), F1141 (`getDefaults`), F1154 (`BetterNodeCodegenTest`: server before the options object, the `| undefined` form, no server).
+
+### Skipped in batch 10
+F823 stands as done in batch 9. F827, F828, F830, F834, F835, F836, F837, F868, F1058, F1060, F1062 are the cross-language decisions not yet taken. F840, F843, F862, F1056, F1061, F1081, F1087 need an owner decision. F848, F857, F865, F866 need shared Java or a spec change. F858 stands as PKCE only (no ID token is validated, so no nonce). F894, F1085, F1157, F1172, F1180 live in shared options, fixtures, specs or `etc/`. F1082 changes the `format: date` type. F1182 needs the dart `ExplodedObject` rename in the same change. F853 is complete except standalone operation functions, which change the API surface.

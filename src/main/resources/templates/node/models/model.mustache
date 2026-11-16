@@ -25,13 +25,14 @@ import { {{classname}} } from './{{filename}}{{importFileExtension}}';
  */
 {{/description}}
 {{/isDeprecated}}
-export enum {{classname}} {
+export const {{classname}} = {
 {{#allowableValues}}
   {{#enumVars}}
-  {{{name}}} = {{{value}}},
+  {{{name}}}: {{{value}}},
   {{/enumVars}}
 {{/allowableValues}}
-}
+} as const;
+export type {{classname}} = (typeof {{classname}})[keyof typeof {{classname}}];
 
 {{/isEnum}}
 {{^isEnum}}
@@ -1332,13 +1333,14 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 
 {{#vars}}
 {{#isEnum}}
-export enum {{classname}}{{enumName}} {
+export const {{classname}}{{enumName}} = {
 {{#allowableValues}}
   {{#enumVars}}
-  {{{name}}} = {{{value}}},
+  {{{name}}}: {{{value}}},
   {{/enumVars}}
 {{/allowableValues}}
-}
+} as const;
+export type {{classname}}{{enumName}} = (typeof {{classname}}{{enumName}})[keyof typeof {{classname}}{{enumName}}];
 {{/isEnum}}
 {{/vars}}
 {{/hasEnums}}

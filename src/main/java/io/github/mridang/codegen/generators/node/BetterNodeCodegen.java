@@ -985,7 +985,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      * </ul>
      */
     @SuppressWarnings("unchecked")
-    private void populateRequestWrapper(CodegenOperation op) {
+    void populateRequestWrapper(CodegenOperation op) {
         if (op == null) {
             return;
         }

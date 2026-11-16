@@ -310,7 +310,9 @@ export abstract class BaseApi {
       statusCode: response.statusCode,
       data,
       rawBody: response.body,
-      headers: response.headers
+      /* A frozen copy: a caller that edits the transport's map afterwards
+       * cannot change a result it already holds (D27). */
+      headers: Object.freeze({ ...response.headers })
     };
   }
 

@@ -58,6 +58,72 @@ size-sensitive edge bundle, import a single API class (for example
 `{{#apiInfo}}{{#apis}}{{#-first}}{{classname}}{{/-first}}{{/apis}}{{/apiInfo}}`) instead of the `{{clientClassName}}` facade, which
 constructs every API group.
 
+### Raw responses
+
+Every operation has a `...WithHttpInfo` variant returning an `ApiResult<T>` with
+`statusCode`, `data`, `rawBody` and the lower-cased `headers` (a frozen copy). It
+is the way to read a response header.
+
+### Timeouts
+
+`TransportOptions.builder().timeout(5000)` sets one end-to-end budget in
+milliseconds (a positive number) for the whole call, redirects and retries
+included. A call that exceeds it fails with `NetworkTimeoutError`. The default is
+10 seconds; `timeout(null)` waits indefinitely.
+
+### Automatic retries
+
+Every call is retried up to twice by default (`TransportOptions.builder().maxRetries(n)`, `0`
+disables it). A request is retried after a network error that happened before any
+response arrived and after a `408`, `409`, `429` or `5xx` response other than `501`.
+The wait is 0.5 s doubling to 8 s with up to 25% jitter, or the server's `Retry-After`
+(seconds or an HTTP date, at most 60 s). The retries share the one end-to-end `timeout`
+(they never extend it), stop at once when the call is cancelled, rebuild every header and
+ask the authenticator for its headers again. A timeout and a failure while reading a
+response body that did arrive are not retried.
+
+### Expired tokens
+
+When an OAuth2 or OpenID Connect call is answered with 401, the cached access
+token is dropped (the refresh token is kept) and the request is sent once more
+with fresh headers. A second 401 is raised as `UnauthorizedError`. A multipart
+body is not replayed, and API key, basic and bearer authenticators never replay.
+
+### Request id
+
+`TransportOptions.builder().injectRequestId(true)` adds a unique `X-Request-ID`
+header to every request unless you set your own (header names are matched
+case-insensitively). Quote it when you report a problem with a call.
+
+### Cancellation
+
+Every operation takes a trailing `RequestOptions` object carrying an
+`AbortSignal`; aborting it cancels that call:
+
+```typescript
+const controller = new AbortController();
+// An operation with optional parameters takes them before the signal: pass
+// `undefined` to skip them.
+const pending = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{ signal: controller.signal }){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
+controller.abort();
+await pending; // rejects with the signal's reason (an AbortError by default)
+```
+
+Pass a client-level signal as the third constructor argument
+(`new Client(authenticator, undefined, { signal })`) to cancel every call made
+through the client. The client-level and the per-call signals are merged: either
+one cancels the call. Cancellation is distinct from the timeout, which still fails
+with `NetworkTimeoutError`.
+
+### Custom HTTP client
+
+The transport is `fetch`: `TransportOptions.builder().fetch(myFetch).fetchOptions({ ... })` routes every
+request through your own `fetch` implementation. The SDK still applies its
+timeout, user agent, redirect policy and header handling on top, and never
+closes anything you supply. Combining a custom `fetch` with `proxy`,
+`caCertPath` or `verifySsl(false)` throws a `TypeError` at `build()`, because
+those belong on the `fetch` you provide.
+
 ## Develop
 
 ```bash
@@ -80,6 +146,12 @@ npm run format     # prettier (uses .prettierrc.json)
 npm run lint       # eslint 9 flat config (eslint.config.js)
 npm run typecheck  # tsc --noEmit (strict mode)
 npm run build      # tsc (emit to ./dist)
+```
+
+## Dependency audit
+
+```bash
+npm audit --omit=dev   # or: make audit
 ```
 
 ## Package
@@ -106,6 +178,19 @@ arithmetic operators (`+`, `<`, etc.) for every existing consumer.
 
 Source: ECMA-262 §6.1.6.1.
 
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server. The
+generated models do not check them: the class-transformer model layer has no
+native constraint validation, so none of them is enforced client-side (only
+Python validates them natively, through pydantic). If you want fast-fail
+validation before the network round trip, plug in a JSON Schema validator
+library.
+
+`uniqueItems` arrays are sent in the natural order of the collection
+(a `Set` keeps its insertion order), not sorted.
+
 ## Not supported
 
 ### Webhooks and callbacks
@@ -124,19 +209,6 @@ also required" are **not enforced** by this SDK. No mainstream
 OpenAPI client codegen implements them. The server is the authoritative
 validator; if you want client-side checking, plug in a JSON Schema
 validator library for your language.
-
-### Schema constraints
-
-The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
-`multipleOf`, `minItems` and `maxItems` are validated by the server. The
-generated models do not check them: the class-transformer model layer has no
-native constraint validation, so none of them is enforced client-side (only
-Python validates them natively, through pydantic). If you want fast-fail
-validation before the network round trip, plug in a JSON Schema validator
-library.
-
-`uniqueItems` arrays are sent in the natural order of the collection
-(a `Set` keeps its insertion order), not sorted.
 
 ### XML bodies and `nodeType`
 
@@ -161,46 +233,6 @@ require enabling extra dependencies / feature flags on the underlying
 HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
-
-### Per-call cancellation
-
-Every operation takes a trailing `RequestOptions` object carrying an
-`AbortSignal`; aborting it cancels that call:
-
-```typescript
-const controller = new AbortController();
-// An operation with optional parameters takes them before the signal: pass
-// `undefined` to skip them.
-const pending = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{ signal: controller.signal }){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
-controller.abort();
-await pending; // rejects with the signal's reason (an AbortError by default)
-```
-
-Pass a client-level signal as the third constructor argument
-(`new Client(authenticator, undefined, { signal })`) to cancel every call made
-through the client. The client-level and the per-call signals are merged: either
-one cancels the call. Cancellation is distinct from the timeout, which still fails
-with `NetworkTimeoutError`.
-
-### Custom `fetch`
-
-`TransportOptions.builder().fetch(myFetch).fetchOptions({ ... })` routes every
-request through your own `fetch` implementation. The SDK still applies its
-timeout, user agent, redirect policy and header handling on top, and never
-closes anything you supply. Combining a custom `fetch` with `proxy`,
-`caCertPath` or `verifySsl(false)` throws a `TypeError` at `build()`, because
-those belong on the `fetch` you provide.
-
-### Automatic retries
-
-Every call is retried up to twice by default (`TransportOptions.builder().maxRetries(n)`, `0`
-disables it). A request is retried after a network error that happened before any
-response arrived and after a `408`, `409`, `429` or `5xx` response other than `501`.
-The wait is 0.5 s doubling to 8 s with up to 25% jitter, or the server's `Retry-After`
-(seconds or an HTTP date, at most 60 s). The retries share the one end-to-end `timeout`
-(they never extend it), stop at once when the call is cancelled, rebuild every header and
-ask the authenticator for its headers again. A timeout and a failure while reading a
-response body that did arrive are not retried.
 
 ### `LICENSE` file is not auto-emitted
 
