@@ -63,6 +63,38 @@ export class PetTreatment {
   }
 
   /**
+   * Value equality: two composites are equal when they retain equal variants
+   * in the same order. Each variant's own equals() decides, so a variant
+   * without one is equal only to itself.
+   */
+  equals(other: unknown): boolean {
+    if (this === other) {
+      return true;
+    }
+    if (!(other instanceof PetTreatment)) {
+      return false;
+    }
+    if (this.matchedInstances.length !== other.matchedInstances.length) {
+      return false;
+    }
+    return this.matchedInstances.every((item, index) => {
+      const left: unknown = item;
+      const right: unknown = other.matchedInstances[index];
+      if (left === right) {
+        return true;
+      }
+      if (
+        typeof left === "object" &&
+        left !== null &&
+        typeof (left as { equals?: unknown }).equals === "function"
+      ) {
+        return (left as { equals(o: unknown): boolean }).equals(right);
+      }
+      return false;
+    });
+  }
+
+  /**
    * Merge the own-enumerable fields of every retained variant into a single
    * plain object. Used by {@link ObjectSerializer.serialize} so re-encoding a
    * co-satisfied composite emits the UNION of all variants' fields (lossless

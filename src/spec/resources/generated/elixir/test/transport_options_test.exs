@@ -227,4 +227,27 @@ defmodule PetstoreClient.TransportOptionsTest do
     opts = PetstoreClient.TransportOptions.new(proxy: "http://proxy.example.com:8080")
     assert opts.proxy == "http://proxy.example.com:8080"
   end
+
+  test "inspect masks the proxy password and sensitive default headers" do
+    opts =
+      PetstoreClient.TransportOptions.new(
+        proxy: "http://user:hunter2@proxy.example.com:8080",
+        default_headers: %{
+          "Authorization" => "Bearer abc123",
+          "Proxy-Authorization" => "Basic abc123",
+          "Cookie" => "sid=abc123",
+          "X-Api-Key" => "abc123",
+          "X-Auth-Token" => "abc123",
+          "X-Client-Secret" => "abc123",
+          "Accept" => "application/json"
+        }
+      )
+
+    shown = inspect(opts)
+    refute shown =~ "hunter2"
+    refute shown =~ "abc123"
+    assert shown =~ "http://user:***@proxy.example.com:8080"
+    assert shown =~ "application/json"
+    assert opts.proxy == "http://user:hunter2@proxy.example.com:8080"
+  end
 end

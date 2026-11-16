@@ -16,7 +16,7 @@ import javax.annotation.Nullable;
     using = TreatmentRecord.TreatmentRecordDeserializer.class)
 public class TreatmentRecord {
 
-  private static final Class<?>[] ANY_OF_SCHEMAS = {Medication.class, Surgery.class};
+  private static final Class<?>[] ANY_OF_SCHEMAS = {Surgery.class, Medication.class};
 
   /* anyOf is inclusive: a payload may satisfy several variants at once
    * (e.g. an object whose fields cover both Medication and Surgery). Unlike
@@ -86,6 +86,25 @@ public class TreatmentRecord {
    */
   public java.util.List<Object> getMatchedInstances() {
     return java.util.Collections.unmodifiableList(matchedInstances);
+  }
+
+  /* Value equality on the retained variants, in order, so two unions decoded
+   * from the same JSON compare equal (byte[] and List variants by content). */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof TreatmentRecord other)) {
+      return false;
+    }
+    return com.example.petstore.ObjectSerializer.structuralEquals(
+        this.matchedInstances, other.matchedInstances);
+  }
+
+  @Override
+  public int hashCode() {
+    return com.example.petstore.ObjectSerializer.structuralHashCode(matchedInstances);
   }
 
   /* Re-encode as the union of every retained variant's fields. When the

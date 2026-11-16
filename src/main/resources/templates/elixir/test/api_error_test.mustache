@@ -224,6 +224,25 @@ defmodule {{moduleName}}.ApiErrorTest do
       end
     end
 
+    test "every status-specific error accepts an optional cause" do
+      cause = %RuntimeError{message: "root cause"}
+
+      for module <- [
+            {{moduleName}}.Errors.BadRequestError,
+            {{moduleName}}.Errors.UnauthorizedError,
+            {{moduleName}}.Errors.ForbiddenError,
+            {{moduleName}}.Errors.NotFoundError,
+            {{moduleName}}.Errors.ConflictError,
+            {{moduleName}}.Errors.UnprocessableEntityError,
+            {{moduleName}}.Errors.InternalServerError,
+            {{moduleName}}.Errors.ClientError,
+            {{moduleName}}.Errors.ServerError
+          ] do
+        assert module.exception(%{message: "boom", cause: cause}).cause == cause
+        assert module.exception(%{message: "boom"}).cause == nil
+      end
+    end
+
     # Elixir exceptions have no inheritance, so the family predicates express
     # the hierarchy: a 404 is a NotFoundError, a ClientError and an ApiError; a
     # 500 is an InternalServerError, a ServerError and an ApiError; a

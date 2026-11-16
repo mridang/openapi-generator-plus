@@ -143,6 +143,19 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("anyOf wrappers have value equality and a matching hash")
+        fun testAnyOfValueEquality() {
+            val payload = """{"drugName":"Amoxicillin","dosage":"500mg"}"""
+            val first = json.decodeFromString<PetTreatment>(payload)
+            val second = json.decodeFromString<PetTreatment>(payload)
+            val other = json.decodeFromString<PetTreatment>("""{"procedureName":"Spay","durationMinutes":45}""")
+
+            assertEquals(first, second)
+            assertEquals(first.hashCode(), second.hashCode())
+            assertNotEquals(first, other)
+        }
+
+        @Test
         @DisplayName("deserializes the surgery variant into actualInstance")
         fun testDeserializeSurgery() {
             val jsonString = """{"procedureName":"Spay","durationMinutes":45}"""
@@ -418,6 +431,31 @@ class ComposedSchemaTest {
             assertTrue(restored.actualInstance is ByteArray)
             assertFalse(restored.actualInstance is List<*>)
             assertArrayEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04), restored.actualInstance as ByteArray)
+        }
+
+        @Test
+        @DisplayName("tries variants in declaration order: an empty array is the byte variant, not the list")
+        fun testVariantsAreTriedInDeclarationOrder() {
+            val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>("[]")
+
+            assertTrue(restored.actualInstance is ByteArray)
+        }
+
+        @Test
+        @DisplayName("oneOf wrappers have value equality, comparing byte arrays by content")
+        fun testOneOfValueEquality() {
+            val first = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x01, 0x02))
+            val second = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x01, 0x02))
+            val other = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x03))
+            val lists = SetPetAvatarThumbnailRequest(actualInstance = listOf(byteArrayOf(0x01)))
+            val sameLists = SetPetAvatarThumbnailRequest(actualInstance = listOf(byteArrayOf(0x01)))
+
+            assertEquals(first, second)
+            assertEquals(first.hashCode(), second.hashCode())
+            assertNotEquals(first, other)
+            assertEquals(lists, sameLists)
+            assertEquals(lists.hashCode(), sameLists.hashCode())
+            assertNotEquals(first, lists)
         }
     }
 }

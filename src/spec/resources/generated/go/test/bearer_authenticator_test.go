@@ -73,7 +73,7 @@ func TestBearerAuthenticator_MixedCaseBearerPrefixIsStripped(t *testing.T) {
 // The constructor returns ErrInvalidBearerToken for all of them, never panics.
 func TestBearerAuthenticator_RejectsInvalidToken(t *testing.T) {
 	t.Parallel()
-	for _, bad := range []string{"", "   ", "\t", "tok\r\nInjected: yes", "ñoño"} {
+	for _, bad := range []string{"", "   ", "\t", "\f", "\v", "tok\r\nInjected: yes", "ñoño"} {
 		a, err := auth.NewBearerAuthenticator("https://api.example.com", bad)
 		if !errors.Is(err, auth.ErrInvalidBearerToken) {
 			t.Errorf("expected ErrInvalidBearerToken for %q, got %v", bad, err)
@@ -87,6 +87,10 @@ func TestBearerAuthenticator_RejectsInvalidToken(t *testing.T) {
 	if _, err := auth.NewBearerAuthenticator("https://api.example.com", ""); err == nil ||
 		err.Error() != "bearer token must not be empty" {
 		t.Errorf("empty token: expected %q, got %v", "bearer token must not be empty", err)
+	}
+	if _, err := auth.NewBearerAuthenticator("https://api.example.com", "\f"); err == nil ||
+		err.Error() != "bearer token must not be empty" {
+		t.Errorf("form-feed token: expected %q, got %v", "bearer token must not be empty", err)
 	}
 	if _, err := auth.NewBearerAuthenticator("https://api.example.com", "ñoño"); err == nil ||
 		err.Error() != "bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)" {

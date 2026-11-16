@@ -14,5 +14,6 @@ class ForbiddenException extends ClientException {
     super.responseBody,
     super.responseHeaders,
     super.errorBody,
+    super.cause,
   }) : super(statusCode: 403);
 }

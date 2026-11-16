@@ -298,11 +298,8 @@ class DefaultApiClient extends AbstractApiClient
                         $filename = (string) $name;
                         self::validateMultipartFilename($filename);
                         $mime = $this->guessMimeType(null, $filename);
-                        try {
-                            $parts[] = $this->binaryFormPart((string) stream_get_contents($v), $filename, $mime);
-                        } finally {
-                            fclose($v);
-                        }
+                        /* The caller owns the stream: it is read but never closed. */
+                        $parts[] = $this->binaryFormPart((string) stream_get_contents($v), $filename, $mime);
                     } else {
                         $parts[] = $this->plainFormPart('');
                     }
@@ -334,6 +331,14 @@ class DefaultApiClient extends AbstractApiClient
                     $options['body'] = '';
                 }
             }
+        }
+
+        /* The timeout is one budget for the whole call: each hop gets only
+         * what the earlier hops left, never a fresh allowance. */
+        $remaining = $this->remainingTimeout();
+        if ($remaining !== null) {
+            $options['timeout'] = $remaining;
+            $options['max_duration'] = $remaining;
         }
 
         try {

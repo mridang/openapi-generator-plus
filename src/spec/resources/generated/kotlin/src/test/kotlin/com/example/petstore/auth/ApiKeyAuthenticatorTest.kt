@@ -111,6 +111,32 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("only ASCII whitespace counts as blank")
+    fun onlyAsciiWhitespaceCountsAsBlank() {
+        for (blank in listOf("\u000C", "\u000B", " \t\r\n")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ApiKeyAuthenticator(
+                    "https://api.example.com",
+                    "api_key",
+                    blank,
+                    ApiKeyLocation.QUERY,
+                )
+            }
+        }
+        for (valid in listOf("\u00A0", "\u2003")) {
+            assertEquals(
+                mapOf("api_key" to valid),
+                ApiKeyAuthenticator(
+                    "https://api.example.com",
+                    "api_key",
+                    valid,
+                    ApiKeyLocation.QUERY,
+                ).getQueryParams(),
+            )
+        }
+    }
+
+    @Test
     @DisplayName("CR/LF in query key throws at construction")
     fun crlfInQueryKeyThrowsAtConstruction() {
         val ex =

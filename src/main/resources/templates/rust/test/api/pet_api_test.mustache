@@ -266,7 +266,7 @@ async fn test_pet_api_get_pet_passport_with_http_info() {
 async fn test_pet_api_set_pet_avatar() {
     let api = new_pet_api_for_integration();
     let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
-    let result = api.set_pet_avatar(1, image_bytes).await;
+    let result = api.set_pet_avatar(1, image_bytes, None).await;
     assert!(result.is_ok(), "set_pet_avatar failed: {:?}", result.err());
 }
 
@@ -278,7 +278,7 @@ async fn test_pet_api_set_pet_avatar_rejects_unknown_content_type() {
     // An unknown request content-type must be rejected client-side (a typed Err),
     // not passed onto the wire as an undeclared Content-Type.
     let err = api
-        .set_pet_avatar_with_content_type(1, image_bytes, "application/unknown-type")
+        .set_pet_avatar(1, image_bytes, Some("application/unknown-type"))
         .await
         .expect_err("an undeclared request content-type must be rejected");
     assert_eq!(
@@ -297,7 +297,7 @@ async fn test_pet_api_upload_pet_document_rejects_unknown_content_type() {
     let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
     let opts = UploadPetDocumentOptions::new(b"document-content".to_vec());
     let err = api
-        .upload_pet_document_with_content_type(1, Some(&opts), "application/unknown-type")
+        .upload_pet_document(1, Some(&opts), Some("application/unknown-type"))
         .await
         .expect_err("an undeclared request content-type must be rejected");
     assert_eq!(
@@ -355,7 +355,7 @@ async fn test_pet_api_upload_pet_document() {
     let opts = UploadPetDocumentOptions::new(b"document-content".to_vec())
         .document_type("vaccination_record".to_string())
         .notes("Annual checkup".to_string());
-    let result = api.upload_pet_document(1, Some(&opts)).await;
+    let result = api.upload_pet_document(1, Some(&opts), None).await;
     assert!(result.is_ok(), "upload_pet_document failed: {:?}", result.err());
 }
 
@@ -613,7 +613,7 @@ async fn test_pet_api_set_pet_avatar_streams_raw_bytes_with_declared_content_typ
     // set_pet_avatar returns `()` and never deserializes the response body, so
     // it cannot fail on the capture mock's JSON 200 — but ignore the result
     // regardless: this is a request-capture test, not a response test.
-    let _ = api.set_pet_avatar(1, image_bytes.clone()).await;
+    let _ = api.set_pet_avatar(1, image_bytes.clone(), None).await;
 
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
@@ -652,10 +652,9 @@ async fn test_pet_api_set_pet_avatar_streams_raw_bytes_with_declared_content_typ
 /// (PUT /pet/{petId}/avatar) declares THREE request content-types —
 /// `image/jpeg`, `image/png`, `application/json`. Before this change the
 /// operation always collapsed to the first (`image/jpeg`), leaving `image/png`
-/// unreachable. The generated `set_pet_avatar_with_content_type` method lets the
-/// caller pick a declared content-type; when omitted (the plain `set_pet_avatar`
-/// entry point) the first declared type is still sent, so existing call sites are
-/// unaffected.
+/// unreachable. The optional `request_content_type` argument of `set_pet_avatar`
+/// lets the caller pick a declared content-type; when `None` the first declared
+/// type is sent.
 ///
 /// This asserts BOTH cases with the SAME raw bytes:
 ///   (1) no selector  -> Content-Type: image/jpeg (first declared, backward compatible);
@@ -668,7 +667,7 @@ async fn test_pet_api_set_pet_avatar_honours_selected_request_content_type() {
 
     // (1) Default path: no content-type selector -> first declared type.
     let (api, rx, _) = new_pet_api_for_byte_capture();
-    let _ = api.set_pet_avatar(1, image_bytes.clone()).await;
+    let _ = api.set_pet_avatar(1, image_bytes.clone(), None).await;
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
     let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
@@ -686,7 +685,7 @@ async fn test_pet_api_set_pet_avatar_honours_selected_request_content_type() {
     // (2) Selector set to "image/png" with the SAME bytes -> image/png on the wire.
     let (api, rx, _) = new_pet_api_for_byte_capture();
     let _ = api
-        .set_pet_avatar_with_content_type(1, image_bytes.clone(), "image/png")
+        .set_pet_avatar(1, image_bytes.clone(), Some("image/png"))
         .await;
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
@@ -1122,7 +1121,7 @@ async fn test_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
     let (api, rx, _) = new_pet_api_for_byte_capture();
     let opts = UploadPetDocumentOptions::new(doc_bytes.clone());
     let _ = api
-        .upload_pet_document_with_content_type(1, Some(&opts), "application/octet-stream")
+        .upload_pet_document(1, Some(&opts), Some("application/octet-stream"))
         .await;
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
@@ -1166,7 +1165,7 @@ async fn test_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
     // declared content-type, multipart/form-data) — guards against over-correction.
     let (api, rx, _) = new_pet_api_for_byte_capture();
     let opts = UploadPetDocumentOptions::new(doc_bytes.clone());
-    let _ = api.upload_pet_document(1, Some(&opts)).await;
+    let _ = api.upload_pet_document(1, Some(&opts), None).await;
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
     let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();

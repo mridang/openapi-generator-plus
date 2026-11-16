@@ -1,6 +1,11 @@
 {{>api_info}}
 import 'base_authenticator.dart';
 
+/* True when [value] is empty or holds only ASCII whitespace (space, tab, LF,
+ * VT, FF, CR). Unicode spaces such as U+00A0 do not count as blank. */
+bool _isAsciiBlank(String value) =>
+    value.codeUnits.every((c) => c == 0x20 || (c >= 0x09 && c <= 0x0D));
+
 /// Authenticator for HTTP Bearer token authentication.
 class BearerAuthenticator extends BaseAuthenticator {
   final String _host;
@@ -17,7 +22,7 @@ class BearerAuthenticator extends BaseAuthenticator {
     /* Reject an empty or whitespace-only token up front so the SDK never
      * emits a bare `Authorization: Bearer ` header, matching the api-key
      * authenticator's own empty guard. */
-    if (token.trim().isEmpty) {
+    if (_isAsciiBlank(token)) {
       throw ArgumentError('Bearer token must not be empty');
     }
     /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.

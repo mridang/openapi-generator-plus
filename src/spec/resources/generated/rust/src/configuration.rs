@@ -28,7 +28,7 @@ use crate::server_configuration::ServerConfiguration;
 ///     .default_header("Authorization", "Bearer token")
 ///     .build();
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Configuration {
     /// The base URL for all API requests.
     ///
@@ -41,6 +41,20 @@ pub struct Configuration {
     /// `TransportOptions` but before operation-specific headers and
     /// authentication headers.
     default_headers: HashMap<String, String>,
+}
+
+impl std::fmt::Debug for Configuration {
+    /// Renders the base URL and default headers, masking the value of any
+    /// credential-bearing header as `***`.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Configuration")
+            .field("base_url", &self.base_url)
+            .field(
+                "default_headers",
+                &crate::transport_options::redact_headers(&self.default_headers),
+            )
+            .finish()
+    }
 }
 
 impl Configuration {

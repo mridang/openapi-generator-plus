@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import * as util from 'node:util';
 import { Configuration, ConfigurationBuilder } from '../src/configuration{{importFileExtension}}';
 import { ServerConfiguration, ServerVariable } from '../src/server-configuration{{importFileExtension}}';
 
@@ -177,5 +178,30 @@ describe('Configuration', () => {
 
     const server = new ServerConfiguration('https://example.com', null, {});
     expect(builder.server(server)).toBe(builder);
+  });
+
+  test.each([
+    ['toString', (c: Configuration) => c.toString()],
+    ['JSON', (c: Configuration) => JSON.stringify(c)],
+    ['inspect', (c: Configuration) => util.inspect(c)],
+  ])('%s hides secret default header values', (_name, render) => {
+    const config = Configuration.builder()
+      .baseUrl('https://example.com')
+      .defaultHeaders({
+        Authorization: 'Bearer top-secret',
+        'Proxy-Authorization': 'Basic abc',
+        Cookie: 'sid=top-secret',
+        'X-Api-Key': 'top-secret',
+        'X-Auth-Token': 'top-secret',
+        'X-Client-Secret': 'top-secret',
+        'X-Trace': 'visible',
+      })
+      .build();
+    const text = render(config);
+    expect(text).not.toContain('top-secret');
+    expect(text).not.toContain('Basic abc');
+    expect(text).toContain('https://example.com');
+    expect(text).toContain('visible');
+    expect(text).toContain('***');
   });
 });

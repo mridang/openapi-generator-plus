@@ -28,7 +28,7 @@ public struct SetPetAvatarThumbnailRequest: Codable, @unchecked Sendable {
     let data = try container.decode(AnyCodable.self)
     let rawData = try ObjectSerializer.encodeToData(data)
 
-    /* Try each oneOf type */
+    /* Try each oneOf type in declaration order */
     if let v = try? ObjectSerializer.decodeFromData(rawData, as: Data.self) {
       self._value = v
       return
@@ -74,5 +74,24 @@ public struct SetPetAvatarThumbnailRequest: Codable, @unchecked Sendable {
   /// Returns the matched value cast to the specified type.
   public func actualInstance<T>(as type: T.Type) -> T? {
     return _value as? T
+  }
+}
+
+/* Union wrappers compare by value: two wrappers are equal when they encode to
+   the same canonical JSON, and hash the same bytes. */
+extension SetPetAvatarThumbnailRequest: Hashable {
+  private var canonicalJson: Data? {
+    return try? ObjectSerializer.encodeToData(self)
+  }
+
+  public static func == (lhs: SetPetAvatarThumbnailRequest, rhs: SetPetAvatarThumbnailRequest)
+    -> Bool
+  {
+    guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
+    return left == right
+  }
+
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(canonicalJson)
   }
 }

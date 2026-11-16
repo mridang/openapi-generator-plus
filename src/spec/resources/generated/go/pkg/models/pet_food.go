@@ -78,3 +78,15 @@ func (o *PetFood) UnmarshalJSON(data []byte) error {
 func (o PetFood) ActualInstance() any {
 	return o.value
 }
+
+// Equal reports whether this PetFood is value-equal to other, comparing
+// the canonical JSON encodings so a union holding a slice variant compares
+// without the panic the built-in `==` raises on such values.
+func (o PetFood) Equal(other PetFood) bool {
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
+}

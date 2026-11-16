@@ -33,7 +33,12 @@ interface ElixirSpec extends LanguageSpec, DockerImageSpec {
     return List.of(
         "find .out/reports -mindepth 1 -delete 2>/dev/null; true",
         "mix local.hex --force && mix local.rebar --force",
-        "mix deps.get");
+        "mix deps.get",
+        /* Compile the dependencies once here so every spec starts from the
+         * compiled snapshot instead of rebuilding them: the lint spec uses the
+         * dev environment, the client spec the test environment. */
+        "MIX_ENV=dev mix deps.compile",
+        "MIX_ENV=test mix deps.compile");
   }
 
   @Override

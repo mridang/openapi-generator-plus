@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Dict, Mapping, Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 
 
 def _assert_valid_proxy(proxy: Optional[str]) -> None:
@@ -24,7 +24,41 @@ def _assert_valid_proxy(proxy: Optional[str]) -> None:
         raise ValueError(f"Invalid proxy URL (missing host): {proxy}")
 
 
-@dataclass(frozen=True)
+_REDACTED = '***'
+_SENSITIVE_HEADER_NAMES = ('authorization', 'proxy-authorization', 'cookie')
+_SENSITIVE_HEADER_FRAGMENTS = ('key', 'token', 'secret')
+
+
+def _is_sensitive_header(name: str) -> bool:
+    """Whether the value of the default header ``name`` is a credential."""
+    lowered = name.lower()
+    return lowered in _SENSITIVE_HEADER_NAMES or any(
+        fragment in lowered for fragment in _SENSITIVE_HEADER_FRAGMENTS
+    )
+
+
+def _redact_headers(headers: Mapping[str, str]) -> Dict[str, str]:
+    """Copy of ``headers`` with every credential-bearing value replaced by ``***``."""
+    return {
+        name: _REDACTED if _is_sensitive_header(name) else value
+        for name, value in headers.items()
+    }
+
+
+def _redact_proxy(proxy: Optional[str]) -> Optional[str]:
+    """The proxy URL with the password of any ``user:pass@`` userinfo replaced by ``***``."""
+    if proxy is None:
+        return None
+    parts = urlsplit(proxy)
+    userinfo, at, host = parts.netloc.rpartition('@')
+    if not at:
+        return proxy
+    user, colon, _password = userinfo.partition(':')
+    masked = f'{user}:{_REDACTED}' if colon else _REDACTED
+    return parts._replace(netloc=f'{masked}@{host}').geturl()
+
+
+@dataclass(frozen=True, repr=False)
 class TransportOptions:
     """Immutable HTTP transport configuration for :class:`DefaultApiClient`.
 
@@ -119,6 +153,17 @@ class TransportOptions:
         _assert_valid_proxy(self.proxy)
         if not isinstance(self.default_headers, MappingProxyType):
             object.__setattr__(self, 'default_headers', MappingProxyType(dict(self.default_headers)))
+
+    def __repr__(self) -> str:
+        """Redacts the proxy password and credential-bearing default header values."""
+        return (
+            f'{type(self).__name__}(verify_ssl={self.verify_ssl!r}, '
+            f'ca_cert_path={self.ca_cert_path!r}, proxy={_redact_proxy(self.proxy)!r}, '
+            f'timeout={self.timeout!r}, follow_redirects={self.follow_redirects!r}, '
+            f'max_redirects={self.max_redirects!r}, user_agent={self.user_agent!r}, '
+            f'default_headers={_redact_headers(self.default_headers)!r}, '
+            f'inject_request_id={self.inject_request_id!r})'
+        )
 
     @classmethod
     def builder(cls) -> 'TransportOptionsBuilder':

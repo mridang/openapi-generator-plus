@@ -15,5 +15,6 @@ class ServerException extends ApiException {
     super.responseBody,
     super.responseHeaders,
     super.errorBody,
+    super.cause,
   });
 }

@@ -315,6 +315,18 @@ defmodule {{moduleName}}.ObjectSerializer do
   def encode_base64_param(value), do: value
 
   @doc """
+  Canonicalise a `format: uuid` parameter for the wire: validated, then
+  written lowercase and hyphenated. A malformed value raises
+  `SerializationError` before the request is dispatched.
+  """
+  @spec encode_uuid_param(term()) :: term()
+  def encode_uuid_param(nil), do: nil
+  def encode_uuid_param(value) when is_binary(value), do: convert_to_type(value, "UUID")
+  def encode_uuid_param(%MapSet{} = set), do: set |> MapSet.to_list() |> encode_uuid_param()
+  def encode_uuid_param(value) when is_list(value), do: Enum.map(value, &encode_uuid_param/1)
+  def encode_uuid_param(value), do: convert_to_type(value, "UUID")
+
+  @doc """
   Convert a value to a string suitable for use as a URL path parameter.
 
   ## Parameters
@@ -612,6 +624,10 @@ defmodule {{moduleName}}.ObjectSerializer do
     end
   end
 
+  defp sanitize_field_value(value, "UUID") when is_binary(value), do: convert_to_type(value, "UUID")
+
+  defp sanitize_field_value(value, "URI") when is_binary(value), do: convert_to_type(value, "URI")
+
   defp sanitize_field_value(value, _type), do: sanitize_for_serialization(value)
 
   @doc """
@@ -708,7 +724,7 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   def convert_to_type(data, "UUID") when is_binary(data) do
     if Regex.match?(@uuid_regex, data) do
-      data
+      String.downcase(data)
     else
       raise {{moduleName}}.Errors.SerializationError,
             message: "Invalid UUID: #{inspect(data)}"
@@ -717,6 +733,24 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   def convert_to_type(data, "UUID"),
     do: raise({{moduleName}}.Errors.SerializationError, message: "Expected UUID String, got #{inspect(data)}")
+
+  # format: uri - an absolute RFC 3986 URI: a scheme, a colon, then no
+  # whitespace or control characters (http, ftp, mailto and urn all qualify).
+  # The original text is returned unchanged; relative references, empty and
+  # whitespace-containing strings raise SerializationError.
+  @uri_regex ~r/\A[a-zA-Z][a-zA-Z0-9+.\-]*:[^\s\x00-\x1F\x7F-\x9F]*\z/u
+
+  def convert_to_type(data, "URI") when is_binary(data) do
+    if Regex.match?(@uri_regex, data) do
+      data
+    else
+      raise {{moduleName}}.Errors.SerializationError,
+            message: "Invalid URI: #{inspect(data)}"
+    end
+  end
+
+  def convert_to_type(data, "URI"),
+    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected URI String, got #{inspect(data)}")
 
   # Matches both the bare name and the typespec form ("DateTime.t()") that
   # `openapi_types/0` emits via the codegen's typeMapping, mirroring the

@@ -40,7 +40,10 @@ impl BearerAuthenticator {
         /* Reject empty / whitespace-only tokens: emitting a bare
          * `Authorization: Bearer ` header would send the request
          * unauthenticated. Fail closed. */
-        if token.trim().is_empty() {
+        if token
+            .chars()
+            .all(|c| matches!(c, ' ' | '\t' | '\n' | '\r' | '\x0b' | '\x0c'))
+        {
             return Err(ConfigurationError::InvalidArgument(
                 "Bearer token must not be empty".to_string(),
             ));

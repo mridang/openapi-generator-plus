@@ -82,9 +82,9 @@ impl StoreApi {
         &self,
         account: Account,
     ) -> Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public create_account_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.create_account_invoke(account, "application/json")
             .await
@@ -146,9 +146,9 @@ impl StoreApi {
         &self,
         order_id: i64,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public delete_order_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.delete_order_invoke(order_id, "application/json").await
     }
@@ -239,9 +239,9 @@ impl StoreApi {
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
     ) -> Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_by_swatch_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_by_swatch_invoke(path_swatch, options, "application/json")
             .await
@@ -369,9 +369,9 @@ impl StoreApi {
     pub async fn get_defaults_with_http_info(
         &self,
     ) -> Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_defaults_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_defaults_invoke("application/json").await
     }
@@ -441,9 +441,9 @@ impl StoreApi {
     pub async fn get_department_with_http_info(
         &self,
     ) -> Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_department_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_department_invoke("application/json").await
     }
@@ -519,9 +519,9 @@ impl StoreApi {
         ApiResult<Vec<std::collections::HashMap<String, Category>>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
-        /* The public get_grouped_categories_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_grouped_categories_invoke("application/json").await
     }
@@ -600,9 +600,9 @@ impl StoreApi {
         ApiResult<std::collections::HashMap<String, i32>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
-        /* The public get_inventory_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_inventory_invoke("application/json").await
     }
@@ -677,9 +677,9 @@ impl StoreApi {
     pub async fn get_matrix_with_http_info(
         &self,
     ) -> Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_matrix_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_matrix_invoke("application/json").await
     }
@@ -754,9 +754,9 @@ impl StoreApi {
         &self,
         order_id: i64,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_order_by_id_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_order_by_id_invoke(order_id, "application/json")
             .await
@@ -846,9 +846,9 @@ impl StoreApi {
         &self,
         tracking_id: uuid::Uuid,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_order_by_tracking_id_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_order_by_tracking_id_invoke(tracking_id, "application/json")
             .await
@@ -940,9 +940,9 @@ impl StoreApi {
         &self,
         options: Option<&GetStockItemOptions>,
     ) -> Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_stock_item_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_stock_item_invoke(options, "application/json")
             .await
@@ -1037,9 +1037,9 @@ impl StoreApi {
     pub async fn get_swatch_with_http_info(
         &self,
     ) -> Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_swatch_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_swatch_invoke("application/json").await
     }
@@ -1115,9 +1115,9 @@ impl StoreApi {
         ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
-        /* The public get_swatch_groups_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_swatch_groups_invoke("application/json").await
     }
@@ -1198,9 +1198,9 @@ impl StoreApi {
         ApiResult<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
-        /* The public get_timestamp_groups_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_timestamp_groups_invoke("application/json").await
     }
@@ -1271,9 +1271,9 @@ impl StoreApi {
     pub async fn get_tree_with_http_info(
         &self,
     ) -> Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_tree_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_tree_invoke("application/json").await
     }
@@ -1345,9 +1345,9 @@ impl StoreApi {
         &self,
         order: Option<Order>,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public place_order_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.place_order_invoke(order, "application/json").await
     }
@@ -1427,9 +1427,9 @@ impl StoreApi {
         &self,
         options: Option<&SearchStoreOptions>,
     ) -> Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public search_store_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.search_store_invoke(options, "application/json").await
     }

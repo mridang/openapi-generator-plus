@@ -114,6 +114,23 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName("missing CA cert is rejected even when verifySsl is false")
+    fun missingCaCertIsRejectedWhenVerifySslIsFalse() {
+        val transport =
+            TransportOptions
+                .builder()
+                .verifySsl(false)
+                .caCertPath("/nonexistent/path/to/ca-cert.pem")
+                .build()
+
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                Client(authenticator, transport)
+            }
+        assertTrue(ex.message!!.contains("CA certificate"))
+    }
+
+    @Test
     @DisplayName("garbage CA cert surfaces IllegalArgumentException, not raw JDK exception")
     fun invalidCaCertThrowsIllegalArgumentException(
         @TempDir tempDir: Path,

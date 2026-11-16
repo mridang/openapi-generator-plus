@@ -31,6 +31,7 @@ class ApiException(OpenAPIException):
         response_headers: Optional[Any] = None,
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
+        cause: Optional[BaseException] = None,
     ) -> None:
         # Forward the message to the base Exception so `args`, `str()` and
         # standard logging/pickling behave like every other SDK's exceptions.
@@ -44,6 +45,10 @@ class ApiException(OpenAPIException):
         self._response_headers = response_headers
         self._response_body = response_body
         self._error_body = error_body
+        # Same chaining a `raise ... from cause` produces, so the cause is
+        # reachable as `__cause__` however the error was constructed.
+        if cause is not None:
+            self.__cause__ = cause
 
     @property
     def status_code(self) -> int:

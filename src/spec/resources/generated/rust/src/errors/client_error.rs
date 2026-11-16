@@ -36,8 +36,16 @@ impl std::error::Error for ClientError {
     }
 }
 
-impl From<ApiError> for ClientError {
-    fn from(api_error: ApiError) -> Self {
-        Self { api_error }
+/// Wraps an [`ApiError`] whose status is 4xx. Any other status is handed back
+/// unchanged as the error, so the type and its status cannot disagree.
+impl TryFrom<ApiError> for ClientError {
+    type Error = ApiError;
+
+    fn try_from(api_error: ApiError) -> Result<Self, Self::Error> {
+        if (400..500).contains(&api_error.status_code()) {
+            Ok(Self { api_error })
+        } else {
+            Err(api_error)
+        }
     }
 }

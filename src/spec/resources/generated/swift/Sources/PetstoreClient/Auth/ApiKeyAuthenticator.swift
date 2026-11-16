@@ -28,7 +28,10 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
     /* Validation applies to ALL locations: empty/whitespace API keys
      * and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
      * printable-ASCII rule still applies to HEADER values. */
-    if apiKey.isEmpty || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+    /* Blank means empty or only ASCII whitespace (space, \t, \n, \r, \f, \v);
+     * a Unicode space such as U+00A0 is a valid key character. */
+    if apiKey.unicodeScalars.allSatisfy({ [0x20, 0x09, 0x0A, 0x0D, 0x0C, 0x0B].contains($0.value) })
+    {
       throw ConfigurationError.invalidArgument(
         "API key value for '\(keyParamName)' must not be empty"
       )

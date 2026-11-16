@@ -89,7 +89,7 @@ void main() {
         );
 
     for (final location in ApiKeyLocation.values) {
-      for (final key in ['', '   ']) {
+      for (final key in ['', '   ', ' \t\n\r\f\v ']) {
         test('${location.name} rejects the blank key "$key"', () {
           expect(
             () => build(key, location),
@@ -120,6 +120,13 @@ void main() {
         });
       }
     }
+
+    test('a Unicode space is not blank for the query and cookie locations', () {
+      for (final location in [ApiKeyLocation.query, ApiKeyLocation.cookie]) {
+        expect(() => build('\u00A0', location), returnsNormally);
+        expect(() => build('\u2003', location), returnsNormally);
+      }
+    });
 
     test('a header key rejects non-ASCII with the RFC 7230 message', () {
       expect(

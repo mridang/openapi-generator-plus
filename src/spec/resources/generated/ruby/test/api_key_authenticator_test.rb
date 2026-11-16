@@ -67,6 +67,21 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     }).must_raise ArgumentError
   end
 
+  it 'rejects a key made only of ASCII whitespace such as a vertical tab' do
+    _(lambda {
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'api_key', " \v\f", Petstore::Client::Auth::ApiKeyLocation::QUERY
+      )
+    }).must_raise ArgumentError
+  end
+
+  it 'accepts a key made only of a Unicode space' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'api_key', "\u00A0\u2003", Petstore::Client::Auth::ApiKeyLocation::QUERY
+    )
+    _(auth.query_params['api_key']).must_equal "\u00A0\u2003"
+  end
+
   # CR/LF/NUL are forbidden control characters in ALL locations.
   it 'rejects CR/LF in a query key at construction' do
     err = _(lambda {

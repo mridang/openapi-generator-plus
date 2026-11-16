@@ -47,7 +47,7 @@ public final class Client: Sendable {
   /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
   ///   be read or parsed.
   public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) throws {
-    let opts = transportOptions ?? TransportOptionsBuilder().build()
+    let opts = transportOptions ?? TransportOptions.defaults
     let apiClient = try DefaultApiClient(transportOptions: opts)
 
     if let httpAware = authenticator as? HttpAwareAuthenticator {

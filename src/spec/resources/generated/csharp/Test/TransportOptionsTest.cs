@@ -141,6 +141,13 @@ public class TransportOptionsTest
         );
     }
 
+    [Fact]
+    public void InvalidProxyUrlIsOnlyRejectedAtBuild()
+    {
+        var builder = TransportOptions.Builder().Proxy("not a valid url");
+        Assert.Throws<ArgumentException>(() => builder.Build());
+    }
+
     [Theory]
     [InlineData("", "Invalid proxy URL")]
     [InlineData("not a valid url", "Invalid proxy URL")]

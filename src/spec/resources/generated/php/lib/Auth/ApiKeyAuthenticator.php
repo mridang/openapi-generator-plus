@@ -31,9 +31,11 @@ class ApiKeyAuthenticator extends BaseAuthenticator
         ApiKeyLocation $location
     ) {
         /* Validation applies to ALL locations: empty/whitespace API keys
-         * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
-         * printable-ASCII rule still applies to HEADER values. */
-        if ($apiKey === '' || trim($apiKey) === '') {
+         * and CR/LF/NUL are always programmer errors. Blank means empty or
+         * only ASCII whitespace (space, tab, LF, CR, FF, VT); a Unicode space
+         * is a valid key. RFC 7230 §3.2.6 printable-ASCII rule still applies
+         * to HEADER values. */
+        if (trim($apiKey, " \t\n\r\x0C\x0B") === '') {
             throw new \InvalidArgumentException(
                 "API key value for '$keyParamName' must not be empty"
             );

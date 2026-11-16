@@ -12,12 +12,13 @@ defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
   @typedoc "A value of any of the oneOf variants."
   @type t :: term()
 
-  @doc "List of types defined in oneOf (OpenAPI v3)."
-  @spec openapi_one_of() :: [:"[binary()]" | :"binary()", ...]
+  @doc "List of types defined in oneOf (OpenAPI v3), in declaration order."
+  @dialyzer {:nowarn_function, openapi_one_of: 0}
+  @spec openapi_one_of() :: [atom(), ...]
   def openapi_one_of do
     [
-      :"[binary()]",
-      :"binary()"
+      :"binary()",
+      :"[binary()]"
     ]
   end
 

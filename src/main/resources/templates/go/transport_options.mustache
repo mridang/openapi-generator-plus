@@ -308,3 +308,18 @@ func defaultTransportOptions() *TransportOptions {
 	opts, _ := NewTransportOptionsBuilder().Build()
 	return opts
 }
+
+// String returns a representation that masks the proxy password and the
+// secrets held in the default headers, so credentials never leak into logs.
+func (t TransportOptions) String() string {
+	return fmt.Sprintf(
+		"TransportOptions{verifySsl: %t, caCertPath: %q, proxy: %s, followRedirects: %t, defaultHeaders: %s, injectRequestID: %t}",
+		t.verifySsl, t.caCertPath, redactedProxy(t.proxy), t.followRedirects, redactedHeaders(t.defaultHeaders), t.injectRequestID,
+	)
+}
+
+// GoString redacts the same secrets for the %#v verb, which would otherwise
+// reflect over every unexported field.
+func (t TransportOptions) GoString() string {
+	return t.String()
+}

@@ -124,6 +124,11 @@ impl {{classname}} {
     /// * `{{paramName}}`: {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
 {{/description}}
 {{/allParams}}
+{{#consumes.1}}
+    /// * `request_content_type`: the request Content-Type to send, one of
+    ///   {{#consumes}}`{{{mediaType}}}`{{^-last}}, {{/-last}}{{/consumes}}; `None` sends the first declared one. Only the header changes:
+    ///   the caller supplies a body the server accepts for the chosen type.
+{{/consumes.1}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}    /// * `options`: Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.
 {{/isOptions}}
@@ -141,11 +146,17 @@ impl {{classname}} {
 {{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
 {{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
     ) -> Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.{{operationId}}_with_http_info(
 {{#vendorExtensions.op.signatureArgs}}
             {{paramName}},
 {{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+            request_content_type,
+{{/consumes.1}}
         ).await?;
 {{#returnType}}
         /* convenience-empty-body-handling: a body-returning operation that
@@ -182,12 +193,15 @@ impl {{classname}} {
 {{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
 {{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
-    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public {{operationId}}_with_http_info entry point always sends the
-         * first declared request content-type, {{#lambda.blockComment}}{{{vendorExtensions.op.effectiveConsumes}}}{{/lambda.blockComment}}. The shared
-         * implementation below takes the resolved Content-Type as an argument
 {{#consumes.1}}
-         * so the {{operationId}}_with_content_type variant can override it. */
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * {{#lambda.blockComment}}{{{vendorExtensions.op.effectiveConsumes}}}{{/lambda.blockComment}}, is the default
+{{#consumes.1}}
+         * when the caller passes no `request_content_type`. */
 {{/consumes.1}}
 {{^consumes.1}}
          * and this operation declares no alternative to select. */
@@ -199,47 +213,15 @@ impl {{classname}} {
 {{/isBody}}{{#isOptions}}            options,
 {{/isOptions}}{{#isServer}}            server,
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
-            "{{vendorExtensions.op.effectiveConsumes}}",
-        )
-        .await
-    }
 {{#consumes.1}}
-
-    /// Performs the {{operationId}} operation with an explicit request
-    /// Content-Type, returning the full API result.
-    ///
-    /// This operation declares more than one request content-type
-    /// ({{#consumes}}`{{{mediaType}}}`{{^-last}}, {{/-last}}{{/consumes}}). The
-    /// `request_content_type` argument selects which one is sent on the wire;
-    /// pass one of the declared values. The selector only sets the Content-Type
-    /// header — when the chosen content-type expects a different body shape than
-    /// the one this method's body parameter carries, the caller is responsible
-    /// for supplying a body the server accepts for that type.
-{{#isDeprecated}}
-    #[deprecated]
-{{/isDeprecated}}
-    pub async fn {{operationId}}_with_content_type(
-        &self,
-{{#vendorExtensions.op.signatureArgs}}
-{{#isPath}}        {{paramName}}: {{{dataType}}},
-{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
-{{/isBody}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
-{{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
-{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
-        request_content_type: &str,
-    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
-        self.{{operationId}}_invoke(
-{{#vendorExtensions.op.signatureArgs}}
-{{#isPath}}            {{paramName}},
-{{/isPath}}{{#isBody}}            {{paramName}},
-{{/isBody}}{{#isOptions}}            options,
-{{/isOptions}}{{#isServer}}            server,
-{{/isServer}}{{/vendorExtensions.op.signatureArgs}}
-            request_content_type,
+            request_content_type.unwrap_or("{{vendorExtensions.op.effectiveConsumes}}"),
+{{/consumes.1}}
+{{^consumes.1}}
+            "{{vendorExtensions.op.effectiveConsumes}}",
+{{/consumes.1}}
         )
         .await
     }
-{{/consumes.1}}
 
     /// Shared implementation for the {{operationId}} operation. The resolved
     /// request Content-Type is taken as an argument so the public entry points

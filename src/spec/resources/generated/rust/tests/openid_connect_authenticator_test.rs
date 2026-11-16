@@ -271,12 +271,15 @@ async fn test_discovery_failures_are_typed() {
     );
 
     let client = Arc::new(FakeApiClient::new());
-    client.enqueue_error(Box::new(NetworkError::from(ApiError::new(
-        0,
-        "connection refused".to_string(),
-        None,
-        None,
-    ))));
+    client.enqueue_error(Box::new(
+        NetworkError::try_from(ApiError::new(
+            0,
+            "connection refused".to_string(),
+            None,
+            None,
+        ))
+        .expect("status 0"),
+    ));
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
     let err = auth
@@ -289,9 +292,10 @@ async fn test_discovery_failures_are_typed() {
     assert_eq!(network.api_error().status_code(), 0);
 
     let client = Arc::new(FakeApiClient::new());
-    client.enqueue_error(Box::new(NetworkTimeoutError::from(NetworkError::from(
-        ApiError::new(0, "timed out".to_string(), None, None),
-    ))));
+    client.enqueue_error(Box::new(NetworkTimeoutError::from(
+        NetworkError::try_from(ApiError::new(0, "timed out".to_string(), None, None))
+            .expect("status 0"),
+    )));
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
     let err = auth

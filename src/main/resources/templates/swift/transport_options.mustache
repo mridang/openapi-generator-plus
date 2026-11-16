@@ -12,7 +12,7 @@ import Foundation
 /// to create instances:
 ///
 /// ```swift
-/// let transport = TransportOptions.builder()
+/// let transport = try TransportOptions.builder()
 ///     .verifySsl(false)
 ///     .proxy("http://proxy.example.com:8080")
 ///     .timeout(30000)
@@ -112,6 +112,12 @@ public final class TransportOptions: Sendable {
     public static func builder() -> TransportOptionsBuilder {
         return TransportOptionsBuilder()
     }
+
+    /// The options a builder yields when nothing is set. No proxy is
+    /// configured, so there is nothing to validate and no way to fail.
+    static var defaults: TransportOptions {
+        return TransportOptionsBuilder().assemble(proxy: nil)
+    }
 }
 
 /// Builder for creating immutable ``TransportOptions`` instances.
@@ -126,7 +132,7 @@ public final class TransportOptions: Sendable {
 public final class TransportOptionsBuilder {
     private var verifySsl: Bool = true
     private var caCertPath: String? = nil
-    private var proxy: URL? = nil
+    private var proxy: String? = nil
     private var timeout: Int? = 10000
     private var followRedirects: Bool = true
     private var maxRedirects: Int? = nil
@@ -152,24 +158,13 @@ public final class TransportOptionsBuilder {
 
     /// Set the HTTP/HTTPS proxy URL.
     ///
-    /// Only HTTP and HTTPS proxy URLs are supported.
-    ///
-    /// - Throws: ``ConfigurationError/invalidProxy(_:)`` if the URL is not valid
-    ///   or does not use the http or https scheme.
+    /// Only HTTP and HTTPS proxy URLs are supported. The value is validated
+    /// when ``build()`` runs, not here, so an invalid URL surfaces at the same
+    /// point as every other configuration error.
     @discardableResult
-    public func proxy(_ val: String?) throws -> TransportOptionsBuilder {
+    public func proxy(_ val: String?) -> TransportOptionsBuilder {
         if let val = val, !val.isEmpty {
-            guard let parsed = URL(string: val) else {
-                throw ConfigurationError.invalidProxy(val)
-            }
-            let scheme = parsed.scheme?.lowercased() ?? ""
-            guard scheme == "http" || scheme == "https" else {
-                throw ConfigurationError.invalidProxy(val)
-            }
-            guard let host = parsed.host, !host.isEmpty else {
-                throw ConfigurationError.invalidProxy(val)
-            }
-            self.proxy = parsed
+            self.proxy = val
         } else {
             self.proxy = nil
         }
@@ -228,7 +223,28 @@ public final class TransportOptionsBuilder {
     }
 
     /// Build and return an immutable ``TransportOptions`` instance.
-    public func build() -> TransportOptions {
+    ///
+    /// - Throws: ``ConfigurationError/invalidProxy(_:)`` if the proxy URL is
+    ///   not valid or does not use the http or https scheme.
+    public func build() throws -> TransportOptions {
+        var parsedProxy: URL? = nil
+        if let val = proxy {
+            guard let parsed = URL(string: val) else {
+                throw ConfigurationError.invalidProxy(val)
+            }
+            let scheme = parsed.scheme?.lowercased() ?? ""
+            guard scheme == "http" || scheme == "https" else {
+                throw ConfigurationError.invalidProxy(val)
+            }
+            guard let host = parsed.host, !host.isEmpty else {
+                throw ConfigurationError.invalidProxy(val)
+            }
+            parsedProxy = parsed
+        }
+        return assemble(proxy: parsedProxy)
+    }
+
+    fileprivate func assemble(proxy: URL?) -> TransportOptions {
         return TransportOptions(
             verifySsl: verifySsl,
             caCertPath: caCertPath,

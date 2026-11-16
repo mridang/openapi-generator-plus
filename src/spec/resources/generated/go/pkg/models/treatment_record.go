@@ -63,13 +63,13 @@ func (o TreatmentRecord) MarshalJSON() ([]byte, error) {
 // so a payload satisfying several variants keeps all of their fields.
 func (o *TreatmentRecord) UnmarshalJSON(data []byte) error {
 	var matched []any
-	var medication Medication
-	if err := json.Unmarshal(data, &medication); err == nil {
-		matched = append(matched, medication)
-	}
 	var surgery Surgery
 	if err := json.Unmarshal(data, &surgery); err == nil {
 		matched = append(matched, surgery)
+	}
+	var medication Medication
+	if err := json.Unmarshal(data, &medication); err == nil {
+		matched = append(matched, medication)
 	}
 	if len(matched) == 0 {
 		return fmt.Errorf("data does not match any anyOf schemas for TreatmentRecord")
@@ -91,4 +91,16 @@ func (o TreatmentRecord) ActualInstance() any {
 		return nil
 	}
 	return o.matchedInstances[0]
+}
+
+// Equal reports whether this TreatmentRecord is value-equal to other, comparing
+// the canonical JSON encodings so a union holding a slice variant compares
+// without the panic the built-in `==` raises on such values.
+func (o TreatmentRecord) Equal(other TreatmentRecord) bool {
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
 }

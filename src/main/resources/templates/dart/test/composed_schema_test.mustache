@@ -216,6 +216,50 @@ void main() {
       expect('"notes"'.allMatches(serialized).length, equals(1));
     });
 
+    test('TreatmentRecord tries variants in declaration order', () {
+      final record = TreatmentRecord.fromJson(<String, dynamic>{
+        'drugName': 'Amoxicillin',
+        'procedureName': 'Spay',
+      });
+
+      expect(record.matchedInstances, [isA<Surgery>(), isA<Medication>()]);
+    });
+
+    test('anyOf unions decoded from identical JSON are equal', () {
+      final json = <String, dynamic>{
+        'drugName': 'Amoxicillin',
+        'procedureName': 'Spay',
+      };
+
+      final a = PetTreatment.fromJson(json);
+      final b = PetTreatment.fromJson(json);
+
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+      expect(
+        a,
+        isNot(equals(PetTreatment.fromJson(<String, dynamic>{'drugName': 'X'}))),
+      );
+    });
+
+    test('oneOf unions decoded from identical JSON are equal', () {
+      final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
+
+      final a = PetFood.fromJson(json);
+      final b = PetFood.fromJson(json);
+
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+      expect(
+        a,
+        isNot(
+          equals(
+            PetFood.fromJson(<String, dynamic>{'foodType': 'dry', 'weightKg': 3.5}),
+          ),
+        ),
+      );
+    });
+
     // allOf: PetWithOwner extends Pet fields
 
     test('PetWithOwner deserialize', () {

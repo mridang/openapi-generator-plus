@@ -15,7 +15,7 @@ module {{moduleName}}
         # Reject an empty/blank token: it would otherwise produce a literal
         # "Authorization: Bearer " header that silently fails auth, mirroring
         # the api-key authenticator's own empty-value guard.
-        if token.nil? || token.to_s.strip.empty?
+        if token.nil? || token.to_s.match?(/\A[ \t\n\r\f\v]*\z/)
           raise ArgumentError, 'Bearer token must not be empty'
         end
 

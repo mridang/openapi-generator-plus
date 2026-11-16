@@ -69,7 +69,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         imports.put("uuid.UUID", "import uuid");
         // Pydantic 2 native types
         imports.put("HttpUrl", "from pydantic import HttpUrl");
-        imports.put("EmailStr", "from pydantic import EmailStr");
         imports.put("SecretStr", "from pydantic import SecretStr");
         imports.put("AwareDatetime", "from pydantic import AwareDatetime");
         // format: byte (and OAS 3.1 contentEncoding: base64) → Base64Bytes. The
@@ -82,9 +81,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         imports.put("StrictStr", "from pydantic import StrictStr");
         imports.put("StrictBool", "from pydantic import StrictBool");
         imports.put("StrictFloat", "from pydantic import StrictFloat");
-        // stdlib ipaddress for ipv4/ipv6 formats
-        imports.put("IPv4Address", "from ipaddress import IPv4Address");
-        imports.put("IPv6Address", "from ipaddress import IPv6Address");
         TYPE_IMPORTS = Map.copyOf(imports);
     }
 
@@ -198,10 +194,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 // Pydantic 2 native types treated as primitives so the
                                 // generic-import machinery does not try to emit
                                 // `from petstore_client.models.HttpUrl import HttpUrl`.
-                                "HttpUrl", "EmailStr", "SecretStr", "AwareDatetime",
+                                "HttpUrl", "SecretStr", "AwareDatetime",
                                 "Base64Bytes",
                                 "StrictInt", "StrictStr", "StrictBool", "StrictFloat",
-                                "Decimal", "JsonNumber", "IPv4Address", "IPv6Address"));
+                                "Decimal", "JsonNumber"));
 
         reservedWords = loadReservedWords("/reserved-words/python.txt");
 
@@ -859,15 +855,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
      *       {@link io.github.mridang.codegen.generators.AbstractBetterCodegen#keepStringForUriSubformats}
      *       the type from {@code HttpUrl} back to {@code str} — these may
      *       be relative or contain RFC 6570 placeholders.</li>
-     *   <li>{@code format: email} → {@code EmailStr} (Item 2).</li>
      *   <li>{@code format: password} → the {@code <pkg>._types}
      *       {@code PasswordStr} alias (Item 3): a {@code SecretStr} that redacts
      *       in {@code __repr__}/{@code __str__} but writes the real value on
      *       the JSON wire.</li>
-     *   <li>{@code format: ipv4} → stdlib {@code ipaddress.IPv4Address}
-     *       (Item 4).</li>
-     *   <li>{@code format: ipv6} → stdlib {@code ipaddress.IPv6Address}
-     *       (Item 4).</li>
+     *   <li>{@code format: email}, {@code ipv4} and {@code ipv6} stay plain
+     *       strings, as in the other eleven SDKs.</li>
      * </ul>
      */
     @Override
@@ -908,21 +901,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             return;
         }
         switch (fmt) {
-            case "email":
-                property.dataType = "EmailStr";
-                property.datatypeWithEnum = "EmailStr";
-                break;
             case "password":
                 property.dataType = "PasswordStr";
                 property.datatypeWithEnum = "PasswordStr";
-                break;
-            case "ipv4":
-                property.dataType = "IPv4Address";
-                property.datatypeWithEnum = "IPv4Address";
-                break;
-            case "ipv6":
-                property.dataType = "IPv6Address";
-                property.datatypeWithEnum = "IPv6Address";
                 break;
             default:
                 break;

@@ -85,7 +85,11 @@ type GetMultiServerPetInfoServerRegional struct {
 // GetUrl returns the server URL.
 func (s GetMultiServerPetInfoServerRegional) GetUrl() string {
 	url := "https://{region}.example.com/v1"
-	url = strings.ReplaceAll(url, "{"+"region"+"}", string(s.Region))
+	valueRegion := string(s.Region)
+	if valueRegion == "" {
+		valueRegion = "us"
+	}
+	url = strings.ReplaceAll(url, "{"+"region"+"}", valueRegion)
 	return url
 }
 
@@ -99,8 +103,16 @@ type GetMultiServerPetInfoServerMirror struct {
 // GetUrl returns the server URL.
 func (s GetMultiServerPetInfoServerMirror) GetUrl() string {
 	url := "https://{region}.mirror.example.com/{channel}/v1"
-	url = strings.ReplaceAll(url, "{"+"region"+"}", string(s.Region))
-	url = strings.ReplaceAll(url, "{"+"channel"+"}", string(s.Channel))
+	valueRegion := string(s.Region)
+	if valueRegion == "" {
+		valueRegion = "us"
+	}
+	url = strings.ReplaceAll(url, "{"+"region"+"}", valueRegion)
+	valueChannel := string(s.Channel)
+	if valueChannel == "" {
+		valueChannel = "a&b"
+	}
+	url = strings.ReplaceAll(url, "{"+"channel"+"}", valueChannel)
 	return url
 }
 
@@ -153,8 +165,16 @@ type GetStagingPetInfoServerStagingServer struct {
 // GetUrl returns the server URL.
 func (s GetStagingPetInfoServerStagingServer) GetUrl() string {
 	url := "https://{environment}.example.com/api/{version}"
-	url = strings.ReplaceAll(url, "{"+"environment"+"}", string(s.Environment))
-	url = strings.ReplaceAll(url, "{"+"version"+"}", string(s.Version))
+	valueEnvironment := string(s.Environment)
+	if valueEnvironment == "" {
+		valueEnvironment = "staging"
+	}
+	url = strings.ReplaceAll(url, "{"+"environment"+"}", valueEnvironment)
+	valueVersion := string(s.Version)
+	if valueVersion == "" {
+		valueVersion = "v3"
+	}
+	url = strings.ReplaceAll(url, "{"+"version"+"}", valueVersion)
 	return url
 }
 

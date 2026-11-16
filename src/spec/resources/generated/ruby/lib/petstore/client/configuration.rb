@@ -39,6 +39,16 @@ module Petstore::Client
       freeze
     end
 
+    # A readable form of the configuration that never reveals secrets: the
+    # value of a sensitive default header (Authorization, Proxy-Authorization,
+    # Cookie, or a name containing key, token or secret) prints as +***+.
+    # @return [String]
+    def inspect
+      headers = ::Petstore::Client::TransportOptions.redact_headers(@default_headers)
+      "#<#{self.class.name} base_url=#{@base_url.inspect} default_headers=#{headers.inspect}>"
+    end
+    alias to_s inspect
+
     # Create a new builder for constructing {Configuration} instances.
     # @return [Builder]
     def self.builder

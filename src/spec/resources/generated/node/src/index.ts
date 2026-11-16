@@ -70,4 +70,17 @@ export { OAuth2PasswordAuthenticator } from "./auth/oauth/oauth2-password-authen
 export { OAuth2AuthorizationCodeAuthenticator } from "./auth/oauth/oauth2-authorization-code-authenticator.js";
 export { OAuth2ImplicitAuthenticator } from "./auth/oauth/oauth2-implicit-authenticator.js";
 export { OpenIdConnectAuthenticator } from "./auth/oauth/openid-connect-authenticator.js";
+export { PetStoreBasicAuthenticator } from "./auth/pet-store-basic-authenticator.js";
+export { AdminBasicAuthenticator } from "./auth/admin-basic-authenticator.js";
+export { PetStoreBearerAuthenticator } from "./auth/pet-store-bearer-authenticator.js";
+export { ServiceTokenAuthenticator } from "./auth/service-token-authenticator.js";
+export { ApiKeyHeaderAuthenticator } from "./auth/api-key-header-authenticator.js";
+export { InternalApiKeyAuthenticator } from "./auth/internal-api-key-authenticator.js";
+export { ApiKeyQueryAuthenticator } from "./auth/api-key-query-authenticator.js";
+export { SessionCookieAuthenticator } from "./auth/session-cookie-authenticator.js";
+export { MachineAuthClientCredentialsAuthenticator } from "./auth/oauth/machine-auth-client-credentials-authenticator.js";
+export { LegacyAuthPasswordAuthenticator } from "./auth/oauth/legacy-auth-password-authenticator.js";
+export { UserAuthAuthorizationCodeAuthenticator } from "./auth/oauth/user-auth-authorization-code-authenticator.js";
+export { BrowserAuthImplicitAuthenticator } from "./auth/oauth/browser-auth-implicit-authenticator.js";
+export { SsoAuthAuthenticator } from "./auth/oauth/sso-auth-authenticator.js";
 export { ClientAuthMethod } from "./auth/oauth/client-auth-method.js";

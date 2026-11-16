@@ -108,6 +108,50 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     assert json["method"] == "GET"
   end
 
+  # The request timeout is ONE end-to-end budget across every redirect hop:
+  # two hops of 600 ms each exceed a 1000 ms budget even though no single hop
+  # does.
+  test "timeout is one budget across all redirect hops" do
+    {:ok, listener} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
+    {:ok, port} = :inet.port(listener)
+    server = spawn_link(fn -> slow_redirect_loop(listener, port) end)
+
+    transport = {{moduleName}}.TransportOptions.new(timeout: 1000, follow_redirects: true)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    try do
+      assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(client, :get, "http://127.0.0.1:#{port}/first", %{}, nil)
+      end
+    after
+      Process.unlink(server)
+      Process.exit(server, :kill)
+      :gen_tcp.close(listener)
+    end
+  end
+
+  defp slow_redirect_loop(listener, port) do
+    case :gen_tcp.accept(listener) do
+      {:ok, socket} ->
+        {:ok, request} = :gen_tcp.recv(socket, 0, 5000)
+        Process.sleep(600)
+
+        reply =
+          if String.starts_with?(request, "GET /first") do
+            "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:#{port}/second\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+          else
+            "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+          end
+
+        :gen_tcp.send(socket, reply)
+        :gen_tcp.close(socket)
+        slow_redirect_loop(listener, port)
+
+      {:error, _closed} ->
+        :ok
+    end
+  end
+
   test "times out on slow endpoint" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 

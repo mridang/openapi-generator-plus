@@ -37,13 +37,13 @@ impl ApiKeyAuthenticator {
         api_key: &str,
         location: ApiKeyLocation,
     ) -> Result<Self, ConfigurationError> {
-        /* Validation applies to ALL locations: empty/whitespace API keys
-         * are always a caller mistake; CR/LF/NUL would either inject HTTP
+        /* Validation applies to ALL locations: empty/ASCII-whitespace API keys
+         * (space, tab, CR, LF, VT, FF; Unicode spaces are valid) are always a caller mistake; CR/LF/NUL would either inject HTTP
          * headers (header location) or break URL/cookie construction
          * (query/cookie), so trapping them at construction surfaces the bug
          * clearly. The RFC 7230 §3.2.6 printable-ASCII rule still applies to
          * header values. */
-        if api_key.trim().is_empty() {
+        if api_key.chars().all(|c| matches!(c, ' ' | '\t' | '\n' | '\r' | '\x0b' | '\x0c')) {
             return Err(ConfigurationError::InvalidArgument(format!(
                 "API key value for '{}' must not be empty",
                 key_param_name

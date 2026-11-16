@@ -95,10 +95,13 @@ internal actual fun buildPlatformHttpClient(options: TransportOptions): HttpClie
                 proxy = ProxyBuilder.http(Url(options.proxy!!))
             }
             https {
+                // A configured CA bundle is always read, so an unreadable path is
+                // rejected even when verifySsl is false (where it is then unused).
+                val caTrustManager = options.caCertPath?.let { loadCaCertTrustManager(it) }
                 if (!options.verifySsl) {
                     trustManager = TRUST_ALL_MANAGER
-                } else if (options.caCertPath != null) {
-                    trustManager = loadCaCertTrustManager(options.caCertPath!!)
+                } else if (caTrustManager != null) {
+                    trustManager = caTrustManager
                 }
             }
         }

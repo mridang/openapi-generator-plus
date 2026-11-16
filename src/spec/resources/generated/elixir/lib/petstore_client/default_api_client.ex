@@ -778,6 +778,14 @@ defmodule PetstoreClient.DefaultApiClient do
   end
 
   defp do_request_with_redirects(client, method, url, headers, body, max_redirects, no_redirect) do
+    # One end-to-end budget for the whole call: the deadline is fixed here and
+    # every redirect hop spends what is left of it, never a fresh timeout.
+    deadline =
+      case client.transport_options.timeout do
+        nil -> nil
+        total -> System.monotonic_time(:millisecond) + total
+      end
+
     do_request_with_redirects(
       client,
       method,
@@ -785,9 +793,8 @@ defmodule PetstoreClient.DefaultApiClient do
       url,
       headers,
       body,
-      max_redirects,
-      0,
-      no_redirect
+      {max_redirects, 0},
+      {no_redirect, deadline}
     )
   end
 
@@ -798,9 +805,8 @@ defmodule PetstoreClient.DefaultApiClient do
          orig_url,
          headers,
          body,
-         max,
-         hops,
-         no_redirect
+         {max, hops},
+         {no_redirect, deadline}
        ) do
     # Catch inside the task so it always returns a tagged value and never
     # crashes the linked caller: Task.async links, so an uncaught raise
@@ -823,14 +829,16 @@ defmodule PetstoreClient.DefaultApiClient do
     end
 
     response =
-      case client.transport_options.timeout do
+      case deadline do
         nil ->
           case req_fun.() do
             {:ok, result} -> result
             {:raised, exception, stacktrace} -> reraise(exception, stacktrace)
           end
 
-        total ->
+        _deadline ->
+          total = max(deadline - System.monotonic_time(:millisecond), 0)
+
           # Req/Finch's :receive_timeout is per-chunk inactivity
           # (it resets on every received packet), so a slow-trickle response
           # can run arbitrarily long without tripping it. Enforce a hard
@@ -847,7 +855,8 @@ defmodule PetstoreClient.DefaultApiClient do
 
             nil ->
               raise PetstoreClient.Errors.NetworkTimeoutError,
-                message: "request exceeded total timeout of #{total}ms",
+                message:
+                  "request exceeded total timeout of #{client.transport_options.timeout}ms",
                 status_code: 0
           end
       end
@@ -941,9 +950,8 @@ defmodule PetstoreClient.DefaultApiClient do
                 orig_url,
                 next_headers,
                 next_body,
-                max,
-                hops + 1,
-                no_redirect
+                {max, hops + 1},
+                {no_redirect, deadline}
               )
           end
       end

@@ -12,12 +12,12 @@ defmodule PetstoreClient.Models.TreatmentRecord do
   @typedoc "A value of any of the anyOf variants."
   @type t :: term()
 
-  @doc "List of types defined in anyOf (OpenAPI v3)."
+  @doc "List of types defined in anyOf (OpenAPI v3), in declaration order."
   @spec openapi_any_of() :: [String.t()]
   def openapi_any_of do
     [
-      "Medication",
-      "Surgery"
+      "Surgery",
+      "Medication"
     ]
   end
 

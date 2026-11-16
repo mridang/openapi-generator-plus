@@ -344,13 +344,16 @@ public class BaseApi: @unchecked Sendable {
   }()
 
   /// Query-value encoding for parameters declared `allowReserved: true` (OAS
-  /// 3.0). The RFC 3986 reserved set — `: / ? # [ ] @ ! $ & ' ( ) * + , ; =`
+  /// 3.0). The RFC 3986 query-legal reserved set — `: / ? @ ! $ & ' ( ) * + , ; =`
   /// — is added to the unreserved set so those characters stay literal on the
-  /// wire. Everything outside both sets (space, control chars, non-ASCII) is
-  /// still percent-encoded, so a space still becomes `%20`.
+  /// wire. `#`, `[` and `]` are always percent-encoded: Foundation's `URL`
+  /// rewrites `[` and `]` itself and `#` would start the fragment, so the
+  /// bytes encoded here are exactly the bytes sent. Everything outside both
+  /// sets (space, control chars, non-ASCII) is percent-encoded too, so a
+  /// space becomes `%20`.
   private static let queryComponentAllowedReserved: CharacterSet = {
     var allowed = queryComponentAllowed
-    allowed.insert(charactersIn: ":/?#[]@!$&'()*+,;=")
+    allowed.insert(charactersIn: ":/?@!$&'()*+,;=")
     return allowed
   }()
 

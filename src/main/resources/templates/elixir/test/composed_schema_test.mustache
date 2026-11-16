@@ -220,6 +220,10 @@ defmodule {{moduleName}}.ComposedSchemaTest do
   # the generic serializer), and a scalar base64 string mis-parsed element-by-
   # element into a list because the codegen lists the array variant first.
   describe "setPetAvatarThumbnail byte oneOf round-trips through base64" do
+    test "variants are tried in schema declaration order, not alphabetical order" do
+      assert SetPetAvatarThumbnailRequest.openapi_one_of() == [:"binary()", :"[binary()]"]
+    end
+
     test "scalar byte variant serializes to a base64 STRING, not raw bytes or an int-array" do
       raw = <<0x01, 0x02, 0x03, 0x04>>
 

@@ -164,7 +164,7 @@ defmodule PetstoreClient.Models.Pet do
       tags: "[Tag]",
       status: "Enum<available=available,pending=pending,sold=sold>",
       location: "[any()]",
-      homepage_url: "String.t()",
+      homepage_url: "URI",
       thumbnail_ref: "String.t()",
       link_template: "String.t()",
       owner_email: "String.t()",

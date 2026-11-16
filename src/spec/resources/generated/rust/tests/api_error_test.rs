@@ -337,12 +337,14 @@ fn assert_is_open_api_error<T: OpenAPIError>(err: &T) -> &dyn OpenAPIError {
 
 /// Builds the per-status wrapper chain ApiError -> ClientError -> <status>.
 fn client_chain(status: u16, message: &str) -> ClientError {
-    ClientError::from(ApiError::new(status, message.to_string(), None, None))
+    ClientError::try_from(ApiError::new(status, message.to_string(), None, None))
+        .expect("a ClientError wraps a 4xx status")
 }
 
 /// Builds the per-status wrapper chain ApiError -> ServerError -> <status>.
 fn server_chain(status: u16, message: &str) -> ServerError {
-    ServerError::from(ApiError::new(status, message.to_string(), None, None))
+    ServerError::try_from(ApiError::new(status, message.to_string(), None, None))
+        .expect("a ServerError wraps a 5xx status")
 }
 
 #[test]
@@ -469,8 +471,8 @@ fn test_named_errors_accept_only_their_own_status() {
 
     refuses(
         "BadRequestError",
-        500,
-        BadRequestError::try_from(client_chain(500, "x")),
+        404,
+        BadRequestError::try_from(client_chain(404, "x")),
     );
     refuses(
         "UnauthorizedError",
@@ -489,8 +491,8 @@ fn test_named_errors_accept_only_their_own_status() {
     );
     refuses(
         "ConflictError",
-        0,
-        ConflictError::try_from(client_chain(0, "x")),
+        418,
+        ConflictError::try_from(client_chain(418, "x")),
     );
     refuses(
         "UnprocessableEntityError",
@@ -569,7 +571,8 @@ fn test_network_errors_are_open_api_errors() {
 
 #[test]
 fn test_network_errors_wrap_a_status_zero_api_error() {
-    let network = NetworkError::from(ApiError::new(0, "refused".to_string(), None, None));
+    let network = NetworkError::try_from(ApiError::new(0, "refused".to_string(), None, None))
+        .expect("status 0");
     assert_eq!(network.api_error().status_code(), 0);
     let timeout = NetworkTimeoutError::from(network.clone());
     assert_eq!(timeout.network_error().api_error().status_code(), 0);
@@ -711,7 +714,7 @@ fn test_status_wrappers_display_the_wrapped_api_error() {
 #[test]
 fn test_network_wrappers_display_the_wrapped_api_error() {
     let transport = ApiError::new(0, "connection refused".to_string(), None, None);
-    let network = NetworkError::from(transport);
+    let network = NetworkError::try_from(transport).expect("status 0");
     assert_eq!("connection refused", network.to_string());
     assert_eq!(
         "connection refused",
@@ -739,4 +742,30 @@ fn test_skills_error_handling_example_has_the_common_catch_arms() {
         !skills.contains("is_a::<NetworkTimeoutError>"),
         "SKILLS.md error example must not add an arm the other SDKs lack"
     );
+}
+
+/// The generic wrappers wrap only a status of their own class: a `ClientError`
+/// is 4xx, a `ServerError` 5xx and a `NetworkError` status 0, and any other
+/// status is handed back as the original `ApiError`.
+#[test]
+fn test_generic_wrappers_refuse_a_status_that_does_not_belong() {
+    let refused = |status: u16| ApiError::new(status, "x".to_string(), None, None);
+
+    for status in [0, 200, 399, 500] {
+        let back = ClientError::try_from(refused(status)).expect_err("not a 4xx");
+        assert_eq!(status, back.status_code());
+    }
+    for status in [0, 200, 404, 600] {
+        let back = ServerError::try_from(refused(status)).expect_err("not a 5xx");
+        assert_eq!(status, back.status_code());
+    }
+    for status in [200, 404, 500] {
+        let back = NetworkError::try_from(refused(status)).expect_err("not status 0");
+        assert_eq!(status, back.status_code());
+    }
+    assert!(ClientError::try_from(refused(400)).is_ok());
+    assert!(ClientError::try_from(refused(499)).is_ok());
+    assert!(ServerError::try_from(refused(500)).is_ok());
+    assert!(ServerError::try_from(refused(599)).is_ok());
+    assert!(NetworkError::try_from(refused(0)).is_ok());
 }

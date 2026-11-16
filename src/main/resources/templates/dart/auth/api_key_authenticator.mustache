@@ -2,6 +2,11 @@
 import 'api_key_location.dart';
 import 'base_authenticator.dart';
 
+/* True when [value] is empty or holds only ASCII whitespace (space, tab, LF,
+ * VT, FF, CR). Unicode spaces such as U+00A0 do not count as blank. */
+bool _isAsciiBlank(String value) =>
+    value.codeUnits.every((c) => c == 0x20 || (c >= 0x09 && c <= 0x0D));
+
 /// ApiKeyAuthenticator provides API key authentication.
 ///
 /// The API key can be sent as a header, query parameter, or cookie,
@@ -31,7 +36,7 @@ class ApiKeyAuthenticator extends BaseAuthenticator {
     /* Validation applies to ALL locations: empty/whitespace API keys
      * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
      * printable-ASCII rule still applies to HEADER values. */
-    if (apiKey.isEmpty || apiKey.trim().isEmpty) {
+    if (_isAsciiBlank(apiKey)) {
       throw ArgumentError(
         "API key value for '$keyParamName' must not be empty",
       );

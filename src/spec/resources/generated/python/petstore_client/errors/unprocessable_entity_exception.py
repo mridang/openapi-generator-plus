@@ -19,6 +19,7 @@ class UnprocessableEntityException(ClientException):
         response_headers: Optional[Any] = None,
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
+        cause: Optional[BaseException] = None,
     ) -> None:
         super().__init__(
             status_code=422,
@@ -26,4 +27,5 @@ class UnprocessableEntityException(ClientException):
             response_headers=response_headers,
             response_body=response_body,
             error_body=error_body,
+            cause=cause,
         )

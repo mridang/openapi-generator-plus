@@ -5,6 +5,9 @@ from typing import Dict
 
 from .base_authenticator import BaseAuthenticator
 
+# Only ASCII whitespace counts as blank; a Unicode space is not stripped.
+_ASCII_WHITESPACE = " \t\n\r\f\v"
+
 
 @dataclass(frozen=True, eq=False)
 class BearerAuthenticator(BaseAuthenticator):
@@ -20,7 +23,7 @@ class BearerAuthenticator(BaseAuthenticator):
         # Reject an empty / whitespace-only token so the SDK never emits a
         # bare ``Authorization: Bearer `` header, matching the api-key
         # authenticator's own empty guard.
-        if not self.token or not self.token.strip():
+        if not self.token or not self.token.strip(_ASCII_WHITESPACE):
             raise ValueError('Bearer token must not be empty')
         # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
         # Reject anything outside printable ASCII + TAB so callers see a

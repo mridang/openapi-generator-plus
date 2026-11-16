@@ -14,5 +14,6 @@ class UnauthorizedException extends ClientException {
     super.responseBody,
     super.responseHeaders,
     super.errorBody,
+    super.cause,
   }) : super(statusCode: 401);
 }

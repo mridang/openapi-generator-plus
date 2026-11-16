@@ -53,6 +53,27 @@ test('whitespace only key throws at construction', function (): void {
         ->toThrow(\InvalidArgumentException::class);
 });
 
+test('ascii whitespace only key is blank in every location', function (string $key): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'api_key', $key, ApiKeyLocation::QUERY))
+        ->toThrow(\InvalidArgumentException::class, 'must not be empty');
+})->with([
+    'space' => [' '],
+    'tab' => ["\t"],
+    'line feed' => ["\n"],
+    'carriage return' => ["\r"],
+    'form feed' => ["\f"],
+    'vertical tab' => ["\v"],
+    'mixed' => [" \t\f\v "],
+]);
+
+test('unicode space key is a valid non header key', function (string $key): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', $key, ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => $key]);
+})->with([
+    'no break space' => ["\u{00A0}"],
+    'em space' => ["\u{2003}"],
+]);
+
 test('crlf in query key throws at construction', function (): void {
     // CR/LF/NUL are forbidden control characters in ALL locations.
     expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'api_key', "abc\r\n", ApiKeyLocation::QUERY))

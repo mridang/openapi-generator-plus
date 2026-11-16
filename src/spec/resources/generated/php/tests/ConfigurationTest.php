@@ -196,6 +196,24 @@ test('configuration is immutable', function (): void {
     expect($config->defaultHeaders['X-Key'])->toBe('value');
 });
 
+test('debug output masks credential default headers', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('Authorization', 'Bearer s3cr3t')
+        ->defaultHeader('Proxy-Authorization', 'Basic s3cr3t')
+        ->defaultHeader('Cookie', 'session=s3cr3t')
+        ->defaultHeader('X-Api-Key', 's3cr3t')
+        ->defaultHeader('X-Auth-Token', 's3cr3t')
+        ->defaultHeader('X-Client-Secret', 's3cr3t')
+        ->defaultHeader('X-Trace', 'visible')
+        ->build();
+
+    $dump = print_r($config, true);
+
+    expect($dump)->not->toContain('s3cr3t');
+    expect($dump)->toContain('visible');
+    expect($config->defaultHeaders['Authorization'])->toBe('Bearer s3cr3t');
+});
+
 test('builder is fluent', function (): void {
     $builder = Configuration::builder();
 

@@ -103,6 +103,26 @@ test('NetworkException and NetworkTimeoutException extend ApiException with stat
     expect($timeout->getPrevious())->toBe($cause);
 });
 
+test('every status-specific error keeps an optional cause', function (string $class): void {
+    $cause = new \RuntimeException('root cause');
+
+    $withCause = new $class('failed', null, null, null, $cause);
+    $without = new $class('failed');
+    assert($withCause instanceof \Throwable);
+    assert($without instanceof \Throwable);
+
+    expect($withCause->getPrevious())->toBe($cause);
+    expect($without->getPrevious())->toBeNull();
+})->with([
+    \PetstoreClient\Errors\BadRequestException::class,
+    \PetstoreClient\Errors\UnauthorizedException::class,
+    \PetstoreClient\Errors\ForbiddenException::class,
+    \PetstoreClient\Errors\NotFoundException::class,
+    \PetstoreClient\Errors\ConflictException::class,
+    \PetstoreClient\Errors\UnprocessableEntityException::class,
+    \PetstoreClient\Errors\InternalServerErrorException::class,
+]);
+
 test('every typed API error extends the base ApiException', function (): void {
     /* #5: a caller catching the base ApiException must catch every typed
      * error the SDK throws. ClientException/ServerException extend

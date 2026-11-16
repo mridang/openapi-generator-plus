@@ -31,7 +31,7 @@ use crate::errors::configuration_error::ConfigurationError;
 ///     .build()?;
 /// # Ok::<(), petstore::ConfigurationError>(())
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TransportOptions {
     /// Whether TLS certificate verification is enabled. `true` (the default)
     /// verifies server certificates; `false` accepts any certificate.
@@ -93,6 +93,67 @@ pub struct TransportOptions {
     /// Useful for distributed tracing and log correlation. The header is only
     /// injected if the caller has not already set one.
     inject_request_id: bool,
+}
+
+/// Returns `true` when a header name denotes a credential whose value must
+/// never be printed: `Authorization`, `Proxy-Authorization`, `Cookie`, or any
+/// name containing `key`, `token` or `secret` (case-insensitive).
+pub(crate) fn is_sensitive_header(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower == "authorization"
+        || lower == "proxy-authorization"
+        || lower == "cookie"
+        || lower.contains("key")
+        || lower.contains("token")
+        || lower.contains("secret")
+}
+
+/// Copies a header map for printing with every credential value masked as `***`.
+pub(crate) fn redact_headers(
+    headers: &HashMap<String, String>,
+) -> std::collections::BTreeMap<String, String> {
+    headers
+        .iter()
+        .map(|(name, value)| {
+            let shown = if is_sensitive_header(name) {
+                "***".to_string()
+            } else {
+                value.clone()
+            };
+            (name.clone(), shown)
+        })
+        .collect()
+}
+
+/// Masks the password in a proxy URL's userinfo as `***`.
+fn redact_proxy(proxy: &str) -> String {
+    match reqwest::Url::parse(proxy) {
+        Ok(mut url) => {
+            if url.password().is_some() {
+                let _ = url.set_password(Some("***"));
+            }
+            url.to_string()
+        }
+        Err(_) => "***".to_string(),
+    }
+}
+
+impl std::fmt::Debug for TransportOptions {
+    /// Renders every setting while masking the proxy password and the value of
+    /// any credential-bearing default header as `***`.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TransportOptions")
+            .field("verify_ssl", &self.verify_ssl)
+            .field("ca_cert_path", &self.ca_cert_path)
+            .field("proxy", &self.proxy.as_deref().map(redact_proxy))
+            .field("timeout", &self.timeout)
+            .field("follow_redirects", &self.follow_redirects)
+            .field("max_redirects", &self.max_redirects)
+            .field("user_agent", &self.user_agent)
+            .field("default_headers", &redact_headers(&self.default_headers))
+            .field("inject_request_id", &self.inject_request_id)
+            .finish()
+    }
 }
 
 impl TransportOptions {

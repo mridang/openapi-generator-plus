@@ -13,6 +13,7 @@ import {
   DryFood,
   WetFood,
   PetTreatment,
+  TreatmentRecord,
   Medication,
   Surgery,
 } from "../src/models/index.js";
@@ -326,5 +327,53 @@ describe("Composed Schema", () => {
     );
     expect(restored!.name).toBe(original!.name);
     expect(restored!.ownerName).toBe(original!.ownerName);
+  });
+
+  test("anyOf: variants are listed and retained in schema declaration order", () => {
+    expect(PetTreatment.ANY_OF_SCHEMAS).toEqual(["Medication", "Surgery"]);
+    expect(TreatmentRecord.ANY_OF_SCHEMAS).toEqual(["Surgery", "Medication"]);
+    const data = { drugName: "Amoxicillin", procedureName: "Spay" };
+    const record = ObjectSerializer.deserialize(data, TreatmentRecord);
+    expect(record!.getMatchedInstances().map((m) => m.constructor)).toEqual([
+      Surgery,
+      Medication,
+    ]);
+    const treatment = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(treatment!.getMatchedInstances().map((m) => m.constructor)).toEqual([
+      Medication,
+      Surgery,
+    ]);
+  });
+
+  test("anyOf: wrappers compare by value", () => {
+    const data = { drugName: "Amoxicillin", procedureName: "Spay" };
+    const a = ObjectSerializer.deserialize(data, PetTreatment)!;
+    const b = ObjectSerializer.deserialize(data, PetTreatment)!;
+    const other = ObjectSerializer.deserialize(
+      { drugName: "Aspirin" },
+      PetTreatment,
+    )!;
+    expect(a).not.toBe(b);
+    expect(a.equals(b)).toBe(true);
+    expect(a.equals(other)).toBe(false);
+    expect(a.equals(null)).toBe(false);
+  });
+
+  test("oneOf: wrappers compare by value", () => {
+    const a = ObjectSerializer.deserialize(
+      { foodType: "dry", weightKg: 2.5 },
+      PetFood,
+    )!;
+    const b = ObjectSerializer.deserialize(
+      { foodType: "dry", weightKg: 2.5 },
+      PetFood,
+    )!;
+    const other = ObjectSerializer.deserialize(
+      { foodType: "dry", weightKg: 3 },
+      PetFood,
+    )!;
+    expect(a).not.toBe(b);
+    expect(a.equals(b)).toBe(true);
+    expect(a.equals(other)).toBe(false);
   });
 });

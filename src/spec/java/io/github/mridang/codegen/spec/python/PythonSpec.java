@@ -39,6 +39,11 @@ interface PythonSpec extends LanguageSpec, DockerImageSpec {
   default Map<String, String> getCacheEnv() {
     /* PIP_CACHE_DIR redirects the wheel cache. No compile artifacts to
      * cache for Python. */
-    return Map.of("PIP_CACHE_DIR", "/root/.cache/python/pip");
+    return Map.of(
+        "PIP_CACHE_DIR", "/root/.cache/python/pip",
+        /* The type checker and linter keep content-keyed caches, so a warm
+         * cache only skips unchanged files and never hides a finding. */
+        "MYPY_CACHE_DIR", "/root/.cache/python/mypy",
+        "RUFF_CACHE_DIR", "/root/.cache/python/ruff");
   }
 }

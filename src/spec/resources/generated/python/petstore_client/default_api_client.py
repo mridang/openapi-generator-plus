@@ -271,15 +271,12 @@ class DefaultApiClient:
             kwargs: Dict[str, Any] = {"maxsize": 10}
 
             # --- TLS / SSL ---
-            if not transport_options.verify_ssl:
-                kwargs["cert_reqs"] = "CERT_NONE"
-                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-            elif transport_options.ca_cert_path:
+            if transport_options.ca_cert_path:
                 # Gap T4: fail fast on a user-supplied CA cert that cannot be
                 # read or parsed rather than silently falling back to the
                 # system trust store. If the caller explicitly asked for SSL
                 # pinning we must not pretend it succeeded -- validate the
-                # PEM eagerly at construction.
+                # PEM eagerly at construction, even when verify_ssl is False.
                 try:
                     ctx = ssl.create_default_context()
                     ctx.load_verify_locations(cafile=transport_options.ca_cert_path)
@@ -288,6 +285,10 @@ class DefaultApiClient:
                         "failed to load CA certificate from "
                         f"{transport_options.ca_cert_path!r}: {e}"
                     ) from e
+            if not transport_options.verify_ssl:
+                kwargs["cert_reqs"] = "CERT_NONE"
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            elif transport_options.ca_cert_path:
                 kwargs["ca_certs"] = transport_options.ca_cert_path
                 kwargs["cert_reqs"] = "CERT_REQUIRED"
 
@@ -913,11 +914,8 @@ class DefaultApiClient:
                     f"pass bytes for binary data"
                 )
             if hasattr(content, "read"):
-                try:
-                    read_data = content.read()
-                finally:
-                    if hasattr(content, "close"):
-                        content.close()
+                # The caller owns the handle: it is read, never closed.
+                read_data = content.read()
                 if isinstance(read_data, str):
                     raise TypeError(
                         f'multipart part {name!r}: file opened in text mode; open with mode="rb"'
@@ -944,11 +942,8 @@ class DefaultApiClient:
 
         if hasattr(value, "read"):
             filename = getattr(value, "name", None)
-            try:
-                raw_data = value.read()
-            finally:
-                if hasattr(value, "close"):
-                    value.close()
+            # The caller owns the handle: it is read, never closed.
+            raw_data = value.read()
             if isinstance(raw_data, str):
                 # File was opened in text mode; refuse rather than silently
                 # round-tripping arbitrary bytes through UTF-8.

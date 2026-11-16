@@ -72,7 +72,7 @@ class BearerAuthenticatorTest {
 
   @Test
   void newlineOnlyTokenReportsEmptyNotPrintableAscii() {
-    for (String blank : new String[] {"\n", "\r\n", "\013"}) {
+    for (String blank : new String[] {"\n", "\r\n", "\013", "\f"}) {
       IllegalArgumentException ex =
           assertThrows(
               IllegalArgumentException.class,

@@ -106,6 +106,62 @@ describe("ApiError", () => {
       expect(err.name).toBe("NetworkTimeoutError");
       expect(new NetworkError("refused").statusCode).toBe(0);
     });
+
+    test.each([
+      [
+        "BadRequestError",
+        (c: Error) => new BadRequestError("m", null, null, null, { cause: c }),
+        400,
+      ],
+      [
+        "UnauthorizedError",
+        (c: Error) =>
+          new UnauthorizedError("m", null, null, null, { cause: c }),
+        401,
+      ],
+      [
+        "ForbiddenError",
+        (c: Error) => new ForbiddenError("m", null, null, null, { cause: c }),
+        403,
+      ],
+      [
+        "NotFoundError",
+        (c: Error) => new NotFoundError("m", null, null, null, { cause: c }),
+        404,
+      ],
+      [
+        "ConflictError",
+        (c: Error) => new ConflictError("m", null, null, null, { cause: c }),
+        409,
+      ],
+      [
+        "UnprocessableEntityError",
+        (c: Error) =>
+          new UnprocessableEntityError("m", null, null, null, { cause: c }),
+        422,
+      ],
+      [
+        "InternalServerError",
+        (c: Error) =>
+          new InternalServerError("m", null, null, null, { cause: c }),
+        500,
+      ],
+      [
+        "ClientError",
+        (c: Error) => new ClientError(418, "m", null, null, null, { cause: c }),
+        418,
+      ],
+      [
+        "ServerError",
+        (c: Error) => new ServerError(503, "m", null, null, null, { cause: c }),
+        503,
+      ],
+    ])("%s accepts an optional cause", (_name, build, status) => {
+      const cause = new Error("root cause");
+      const err = build(cause);
+      expect(err.cause).toBe(cause);
+      expect(err.statusCode).toBe(status);
+    });
   });
 
   describe("getTypedErrorBody", () => {

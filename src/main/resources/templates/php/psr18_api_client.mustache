@@ -176,8 +176,8 @@ class Psr18ApiClient extends AbstractApiClient
                     $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
                     $out .= ($content !== false ? $content : '') . $crlf;
                 } elseif (is_resource($v)) {
+                    /* The caller owns the stream: it is read but never closed. */
                     $content = stream_get_contents($v);
-                    fclose($v);
                     /* A raw-bytes part has no explicit filename, so the field
                      * NAME is reused as the filename and the Content-Type is
                      * guessed from that filename's extension (falling back to

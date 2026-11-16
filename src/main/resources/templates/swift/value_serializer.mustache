@@ -65,12 +65,11 @@ internal enum ValueSerializer {
     ///
     /// The wrapped value is a `String`, or a `[String]` for exploded parameters.
     ///
-    /// The encoder output is the contract: every reserved character stays
-    /// literal in the query string this SDK builds. Foundation's `URL` and
-    /// `URLComponents` then rewrite `[` and `]` to `%5B` and `%5D` (and
-    /// `URLComponents.percentEncodedQuery` traps on them), so those two bytes
-    /// differ on the wire. The server percent-decodes them back to the same
-    /// value; the SDK itself never re-encodes them.
+    /// The encoder output is the contract: the RFC 3986 query-legal reserved
+    /// characters stay literal in the query string this SDK builds, and `#`,
+    /// `[` and `]` are percent-encoded there, because Foundation's `URL` rewrites
+    /// `[` and `]` itself (and `URLComponents.percentEncodedQuery` traps on
+    /// them). The bytes the encoder produces are therefore the bytes sent.
     struct AllowReservedValue {
         let value: Any
     }

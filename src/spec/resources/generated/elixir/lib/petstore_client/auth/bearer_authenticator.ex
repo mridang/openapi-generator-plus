@@ -43,7 +43,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
     # Reject empty/whitespace-only tokens up front: an empty token would
     # otherwise emit the literal `Authorization: Bearer ` header, sending the
     # request effectively unauthenticated.
-    if token == "" or String.trim(token) == "" do
+    if token =~ ~r/\A[\x20\x09\x0A\x0D\x0C\x0B]*\z/ do
       raise ArgumentError, "Bearer token must not be empty"
     end
 

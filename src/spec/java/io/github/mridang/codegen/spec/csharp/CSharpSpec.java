@@ -41,6 +41,11 @@ interface CSharpSpec extends LanguageSpec, DockerImageSpec {
      * subtree survives across CSharpBuildSpec → CSharpClientSpec →
      * CSharpStaticAnalysisSpec. Project bin/ and obj/ stay local (would
      * need MSBuild BaseOutputPath property to relocate). */
-    return Map.of("NUGET_PACKAGES", "/root/.cache/csharp/nuget");
+    return Map.of(
+        "NUGET_PACKAGES", "/root/.cache/csharp/nuget",
+        /* Skip the first-run experience and telemetry round trips. */
+        "DOTNET_CLI_TELEMETRY_OPTOUT", "1",
+        "DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "1",
+        "DOTNET_NOLOGO", "1");
   }
 }

@@ -56,7 +56,7 @@ module {{moduleName}}
       # and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
       # printable-ASCII rule still applies to HEADER values.
       def validate_api_key!(key_param_name, api_key, location)
-        if api_key.nil? || api_key.empty? || api_key.strip.empty?
+        if api_key.nil? || api_key.match?(/\A[ \t\n\r\f\v]*\z/)
           raise ArgumentError,
                 "API key value for '#{key_param_name}' must not be empty"
         end

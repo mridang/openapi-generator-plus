@@ -385,3 +385,21 @@ fn test_readme_socks_note_names_the_builder_proxy_setter() {
         "the README must not use the Java accessor spelling"
     );
 }
+
+#[test]
+fn test_transport_options_debug_masks_proxy_password_and_credential_headers() {
+    let options = TransportOptions::builder()
+        .proxy("http://user:s3cr3t@proxy.example.com:8080")
+        .default_header("Proxy-Authorization", "Basic s3cr3t")
+        .default_header("X-Auth-Token", "s3cr3t")
+        .default_header("X-Custom", "visible")
+        .build()
+        .unwrap();
+
+    let shown = format!("{:?}", options);
+
+    assert!(!shown.contains("s3cr3t"));
+    assert!(shown.contains("***"));
+    assert!(shown.contains("proxy.example.com"));
+    assert!(shown.contains("visible"));
+}

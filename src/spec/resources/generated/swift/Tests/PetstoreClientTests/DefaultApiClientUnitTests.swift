@@ -34,7 +34,7 @@ import Testing
 
   @Test func testInjectsCustomUserAgent() async throws {
     var capturedUA: String?
-    let transport = TransportOptionsBuilder().userAgent("MyApp/1.0").build()
+    let transport = try TransportOptionsBuilder().userAgent("MyApp/1.0").build()
     let client = makeClient(transport: transport) { req in
       capturedUA = req.value(forHTTPHeaderField: "User-Agent")
       return (self.body(), 200, [:])
@@ -45,7 +45,7 @@ import Testing
   }
 
   @Test func testLowercaseCallerHeadersSuppressInjection() async throws {
-    let transport = TransportOptionsBuilder()
+    let transport = try TransportOptionsBuilder()
       .userAgent("sdk-default/1.0")
       .injectRequestID(true)
       .defaultHeader(name: "user-agent", value: "MyApp")
@@ -65,9 +65,9 @@ import Testing
     #expect(Array(ids.values) == ["abc"])
   }
 
-  /* allowReserved: the encoder keeps the reserved set literal, but
-     Foundation's URL rewrites [ and ] to %5B and %5D (FORCED); the value
-     still percent-decodes to the input. */
+  /* allowReserved: the encoder keeps the query-legal reserved set literal and
+     writes [ and ] as %5B and %5D itself, so Foundation's URL leaves the
+     encoder bytes untouched on the wire. */
   @Test func testAllowReservedQueryKeepsReservedCharactersOnTheWire() async throws {
     let value = ":/?@!$()*+,;~'[]"
     let query = BaseApi.buildQueryString([
@@ -102,7 +102,7 @@ import Testing
    * other SDKs, instead of being silently omitted. */
   @Test func testEmptyUserAgentIsSentAsEmptyHeader() async throws {
     var capturedUA: String?
-    let transport = TransportOptionsBuilder().userAgent("").build()
+    let transport = try TransportOptionsBuilder().userAgent("").build()
     let client = makeClient(transport: transport) { req in
       capturedUA = req.value(forHTTPHeaderField: "User-Agent")
       return (self.body(), 200, [:])
@@ -116,7 +116,7 @@ import Testing
 
   @Test func testInjectsRequestId() async throws {
     var capturedId: String?
-    let transport = TransportOptionsBuilder().injectRequestID(true).build()
+    let transport = try TransportOptionsBuilder().injectRequestID(true).build()
     let client = makeClient(transport: transport) { req in
       capturedId = req.value(forHTTPHeaderField: "X-Request-ID")
       return (self.body(), 200, [:])
@@ -130,7 +130,7 @@ import Testing
 
   @Test func testDoesNotInjectRequestIdWhenDisabled() async throws {
     var capturedId: String?
-    let transport = TransportOptionsBuilder().injectRequestID(false).build()
+    let transport = try TransportOptionsBuilder().injectRequestID(false).build()
     let client = makeClient(transport: transport) { req in
       capturedId = req.value(forHTTPHeaderField: "X-Request-ID")
       return (self.body(), 200, [:])
@@ -142,7 +142,7 @@ import Testing
 
   @Test func testDoesNotOverrideCallerRequestId() async throws {
     var capturedId: String?
-    let transport = TransportOptionsBuilder().injectRequestID(true).build()
+    let transport = try TransportOptionsBuilder().injectRequestID(true).build()
     let client = makeClient(transport: transport) { req in
       capturedId = req.value(forHTTPHeaderField: "X-Request-ID")
       return (self.body(), 200, [:])
@@ -155,7 +155,7 @@ import Testing
 
   @Test func testGeneratesUniqueRequestIds() async throws {
     var capturedIds: [String] = []
-    let transport = TransportOptionsBuilder().injectRequestID(true).build()
+    let transport = try TransportOptionsBuilder().injectRequestID(true).build()
     let client = makeClient(transport: transport) { req in
       if let id = req.value(forHTTPHeaderField: "X-Request-ID") { capturedIds.append(id) }
       return (self.body(), 200, [:])
@@ -172,8 +172,9 @@ import Testing
 
   @Test func testIncludesTransportDefaultHeaders() async throws {
     var capturedValue: String?
-    let transport = TransportOptionsBuilder().defaultHeader(name: "X-Custom", value: "custom-value")
-      .build()
+    let transport = try TransportOptionsBuilder().defaultHeader(
+      name: "X-Custom", value: "custom-value"
+    ).build()
     let client = makeClient(transport: transport) { req in
       capturedValue = req.value(forHTTPHeaderField: "X-Custom")
       return (self.body(), 200, [:])
@@ -185,7 +186,7 @@ import Testing
 
   @Test func testCallerHeadersOverrideDefaults() async throws {
     var capturedAccept: String?
-    let transport = TransportOptionsBuilder().defaultHeader(name: "Accept", value: "text/plain")
+    let transport = try TransportOptionsBuilder().defaultHeader(name: "Accept", value: "text/plain")
       .build()
     let client = makeClient(transport: transport) { req in
       capturedAccept = req.value(forHTTPHeaderField: "Accept")
@@ -942,27 +943,30 @@ import Testing
     }
   #endif
 
-  /* The SDK's own Proxy-Authorization survives a redirect hop; on a
-     cross-origin hop to https it is withheld. */
-  @Test func testProxyAuthorizationIsReappliedOnRedirect() {
-    var sameOrigin = URLRequest(url: URL(string: "https://example.com/b")!)
-    DefaultApiClient.reapplyProxyAuthorization(
-      to: &sameOrigin, header: "Basic abc", crossOrigin: false)
-    #expect(sameOrigin.value(forHTTPHeaderField: "Proxy-Authorization") == "Basic abc")
+  /* The proxy credential answers the proxy's own challenge once and nothing
+     else: an origin challenge keeps the default handling, so the credential
+     never reaches the API host, and a repeated challenge cancels. */
+  @Test func testProxyCredentialAnswersOnlyTheProxyChallenge() {
+    let credential = URLCredential(user: "u", password: "p", persistence: .forSession)
 
-    var crossHttp = URLRequest(url: URL(string: "http://other.example/b")!)
-    DefaultApiClient.reapplyProxyAuthorization(
-      to: &crossHttp, header: "Basic abc", crossOrigin: true)
-    #expect(crossHttp.value(forHTTPHeaderField: "Proxy-Authorization") == "Basic abc")
+    let proxy = DefaultApiClient.proxyChallengeDisposition(
+      isProxy: true, previousFailureCount: 0, credential: credential)
+    #expect(proxy.disposition == .useCredential)
+    #expect(proxy.credential === credential)
 
-    var crossHttps = URLRequest(url: URL(string: "https://other.example/b")!)
-    DefaultApiClient.reapplyProxyAuthorization(
-      to: &crossHttps, header: "Basic abc", crossOrigin: true)
-    #expect(crossHttps.value(forHTTPHeaderField: "Proxy-Authorization") == nil)
+    let repeated = DefaultApiClient.proxyChallengeDisposition(
+      isProxy: true, previousFailureCount: 1, credential: credential)
+    #expect(repeated.disposition == .cancelAuthenticationChallenge)
+    #expect(repeated.credential == nil)
 
-    var none = URLRequest(url: URL(string: "https://example.com/b")!)
-    DefaultApiClient.reapplyProxyAuthorization(to: &none, header: nil, crossOrigin: false)
-    #expect(none.value(forHTTPHeaderField: "Proxy-Authorization") == nil)
+    let origin = DefaultApiClient.proxyChallengeDisposition(
+      isProxy: false, previousFailureCount: 0, credential: credential)
+    #expect(origin.disposition == .performDefaultHandling)
+    #expect(origin.credential == nil)
+
+    let none = DefaultApiClient.proxyChallengeDisposition(
+      isProxy: true, previousFailureCount: 0, credential: nil)
+    #expect(none.disposition == .performDefaultHandling)
   }
 
   /* noRedirect requests (OAuth2 token calls) share ONE long-lived session
@@ -1126,7 +1130,7 @@ import Testing
       .appendingPathComponent("garbage-\(UUID().uuidString).pem")
     try Data("not a certificate".utf8).write(to: file)
     defer { try? FileManager.default.removeItem(at: file) }
-    let transport = TransportOptionsBuilder().caCertPath(file.path).build()
+    let transport = try TransportOptionsBuilder().caCertPath(file.path).build()
     #expect(
       throws: ConfigurationError.invalidCACertificate(
         "failed to parse \"\(file.path)\": no PEM blocks found or unparseable")
@@ -1138,8 +1142,8 @@ import Testing
   #if os(Linux)
     /* URLSession on Linux cannot apply either TLS override, so asking for one
        must fail loudly instead of being silently dropped. */
-    @Test func testDisablingVerificationIsRefusedOnLinux() {
-      let transport = TransportOptionsBuilder().verifySsl(false).build()
+    @Test func testDisablingVerificationIsRefusedOnLinux() throws {
+      let transport = try TransportOptionsBuilder().verifySsl(false).build()
       #expect(throws: ConfigurationError.tlsOptionsUnsupported) {
         _ = try DefaultApiClient(transportOptions: transport)
       }
@@ -1150,7 +1154,7 @@ import Testing
         .appendingPathComponent("der-\(UUID().uuidString).der")
       try Data([0x30, 0x03, 0x02, 0x01, 0x05]).write(to: file)
       defer { try? FileManager.default.removeItem(at: file) }
-      let transport = TransportOptionsBuilder().caCertPath(file.path).build()
+      let transport = try TransportOptionsBuilder().caCertPath(file.path).build()
       #expect(throws: ConfigurationError.tlsOptionsUnsupported) {
         _ = try DefaultApiClient(transportOptions: transport)
       }
@@ -1159,13 +1163,13 @@ import Testing
 
   // MARK: - CA certificate fail-fast
 
-  @Test func testNonexistentCaCertPathFailsFast() {
+  @Test func testNonexistentCaCertPathFailsFast() throws {
     // ca-cert-fail-fast: an explicitly configured CA certificate path that
     // cannot be read or parsed must fail fast at construction with
     // ConfigurationError rather than silently falling back to the system
     // trust store (security theater). It is a configuration mistake, not
     // an ApiError.
-    let transport = TransportOptionsBuilder().caCertPath("/nonexistent/ca.pem").build()
+    let transport = try TransportOptionsBuilder().caCertPath("/nonexistent/ca.pem").build()
     #expect(
       throws: ConfigurationError.invalidCACertificate("failed to read \"/nonexistent/ca.pem\"")
     ) {

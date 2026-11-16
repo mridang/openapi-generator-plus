@@ -93,9 +93,23 @@ func TestApiKeyAuthenticator_RejectsEmptyOrWhitespaceKey(t *testing.T) {
 		{"query-empty", "", auth.ApiKeyLocationQuery},
 		{"cookie-empty", "", auth.ApiKeyLocationCookie},
 		{"header-whitespace", "   ", auth.ApiKeyLocationHeader},
+		{"query-form-feed", "\f", auth.ApiKeyLocationQuery},
+		{"query-vertical-tab", "\v", auth.ApiKeyLocationQuery},
+		{"query-mixed-ascii-whitespace", " \t\r\n\f\v ", auth.ApiKeyLocationQuery},
 	}
 	for _, tc := range cases {
 		expectInvalidApiKey(t, tc.value, tc.location)
+	}
+}
+
+// Only ASCII whitespace counts as blank: a Unicode space is a valid key.
+func TestApiKeyAuthenticator_UnicodeSpaceIsNotBlank(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{"\u00a0", "\u2003"} {
+		a := mustApiKey(t, "https://api.example.com", "api_key", value, auth.ApiKeyLocationQuery)
+		if got := a.QueryParams()["api_key"]; got != value {
+			t.Fatalf("api_key query param = %q, want %q", got, value)
+		}
 	}
 }
 

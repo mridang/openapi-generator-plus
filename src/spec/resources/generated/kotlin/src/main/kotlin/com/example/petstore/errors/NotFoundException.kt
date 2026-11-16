@@ -14,10 +14,12 @@ package com.example.petstore.errors
  * @param responseHeaders the HTTP response headers, if available
  * @param responseBody the raw HTTP response body, if available
  * @param errorBody the deserialized error body, if available
+ * @param cause the underlying failure, if any
  */
 class NotFoundException(
     message: String = "",
     responseHeaders: Map<String, String>? = null,
     responseBody: String? = null,
     errorBody: Any? = null,
-) : ClientException(404, message, responseHeaders, responseBody, errorBody)
+    cause: Throwable? = null,
+) : ClientException(404, message, responseHeaders, responseBody, errorBody, cause)

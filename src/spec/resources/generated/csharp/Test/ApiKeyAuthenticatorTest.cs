@@ -121,6 +121,31 @@ public class ApiKeyAuthenticatorTest
         );
     }
 
+    [Theory]
+    [InlineData(" \t\n\r\f\v")]
+    [InlineData("\f")]
+    public void AsciiWhitespaceOnlyQueryKeyThrowsAsEmpty(string key)
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "api_key", key, ApiKeyLocation.Query)
+        );
+        Assert.Contains("must not be empty", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("\u00A0")]
+    [InlineData("\u2003")]
+    public void UnicodeSpaceQueryKeyIsAccepted(string key)
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "api_key",
+            key,
+            ApiKeyLocation.Query
+        );
+        Assert.Equal(key, auth.GetQueryParams()["api_key"]);
+    }
+
     [Fact]
     public void CrlfInQueryKeyThrowsAtConstruction()
     {

@@ -35,6 +35,19 @@ void main() {
         () => BearerAuthenticator(host: '{{{basePath}}}', token: '   '),
         throwsArgumentError,
       );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: ' \t\n\r\f\v '),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message, 'message', contains('Bearer token must not be empty'))),
+      );
+    });
+
+    test('a Unicode space is not blank, so the printable ASCII check rejects it', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: '\u00A0'),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message, 'message', contains('printable ASCII'))),
+      );
     });
 
     test('redacts the token in toString', () {

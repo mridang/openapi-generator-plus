@@ -32,7 +32,7 @@ public class ApiKeyAuthenticator : BaseAuthenticator
         /* Validation applies to ALL locations: empty/whitespace API keys
          * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
          * printable-ASCII rule still applies to HEADER values. */
-        if (string.IsNullOrWhiteSpace(apiKey))
+        if (apiKey.All(c => c is ' ' or '\t' or '\n' or '\r' or '\f' or '\v'))
         {
             throw new ArgumentException(
                 $"API key value for '{keyParamName}' must not be empty",

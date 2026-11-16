@@ -59,7 +59,13 @@ type {{serverTypeName}}{{variantName}} struct {
 func (s {{serverTypeName}}{{variantName}}) GetUrl() string {
 	url := "{{url}}"
 {{#serverVariables}}
-	url = strings.ReplaceAll(url, "{" + "{{name}}" + "}", {{#hasEnumValues}}string(s.{{pascalName}}){{/hasEnumValues}}{{^hasEnumValues}}s.{{pascalName}}{{/hasEnumValues}})
+	value{{pascalName}} := {{#hasEnumValues}}string(s.{{pascalName}}){{/hasEnumValues}}{{^hasEnumValues}}s.{{pascalName}}{{/hasEnumValues}}
+{{#defaultValue}}
+	if value{{pascalName}} == "" {
+		value{{pascalName}} = "{{#goStringLiteral}}{{{defaultValue}}}{{/goStringLiteral}}"
+	}
+{{/defaultValue}}
+	url = strings.ReplaceAll(url, "{" + "{{name}}" + "}", value{{pascalName}})
 {{/serverVariables}}
 	return url
 }

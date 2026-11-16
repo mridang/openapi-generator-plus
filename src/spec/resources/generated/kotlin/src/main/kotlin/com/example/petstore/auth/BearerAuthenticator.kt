@@ -21,7 +21,7 @@ open class BearerAuthenticator(
         // Reject an empty or whitespace-only token: it would otherwise emit the
         // literal "Authorization: Bearer " header, sending the request
         // effectively unauthenticated.
-        if (token.isBlank()) {
+        if (token.all { c -> c == ' ' || c in '\t'..'\r' }) {
             throw IllegalArgumentException("Bearer token must not be empty")
         }
         // RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.

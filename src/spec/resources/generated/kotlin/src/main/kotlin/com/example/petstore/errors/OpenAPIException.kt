@@ -33,7 +33,7 @@ open class OpenAPIException : RuntimeException {
      * Construct an exception with a detail message and cause.
      *
      * @param message the detail message
-     * @param cause the underlying cause
+     * @param cause the underlying cause, or null
      */
-    constructor(message: String, cause: Throwable) : super(message, cause)
+    constructor(message: String, cause: Throwable?) : super(message, cause)
 }

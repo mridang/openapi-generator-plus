@@ -73,6 +73,26 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.HEADER,
             )
 
+    @pytest.mark.parametrize('blank', [' ', '\t', '\n', '\r', '\f', '\v', ' \t\f\v'])
+    def test_ascii_whitespace_only_key_rejected_as_empty(self, blank: str) -> None:
+        with pytest.raises(ValueError, match='must not be empty'):
+            ApiKeyAuthenticator(
+                host='https://api.example.com',
+                key_param_name='api_key',
+                api_key=blank,
+                location=ApiKeyLocation.QUERY,
+            )
+
+    @pytest.mark.parametrize('space', ['\u00a0', '\u2003'])
+    def test_unicode_space_key_is_valid(self, space: str) -> None:
+        auth = ApiKeyAuthenticator(
+            host='https://api.example.com',
+            key_param_name='api_key',
+            api_key=space,
+            location=ApiKeyLocation.QUERY,
+        )
+        assert auth.get_query_params() == {'api_key': space}
+
     def test_crlf_in_query_key_rejected_at_construction(self) -> None:
         # CR/LF is a forbidden control character in ALL locations.
         with pytest.raises(ValueError):

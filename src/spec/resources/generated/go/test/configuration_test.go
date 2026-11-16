@@ -11,6 +11,8 @@ package petstore_test
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	petstore "petstore/pkg"
@@ -264,5 +266,30 @@ func TestConfiguration_BuilderProducesIndependentInstances(t *testing.T) {
 	}
 	if first == second {
 		t.Error("expected Build() to produce independent instances")
+	}
+}
+
+func TestConfiguration_StringMasksSecretHeaders(t *testing.T) {
+	t.Parallel()
+	config := petstore.NewConfigurationBuilder().
+		DefaultHeader("Authorization", "Bearer s3cret-value").
+		DefaultHeader("Proxy-Authorization", "Basic s3cret-value").
+		DefaultHeader("Cookie", "session=s3cret-value").
+		DefaultHeader("X-Api-Key", "s3cret-value").
+		DefaultHeader("X-Auth-Token", "s3cret-value").
+		DefaultHeader("X-Client-Secret", "s3cret-value").
+		DefaultHeader("Accept", "application/json").
+		Build()
+
+	for _, got := range []string{config.String(), fmt.Sprintf("%v", config), fmt.Sprintf("%+v", *config), fmt.Sprintf("%#v", config)} {
+		if strings.Contains(got, "s3cret-value") {
+			t.Errorf("expected secrets to be masked, got %s", got)
+		}
+		if !strings.Contains(got, `"Authorization": "***"`) {
+			t.Errorf("expected Authorization to print as ***, got %s", got)
+		}
+		if !strings.Contains(got, `"Accept": "application/json"`) {
+			t.Errorf("expected a non-secret header to print as is, got %s", got)
+		}
 	}
 }

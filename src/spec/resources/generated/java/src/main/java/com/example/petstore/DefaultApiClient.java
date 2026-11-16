@@ -225,6 +225,11 @@ public final class DefaultApiClient implements ApiClient {
         builder.proxy(ProxySelector.of(null));
       }
 
+      String caCertPath = transportOptions.getCaCertPath();
+      /* A configured CA is validated even when verification is off, so an
+       * unreadable path fails the same way regardless of verifySsl. */
+      SSLContext pinnedSslContext = caCertPath != null ? buildPinnedSslContext(caCertPath) : null;
+
       if (!transportOptions.isVerifySsl()) {
         SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(null, new TrustManager[] {TRUST_ALL_MANAGER}, null);
@@ -236,8 +241,8 @@ public final class DefaultApiClient implements ApiClient {
         javax.net.ssl.SSLParameters sslParameters = new javax.net.ssl.SSLParameters();
         sslParameters.setEndpointIdentificationAlgorithm(null);
         builder.sslParameters(sslParameters);
-      } else if (transportOptions.getCaCertPath() != null) {
-        builder.sslContext(buildPinnedSslContext(transportOptions.getCaCertPath()));
+      } else if (pinnedSslContext != null) {
+        builder.sslContext(pinnedSslContext);
       }
 
       /*
@@ -1124,7 +1129,8 @@ public final class DefaultApiClient implements ApiClient {
       byteArrays.add(bytes);
     } else if (value instanceof InputStream stream) {
       validateMultipartFilename(fieldName);
-      try (stream) {
+      /* The caller owns the stream: it is read but never closed here. */
+      try {
         byteArrays.add(
             ("\""
                     + safeName

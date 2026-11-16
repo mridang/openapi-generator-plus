@@ -196,6 +196,29 @@ class {{classname}}(
   @Contextual
   val actualInstance: Any? = null
 ) {
+  // Value equality: two wrappers are equal when they hold equal variants.
+  override fun equals(other: Any?): Boolean =
+    this === other ||
+      (other is {{classname}} && deepEquals(actualInstance, other.actualInstance))
+
+  override fun hashCode(): Int = deepHash(actualInstance)
+
+  private fun deepEquals(a: Any?, b: Any?): Boolean =
+    when {
+      a is ByteArray && b is ByteArray -> a.contentEquals(b)
+      a is List<*> && b is List<*> ->
+        a.size == b.size && a.indices.all { deepEquals(a[it], b[it]) }
+      else -> a == b
+    }
+
+  private fun deepHash(a: Any?): Int =
+    when (a) {
+      null -> 0
+      is ByteArray -> a.contentHashCode()
+      is List<*> -> a.fold(1) { acc, e -> 31 * acc + deepHash(e) }
+      else -> a.hashCode()
+    }
+
   internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
     override val descriptor =
       kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
@@ -259,6 +282,29 @@ class {{classname}}(
   @Contextual
   val actualInstance: Any? = null
 ) {
+  // Value equality: two wrappers are equal when they hold equal variants.
+  override fun equals(other: Any?): Boolean =
+    this === other ||
+      (other is {{classname}} && deepEquals(actualInstance, other.actualInstance))
+
+  override fun hashCode(): Int = deepHash(actualInstance)
+
+  private fun deepEquals(a: Any?, b: Any?): Boolean =
+    when {
+      a is ByteArray && b is ByteArray -> a.contentEquals(b)
+      a is List<*> && b is List<*> ->
+        a.size == b.size && a.indices.all { deepEquals(a[it], b[it]) }
+      else -> a == b
+    }
+
+  private fun deepHash(a: Any?): Int =
+    when (a) {
+      null -> 0
+      is ByteArray -> a.contentHashCode()
+      is List<*> -> a.fold(1) { acc, e -> 31 * acc + deepHash(e) }
+      else -> a.hashCode()
+    }
+
   internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
     override val descriptor =
       kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
@@ -300,15 +346,15 @@ class {{classname}}(
       // Encode the wrapped value with the first variant serializer that accepts
       // it; a value matching no variant fails loud. encodeSerializableValue is
       // an Encoder member, so no extra import is needed.
-      {{#oneOf}}
+      {{#composedSchemas.oneOf}}
       try {
         jsonEncoder.encodeSerializableValue(
-          kotlinx.serialization.serializer<{{{.}}}>(), instance as {{{.}}})
+          kotlinx.serialization.serializer<{{{dataType}}}>(), instance as {{{dataType}}})
         return
       } catch (_: Exception) {
         // wrapped value is not this variant; try the next
       }
-      {{/oneOf}}
+      {{/composedSchemas.oneOf}}
       throw kotlinx.serialization.SerializationException(
         "Unsupported {{classname}} variant: ${instance::class.simpleName}")
     }
@@ -333,15 +379,15 @@ class {{classname}}(
       // Try each declared variant against the raw payload; the first that
       // decodes without error wins. A payload matching no variant is spec
       // drift and fails loud rather than yielding an empty wrapper.
-      {{#oneOf}}
+      {{#composedSchemas.oneOf}}
       try {
         return {{classname}}(
           strictJson.decodeFromJsonElement(
-            kotlinx.serialization.serializer<{{{.}}}>(), element))
+            kotlinx.serialization.serializer<{{{dataType}}}>(), element))
       } catch (_: Exception) {
         // variant did not match; fall through to the next
       }
-      {{/oneOf}}
+      {{/composedSchemas.oneOf}}
       // Base64 fallback for format:byte variants. A base64 scalar arrives as a
       // JSON STRING and an array of base64 values as a JSON array of strings —
       // neither of which the generic loop above can decode, because the reified
@@ -447,6 +493,29 @@ class {{classname}}(
   val actualInstance: Any?
     get() = matchedInstances.firstOrNull()
 
+  // Value equality: two wrappers are equal when they retain equal variants in the same order.
+  override fun equals(other: Any?): Boolean =
+    this === other ||
+      (other is {{classname}} && deepEquals(matchedInstances, other.matchedInstances))
+
+  override fun hashCode(): Int = deepHash(matchedInstances)
+
+  private fun deepEquals(a: Any?, b: Any?): Boolean =
+    when {
+      a is ByteArray && b is ByteArray -> a.contentEquals(b)
+      a is List<*> && b is List<*> ->
+        a.size == b.size && a.indices.all { deepEquals(a[it], b[it]) }
+      else -> a == b
+    }
+
+  private fun deepHash(a: Any?): Int =
+    when (a) {
+      null -> 0
+      is ByteArray -> a.contentHashCode()
+      is List<*> -> a.fold(1) { acc, e -> 31 * acc + deepHash(e) }
+      else -> a.hashCode()
+    }
+
   internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
     override val descriptor =
       kotlinx.serialization.descriptors.buildClassSerialDescriptor("{{classname}}")
@@ -497,16 +566,16 @@ class {{classname}}(
       val merged = linkedMapOf<String, kotlinx.serialization.json.JsonElement>()
       for (instance in value.matchedInstances) {
         var element: kotlinx.serialization.json.JsonElement? = null
-        {{#anyOf}}
+        {{#composedSchemas.anyOf}}
         if (element == null) {
           try {
             element = jsonEncoder.json.encodeToJsonElement(
-              kotlinx.serialization.serializer<{{{.}}}>(), instance as {{{.}}})
+              kotlinx.serialization.serializer<{{{dataType}}}>(), instance as {{{dataType}}})
           } catch (_: Exception) {
             // wrapped value is not this variant; try the next
           }
         }
-        {{/anyOf}}
+        {{/composedSchemas.anyOf}}
         val obj = element as? kotlinx.serialization.json.JsonObject
         if (obj != null) {
           merged.putAll(obj)
@@ -537,15 +606,15 @@ class {{classname}}(
       }
       // Retain EVERY declared variant that decodes against the raw payload.
       val retained = mutableListOf<Any?>()
-      {{#anyOf}}
+      {{#composedSchemas.anyOf}}
       try {
         retained.add(
           lenientJson.decodeFromJsonElement(
-            kotlinx.serialization.serializer<{{{.}}}>(), element))
+            kotlinx.serialization.serializer<{{{dataType}}}>(), element))
       } catch (_: Exception) {
         // variant did not match; try the next
       }
-      {{/anyOf}}
+      {{/composedSchemas.anyOf}}
       if (retained.isNotEmpty()) {
         return {{classname}}(matchedInstances = retained)
       }

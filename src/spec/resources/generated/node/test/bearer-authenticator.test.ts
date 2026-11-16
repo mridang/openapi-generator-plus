@@ -71,6 +71,17 @@ describe("BearerAuthenticator", () => {
     expect(
       () => new BearerAuthenticator("https://api.example.com", "   "),
     ).toThrow(TypeError);
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", " \t\n\v\f\r"),
+    ).toThrow("Bearer token must not be empty");
+  });
+
+  it("a Unicode space is not blank, it fails the printable ASCII check instead", () => {
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", "\u00a0"),
+    ).toThrow(
+      "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+    );
   });
 
   it("a scheme-specific subclass prints its own class name", () => {

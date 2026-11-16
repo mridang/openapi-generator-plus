@@ -1,0 +1,14 @@
+{{>api_info}}
+
+import { {{#perSchemeAuthImports}}{{name}}{{^-last}}, {{/-last}}{{/perSchemeAuthImports}} } from '../src/index{{importFileExtension}}';
+
+describe('per-scheme authenticators', () => {
+  it.each([
+{{#perSchemeAuthEntries}}
+    ['{{className}}', {{className}}, {{baseClass}}],
+{{/perSchemeAuthEntries}}
+  ])('%s is exported from the package entry point and extends its base', (_name, cls, base) => {
+    expect(typeof cls).toBe('function');
+    expect(Object.getPrototypeOf(cls)).toBe(base);
+  });
+});

@@ -16,14 +16,15 @@ import java.util.List;
     using = SetPetAvatarThumbnailRequest.SetPetAvatarThumbnailRequestDeserializer.class)
 public class SetPetAvatarThumbnailRequest {
 
-  /* Variant type tokens for the union. TypeReference (not Class.class) is
+  /* Variant type tokens for the union, in schema declaration order (the
+   * first variant that decodes wins). TypeReference (not Class.class) is
    * used so that primitive/array/generic variants — e.g. String, byte[],
    * List<String> — are representable; List<String>.class is not legal Java. */
   private static final java.util.List<com.fasterxml.jackson.core.type.TypeReference<?>>
       ONE_OF_SCHEMAS =
           java.util.List.of(
-              new com.fasterxml.jackson.core.type.TypeReference<List<byte[]>>() {},
-              new com.fasterxml.jackson.core.type.TypeReference<byte[]>() {});
+              new com.fasterxml.jackson.core.type.TypeReference<byte[]>() {},
+              new com.fasterxml.jackson.core.type.TypeReference<List<byte[]>>() {});
 
   private Object actualInstance;
 
@@ -44,6 +45,25 @@ public class SetPetAvatarThumbnailRequest {
   @JsonValue
   public Object getActualInstance() {
     return actualInstance;
+  }
+
+  /* Value equality on the wrapped variant, so two unions decoded from the
+   * same JSON compare equal (byte[] and List variants by content). */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof SetPetAvatarThumbnailRequest other)) {
+      return false;
+    }
+    return com.example.petstore.ObjectSerializer.structuralEquals(
+        this.actualInstance, other.actualInstance);
+  }
+
+  @Override
+  public int hashCode() {
+    return com.example.petstore.ObjectSerializer.structuralHashCode(actualInstance);
   }
 
   static class SetPetAvatarThumbnailRequestDeserializer

@@ -279,6 +279,38 @@ test('psr18 exceeding max redirects throws', function (): void {
         });
 });
 
+test('psr18 timeout is one budget across all redirect hops', function (): void {
+    /* Every hop answers within the 400 ms timeout, but three of them together
+     * outlast it, so the call must time out instead of restarting the clock. */
+    $slow = new class implements ClientInterface {
+        public int $sent = 0;
+
+        public function sendRequest(RequestInterface $request): ResponseInterface
+        {
+            $this->sent++;
+            usleep(250000);
+
+            return psr18Response(302, '', ['Location' => 'https://api.example.com/next/' . $this->sent]);
+        }
+    };
+    $factory = new Psr17Factory();
+    $transport = TransportOptions::builder()->timeout(400)->build();
+    $client = new Psr18ApiClient($slow, $factory, $factory, $transport);
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkTimeoutException::class);
+    expect($slow->sent)->toBe(2);
+});
+
+test('psr18 timeout budget starts afresh for every call', function (): void {
+    $stub = new StubPsr18Client(psr18Response(200, '{}'), psr18Response(200, '{}'));
+    $client = newPsr18Client($stub, TransportOptions::builder()->timeout(400)->build());
+
+    expect($client->sendRequest('GET', 'http://example.com/a', [], null)->statusCode)->toBe(200);
+    usleep(450000);
+    expect($client->sendRequest('GET', 'http://example.com/b', [], null)->statusCode)->toBe(200);
+});
+
 test('psr18 redirect to non http scheme throws', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(302, '', ['Location' => 'file:///etc/passwd'])
@@ -419,6 +451,22 @@ test('psr18 multipart raw bytes part reuses field name as filename with octet st
     $sent = (string) $stub->requests[0]->getBody();
     expect($sent)->toContain('Content-Disposition: form-data; name="file"; filename="file"');
     expect($sent)->toContain('Content-Type: application/octet-stream');
+});
+
+test('psr18 multipart leaves a caller supplied stream open', function (): void {
+    $stream = fopen('php://temp', 'w+');
+    expect($stream)->toBeResource();
+    fwrite($stream, 'raw bytes');
+    rewind($stream);
+
+    $stub = new StubPsr18Client(psr18Response(200, '{}'));
+    newPsr18Client($stub)->sendRequest('POST', 'http://example.com/upload', [], ['file' => $stream]);
+
+    expect((string) $stub->requests[0]->getBody())->toContain('raw bytes');
+    expect(is_resource($stream))->toBeTrue();
+    if (is_resource($stream)) {
+        fclose($stream);
+    }
 });
 
 test('psr18 multipart non ascii field name preserved as utf 8', function (): void {

@@ -102,6 +102,7 @@ open class ApiException : OpenAPIException {
      * @param responseHeaders the HTTP response headers, if available
      * @param responseBody the raw HTTP response body, if available
      * @param errorBody the deserialized error body, if available
+     * @param cause the underlying failure, if any
      */
     constructor(
         statusCode: Int,
@@ -109,7 +110,8 @@ open class ApiException : OpenAPIException {
         responseHeaders: Map<String, String>?,
         responseBody: String?,
         errorBody: Any? = null,
-    ) : super(message) {
+        cause: Throwable? = null,
+    ) : super(message, cause) {
         this.statusCode = statusCode
         // Defensive immutable copy so the stored headers cannot be mutated by
         // the caller after construction.

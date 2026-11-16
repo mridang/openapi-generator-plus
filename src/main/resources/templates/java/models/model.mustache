@@ -212,13 +212,14 @@ public abstract class {{classname}} {
     using = {{classname}}.{{classname}}Deserializer.class)
 public class {{classname}} {
 
-  /* Variant type tokens for the union. TypeReference (not Class.class) is
+  /* Variant type tokens for the union, in schema declaration order (the
+   * first variant that decodes wins). TypeReference (not Class.class) is
    * used so that primitive/array/generic variants — e.g. String, byte[],
    * List<String> — are representable; List<String>.class is not legal Java. */
   private static final java.util.List<com.fasterxml.jackson.core.type.TypeReference<?>>
       ONE_OF_SCHEMAS = java.util.List.of(
-    {{#oneOf}}new com.fasterxml.jackson.core.type.TypeReference<{{{.}}}>() {}{{^-last}},
-    {{/-last}}{{/oneOf}}
+    {{#composedSchemas.oneOf}}new com.fasterxml.jackson.core.type.TypeReference<{{{dataType}}}>() {}{{^-last}},
+    {{/-last}}{{/composedSchemas.oneOf}}
   );
 
   private Object actualInstance;
@@ -240,6 +241,25 @@ public class {{classname}} {
   @JsonValue
   public Object getActualInstance() {
     return actualInstance;
+  }
+
+  /* Value equality on the wrapped variant, so two unions decoded from the
+   * same JSON compare equal (byte[] and List variants by content). */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof {{classname}} other)) {
+      return false;
+    }
+    return {{invokerPackage}}.ObjectSerializer.structuralEquals(
+        this.actualInstance, other.actualInstance);
+  }
+
+  @Override
+  public int hashCode() {
+    return {{invokerPackage}}.ObjectSerializer.structuralHashCode(actualInstance);
   }
 
   static class {{classname}}Deserializer
@@ -323,7 +343,7 @@ public class {{classname}} {
 public class {{classname}} {
 
   private static final Class<?>[] ANY_OF_SCHEMAS = {
-    {{#anyOf}}{{{.}}}.class{{^-last}}, {{/-last}}{{/anyOf}}
+    {{#composedSchemas.anyOf}}{{{dataType}}}.class{{^-last}}, {{/-last}}{{/composedSchemas.anyOf}}
   };
 
   /* anyOf is inclusive: a payload may satisfy several variants at once
@@ -395,6 +415,25 @@ public class {{classname}} {
    */
   public java.util.List<Object> getMatchedInstances() {
     return java.util.Collections.unmodifiableList(matchedInstances);
+  }
+
+  /* Value equality on the retained variants, in order, so two unions decoded
+   * from the same JSON compare equal (byte[] and List variants by content). */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof {{classname}} other)) {
+      return false;
+    }
+    return {{invokerPackage}}.ObjectSerializer.structuralEquals(
+        this.matchedInstances, other.matchedInstances);
+  }
+
+  @Override
+  public int hashCode() {
+    return {{invokerPackage}}.ObjectSerializer.structuralHashCode(matchedInstances);
   }
 
   /* Re-encode as the union of every retained variant's fields. When the

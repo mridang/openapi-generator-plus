@@ -56,7 +56,7 @@ public final class ApiKeyAuthenticator extends BaseAuthenticator {
     /* The blank check runs before the character scan so a value made only
      * of whitespace (a blank line read from an env file) reports "must
      * not be empty" rather than a control-character error. */
-    if (apiKey == null || apiKey.isBlank()) {
+    if (apiKey == null || isAsciiBlank(apiKey)) {
       throw new IllegalArgumentException(
           "API key value for '" + keyParamName + "' must not be empty");
     }
@@ -80,6 +80,18 @@ public final class ApiKeyAuthenticator extends BaseAuthenticator {
         }
       }
     }
+  }
+
+  /* Blank means empty or only ASCII whitespace (SP, HT, LF, VT, FF, CR);
+   * a Unicode space such as U+00A0 is a valid key character. */
+  private static boolean isAsciiBlank(String value) {
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c != ' ' && (c < '\t' || c > '\r')) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override

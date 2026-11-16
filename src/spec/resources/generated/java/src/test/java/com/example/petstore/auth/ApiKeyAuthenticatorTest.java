@@ -198,7 +198,7 @@ class ApiKeyAuthenticatorTest {
   @Test
   void newlineOnlyKeyReportsEmptyNotControlCharacters() {
     for (ApiKeyLocation location : ApiKeyLocation.values()) {
-      for (String blank : new String[] {"\n", "\r\n", "\t", "\013"}) {
+      for (String blank : new String[] {"\n", "\r\n", "\t", "\013", "\f"}) {
         IllegalArgumentException ex =
             assertThrows(
                 IllegalArgumentException.class,
@@ -207,6 +207,15 @@ class ApiKeyAuthenticatorTest {
                         "https://api.example.com", "X-API-Key", blank, location));
         assertEquals("API key value for 'X-API-Key' must not be empty", ex.getMessage());
       }
+    }
+  }
+
+  @Test
+  void unicodeSpaceKeyIsNotBlank() {
+    for (String key : new String[] {"\u00a0", "\u2003"}) {
+      ApiKeyAuthenticator auth =
+          new ApiKeyAuthenticator("https://api.example.com", "api_key", key, ApiKeyLocation.QUERY);
+      assertEquals(key, auth.getQueryParams().get("api_key"));
     }
   }
 

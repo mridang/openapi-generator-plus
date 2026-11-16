@@ -145,4 +145,16 @@ defmodule PetstoreClient.ConfigurationTest do
       PetstoreClient.Configuration.from_server(server, %{"env" => "invalid"})
     end
   end
+
+  test "inspect masks sensitive default headers" do
+    config =
+      PetstoreClient.Configuration.new(
+        default_headers: %{"Authorization" => "Bearer abc123", "Accept" => "application/json"}
+      )
+
+    shown = inspect(config)
+    refute shown =~ "abc123"
+    assert shown =~ "application/json"
+    assert config.default_headers["Authorization"] == "Bearer abc123"
+  end
 end

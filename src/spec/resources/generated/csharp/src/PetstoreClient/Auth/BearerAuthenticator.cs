@@ -30,7 +30,7 @@ public class BearerAuthenticator : BaseAuthenticator
          * "Authorization: Bearer " header, sending the request effectively
          * unauthenticated. Mirrors the api-key authenticator's own empty
          * guard and the harmonised cross-SDK canonical. */
-        if (string.IsNullOrWhiteSpace(token))
+        if (token.All(c => c is ' ' or '\t' or '\n' or '\r' or '\f' or '\v'))
         {
             throw new ArgumentException("Bearer token must not be empty", nameof(token));
         }

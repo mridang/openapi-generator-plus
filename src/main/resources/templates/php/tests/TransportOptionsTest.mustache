@@ -245,3 +245,21 @@ test('constructor rejects a proxy that has no usable scheme or host', function (
     'empty string' => [''],
     'host and port without a scheme' => ['proxy.example.com:3128'],
 ]);
+
+test('debug output masks the proxy password and credential default headers', function (): void {
+    $opts = TransportOptions::builder()
+        ->proxy('http://user:s3cr3t@proxy.example.com:8080')
+        ->defaultHeader('Authorization', 'Bearer s3cr3t')
+        ->defaultHeader('Proxy-Authorization', 'Basic s3cr3t')
+        ->defaultHeader('Cookie', 'session=s3cr3t')
+        ->defaultHeader('X-Api-Key', 's3cr3t')
+        ->defaultHeader('X-Trace', 'visible')
+        ->build();
+
+    $dump = print_r($opts, true);
+
+    expect($dump)->not->toContain('s3cr3t');
+    expect($dump)->toContain('http://user:***@proxy.example.com:8080');
+    expect($dump)->toContain('visible');
+    expect($opts->proxy)->toBe('http://user:s3cr3t@proxy.example.com:8080');
+});

@@ -256,4 +256,22 @@ describe Petstore::Client::TransportOptions do
     opts = Petstore::Client::TransportOptions.builder.proxy('http://user:pass@proxy.example.com:8080').build
     _(opts.proxy).must_equal 'http://user:pass@proxy.example.com:8080'
   end
+
+  it 'inspect and to_s hide the proxy password and sensitive header values' do
+    opts = Petstore::Client::TransportOptions.builder
+                                           .proxy('http://user:hunter2@proxy.example.com:8080')
+                                           .default_header('Authorization', 'Bearer abc')
+                                           .default_header('Proxy-Authorization', 'Basic xyz')
+                                           .default_header('Cookie', 'sid=1')
+                                           .default_header('X-Api-Key', 'k1')
+                                           .default_header('X-Auth-Token', 't1')
+                                           .default_header('X-Client-Secret', 's1')
+                                           .default_header('X-Trace', 'visible')
+                                           .build
+    [opts.inspect, opts.to_s].each do |text|
+      %w[hunter2 abc xyz sid=1 k1 t1 s1].each { |secret| _(text).wont_include secret }
+      _(text).must_include 'http://user:***@proxy.example.com:8080'
+      _(text).must_include 'visible'
+    end
+  end
 end

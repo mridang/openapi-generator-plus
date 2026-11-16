@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import * as util from 'node:util';
 import { {{errorPrefix}}Error } from '../src/errors/index{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
 
@@ -256,6 +257,42 @@ describe('TransportOptions', () => {
       expect(() => {
         TransportOptions.builder().proxy('http://proxy.example.com:8080').build();
       }).not.toThrow();
+    });
+  });
+
+  describe('string representation', () => {
+    const secretHeaders = {
+      Authorization: 'Bearer top-secret',
+      'Proxy-Authorization': 'Basic abc',
+      Cookie: 'sid=top-secret',
+      'X-Api-Key': 'top-secret',
+      'X-Auth-Token': 'top-secret',
+      'X-Client-Secret': 'top-secret',
+      'X-Trace': 'visible',
+    };
+
+    test.each([
+      ['toString', (o: TransportOptions) => o.toString()],
+      ['JSON', (o: TransportOptions) => JSON.stringify(o)],
+      ['inspect', (o: TransportOptions) => util.inspect(o)],
+    ])('%s hides the proxy password and secret header values', (_name, render) => {
+      const opts = new TransportOptions({
+        ...directOptions,
+        proxy: 'http://user:hunter2@proxy.example.com:8080',
+        defaultHeaders: secretHeaders,
+      });
+      const text = render(opts);
+      expect(text).not.toContain('hunter2');
+      expect(text).not.toContain('top-secret');
+      expect(text).not.toContain('Basic abc');
+      expect(text).toContain('proxy.example.com');
+      expect(text).toContain('visible');
+      expect(text).toContain('***');
+    });
+
+    test('a proxy without a password is printed unchanged', () => {
+      const opts = new TransportOptions({ ...directOptions, proxy: 'http://proxy.example.com:8080' });
+      expect(opts.toString()).toContain('http://proxy.example.com:8080');
     });
   });
 });

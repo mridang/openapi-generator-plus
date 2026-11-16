@@ -50,10 +50,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /* URLSession's connectionProxyDictionary has no key for
      * proxy basic-auth credentials, so userinfo embedded in the proxy
      * URL (`http://user:pass@host:port`) is silently dropped by the
-     * platform. Extract it here and inject as a Proxy-Authorization
-     * header on every outbound request below, matching the behaviour
-     * of the Java/C# SDKs. */
-    internal let proxyAuthHeader: String?
+     * platform. Extract it here and answer the proxy's own authentication
+     * challenge with it (see ``SessionDelegate``): the credential goes to
+     * the proxy only and is never written into a request, so the origin
+     * (the API host, the OAuth token endpoint) never sees it. */
+    internal let proxyCredential: URLCredential?
 
     /// Creates a client with default transport settings.
     ///
@@ -63,7 +64,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// construction fallible surfaces a clear message instead of crashing.
     public convenience init() {
         do {
-            try self.init(transportOptions: TransportOptionsBuilder().build())
+            try self.init(transportOptions: TransportOptions.defaults)
         } catch {
             preconditionFailure("default DefaultApiClient initialization failed: \(error)")
         }
@@ -82,10 +83,10 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// verification or pinning a CA where URLSession cannot apply either
     /// (``ConfigurationError/tlsOptionsUnsupported``).
     public init(transportOptions: TransportOptions?) throws {
-        let opts = transportOptions ?? TransportOptionsBuilder().build()
+        let opts = transportOptions ?? TransportOptions.defaults
         try DefaultApiClient.validateCaCertPath(opts.caCertPath)
         self.transportOptions = opts
-        self.proxyAuthHeader = DefaultApiClient.buildProxyAuthHeader(opts.proxy)
+        self.proxyCredential = DefaultApiClient.buildProxyCredential(opts.proxy)
         let (session, delegate) = try DefaultApiClient.buildSession(opts)
         self.session = session
         self.sessionDelegate = delegate
@@ -144,9 +145,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// Creates a client with the given transport settings and a pre-built URLSession.
     /// Used primarily for testing with stub URL protocols.
     internal init(transportOptions: TransportOptions? = nil, session: URLSession) {
-        let opts = transportOptions ?? TransportOptionsBuilder().build()
+        let opts = transportOptions ?? TransportOptions.defaults
         self.transportOptions = opts
-        self.proxyAuthHeader = DefaultApiClient.buildProxyAuthHeader(opts.proxy)
+        self.proxyCredential = DefaultApiClient.buildProxyCredential(opts.proxy)
         self.session = session
         self.sessionDelegate = nil
     }
@@ -159,9 +160,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// redirect-refusal path, which a plain stub session (with no delegate)
     /// bypasses.
     internal init(transportOptions: TransportOptions? = nil, protocolClasses: [AnyClass]) {
-        let opts = transportOptions ?? TransportOptionsBuilder().build()
+        let opts = transportOptions ?? TransportOptions.defaults
         self.transportOptions = opts
-        self.proxyAuthHeader = DefaultApiClient.buildProxyAuthHeader(opts.proxy)
+        self.proxyCredential = DefaultApiClient.buildProxyCredential(opts.proxy)
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = protocolClasses
         if let timeout = opts.timeout {
@@ -174,7 +175,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             caCertPath: opts.caCertPath,
             followRedirects: opts.followRedirects,
             maxRedirects: opts.maxRedirects,
-            proxyAuthHeader: DefaultApiClient.buildProxyAuthHeader(opts.proxy)
+            proxyCredential: DefaultApiClient.buildProxyCredential(opts.proxy)
         )
         self.session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
         self.sessionDelegate = delegate
@@ -205,17 +206,28 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         )
     }
 
-    /// Builds a `Basic <base64>` Proxy-Authorization value from the userinfo
-    /// embedded in the proxy URL, or returns nil when no credentials are
-    /// present. Percent-encoded userinfo is decoded before encoding.
-    static func buildProxyAuthHeader(_ proxy: URL?) -> String? {
+    /// Builds the credential that answers the proxy's authentication challenge
+    /// from the userinfo embedded in the proxy URL, or returns nil when no
+    /// credentials are present. Percent-encoded userinfo is decoded first.
+    static func buildProxyCredential(_ proxy: URL?) -> URLCredential? {
         guard let proxy = proxy else { return nil }
         guard let user = proxy.user, !user.isEmpty else { return nil }
         let decodedUser = user.removingPercentEncoding ?? user
         let decodedPass = (proxy.password ?? "").removingPercentEncoding ?? (proxy.password ?? "")
-        let raw = "\(decodedUser):\(decodedPass)"
-        let encoded = Data(raw.utf8).base64EncodedString()
-        return "Basic \(encoded)"
+        return URLCredential(user: decodedUser, password: decodedPass, persistence: .forSession)
+    }
+
+    /// Decides how to answer an authentication challenge. A challenge from the
+    /// proxy is answered with the proxy credential, once: a repeated challenge
+    /// means the credential was refused and is cancelled rather than retried.
+    /// Every other challenge keeps the platform's default handling, so the
+    /// credential is never offered to an origin.
+    static func proxyChallengeDisposition(
+        isProxy: Bool, previousFailureCount: Int, credential: URLCredential?
+    ) -> (disposition: URLSession.AuthChallengeDisposition, credential: URLCredential?) {
+        guard isProxy, let credential = credential else { return (.performDefaultHandling, nil) }
+        if previousFailureCount > 0 { return (.cancelAuthenticationChallenge, nil) }
+        return (.useCredential, credential)
     }
 
     /// Sends an HTTP request with transport-level settings applied, following
@@ -271,9 +283,6 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
          * caller undecoded bytes. A caller who sets Accept-Encoding
          * explicitly (and handles decompression) is still respected.
          */
-        if let proxyAuth = proxyAuthHeader {
-            merged["Proxy-Authorization"] = proxyAuth
-        }
 
         var request = URLRequest(url: requestURL)
         request.httpMethod = method
@@ -937,7 +946,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                 caCertPath: opts.caCertPath,
                 followRedirects: opts.followRedirects,
                 maxRedirects: opts.maxRedirects,
-                proxyAuthHeader: buildProxyAuthHeader(opts.proxy)
+                proxyCredential: buildProxyCredential(opts.proxy)
             )
             return (URLSession(configuration: config, delegate: delegate, delegateQueue: nil), delegate)
         }
@@ -984,7 +993,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             verifySsl: transportOptions.verifySsl,
             caCertPath: transportOptions.caCertPath,
             followRedirects: false,
-            maxRedirects: 0
+            maxRedirects: 0,
+            proxyCredential: proxyCredential
         )
         let created = URLSession(
             configuration: session.configuration, delegate: delegate, delegateQueue: nil)
@@ -1025,10 +1035,10 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
     private let caCertPath: String?
     private let followRedirects: Bool
     private let maxRedirects: Int?
-    /* The SDK's own proxy credential, re-applied to every redirected request
-     * after the cross-origin strip (it authenticates to the proxy, which is
-     * the same for every hop, not to the origin). */
-    private let proxyAuthHeader: String?
+    /* The SDK's own proxy credential, offered only to the proxy's own
+     * authentication challenge (never written into a request, so it never
+     * reaches an origin, redirect hops included). */
+    private let proxyCredential: URLCredential?
     /* Redirect counting and the redirect-refusal error are scoped PER
        URLSessionTask, not per delegate instance. One ``SessionDelegate`` backs
        a single ``URLSession`` that is shared across every request a client
@@ -1053,13 +1063,13 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
 
     init(
         verifySsl: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int?,
-        proxyAuthHeader: String? = nil
+        proxyCredential: URLCredential? = nil
     ) {
         self.verifySsl = verifySsl
         self.caCertPath = caCertPath
         self.followRedirects = followRedirects
         self.maxRedirects = maxRedirects
-        self.proxyAuthHeader = proxyAuthHeader
+        self.proxyCredential = proxyCredential
         super.init()
     }
 
@@ -1072,6 +1082,21 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
            callback, and a leaked count would otherwise follow the key. */
         redirectCounts.clear(for: task.taskIdentifier)
         return redirectErrors.take(for: task.taskIdentifier)
+    }
+
+    /// Answers the proxy's authentication challenge with the credential taken
+    /// from the proxy URL; any other challenge keeps the default handling.
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        let answer = DefaultApiClient.proxyChallengeDisposition(
+            isProxy: challenge.protectionSpace.isProxy(),
+            previousFailureCount: challenge.previousFailureCount,
+            credential: proxyCredential)
+        completionHandler(answer.disposition, answer.credential)
     }
 
 #if canImport(Security)
@@ -1182,17 +1207,13 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
          * (X-API-Key, X-Internal-Token, …) are also stripped on
          * cross-origin hops alongside the RFC-defined three. */
         var redirectRequest = request
-        var crossOrigin = false
         if let originalURL = task.originalRequest?.url,
            let nextURL = request.url,
            !DefaultApiClient.sameOrigin(originalURL, nextURL) {
-            crossOrigin = true
             for sensitive in DefaultApiClient.sensitiveRedirectHeaders {
                 redirectRequest.setValue(nil, forHTTPHeaderField: sensitive)
             }
         }
-        DefaultApiClient.reapplyProxyAuthorization(
-            to: &redirectRequest, header: proxyAuthHeader, crossOrigin: crossOrigin)
 
         /* Refuse to replay a request body across an
          * HTTPS -> HTTP transport downgrade. Replaying the body in
@@ -1261,21 +1282,6 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
 }
 
 extension DefaultApiClient {
-    /// Re-applies the SDK's own `Proxy-Authorization` to a redirected request
-    /// after the cross-origin credential strip, so an authenticated proxy does
-    /// not answer 407 on the later hops. On a cross-origin hop whose target is
-    /// https the header is NOT re-added: there it would travel to an unrelated
-    /// origin inside the TLS tunnel.
-    static func reapplyProxyAuthorization(
-        to request: inout URLRequest, header: String?, crossOrigin: Bool
-    ) {
-        guard let header = header else { return }
-        if crossOrigin && request.url?.scheme?.lowercased() == "https" {
-            return
-        }
-        request.setValue(header, forHTTPHeaderField: "Proxy-Authorization")
-    }
-
     /// Whether a redirect must be refused because it would replay a request
     /// body over an HTTPS -> HTTP downgrade. Only a REAL body counts: the
     /// explicit empty `Data()` this client attaches to a body-less

@@ -18,7 +18,7 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
          * sent as the literal header `Authorization: Bearer ` and the
          * request would go out effectively unauthenticated. This mirrors
          * the empty-value guard the api-key authenticator already enforces. */
-        if token.isEmpty || token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if token.unicodeScalars.allSatisfy({ [0x20, 0x09, 0x0A, 0x0D, 0x0C, 0x0B].contains($0.value) }) {
             throw ConfigurationError.invalidArgument(
                 "Bearer token must not be empty"
             )

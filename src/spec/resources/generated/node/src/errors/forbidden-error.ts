@@ -17,8 +17,9 @@ export class ForbiddenError<T = unknown> extends ClientError<T> {
     responseHeaders: Record<string, string> | null = null,
     responseBody: string | null = null,
     errorBody: T | null = null,
+    options?: { cause?: unknown },
   ) {
-    super(403, message, responseHeaders, responseBody, errorBody);
+    super(403, message, responseHeaders, responseBody, errorBody, options);
     this.name = "ForbiddenError";
   }
 }

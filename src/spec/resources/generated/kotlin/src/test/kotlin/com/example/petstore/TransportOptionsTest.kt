@@ -146,10 +146,17 @@ class TransportOptionsTest {
         fun invalidProxyUrlThrowsException() {
             val ex =
                 assertThrowsExactly(IllegalArgumentException::class.java) {
-                    TransportOptions.builder().proxy("not a valid url ^%$")
+                    TransportOptions.builder().proxy("not a valid url ^%$").build()
                 }
             // A bad proxy URL is a configuration mistake, not an SDK error.
             assertFalse(OpenAPIException::class.java.isInstance(ex))
+        }
+
+        @Test
+        @DisplayName("an invalid proxy URL is accepted by the setter and rejected by build")
+        fun invalidProxyUrlIsRejectedAtBuildNotInSetter() {
+            val builder = TransportOptions.builder().proxy("proxy:3128")
+            assertThrowsExactly(IllegalArgumentException::class.java) { builder.build() }
         }
 
         @Test
@@ -178,7 +185,7 @@ class TransportOptionsTest {
         fun upperCaseNonHttpProxySchemeIsRejected() {
             val ex =
                 assertThrowsExactly(IllegalArgumentException::class.java) {
-                    TransportOptions.builder().proxy("FTP://proxy:3128")
+                    TransportOptions.builder().proxy("FTP://proxy:3128").build()
                 }
             assertEquals("Invalid proxy URL (must use http or https scheme): FTP://proxy:3128", ex.message)
         }
@@ -189,7 +196,7 @@ class TransportOptionsTest {
             for (proxy in listOf("http://@:3128", "http://user:pw@:3128", "http://:3128", "http://[]:3128", "http://")) {
                 val ex =
                     assertThrowsExactly(IllegalArgumentException::class.java) {
-                        TransportOptions.builder().proxy(proxy)
+                        TransportOptions.builder().proxy(proxy).build()
                     }
                 assertEquals("Invalid proxy URL (missing host): $proxy", ex.message)
             }
@@ -217,7 +224,7 @@ class TransportOptionsTest {
             for (proxy in listOf("http://[::1:3128", "http://user@[::1:3128")) {
                 val ex =
                     assertThrowsExactly(IllegalArgumentException::class.java) {
-                        TransportOptions.builder().proxy(proxy)
+                        TransportOptions.builder().proxy(proxy).build()
                     }
                 assertEquals("Invalid proxy URL (unterminated IPv6 literal): $proxy", ex.message)
             }
@@ -251,7 +258,7 @@ class TransportOptionsTest {
             for (proxy in listOf("ftp://proxy:21", "socks5://proxy:1080")) {
                 val ex =
                     assertThrowsExactly(IllegalArgumentException::class.java) {
-                        TransportOptions.builder().proxy(proxy)
+                        TransportOptions.builder().proxy(proxy).build()
                     }
                 assertEquals("Invalid proxy URL (must use http or https scheme): $proxy", ex.message)
             }
@@ -263,7 +270,7 @@ class TransportOptionsTest {
             for (proxy in listOf("", "proxy:3128", "not a valid url ^%$")) {
                 val ex =
                     assertThrowsExactly(IllegalArgumentException::class.java) {
-                        TransportOptions.builder().proxy(proxy)
+                        TransportOptions.builder().proxy(proxy).build()
                     }
                 assertEquals("Invalid proxy URL (missing scheme): $proxy", ex.message)
             }

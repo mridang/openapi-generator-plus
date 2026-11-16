@@ -558,6 +558,34 @@ test('multipart raw bytes part reuses field name as filename with octet stream',
     expect($capturedBody)->toContain('Content-Type: application/octet-stream');
 });
 
+test('multipart leaves a caller supplied stream open', function (): void {
+    $stream = fopen('php://temp', 'w+');
+    expect($stream)->toBeResource();
+    fwrite($stream, 'raw bytes');
+    rewind($stream);
+
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    (new StubbedDefaultApiClient($mockClient))->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        ['file' => $stream]
+    );
+
+    expect($capturedBody)->toContain('raw bytes');
+    expect(is_resource($stream))->toBeTrue();
+    if (is_resource($stream)) {
+        fclose($stream);
+    }
+});
+
 // -- Canonical behavior #5: non-ASCII multipart field name preserved as UTF-8 --
 
 test('multipart non ascii field name preserved as utf 8', function (): void {

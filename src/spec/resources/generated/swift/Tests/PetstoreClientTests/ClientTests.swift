@@ -32,7 +32,7 @@ import Testing
   }
 
   @Test func testConstructWithAuthenticatorAndTransportOptions() throws {
-    let transport = TransportOptionsBuilder().build()
+    let transport = try TransportOptionsBuilder().build()
 
     _ = try Client(authenticator: authenticator, transportOptions: transport)
   }
@@ -63,7 +63,7 @@ import Testing
   @Test func testWithTokenFactoryBuildsAClientAndRejectsInvalidTokens() throws {
     _ = try Client.withToken(host: "/api/v3", accessToken: "abc.def-123")
     _ = try Client.withToken(
-      host: "/api/v3", accessToken: "abc", transportOptions: TransportOptionsBuilder().build())
+      host: "/api/v3", accessToken: "abc", transportOptions: try TransportOptionsBuilder().build())
     #expect(throws: ConfigurationError.self) {
       _ = try Client.withToken(host: "/api/v3", accessToken: "")
     }

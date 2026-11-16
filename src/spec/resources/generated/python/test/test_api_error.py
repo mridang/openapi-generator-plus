@@ -141,6 +141,33 @@ class TestExceptionHierarchy:
         assert not isinstance(token, ApiException)
 
 
+class TestCause:
+    @pytest.mark.parametrize(
+        "error_type",
+        [
+            ApiException,
+            BadRequestException,
+            UnauthorizedException,
+            ForbiddenException,
+            NotFoundException,
+            ConflictException,
+            UnprocessableEntityException,
+            InternalServerErrorException,
+            NetworkException,
+            NetworkTimeoutException,
+        ],
+    )
+    def test_every_constructor_chains_the_given_cause(self, error_type: Any) -> None:
+        cause = ValueError("root cause")
+
+        err = error_type(message="boom", cause=cause)
+
+        assert err.__cause__ is cause
+
+    def test_cause_defaults_to_none(self) -> None:
+        assert NotFoundException(message="missing").__cause__ is None
+
+
 class TestErrorTreeExports:
     def test_every_error_lives_in_the_errors_package(self) -> None:
         for name in ERROR_TREE:

@@ -27,6 +27,8 @@ module Petstore::Client
     def initialize: (base_url: String, default_headers: Hash[String, String]) -> void
     def self.builder: () -> Configuration::Builder
     def self.default_configuration: () -> Configuration
+    def inspect: () -> String
+    def to_s: () -> String
 
     class Builder
       def base_url: (String) -> Builder
@@ -38,6 +40,8 @@ module Petstore::Client
   end
 
   class TransportOptions
+    SENSITIVE_HEADER_NAME: Regexp
+
     attr_reader verify_ssl: bool
     attr_reader ca_cert_path: String?
     attr_reader proxy: String?
@@ -50,6 +54,10 @@ module Petstore::Client
     def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Integer?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool) -> void
     def self.builder: () -> TransportOptions::Builder
     def self.validate_proxy!: (String?) -> void
+    def self.redact_headers: (Hash[String, String]) -> Hash[String, String]
+    def self.redact_url: (String?) -> String?
+    def inspect: () -> String
+    def to_s: () -> String
 
     class Builder
       def verify_ssl: (bool) -> Builder

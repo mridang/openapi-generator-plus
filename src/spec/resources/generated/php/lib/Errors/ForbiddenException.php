@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Errors;
 
+use Throwable;
+
 /**
  * Exception for HTTP 403 Forbidden.
  */
@@ -22,8 +24,9 @@ class ForbiddenException extends ClientException
         string $message = "",
         ?array $responseHeaders = null,
         ?string $responseBody = null,
-        mixed $errorBody = null
+        mixed $errorBody = null,
+        ?Throwable $previous = null
     ) {
-        parent::__construct(403, $message, $responseHeaders, $responseBody, $errorBody);
+        parent::__construct(403, $message, $responseHeaders, $responseBody, $errorBody, $previous);
     }
 }

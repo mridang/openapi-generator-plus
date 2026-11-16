@@ -33,7 +33,7 @@ public struct PetTreatment: Codable, @unchecked Sendable {
     let rawData = try ObjectSerializer.encodeToData(data)
 
     var matched: [Any] = []
-    /* Try each anyOf type and RETAIN every variant that decodes. */
+    /* Try each anyOf type in declaration order and RETAIN every variant that decodes. */
     if let v = try? ObjectSerializer.decodeFromData(rawData, as: Medication.self) {
       matched.append(v)
     }
@@ -117,6 +117,23 @@ public struct PetTreatment: Codable, @unchecked Sendable {
   /// may hold more than one when a payload co-satisfies multiple schemas.
   public func matchedInstances() -> [Any] {
     return _values
+  }
+}
+
+/* Union wrappers compare by value: two wrappers are equal when they encode to
+   the same canonical JSON, and hash the same bytes. */
+extension PetTreatment: Hashable {
+  private var canonicalJson: Data? {
+    return try? ObjectSerializer.encodeToData(self)
+  }
+
+  public static func == (lhs: PetTreatment, rhs: PetTreatment) -> Bool {
+    guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
+    return left == right
+  }
+
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(canonicalJson)
   }
 }
 

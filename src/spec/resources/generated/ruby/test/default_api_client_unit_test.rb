@@ -395,6 +395,20 @@ describe Petstore::Client::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  it 'leaves a caller-supplied upload stream open' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') { [200, {}, '{}'] }
+    end
+    require 'stringio'
+    io = StringIO.new('payload')
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(io.closed?).must_equal false
+    stubs.verify_stubbed_calls
+  end
+
   it 'emits RFC 5987 filename* for non-ASCII multipart filenames' do
     captured_body = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|

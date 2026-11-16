@@ -731,6 +731,29 @@ import Testing
         #expect(decoded == original)
     }
 
+    /* Arrays and maps of UUIDs reach the wire lowercase through the helpers
+     * the generated models call, and still decode in any letter case. */
+    @Test func testLowercaseUuidsWritesLowercaseForArraysAndMaps() throws {
+        struct Holder: Codable {
+            let ids: [UUID]
+            let byName: [String: UUID]
+            enum CodingKeys: String, CodingKey { case ids, byName }
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(ObjectSerializer.lowercaseUuids(ids), forKey: .ids)
+                try container.encode(ObjectSerializer.lowercaseUuids(byName), forKey: .byName)
+            }
+        }
+        let id = UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")!
+        let json = try ObjectSerializer.serialize(Holder(ids: [id], byName: ["a": id]))
+        #expect(json == "{\"byName\":{\"a\":\"e621e1f8-c36c-495a-93fc-0c247a3e6e5f\"},\"ids\":[\"e621e1f8-c36c-495a-93fc-0c247a3e6e5f\"]}")
+        let decoded = try ObjectSerializer.deserialize(
+            "{\"ids\":[\"E621E1F8-C36C-495A-93FC-0C247A3E6E5F\"],\"byName\":{\"a\":\"E621E1F8-C36C-495A-93FC-0C247A3E6E5F\"}}",
+            as: Holder.self)
+        #expect(decoded?.ids == [id])
+        #expect(decoded?.byName == ["a": id])
+    }
+
     @Test func testUUIDInvalidStringFailsToDecode() {
         struct Holder: Codable { let id: UUID }
         // A malformed UUID string must fail to decode rather than be

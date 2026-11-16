@@ -88,6 +88,25 @@ public class PetTreatment {
     return java.util.Collections.unmodifiableList(matchedInstances);
   }
 
+  /* Value equality on the retained variants, in order, so two unions decoded
+   * from the same JSON compare equal (byte[] and List variants by content). */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof PetTreatment other)) {
+      return false;
+    }
+    return com.example.petstore.ObjectSerializer.structuralEquals(
+        this.matchedInstances, other.matchedInstances);
+  }
+
+  @Override
+  public int hashCode() {
+    return com.example.petstore.ObjectSerializer.structuralHashCode(matchedInstances);
+  }
+
   /* Re-encode as the union of every retained variant's fields. When the
    * payload satisfied several object variants their serialized field-sets
    * are merged (later-declared variants win on key collisions) so no

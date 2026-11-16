@@ -665,6 +665,34 @@ public class DefaultApiClientUnitTest
         Assert.Equal("image/jpeg", contentTypeHeader);
     }
 
+    [Fact]
+    public async Task CallerSuppliedStreamsAreLeftOpen()
+    {
+        var handler = new CapturingHandler(async req =>
+        {
+            _ = await req.Content!.ReadAsByteArrayAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        using var rawBody = new MemoryStream(new byte[] { 1, 2, 3 });
+        await client.SendRequestAsync(
+            "PUT",
+            new Uri("http://example.com/resource/1/avatar"),
+            new Dictionary<string, string> { { "Content-Type", "image/jpeg" } },
+            rawBody
+        );
+        Assert.True(rawBody.CanRead);
+
+        using var partStream = new MemoryStream(new byte[] { 4, 5, 6 });
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "file", partStream } }
+        );
+        Assert.True(partStream.CanRead);
+    }
+
     // -- Gap BI: RFC 5987 filename* for non-ASCII multipart filenames --
 
     [Fact]
@@ -1490,6 +1518,11 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(200, response.StatusCode);
         Assert.Equal("{\"ok\":true}", response.Body);
+        Assert.Equal("deflate", response.Headers["content-encoding"]);
+        Assert.Equal(
+            compressed.Length.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            response.Headers["content-length"]
+        );
     }
 
     [Fact]
@@ -1580,6 +1613,17 @@ public class DefaultApiClientUnitTest
             "a configuration mistake must not be an SDK error"
         );
         Assert.NotNull(ex.InnerException);
+    }
+
+    [Fact]
+    public void NonexistentCaCertPathIsRejectedEvenWhenVerifySslIsFalse()
+    {
+        var transport = TransportOptions
+            .Builder()
+            .VerifySsl(false)
+            .CaCertPath("/nonexistent/ca.pem")
+            .Build();
+        Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
     }
 
     [Theory]

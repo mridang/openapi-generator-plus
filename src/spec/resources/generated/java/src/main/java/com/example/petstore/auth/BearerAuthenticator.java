@@ -24,7 +24,7 @@ public final class BearerAuthenticator extends BaseAuthenticator {
    * @param token the bearer token
    */
   public BearerAuthenticator(String host, String token) {
-    if (token == null || token.isBlank()) {
+    if (token == null || isAsciiBlank(token)) {
       throw new IllegalArgumentException("Bearer token must not be empty");
     }
     for (int i = 0; i < token.length(); i++) {
@@ -36,6 +36,17 @@ public final class BearerAuthenticator extends BaseAuthenticator {
     }
     this.host = host;
     this.token = token;
+  }
+
+  /* Blank means empty or only ASCII whitespace (SP, HT, LF, VT, FF, CR). */
+  private static boolean isAsciiBlank(String value) {
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c != ' ' && (c < '\t' || c > '\r')) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override

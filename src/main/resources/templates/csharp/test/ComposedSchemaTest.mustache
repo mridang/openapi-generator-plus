@@ -273,6 +273,29 @@ public class ComposedSchemaTest
         Assert.Equal(payloads[1], decodedPayloads[1]);
     }
 
+    [Fact]
+    public void OneOfWrappersHaveValueEquality()
+    {
+        var left = _serializer.Deserialize<SetPetAvatarThumbnailRequest>("\"AQIDBA==\"")!;
+        var right = _serializer.Deserialize<SetPetAvatarThumbnailRequest>("\"AQIDBA==\"")!;
+        var other = _serializer.Deserialize<SetPetAvatarThumbnailRequest>("\"BQYHCA==\"")!;
+        Assert.Equal(left, right);
+        Assert.Equal(left.GetHashCode(), right.GetHashCode());
+        Assert.NotEqual(left, other);
+    }
+
+    [Fact]
+    public void AnyOfWrappersHaveValueEquality()
+    {
+        var json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
+        var left = _serializer.Deserialize<PetTreatment>(json)!;
+        var right = _serializer.Deserialize<PetTreatment>(json)!;
+        var other = _serializer.Deserialize<PetTreatment>("{\"drugName\":\"Other\"}")!;
+        Assert.Equal(left, right);
+        Assert.Equal(left.GetHashCode(), right.GetHashCode());
+        Assert.NotEqual(left, other);
+    }
+
     // -- allOf: PetWithOwner --
 
     [Fact]

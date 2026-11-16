@@ -10,9 +10,10 @@ from types import MappingProxyType
 from typing import Dict, Mapping, Optional
 
 from .server_configuration import ServerConfiguration
+from .transport_options import _redact_headers
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Configuration:
     """API-level configuration for generated client classes.
 
@@ -51,6 +52,13 @@ class Configuration:
             object.__setattr__(
                 self, "default_headers", MappingProxyType(dict(self.default_headers))
             )
+
+    def __repr__(self) -> str:
+        """Redacts credential-bearing default header values."""
+        return (
+            f"{type(self).__name__}(base_url={self.base_url!r}, "
+            f"default_headers={_redact_headers(self.default_headers)!r})"
+        )
 
     @classmethod
     def builder(cls) -> "ConfigurationBuilder":

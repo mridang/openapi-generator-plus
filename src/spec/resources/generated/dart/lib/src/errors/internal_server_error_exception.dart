@@ -14,5 +14,6 @@ class InternalServerErrorException extends ServerException {
     super.responseBody,
     super.responseHeaders,
     super.errorBody,
+    super.cause,
   }) : super(statusCode: 500);
 }

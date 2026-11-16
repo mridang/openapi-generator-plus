@@ -60,4 +60,25 @@ final class Configuration
     {
         return self::builder()->build();
     }
+
+    /**
+     * Masks credentials so they never leak through var_dump() / print_r() /
+     * debug_zval_dump() / error logs: the proxy password and the value of
+     * every default header named Authorization, Proxy-Authorization, Cookie
+     * or containing key, token or secret.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        $headers = [];
+        foreach ($this->defaultHeaders as $name => $value) {
+            $sensitive = preg_match('/^(proxy-)?authorization$|^cookie$|key|token|secret/i', $name) === 1;
+            $headers[$name] = $sensitive ? '***' : $value;
+        }
+        return [
+            'baseUrl' => $this->baseUrl,
+            'defaultHeaders' => $headers,
+        ];
+    }
 }

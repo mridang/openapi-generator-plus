@@ -1039,7 +1039,7 @@ defmodule PetstoreClient.Api.StoreApi do
         "{trackingId}",
         PetstoreClient.ValueSerializer.serialize_styled(
           "trackingId",
-          tracking_id,
+          PetstoreClient.ObjectSerializer.encode_uuid_param(tracking_id),
           :path,
           "String.t()",
           nil,

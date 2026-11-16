@@ -17,8 +17,16 @@ export class ClientError<T = unknown> extends ApiError<T> {
     responseHeaders: Record<string, string> | null = null,
     responseBody: string | null = null,
     errorBody: T | null = null,
+    options?: { cause?: unknown },
   ) {
-    super(statusCode, message, responseHeaders, responseBody, errorBody);
+    super(
+      statusCode,
+      message,
+      responseHeaders,
+      responseBody,
+      errorBody,
+      options,
+    );
     this.name = "ClientError";
   }
 }

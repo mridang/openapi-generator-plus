@@ -111,7 +111,7 @@ void main() {
 
     test('invalid proxy URL throws exception', () {
       expect(
-        () => TransportOptionsBuilder().proxy('not a valid url'),
+        () => TransportOptionsBuilder().proxy('not a valid url').build(),
         throwsA(
           isA<ArgumentError>().having(
             (e) => e,
@@ -131,7 +131,7 @@ void main() {
       };
       rejected.forEach((url, message) {
         expect(
-          () => TransportOptionsBuilder().proxy(url),
+          () => TransportOptionsBuilder().proxy(url).build(),
           throwsA(
             isA<ArgumentError>()
                 .having((e) => e.message, 'message', equals(message))
@@ -143,6 +143,13 @@ void main() {
           ),
         );
       });
+    });
+
+    test('an invalid proxy URL is rejected at build, not in the setter', () {
+      final builder = TransportOptionsBuilder();
+
+      expect(() => builder.proxy('ftp://proxy:21'), returnsNormally);
+      expect(builder.build, throwsArgumentError);
     });
 
     test('null proxy URL is accepted', () {
@@ -270,7 +277,7 @@ void main() {
     rejected.forEach((url, message) {
       test('proxy "$url" is rejected with "$message"', () {
         expect(
-          () => TransportOptionsBuilder().proxy(url),
+          () => TransportOptionsBuilder().proxy(url).build(),
           throwsA(
             isA<ArgumentError>().having(
               (e) => e.message,

@@ -1,6 +1,13 @@
 {{>api_info}}
 package {{packageName}}
 
+import (
+	"fmt"
+	"net/url"
+	"sort"
+	"strings"
+)
+
 // Configuration holds API-level configuration for generated client classes.
 //
 // It holds the base URL and default headers that are applied to every API
@@ -107,4 +114,64 @@ func (b *ConfigurationBuilder) Build() *Configuration {
 		baseURL:        b.baseURL,
 		defaultHeaders: headers,
 	}
+}
+
+// isSecretHeaderName reports whether a header's value is a credential that must
+// not appear in a printed form: Authorization, Proxy-Authorization, Cookie, or
+// any name containing key, token or secret (case-insensitive).
+func isSecretHeaderName(name string) bool {
+	lower := strings.ToLower(name)
+	switch lower {
+	case "authorization", "proxy-authorization", "cookie":
+		return true
+	}
+	return strings.Contains(lower, "key") || strings.Contains(lower, "token") || strings.Contains(lower, "secret")
+}
+
+// redactedHeaders renders default headers in sorted name order with every
+// secret value replaced by ***.
+func redactedHeaders(headers map[string]string) string {
+	names := make([]string, 0, len(headers))
+	for name := range headers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	parts := make([]string, 0, len(names))
+	for _, name := range names {
+		value := headers[name]
+		if isSecretHeaderName(name) {
+			value = "***"
+		}
+		parts = append(parts, fmt.Sprintf("%q: %q", name, value))
+	}
+	return "map[" + strings.Join(parts, ", ") + "]"
+}
+
+// redactedProxy renders a proxy URL with its password (userinfo) replaced by ***.
+func redactedProxy(proxy *url.URL) string {
+	if proxy == nil {
+		return "<nil>"
+	}
+	if proxy.User == nil {
+		return proxy.String()
+	}
+	if _, hasPassword := proxy.User.Password(); !hasPassword {
+		return proxy.String()
+	}
+	// url.URL escapes "*" in userinfo, so mask through a placeholder.
+	masked := *proxy
+	masked.User = url.UserPassword(proxy.User.Username(), "REDACTED")
+	return strings.Replace(masked.String(), ":REDACTED@", ":***@", 1)
+}
+
+// String returns a representation that masks the secrets held in the default
+// headers, so credentials never leak into logs.
+func (c Configuration) String() string {
+	return fmt.Sprintf("Configuration{baseURL: %q, defaultHeaders: %s}", c.baseURL, redactedHeaders(c.defaultHeaders))
+}
+
+// GoString redacts the same secrets for the %#v verb, which would otherwise
+// reflect over every unexported field.
+func (c Configuration) GoString() string {
+	return c.String()
 }

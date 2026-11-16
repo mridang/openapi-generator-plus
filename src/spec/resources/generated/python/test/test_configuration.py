@@ -1,3 +1,4 @@
+import pytest
 from types import MappingProxyType
 
 from petstore_client.configuration import Configuration, ConfigurationBuilder
@@ -198,3 +199,34 @@ class TestConfigurationImmutability:
 
         assert isinstance(config.default_headers, MappingProxyType)
         assert config.default_headers["X-Key"] == "value"
+
+
+class TestConfigurationRepr:
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Authorization",
+            "proxy-authorization",
+            "Cookie",
+            "X-Api-Key",
+            "X-Auth-Token",
+            "x-client-SECRET",
+        ],
+    )
+    def test_repr_masks_sensitive_default_header_values(self, name: str) -> None:
+        config = Configuration.builder().default_header(name, "hunter2").build()
+
+        assert "hunter2" not in repr(config)
+        assert "hunter2" not in str(config)
+        assert f"{name!r}: '***'" in repr(config)
+
+    def test_repr_keeps_the_base_url_and_other_header_values(self) -> None:
+        config = (
+            Configuration.builder()
+            .base_url("https://api.example.com")
+            .default_header("Accept", "text/plain")
+            .build()
+        )
+
+        assert "base_url='https://api.example.com'" in repr(config)
+        assert "'Accept': 'text/plain'" in repr(config)

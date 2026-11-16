@@ -606,11 +606,8 @@ module {{moduleName}}
                    else
                      name.to_s
                    end
-        data = begin
-          value.read
-        ensure
-          value.close if value.respond_to?(:close)
-        end
+        # The caller owns the stream: it is read here, never closed.
+        data = value.read
         disposition = build_content_disposition(safe_name, filename)
         part_mime = sniff_part_mime(filename)
         header = "--#{boundary}\r\n#{disposition}\r\n" \

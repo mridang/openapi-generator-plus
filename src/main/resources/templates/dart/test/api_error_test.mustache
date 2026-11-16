@@ -198,6 +198,26 @@ void main() {
       expect(const NotFoundException(message: 'gone').responseHeaders, isNull);
     });
 
+    test('every status error accepts an optional cause', () {
+      final cause = StateError('root');
+      final errors = <ApiException>[
+        BadRequestException(cause: cause),
+        UnauthorizedException(cause: cause),
+        ForbiddenException(cause: cause),
+        NotFoundException(cause: cause),
+        ConflictException(cause: cause),
+        UnprocessableEntityException(cause: cause),
+        InternalServerErrorException(cause: cause),
+        ClientException(statusCode: 418, message: 'x', cause: cause),
+        ServerException(statusCode: 503, message: 'x', cause: cause),
+      ];
+
+      for (final err in errors) {
+        expect(err.cause, same(cause));
+      }
+      expect(const NotFoundException().cause, isNull);
+    });
+
     test('NetworkTimeoutException is NetworkException and ApiException with status 0',
         () {
       const err = NetworkTimeoutException(message: 'timed out');

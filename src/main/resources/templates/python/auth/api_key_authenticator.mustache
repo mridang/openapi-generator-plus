@@ -6,6 +6,9 @@ from typing import Dict
 from .base_authenticator import BaseAuthenticator
 from .api_key_location import ApiKeyLocation
 
+# Only ASCII whitespace counts as blank; a Unicode space is a valid key.
+_ASCII_WHITESPACE = " \t\n\r\f\v"
+
 
 @dataclass(frozen=True, eq=False)
 class ApiKeyAuthenticator(BaseAuthenticator):
@@ -22,7 +25,7 @@ class ApiKeyAuthenticator(BaseAuthenticator):
         # Validation applies to ALL locations: empty/whitespace API keys
         # and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
         # printable-ASCII rule still applies to HEADER values.
-        if not self.api_key or not self.api_key.strip():
+        if not self.api_key or not self.api_key.strip(_ASCII_WHITESPACE):
             raise ValueError(
                 f"API key value for '{self.key_param_name}' must not be empty"
             )

@@ -80,6 +80,46 @@ defmodule PetstoreClient.TransportOptions do
             default_headers: %{},
             inject_request_id: false
 
+  # The proxy URL may carry `user:pass@` credentials and the default headers
+  # may carry credentials too, so the Inspect representation masks both as
+  # `***` (the struct itself keeps the real values).
+  defimpl Inspect do
+    def inspect(options, opts) do
+      masked = %{
+        options
+        | proxy: PetstoreClient.TransportOptions.redact_proxy(options.proxy),
+          default_headers: PetstoreClient.TransportOptions.redact_headers(options.default_headers)
+      }
+
+      Inspect.Any.inspect(masked, opts)
+    end
+  end
+
+  @doc false
+  @spec redact_proxy(String.t() | nil) :: String.t() | nil
+  def redact_proxy(proxy) when is_binary(proxy) do
+    Regex.replace(~r{\A([a-zA-Z][a-zA-Z0-9+.-]*://[^/@:]*):[^/@]*@}, proxy, "\\1:***@")
+  end
+
+  def redact_proxy(proxy), do: proxy
+
+  @doc false
+  @spec redact_headers(term()) :: term()
+  def redact_headers(headers) when is_map(headers) do
+    Map.new(headers, fn {name, value} ->
+      if sensitive_header?(name), do: {name, "***"}, else: {name, value}
+    end)
+  end
+
+  def redact_headers(headers), do: headers
+
+  defp sensitive_header?(name) do
+    lowered = name |> to_string() |> String.downcase()
+
+    lowered in ["authorization", "proxy-authorization", "cookie"] or
+      String.contains?(lowered, ["key", "token", "secret"])
+  end
+
   @doc """
   Creates a new TransportOptions with the given options.
 

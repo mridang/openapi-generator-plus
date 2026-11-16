@@ -134,6 +134,13 @@ public class TransportOptionsTest
             TransportOptions.Builder().Proxy("socks5://proxy:1080").Build());
     }
 
+    [Fact]
+    public void InvalidProxyUrlIsOnlyRejectedAtBuild()
+    {
+        var builder = TransportOptions.Builder().Proxy("not a valid url");
+        Assert.Throws<ArgumentException>(() => builder.Build());
+    }
+
     [Theory]
     [InlineData("", "Invalid proxy URL")]
     [InlineData("not a valid url", "Invalid proxy URL")]

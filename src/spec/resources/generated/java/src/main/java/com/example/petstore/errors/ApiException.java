@@ -110,7 +110,30 @@ public class ApiException extends OpenAPIException {
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody,
       @Nullable Object errorBody) {
+    this(statusCode, message, responseHeaders, responseBody, errorBody, null);
+  }
+
+  /**
+   * Construct an exception with full response context and the underlying failure.
+   *
+   * @param statusCode the HTTP status code
+   * @param message the detail message
+   * @param responseHeaders the HTTP response headers, if available
+   * @param responseBody the raw HTTP response body, if available
+   * @param errorBody the deserialized error body, if available
+   * @param cause the underlying failure, if any
+   */
+  public ApiException(
+      int statusCode,
+      String message,
+      @Nullable Map<String, String> responseHeaders,
+      @Nullable String responseBody,
+      @Nullable Object errorBody,
+      @Nullable Throwable cause) {
     super(message);
+    if (cause != null) {
+      initCause(cause);
+    }
     this.statusCode = statusCode;
     /* Defensive immutable copy so the stored headers cannot be mutated by
      * the caller after construction (SpotBugs EI_EXPOSE_REP2-clean). */

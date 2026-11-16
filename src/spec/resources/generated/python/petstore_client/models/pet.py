@@ -64,7 +64,7 @@ class Pet(BaseModel):
         description="RFC 6570 template for related-resource links",
     )
     # Example: 'owner@example.com'
-    owner_email: Optional[EmailStr] = Field(
+    owner_email: Optional[StrictStr] = Field(
         default=None,
         alias="ownerEmail",
         description="Contact email for the pet's owner",
@@ -106,6 +106,5 @@ from petstore_client._types import JsonNumber
 from petstore_client._types import UrlStr
 from petstore_client.models.category import Category
 from petstore_client.models.tag import Tag
-from pydantic import EmailStr
 
 Pet.model_rebuild(raise_errors=False)

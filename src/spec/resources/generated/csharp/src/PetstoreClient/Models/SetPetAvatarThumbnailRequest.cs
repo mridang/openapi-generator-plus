@@ -12,9 +12,32 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 [JsonConverter(typeof(SetPetAvatarThumbnailRequestConverter))]
-public class SetPetAvatarThumbnailRequest(object value)
+public class SetPetAvatarThumbnailRequest(object value) : IEquatable<SetPetAvatarThumbnailRequest>
 {
     public object? ActualInstance { get; set; } = value;
+
+    /// <summary>Value equality on the wrapped variant.</summary>
+    public bool Equals(SetPetAvatarThumbnailRequest? other)
+    {
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || global::PetstoreClient.ObjectSerializer.StructuralEquals(
+                    ActualInstance,
+                    other.ActualInstance
+                )
+            );
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as SetPetAvatarThumbnailRequest);
+    }
+
+    public override int GetHashCode()
+    {
+        return global::PetstoreClient.ObjectSerializer.StructuralHashCode(ActualInstance);
+    }
 
     private sealed class SetPetAvatarThumbnailRequestConverter
         : JsonConverter<SetPetAvatarThumbnailRequest>
@@ -27,17 +50,19 @@ public class SetPetAvatarThumbnailRequest(object value)
         {
             using JsonDocument doc = JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
+            /* Variants are tried in schema declaration order (composedSchemas
+             * keeps it; the bare oneOf set is alphabetical); first match wins. */
             try
             {
                 return new SetPetAvatarThumbnailRequest(
-                    JsonSerializer.Deserialize<List<byte[]>>(raw, options)!
+                    JsonSerializer.Deserialize<byte[]>(raw, options)!
                 );
             }
             catch (JsonException) { }
             try
             {
                 return new SetPetAvatarThumbnailRequest(
-                    JsonSerializer.Deserialize<byte[]>(raw, options)!
+                    JsonSerializer.Deserialize<List<byte[]>>(raw, options)!
                 );
             }
             catch (JsonException) { }

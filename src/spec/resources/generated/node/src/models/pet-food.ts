@@ -29,4 +29,31 @@ export class PetFood {
   getActualInstance(): PetFoodType {
     return this.actualInstance;
   }
+
+  /**
+   * Value equality: two wrappers are equal when they hold equal variants.
+   * The held variant's own equals() decides, so a variant without one is
+   * equal only to itself.
+   */
+  equals(other: unknown): boolean {
+    if (this === other) {
+      return true;
+    }
+    if (!(other instanceof PetFood)) {
+      return false;
+    }
+    const left: unknown = this.actualInstance;
+    const right: unknown = other.actualInstance;
+    if (left === right) {
+      return true;
+    }
+    if (
+      typeof left === "object" &&
+      left !== null &&
+      typeof (left as { equals?: unknown }).equals === "function"
+    ) {
+      return (left as { equals(o: unknown): boolean }).equals(right);
+    }
+    return false;
+  }
 }

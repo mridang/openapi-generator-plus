@@ -46,7 +46,33 @@ void main() {
         () => BearerAuthenticator(host: '/api/v3', token: '   '),
         throwsArgumentError,
       );
+      expect(
+        () => BearerAuthenticator(host: '/api/v3', token: ' \t\n\r\f\v '),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('Bearer token must not be empty'),
+          ),
+        ),
+      );
     });
+
+    test(
+      'a Unicode space is not blank, so the printable ASCII check rejects it',
+      () {
+        expect(
+          () => BearerAuthenticator(host: '/api/v3', token: '\u00A0'),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('printable ASCII'),
+            ),
+          ),
+        );
+      },
+    );
 
     test('redacts the token in toString', () {
       // authenticator-secret-in-default-string-repr: the default toString()

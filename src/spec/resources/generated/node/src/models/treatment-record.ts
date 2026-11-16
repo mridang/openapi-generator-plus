@@ -24,7 +24,7 @@ export type TreatmentRecordType = Medication | Surgery;
  * compatibility with callers that expect a single instance.
  */
 export class TreatmentRecord {
-  static readonly ANY_OF_SCHEMAS: string[] = ["Medication", "Surgery"];
+  static readonly ANY_OF_SCHEMAS: string[] = ["Surgery", "Medication"];
 
   /**
    * Marks this wrapper as a lossless `anyOf` composite. The serializer checks
@@ -60,6 +60,38 @@ export class TreatmentRecord {
    */
   getMatchedInstances(): TreatmentRecordType[] {
     return this.matchedInstances;
+  }
+
+  /**
+   * Value equality: two composites are equal when they retain equal variants
+   * in the same order. Each variant's own equals() decides, so a variant
+   * without one is equal only to itself.
+   */
+  equals(other: unknown): boolean {
+    if (this === other) {
+      return true;
+    }
+    if (!(other instanceof TreatmentRecord)) {
+      return false;
+    }
+    if (this.matchedInstances.length !== other.matchedInstances.length) {
+      return false;
+    }
+    return this.matchedInstances.every((item, index) => {
+      const left: unknown = item;
+      const right: unknown = other.matchedInstances[index];
+      if (left === right) {
+        return true;
+      }
+      if (
+        typeof left === "object" &&
+        left !== null &&
+        typeof (left as { equals?: unknown }).equals === "function"
+      ) {
+        return (left as { equals(o: unknown): boolean }).equals(right);
+      }
+      return false;
+    });
   }
 
   /**

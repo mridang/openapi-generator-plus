@@ -42,7 +42,8 @@ func NewBearerAuthenticator(host, token string) (*BearerAuthenticator, error) {
 	// `Authorization: Bearer ` header and silently send the request
 	// unauthenticated. Reject it, matching the api-key authenticator's own
 	// empty guard.
-	if strings.TrimSpace(token) == "" {
+	// Blank means empty or ASCII whitespace only (space, \t, \n, \r, \f, \v).
+	if strings.Trim(token, " \t\n\r\f\v") == "" {
 		return nil, &invalidBearerTokenError{"bearer token must not be empty"}
 	}
 	for _, c := range token {

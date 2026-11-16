@@ -52,6 +52,6 @@ interface RubySpec extends LanguageSpec, DockerImageSpec {
      * bigdecimal resolves to the image's precompiled default gem (3.1.8)
      * rather than recompiling from source. No BUNDLE_WITHOUT: the :optional
      * codec group is installed as well. */
-    return Map.of();
+    return Map.of("RUBOCOP_CACHE_ROOT", "/root/.cache/ruby/rubocop");
   }
 }

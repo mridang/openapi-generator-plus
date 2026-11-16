@@ -25,7 +25,7 @@ open class ApiKeyAuthenticator(
         // (QUERY/COOKIE — even though URL-encoded later, trapping at
         // construction surfaces the bug clearly). RFC 7230 §3.2.6 printable-
         // ASCII rule still applies to HEADER values.
-        if (apiKey.isEmpty() || apiKey.isBlank()) {
+        if (apiKey.all { c -> c == ' ' || c in '\t'..'\r' }) {
             throw IllegalArgumentException(
                 "API key value for '$keyParamName' must not be empty"
             )

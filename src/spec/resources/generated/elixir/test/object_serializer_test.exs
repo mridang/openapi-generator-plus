@@ -679,7 +679,22 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
     test "accepts upper-case UUID" do
       uuid = "550E8400-E29B-41D4-A716-446655440000"
-      assert PetstoreClient.ObjectSerializer.convert_to_type(uuid, "UUID") == uuid
+
+      assert PetstoreClient.ObjectSerializer.convert_to_type(uuid, "UUID") ==
+               String.downcase(uuid)
+    end
+
+    test "encode_uuid_param writes lowercase and rejects malformed values" do
+      assert PetstoreClient.ObjectSerializer.encode_uuid_param(
+               "550E8400-E29B-41D4-A716-446655440000"
+             ) ==
+               "550e8400-e29b-41d4-a716-446655440000"
+
+      assert PetstoreClient.ObjectSerializer.encode_uuid_param(nil) == nil
+
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.encode_uuid_param("not-a-uuid")
+      end
     end
 
     test "rejects malformed UUID" do
@@ -700,6 +715,33 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "rejects non-string payload" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(42, "UUID")
+      end
+    end
+  end
+
+  describe "format: uri (URI)" do
+    test "accepts absolute URIs of any scheme and returns the original string" do
+      for uri <- [
+            "https://example.com/a?b=c",
+            "ftp://x.org/f",
+            "mailto:a@b.com",
+            "urn:isbn:0451450523"
+          ] do
+        assert PetstoreClient.ObjectSerializer.convert_to_type(uri, "URI") == uri
+      end
+    end
+
+    test "rejects relative references, blanks and whitespace" do
+      for bad <- ["/relative", "", " ", "http://a b", "http://a\nb", "no scheme"] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.convert_to_type(bad, "URI")
+        end
+      end
+    end
+
+    test "rejects a non-string payload" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.convert_to_type(42, "URI")
       end
     end
   end

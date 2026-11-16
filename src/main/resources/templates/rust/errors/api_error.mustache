@@ -185,7 +185,10 @@ impl ApiError {
         type Boxed = Box<dyn std::error::Error + Send + Sync>;
 
         if (400..500).contains(&status_code) {
-            let client_err = ClientError::from(base_err);
+            let client_err = match ClientError::try_from(base_err) {
+                Ok(client_err) => client_err,
+                Err(unwrapped) => return Box::new(unwrapped),
+            };
             /* Each named wrapper accepts only its own status, so a status
              * without one falls through to the ClientError itself. */
             let named: Result<Boxed, ClientError> = match status_code {
@@ -201,7 +204,10 @@ impl ApiError {
         }
 
         if (500..600).contains(&status_code) {
-            let server_err = ServerError::from(base_err);
+            let server_err = match ServerError::try_from(base_err) {
+                Ok(server_err) => server_err,
+                Err(unwrapped) => return Box::new(unwrapped),
+            };
             let named: Result<Boxed, ServerError> = match status_code {
                 500 => InternalServerError::try_from(server_err).map(|e| Box::new(e) as Boxed),
                 _ => Err(server_err),

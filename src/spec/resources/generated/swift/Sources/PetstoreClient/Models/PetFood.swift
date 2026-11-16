@@ -84,3 +84,20 @@ public struct PetFood: Codable, @unchecked Sendable {
     return _value as? T
   }
 }
+
+/* Union wrappers compare by value: two wrappers are equal when they encode to
+   the same canonical JSON, and hash the same bytes. */
+extension PetFood: Hashable {
+  private var canonicalJson: Data? {
+    return try? ObjectSerializer.encodeToData(self)
+  }
+
+  public static func == (lhs: PetFood, rhs: PetFood) -> Bool {
+    guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
+    return left == right
+  }
+
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(canonicalJson)
+  }
+}

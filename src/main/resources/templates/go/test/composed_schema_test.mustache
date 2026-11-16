@@ -515,6 +515,49 @@ func TestSetPetAvatarThumbnailRequest_ConstructedFromVariantsSerializes(t *testi
 	}
 }
 
+// The variants are declared [byte, array-of-byte]; an empty JSON array decodes
+// into both Go types, so the first declared variant (the scalar []byte) must win
+// rather than the alphabetically first one.
+func TestSetPetAvatarThumbnailRequest_AmbiguousPayloadResolvesToFirstDeclaredVariant(t *testing.T) {
+	t.Parallel()
+
+	var request models.SetPetAvatarThumbnailRequest
+	if err := json.Unmarshal([]byte(`[]`), &request); err != nil {
+		t.Fatalf("failed to deserialize ambiguous payload: %v", err)
+	}
+	if _, ok := request.ActualInstance().([]byte); !ok {
+		t.Errorf("expected the first declared variant []byte, got %T", request.ActualInstance())
+	}
+}
+
+func TestSetPetAvatarThumbnailRequest_EqualComparesByValue(t *testing.T) {
+	t.Parallel()
+
+	a := models.NewSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
+	b := models.NewSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
+	c := models.NewSetPetAvatarThumbnailRequest([]byte{0x03})
+	if !a.Equal(b) {
+		t.Errorf("expected unions holding the same bytes to be equal")
+	}
+	if a.Equal(c) {
+		t.Errorf("expected unions holding different bytes to differ")
+	}
+}
+
+func TestPetTreatment_EqualComparesByValue(t *testing.T) {
+	t.Parallel()
+
+	a := models.NewPetTreatment(models.Medication{DrugName: "Amoxicillin"})
+	b := models.NewPetTreatment(models.Medication{DrugName: "Amoxicillin"})
+	c := models.NewPetTreatment(models.Medication{DrugName: "Other"})
+	if !a.Equal(b) {
+		t.Errorf("expected treatments with the same variant to be equal")
+	}
+	if a.Equal(c) {
+		t.Errorf("expected treatments with different variants to differ")
+	}
+}
+
 func TestDryFood_AbsentDiscriminatorPropertyIsFilledWithItsDefault(t *testing.T) {
 	t.Parallel()
 	var food models.DryFood

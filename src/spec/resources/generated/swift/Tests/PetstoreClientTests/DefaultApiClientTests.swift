@@ -44,7 +44,7 @@ import Testing
     // MARK: - Integration-equivalent tests
 
     @Test func testMakesHttpsRequestWithVerifySslFalse() async throws {
-      let transport = TransportOptionsBuilder().verifySsl(false).build()
+      let transport = try TransportOptionsBuilder().verifySsl(false).build()
       let client = makeClient(transport: transport) { _ in
         return (self.jsonBody(), 200, ["Content-Type": "application/json"])
       }
@@ -55,7 +55,7 @@ import Testing
     }
 
     @Test func testMakesHttpsRequestWithCustomCaCert() async throws {
-      let transport = TransportOptionsBuilder().caCertPath("/path/to/ca.pem").build()
+      let transport = try TransportOptionsBuilder().caCertPath("/path/to/ca.pem").build()
       let client = makeClient(transport: transport) { _ in
         return (self.jsonBody(), 200, ["Content-Type": "application/json"])
       }
@@ -74,13 +74,18 @@ import Testing
       #expect(resp.statusCode == 200)
     }
 
-    // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
-    // and injected as Proxy-Authorization on outbound requests — otherwise
-    // the platform silently drops it and the proxy 407s.
-    @Test func testProxyWithCredentialsInjectsBasicAuthorization() async throws {
-      let transport = try TransportOptionsBuilder()
-        .proxy("http://alice:s3cret@127.0.0.1:3128")
-        .build()
+    // Userinfo embedded in the proxy URL is kept as a credential for the proxy's
+    // own authentication challenge. It is never written into a request, so the
+    // origin never receives it.
+    @Test(arguments: [
+      ("http://alice:s3cret@127.0.0.1:3128", "alice", "s3cret"),
+      ("http://user:pass@127.0.0.1:3128", "user", "pass"),
+      ("http://us%40er:p%3Ass@127.0.0.1:3128", "us@er", "p:ss"),
+    ])
+    func testProxyCredentialsGoToTheProxyOnly(proxy: String, user: String, password: String)
+      async throws
+    {
+      let transport = try TransportOptionsBuilder().proxy(proxy).build()
       var capturedRequest: URLRequest?
       let client = makeClient(transport: transport) { req in
         capturedRequest = req
@@ -88,42 +93,15 @@ import Testing
       }
       _ = try await client.sendRequest(
         method: "GET", url: "https://example.com", headers: [:], body: nil)
-      #expect(
-        capturedRequest?.value(forHTTPHeaderField: "Proxy-Authorization")
-          == "Basic YWxpY2U6czNjcmV0"
-      )
-      #expect(client.proxyAuthHeader == "Basic YWxpY2U6czNjcmV0")
+      #expect(capturedRequest?.value(forHTTPHeaderField: "Proxy-Authorization") == nil)
+      #expect(client.proxyCredential?.user == user)
+      #expect(client.proxyCredential?.password == password)
     }
 
-    // proxy-userinfo-carries-credentials (Gap AK): the exact canonical
-    // fleet-wide scenario — a proxy URL `http://user:pass@127.0.0.1:3128` MUST
-    // carry the proxy credentials as a base64 Proxy-Authorization header rather
-    // than dropping the userinfo (Java's java.net.http.HttpClient silently drops
-    // it; the canonical is to honour it). URLSession's connectionProxyDictionary
-    // has no credential key, so the client extracts the userinfo and injects it.
-    // base64("user:pass") == "dXNlcjpwYXNz".
-    //
-    // NOTE: configuring a proxy on Linux throws at session construction (the
-    // platform path is macOS-only — see buildSession), so this test exercises
-    // the macOS path. The credential extraction itself (proxyAuthHeader) is
-    // platform-independent and is asserted directly alongside the on-wire
-    // header.
-    @Test func testProxyUserinfoCarriesCredentialsCanonical() async throws {
-      let transport = try TransportOptionsBuilder()
-        .proxy("http://user:pass@127.0.0.1:3128")
-        .build()
-      var capturedRequest: URLRequest?
-      let client = makeClient(transport: transport) { req in
-        capturedRequest = req
-        return (self.jsonBody(), 200, [:])
-      }
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://example.com", headers: [:], body: nil)
-      #expect(
-        capturedRequest?.value(forHTTPHeaderField: "Proxy-Authorization")
-          == "Basic dXNlcjpwYXNz"
-      )
-      #expect(client.proxyAuthHeader == "Basic dXNlcjpwYXNz")
+    @Test func testProxyWithoutUserinfoHasNoCredential() throws {
+      let transport = try TransportOptionsBuilder().proxy("http://127.0.0.1:3128").build()
+      let client = makeClient(transport: transport) { _ in (self.jsonBody(), 200, [:]) }
+      #expect(client.proxyCredential == nil)
     }
 
     @Test func testMakesHttpsRequestThroughProxyWithVerifySslFalse() async throws {
@@ -143,7 +121,7 @@ import Testing
      * 1 ms timeout is accepted. The deadlines themselves are asserted on the
      * built session and on the timeout error mapping in ApiErrorTests. */
     @Test func testAcceptsTimeoutConfiguration() async throws {
-      let transport = TransportOptionsBuilder().timeout(1).build()
+      let transport = try TransportOptionsBuilder().timeout(1).build()
       let client = makeClient(transport: transport) { _ in
         return (self.jsonBody(), 200, [:])
       }
@@ -165,7 +143,7 @@ import Testing
     }
 
     @Test func testInjectsRequestIdHeader() async throws {
-      let transport = TransportOptionsBuilder().injectRequestID(true).build()
+      let transport = try TransportOptionsBuilder().injectRequestID(true).build()
       var capturedRequest: URLRequest?
       let client = makeClient(transport: transport) { req in
         capturedRequest = req
@@ -180,7 +158,7 @@ import Testing
     }
 
     @Test func testGeneratesUniqueRequestIds() async throws {
-      let transport = TransportOptionsBuilder().injectRequestID(true).build()
+      let transport = try TransportOptionsBuilder().injectRequestID(true).build()
       var ids: [String] = []
       let client = makeClient(transport: transport) { req in
         if let id = req.value(forHTTPHeaderField: "X-Request-ID") { ids.append(id) }
@@ -195,7 +173,7 @@ import Testing
     }
 
     @Test func testIncludesTransportDefaultHeaders() async throws {
-      let transport = TransportOptionsBuilder()
+      let transport = try TransportOptionsBuilder()
         .defaultHeader(name: "X-Custom", value: "value123")
         .build()
       var capturedRequest: URLRequest?
@@ -209,7 +187,7 @@ import Testing
     }
 
     @Test func testCallerHeadersOverrideTransportDefaults() async throws {
-      let transport = TransportOptionsBuilder()
+      let transport = try TransportOptionsBuilder()
         .defaultHeader(name: "X-Custom", value: "default")
         .build()
       var capturedRequest: URLRequest?
@@ -224,19 +202,19 @@ import Testing
     }
 
     @Test func testFollowsRedirectsWhenEnabled() async throws {
-      let transport = TransportOptionsBuilder().followRedirects(true).build()
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
       #expect(transport.followRedirects)
       _ = try DefaultApiClient(transportOptions: transport)
     }
 
     @Test func testReturnsRedirectWhenDisabled() async throws {
-      let transport = TransportOptionsBuilder().followRedirects(false).build()
+      let transport = try TransportOptionsBuilder().followRedirects(false).build()
       #expect(!(transport.followRedirects))
       _ = try DefaultApiClient(transportOptions: transport)
     }
 
     @Test func testRespectsMaxRedirectsLimit() async throws {
-      let transport = TransportOptionsBuilder()
+      let transport = try TransportOptionsBuilder()
         .followRedirects(true)
         .maxRedirects(3)
         .build()
@@ -248,7 +226,7 @@ import Testing
     // URLSession itself rewrites the method on 303; this test pins that
     // behaviour from the perspective of DefaultApiClient.
     @Test func testRedirect303SwitchesToGetAndDropsBody() async throws {
-      let transport = TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
       let hopCount = HopCounter()
       var capturedFollowupMethod: String?
       var capturedFollowupBody: Data?
@@ -280,7 +258,7 @@ import Testing
     // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
     // request after a 307 still carries the multipart form parts.
     @Test func testMultipartBodyReplayedOn307Redirect() async throws {
-      let transport = TransportOptionsBuilder()
+      let transport = try TransportOptionsBuilder()
         .followRedirects(true)
         .maxRedirects(5)
         .build()
@@ -481,7 +459,7 @@ import Testing
      * headers of the request that arrived on the second hop. */
     private func headersOnSecondHop(redirectingTo location: String) async throws -> [String: String]
     {
-      let transport = TransportOptionsBuilder().followRedirects(true).build()
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
       let hops = HopCounter()
       var followUp: [String: String]?
       let client = makeClient(transport: transport) { req in
@@ -563,7 +541,7 @@ import Testing
     // ApiError ("too many redirects") rather than silently returning the last
     // 3xx response.
     @Test func testRedirectExhaustionThrowsApiError() async throws {
-      let transport = TransportOptionsBuilder()
+      let transport = try TransportOptionsBuilder()
         .followRedirects(true)
         .maxRedirects(2)
         .build()
@@ -588,7 +566,7 @@ import Testing
     // scheme (file:, javascript:, data:) must throw a typed ApiError rather
     // than silently returning the 3xx.
     @Test func testNonHttpRedirectSchemeThrowsApiError() async throws {
-      let transport = TransportOptionsBuilder().followRedirects(true).build()
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
       RedirectStubURLProtocol.configure { _ in
         return .redirect(status: 302, location: "file:///etc/passwd")
       }
@@ -605,7 +583,7 @@ import Testing
     // flight must throw a typed ApiError (TLS downgrade refusal) rather than
     // silently returning the 3xx.
     @Test func testHttpsToHttpBodyReplayThrowsApiError() async throws {
-      let transport = TransportOptionsBuilder().followRedirects(true).build()
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
       RedirectStubURLProtocol.configure { _ in
         // 307 preserves method + body, so the POST body would be replayed.
         return .redirect(status: 307, location: "http://example.com/downgrade")
@@ -631,7 +609,7 @@ import Testing
     // canonical guards only 307/308.) The RedirectStubURLProtocol coerces
     // 301/302/303 to a bodyless GET, mirroring URLSession.
     @Test func testRedirect302HttpsToHttpWithBodyProceeds() async throws {
-      let transport = TransportOptionsBuilder().followRedirects(true).build()
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
       RedirectStubURLProtocol.configure { req in
         if req.url!.absoluteString.contains("/downgrade-target") {
           return .ok(Data(#"{"ok":true}"#.utf8))
@@ -655,7 +633,7 @@ import Testing
     // the same as the 307 case. Pins both ends of the canonical: 302 proceeds
     // (above), 307/308 throw.
     @Test func testRedirect308HttpsToHttpWithBodyThrowsApiError() async throws {
-      let transport = TransportOptionsBuilder().followRedirects(true).build()
+      let transport = try TransportOptionsBuilder().followRedirects(true).build()
       RedirectStubURLProtocol.configure { _ in
         return .redirect(status: 308, location: "http://example.com/downgrade")
       }
@@ -671,7 +649,7 @@ import Testing
     }
 
     @Test func testRedirect303DropsContentLengthOnFollowUp() async throws {
-      let transport = TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
       let hopCount = HopCounter()
       var capturedContentLength: String?
       let client = makeClient(transport: transport) { req in
@@ -718,7 +696,7 @@ import Testing
     // independent outcome. Run many rounds to make any cross-request bleed
     // overwhelmingly likely to manifest rather than slip through by timing luck.
     @Test func testConcurrentRedirectsAreScopedPerRequest() async throws {
-      let transport = TransportOptionsBuilder()
+      let transport = try TransportOptionsBuilder()
         .followRedirects(true)
         .maxRedirects(2)
         .build()

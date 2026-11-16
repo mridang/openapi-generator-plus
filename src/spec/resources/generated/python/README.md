@@ -62,10 +62,7 @@ This SDK leans on pydantic 2's native typed surfaces:
 | `string`, `format: uri`            | URL-validated `str` (round-trips verbatim) |
 | `string`, `format: uri-reference`  | `pydantic.StrictStr` (may be relative) |
 | `string`, `format: uri-template`   | `pydantic.StrictStr` (RFC 6570)   |
-| `string`, `format: email`          | `pydantic.EmailStr`               |
 | `string`, `format: password`       | `pydantic.SecretStr`              |
-| `string`, `format: ipv4`           | `ipaddress.IPv4Address`           |
-| `string`, `format: ipv6`           | `ipaddress.IPv6Address`           |
 | `string`, `format: date-time`      | `pydantic.AwareDatetime` (tz-aware) |
 | `string`, `format: date`           | `datetime.date`                   |
 | `string`, `format: time`           | `datetime.time`                   |

@@ -12,48 +12,48 @@ import Testing
 
 @Suite final class TransportOptionsTests {
 
-  @Test func testVerifySslDefaultsToTrue() {
-    let opts = TransportOptionsBuilder().build()
+  @Test func testVerifySslDefaultsToTrue() throws {
+    let opts = try TransportOptionsBuilder().build()
     #expect(opts.verifySsl)
   }
 
-  @Test func testCaCertPathDefaultsToNull() {
-    let opts = TransportOptionsBuilder().build()
+  @Test func testCaCertPathDefaultsToNull() throws {
+    let opts = try TransportOptionsBuilder().build()
     #expect(opts.caCertPath == nil)
   }
 
-  @Test func testProxyDefaultsToNull() {
-    let opts = TransportOptionsBuilder().build()
+  @Test func testProxyDefaultsToNull() throws {
+    let opts = try TransportOptionsBuilder().build()
     #expect(opts.proxy == nil)
   }
 
-  @Test func testTimeoutDefaultsTo10Seconds() {
-    let opts = TransportOptionsBuilder().build()
+  @Test func testTimeoutDefaultsTo10Seconds() throws {
+    let opts = try TransportOptionsBuilder().build()
     #expect(opts.timeout == 10000)
   }
 
-  @Test func testFollowRedirectsDefaultsToTrue() {
-    let opts = TransportOptionsBuilder().build()
+  @Test func testFollowRedirectsDefaultsToTrue() throws {
+    let opts = try TransportOptionsBuilder().build()
     #expect(opts.followRedirects)
   }
 
-  @Test func testMaxRedirectsDefaultsToNull() {
-    let opts = TransportOptionsBuilder().build()
+  @Test func testMaxRedirectsDefaultsToNull() throws {
+    let opts = try TransportOptionsBuilder().build()
     #expect(opts.maxRedirects == nil)
   }
 
-  @Test func testUserAgentDefaultsToNonEmptyString() {
-    let opts = TransportOptionsBuilder().build()
+  @Test func testUserAgentDefaultsToNonEmptyString() throws {
+    let opts = try TransportOptionsBuilder().build()
     #expect(!(opts.userAgent?.isEmpty ?? true))
   }
 
-  @Test func testDefaultHeadersDefaultsToEmpty() {
-    let opts = TransportOptionsBuilder().build()
+  @Test func testDefaultHeadersDefaultsToEmpty() throws {
+    let opts = try TransportOptionsBuilder().build()
     #expect(opts.defaultHeaders.isEmpty)
   }
 
-  @Test func testInjectRequestIdDefaultsToFalse() {
-    let opts = TransportOptionsBuilder().build()
+  @Test func testInjectRequestIdDefaultsToFalse() throws {
+    let opts = try TransportOptionsBuilder().build()
     #expect(!(opts.injectRequestID))
   }
 
@@ -82,8 +82,8 @@ import Testing
     #expect(opts.injectRequestID)
   }
 
-  @Test func testFollowRedirectsDefaultsToTrueWithNullMaxRedirects() {
-    let opts = TransportOptionsBuilder()
+  @Test func testFollowRedirectsDefaultsToTrueWithNullMaxRedirects() throws {
+    let opts = try TransportOptionsBuilder()
       .followRedirects(true)
       .build()
 
@@ -91,9 +91,18 @@ import Testing
     #expect(opts.maxRedirects == nil)
   }
 
-  @Test func testInvalidProxyUrlThrowsException() {
+  @Test func testInvalidProxyUrlThrowsException() throws {
     #expect(throws: ConfigurationError.invalidProxy("not a valid url")) {
-      try TransportOptionsBuilder().proxy("not a valid url")
+      try TransportOptionsBuilder().proxy("not a valid url").build()
+    }
+  }
+
+  /* The proxy URL is validated when the options are built, not when the
+   * setter runs, so the setter never throws. */
+  @Test func testInvalidProxyIsReportedByBuildNotBySetter() {
+    let builder = TransportOptionsBuilder().proxy("ftp://proxy.example.com:21")
+    #expect(throws: ConfigurationError.invalidProxy("ftp://proxy.example.com:21")) {
+      _ = try builder.build()
     }
   }
 
@@ -107,9 +116,9 @@ import Testing
     "http://",
     "http:///only-a-path",
   ])
-  func testProxyWithoutHttpSchemeOrHostIsRejected(url: String) {
+  func testProxyWithoutHttpSchemeOrHostIsRejected(url: String) throws {
     #expect(throws: ConfigurationError.invalidProxy(url)) {
-      try TransportOptionsBuilder().proxy(url)
+      try TransportOptionsBuilder().proxy(url).build()
     }
   }
 
@@ -127,7 +136,7 @@ import Testing
     #expect(opts.proxy == nil)
   }
 
-  @Test func testSocksProxySchemesAreRejectedWhenTheProxyIsSet() {
+  @Test func testSocksProxySchemesAreRejectedWhenTheProxyIsSet() throws {
     let urls = [
       "socks://proxy.example.com:1080",
       "socks4://proxy.example.com:1080",
@@ -135,7 +144,7 @@ import Testing
     ]
     for url in urls {
       #expect(throws: ConfigurationError.invalidProxy(url)) {
-        try TransportOptionsBuilder().proxy(url)
+        try TransportOptionsBuilder().proxy(url).build()
       }
     }
   }
@@ -162,8 +171,8 @@ import Testing
     #expect(opts.proxy == nil)
   }
 
-  @Test func testBuilderMethodsReturnSameInstance() {
-    let opts = TransportOptionsBuilder()
+  @Test func testBuilderMethodsReturnSameInstance() throws {
+    let opts = try TransportOptionsBuilder()
       .verifySsl(true)
       .userAgent("Test/1.0")
       .timeout(10000)
@@ -173,8 +182,8 @@ import Testing
     #expect(opts.timeout == 10000)
   }
 
-  @Test func testAccumulatesHeadersFromDefaultHeaderCalls() {
-    let opts = TransportOptionsBuilder()
+  @Test func testAccumulatesHeadersFromDefaultHeaderCalls() throws {
+    let opts = try TransportOptionsBuilder()
       .defaultHeader(name: "X-First", value: "one")
       .defaultHeader(name: "X-Second", value: "two")
       .build()
@@ -184,8 +193,8 @@ import Testing
     #expect(opts.defaultHeaders["X-Second"] == "two")
   }
 
-  @Test func testMergesHeadersFromDefaultHeadersCall() {
-    let opts = TransportOptionsBuilder()
+  @Test func testMergesHeadersFromDefaultHeadersCall() throws {
+    let opts = try TransportOptionsBuilder()
       .defaultHeader(name: "X-First", value: "one")
       .defaultHeaders([
         "X-Second": "two",
@@ -199,8 +208,8 @@ import Testing
     #expect(opts.defaultHeaders["X-Third"] == "three")
   }
 
-  @Test func testModifyingSourceMapDoesNotAffectBuiltOptions() {
-    let opts = TransportOptionsBuilder()
+  @Test func testModifyingSourceMapDoesNotAffectBuiltOptions() throws {
+    let opts = try TransportOptionsBuilder()
       .defaultHeader(name: "X-Test", value: "value")
       .build()
 
@@ -212,11 +221,11 @@ import Testing
       "Modifying returned headers should not affect the transport options")
   }
 
-  @Test func testBuilderProducesIndependentInstances() {
+  @Test func testBuilderProducesIndependentInstances() throws {
     let builder = TransportOptionsBuilder()
       .verifySsl(false)
-    let first = builder.build()
-    let second = builder.build()
+    let first = try builder.build()
+    let second = try builder.build()
 
     #expect(first.verifySsl == second.verifySsl)
     #expect(!(first === second))
@@ -224,29 +233,29 @@ import Testing
 
   // TimeoutConfigTests
 
-  @Test func testTimeoutDefaultsTo10000ms() {
+  @Test func testTimeoutDefaultsTo10000ms() throws {
     // Default TransportOptions applies a 10-second (10000 ms) request timeout
     // so that no SDK call blocks forever when the server stalls.
-    let opts = TransportOptionsBuilder().build()
+    let opts = try TransportOptionsBuilder().build()
     #expect(opts.timeout == 10000)
   }
 
-  @Test func testSettingTimeoutIsAccessible() {
-    let opts = TransportOptionsBuilder().timeout(5000).build()
+  @Test func testSettingTimeoutIsAccessible() throws {
+    let opts = try TransportOptionsBuilder().timeout(5000).build()
     #expect(opts.timeout == 5000)
   }
 
-  @Test func testTimeoutFieldIsNamedTimeout() {
+  @Test func testTimeoutFieldIsNamedTimeout() throws {
     // Verify via the property that the field is named 'timeout'
     // (not e.g. 'timeoutIntervalForRequest' or 'timeoutIntervalForResource').
-    let opts = TransportOptionsBuilder().timeout(1000).build()
+    let opts = try TransportOptionsBuilder().timeout(1000).build()
     #expect(opts.timeout != nil)
     #expect(opts.timeout == 1000)
   }
 
-  @Test func testTimeoutCanBeExplicitlyDisabled() {
+  @Test func testTimeoutCanBeExplicitlyDisabled() throws {
     // Passing nil explicitly disables the timeout (no end-to-end deadline).
-    let opts = TransportOptionsBuilder().timeout(nil).build()
+    let opts = try TransportOptionsBuilder().timeout(nil).build()
     #expect(opts.timeout == nil)
   }
 

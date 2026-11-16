@@ -38,8 +38,16 @@ impl std::error::Error for NetworkError {
     }
 }
 
-impl From<ApiError> for NetworkError {
-    fn from(api_error: ApiError) -> Self {
-        Self { api_error }
+/// Wraps an [`ApiError`] with status 0 (no HTTP response). Any other status is handed back
+/// unchanged as the error, so the type and its status cannot disagree.
+impl TryFrom<ApiError> for NetworkError {
+    type Error = ApiError;
+
+    fn try_from(api_error: ApiError) -> Result<Self, Self::Error> {
+        if api_error.status_code() == 0 {
+            Ok(Self { api_error })
+        } else {
+            Err(api_error)
+        }
     }
 }

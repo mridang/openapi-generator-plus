@@ -46,7 +46,9 @@ func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLo
 	// Validation applies to ALL locations: empty/whitespace API keys
 	// and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
 	// printable-ASCII rule still applies to HEADER values.
-	if strings.TrimSpace(apiKey) == "" {
+	// Blank means empty or ASCII whitespace only (space, \t, \n, \r, \f, \v); a
+	// Unicode space such as U+00A0 is a valid key character, so TrimSpace is not used.
+	if strings.Trim(apiKey, " \t\n\r\f\v") == "" {
 		return nil, &invalidApiKeyError{fmt.Sprintf("API key value for '%s' must not be empty", keyParamName)}
 	}
 	for _, c := range apiKey {

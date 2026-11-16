@@ -108,6 +108,40 @@ module {{moduleName}}
       raise ArgumentError, "Invalid proxy URL (missing host): #{val}" unless uri.host && !uri.host.empty?
     end
 
+    # Header names whose values never appear in a string representation:
+    # Authorization, Proxy-Authorization, Cookie, and any name containing
+    # key, token or secret (case-insensitive).
+    SENSITIVE_HEADER_NAME = /\A(?:authorization|proxy-authorization|cookie)\z|key|token|secret/i
+    private_constant :SENSITIVE_HEADER_NAME
+
+    # Copy of +headers+ with every sensitive value replaced by +***+.
+    # @api private
+    # @param headers [Hash{String => String}] header names to values
+    # @return [Hash{String => String}]
+    def self.redact_headers(headers)
+      headers.to_h { |name, value| [name, SENSITIVE_HEADER_NAME.match?(name.to_s) ? '***' : value] }
+    end
+
+    # +url+ with the password in its userinfo replaced by +***+.
+    # @api private
+    # @param url [String, nil] a URL, or +nil+
+    # @return [String, nil]
+    def self.redact_url(url)
+      url&.sub(%r{\A([A-Za-z][A-Za-z0-9+.-]*://[^/?#@:]*:)[^/?#@]*@}, '\\1***@')
+    end
+
+    # A readable form of the options that never reveals secrets: the proxy
+    # password and sensitive default header values print as +***+.
+    # @return [String]
+    def inspect
+      "#<#{self.class.name} verify_ssl=#{@verify_ssl.inspect} ca_cert_path=#{@ca_cert_path.inspect} " \
+        "proxy=#{self.class.redact_url(@proxy).inspect} timeout=#{@timeout.inspect} " \
+        "follow_redirects=#{@follow_redirects.inspect} max_redirects=#{@max_redirects.inspect} " \
+        "user_agent=#{@user_agent.inspect} default_headers=#{self.class.redact_headers(@default_headers).inspect} " \
+        "inject_request_id=#{@inject_request_id.inspect}>"
+    end
+    alias to_s inspect
+
     # Builder for creating immutable {TransportOptions} instances.
     #
     # All fields have sensible defaults:

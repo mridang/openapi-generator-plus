@@ -127,7 +127,7 @@ class TransportOptions {
 class TransportOptionsBuilder {
   bool _verifySsl = true;
   String? _caCertPath;
-  Uri? _proxy;
+  String? _proxy;
   int? _timeout = 10000;
   bool _followRedirects = true;
   int? _maxRedirects;
@@ -156,26 +156,11 @@ class TransportOptionsBuilder {
   /// Pass a proxy URL (e.g. `http://proxy:3128`), or null (or an empty
   /// string) for no proxy. Only HTTP and HTTPS proxy URLs are supported.
   ///
-  /// Throws [ArgumentError] if the URL is not a valid HTTP or HTTPS URL. The
-  /// error never carries the URL, which may embed `user:password` credentials.
+  /// The URL is validated by [build], which throws [ArgumentError] if it is not
+  /// a valid HTTP or HTTPS URL. The error never carries the URL, which may
+  /// embed `user:password` credentials.
   TransportOptionsBuilder proxy(String? val) {
-    if (val == null || val.isEmpty) {
-      _proxy = null;
-    } else {
-      final parsed = Uri.tryParse(val);
-      if (parsed == null || parsed.scheme.isEmpty) {
-        throw ArgumentError('Invalid proxy URL');
-      }
-      if (parsed.scheme != 'http' && parsed.scheme != 'https') {
-        throw ArgumentError(
-          'Invalid proxy URL (must use http or https scheme)',
-        );
-      }
-      if (parsed.host.isEmpty) {
-        throw ArgumentError('Invalid proxy URL (missing host)');
-      }
-      _proxy = parsed;
-    }
+    _proxy = val == null || val.isEmpty ? null : val;
     return this;
   }
 
@@ -236,11 +221,30 @@ class TransportOptionsBuilder {
   }
 
   /// Build and return an immutable [TransportOptions] instance.
+  ///
+  /// Throws [ArgumentError] if the proxy URL is invalid.
   TransportOptions build() {
+    Uri? proxy;
+    final rawProxy = _proxy;
+    if (rawProxy != null) {
+      final parsed = Uri.tryParse(rawProxy);
+      if (parsed == null || parsed.scheme.isEmpty) {
+        throw ArgumentError('Invalid proxy URL');
+      }
+      if (parsed.scheme != 'http' && parsed.scheme != 'https') {
+        throw ArgumentError(
+          'Invalid proxy URL (must use http or https scheme)',
+        );
+      }
+      if (parsed.host.isEmpty) {
+        throw ArgumentError('Invalid proxy URL (missing host)');
+      }
+      proxy = parsed;
+    }
     return TransportOptions._(
       verifySsl: _verifySsl,
       caCertPath: _caCertPath,
-      proxy: _proxy,
+      proxy: proxy,
       timeout: _timeout,
       followRedirects: _followRedirects,
       maxRedirects: _maxRedirects,

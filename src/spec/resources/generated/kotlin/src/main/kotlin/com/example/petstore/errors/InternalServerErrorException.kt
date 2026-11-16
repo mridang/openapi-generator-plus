@@ -14,10 +14,12 @@ package com.example.petstore.errors
  * @param responseHeaders the HTTP response headers, if available
  * @param responseBody the raw HTTP response body, if available
  * @param errorBody the deserialized error body, if available
+ * @param cause the underlying failure, if any
  */
 class InternalServerErrorException(
     message: String = "",
     responseHeaders: Map<String, String>? = null,
     responseBody: String? = null,
     errorBody: Any? = null,
-) : ServerException(500, message, responseHeaders, responseBody, errorBody)
+    cause: Throwable? = null,
+) : ServerException(500, message, responseHeaders, responseBody, errorBody, cause)

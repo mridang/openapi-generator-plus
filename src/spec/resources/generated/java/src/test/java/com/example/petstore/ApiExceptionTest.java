@@ -182,6 +182,75 @@ class ApiExceptionTest {
   }
 
   @Test
+  void statusSpecificExceptionsAcceptAnOptionalCause() {
+    java.io.IOException cause = new java.io.IOException("root cause");
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.BadRequestException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        400,
+        new com.example.petstore.errors.BadRequestException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.UnauthorizedException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        401,
+        new com.example.petstore.errors.UnauthorizedException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.ForbiddenException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        403,
+        new com.example.petstore.errors.ForbiddenException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.NotFoundException("m", null, null, null, cause).getCause());
+    assertEquals(
+        404,
+        new com.example.petstore.errors.NotFoundException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.ConflictException("m", null, null, null, cause).getCause());
+    assertEquals(
+        409,
+        new com.example.petstore.errors.ConflictException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.UnprocessableEntityException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        422,
+        new com.example.petstore.errors.UnprocessableEntityException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.InternalServerErrorException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        500,
+        new com.example.petstore.errors.InternalServerErrorException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.ClientException(418, "m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.ServerException(503, "m", null, null, null, cause)
+            .getCause());
+    assertNull(
+        new com.example.petstore.errors.NotFoundException("m", null, null, null, null).getCause());
+  }
+
+  @Test
   void serializationExceptionExtendsTheSdkRoot() {
     // The serializer's failure type lives under the same branded root, so a
     // single catch on OpenAPIException covers serialization errors too.

@@ -45,7 +45,7 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticator do
     # though URL-encoded later, trapping at construction surfaces the bug
     # clearly). RFC 7230 §3.2.6 printable-ASCII rule still applies to header
     # values.
-    if api_key == "" or String.trim(api_key) == "" do
+    if api_key =~ ~r/\A[\x20\x09\x0A\x0D\x0C\x0B]*\z/ do
       raise ArgumentError,
             "API key value for '#{key_param_name}' must not be empty"
     end

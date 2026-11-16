@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Errors;
 
+use Throwable;
+
 /**
  * Exception for HTTP 401 Unauthorized.
  */
@@ -22,8 +24,9 @@ class UnauthorizedException extends ClientException
         string $message = "",
         ?array $responseHeaders = null,
         ?string $responseBody = null,
-        mixed $errorBody = null
+        mixed $errorBody = null,
+        ?Throwable $previous = null
     ) {
-        parent::__construct(401, $message, $responseHeaders, $responseBody, $errorBody);
+        parent::__construct(401, $message, $responseHeaders, $responseBody, $errorBody, $previous);
     }
 }

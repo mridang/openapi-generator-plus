@@ -17,8 +17,9 @@ export class InternalServerError<T = unknown> extends ServerError<T> {
     responseHeaders: Record<string, string> | null = null,
     responseBody: string | null = null,
     errorBody: T | null = null,
+    options?: { cause?: unknown },
   ) {
-    super(500, message, responseHeaders, responseBody, errorBody);
+    super(500, message, responseHeaders, responseBody, errorBody, options);
     this.name = "InternalServerError";
   }
 }

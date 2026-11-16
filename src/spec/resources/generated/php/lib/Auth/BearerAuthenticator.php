@@ -26,8 +26,9 @@ class BearerAuthenticator extends BaseAuthenticator
         /* Reject an empty / whitespace-only token up-front. Without this an
          * empty token would emit the literal `Authorization: Bearer ` header
          * (no credential), sending the request effectively unauthenticated.
-         * Mirrors the api-key authenticator's own empty guard. */
-        if ($token === '' || trim($token) === '') {
+         * Mirrors the api-key authenticator's own empty guard: blank means
+         * empty or only ASCII whitespace (space, tab, LF, CR, FF, VT). */
+        if (trim($token, " \t\n\r\x0C\x0B") === '') {
             throw new \InvalidArgumentException(
                 'Bearer token must not be empty'
             );

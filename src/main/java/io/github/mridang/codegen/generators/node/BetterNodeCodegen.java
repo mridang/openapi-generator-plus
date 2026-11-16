@@ -337,9 +337,28 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         );
     }
 
+    /** Base classes the barrel already exports, so a per-scheme class of the same name is skipped. */
+    private static final Set<String> BASE_AUTHENTICATORS = Set.of(
+            "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator",
+            "OAuth2ClientCredentialsAuthenticator", "OAuth2PasswordAuthenticator",
+            "OAuth2AuthorizationCodeAuthenticator", "OAuth2ImplicitAuthenticator",
+            "OpenIdConnectAuthenticator");
+
+    /** Per-scheme authenticators for the barrel: {className, path}. Filled during generation. */
+    private final List<Map<String, String>> perSchemeAuthExports = new ArrayList<>();
+
+    /** Per-scheme authenticators for the unit test: {className, baseClass}. */
+    private final List<Map<String, String>> perSchemeAuthEntries = new ArrayList<>();
+
+    /** Unique class names the per-scheme unit test imports from the entry point. */
+    private final List<Map<String, String>> perSchemeAuthImports = new ArrayList<>();
+
     @Override
     public void processOpts() {
         super.processOpts();
+        additionalProperties.put("perSchemeAuthExports", perSchemeAuthExports);
+        additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);
+        additionalProperties.put("perSchemeAuthImports", perSchemeAuthImports);
         final String packageVersion = getPropertyOrDefault("packageVersion", "1.0.0");
         additionalProperties.put("packageVersion", packageVersion);
         final String npmName = getPropertyOrDefault("npmName", "openapi-typescript-client");
@@ -1095,6 +1114,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test",
                             "api-key-authenticator.test.ts"));
         }
+        if (generateTests
+                && (hasBasicAuth || hasBearerAuth || hasApiKeyAuth || hasAnyOAuth2 || hasOpenIdConnect)) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/scheme-authenticators.test.mustache",
+                            "test",
+                            "scheme-authenticators.test.ts"));
+        }
     }
 
     /** {@inheritDoc} */
@@ -1142,6 +1169,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
         final Map<String, Object> ctx = baseSchemeContext(spec);
+        recordSchemeAuthenticator(spec, String.valueOf(ctx.get("className")));
         ctx.put("imports", buildNodeImports(spec));
         final List<Map<String, String>> constructorParams = new ArrayList<>();
         for (final String name : spec.paramNames()) {
@@ -1153,6 +1181,26 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildNodeSuperArgs(spec));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /**
+     * Remembers a generated per-scheme authenticator so the package entry
+     * point re-exports it and its unit test covers it.
+     */
+    private void recordSchemeAuthenticator(SchemeAuthSpec spec, String className) {
+        if (BASE_AUTHENTICATORS.contains(className)) {
+            return;
+        }
+        final String stem = NamingConvention.SNAKE_CASE.apply(className).replace('_', '-');
+        perSchemeAuthExports.add(Map.of(
+                "className", className,
+                "path", (spec.isOAuth() ? "auth/oauth/" : "auth/") + stem));
+        perSchemeAuthEntries.add(Map.of("className", className, "baseClass", spec.baseClass()));
+        for (final String name : List.of(className, spec.baseClass())) {
+            if (perSchemeAuthImports.stream().noneMatch(m -> name.equals(m.get("name")))) {
+                perSchemeAuthImports.add(Map.of("name", name));
+            }
+        }
     }
 
     private List<Map<String, String>> buildNodeImports(SchemeAuthSpec spec) {

@@ -250,3 +250,32 @@ class TestProxyUrlValidation:
     )
     def test_an_upper_case_scheme_is_accepted(self, proxy: str) -> None:
         assert TransportOptions.builder().proxy(proxy).build().proxy == proxy
+
+
+class TestTransportOptionsRepr:
+    def test_repr_masks_the_proxy_password(self) -> None:
+        opts = TransportOptions.builder().proxy('http://user:s3cret@proxy.example.com:3128').build()
+
+        assert 's3cret' not in repr(opts)
+        assert 's3cret' not in str(opts)
+        assert "proxy='http://user:***@proxy.example.com:3128'" in repr(opts)
+
+    def test_repr_keeps_a_proxy_without_userinfo(self) -> None:
+        opts = TransportOptions.builder().proxy('http://proxy.example.com:3128').build()
+
+        assert "proxy='http://proxy.example.com:3128'" in repr(opts)
+
+    @pytest.mark.parametrize(
+        'name',
+        ['Authorization', 'proxy-authorization', 'Cookie', 'X-Api-Key', 'X-Auth-Token', 'x-client-SECRET'],
+    )
+    def test_repr_masks_sensitive_default_header_values(self, name: str) -> None:
+        opts = TransportOptions.builder().default_header(name, 'hunter2').build()
+
+        assert 'hunter2' not in repr(opts)
+        assert f"{name!r}: '***'" in repr(opts)
+
+    def test_repr_keeps_other_default_header_values(self) -> None:
+        opts = TransportOptions.builder().default_header('Accept', 'text/plain').build()
+
+        assert "'Accept': 'text/plain'" in repr(opts)

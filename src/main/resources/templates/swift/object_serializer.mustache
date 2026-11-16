@@ -614,6 +614,17 @@ internal enum ObjectSerializer {
         }
     }
 
+    /// Lowercase hyphenated wire form of each UUID. `UUID` encodes itself in
+    /// uppercase, so generated models route arrays of UUIDs through here.
+    static func lowercaseUuids(_ values: [UUID]) -> [String] {
+        return values.map { $0.uuidString.lowercased() }
+    }
+
+    /// Lowercase hyphenated wire form of every UUID value of a map.
+    static func lowercaseUuids(_ values: [String: UUID]) -> [String: String] {
+        return values.mapValues { $0.uuidString.lowercased() }
+    }
+
     /// Convert a value to a string suitable for use as a URL path parameter.
     static func toPathValue(_ value: Any?) -> String {
         return stringify(value)

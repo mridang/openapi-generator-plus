@@ -97,14 +97,16 @@ open class ApiException : {{errorPrefix}}Exception {
      * @param responseHeaders the HTTP response headers, if available
      * @param responseBody the raw HTTP response body, if available
      * @param errorBody the deserialized error body, if available
+     * @param cause the underlying failure, if any
      */
     constructor(
         statusCode: Int,
         message: String,
         responseHeaders: Map<String, String>?,
         responseBody: String?,
-        errorBody: Any? = null
-    ) : super(message) {
+        errorBody: Any? = null,
+        cause: Throwable? = null
+    ) : super(message, cause) {
         this.statusCode = statusCode
         // Defensive immutable copy so the stored headers cannot be mutated by
         // the caller after construction.

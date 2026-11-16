@@ -34,6 +34,32 @@ class SetPetAvatarThumbnailRequest(
     @Contextual
     val actualInstance: Any? = null,
 ) {
+    // Value equality: two wrappers are equal when they hold equal variants.
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is SetPetAvatarThumbnailRequest && deepEquals(actualInstance, other.actualInstance))
+
+    override fun hashCode(): Int = deepHash(actualInstance)
+
+    private fun deepEquals(
+        a: Any?,
+        b: Any?,
+    ): Boolean =
+        when {
+            a is ByteArray && b is ByteArray -> a.contentEquals(b)
+            a is List<*> && b is List<*> ->
+                a.size == b.size && a.indices.all { deepEquals(a[it], b[it]) }
+            else -> a == b
+        }
+
+    private fun deepHash(a: Any?): Int =
+        when (a) {
+            null -> 0
+            is ByteArray -> a.contentHashCode()
+            is List<*> -> a.fold(1) { acc, e -> 31 * acc + deepHash(e) }
+            else -> a.hashCode()
+        }
+
     internal object Serializer : kotlinx.serialization.KSerializer<SetPetAvatarThumbnailRequest> {
         override val descriptor =
             kotlinx.serialization.descriptors.buildClassSerialDescriptor("SetPetAvatarThumbnailRequest")

@@ -335,12 +335,15 @@ async fn test_token_endpoint_failures_are_typed() {
     );
 
     let client = Arc::new(FakeApiClient::new());
-    client.enqueue_error(Box::new(NetworkError::from(ApiError::new(
-        0,
-        "connection refused".to_string(),
-        None,
-        None,
-    ))));
+    client.enqueue_error(Box::new(
+        NetworkError::try_from(ApiError::new(
+            0,
+            "connection refused".to_string(),
+            None,
+            None,
+        ))
+        .expect("status 0"),
+    ));
     let manager = OAuth2TokenManager::new();
     manager.set_api_client(client);
     let err = manager
@@ -350,9 +353,10 @@ async fn test_token_endpoint_failures_are_typed() {
     assert!(err.downcast_ref::<NetworkError>().is_some(), "got: {}", err);
 
     let client = Arc::new(FakeApiClient::new());
-    client.enqueue_error(Box::new(NetworkTimeoutError::from(NetworkError::from(
-        ApiError::new(0, "timed out".to_string(), None, None),
-    ))));
+    client.enqueue_error(Box::new(NetworkTimeoutError::from(
+        NetworkError::try_from(ApiError::new(0, "timed out".to_string(), None, None))
+            .expect("status 0"),
+    )));
     let manager = OAuth2TokenManager::new();
     manager.set_api_client(client);
     let err = manager
@@ -1007,12 +1011,10 @@ async fn test_refresh_transport_failure_falls_back_to_the_original_grant() {
         r#"{"access_token":"old","refresh_token":"ref1","expires_in":1}"#,
         200,
     );
-    client.enqueue_error(Box::new(NetworkError::from(ApiError::new(
-        0,
-        "connection reset".to_string(),
-        None,
-        None,
-    ))));
+    client.enqueue_error(Box::new(
+        NetworkError::try_from(ApiError::new(0, "connection reset".to_string(), None, None))
+            .expect("status 0"),
+    ));
     client.enqueue(r#"{"access_token":"fresh","expires_in":3600}"#, 200);
     let manager = OAuth2TokenManager::new();
     manager.set_api_client(client.clone());

@@ -223,7 +223,19 @@ impl ApiClient for DefaultApiClient {
                 ))) as Box<dyn std::error::Error + Send + Sync>
             })?;
 
+            /* One end-to-end budget covers the first request and every redirect
+             * hop: each request gets only what is left of it, so a chain of
+             * slow hops cannot restart the clock. */
+            let deadline = self
+                .transport_options
+                .timeout()
+                .and_then(|ms| u64::try_from(ms).ok())
+                .map(|ms| std::time::Instant::now() + Duration::from_millis(ms));
+
             let mut request_builder = http_client.request(http_method, parsed_url);
+            if let Some(deadline) = deadline {
+                request_builder = request_builder.timeout(remaining_budget(deadline));
+            }
 
             for (k, v) in &merged {
                 request_builder = request_builder.header(k.as_str(), v.as_str());
@@ -364,6 +376,9 @@ impl ApiClient for DefaultApiClient {
                     })?;
                     let mut redirect_builder =
                         http_client.request(http_method, next_url.clone());
+                    if let Some(deadline) = deadline {
+                        redirect_builder = redirect_builder.timeout(remaining_budget(deadline));
+                    }
                     let mut redirect_headers = current_headers.clone();
                     if next_body.is_none() {
                         let keeps_method = next_method == current_method;
@@ -456,10 +471,9 @@ impl ApiClient for DefaultApiClient {
                 .unwrap_or_default();
             let resp_bytes = match decompress_body(&content_encoding, &raw_bytes) {
                 Ok(Some(decoded)) => {
-                    /* The headers now describe the decoded body, as they did
-                     * when reqwest decompressed it. */
-                    resp_headers.remove("content-encoding");
-                    resp_headers.remove("content-length");
+                    /* The headers stay exactly as received on the wire:
+                     * content-encoding and content-length still describe the
+                     * compressed body, as in the other SDKs. */
                     decoded
                 }
                 Ok(None) => raw_bytes.to_vec(),
@@ -523,6 +537,14 @@ fn decompress_body(content_encoding: &str, raw: &[u8]) -> std::io::Result<Option
     Ok(Some(decoded))
 }
 
+/// The part of the end-to-end timeout budget that is left at `deadline`, never
+/// zero so an exhausted budget still surfaces as a timeout from the transport.
+fn remaining_budget(deadline: std::time::Instant) -> Duration {
+    deadline
+        .saturating_duration_since(std::time::Instant::now())
+        .max(Duration::from_millis(1))
+}
+
 /// Classifies a reqwest transport failure. A timeout becomes
 /// [`NetworkTimeoutError`]; any other failure (connection refused, DNS, TLS,
 /// reset) [`NetworkError`]. Both carry status 0 and keep the reqwest error as
@@ -531,10 +553,16 @@ fn transport_error(e: reqwest::Error) -> Box<dyn std::error::Error + Send + Sync
     let message = e.to_string();
     if e.is_timeout() {
         let api_error = ApiError::transport(TransportFailure::Timeout, message, Arc::new(e));
-        Box::new(NetworkTimeoutError::from(NetworkError::from(api_error)))
+        match NetworkError::try_from(api_error) {
+            Ok(network) => Box::new(NetworkTimeoutError::from(network)),
+            Err(other) => Box::new(other),
+        }
     } else {
         let api_error = ApiError::transport(TransportFailure::Network, message, Arc::new(e));
-        Box::new(NetworkError::from(api_error))
+        match NetworkError::try_from(api_error) {
+            Ok(network) => Box::new(network),
+            Err(other) => Box::new(other),
+        }
     }
 }
 

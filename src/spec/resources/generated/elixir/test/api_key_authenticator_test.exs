@@ -36,6 +36,21 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       end
     end
 
+    test "rejects a key of only ASCII whitespace, including form feed and vertical tab" do
+      for blank <- [" ", "\t", "\n", "\r", "\f", "\v", " \t\f\v"] do
+        assert_raise ArgumentError, fn ->
+          ApiKeyAuthenticator.new("https://api.example.com", "api_key", blank, :query)
+        end
+      end
+    end
+
+    test "a Unicode space is not blank and is a valid query key" do
+      for key <- ["\u00A0", "\u2003"] do
+        auth = ApiKeyAuthenticator.new("https://api.example.com", "api_key", key, :query)
+        assert ApiKeyAuthenticator.query_params(auth)["api_key"] == key
+      end
+    end
+
     test "rejects a whitespace-only key at construction" do
       assert_raise ArgumentError, fn ->
         ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "   ", :header)

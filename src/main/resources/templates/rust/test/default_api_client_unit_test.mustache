@@ -1546,6 +1546,41 @@ async fn test_timeout_returns_network_timeout_error() {
     );
 }
 
+/// The timeout is one end-to-end budget across every redirect hop: three
+/// 400 ms hops and a 400 ms final answer exceed a 1000 ms budget even though
+/// each single request is well inside it.
+#[tokio::test]
+async fn test_timeout_is_one_budget_across_redirect_hops() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().expect("local addr");
+    thread::spawn(move || {
+        for (i, stream) in listener.incoming().enumerate().take(4) {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            thread::sleep(std::time::Duration::from_millis(400));
+            let response = if i < 3 {
+                "HTTP/1.1 302 Found\r\nLocation: /next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            } else {
+                "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            };
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    let transport = TransportOptionsBuilder::new()
+        .timeout(Some(1000))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let err = client
+        .send_request("GET", &format!("http://{}/start", addr), &HashMap::new(), None)
+        .await
+        .expect_err("the redirect chain must exceed the single budget");
+
+    assert!(err.downcast_ref::<NetworkTimeoutError>().is_some(), "got: {}", err);
+}
+
 /// `timeout` is the one deadline the client arms, and reqwest applies it to
 /// the whole transfer: connect, headers and body alike. A response whose
 /// headers arrive inside the budget and whose body then stalls past it fails

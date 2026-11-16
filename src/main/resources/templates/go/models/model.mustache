@@ -592,14 +592,15 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("unknown discriminator value %q for {{classname}}", disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}})
 {{/discriminator}}
 {{^discriminator}}
-	/* Try each oneOf type */
-{{#oneOf}}
-	var {{#goVarName}}{{{.}}}{{/goVarName}} {{{.}}}
-	if err := json.Unmarshal(data, &{{#goVarName}}{{{.}}}{{/goVarName}}); err == nil {
-		o.value = {{#goVarName}}{{{.}}}{{/goVarName}}
+	/* Try each oneOf type in schema declaration order: composedSchemas.oneOf keeps it,
+	 * whereas the bare oneOf set is alphabetical. */
+{{#composedSchemas.oneOf}}
+	var {{#goVarName}}{{{dataType}}}{{/goVarName}} {{{dataType}}}
+	if err := json.Unmarshal(data, &{{#goVarName}}{{{dataType}}}{{/goVarName}}); err == nil {
+		o.value = {{#goVarName}}{{{dataType}}}{{/goVarName}}
 		return nil
 	}
-{{/oneOf}}
+{{/composedSchemas.oneOf}}
 	return fmt.Errorf("data does not match any oneOf schemas for {{classname}}")
 {{/discriminator}}
 }
@@ -607,6 +608,18 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 // ActualInstance returns the matched variant of the union type.
 func (o {{classname}}) ActualInstance() any {
 	return o.value
+}
+
+// Equal reports whether this {{classname}} is value-equal to other, comparing
+// the canonical JSON encodings so a union holding a slice variant compares
+// without the panic the built-in `==` raises on such values.
+func (o {{classname}}) Equal(other {{classname}}) bool {
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
 }
 {{/-first}}
 {{/oneOf}}
@@ -670,12 +683,12 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 // so a payload satisfying several variants keeps all of their fields.
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	var matched []any
-{{#anyOf}}
-	var {{#goVarName}}{{{.}}}{{/goVarName}} {{{.}}}
-	if err := json.Unmarshal(data, &{{#goVarName}}{{{.}}}{{/goVarName}}); err == nil {
-		matched = append(matched, {{#goVarName}}{{{.}}}{{/goVarName}})
+{{#composedSchemas.anyOf}}
+	var {{#goVarName}}{{{dataType}}}{{/goVarName}} {{{dataType}}}
+	if err := json.Unmarshal(data, &{{#goVarName}}{{{dataType}}}{{/goVarName}}); err == nil {
+		matched = append(matched, {{#goVarName}}{{{dataType}}}{{/goVarName}})
 	}
-{{/anyOf}}
+{{/composedSchemas.anyOf}}
 	if len(matched) == 0 {
 		return fmt.Errorf("data does not match any anyOf schemas for {{classname}}")
 	}
@@ -696,6 +709,18 @@ func (o {{classname}}) ActualInstance() any {
 		return nil
 	}
 	return o.matchedInstances[0]
+}
+
+// Equal reports whether this {{classname}} is value-equal to other, comparing
+// the canonical JSON encodings so a union holding a slice variant compares
+// without the panic the built-in `==` raises on such values.
+func (o {{classname}}) Equal(other {{classname}}) bool {
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
 }
 {{/-first}}
 {{/anyOf}}

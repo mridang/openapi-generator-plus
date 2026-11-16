@@ -205,6 +205,13 @@ class TestAllOfPetWithOwner:
         assert result.owner_name == 'John'
         assert result.owner_email == 'john@example.com'
 
+    def test_email_format_is_a_plain_string_not_validated(self) -> None:
+        json_str = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John Doe","ownerEmail":"not-an-email"}'
+        result = ObjectSerializer().deserialize(json_str, 'PetWithOwner')
+        assert result is not None
+        assert type(result.owner_email) is str
+        assert result.owner_email == 'not-an-email'
+
     def test_serializes_to_json(self) -> None:
         json_str = '{"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"}'
         result = ObjectSerializer().deserialize(json_str, 'PetWithOwner')

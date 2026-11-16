@@ -235,6 +235,25 @@ import Testing
         #expect(roundTripped?["durationMinutes"] as? Int == 45)
     }
 
+    /// Union wrappers compare by value and hash alike, as plain models do.
+    @Test func testUnionWrappersHaveValueEquality() throws {
+        let json = Data("{\"drugName\":\"Amoxicillin\",\"procedureName\":\"Spay\"}".utf8)
+        let first = try JSONDecoder().decode(PetTreatment.self, from: json)
+        let second = try JSONDecoder().decode(PetTreatment.self, from: json)
+        let other = try #require(PetTreatment([Medication(drugName: "Other")]))
+        #expect(first == second)
+        #expect(first.hashValue == second.hashValue)
+        #expect(first != other)
+
+        let bytes = SetPetAvatarThumbnailRequest(Data([0x01]))
+        #expect(bytes == SetPetAvatarThumbnailRequest(Data([0x01])))
+        #expect(bytes != SetPetAvatarThumbnailRequest(Data([0x02])))
+
+        let dry = PetFood(DryFood(weightKg: 2.5))
+        #expect(dry == PetFood(DryFood(weightKg: 2.5)))
+        #expect(dry != PetFood(DryFood(weightKg: 3.5)))
+    }
+
     /// An anyOf wrapper built from no variants is refused, because reading it would trap.
     @Test func testPetTreatmentFromNoVariantsIsNil() {
         #expect(PetTreatment([]) == nil)

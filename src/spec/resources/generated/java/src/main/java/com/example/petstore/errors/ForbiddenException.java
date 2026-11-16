@@ -44,4 +44,22 @@ public class ForbiddenException extends ClientException {
       @Nullable Object errorBody) {
     super(403, message, responseHeaders, responseBody, errorBody);
   }
+
+  /**
+   * Creates a new exception that keeps the underlying failure as its cause.
+   *
+   * @param message the error message
+   * @param responseHeaders the HTTP response headers, if available
+   * @param responseBody the raw HTTP response body, if available
+   * @param errorBody the deserialized error body, if available
+   * @param cause the underlying failure, if any
+   */
+  public ForbiddenException(
+      String message,
+      @Nullable Map<String, String> responseHeaders,
+      @Nullable String responseBody,
+      @Nullable Object errorBody,
+      @Nullable Throwable cause) {
+    super(403, message, responseHeaders, responseBody, errorBody, cause);
+  }
 }

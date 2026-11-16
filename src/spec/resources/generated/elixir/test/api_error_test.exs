@@ -228,6 +228,25 @@ defmodule PetstoreClient.ApiErrorTest do
       end
     end
 
+    test "every status-specific error accepts an optional cause" do
+      cause = %RuntimeError{message: "root cause"}
+
+      for module <- [
+            PetstoreClient.Errors.BadRequestError,
+            PetstoreClient.Errors.UnauthorizedError,
+            PetstoreClient.Errors.ForbiddenError,
+            PetstoreClient.Errors.NotFoundError,
+            PetstoreClient.Errors.ConflictError,
+            PetstoreClient.Errors.UnprocessableEntityError,
+            PetstoreClient.Errors.InternalServerError,
+            PetstoreClient.Errors.ClientError,
+            PetstoreClient.Errors.ServerError
+          ] do
+        assert module.exception(%{message: "boom", cause: cause}).cause == cause
+        assert module.exception(%{message: "boom"}).cause == nil
+      end
+    end
+
     # Elixir exceptions have no inheritance, so the family predicates express
     # the hierarchy: a 404 is a NotFoundError, a ClientError and an ApiError; a
     # 500 is an InternalServerError, a ServerError and an ApiError; a

@@ -139,9 +139,27 @@ public abstract class {{classname}}
 {{/discriminator}}
 {{^discriminator}}
 [JsonConverter(typeof({{classname}}Converter))]
-public class {{classname}}(object value)
+public class {{classname}}(object value) : IEquatable<{{classname}}>
 {
     public object? ActualInstance { get; set; } = value;
+
+    /// <summary>Value equality on the wrapped variant.</summary>
+    public bool Equals({{classname}}? other)
+    {
+        return other is not null
+            && (ReferenceEquals(this, other)
+                || global::{{packageName}}.ObjectSerializer.StructuralEquals(ActualInstance, other.ActualInstance));
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as {{classname}});
+    }
+
+    public override int GetHashCode()
+    {
+        return global::{{packageName}}.ObjectSerializer.StructuralHashCode(ActualInstance);
+    }
 
     private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
     {
@@ -149,10 +167,12 @@ public class {{classname}}(object value)
         {
             using JsonDocument doc = JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
-            {{#oneOf}}
-            try { return new {{classname}}(JsonSerializer.Deserialize<{{{.}}}>(raw, options)!); }
+            /* Variants are tried in schema declaration order (composedSchemas
+             * keeps it; the bare oneOf set is alphabetical); first match wins. */
+            {{#composedSchemas.oneOf}}
+            try { return new {{classname}}(JsonSerializer.Deserialize<{{{dataType}}}>(raw, options)!); }
             catch (JsonException) { }
-            {{/oneOf}}
+            {{/composedSchemas.oneOf}}
             /* No schema in the union matched — throw rather than silently
              * store a raw value (or, like Dart, an empty object). The 7-SDK
              * majority (Python/Swift/Dart/Go/Rust plus Java/Kotlin/Node here)
@@ -202,8 +222,26 @@ namespace {{packageName}}.Models;
 {{/externalDocumentation}}
 {{/isDeprecated}}
 [JsonConverter(typeof({{classname}}Converter))]
-public class {{classname}}
+public class {{classname}} : IEquatable<{{classname}}>
 {
+    /// <summary>Value equality on the retained variants, in order.</summary>
+    public bool Equals({{classname}}? other)
+    {
+        return other is not null
+            && (ReferenceEquals(this, other)
+                || global::{{packageName}}.ObjectSerializer.StructuralEquals(MatchedInstances, other.MatchedInstances));
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as {{classname}});
+    }
+
+    public override int GetHashCode()
+    {
+        return global::{{packageName}}.ObjectSerializer.StructuralHashCode(MatchedInstances);
+    }
+
     /// <summary>
     /// Every union variant that successfully validated against the payload.
     /// Because anyOf is inclusive (a payload may satisfy several variants at
@@ -245,10 +283,11 @@ public class {{classname}}
             using JsonDocument doc = JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
             List<object> matched = new List<object>();
-            {{#anyOf}}
-            try { matched.Add(JsonSerializer.Deserialize<{{{.}}}>(raw, options)!); }
+            /* Declaration order: the bare anyOf set is alphabetical. */
+            {{#composedSchemas.anyOf}}
+            try { matched.Add(JsonSerializer.Deserialize<{{{dataType}}}>(raw, options)!); }
             catch (JsonException) { }
-            {{/anyOf}}
+            {{/composedSchemas.anyOf}}
             if (matched.Count > 0)
             {
                 return new {{classname}}(matched);

@@ -151,7 +151,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
         HttpClientHandler handler = new()
         {
-            AutomaticDecompression = DecompressionMethods.All,
+            AutomaticDecompression = DecompressionMethods.None,
             CheckCertificateRevocationList = true,
             /* Disable the default per-handler cookie jar so that a
                Set-Cookie returned by one request is not silently
@@ -161,12 +161,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             UseCookies = false,
         };
 
-        if (!transportOptions.VerifySsl)
-        {
-            handler.ServerCertificateCustomValidationCallback =
-                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-        }
-        else if (transportOptions.CaCertPath != null)
+        if (transportOptions.CaCertPath != null)
         {
             X509Certificate2Collection caCerts = [];
             try
@@ -194,28 +189,36 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     nameof(transportOptions)
                 );
             }
-            handler.ServerCertificateCustomValidationCallback = (_, cert, _, sslPolicyErrors) =>
+            if (transportOptions.VerifySsl)
             {
-                /* The pinned CA replaces the system roots, but host name
-                 * verification still applies: a certificate issued by the
-                 * pinned CA for another host is rejected. */
-                if (
-                    cert == null
-                    || (
-                        sslPolicyErrors
-                        & System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch
-                    ) != 0
-                )
+                handler.ServerCertificateCustomValidationCallback = (_, cert, _, sslPolicyErrors) =>
                 {
-                    return false;
-                }
+                    /* The pinned CA replaces the system roots, but host name
+                     * verification still applies: a certificate issued by the
+                     * pinned CA for another host is rejected. */
+                    if (
+                        cert == null
+                        || (
+                            sslPolicyErrors
+                            & System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch
+                        ) != 0
+                    )
+                    {
+                        return false;
+                    }
 
-                using X509Chain customChain = new();
-                customChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                customChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-                customChain.ChainPolicy.CustomTrustStore.AddRange(caCerts);
-                return customChain.Build(cert);
-            };
+                    using X509Chain customChain = new();
+                    customChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                    customChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                    customChain.ChainPolicy.CustomTrustStore.AddRange(caCerts);
+                    return customChain.Build(cert);
+                };
+            }
+        }
+        if (!transportOptions.VerifySsl)
+        {
+            handler.ServerCertificateCustomValidationCallback =
+                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
         }
 
         if (transportOptions.Proxy != null)
@@ -389,7 +392,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             request.Content = body switch
             {
                 byte[] bytes => new ByteArrayContent(bytes),
-                Stream stream => new StreamContent(stream),
+                Stream stream => new StreamContent(new CallerOwnedStream(stream)),
                 Dictionary<string, object> formParts => BuildMultipartContent(
                     formParts,
                     _serializer
@@ -906,7 +909,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 break;
             case Stream stream:
                 ValidateMultipartFilename(name);
-                StreamContent streamContent = new(stream);
+                StreamContent streamContent = new(new CallerOwnedStream(stream));
                 streamContent.Headers.ContentType =
                     new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
                 SetPartDisposition(
@@ -1374,5 +1377,49 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private static bool HasHeader(Dictionary<string, string> headers, string name)
     {
         return headers.Keys.Any(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Read-only view over a caller-supplied stream whose disposal never
+    /// reaches the inner stream: the caller owns the stream, so the SDK must
+    /// not close it when the request content is disposed.
+    /// </summary>
+    private sealed class CallerOwnedStream(Stream inner) : Stream
+    {
+        public override bool CanRead => inner.CanRead;
+        public override bool CanSeek => inner.CanSeek;
+        public override bool CanWrite => false;
+        public override long Length => inner.Length;
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            inner.Read(buffer, offset, count);
+
+        public override int Read(Span<byte> buffer) => inner.Read(buffer);
+
+        public override Task<int> ReadAsync(
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken cancellationToken
+        ) => inner.ReadAsync(buffer, offset, count, cancellationToken);
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default
+        ) => inner.ReadAsync(buffer, cancellationToken);
+
+        public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
     }
 }

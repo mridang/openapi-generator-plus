@@ -40,6 +40,19 @@ defmodule PetstoreClient.Configuration do
   defstruct base_url: "/api/v3",
             default_headers: %{}
 
+  # Default headers may carry credentials (for example Authorization), so the
+  # Inspect representation masks the sensitive ones as `***`.
+  defimpl Inspect do
+    def inspect(config, opts) do
+      masked = %{
+        config
+        | default_headers: PetstoreClient.TransportOptions.redact_headers(config.default_headers)
+      }
+
+      Inspect.Any.inspect(masked, opts)
+    end
+  end
+
   @doc """
   Creates a new Configuration with the given options.
 

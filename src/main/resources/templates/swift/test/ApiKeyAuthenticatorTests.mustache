@@ -102,6 +102,7 @@ import Testing
     @Test(arguments: [
         ("", ApiKeyLocation.header, "API key value for 'X-API-Key' must not be empty"),
         ("  \t", ApiKeyLocation.cookie, "API key value for 'X-API-Key' must not be empty"),
+        ("\u{0B}\u{0C} ", ApiKeyLocation.query, "API key value for 'X-API-Key' must not be empty"),
         ("abc\r\n", ApiKeyLocation.query, "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"),
         ("a\u{0}b", ApiKeyLocation.cookie, "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"),
         ("a\nb", ApiKeyLocation.header, "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"),
@@ -123,6 +124,14 @@ import Testing
             host: "https://api.example.com", keyParamName: "k", apiKey: "kéy", location: location)
         let emitted = location == .query ? auth.queryParams() : auth.cookieParams()
         #expect(emitted == ["k": "kéy"])
+    }
+
+    /* Only ASCII whitespace counts as blank: a Unicode space is a valid key. */
+    @Test(arguments: ["\u{A0}", "\u{2003}"])
+    func unicodeSpaceIsAValidKey(key: String) throws {
+        let auth = try ApiKeyAuthenticator(
+            host: "https://api.example.com", keyParamName: "k", apiKey: key, location: .query)
+        #expect(auth.queryParams() == ["k": key])
     }
 
     /* The key is emitted at its own location and nowhere else. */

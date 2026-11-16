@@ -232,7 +232,7 @@ fn is_a<T: Error + 'static>(err: &(dyn Error + 'static)) -> bool {
     std::iter::successors(Some(err), |&e| e.source()).any(|e| e.is::<T>())
 }
 
-match client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}{{/isPath}}{{#isBody}}{{paramName}}{{/isBody}}{{#isOptions}}None{{/isOptions}}{{#isServer}}None{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}.await {
+match client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}{{/isPath}}{{#isBody}}{{paramName}}{{/isBody}}{{#isOptions}}None{{/isOptions}}{{#isServer}}None{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes.1}}, None{{/consumes.1}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}.await {
     Ok(value) => println!("Found: {:?}", value),
     Err(e) if is_a::<NotFoundError>(&*e) => println!("Not found: {}", e),
     Err(e) if is_a::<ClientError>(&*e) => println!("Client error: {}", e),

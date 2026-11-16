@@ -260,6 +260,18 @@ module {{moduleName}}
           super
         end
 
+        # Value equality: two composites are equal when they retain equal
+        # variants in the same order.
+        def ==(other)
+          other.is_a?(self.class) && @anyof_matched_instances == other.anyof_matched_instances
+        end
+        alias eql? ==
+
+        # Hash consistent with {#==}.
+        def hash
+          [self.class, @anyof_matched_instances].hash
+        end
+
         # Mirror {method_missing}: report responding to any attribute that a
         # retained variant declares, so +respond_to?+ stays truthful.
         def respond_to_missing?(name, include_private = false)

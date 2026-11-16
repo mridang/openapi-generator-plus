@@ -38,6 +38,17 @@ class TestBearerAuthenticator:
         with pytest.raises(ValueError):
             BearerAuthenticator(host="https://api.example.com", token="   ")
 
+    @pytest.mark.parametrize("blank", ["\t", "\f", "\v", " \f "])
+    def test_rejects_ascii_whitespace_only_token_as_empty(self, blank: str) -> None:
+        with pytest.raises(ValueError, match="Bearer token must not be empty"):
+            BearerAuthenticator(host="https://api.example.com", token=blank)
+
+    def test_unicode_space_is_not_treated_as_blank(self) -> None:
+        # U+00A0 is not ASCII whitespace, so it is not the "empty" error; the
+        # printable-ASCII rule rejects it instead.
+        with pytest.raises(ValueError, match="printable ASCII"):
+            BearerAuthenticator(host="https://api.example.com", token="\u00a0")
+
     def test_rejects_crlf(self) -> None:
         # RFC 7230 §3.2.6 — reject anything outside printable ASCII + TAB to
         # prevent header injection (\r\n).

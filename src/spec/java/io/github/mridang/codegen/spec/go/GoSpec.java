@@ -49,6 +49,9 @@ interface GoSpec extends LanguageSpec, DockerImageSpec {
          * cross-invocation state. */
         return Map.of(
                 "GOPATH", "/root/.cache/go/path",
-                "GOCACHE", "/root/.cache/go/build");
+                "GOCACHE", "/root/.cache/go/build",
+                /* golangci-lint keeps its own analysis cache keyed by file
+                 * content and linter version. */
+                "GOLANGCI_LINT_CACHE", "/root/.cache/go/golangci-lint");
     }
 }

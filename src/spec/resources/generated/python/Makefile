@@ -19,7 +19,8 @@ format: install
 	ruff format .
 
 typecheck: install
-	mypy petstore_client/ test/
+	# spec/ holds hand-written specs; check it only when it has python files.
+	mypy petstore_client/ test/ $(if $(shell find spec -name '*.py' -print -quit 2>/dev/null),spec/)
 
 docs: install
 	rm -rf .out/docs-src .out/docs

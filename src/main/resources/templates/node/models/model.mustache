@@ -9,11 +9,22 @@ import { {{classname}} } from './{{filename}}{{importFileExtension}}';
 {{/hasTsImports}}
 {{#isEnum}}
 
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
 {{#description}}
 /**
  * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  */
 {{/description}}
+{{/isDeprecated}}
 export enum {{classname}} {
 {{#allowableValues}}
   {{#enumVars}}
@@ -82,6 +93,29 @@ export class {{classname}} {
   getActualInstance(): {{classname}}Type {
     return this.actualInstance;
   }
+
+  /**
+   * Value equality: two wrappers are equal when they hold equal variants.
+   * The held variant's own equals() decides, so a variant without one is
+   * equal only to itself.
+   */
+  equals(other: unknown): boolean {
+    if (this === other) {
+      return true;
+    }
+    if (!(other instanceof {{classname}})) {
+      return false;
+    }
+    const left: unknown = this.actualInstance;
+    const right: unknown = other.actualInstance;
+    if (left === right) {
+      return true;
+    }
+    if (typeof left === 'object' && left !== null && typeof (left as { equals?: unknown }).equals === 'function') {
+      return (left as { equals(o: unknown): boolean }).equals(right);
+    }
+    return false;
+  }
 }
 {{/discriminator}}
 {{^discriminator}}
@@ -142,7 +176,7 @@ export type {{classname}}Type = {{#anyOf}}{{{.}}}{{^-last}} | {{/-last}}{{/anyOf
  * compatibility with callers that expect a single instance.
  */
 export class {{classname}} {
-  static readonly ANY_OF_SCHEMAS: string[] = [{{#anyOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/anyOf}}];
+  static readonly ANY_OF_SCHEMAS: string[] = [{{#composedSchemas.anyOf}}'{{{dataType}}}'{{^-last}}, {{/-last}}{{/composedSchemas.anyOf}}];
 
   /**
    * Marks this wrapper as a lossless `anyOf` composite. The serializer checks
@@ -178,6 +212,34 @@ export class {{classname}} {
    */
   getMatchedInstances(): {{classname}}Type[] {
     return this.matchedInstances;
+  }
+
+  /**
+   * Value equality: two composites are equal when they retain equal variants
+   * in the same order. Each variant's own equals() decides, so a variant
+   * without one is equal only to itself.
+   */
+  equals(other: unknown): boolean {
+    if (this === other) {
+      return true;
+    }
+    if (!(other instanceof {{classname}})) {
+      return false;
+    }
+    if (this.matchedInstances.length !== other.matchedInstances.length) {
+      return false;
+    }
+    return this.matchedInstances.every((item, index) => {
+      const left: unknown = item;
+      const right: unknown = other.matchedInstances[index];
+      if (left === right) {
+        return true;
+      }
+      if (typeof left === 'object' && left !== null && typeof (left as { equals?: unknown }).equals === 'function') {
+        return (left as { equals(o: unknown): boolean }).equals(right);
+      }
+      return false;
+    });
   }
 
   /**

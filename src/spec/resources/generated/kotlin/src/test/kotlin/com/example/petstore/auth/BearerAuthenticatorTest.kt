@@ -77,6 +77,18 @@ class BearerAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("form feed and vertical tab only tokens are rejected as empty")
+    fun formFeedOnlyTokenIsRejectedAsEmpty() {
+        for (blank in listOf("\u000C", "\u000B", " \t\r\n")) {
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    BearerAuthenticator("https://api.example.com", blank)
+                }
+            assertTrue(ex.message!!.contains("Bearer token must not be empty"))
+        }
+    }
+
+    @Test
     @DisplayName("Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
     fun bearerRejectsCrlfAndNonAscii() {
         // RFC 7230 §3.2.6 — reject CR/LF (header injection from tokens read

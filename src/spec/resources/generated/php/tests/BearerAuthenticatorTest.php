@@ -60,6 +60,18 @@ test('bearer rejects empty token at construction', function (): void {
         ->toThrow(\InvalidArgumentException::class);
 });
 
+test('bearer rejects ascii whitespace only token as empty', function (string $token): void {
+    expect(fn () => new BearerAuthenticator('https://api.example.com', $token))
+        ->toThrow(\InvalidArgumentException::class, 'Bearer token must not be empty');
+})->with([
+    'space' => [' '],
+    'tab' => ["\t"],
+    'line feed' => ["\n"],
+    'carriage return' => ["\r"],
+    'form feed' => ["\f"],
+    'vertical tab' => ["\v"],
+]);
+
 test('token is masked in var_dump and print_r output', function (): void {
     /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
      * (var_dump / print_r / debug_zval_dump) and var_export-style traces use

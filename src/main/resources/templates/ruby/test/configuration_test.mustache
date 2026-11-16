@@ -200,4 +200,17 @@ describe {{moduleName}}::Configuration do
     server = {{moduleName}}::ServerConfiguration.new(url_template: 'https://example.com')
     _(builder.server(server)).must_be_same_as(builder)
   end
+
+  it 'inspect and to_s hide sensitive default header values' do
+    config = {{moduleName}}::Configuration.builder
+                                          .default_header('Authorization', 'Bearer abc')
+                                          .default_header('Cookie', 'sid=1')
+                                          .default_header('X-Api-Key', 'k1')
+                                          .default_header('X-Trace', 'visible')
+                                          .build
+    [config.inspect, config.to_s].each do |text|
+      %w[abc sid=1 k1].each { |secret| _(text).wont_include secret }
+      _(text).must_include 'visible'
+    end
+  end
 end

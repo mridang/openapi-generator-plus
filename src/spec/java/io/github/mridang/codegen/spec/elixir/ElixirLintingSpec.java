@@ -25,7 +25,14 @@ public class ElixirLintingSpec extends AbstractIntegrationSpec implements Elixir
              * timeout turns that into a failure naming the step. */
             "timeout -k 30 600 mix compile --warnings-as-errors --force",
             "timeout -k 30 900 mix credo --strict",
-            "timeout -k 60 1800 mix dialyzer"
+            /* Dialyzer's type-information (PLT) files land in _build/dev, which
+             * is wiped for every spec, so rebuilding them is the slowest step.
+             * Restore them from the persisted cache first and save them back
+             * afterwards; dialyxir revalidates a restored PLT, so a stale one
+             * is rebuilt rather than trusted. */
+            "mkdir -p _build/dev && cp -a /root/.cache/elixir/plt/*.plt* _build/dev/ 2>/dev/null; true",
+            "timeout -k 60 1800 mix dialyzer",
+            "mkdir -p /root/.cache/elixir/plt && cp -a _build/dev/*.plt* /root/.cache/elixir/plt/ 2>/dev/null; true"
         };
     }
 

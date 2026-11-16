@@ -72,6 +72,7 @@ fn test_invalid_keys_are_invalid_arguments() {
         ("", ApiKeyLocation::Query, "must not be empty"),
         ("", ApiKeyLocation::Cookie, "must not be empty"),
         ("   ", ApiKeyLocation::Header, "must not be empty"),
+        ("\x0b\x0c \t", ApiKeyLocation::Query, "must not be empty"),
         ("abc\r\n", ApiKeyLocation::Query, "control characters"),
         ("abc\n", ApiKeyLocation::Cookie, "control characters"),
         ("abc\rdef", ApiKeyLocation::Header, "control characters"),
@@ -201,4 +202,18 @@ fn test_scheme_wrappers_mask_the_key_and_keep_the_declared_name() {
         "SessionCookieAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"SESSION_ID\", api_key: \"***\", location: Cookie })",
         format!("{:?}", SessionCookieAuthenticator::new(host, "secret-4").unwrap())
     );
+}
+
+/// Only ASCII whitespace counts as blank: a Unicode space is a valid key.
+#[test]
+fn test_unicode_space_key_is_valid() {
+    for space in ["\u{a0}", "\u{2003}"] {
+        assert!(ApiKeyAuthenticator::new(
+            "https://api.example.com",
+            "X-API-Key",
+            space,
+            ApiKeyLocation::Query
+        )
+        .is_ok());
+    }
 }

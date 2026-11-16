@@ -232,12 +232,22 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/required}}
 {{/isUuid}}
 {{^isUuid}}
+{{#vendorExtensions.isUuidCollection}}
+{{#required}}
+        try container.encode(ObjectSerializer.lowercaseUuids({{name}}), forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}.map { ObjectSerializer.lowercaseUuids($0) }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isUuidCollection}}
+{{^vendorExtensions.isUuidCollection}}
 {{#required}}
         try container.encode({{name}}, forKey: .{{name}})
 {{/required}}
 {{^required}}
         try container.encodeIfPresent({{name}}, forKey: .{{name}})
 {{/required}}
+{{/vendorExtensions.isUuidCollection}}
 {{/isUuid}}
 {{/vendorExtensions.isDuration}}
 {{/vars}}
@@ -362,12 +372,22 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/required}}
 {{/isUuid}}
 {{^isUuid}}
+{{#vendorExtensions.isUuidCollection}}
+{{#required}}
+        try container.encode(ObjectSerializer.lowercaseUuids({{name}}), forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}.map { ObjectSerializer.lowercaseUuids($0) }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isUuidCollection}}
+{{^vendorExtensions.isUuidCollection}}
 {{#required}}
         try container.encode({{name}}, forKey: .{{name}})
 {{/required}}
 {{^required}}
         try container.encodeIfPresent({{name}}, forKey: .{{name}})
 {{/required}}
+{{/vendorExtensions.isUuidCollection}}
 {{/isUuid}}
 {{/vendorExtensions.isDuration}}
 {{/vars}}
@@ -467,13 +487,13 @@ public struct {{classname}}: Codable, @unchecked Sendable {
         let data = try container.decode(AnyCodable.self)
         let rawData = try ObjectSerializer.encodeToData(data)
 
-        /* Try each oneOf type */
-{{#oneOf}}
-        if let v = try? ObjectSerializer.decodeFromData(rawData, as: {{{.}}}.self) {
+        /* Try each oneOf type in declaration order */
+{{#composedSchemas.oneOf}}
+        if let v = try? ObjectSerializer.decodeFromData(rawData, as: {{{dataType}}}.self) {
             self._value = v
             return
         }
-{{/oneOf}}
+{{/composedSchemas.oneOf}}
         throw DecodingError.dataCorrupted(
             DecodingError.Context(
                 codingPath: decoder.codingPath,
@@ -514,6 +534,23 @@ public struct {{classname}}: Codable, @unchecked Sendable {
         return _value as? T
     }
 }
+
+/* Union wrappers compare by value: two wrappers are equal when they encode to
+   the same canonical JSON, and hash the same bytes. */
+extension {{classname}}: Hashable {
+    private var canonicalJson: Data? {
+        return try? ObjectSerializer.encodeToData(self)
+    }
+
+    public static func == (lhs: {{classname}}, rhs: {{classname}}) -> Bool {
+        guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
+        return left == right
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(canonicalJson)
+    }
+}
 {{/-first}}
 {{/oneOf}}
 {{#anyOf}}
@@ -552,12 +589,12 @@ public struct {{classname}}: Codable, @unchecked Sendable {
         let rawData = try ObjectSerializer.encodeToData(data)
 
         var matched: [Any] = []
-        /* Try each anyOf type and RETAIN every variant that decodes. */
-{{#anyOf}}
-        if let v = try? ObjectSerializer.decodeFromData(rawData, as: {{{.}}}.self) {
+        /* Try each anyOf type in declaration order and RETAIN every variant that decodes. */
+{{#composedSchemas.anyOf}}
+        if let v = try? ObjectSerializer.decodeFromData(rawData, as: {{{dataType}}}.self) {
             matched.append(v)
         }
-{{/anyOf}}
+{{/composedSchemas.anyOf}}
         if matched.isEmpty {
             throw DecodingError.dataCorrupted(
                 DecodingError.Context(
@@ -632,6 +669,23 @@ public struct {{classname}}: Codable, @unchecked Sendable {
     /// may hold more than one when a payload co-satisfies multiple schemas.
     public func matchedInstances() -> [Any] {
         return _values
+    }
+}
+
+/* Union wrappers compare by value: two wrappers are equal when they encode to
+   the same canonical JSON, and hash the same bytes. */
+extension {{classname}}: Hashable {
+    private var canonicalJson: Data? {
+        return try? ObjectSerializer.encodeToData(self)
+    }
+
+    public static func == (lhs: {{classname}}, rhs: {{classname}}) -> Bool {
+        guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
+        return left == right
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(canonicalJson)
     }
 }
 

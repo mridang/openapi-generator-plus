@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Errors;
 
+use Throwable;
+
 /**
  * Exception for HTTP 500 Internal Server Error.
  */
@@ -22,8 +24,9 @@ class InternalServerErrorException extends ServerException
         string $message = "",
         ?array $responseHeaders = null,
         ?string $responseBody = null,
-        mixed $errorBody = null
+        mixed $errorBody = null,
+        ?Throwable $previous = null
     ) {
-        parent::__construct(500, $message, $responseHeaders, $responseBody, $errorBody);
+        parent::__construct(500, $message, $responseHeaders, $responseBody, $errorBody, $previous);
     }
 }

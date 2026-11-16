@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.example.petstore.ObjectSerializer;
 import com.example.petstore.errors.SerializationException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -136,6 +137,16 @@ class ComposedSchemaTest {
       // before the cast to satisfy NullAway.
       assertThat(((Medication) Objects.requireNonNull(result.getActualInstance())).drugName)
           .isEqualTo("Amoxicillin");
+    }
+
+    @Test
+    @DisplayName("anyOf unions decoded from the same JSON are equal with equal hash codes")
+    void anyOfValueEquality() {
+      String json = "{\"drugName\":\"a\",\"procedureName\":\"b\"}";
+      PetTreatment first = Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
+      PetTreatment second =
+          Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
+      assertThat(first).isEqualTo(second).hasSameHashCodeAs(second);
     }
 
     @Test
@@ -268,6 +279,32 @@ class ComposedSchemaTest {
       // Java, so a lone base64 string decodes to the byte[] member of the
       // union rather than to String.
       assertThat(result.getActualInstance()).isInstanceOf(byte[].class);
+    }
+
+    @Test
+    @DisplayName("unions decoded from the same JSON are equal with equal hash codes")
+    void testValueEquality() {
+      SetPetAvatarThumbnailRequest first =
+          Objects.requireNonNull(
+              serializer.deserialize("\"aGVsbG8=\"", ONE_OF_NO_DISCRIMINATOR_TYPE));
+      SetPetAvatarThumbnailRequest second =
+          Objects.requireNonNull(
+              serializer.deserialize("\"aGVsbG8=\"", ONE_OF_NO_DISCRIMINATOR_TYPE));
+      SetPetAvatarThumbnailRequest other =
+          Objects.requireNonNull(
+              serializer.deserialize("\"d29ybGQ=\"", ONE_OF_NO_DISCRIMINATOR_TYPE));
+      assertThat(first).isEqualTo(second).hasSameHashCodeAs(second).isNotEqualTo(other);
+    }
+
+    @Test
+    @DisplayName("an empty JSON array is the list variant and a base64 string is the byte variant")
+    void testEachVariantDecodesItsOwnShape() {
+      SetPetAvatarThumbnailRequest list =
+          Objects.requireNonNull(serializer.deserialize("[]", ONE_OF_NO_DISCRIMINATOR_TYPE));
+      assertThat(list.getActualInstance()).isInstanceOf(List.class);
+      SetPetAvatarThumbnailRequest bytes =
+          Objects.requireNonNull(serializer.deserialize("\"AQID\"", ONE_OF_NO_DISCRIMINATOR_TYPE));
+      assertThat(bytes.getActualInstance()).isInstanceOf(byte[].class);
     }
 
     @Test

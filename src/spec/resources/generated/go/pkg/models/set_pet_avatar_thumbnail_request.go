@@ -44,15 +44,16 @@ func (o SetPetAvatarThumbnailRequest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (o *SetPetAvatarThumbnailRequest) UnmarshalJSON(data []byte) error {
-	/* Try each oneOf type */
-	var byteSliceSlice [][]byte
-	if err := json.Unmarshal(data, &byteSliceSlice); err == nil {
-		o.value = byteSliceSlice
-		return nil
-	}
+	/* Try each oneOf type in schema declaration order: composedSchemas.oneOf keeps it,
+	 * whereas the bare oneOf set is alphabetical. */
 	var byteSlice []byte
 	if err := json.Unmarshal(data, &byteSlice); err == nil {
 		o.value = byteSlice
+		return nil
+	}
+	var byteSliceSlice [][]byte
+	if err := json.Unmarshal(data, &byteSliceSlice); err == nil {
+		o.value = byteSliceSlice
 		return nil
 	}
 	return fmt.Errorf("data does not match any oneOf schemas for SetPetAvatarThumbnailRequest")
@@ -61,4 +62,16 @@ func (o *SetPetAvatarThumbnailRequest) UnmarshalJSON(data []byte) error {
 // ActualInstance returns the matched variant of the union type.
 func (o SetPetAvatarThumbnailRequest) ActualInstance() any {
 	return o.value
+}
+
+// Equal reports whether this SetPetAvatarThumbnailRequest is value-equal to other, comparing
+// the canonical JSON encodings so a union holding a slice variant compares
+// without the panic the built-in `==` raises on such values.
+func (o SetPetAvatarThumbnailRequest) Equal(other SetPetAvatarThumbnailRequest) bool {
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
 }

@@ -18,7 +18,7 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
     /* Validation applies to ALL locations: empty/whitespace API keys
      * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
      * printable-ASCII rule still applies to HEADER values. */
-    if (apiKey.length === 0 || apiKey.trim().length === 0) {
+    if (/^[ \t\n\v\f\r]*$/.test(apiKey)) {
       throw new TypeError(
         `API key value for '${keyParamName}' must not be empty`
       );

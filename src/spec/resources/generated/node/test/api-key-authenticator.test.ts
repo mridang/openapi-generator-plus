@@ -162,7 +162,7 @@ describe("ApiKeyAuthenticator", () => {
   ])(
     "%s location rejects an empty or whitespace key with the exact message",
     (location, name) => {
-      for (const value of ["", "   "]) {
+      for (const value of ["", "   ", " \t\n\v\f\r"]) {
         expect(
           () =>
             new ApiKeyAuthenticator(
@@ -173,6 +173,30 @@ describe("ApiKeyAuthenticator", () => {
             ),
         ).toThrow(`API key value for '${name}' must not be empty`);
       }
+    },
+  );
+
+  it.each(["\u00a0", "\u2003"])(
+    "a Unicode space %j is not blank, so a query or cookie key accepts it",
+    (value) => {
+      expect(
+        () =>
+          new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "api_key",
+            value,
+            ApiKeyLocation.QUERY,
+          ),
+      ).not.toThrow();
+      expect(
+        () =>
+          new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "SESSION_ID",
+            value,
+            ApiKeyLocation.COOKIE,
+          ),
+      ).not.toThrow();
     },
   );
 

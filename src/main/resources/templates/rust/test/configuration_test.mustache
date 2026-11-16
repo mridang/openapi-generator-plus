@@ -238,3 +238,19 @@ fn test_server_configuration_and_variable_accessor_only() {
     assert_eq!(var.description(), "the environment");
     assert_eq!(var.enum_values(), &["api".to_string(), "staging".to_string()]);
 }
+
+#[test]
+fn test_configuration_debug_masks_credential_headers() {
+    let config = ConfigurationBuilder::new()
+        .default_header("Authorization", "Bearer s3cr3t")
+        .default_header("Cookie", "sid=s3cr3t")
+        .default_header("X-Api-Key", "s3cr3t")
+        .default_header("X-Custom", "visible")
+        .build();
+
+    let shown = format!("{:?}", config);
+
+    assert!(!shown.contains("s3cr3t"));
+    assert!(shown.contains("***"));
+    assert!(shown.contains("visible"));
+}

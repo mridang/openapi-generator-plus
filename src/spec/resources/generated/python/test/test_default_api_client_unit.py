@@ -445,6 +445,20 @@ class TestMultipartFilenameSanitization:
         body = client._build_multipart_body({"upload": file_like}, "boundary")
         assert b"filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf" in body
 
+    def test_multipart_body_leaves_a_caller_supplied_handle_open(self) -> None:
+        import io
+
+        client = DefaultApiClient()
+        bare = io.BytesIO(b"hello")
+        named = io.BytesIO(b"world")
+        body = client._build_multipart_body(
+            {"a": bare, "b": ("b.txt", named)}, "boundary"
+        )
+        assert b"hello" in body
+        assert b"world" in body
+        assert not bare.closed
+        assert not named.closed
+
 
 class TestMultipartFieldNameUtf8:
     """multipart-field-name-ascii-fold: a non-ASCII field NAME must reach the
@@ -1327,6 +1341,18 @@ class TestCaCertPathFailsFast:
             DefaultApiClient(transport)
         assert type(excinfo.value) is ValueError
         assert not isinstance(excinfo.value, OpenAPIException)
+
+    def test_nonexistent_ca_cert_path_raises_even_when_verify_ssl_is_false(
+        self,
+    ) -> None:
+        transport = (
+            TransportOptions.builder()
+            .verify_ssl(False)
+            .ca_cert_path("/nonexistent/ca.pem")
+            .build()
+        )
+        with pytest.raises(ValueError, match="failed to load CA certificate"):
+            DefaultApiClient(transport)
 
 
 class TestApiKeyHeaderStrippedOnCrossOrigin:

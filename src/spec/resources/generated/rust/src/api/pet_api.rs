@@ -280,9 +280,9 @@ impl PetApi {
         pet: Pet,
         options: Option<&AddPetOptions>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public add_pet_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.add_pet_invoke(pet, options, "application/json").await
     }
@@ -363,9 +363,9 @@ impl PetApi {
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
     ) -> Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public add_pet_photos_with_http_info entry point always sends the
-         * first declared request content-type, multipart/form-data. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * multipart/form-data, is the default
          * and this operation declares no alternative to select. */
         self.add_pet_photos_invoke(pet_id, options, "multipart/form-data")
             .await
@@ -496,9 +496,9 @@ impl PetApi {
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
     ) -> Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public add_pet_treatment_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.add_pet_treatment_invoke(pet_id, pet_treatment, options, "application/json")
             .await
@@ -587,9 +587,9 @@ impl PetApi {
         pet_id: i64,
         options: Option<&DeletePetOptions>,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public delete_pet_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.delete_pet_invoke(pet_id, options, "application/json")
             .await
@@ -733,9 +733,9 @@ impl PetApi {
         pet_id: i64,
         document_id: i64,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public download_pet_document_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.download_pet_document_invoke(pet_id, document_id, "application/json")
             .await
@@ -840,9 +840,9 @@ impl PetApi {
         &self,
         born_on: chrono::NaiveDate,
     ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public find_pets_born_on_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.find_pets_born_on_invoke(born_on, "application/json")
             .await
@@ -947,9 +947,9 @@ impl PetApi {
         &self,
         options: Option<&FindPetsByStatusOptions>,
     ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public find_pets_by_status_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.find_pets_by_status_invoke(options, "application/json")
             .await
@@ -1125,9 +1125,9 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_external_pet_info_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_external_pet_info_invoke(pet_id, server, "application/json")
             .await
@@ -1226,9 +1226,9 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_multi_server_pet_info_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_multi_server_pet_info_invoke(pet_id, server, "application/json")
             .await
@@ -1323,9 +1323,9 @@ impl PetApi {
         &self,
         pet_id: i64,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_pet_avatar_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_avatar_invoke(pet_id, "application/json").await
     }
@@ -1413,9 +1413,9 @@ impl PetApi {
         &self,
         pet_id: i64,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_pet_avatar_thumbnail_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_avatar_thumbnail_invoke(pet_id, "application/json")
             .await
@@ -1518,9 +1518,9 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_pet_by_id_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_by_id_invoke(pet_id, server, "application/json")
             .await
@@ -1617,9 +1617,9 @@ impl PetApi {
         name: String,
         options: Option<&GetPetByNameOptions>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_pet_by_name_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_by_name_invoke(name, options, "application/json")
             .await
@@ -1799,9 +1799,9 @@ impl PetApi {
         &self,
         pet_id: i64,
     ) -> Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_pet_passport_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_passport_invoke(pet_id, "application/json")
             .await
@@ -1891,9 +1891,9 @@ impl PetApi {
         pet_id: i64,
         photo_id: i64,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_pet_photo_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_photo_invoke(pet_id, photo_id, "application/json")
             .await
@@ -2008,9 +2008,9 @@ impl PetApi {
         as_of: chrono::NaiveDate,
         options: Option<&GetPetSummaryOptions>,
     ) -> Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_pet_summary_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_summary_invoke(pet_id, as_of, options, "application/json")
             .await
@@ -2211,9 +2211,9 @@ impl PetApi {
         tag_name: String,
         options: Option<&GetPetTagOptions>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_pet_tag_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_tag_invoke(pet_id, tag_name, options, "application/json")
             .await
@@ -2560,9 +2560,9 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public get_staging_pet_info_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_staging_pet_info_invoke(pet_id, server, "application/json")
             .await
@@ -2630,12 +2630,19 @@ impl PetApi {
 
     /// Set the pet's profile photo
     /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+    /// * `request_content_type`: the request Content-Type to send, one of
+    ///   `image/jpeg`, `image/png`, `application/json`; `None` sends the first declared one. Only the header changes:
+    ///   the caller supplies a body the server accepts for the chosen type.
     pub async fn set_pet_avatar(
         &self,
         pet_id: i64,
         body: Vec<u8>,
+
+        request_content_type: Option<&str>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.set_pet_avatar_with_http_info(pet_id, body).await?;
+        let result = self
+            .set_pet_avatar_with_http_info(pet_id, body, request_content_type)
+            .await?;
         let _ = result;
         Ok(())
     }
@@ -2645,32 +2652,14 @@ impl PetApi {
         &self,
         pet_id: i64,
         body: Vec<u8>,
-    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public set_pet_avatar_with_http_info entry point always sends the
-         * first declared request content-type, image/jpeg. The shared
-         * implementation below takes the resolved Content-Type as an argument
-         * so the set_pet_avatar_with_content_type variant can override it. */
-        self.set_pet_avatar_invoke(pet_id, body, "image/jpeg").await
-    }
 
-    /// Performs the set_pet_avatar operation with an explicit request
-    /// Content-Type, returning the full API result.
-    ///
-    /// This operation declares more than one request content-type
-    /// (`image/jpeg`, `image/png`, `application/json`). The
-    /// `request_content_type` argument selects which one is sent on the wire;
-    /// pass one of the declared values. The selector only sets the Content-Type
-    /// header — when the chosen content-type expects a different body shape than
-    /// the one this method's body parameter carries, the caller is responsible
-    /// for supplying a body the server accepts for that type.
-    pub async fn set_pet_avatar_with_content_type(
-        &self,
-        pet_id: i64,
-        body: Vec<u8>,
-
-        request_content_type: &str,
+        request_content_type: Option<&str>,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-        self.set_pet_avatar_invoke(pet_id, body, request_content_type)
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * image/jpeg, is the default
+         * when the caller passes no `request_content_type`. */
+        self.set_pet_avatar_invoke(pet_id, body, request_content_type.unwrap_or("image/jpeg"))
             .await
     }
 
@@ -2769,9 +2758,9 @@ impl PetApi {
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public set_pet_avatar_thumbnail_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.set_pet_avatar_thumbnail_invoke(
             pet_id,
@@ -2870,9 +2859,9 @@ impl PetApi {
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public set_pet_preferences_with_http_info entry point always sends the
-         * first declared request content-type, application/x-www-form-urlencoded. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/x-www-form-urlencoded, is the default
          * and this operation declares no alternative to select. */
         self.set_pet_preferences_invoke(pet_id, options, "application/x-www-form-urlencoded")
             .await
@@ -2990,9 +2979,9 @@ impl PetApi {
         pet_id: i64,
         pet: Pet,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public update_pet_with_http_info entry point always sends the
-         * first declared request content-type, application/json. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
          * and this operation declares no alternative to select. */
         self.update_pet_invoke(pet_id, pet, "application/json")
             .await
@@ -3086,9 +3075,9 @@ impl PetApi {
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public upload_pet_certificate_with_http_info entry point always sends the
-         * first declared request content-type, multipart/form-data. The shared
-         * implementation below takes the resolved Content-Type as an argument
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * multipart/form-data, is the default
          * and this operation declares no alternative to select. */
         self.upload_pet_certificate_invoke(pet_id, options, "multipart/form-data")
             .await
@@ -3169,14 +3158,19 @@ impl PetApi {
 
     /// Attach a vet document or health record
     /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
+    /// * `request_content_type`: the request Content-Type to send, one of
+    ///   `multipart/form-data`, `application/octet-stream`; `None` sends the first declared one. Only the header changes:
+    ///   the caller supplies a body the server accepts for the chosen type.
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn upload_pet_document(
         &self,
         pet_id: i64,
         options: Option<&UploadPetDocumentOptions>,
+
+        request_content_type: Option<&str>,
     ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
-            .upload_pet_document_with_http_info(pet_id, options)
+            .upload_pet_document_with_http_info(pet_id, options, request_content_type)
             .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -3200,34 +3194,19 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&UploadPetDocumentOptions>,
-    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The public upload_pet_document_with_http_info entry point always sends the
-         * first declared request content-type, multipart/form-data. The shared
-         * implementation below takes the resolved Content-Type as an argument
-         * so the upload_pet_document_with_content_type variant can override it. */
-        self.upload_pet_document_invoke(pet_id, options, "multipart/form-data")
-            .await
-    }
 
-    /// Performs the upload_pet_document operation with an explicit request
-    /// Content-Type, returning the full API result.
-    ///
-    /// This operation declares more than one request content-type
-    /// (`multipart/form-data`, `application/octet-stream`). The
-    /// `request_content_type` argument selects which one is sent on the wire;
-    /// pass one of the declared values. The selector only sets the Content-Type
-    /// header — when the chosen content-type expects a different body shape than
-    /// the one this method's body parameter carries, the caller is responsible
-    /// for supplying a body the server accepts for that type.
-    pub async fn upload_pet_document_with_content_type(
-        &self,
-        pet_id: i64,
-        options: Option<&UploadPetDocumentOptions>,
-
-        request_content_type: &str,
+        request_content_type: Option<&str>,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
-        self.upload_pet_document_invoke(pet_id, options, request_content_type)
-            .await
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * multipart/form-data, is the default
+         * when the caller passes no `request_content_type`. */
+        self.upload_pet_document_invoke(
+            pet_id,
+            options,
+            request_content_type.unwrap_or("multipart/form-data"),
+        )
+        .await
     }
 
     /// Shared implementation for the upload_pet_document operation. The resolved

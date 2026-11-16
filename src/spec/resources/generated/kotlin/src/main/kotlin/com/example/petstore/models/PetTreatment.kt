@@ -50,6 +50,32 @@ class PetTreatment(
     val actualInstance: Any?
         get() = matchedInstances.firstOrNull()
 
+    // Value equality: two wrappers are equal when they retain equal variants in the same order.
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is PetTreatment && deepEquals(matchedInstances, other.matchedInstances))
+
+    override fun hashCode(): Int = deepHash(matchedInstances)
+
+    private fun deepEquals(
+        a: Any?,
+        b: Any?,
+    ): Boolean =
+        when {
+            a is ByteArray && b is ByteArray -> a.contentEquals(b)
+            a is List<*> && b is List<*> ->
+                a.size == b.size && a.indices.all { deepEquals(a[it], b[it]) }
+            else -> a == b
+        }
+
+    private fun deepHash(a: Any?): Int =
+        when (a) {
+            null -> 0
+            is ByteArray -> a.contentHashCode()
+            is List<*> -> a.fold(1) { acc, e -> 31 * acc + deepHash(e) }
+            else -> a.hashCode()
+        }
+
     internal object Serializer : kotlinx.serialization.KSerializer<PetTreatment> {
         override val descriptor =
             kotlinx.serialization.descriptors.buildClassSerialDescriptor("PetTreatment")

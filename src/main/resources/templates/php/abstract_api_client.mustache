@@ -2,6 +2,7 @@
 namespace {{invokerPackage}};
 
 use {{invokerPackage}}\Errors\ApiException;
+use {{invokerPackage}}\Errors\NetworkTimeoutException;
 
 /**
  * Transport-agnostic base for {@see ApiClient} implementations.
@@ -59,11 +60,32 @@ abstract class AbstractApiClient implements ApiClient
     protected bool $closed = false;
 
     /**
+     * Monotonic instant (seconds) at which the request timeout of the call in
+     * flight is spent, or null when the timeout is disabled or no call is in
+     * flight. The timeout is one end-to-end budget for the whole call, every
+     * redirect hop included, never a fresh allowance per hop.
+     */
+    private ?float $deadline = null;
+
+    /**
      * @param TransportOptions|null $transportOptions transport configuration applied to every request
      */
     public function __construct(?TransportOptions $transportOptions = null)
     {
         $this->transportOptions = $transportOptions ?? TransportOptions::builder()->build();
+    }
+
+    /**
+     * Seconds left of the request timeout for the call in flight, or null when
+     * the timeout is disabled. Transports use it to bound each hop so the hops
+     * together never outlast the one budget.
+     */
+    protected function remainingTimeout(): ?float
+    {
+        if ($this->deadline === null) {
+            return null;
+        }
+        return max(0.0, $this->deadline - hrtime(true) / 1e9);
     }
 
     /**
@@ -162,6 +184,10 @@ abstract class AbstractApiClient implements ApiClient
                 $mergedHeaders['Content-Length'] = '0';
             }
         }
+
+        $this->deadline = $this->transportOptions->timeout === null
+            ? null
+            : hrtime(true) / 1e9 + $this->transportOptions->timeout / 1000.0;
 
         try {
             $response = $this->execute($method, $url, $mergedHeaders, $body);
@@ -266,6 +292,12 @@ abstract class AbstractApiClient implements ApiClient
                     $currentMethod = $nextMethod;
                     $currentBody = $redirectBody;
                     $currentHeaders = $redirectHeaders;
+                    if ($this->remainingTimeout() === 0.0) {
+                        throw new NetworkTimeoutException(
+                            "API Request timed out: the {$this->transportOptions->timeout} ms timeout "
+                            . "was spent before following the redirect to $nextUrl"
+                        );
+                    }
                     $response = $this->execute($nextMethod, $nextUrl, $redirectHeaders, $redirectBody);
                     $hops++;
                 }
@@ -332,6 +364,8 @@ abstract class AbstractApiClient implements ApiClient
              * decoding above, and by the transport's execute() already carry
              * the right type — surface them unchanged rather than re-wrapping. */
             throw $e;
+        } finally {
+            $this->deadline = null;
         }
     }
 

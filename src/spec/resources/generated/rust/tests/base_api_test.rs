@@ -1895,7 +1895,7 @@ fn test_api_result_and_response_accessor_only() {
 fn test_typed_error_wrappers_accessor_only() {
     let api_error =
         petstore::ApiError::new(400, "bad request".to_string(), None, Some("{}".to_string()));
-    let client_error = ClientError::from(api_error);
+    let client_error = ClientError::try_from(api_error).expect("the status is 4xx");
     assert_eq!(client_error.api_error().status_code(), 400);
 
     let bad_request = BadRequestError::try_from(client_error).expect("the status is 400");

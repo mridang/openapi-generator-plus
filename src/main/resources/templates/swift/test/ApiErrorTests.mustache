@@ -312,7 +312,7 @@ import Testing
        the session is proved to carry both deadlines, and the classifier is
        proved to map that code to the timeout type. */
     @Test func testEveryConfiguredDeadlineClassifiesAsTimeout() throws {
-        let opts = TransportOptionsBuilder().timeout(1500).build()
+        let opts = try TransportOptionsBuilder().timeout(1500).build()
         let (session, _) = try DefaultApiClient.buildSession(opts)
 
         #expect(session.configuration.timeoutIntervalForRequest == 1.5)

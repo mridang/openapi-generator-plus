@@ -20,7 +20,7 @@ module Petstore::Client
         # Reject an empty/blank token: it would otherwise produce a literal
         # "Authorization: Bearer " header that silently fails auth, mirroring
         # the api-key authenticator's own empty-value guard.
-        raise ArgumentError, 'Bearer token must not be empty' if token.nil? || token.to_s.strip.empty?
+        raise ArgumentError, 'Bearer token must not be empty' if token.nil? || token.to_s.match?(/\A[ \t\n\r\f\v]*\z/)
 
         # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
         # Reject anything outside printable ASCII + TAB so callers see a

@@ -183,30 +183,9 @@ public sealed class TransportOptionsBuilder
     /// <summary>Set the HTTP/HTTPS proxy URL.</summary>
     /// <param name="proxy">Proxy URL (e.g. <c>"http://proxy:3128"</c>), or <c>null</c>.</param>
     /// <returns>This builder.</returns>
-    /// <exception cref="ArgumentException">Thrown when the proxy URL is not valid.</exception>
+    /// <remarks>The URL is validated by <see cref="Build"/>, not here.</remarks>
     public TransportOptionsBuilder Proxy(string? proxy)
     {
-        if (proxy != null)
-        {
-            if (!Uri.TryCreate(proxy, UriKind.Absolute, out Uri? uri))
-            {
-                throw new ArgumentException($"Invalid proxy URL: {proxy}", nameof(proxy));
-            }
-            if (uri.Scheme is not "http" and not "https")
-            {
-                throw new ArgumentException(
-                    $"Invalid proxy URL (must use http or https scheme): {proxy}",
-                    nameof(proxy)
-                );
-            }
-            if (string.IsNullOrEmpty(uri.Host))
-            {
-                throw new ArgumentException(
-                    $"Invalid proxy URL (missing host): {proxy}",
-                    nameof(proxy)
-                );
-            }
-        }
         _proxy = proxy;
         return this;
     }
@@ -288,8 +267,30 @@ public sealed class TransportOptionsBuilder
 
     /// <summary>Build and return an immutable <see cref="TransportOptions"/> instance.</summary>
     /// <returns>The configured transport options.</returns>
+    /// <exception cref="ArgumentException">Thrown when the proxy URL is not valid.</exception>
     public TransportOptions Build()
     {
+        if (_proxy != null)
+        {
+            if (!Uri.TryCreate(_proxy, UriKind.Absolute, out Uri? uri))
+            {
+                throw new ArgumentException($"Invalid proxy URL: {_proxy}", nameof(_proxy));
+            }
+            if (uri.Scheme is not "http" and not "https")
+            {
+                throw new ArgumentException(
+                    $"Invalid proxy URL (must use http or https scheme): {_proxy}",
+                    nameof(_proxy)
+                );
+            }
+            if (string.IsNullOrEmpty(uri.Host))
+            {
+                throw new ArgumentException(
+                    $"Invalid proxy URL (missing host): {_proxy}",
+                    nameof(_proxy)
+                );
+            }
+        }
         return new TransportOptions(
             verifySsl: _verifySsl,
             caCertPath: _caCertPath,

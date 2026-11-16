@@ -285,4 +285,14 @@ class ApiExceptionTest {
         assertEquals(kotlinx.serialization.json.JsonPrimitive("quota exceeded"), ex.errorBody)
         assertEquals("\"quota exceeded\"", ex.responseBody)
     }
+
+    @Test
+    fun statusSpecificExceptionsKeepAnOptionalCause() {
+        val cause = IllegalStateException("root")
+        assertSame(cause, BadRequestException("bad", cause = cause).cause)
+        assertSame(cause, NotFoundException("gone", cause = cause).cause)
+        assertSame(cause, ClientException(418, "teapot", cause = cause).cause)
+        assertSame(cause, ServerException(503, "down", cause = cause).cause)
+        assertNull(NotFoundException("gone").cause)
+    }
 }

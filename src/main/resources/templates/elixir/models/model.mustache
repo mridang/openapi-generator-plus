@@ -72,6 +72,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   @typedoc "A value of any of the oneOf variants."
   @type t :: term()
 
+  {{#discriminator}}
   {{#oneOf}}
   {{#-first}}
   @doc "List of types defined in oneOf (OpenAPI v3)."
@@ -86,6 +87,25 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   {{/-last}}
   {{/oneOf}}
+  {{/discriminator}}
+  {{^discriminator}}
+  {{! Variants are tried in schema declaration order (composedSchemas keeps it); the bare oneOf set is alphabetical. }}
+  {{#composedSchemas.oneOf}}
+  {{#-first}}
+  @doc "List of types defined in oneOf (OpenAPI v3), in declaration order."
+  @dialyzer {:nowarn_function, openapi_one_of: 0}
+  @spec openapi_one_of() :: [atom(), ...]
+  def openapi_one_of do
+    [
+  {{/-first}}
+      :"{{#isAnyType}}AnyType{{/isAnyType}}{{^isAnyType}}{{{dataType}}}{{/isAnyType}}"{{^-last}},{{/-last}}
+  {{#-last}}
+    ]
+  end
+
+  {{/-last}}
+  {{/composedSchemas.oneOf}}
+  {{/discriminator}}
   {{#discriminator}}
   @doc "Discriminator property name."
   def openapi_discriminator_name, do: :{{propertyBaseName}}
@@ -254,20 +274,21 @@ defmodule {{moduleName}}.Models.{{classname}} do
   @typedoc "A value of any of the anyOf variants."
   @type t :: term()
 
-  {{#anyOf}}
+  {{! Variants are kept in schema declaration order (composedSchemas); the bare anyOf set is alphabetical. }}
+  {{#composedSchemas.anyOf}}
   {{#-first}}
-  @doc "List of types defined in anyOf (OpenAPI v3)."
+  @doc "List of types defined in anyOf (OpenAPI v3), in declaration order."
   @spec openapi_any_of() :: [String.t()]
   def openapi_any_of do
     [
   {{/-first}}
-      "{{.}}"{{^-last}},{{/-last}}
+      "{{#isAnyType}}AnyType{{/isAnyType}}{{^isAnyType}}{{{dataType}}}{{/isAnyType}}"{{^-last}},{{/-last}}
   {{#-last}}
     ]
   end
 
   {{/-last}}
-  {{/anyOf}}
+  {{/composedSchemas.anyOf}}
   @doc "Build the appropriate type from data."
   @spec build(term()) :: term()
   def build(data) do
@@ -497,7 +518,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def openapi_types do
     %{
   {{#vars}}
-      {{name}}: "{{#isEnum}}Enum<{{#allowableValues}}{{#enumVars}}{{nameLowercase}}={{#lambda.elixirEnumWire}}{{{value}}}{{/lambda.elixirEnumWire}}{{^-last}},{{/-last}}{{/enumVars}}{{/allowableValues}}>{{/isEnum}}{{^isEnum}}{{#isByteArray}}ByteArray{{/isByteArray}}{{^isByteArray}}{{#isUuid}}UUID{{/isUuid}}{{^isUuid}}{{{dataType}}}{{/isUuid}}{{/isByteArray}}{{/isEnum}}"{{^-last}},{{/-last}}
+      {{name}}: "{{#isEnum}}Enum<{{#allowableValues}}{{#enumVars}}{{nameLowercase}}={{#lambda.elixirEnumWire}}{{{value}}}{{/lambda.elixirEnumWire}}{{^-last}},{{/-last}}{{/enumVars}}{{/allowableValues}}>{{/isEnum}}{{^isEnum}}{{#isByteArray}}ByteArray{{/isByteArray}}{{^isByteArray}}{{#isUuid}}UUID{{/isUuid}}{{^isUuid}}{{#isUri}}URI{{/isUri}}{{^isUri}}{{{dataType}}}{{/isUri}}{{/isUuid}}{{/isByteArray}}{{/isEnum}}"{{^-last}},{{/-last}}
   {{/vars}}
     }
   end

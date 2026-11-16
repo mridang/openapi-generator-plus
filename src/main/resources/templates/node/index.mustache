@@ -76,6 +76,9 @@ export { OAuth2ImplicitAuthenticator } from './auth/oauth/oauth2-implicit-authen
 {{#hasOpenIdConnect}}
 export { OpenIdConnectAuthenticator } from './auth/oauth/openid-connect-authenticator{{importFileExtension}}';
 {{/hasOpenIdConnect}}
+{{#perSchemeAuthExports}}
+export { {{className}} } from './{{path}}{{importFileExtension}}';
+{{/perSchemeAuthExports}}
 {{#hasOAuth2ClientCredentials}}
 export { ClientAuthMethod } from './auth/oauth/client-auth-method{{importFileExtension}}';
 {{/hasOAuth2ClientCredentials}}

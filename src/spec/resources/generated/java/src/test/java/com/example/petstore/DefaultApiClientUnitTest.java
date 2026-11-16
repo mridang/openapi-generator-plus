@@ -766,6 +766,13 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void nonexistentCaCertPathFailsEvenWhenVerifySslIsFalse() {
+    TransportOptions transport =
+        TransportOptions.builder().verifySsl(false).caCertPath("/nonexistent/ca.pem").build();
+    assertThrowsExactly(IllegalArgumentException.class, () -> new DefaultApiClient(transport));
+  }
+
+  @Test
   void garbagePemCaCertPathThrowsIllegalArgumentException() throws Exception {
     // A CA cert file that exists but contains invalid/garbage PEM content
     // must also fail as IllegalArgumentException, never a leaked
@@ -859,6 +866,23 @@ class DefaultApiClientUnitTest {
     assertFalse(
         part.contains("Content-Type: application/octet-stream"),
         "byte[] part with a known extension must not fall back to octet-stream");
+  }
+
+  @Test
+  void multipartInputStreamPartIsReadButNeverClosed() throws Exception {
+    java.util.concurrent.atomic.AtomicBoolean closed =
+        new java.util.concurrent.atomic.AtomicBoolean();
+    java.io.InputStream stream =
+        new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}) {
+          @Override
+          public void close() throws java.io.IOException {
+            closed.set(true);
+            super.close();
+          }
+        };
+    String part = renderMultipartPart("blob", stream);
+    assertTrue(part.contains("name=\"blob\""), "stream part must be rendered, got: " + part);
+    assertFalse(closed.get(), "the caller owns the stream; the SDK must not close it");
   }
 
   @Test

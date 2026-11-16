@@ -13,14 +13,15 @@ defmodule PetstoreClient.Errors.ConflictError do
 
   alias PetstoreClient.Errors.ApiError
 
-  defexception [:message, :status_code, :response_headers, :response_body, :error_body]
+  defexception [:message, :status_code, :response_headers, :response_body, :error_body, :cause]
 
   @type t :: %__MODULE__{
           message: String.t(),
           status_code: integer(),
           response_headers: map() | nil,
           response_body: String.t() | nil,
-          error_body: term() | nil
+          error_body: term() | nil,
+          cause: Exception.t() | nil
         }
 
   @impl true
@@ -30,7 +31,8 @@ defmodule PetstoreClient.Errors.ConflictError do
       status_code: 409,
       response_headers: Map.get(opts, :response_headers),
       response_body: Map.get(opts, :response_body),
-      error_body: Map.get(opts, :error_body)
+      error_body: Map.get(opts, :error_body),
+      cause: Map.get(opts, :cause)
     }
   end
 

@@ -27,6 +27,62 @@ function assertValidProxy(proxy: string | null): void {
 }
 
 /**
+ * Whether a header's value must never appear in a string representation:
+ * Authorization, Proxy-Authorization, Cookie, and any name containing key,
+ * token or secret (case-insensitive).
+ *
+ * @param name header name
+ * @returns true when the value is a secret
+ */
+function isSecretHeader(name: string): boolean {
+  const lower = name.toLowerCase();
+  return (
+    lower === 'authorization' ||
+    lower === 'proxy-authorization' ||
+    lower === 'cookie' ||
+    lower.includes('key') ||
+    lower.includes('token') ||
+    lower.includes('secret')
+  );
+}
+
+/**
+ * Copy a header map with every secret header value replaced by `***`.
+ *
+ * @param headers header map
+ * @returns a redacted copy, safe to print
+ */
+export function redactHeaders(headers: Readonly<Record<string, string>>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers)) {
+    out[name] = isSecretHeader(name) ? '***' : value;
+  }
+  return out;
+}
+
+/**
+ * Replace the password in a proxy URL's userinfo with `***`.
+ *
+ * @param proxy proxy URL, or null
+ * @returns the URL without its password, or null
+ */
+function redactProxy(proxy: string | null): string | null {
+  if (proxy == null) {
+    return null;
+  }
+  try {
+    const parsed = new URL(proxy);
+    if (parsed.password === '') {
+      return proxy;
+    }
+    parsed.password = '***';
+    return parsed.toString();
+  } catch {
+    return '***';
+  }
+}
+
+/**
  * Immutable HTTP transport configuration for `DefaultApiClient`.
  *
  * Controls low-level HTTP behavior such as TLS verification, proxy routing,
@@ -128,6 +184,36 @@ export class TransportOptions {
    */
   public static builder(): TransportOptionsBuilder {
     return new TransportOptionsBuilder();
+  }
+
+  /**
+   * Printable view of these options with the proxy password and secret
+   * default header values replaced by `***`.
+   */
+  private redacted(): Record<string, unknown> {
+    return {
+      verifySsl: this.verifySsl,
+      caCertPath: this.caCertPath,
+      proxy: redactProxy(this.proxy),
+      timeout: this.timeout,
+      followRedirects: this.followRedirects,
+      maxRedirects: this.maxRedirects,
+      userAgent: this.userAgent,
+      defaultHeaders: redactHeaders(this.defaultHeaders),
+      injectRequestId: this.injectRequestId
+    };
+  }
+
+  toJSON(): Record<string, unknown> {
+    return this.redacted();
+  }
+
+  toString(): string {
+    return `TransportOptions(${JSON.stringify(this.redacted())})`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
   }
 }
 

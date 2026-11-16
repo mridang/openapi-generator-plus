@@ -1,6 +1,7 @@
 {{>api_info}}
 
 import { ServerConfiguration } from './server-configuration{{importFileExtension}}';
+import { redactHeaders } from './transport-options{{importFileExtension}}';
 
 /**
  * API-level configuration for generated client classes.
@@ -60,6 +61,23 @@ export class Configuration {
    */
   public static defaultConfiguration(): Configuration {
     return new ConfigurationBuilder().build();
+  }
+
+  toJSON(): Record<string, unknown> {
+    return { baseUrl: this.baseUrl, defaultHeaders: redactHeaders(this.defaultHeaders) };
+  }
+
+  /**
+   * String form with the value of every secret default header (Authorization,
+   * Proxy-Authorization, Cookie, or a name containing key, token or secret)
+   * replaced by `***`.
+   */
+  toString(): string {
+    return `Configuration(${JSON.stringify(this.toJSON())})`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
   }
 }
 

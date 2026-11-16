@@ -1650,6 +1650,14 @@ func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
 			"https://eu.example.com/v1/",
 		},
 		{
+			"unset variables use the spec defaults",
+			func(api *petstore.PetApi) error {
+				_, err := api.GetMultiServerPetInfo(1, petstore.GetMultiServerPetInfoServerMirror{})
+				return err
+			},
+			"https://us.mirror.example.com/a&b/v1/",
+		},
+		{
 			"variant whose enum values hold reserved characters",
 			func(api *petstore.PetApi) error {
 				_, err := api.GetMultiServerPetInfo(1, petstore.GetMultiServerPetInfoServerMirror{

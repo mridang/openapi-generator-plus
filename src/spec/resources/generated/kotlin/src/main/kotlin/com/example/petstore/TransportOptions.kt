@@ -111,48 +111,9 @@ class TransportOptions private constructor(
          * Set the HTTP/HTTPS proxy URL.
          *
          * @param proxy proxy URL (e.g. `"http://proxy:3128"`), or `null`
-         * @return this builder
-         * @throws IllegalArgumentException if the proxy URL is not a valid URI
+         * @return this builder (the URL is validated by [build], not here)
          */
-        fun proxy(proxy: String?): Builder =
-            apply {
-                var canonical = proxy
-                if (proxy != null) {
-                    val schemeEnd = proxy.indexOf("://")
-                    if (schemeEnd == -1) {
-                        throw IllegalArgumentException("Invalid proxy URL (missing scheme): $proxy")
-                    }
-                    // RFC 3986 schemes are case-insensitive: accept HTTP:// and
-                    // keep the lower-case form.
-                    val scheme = proxy.substring(0, schemeEnd).lowercase()
-                    if (scheme !in listOf("http", "https")) {
-                        throw IllegalArgumentException(
-                            "Invalid proxy URL (must use http or https scheme): $proxy",
-                        )
-                    }
-                    /* The host is what follows the optional user-info and precedes the
-                     * port: `http://@:3128` has the user-info `` and no host at all. */
-                    val authority = proxy.substring(schemeEnd + 3).split("/", "?", "#").first()
-                    val hostAndPort = authority.substringAfterLast('@')
-                    val host =
-                        if (hostAndPort.startsWith("[")) {
-                            // An IPv6 literal must be closed by a bracket.
-                            if (!hostAndPort.contains(']')) {
-                                throw IllegalArgumentException(
-                                    "Invalid proxy URL (unterminated IPv6 literal): $proxy",
-                                )
-                            }
-                            hostAndPort.substringBefore(']').removePrefix("[")
-                        } else {
-                            hostAndPort.substringBefore(':')
-                        }
-                    if (host.isEmpty()) {
-                        throw IllegalArgumentException("Invalid proxy URL (missing host): $proxy")
-                    }
-                    canonical = scheme + proxy.substring(schemeEnd)
-                }
-                this.proxy = canonical
-            }
+        fun proxy(proxy: String?): Builder = apply { this.proxy = proxy }
 
         /**
          * Set the end-to-end request timeout in milliseconds.
@@ -218,16 +179,55 @@ class TransportOptions private constructor(
          */
         fun injectRequestId(injectRequestId: Boolean): Builder = apply { this.injectRequestId = injectRequestId }
 
+        private fun canonicalProxy(proxy: String?): String? {
+            if (proxy == null) {
+                return null
+            }
+            val schemeEnd = proxy.indexOf("://")
+            if (schemeEnd == -1) {
+                throw IllegalArgumentException("Invalid proxy URL (missing scheme): $proxy")
+            }
+            // RFC 3986 schemes are case-insensitive: accept HTTP:// and
+            // keep the lower-case form.
+            val scheme = proxy.substring(0, schemeEnd).lowercase()
+            if (scheme !in listOf("http", "https")) {
+                throw IllegalArgumentException(
+                    "Invalid proxy URL (must use http or https scheme): $proxy",
+                )
+            }
+            /* The host is what follows the optional user-info and precedes the
+             * port: `http://@:3128` has the user-info `` and no host at all. */
+            val authority = proxy.substring(schemeEnd + 3).split("/", "?", "#").first()
+            val hostAndPort = authority.substringAfterLast('@')
+            val host =
+                if (hostAndPort.startsWith("[")) {
+                    // An IPv6 literal must be closed by a bracket.
+                    if (!hostAndPort.contains(']')) {
+                        throw IllegalArgumentException(
+                            "Invalid proxy URL (unterminated IPv6 literal): $proxy",
+                        )
+                    }
+                    hostAndPort.substringBefore(']').removePrefix("[")
+                } else {
+                    hostAndPort.substringBefore(':')
+                }
+            if (host.isEmpty()) {
+                throw IllegalArgumentException("Invalid proxy URL (missing host): $proxy")
+            }
+            return scheme + proxy.substring(schemeEnd)
+        }
+
         /**
          * Build and return an immutable [TransportOptions] instance.
          *
          * @return the configured transport options
+         * @throws IllegalArgumentException if the proxy URL is not a valid http or https URL
          */
         fun build(): TransportOptions =
             TransportOptions(
                 verifySsl,
                 caCertPath,
-                proxy,
+                canonicalProxy(proxy),
                 timeout,
                 followRedirects,
                 maxRedirects,

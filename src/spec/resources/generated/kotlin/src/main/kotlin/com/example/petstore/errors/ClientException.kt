@@ -15,6 +15,7 @@ package com.example.petstore.errors
  * @param responseHeaders the HTTP response headers, if available
  * @param responseBody the raw HTTP response body, if available
  * @param errorBody the deserialized error body, if available
+ * @param cause the underlying failure, if any
  */
 open class ClientException(
     statusCode: Int,
@@ -22,4 +23,5 @@ open class ClientException(
     responseHeaders: Map<String, String>? = null,
     responseBody: String? = null,
     errorBody: Any? = null,
-) : ApiException(statusCode, message, responseHeaders, responseBody, errorBody)
+    cause: Throwable? = null,
+) : ApiException(statusCode, message, responseHeaders, responseBody, errorBody, cause)

@@ -1164,11 +1164,13 @@ class {{classname}} {
     }
 {{/discriminator}}
 {{^discriminator}}
+{{#composedSchemas}}
 {{#oneOf}}
     try {
-      return {{classname}}._({{{.}}}.fromJson(json));
+      return {{classname}}._({{{dataType}}}.fromJson(json));
     } catch (_) {}
 {{/oneOf}}
+{{/composedSchemas}}
     /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
        matched the wire shape. Throw a SerializationException (the same family
        as the discriminator no-match above) so the caller sees a wire-shape
@@ -1176,6 +1178,18 @@ class {{classname}} {
     throw SerializationException('Data does not match any oneOf schemas for {{classname}}');
 {{/discriminator}}
   }
+
+  /// Value equality on the held variant, element-wise for lists and bytes, so
+  /// two unions decoded from identical JSON are equal and hash equally.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is {{classname}} &&
+        const DeepCollectionEquality().equals(_value, other._value);
+  }
+
+  @override
+  int get hashCode => const DeepCollectionEquality().hash(_value);
 
   @override
   String toString() => '{{classname}}($_value)';
@@ -1266,11 +1280,13 @@ class {{classname}} {
   /// that decodes so a payload satisfying several variants keeps all data.
   factory {{classname}}.fromJson(Map<String, dynamic> json) {
     final decoded = <Object?>[];
+{{#composedSchemas}}
 {{#anyOf}}
     try {
-      decoded.add({{{.}}}.fromJson(json));
+      decoded.add({{{dataType}}}.fromJson(json));
     } catch (_) {}
 {{/anyOf}}
+{{/composedSchemas}}
     if (decoded.isEmpty) {
       /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
          matched the wire shape — surface a SerializationException rather than
@@ -1279,6 +1295,18 @@ class {{classname}} {
     }
     return {{classname}}._(decoded);
   }
+
+  /// Value equality on the retained variants, compared in order, so two unions
+  /// decoded from identical JSON are equal and hash equally.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is {{classname}} &&
+        const DeepCollectionEquality().equals(_values, other._values);
+  }
+
+  @override
+  int get hashCode => const DeepCollectionEquality().hash(_values);
 
   @override
   String toString() => '{{classname}}($_values)';

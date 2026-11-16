@@ -126,6 +126,22 @@ describe 'Composed Schema' do
       _(serialized.scan('"notes"').length).must_equal(1)
     end
 
+    it 'anyOf composites have value equality and a matching hash' do
+      build = lambda do
+        medication = {{moduleName}}::Models::Medication.new(drug_name: 'Amoxicillin')
+        surgery = {{moduleName}}::Models::Surgery.new(procedure_name: 'Spay')
+        {{moduleName}}::Models::PetTreatment::Composite.new([medication, surgery])
+      end
+      first = build.call
+      second = build.call
+      _(first).must_equal(second)
+      _(first.eql?(second)).must_equal true
+      _(first.hash).must_equal(second.hash)
+      _([first, second].uniq.length).must_equal 1
+      other = {{moduleName}}::Models::PetTreatment::Composite.new([{{moduleName}}::Models::Surgery.new(procedure_name: 'Spay')])
+      _(first).wont_equal(other)
+    end
+
     it 'exposes actual_instance and matched_instances for anyOf values' do
       both = {{moduleName}}::ObjectSerializer.deserialize(
         '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}', 'PetTreatment'

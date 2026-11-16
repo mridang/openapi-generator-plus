@@ -15,8 +15,31 @@ namespace PetstoreClient.Models;
 /// Same members as PetTreatment declared in non-alphabetical order
 /// </summary>
 [JsonConverter(typeof(TreatmentRecordConverter))]
-public class TreatmentRecord
+public class TreatmentRecord : IEquatable<TreatmentRecord>
 {
+    /// <summary>Value equality on the retained variants, in order.</summary>
+    public bool Equals(TreatmentRecord? other)
+    {
+        return other is not null
+            && (
+                ReferenceEquals(this, other)
+                || global::PetstoreClient.ObjectSerializer.StructuralEquals(
+                    MatchedInstances,
+                    other.MatchedInstances
+                )
+            );
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as TreatmentRecord);
+    }
+
+    public override int GetHashCode()
+    {
+        return global::PetstoreClient.ObjectSerializer.StructuralHashCode(MatchedInstances);
+    }
+
     /// <summary>
     /// Every union variant that successfully validated against the payload.
     /// Because anyOf is inclusive (a payload may satisfy several variants at
@@ -62,14 +85,15 @@ public class TreatmentRecord
             using JsonDocument doc = JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
             List<object> matched = new List<object>();
+            /* Declaration order: the bare anyOf set is alphabetical. */
             try
             {
-                matched.Add(JsonSerializer.Deserialize<Medication>(raw, options)!);
+                matched.Add(JsonSerializer.Deserialize<Surgery>(raw, options)!);
             }
             catch (JsonException) { }
             try
             {
-                matched.Add(JsonSerializer.Deserialize<Surgery>(raw, options)!);
+                matched.Add(JsonSerializer.Deserialize<Medication>(raw, options)!);
             }
             catch (JsonException) { }
             if (matched.Count > 0)

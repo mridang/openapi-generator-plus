@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	petstore "petstore/pkg"
@@ -559,5 +560,30 @@ func TestTransportOptions_UpperCaseProxySchemeIsAccepted(t *testing.T) {
 	}
 	if opts.Proxy() == nil || opts.Proxy().Host != "proxy.example.com:3128" {
 		t.Errorf("expected the proxy host to be kept, got %v", opts.Proxy())
+	}
+}
+
+func TestTransportOptions_StringMasksProxyPasswordAndSecretHeaders(t *testing.T) {
+	t.Parallel()
+	opts, err := petstore.NewTransportOptionsBuilder().
+		Proxy("http://user:p4ssw0rd@proxy.example.com:8080").
+		DefaultHeader("Authorization", "Bearer s3cret-value").
+		DefaultHeader("X-Api-Key", "s3cret-value").
+		DefaultHeader("Accept", "application/json").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, got := range []string{opts.String(), fmt.Sprintf("%v", opts), fmt.Sprintf("%+v", *opts), fmt.Sprintf("%#v", opts)} {
+		if strings.Contains(got, "p4ssw0rd") || strings.Contains(got, "s3cret-value") {
+			t.Errorf("expected secrets to be masked, got %s", got)
+		}
+		if !strings.Contains(got, "http://user:***@proxy.example.com:8080") {
+			t.Errorf("expected the proxy password to print as ***, got %s", got)
+		}
+		if !strings.Contains(got, `"Accept": "application/json"`) {
+			t.Errorf("expected a non-secret header to print as is, got %s", got)
+		}
 	}
 }
