@@ -1048,9 +1048,14 @@ defmodule {{moduleName}}.DefaultApiClient do
   defp default_port("http"), do: 80
   defp default_port(_), do: nil
 
+  # The static list plus the redaction rule (S15): a header whose name contains
+  # key, token or secret carries a credential, wherever it came from (a
+  # default header, a custom authenticator), so it does not follow a
+  # cross-origin hop either.
   defp strip_sensitive_headers(headers) when is_map(headers) do
     Enum.reject(headers, fn {k, _v} ->
-      String.downcase(to_string(k)) in @sensitive_redirect_headers
+      lowered = String.downcase(to_string(k))
+      lowered in @sensitive_redirect_headers or String.contains?(lowered, ["key", "token", "secret"])
     end)
     |> Map.new()
   end

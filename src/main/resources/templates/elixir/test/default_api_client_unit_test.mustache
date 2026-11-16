@@ -498,6 +498,31 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert headers["x-trace"] == "keep"
   end
 
+  test "3.1: strips any header named like a credential on cross-origin redirect" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    {{moduleName}}.DefaultApiClient.send_request(
+      client, :get, source_url,
+      %{
+        "X-Tenant-Token" => "t",
+        "X-Custom-Auth-Key" => "k",
+        "X-Gateway-Secret" => "s",
+        "X-Trace" => "keep"
+      },
+      nil
+    )
+
+    assert_receive {:source_headers, _src_headers}, 5000
+    assert_receive {:captured_headers, target_headers}, 5000
+    refute Map.has_key?(target_headers, "x-tenant-token")
+    refute Map.has_key?(target_headers, "x-custom-auth-key")
+    refute Map.has_key?(target_headers, "x-gateway-secret")
+    assert target_headers["x-trace"] == "keep"
+  end
+
   {{#hasApiKeyHeaderNames}}
   # 3.1: spec-declared apiKey-in-header names are merged into the
   # cross-origin sensitive-header allowlist at codegen time, so an API key
