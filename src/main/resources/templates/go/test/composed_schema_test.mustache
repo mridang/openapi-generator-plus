@@ -319,6 +319,51 @@ func TestPetTreatment_SharedPropertyCollisionLastWins(t *testing.T) {
 	}
 }
 
+// TreatmentRecord declares its variants as Surgery then Medication, the reverse
+// of alphabetical order: the variants are tried, and kept, in declaration order,
+// and on a shared property the later declared variant (Medication) wins.
+func TestTreatmentRecord_TriesVariantsInDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	var record models.TreatmentRecord
+	if err := json.Unmarshal([]byte(`{"drugName":"Amoxicillin","procedureName":"Spay"}`), &record); err != nil {
+		t.Fatalf("failed to deserialize TreatmentRecord: %v", err)
+	}
+	matched := record.MatchedInstances()
+	if len(matched) != 2 {
+		t.Fatalf("expected two matched variants, got %d", len(matched))
+	}
+	if _, ok := matched[0].(models.Surgery); !ok {
+		t.Errorf("expected Surgery first, got %T", matched[0])
+	}
+	if _, ok := matched[1].(models.Medication); !ok {
+		t.Errorf("expected Medication second, got %T", matched[1])
+	}
+}
+
+func TestTreatmentRecord_SharedPropertyCollisionLaterDeclaredWins(t *testing.T) {
+	t.Parallel()
+	surgNotes := "from-surgery"
+	medNotes := "from-medication"
+	record := models.NewTreatmentRecord(
+		models.Surgery{ProcedureName: "Spay", Notes: &surgNotes},
+		models.Medication{DrugName: "Amoxicillin", Notes: &medNotes},
+	)
+	data, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("failed to serialize TreatmentRecord: %v", err)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("failed to parse serialized JSON: %v", err)
+	}
+	if parsed["notes"] != "from-medication" {
+		t.Errorf("expected notes 'from-medication' (last variant wins), got %v", parsed["notes"])
+	}
+	if n := strings.Count(string(data), `"notes"`); n != 1 {
+		t.Errorf("expected `notes` key exactly once, got %d in %s", n, string(data))
+	}
+}
+
 func TestPetTreatment_NoMatchThrows(t *testing.T) {
 	t.Parallel()
 	// oneof-nondiscriminator-no-match-silent: a payload matching neither

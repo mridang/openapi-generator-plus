@@ -2158,6 +2158,26 @@ func TestDeserialize_StrictBase64ForByteFields(t *testing.T) {
 	}
 }
 
+// A nickname longer than its declared maxLength is not enforced by the decoder:
+// the value decodes and goes back out unchanged.
+func TestDeserialize_NicknameBeyondItsMaxLengthRoundTrips(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"x","photoUrls":[],"nickname":"ZZZZZZZZZZ"}`), &pet); err != nil {
+		t.Fatalf("expected the long nickname to decode, got %v", err)
+	}
+	if pet.Nickname == nil || *pet.Nickname != "ZZZZZZZZZZ" {
+		t.Fatalf("expected nickname ZZZZZZZZZZ, got %v", pet.Nickname)
+	}
+	data, err := serialize(pet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"nickname":"ZZZZZZZZZZ"`) {
+		t.Errorf("expected the nickname to be re-encoded unchanged, got %s", data)
+	}
+}
+
 // BinaryVault equality compares byte arrays by content, never by reference,
 // for a bare array, a list of arrays and a map of arrays, and tells a list from
 // a map.

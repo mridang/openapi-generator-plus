@@ -212,3 +212,34 @@ func TestServerConfiguration_AValueIsNeverExpandedAgain(t *testing.T) {
 		}
 	}
 }
+
+// The third global server carries hostile text in its description and variable:
+// quotes, an ampersand, a dollar sign, a hash-brace and a comment-closing
+// sequence all come back unchanged.
+func TestServerConfiguration_TheHostileThirdServerRoundTripsUnchanged(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.AllServers[2]
+
+	if got, want := server.URLTemplate(), "https://{tenant}.example.com/api"; got != want {
+		t.Errorf("URLTemplate = %q, want %q", got, want)
+	}
+	if got, want := server.Description(), `Bob's "sandbox" & co: $5 #{x} a*/b`; got != want {
+		t.Errorf("Description = %q, want %q", got, want)
+	}
+	tenant, ok := server.Variables()["tenant"]
+	if !ok {
+		t.Fatal("expected a tenant variable")
+	}
+	if got, want := tenant.DefaultValue(), "o'neil"; got != want {
+		t.Errorf("DefaultValue = %q, want %q", got, want)
+	}
+	if got, want := tenant.Description(), `Tenant's "id"`; got != want {
+		t.Errorf("variable Description = %q, want %q", got, want)
+	}
+	if enum := tenant.EnumValues(); len(enum) != 2 || enum[0] != "o'neil" || enum[1] != "a&b" {
+		t.Errorf("EnumValues = %v, want [o'neil a&b]", enum)
+	}
+	if got, err := server.URL(nil); err != nil || got != "https://o'neil.example.com/api" {
+		t.Errorf("URL = %q, %v", got, err)
+	}
+}
