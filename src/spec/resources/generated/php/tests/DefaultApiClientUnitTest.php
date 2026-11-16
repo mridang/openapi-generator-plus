@@ -927,7 +927,7 @@ test('https to http downgrade refuses body replay on 307', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
@@ -1065,7 +1065,7 @@ test('exceeding max redirects throws too many redirects', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient($loop), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);
@@ -1117,7 +1117,7 @@ test('redirect to non http scheme throws', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), $transport);
 
     expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
-        ->toThrow(function (\Throwable $e): void {
+        ->toThrow(function (\Exception $e): void {
             /* A refused redirect is a response that arrived but could not
              * be used: exactly ApiException, carrying the real status. */
             expect($e::class)->toBe(ApiException::class);

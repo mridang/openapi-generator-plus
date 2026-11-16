@@ -149,7 +149,7 @@ def _network_exception(error: urllib3.exceptions.HTTPError) -> NetworkException:
         cause = error.reason
     # The message comes from the underlying cause, never from the
     # ``MaxRetryError`` wrapper: that one renders the request path and query
-    # ("Max retries exceeded with url: /pet?api_key=..."), which would copy a
+    # ("Max retries exceeded with url: /items?api_key=..."), which would copy a
     # query-parameter API key into logs and error trackers.
     message = str(cause)
     if isinstance(cause, urllib3.exceptions.NewConnectionError):
