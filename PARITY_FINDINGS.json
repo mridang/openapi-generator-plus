@@ -4008,10 +4008,11 @@
    "unit_testable": true,
    "lens": "L19-spec-coverage",
    "id": "F054",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "fixed or conforming in all languages across batches 5-7 and b8-shared (see language AGENTS.md Decisions taken)",
    "priority_triage": "medium",
-   "plain": "Header, path and cookie parameters defined by content are not serialized by the SDK serializer in any language."
+   "plain": "Header, path and cookie parameters defined by content are not serialized by the SDK serializer in any language.",
+   "commit": "55545af00"
   },
   {
    "title": "OAS readOnly/writeOnly: java maps them to Jackson access modes with inverted client semantics; the other 11 only add doc comments. Petstore has no readOnly/writeOnly property",
@@ -4106,8 +4107,8 @@
    "unit_testable": true,
    "lens": "L19-spec-coverage",
    "id": "F056",
-   "status": "open",
-   "note": "",
+   "status": "forced",
+   "note": "S3: constraints are not promised client-side; documented in each README Schema constraints section",
    "priority_triage": "medium",
    "plain": "Python alone enforces pattern, length and range limits from the spec and rejects values the other SDKs accept."
   },
@@ -34780,9 +34781,10 @@
    "description": "setParentOnChild keeps the first union that claims a child, so a later oneOf that reuses existing variants silently changes their supertype. DryFood and WetFood extend DeprecatedFood instead of PetFood (java DryFood.java:14, csharp DryFood.cs:13), which breaks java test-compile. Either the spec must not reuse the variants or the parent resolution must not let a second union steal a child. Other languages were not checked.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "fixed or conforming in all languages across batches 5-7 and b8-shared (see language AGENTS.md Decisions taken)",
+   "batch": null,
+   "commit": "55545af00"
   },
   {
    "id": "F803",
@@ -35258,9 +35260,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "fixed or conforming in all languages across batches 5-7 and b8-shared (see language AGENTS.md Decisions taken)",
+   "batch": null,
+   "commit": "55545af00"
   },
   {
    "id": "F825",
@@ -35707,9 +35710,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "fixed or conforming in all languages across batches 5-7 and b8-shared (see language AGENTS.md Decisions taken)",
+   "batch": null,
+   "commit": "55545af00"
   },
   {
    "id": "F834",
@@ -48874,9 +48878,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "fixed or conforming in all languages across batches 5-7 and b8-shared (see language AGENTS.md Decisions taken)",
+   "batch": null,
+   "commit": "55545af00"
   },
   {
    "id": "F1144",
