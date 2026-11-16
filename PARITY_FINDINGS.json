@@ -4162,8 +4162,8 @@
    "unit_testable": false,
    "lens": "L19-spec-coverage",
    "id": "F057",
-   "status": "open",
-   "note": "still open: go,rust,swift,elixir,dart,all 12: no fixture - S4 not landed in go/rust/swift/elixir/dart (no parent/sealed handling in src/main/resources/templates/{go,rust,swift,eli",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "priority_triage": "high",
    "plain": "Schemas combining allOf with a discriminator are built as inheritance in six SDKs and flattened in six; in Kotlin the generated code does not compile."
   },
@@ -4555,8 +4555,8 @@
    "unit_testable": true,
    "lens": "L01-value-serializer",
    "id": "F063",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "priority_triage": "medium",
    "plain": "Parameters whose value is an object (model or map) are not serialized in most SDKs: they fail to compile, throw at runtime or send debug text."
   },
@@ -5008,10 +5008,11 @@
    "unit_testable": true,
    "lens": "L01-value-serializer",
    "id": "F071",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
    "priority_triage": "medium",
-   "plain": "format: time values are sent with different precision and shape across SDKs."
+   "plain": "format: time values are sent with different precision and shape across SDKs.",
+   "commit": "2a4a1fbf0"
   },
   {
    "title": "uniqueItems array params (Set types) are stringified as debug text in 8 SDKs instead of being expanded as arrays",
@@ -6020,10 +6021,11 @@
    "unit_testable": true,
    "lens": "L03-request-assembly",
    "id": "F087",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
    "priority_triage": "medium",
-   "plain": "Query, form and multipart fields are sent in hash, sorted or random order instead of spec order in several SDKs."
+   "plain": "Query, form and multipart fields are sent in hash, sorted or random order instead of spec order in several SDKs.",
+   "commit": "2a4a1fbf0"
   },
   {
    "title": "A 3xx with no (or unparseable) Location is reported as 'too many redirects' in java and ruby; the other 10 return the 3xx",
@@ -8966,8 +8968,8 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F131",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "priority_triage": "medium",
    "plain": "A default on an enum-reference property is honoured by only some SDKs, so default-built models serialize differently."
   },
@@ -9055,10 +9057,11 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F133",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
    "priority_triage": "medium",
-   "plain": "Plain numbers lose exact decimal precision in Python and Node, and quoted strings are accepted, contradicting the docs."
+   "plain": "Plain numbers lose exact decimal precision in Python and Node, and quoted strings are accepted, contradicting the docs.",
+   "commit": "2a4a1fbf0"
   },
   {
    "title": "kotlin accepts a payload missing a REQUIRED array/set property (Pet.photoUrls) because the field defaults to an empty container",
@@ -12079,10 +12082,11 @@
    "unit_testable": true,
    "lens": "L14-codegen-java",
    "id": "F173",
-   "status": "partial",
-   "note": "partial; remaining: kotlin,rust,php,dart - prefix 'Model' now applied in java (BetterJavaCodegen.java:312), swift (:271), node (:692), rust (:1008, prelude set onl",
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
    "priority_triage": "medium",
-   "plain": "A schema named like a built-in type (Error, Result) breaks or shadows the language type in most SDKs."
+   "plain": "A schema named like a built-in type (Error, Result) breaks or shadows the language type in most SDKs.",
+   "commit": "2a4a1fbf0"
   },
   {
    "title": "Numeric default literals compile in java only: kotlin/csharp/rust/node/python emit literals that do not type-check, or corrupt them",
@@ -17518,8 +17522,8 @@
    "suspected_forced_reason": "Partly stdlib-forced (dart/elixir have no multi-charset stdlib), but dart/elixir could at least match go's cp1252 table.",
    "lens": "L04-transport",
    "id": "F258",
-   "status": "partial",
-   "note": "partial; remaining: go - swift DefaultApiClient.swift:721-748 now falls back to CFStringConvertIANACharSetNameToEncoding (tests DefaultApiClientU",
+   "status": "forced",
+   "note": "Triage 2026-11-17: deliberate, recorded in AGENTS.md",
    "outcomes": {
     "dart": {
      "outcome": "fixed",
@@ -18657,10 +18661,11 @@
    "unit_testable": false,
    "lens": "L06-simple-auth",
    "id": "F278",
-   "status": "partial",
-   "note": "partial; remaining: python - python/BetterPythonCodegen.java:1250 still builds \"\\\"\" + spec.keyParamName() + \"\\\"\" unescaped; the other eleven escape (",
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
    "priority_triage": "low",
-   "plain": "The API key header name from the spec is pasted into string literals without escaping."
+   "plain": "The API key header name from the spec is pasted into string literals without escaping.",
+   "commit": "2a4a1fbf0"
   },
   {
    "title": "elixir omits secret fields from inspect output instead of showing '***' as the other 11 do",
@@ -19271,8 +19276,8 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F290",
-   "status": "partial",
-   "note": "partial; remaining: go,rust - [\"src/main/resources/templates/node/auth/oauth/oauth2_client_credentials_authenticator.mustache:76 and dart/auth/oauth/o",
+   "status": "forced",
+   "note": "Triage 2026-11-17: deliberate, recorded in AGENTS.md",
    "priority_triage": "low",
    "plain": "The synchronous auth-header helper on token-based OAuth either throws or silently returns an empty header depending on SDK."
   },
@@ -20792,8 +20797,8 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F319",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "forced",
+   "note": "Triage 2026-11-17: deliberate, recorded in AGENTS.md",
    "priority_triage": "low",
    "plain": "Set-like arrays are sent in insertion order in some SDKs and sorted or hash order in others."
   },
@@ -20907,10 +20912,11 @@
    "unit_testable": true,
    "lens": "L10-models-composed",
    "id": "F321",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
    "priority_triage": "low",
-   "plain": "Printing a model gives different output across SDKs and some print memory addresses instead of field values."
+   "plain": "Printing a model gives different output across SDKs and some print memory addresses instead of field values.",
+   "commit": "2a4a1fbf0"
   },
   {
    "title": "oneOf/anyOf wrappers have value equality in some SDKs and identity-only (or no) equality in others",
@@ -21556,8 +21562,8 @@
    "unit_testable": true,
    "lens": "L11-api-shape",
    "id": "F332",
-   "status": "partial",
-   "note": "partial; remaining: java,csharp - ruby lie fixed: pet_api.rbs:91 now ::StringIO; kotlin returns ByteArray (PetApi.kt:704); java (PetApi.java:1079 InputStr",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "outcomes": {
     "kotlin": {
      "outcome": "false-positive",
@@ -32937,9 +32943,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `configurationerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- configurationerror [cases] majority invalidargument,invalidcacertificate,invalidproxy,invalidservervariable,invalidstate,invalidtimeout (1 SDKs); differs: swift=invalidargument,invalidcacertificate,invalidproxyurl,invalidservervariable,invalidstate,proxyunsupported,tlsoptionsunsupported",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F700",
@@ -35298,8 +35305,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "still open: rust - [\"src/main/resources/templates/rust/api/api.mustache:152 still Result<_, Box<dyn std::error::Error + Send + Sync>>; src/",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -35592,9 +35599,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - [\"429 TooManyRequests type exists in all 12 (java/errors/TooManyRequestsException.mustache:44, go/errors/too_many_reques",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F832",
@@ -36244,8 +36252,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - NormalizePrefixItemsRule still unconditional; skipped in kotlin/AGENTS.md:294; depends on the OpenAPI 3.1 epics (#85, #9",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -36345,9 +36353,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "still open: node - src/main/resources/templates/node/models/model.mustache:28 still emits `export enum {{classname}}` (no const-object + un",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F847",
@@ -36409,8 +36418,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "still open: node - node/errors/api-error.mustache:94 still stores ObjectSerializer.parseJson(responseBody); node/AGENTS.md:237 lists F848 a",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -36554,9 +36563,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: node - package.json:21 sideEffects ['./dist/src/object-serializer.js'] added and pinned by node/test/metadata.test.ts:26, READM",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F854",
@@ -36690,9 +36700,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: java,csharp,python,ruby,node,dart,go,elixir - 401 invalidate-and-replay-once landed in rust (base_api.mustache:281), php (:191-198, test BaseApiTest:292), swift (:231",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F856",
@@ -36768,9 +36779,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: python - [\"src/main/resources/templates/node/base_api.mustache:109-113, go/base_api.mustache:152-157, php/base_api.mustache:128-1",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F857",
@@ -36884,8 +36896,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: java,kotlin,csharp,python,ruby,node,dart,go,elixir,(OIDC nonce: all 12) - PKCE S256 landed only in rust src/main/resources/templates/rust/auth/oauth/oauth2_auth_code_authenticator.mustache:130-1",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -36932,9 +36944,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: python,node,dart,go - issuer match + https checks done and tested: java OpenIdConnectAuthenticatorTest (discoveryRejectsAnIssuerThat...), kotl",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F860",
@@ -37138,9 +37151,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: csharp,php,python,dart,go,rust,swift - fixed in java (oauth2_token_manager.mustache:289-293), kotlin (:298-303), ruby (:266-268), node (:294-298), elixir (:333",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F864",
@@ -37264,8 +37278,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,node,dart,go,rust,swift,elixir - golden Metadata.java:30 still Map<String,Object>, python metadata.py:27 Dict[str,Any]; ruby has ADDITIONAL_PROPERTIES_TY",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -37399,9 +37413,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: dart,go,rust - password masked in toString/Debug: java, kotlin (model.mustache:1171), csharp, php, ruby, node, swift, elixir, python (S",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F868",
@@ -37710,8 +37725,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "still open: go - go/AGENTS.md:303 lists it as skipped in batch 6; UnmarshalJSON still multi-pass",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -37974,8 +37989,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: go - [\"src/main/resources/templates/go/trace_context_util.mustache:40-43 (atomic.Pointer, race fixed); src/main/java/io/githu",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -38073,9 +38088,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: csharp,php,python,dart,go,swift - README Not supported now lists XML/Link Objects/mutual TLS in java, kotlin, ruby, node, rust, elixir READMEs; csharp, ph",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F884",
@@ -38138,9 +38154,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: csharp,php,python,node,dart,go,rust,swift - generated README headings: java, kotlin, ruby, elixir moved Custom HTTP client/Cancellation above Caveats; csharp:107/12",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F885",
@@ -38293,9 +38310,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: csharp,python,swift - fixed in php/ruby/kotlin/dart/elixir (generated php/SKILLS.md:245 Account(username: 'example'), ruby SKILLS.md:236, kotl",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F888",
@@ -38338,9 +38356,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: csharp,php,python,dart,go,rust,swift - README now opens with Installation/Usage (links SKILLS.md) in src/main/resources/templates/java/readme.mustache:22-34, k",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F889",
@@ -38418,9 +38437,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: csharp,php,python,ruby,node,dart,go,rust,swift,elixir (names) - SKILLS.md: java and kotlin have Custom Transport Options / Custom HTTP client / Cancellation at ### level; php:221, go:2",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F891",
@@ -38863,9 +38883,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: java - java DefaultApiClient.java:361 decodes with userInfo.replace(\"+\",\"%2B\") (fixed) but no test pins a literal '+' (DefaultA",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F902",
@@ -39150,8 +39171,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php - no maxResponseBytes or decoded-size cap in any template (grep finds none); csharp/AGENTS.md:322 and java/AGENTS.md:309 l",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -39315,8 +39336,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: python,ruby (a body trickled slower than the per-read timeout still outlives the budget) - multi-hop budget landed (D76): python src/main/resources/templates/python/default_api_client.mustache:649-655,947-953 an",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -39819,9 +39840,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: java,kotlin,ruby,node,go,rust,php - now asserted in csharp (OAuth2TokenManagerTest.mustache), python, dart, swift, elixir all three messages; java has only ",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F927",
@@ -39862,9 +39884,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: java,go,dart,elixir - exact D16 messages pinned in kotlin, csharp, php, python, ruby, node, rust, swift; java/go/dart/elixir tests only assert",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F928",
@@ -44412,8 +44435,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: rust - fixed swift: src/main/resources/templates/swift/default_api_client.mustache:944-947 (task.delegate), test swift/test/Def",
+   "status": "forced",
+   "note": "Triage 2026-11-17: deliberate, recorded in AGENTS.md",
    "batch": null
   },
   {
@@ -44462,8 +44485,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "still open: go,rust,swift,elixir - src/main/resources/templates/go/default_api_client.mustache:341,718-734 (io.ReadAll, no limit); src/main/resources/templ",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -44677,9 +44700,10 @@
     }
    ],
    "unit_testable": null,
-   "status": "partial",
-   "note": "partial; remaining: swift - elixir fixed: src/main/resources/templates/elixir/auth/oauth/oauth2_token_manager.mustache:378 System.monotonic_time, op",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1055",
@@ -44785,9 +44809,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: node - node/api/apis.mustache:253 still path.replace(`{name}`, <string>), so $&, $$, $' in a value expand; ValueSerializer keep",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1058",
@@ -44828,8 +44853,8 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - [\"no getEncoding/encoding-map use anywhere in src/main/java (grep empty); Encoding Object contentType/headers/style/expl",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -44985,9 +45010,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "owner decision 2026-11-17: FIX NOW, spec compliant: operations with several distinct 2xx schemas return a union of exactly those schemas, decoded by the actual status code; shared Java exposes per-status response data (b11-shared), then 12 language agents; fixture operation added to the petstore spec",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1063",
@@ -45092,9 +45118,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: rust,elixir - [\"src/main/java/io/github/mridang/codegen/generators/ruby/AGENTS.md:54, php/AGENTS.md:95, dart/AGENTS.md:59 (S7: no canc",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1065",
@@ -45129,9 +45156,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - only kotlin/test/TransportOptionsTest.mustache:241 has http://[::1]:3128; grep for [::1] in the other 11 test dirs finds",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1066",
@@ -45283,9 +45311,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: rust - fixed java PetApiTest.mustache:1297, kotlin:903, csharp:1362, python test_pet_api.mustache:619, ruby pet_api_test.mustac",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1069",
@@ -45324,9 +45353,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: python - getOrderByTrackingId path test exists in java StoreApiTest:373, kotlin :280, csharp :482, php :293, ruby, node, dart :11",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1070",
@@ -45470,9 +45500,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: python (no test class at all),java (only BetterJavaCodegenTypeMappingTest),kotlin (only BetterKotlinCodegenTypeMappingTest) - src/test/java/.../generators/ruby/BetterRubyCodegenTest.java (60 lines, 9 tests) and elixir/BetterElixirCodegenTest.java",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1073",
@@ -45520,9 +45551,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,ruby,go,rust,swift,elixir - only python test_bearer_authenticator.py:46, node bearer-authenticator.test.ts:79, dart bearer_authenticator_test.dart:6",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1074",
@@ -45566,9 +45598,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: java,kotlin,csharp,python,ruby,node,go,rust,elixir - only php/tests/BearerAuthenticatorTest.mustache, swift/test/BearerAuthenticatorTests.mustache:94, dart/test/bearer_authe",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1075",
@@ -45619,9 +45652,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: dart - Content-Type and Accept asserted in java/test/OAuth2TokenManagerTest.mustache:230-231, go :84, rust :1170, python :718-7",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1076",
@@ -45698,8 +45732,8 @@
     }
    ],
    "unit_testable": false,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,swift,elixir - only rust has deny_toml.mustache and an audit target in rust/makefile.mustache; no audit/deny/osv text in any other lang",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -45839,9 +45873,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: kotlin,python,dart,go,elixir - bounded and masked in java/api_error.mustache + ApiExceptionTest, csharp/api_error.mustache, php, ruby/errors/api_error.",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1081",
@@ -45882,8 +45917,8 @@
     }
    ],
    "unit_testable": false,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - java/transport_options.mustache:218 and go/transport_options.mustache:84 still default 10000 ms; no per-call timeout ove",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -45957,9 +45992,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: python,ruby - python/object_serializer.mustache:322-339 datetime branch precedes date and stringify (:626-638) has no schema-type awar",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1084",
@@ -46005,9 +46041,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: go - go src/main/resources/templates/go/skills.mustache:188-220 lists only ApiError tree and catch examples, no Serialization",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1085",
@@ -46196,9 +46233,10 @@
     }
    ],
    "unit_testable": false,
-   "status": "open",
-   "note": "still open: node,python,go,rust,dart,java - [\"src/main/resources/templates/node/makefile.mustache:12, python/makefile.mustache:11, go/makefile.mustache:13, rust/mak",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1089",
@@ -46240,9 +46278,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: go,rust,swift - go/base_api.mustache:217 'for k, v := range cookies', rust/base_api.mustache:215 'for (k, v) in &cookies', swift/base_ap",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1090",
@@ -46277,9 +46316,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: rust (typed map fields untested; map-of-byte-array fields still HashMap order) - extras sorted: rust object_serializer.mustache serialize_extras + test :889 test_serialize_extras_writes_the_keys_in_asc",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1091",
@@ -46323,9 +46363,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: rust - go value_serializer.go:215-285 keeps struct declaration order (json.Decoder token walk); rust object_serializer.rs:455 t",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1092",
@@ -46409,9 +46450,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: kotlin - name heuristic (key/token/secret) added in java/default_api_client.mustache:870, csharp :58-66, php/abstract_api_client.",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1094",
@@ -46511,8 +46553,8 @@
     }
    ],
    "unit_testable": false,
-   "status": "open",
-   "note": "still open: java - src/main/resources/templates/java/pom.mustache:316-318 jackson-jaxrs-json-provider compile dependency; no javax.ws/jakar",
+   "status": "forced",
+   "note": "Triage 2026-11-17: deliberate, recorded in AGENTS.md",
    "batch": null
   },
   {
@@ -46575,9 +46617,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: ruby - ruby/gemspec.mustache:32, ruby/gemfile.mustache:21 and ruby/default_api_client.mustache:6 still require faraday-follow_r",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1099",
@@ -46697,9 +46740,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: ruby,elixir,swift - rust/dart/kotlin now canonical (rust/errors/oauth2_authorization_code_error.mustache:24-26, dart/auth/oauth/oauth2_auth_",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1102",
@@ -46760,9 +46804,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: go,python (server-variable message),ruby,rust,elixir,php - swift fixed (src/main/resources/templates/swift/errors/configuration_error.mustache:42, swift/api/api.mustache:441); sti",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1103",
@@ -46824,9 +46869,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,python,dart,php,node,go - java DefaultApiClient.java:303 and kotlin HttpClientFactory.kt:152 say 'failed to read or parse'; csharp DefaultApiClien",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1104",
@@ -46949,9 +46995,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: go,rust,kotlin - go/auth/oauth/oauth2_token_manager.mustache:253 appends parser error ('not valid JSON: %v'); rust/auth/oauth/oauth2_toke",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1106",
@@ -47037,9 +47084,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: kotlin,java,csharp,swift,go - kotlin/test/DefaultApiClientTest.mustache:146 + ValueSerializerTest:188 (16 snake_case funs), java/test/OAuth2TokenManag",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1108",
@@ -47069,9 +47117,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: swift - src/main/resources/templates/swift/test/BasicAuthenticatorTests.mustache:11, ServerConfigurationTests.mustache, ServerVa",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1109",
@@ -47121,9 +47170,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: csharp - csharp/Test/MetadataTest.cs has no description or literal-null-example check (only FileHeaderCarriesTheInfoDescription..",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1110",
@@ -47277,9 +47327,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: node,go,php,python,ruby,rust,swift,elixir - [\"no BinaryVault equality assertion in node/ruby/rust/swift/elixir tests at all; go/php/python only round-trip (php/test",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1113",
@@ -47584,9 +47635,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,dart,go,rust,swift,elixir - [\"only node pins it (node/test/server-configuration.test.mustache:33); java/server_configuration.mustache:126, python/se",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1119",
@@ -47786,8 +47838,8 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: dart - no dart/test file references default_api_client_web (dart/test lists none); only DartWasmSpec compile gate",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -47842,9 +47894,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,kotlin,rust,swift,elixir - defaults exist (java/api_client.mustache:75, rust/api_client.mustache:129, swift :56, kotlin :52, elixir :79) but no tes",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1124",
@@ -48153,9 +48206,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,go,rust,swift,elixir - TreatmentRecord appears only in dart/test/composed_schema_test.mustache and node/test/composed-schema.test.mustache; zer",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1130",
@@ -48311,9 +48365,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: swift (no test, no absent/unparseable Location case),rust (absent Location tested at rust/test/default_api_client_unit_test.mustache:241, unparseable http://[bad not) - fixed+tested: php src/main/resources/templates/php/tests/DefaultApiClientUnitTest.mustache:1153 (code php/abstract_api_c",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1133",
@@ -48361,9 +48416,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: dart - redirect-chain timeout budget tested in java DefaultApiClientTest (timeoutCoversTheWholeRedirectChain), kotlin :324, csh",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1134",
@@ -48464,9 +48520,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: java,csharp,php,python,node,dart,go,rust - response Content-Encoding: identity passthrough now pinned in kotlin/test/DefaultApiClientUnitTest.mustache:1451, swift/",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1136",
@@ -48558,9 +48615,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: ruby,php,swift - ruby/test/default_api_client_unit_test.mustache:599-618 only .pdf and unknown-extension fallback; php/tests/DefaultApiCl",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1138",
@@ -48657,8 +48715,8 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,csharp,dart - java ServerConfiguration.java:64 and ServerVariable.java:61 copy but ServerConfigurationTest has no mutation test; cshar",
+   "status": "forced",
+   "note": "Triage 2026-11-17: deliberate, recorded in AGENTS.md",
    "batch": null
   },
   {
@@ -48778,9 +48836,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: kotlin,csharp,node,dart,go - fixture operations now called in most SDKs (e.g. python/test/api/test_store_api.mustache:223-240); missing: kotlin getSt",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1142",
@@ -49024,9 +49083,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: kotlin,go - EdgeCases.phase round trip now in java ObjectSerializerTest.java:1937, csharp ObjectSerializerTest.cs:2002, php ObjectSe",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1147",
@@ -49327,8 +49387,8 @@
     }
    ],
    "unit_testable": true,
-   "status": "parked",
-   "note": "tooling/CI change outside the templates - python/AGENTS.md:324, go/AGENTS.md:321, ruby/AGENTS.md:371 all record it as a gate change; no README/SKILLS compile gate",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -49635,9 +49695,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: dart - deepObject filter and matrix/label path wiring asserted in java PetApiTest.java:1466, kotlin, csharp PetApiTest.cs:945, ",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1159",
@@ -49823,9 +49884,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "partial",
-   "note": "partial; remaining: csharp - java pinned java/test/ObjectSerializerTest.mustache:1940-1949 (plain notation, 1E+3, 0.00000001) and kotlin kotlin/test/",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1163",
@@ -50098,9 +50160,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: csharp,ruby,node,dart,swift,elixir - [\"csharp/test/TransportOptionsTest.mustache:61, ruby/test/transport_options_test.mustache:39, dart/.../transport_options",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1168",
@@ -50164,8 +50227,8 @@
     }
    ],
    "unit_testable": false,
-   "status": "parked",
-   "note": "tooling/CI change outside the templates - src/test/resources/scripts/dump-kotlin-keywords.sh:9 and dump-rust-keywords.sh:3 still fall back to scraping the hand-wr",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -50272,9 +50335,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,python,ruby,node - sends-no-body tests still assert nothing: java BaseApiTest.java:1037, csharp BaseApiTest.cs:608, ruby base_api_test.rb:3",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1171",
@@ -50425,8 +50489,8 @@
     }
    ],
    "unit_testable": true,
-   "status": "parked",
-   "note": "tooling/CI change outside the templates - [\"dependency analysis (mvn dependency:analyze, FawltDeps, etc.) is CI/tooling outside the templates; nothing in template",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -50618,8 +50682,8 @@
     }
    ],
    "unit_testable": false,
-   "status": "parked",
-   "note": "tooling/CI change outside the templates - declared minimum runtimes are never run; spec classes pin one newest image per language (elixir/AGENTS.md:292, python/AG",
+   "status": "deferred",
+   "note": "Triage 2026-11-17: large or deferred; tracked by a GitHub issue",
    "batch": null
   },
   {
@@ -50710,9 +50774,10 @@
     }
    ],
    "unit_testable": true,
-   "status": "open",
-   "note": "still open: java,csharp,python,ruby,node,dart,go,elixir - etc/api-surface-allow.json:1945-1964 still carries the NEW-A/F1180 allow rules; invalidateAccessToken templates exist on",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1181",
@@ -50732,9 +50797,10 @@
     }
    ],
    "unit_testable": false,
-   "status": "open",
-   "note": "still open: rust - src/main/resources/templates/rust/api_client.mustache:55-66 public RequestOptions::skip_default_headers still present; e",
-   "batch": null
+   "status": "fixed",
+   "note": "Triage 2026-11-17: verified fixed in current code",
+   "batch": null,
+   "commit": "2a4a1fbf0"
   },
   {
    "id": "F1182",
