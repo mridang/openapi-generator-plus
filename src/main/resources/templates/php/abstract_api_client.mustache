@@ -131,7 +131,9 @@ abstract class AbstractApiClient implements ApiClient
      * @param bool                  $noRedirect when true, suppress redirect following
      *                                          regardless of {@see TransportOptions::followRedirects}
      *                                          (Gap 3.2 -- used by {@see OAuth2TokenManager}
-     *                                          to refuse 307/308 on token POSTs)
+     *                                          to refuse 307/308 on token POSTs). Such a
+     *                                          request also omits the transport default
+     *                                          headers, which are meant for the API.
      *
      * @return ApiHttpResponse the HTTP response
      *
@@ -151,7 +153,13 @@ abstract class AbstractApiClient implements ApiClient
             throw new \LogicException('ApiClient has been closed and can no longer send requests');
         }
 
-        $mergedHeaders = array_merge($this->transportOptions->defaultHeaders, $headers);
+        /* A request that refuses redirects is an SDK token request (RFC 6749
+         * section 3.2). It goes to the identity provider, a different origin,
+         * so the caller's default headers (an Authorization or API key meant
+         * for the API) must not ride along. */
+        $mergedHeaders = $noRedirect
+            ? $headers
+            : array_merge($this->transportOptions->defaultHeaders, $headers);
         /* Field names are case-insensitive (RFC 9110 section 5.1): a caller's
          * user-agent or x-request-id in any casing wins and is left as written. */
         $presentHeaders = array_change_key_case($mergedHeaders, CASE_LOWER);

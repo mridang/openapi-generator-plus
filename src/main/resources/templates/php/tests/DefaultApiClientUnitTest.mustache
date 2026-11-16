@@ -1114,6 +1114,28 @@ test('a 3xx whose Location is absent or unparseable comes back as the redirect r
     'malformed location' => [['Location' => 'http://[bad']],
 ]);
 
+test('a token request does not carry the transport default headers', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen = $options['headers'];
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $transport = TransportOptions::builder()
+        ->defaultHeaders(['Authorization' => 'Bearer api-only', 'X-Tenant' => 't1'])
+        ->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('POST', 'https://auth.example.com/token', ['Accept' => 'application/json'], 'a=b', noRedirect: true);
+    $lines = strtolower(implode("\n", $seen));
+    expect($lines)->not->toContain('authorization:');
+    expect($lines)->not->toContain('x-tenant');
+
+    $client->sendRequest('GET', 'https://api.example.com/items', [], null);
+    $lines = strtolower(implode("\n", $seen));
+    expect($lines)->toContain('authorization: bearer api-only');
+    expect($lines)->toContain('x-tenant: t1');
+});
+
 test('a caller accept-encoding in any casing is not duplicated', function (): void {
     $seen = [];
     $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
