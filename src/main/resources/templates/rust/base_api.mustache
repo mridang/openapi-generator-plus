@@ -364,10 +364,30 @@ impl BaseApi {
                 use base64::Engine as _;
                 let bytes = base64::engine::general_purpose::STANDARD
                     .decode(response.body().as_bytes())
-                    .unwrap_or_default();
+                    .map_err(|e| {
+                        crate::errors::serialization_error::SerializationError::new(
+                            format!("Invalid base64 value for a non-JSON response body: {e}"),
+                            Some(Box::new(e)),
+                        )
+                    })?;
                 String::from_utf8_lossy(&bytes).into_owned()
             };
-            serde_json::from_value(serde_json::Value::String(text)).ok()
+            /* D32: a String return takes the text; any other return type is a
+             * SerializationError naming the Content-Type, never a silent None. */
+            match serde_json::from_value(serde_json::Value::String(text)) {
+                Ok(value) => Some(value),
+                Err(_) => {
+                    return Err(Box::new(
+                        crate::errors::serialization_error::SerializationError::new(
+                            format!(
+                                "Unexpected response Content-Type '{}' for a JSON return type",
+                                resp_content_type.as_deref().unwrap_or("")
+                            ),
+                            None,
+                        ),
+                    ));
+                }
+            }
         } else {
             None
         };

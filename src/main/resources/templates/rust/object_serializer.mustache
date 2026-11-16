@@ -551,13 +551,18 @@ pub mod required_nullable {
 
 /// Writes a model's additional properties, leaving out every key that is the
 /// wire name of one of its `declared` properties: the declared value wins and
-/// no key is ever written twice.
+/// no key is ever written twice. The keys are written in ascending order: a
+/// `HashMap` iterates in a per-process random order, which would make the bytes
+/// of a body with two or more extras differ from run to run.
 pub fn serialize_extras<V: Serialize, S: serde::Serializer>(
     extras: &std::collections::HashMap<String, V>,
     declared: &[&str],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    serializer.collect_map(extras.iter().filter(|(key, _)| !declared.contains(&key.as_str())))
+    let mut entries: Vec<(&String, &V)> =
+        extras.iter().filter(|(key, _)| !declared.contains(&key.as_str())).collect();
+    entries.sort_by(|a, b| a.0.cmp(b.0));
+    serializer.collect_map(entries)
 }
 
 /// Returns the wire text of the parameter types whose form is not their serde
@@ -698,6 +703,25 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
 #[cfg(test)]
 mod tests {
     use super::{self as object_serializer, QueryValue, SerializationError};
+
+    /* F1090: additional properties are written in ascending key order, so a body
+     * with several extras has the same bytes in every process. */
+    #[test]
+    fn test_serialize_extras_writes_the_keys_in_ascending_order() {
+        use serde::Serialize;
+        struct Extras(std::collections::HashMap<String, i32>);
+        impl Serialize for Extras {
+            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                object_serializer::serialize_extras(&self.0, &["declared"], serializer)
+            }
+        }
+        let mut map = std::collections::HashMap::new();
+        for (i, key) in ["zeta", "mid", "alpha", "declared", "beta", "omega", "kappa"].iter().enumerate() {
+            map.insert((*key).to_string(), i32::try_from(i).expect("small index"));
+        }
+        let json = object_serializer::serialize(&Extras(map)).expect("serializes");
+        assert_eq!(json, r#"{"alpha":2,"beta":4,"kappa":6,"mid":1,"omega":5,"zeta":0}"#);
+    }
 
     /* F833: a content cookie is the SDK's JSON, percent-encoded keeping only
      * A-Z a-z 0-9 - . _ ~ literal, so the bytes match the other eleven SDKs
