@@ -507,4 +507,31 @@ public class StoreApiTest
         Assert.Contains("\"password\":\"p\"", client.SentBody!.ToString(), StringComparison.Ordinal);
         Assert.Contains("\"username\":\"u\"", client.SentBody!.ToString(), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task TestGetDepartmentDecodesTheMutuallyReferencingModels()
+    {
+        var api = NewStoreApiForMock(200, "application/json", "{\"name\":\"ops\",\"lead\":{\"name\":\"ann\"}}");
+
+        var department = await api.GetDepartmentAsync();
+
+        Assert.Equal("ops", department.Name);
+        Assert.Equal("ann", department.Lead!.Name);
+    }
+
+    [Fact]
+    public async Task TestGetStockItemDecodesEnumsAndNestedArrays()
+    {
+        var api = NewStoreApiForMock(
+            200,
+            "application/json",
+            "{\"priority\":2,\"availability\":\"on-hold\",\"matrix\":[[1,2],[3]]}");
+
+        var item = await api.GetStockItemAsync();
+
+        Assert.Equal(Priority.NUMBER_2, item.Priority);
+        Assert.Equal(Availability.OnHold, item.Availability);
+        Assert.Equal(2, item.Matrix!.Count);
+        Assert.Equal(new List<int> { 1, 2 }, item.Matrix[0]);
+    }
 }

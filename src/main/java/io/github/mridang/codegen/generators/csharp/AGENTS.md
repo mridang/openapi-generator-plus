@@ -331,3 +331,10 @@ Rule: `BaseApi` injects its `ApiClient` into a per-call `IHttpAwareAuthenticator
 Skipped in batch 7: F855 (a 401 retry and a public invalidate on the OAuth authenticators change the cross-language API shape), F840 and F1058 (owner decisions), F865 and F866 (need `additionalPropertiesType` and the `$ref` sibling default from shared Java), F1062 and F802 (shared Java), F057, F1060, F1100.
 
 Test: `ApiExceptionTest.mustache`, `DefaultApiClientTest.mustache` (`CustomCaCertAcceptsAServerThatSendsAnIntermediate`), `TransportOptionsTest.mustache`, `DefaultApiClientUnitTest.mustache`, `BaseApiTest.mustache`, `OpenIdConnectAuthenticatorTest.mustache`, `OAuth2TokenManagerTest.mustache`, `MetadataTest.mustache`, `ObjectSerializerTest.mustache` (`FixtureEdgeCaseTests`), `Test/Api/PetApiTest.mustache`, `Test/Api/StoreApiTest.mustache`, `BetterCSharpCodegenTest`.
+
+### Batch 7 follow-up: fixture tests and pagination (F1143, F1141, F1142, F1161, F1125, F1144, F1148, F1116, F1175, F1067, F1131, F1100)
+Rule: the object-valued `getPetTag` parameters, the `addPetTreatment` anyOf body, the non-string `uploadPetDocument` parts, `getDepartment` and `getStockItem`, the four hostile `Availability` members, U+2028, U+2029 and DEL written literally, the `contentEncoding` byte property, the `Pet.location` tuple, last-wins duplicate keys, the `Error` and `Result` schemas and the typed `/test/status/{code}` routes through `getPetById` are all pinned. C# does not prefix the colliding schemas `Error` and `Result` (a namespace separates them from the BCL), so F131 and F173 need no csharp change. `/test/response-headers` stays uncalled until multi-value response headers are decided (F836).
+
+Rule (F1100, proposal taken as the default): pagination, when added, is a separate additively named method per operation (`<Operation>PagesAsync` returning `IAsyncEnumerable<T>`), never a change to the return type of the existing data method. F1060 (one wrapper per OAuth2 flow) lives in shared Java `buildOAuthSpec` and is skipped.
+
+Test: `ObjectSerializerTest.mustache` (`FixtureEdgeCaseTests`), `Test/Api/PetApiTest.mustache`, `Test/Api/StoreApiTest.mustache`.
