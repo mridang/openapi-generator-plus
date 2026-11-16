@@ -166,6 +166,9 @@ open class OpenIdConnectAuthenticator(
             tokenManager = cached?.tokenManager ?: OAuth2TokenManager(),
         )
         resolved.setApiClient(client)
+        /* The PKCE verifier of an authorization URL already handed out must survive rediscovery,
+         * or the code that comes back could not be exchanged. */
+        resolved.pkceVerifier = cached?.pkceVerifier
         this.delegate = resolved
         this.discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers))
         return resolved

@@ -64,6 +64,100 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         assertTrue(url.startsWith("https://auth.example.com/authorize?"))
     }
 
+    private fun challengeOf(url: String): String =
+        Regex("code_challenge=([^&]+)").find(url)!!.groupValues[1]
+
+    private fun verifierSentIn(body: String?): String? =
+        Regex("code_verifier=([^&]+)").find(body.orEmpty())?.groupValues?.get(1)
+
+    @Test
+    fun pkceChallengeIsTheS256OfTheVerifier() {
+        // RFC 7636 appendix B test vector.
+        assertEquals(
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+            OAuth2AuthorizationCodeAuthenticator.pkceChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+        )
+    }
+
+    @Test
+    fun authorizationUrlCarriesAPkceS256ChallengeAndNoNonce() {
+        val url = createAuthenticator().buildAuthorizationUrl("st")
+
+        assertTrue(url.contains("&code_challenge_method=S256"), url)
+        assertTrue(Regex("&code_challenge=[A-Za-z0-9_-]{43}(&|$)").containsMatchIn(url), url)
+        assertFalse(url.contains("nonce"), url)
+    }
+
+    @Test
+    fun exchangeSendsTheVerifierOfTheAuthorizationUrl() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val url = auth.buildAuthorizationUrl()
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        val verifier = verifierSentIn(client.lastBody)
+        assertNotNull(verifier, client.lastBody)
+        assertTrue(Regex("[A-Za-z0-9_-]{43}").matches(verifier!!), verifier)
+        assertEquals(challengeOf(url), OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifier))
+    }
+
+    @Test
+    fun everyAuthorizationUrlGetsANewVerifierAndTheLastOneIsExchanged() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val first = auth.buildAuthorizationUrl()
+        val second = auth.buildAuthorizationUrl()
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        assertNotEquals(challengeOf(first), challengeOf(second))
+        assertEquals(
+            challengeOf(second),
+            OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifierSentIn(client.lastBody)!!),
+        )
+    }
+
+    @Test
+    fun exchangeWithoutAnAuthorizationUrlSendsNoVerifierAndAUsedVerifierIsNotSentAgain() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok3","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("first-code") }
+        assertNull(verifierSentIn(client.lastBody), client.lastBody)
+
+        auth.buildAuthorizationUrl()
+        runBlocking { auth.exchangeCode("second-code") }
+        assertNotNull(verifierSentIn(client.lastBody), client.lastBody)
+        runBlocking { auth.exchangeCode("third-code") }
+        assertNull(verifierSentIn(client.lastBody), client.lastBody)
+    }
+
+    @Test
+    fun invalidateAccessTokenKeepsTheRefreshTokenForTheNextCall() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        auth.invalidateAccessToken()
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertTrue(client.lastBody!!.contains("grant_type=refresh_token"), client.lastBody)
+        assertTrue(client.lastBody!!.contains("refresh_token=ref1"), client.lastBody)
+        assertEquals("Bearer tok2", headers["Authorization"])
+    }
+
     @Test
     fun buildsAuthorizationUrlWithState() {
         val auth = createAuthenticator()
