@@ -289,3 +289,21 @@ test('debug output masks the proxy password and credential default headers', fun
     expect($dump)->toContain('visible');
     expect($opts->proxy)->toBe('http://user:s3cr3t@proxy.example.com:8080');
 });
+
+test('max retries defaults to 2', function (): void {
+    expect(TransportOptions::builder()->build()->maxRetries)->toBe(2);
+    expect((new TransportOptions())->maxRetries)->toBe(2);
+});
+
+test('max retries can be set, including to 0 to disable retrying', function (int $retries): void {
+    expect(TransportOptions::builder()->maxRetries($retries)->build()->maxRetries)->toBe($retries);
+})->with([0, 1, 5]);
+
+test('constructor rejects a negative max retries', function (): void {
+    expect(fn () => new TransportOptions(maxRetries: -1))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries: must not be negative (got -1)');
+});
+
+test('debug output shows the max retries', function (): void {
+    expect(print_r(TransportOptions::builder()->maxRetries(4)->build(), true))->toContain('[maxRetries] => 4');
+});

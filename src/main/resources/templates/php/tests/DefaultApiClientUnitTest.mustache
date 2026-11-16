@@ -1777,3 +1777,226 @@ test('keeps an allowReserved query value byte for byte', function (): void {
 
     expect($capturedUrl)->toBe("http://example.com/echo?revision=v1.0/beta:rc1%5Bx%5D'y");
 });
+
+/**
+ * A client whose transport answers each attempt with the next outcome (the last
+ * one repeats): an int is a status, a pair holds a status and its headers, a
+ * throwable is a transport failure. Every attempt's URL is appended to $log.
+ *
+ * @param list<int|array{int, array<string, string>}|\Throwable> $outcomes
+ * @param \ArrayObject<int, string>                              $log
+ */
+function retryTestClient(array $outcomes, ?TransportOptions $options, \ArrayObject $log): StubbedDefaultApiClient
+{
+    $mock = new MockHttpClient(function (string $method, string $url) use ($outcomes, $log): MockResponse {
+        $outcome = $outcomes[min(count($log), count($outcomes) - 1)];
+        $log[] = $url;
+        if ($outcome instanceof \Throwable) {
+            throw $outcome;
+        }
+        [$status, $headers] = is_int($outcome) ? [$outcome, []] : $outcome;
+
+        return new MockResponse('{}', ['http_code' => $status, 'response_headers' => $headers]);
+    });
+
+    return new StubbedDefaultApiClient($mock, $options);
+}
+
+test('maxRetries defaults to 2: a failing request is attempted three times with a doubling backoff', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503], null, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(503);
+    expect(count($log))->toBe(3);
+    expect($client->pauses)->toBe([0.5, 1.0]);
+});
+
+test('a retried request that then succeeds returns the success', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([500, 502, 200], null, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect(count($log))->toBe(3);
+});
+
+test('maxRetries 0 sends a failing request once', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503], TransportOptions::builder()->maxRetries(0)->build(), $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(503);
+    expect(count($log))->toBe(1);
+    expect($client->pauses)->toBe([]);
+});
+
+test('a negative maxRetries is rejected', function (): void {
+    expect(fn (): TransportOptions => TransportOptions::builder()->maxRetries(-1)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
+});
+
+test('only 408, 409, 429 and 5xx other than 501 are retried', function (int $status, int $attempts): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([$status], null, $log);
+
+    $client->sendWithRetries('GET', 'http://example.com/status', static fn (): array => [], null);
+
+    expect(count($log))->toBe($attempts);
+})->with([
+    '400' => [400, 1],
+    '401' => [401, 1],
+    '404' => [404, 1],
+    '422' => [422, 1],
+    '501' => [501, 1],
+    '408' => [408, 3],
+    '409' => [409, 3],
+    '429' => [429, 3],
+    '500' => [500, 3],
+    '502' => [502, 3],
+    '599' => [599, 3],
+]);
+
+test('the backoff doubles from 0.5 s up to 8 s', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $options = TransportOptions::builder()->maxRetries(6)->timeout(null)->build();
+    $client = retryTestClient([500], $options, $log);
+
+    $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($client->pauses)->toBe([0.5, 1.0, 2.0, 4.0, 8.0, 8.0]);
+});
+
+test('the backoff is shortened by up to 25 percent of jitter', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([500], TransportOptions::builder()->maxRetries(1)->build(), $log);
+    $client->jitterValue = 1.0;
+
+    $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($client->pauses)->toBe([0.375]);
+});
+
+test('Retry-After in seconds replaces the backoff and is capped at 60 s', function (
+    string $header,
+    float $expected
+): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $options = TransportOptions::builder()->maxRetries(1)->timeout(null)->build();
+    $client = retryTestClient([[429, ['Retry-After' => $header]], 200], $options, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/limited', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($client->pauses)->toBe([$expected]);
+})->with([
+    'a few seconds' => ['3', 3.0],
+    'zero' => ['0', 0.0],
+    'above the cap' => ['600', 60.0],
+]);
+
+test('Retry-After as an HTTP date is honoured', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $options = TransportOptions::builder()->maxRetries(1)->timeout(null)->build();
+    $date = gmdate('D, d M Y H:i:s', time() + 30) . ' GMT';
+    $client = retryTestClient([[503, ['Retry-After' => $date]], 200], $options, $log);
+
+    $client->sendWithRetries('GET', 'http://example.com/limited', static fn (): array => [], null);
+
+    expect($client->pauses)->toHaveCount(1);
+    expect($client->pauses[0])->toBeGreaterThan(25.0)->toBeLessThanOrEqual(30.0);
+});
+
+test('an unreadable Retry-After falls back to the backoff', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([[503, ['Retry-After' => 'soon']], 200], null, $log);
+
+    $client->sendWithRetries('GET', 'http://example.com/limited', static fn (): array => [], null);
+
+    expect($client->pauses)->toBe([0.5]);
+});
+
+test('retries never extend the request timeout', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $options = TransportOptions::builder()->timeout(1000)->build();
+    $client = retryTestClient([[503, ['Retry-After' => '5']], 200], $options, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/limited', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(503);
+    expect(count($log))->toBe(1);
+    expect($client->pauses)->toBe([]);
+});
+
+test('a network error before a response is retried', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $reset = new \Symfony\Component\HttpClient\Exception\TransportException('Connection reset by peer');
+    $client = retryTestClient([$reset, 200], null, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect(count($log))->toBe(2);
+});
+
+test('a network error that persists is raised after the last attempt', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $reset = new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
+    $client = retryTestClient([$reset], null, $log);
+
+    expect(fn (): mixed => $client->sendWithRetries('GET', 'http://example.com/down', static fn (): array => [], null))
+        ->toThrow(\{{invokerPackage}}\Errors\NetworkException::class);
+    expect(count($log))->toBe(3);
+});
+
+test('a multipart body is sent once', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503], null, $log);
+
+    $response = $client->sendWithRetries('POST', 'http://example.com/upload', static fn (): array => [], ['note' => 'x']);
+
+    expect($response->statusCode)->toBe(503);
+    expect(count($log))->toBe(1);
+});
+
+test('a string body is replayed on every attempt', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503, 200], null, $log);
+
+    $response = $client->sendWithRetries('POST', 'http://example.com/items', static fn (): array => [], '{"a":1}');
+
+    expect($response->statusCode)->toBe(200);
+    expect(count($log))->toBe(2);
+});
+
+test('every attempt builds its headers anew', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503, 503, 200], null, $log);
+    $built = 0;
+
+    $client->sendWithRetries('GET', 'http://example.com/flaky', static function () use (&$built): array {
+        $built++;
+
+        return ['Authorization' => 'Bearer t' . $built];
+    }, null);
+
+    expect($built)->toBe(3);
+});

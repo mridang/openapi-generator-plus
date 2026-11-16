@@ -251,6 +251,14 @@ $transport = TransportOptions::builder()
 $client = new {{clientClassName}}($authenticator, $transport);
 ```
 
+### Automatic retries
+
+`TransportOptions::builder()->maxRetries(int)` sets the retries after a transient failure (default 2; 0 disables). Network errors before a response and 408, 409, 429 and 5xx (not 501) are retried with a 0.5 s to 8 s backoff and `Retry-After` honoured (at most 60 s). The retries stay inside the request timeout, a stream or multipart body is never retried, and each retry rebuilds the headers, authentication included.
+
+```php
+$transport = TransportOptions::builder()->maxRetries(0)->build();
+```
+
 ## API Methods
 
 Each API group is exposed as a typed property on the client (e.g., `$client->{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.

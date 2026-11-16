@@ -49,6 +49,20 @@ vendor/bin/rector
 - Namespace: `{{invokerPackage}}`
 - Version: `{{packageVersion}}`
 
+## Configuration
+
+### Automatic retries
+
+A request that fails with a transient error is retried by the SDK. `TransportOptions::builder()->maxRetries()` sets how many times (default 2, so up to three attempts); `maxRetries(0)` disables retrying.
+
+```php
+use {{invokerPackage}}\TransportOptions;
+
+$transport = TransportOptions::builder()->maxRetries(4)->build();
+```
+
+A request is retried after a network error that happened before a response arrived, and after a 408, 409, 429 or 5xx response (not 501). The wait starts at 0.5 s, doubles up to 8 s and is shortened by up to 25% at random; a `Retry-After` header (seconds or an HTTP date, at most 60 s) replaces it. Retries never extend the request timeout: when the next wait would outlast what is left of it, the last failure is reported. A stream or multipart body is never retried, and every retry is a new request with freshly built authentication headers.
+
 ## Custom HTTP client (PSR-18)
 
 By default the SDK sends requests through `DefaultApiClient`, which is backed by
