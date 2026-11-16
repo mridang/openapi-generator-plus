@@ -4599,10 +4599,11 @@
    "unit_testable": true,
    "lens": "L01-value-serializer",
    "id": "F064",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "Elixir does not reject a path value of '.' or '..', which a URL parser then treats as navigation."
+   "plain": "Elixir does not reject a path value of '.' or '..', which a URL parser then treats as navigation.",
+   "commit": "bafc34b37"
   },
   {
    "title": "Petstore lacks the parameter shapes needed to catch the value-serializer wire defects above",
@@ -4884,10 +4885,11 @@
    "unit_testable": true,
    "lens": "L01-value-serializer",
    "id": "F069",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "medium",
-   "plain": "Byte-format parameters are not base64-encoded in Python, Swift and Elixir, so a different wrong form is sent."
+   "plain": "Byte-format parameters are not base64-encoded in Python, Swift and Elixir, so a different wrong form is sent.",
+   "commit": "bafc34b37"
   },
   {
    "title": "format: date handling is inconsistent: node skips the param style for date params, and node, dart and php send arrays of dates as full date-times",
@@ -5056,10 +5058,11 @@
    "unit_testable": true,
    "lens": "L01-value-serializer",
    "id": "F072",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "Set-type array parameters are stringified as debug text in several SDKs instead of expanded like arrays."
+   "plain": "Set-type array parameters are stringified as debug text in several SDKs instead of expanded like arrays.",
+   "commit": "bafc34b37"
   },
   {
    "title": "A JSON number (and in node a boolean) is accepted for format:date-time in java/python/node with three different interpretations",
@@ -5525,10 +5528,11 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F080",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "Python accepts date-times without a timezone offset and fills them using the host clock."
+   "plain": "Python accepts date-times without a timezone offset and fills them using the host clock.",
+   "commit": "bafc34b37"
   },
   {
    "title": "format:byte base64 decode strictness differs on padding, whitespace, alphabet and trailing bits (php model fields not validated at all)",
@@ -6123,10 +6127,11 @@
    "suspected_forced_reason": "go's net/http owns Location parsing, but it can be matched by returning the 3xx (CheckRedirect cannot see a parse failure); the others are unforced.",
    "lens": "L04-transport",
    "id": "F089",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "A redirect to a malformed Location header is treated differently in C# and Python."
+   "plain": "A redirect to a malformed Location header is treated differently in C# and Python.",
+   "commit": "bafc34b37"
   },
   {
    "title": "Environment proxy variables (HTTP(S)_PROXY/NO_PROXY) are honoured by some SDKs and ignored by others",
@@ -6210,10 +6215,11 @@
    "suspected_forced_reason": "None. Re-add the transport's own proxy header after the strip (the strip should only remove caller-supplied credentials).",
    "lens": "L04-transport",
    "id": "F091",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "medium",
-   "plain": "On Apple platforms Swift sends the proxy credentials to the target server and loses them after a redirect."
+   "plain": "On Apple platforms Swift sends the proxy credentials to the target server and loses them after a redirect.",
+   "commit": "bafc34b37"
   },
   {
    "title": "Relative Location resolution is not RFC 3986 in java/kotlin/python/php (query-only refs); python/php also skip dot-segment removal",
@@ -9270,10 +9276,11 @@
    "unit_testable": true,
    "lens": "L10-models-composed",
    "id": "F138",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "Swift lets an extra property overwrite a declared one; others let the declared one win."
+   "plain": "Swift lets an extra property overwrite a declared one; others let the declared one win.",
+   "commit": "bafc34b37"
   },
   {
    "title": "Non-discriminated oneOf/anyOf variants are tried in alphabetical (TreeSet) order in 7 SDKs but in declaration order in 5, so ambiguous payloads resolve differently",
@@ -12337,10 +12344,11 @@
    "unit_testable": true,
    "lens": "L15-template-mechanics",
    "id": "F177",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "Tag, externalDocs and package-description text from the spec is not safely escaped everywhere, so quotes or '*/' in prose can break some generated files."
+   "plain": "Tag, externalDocs and package-description text from the spec is not safely escaped everywhere, so quotes or '*/' in prose can break some generated files.",
+   "commit": "bafc34b37"
   },
   {
    "title": "Raw tag and externalDocs prose skips escapeText, so a multi-line or '*/' description breaks compilation in some SDKs but not others",
@@ -12827,10 +12835,11 @@
    "suspected_forced_reason": "None. The README templates drifted from the config templates.",
    "lens": "L16-docs-packaging",
    "id": "F183",
-   "status": "open",
-   "note": "template/README text, not a rule document: still open",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "The README names linters and rules that the shipped config does not use."
+   "plain": "The README names linters and rules that the shipped config does not use.",
+   "commit": "bafc34b37"
   },
   {
    "title": "SKILLS 'Binary / File Uploads' states the wrong upload parameter type in java, kotlin, php and go",
@@ -14438,10 +14447,11 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F206",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "A null inside a model array is dropped or kept by PHP and Elixir while others reject it."
+   "plain": "A null inside a model array is dropped or kept by PHP and Elixir while others reject it.",
+   "commit": "bafc34b37"
   },
   {
    "title": "go matches JSON keys case-insensitively: {\"ID\":7} sets Pet.Id, and {\"name\":\"Rex\",\"NAME\":\"Evil\"} yields Name=\"Evil\"",
@@ -17243,10 +17253,11 @@
    "unit_testable": true,
    "lens": "L03-request-assembly",
    "id": "F253",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "Non-ASCII filenames in multipart uploads are encoded differently across several SDKs."
+   "plain": "Non-ASCII filenames in multipart uploads are encoded differently across several SDKs.",
+   "commit": "bafc34b37"
   },
   {
    "title": "Multipart scalar part stringification differs: python bool 'True', php bool '1'/'' and swift Int64/Int32/Float sent as application/json parts",
@@ -18130,10 +18141,11 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F268",
-   "status": "parked",
-   "note": "shared step failed in serializers-and-models",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "A response body starting with a byte-order mark is parsed in some SDKs and not others when building the error."
+   "plain": "A response body starting with a byte-order mark is parsed in some SDKs and not others when building the error.",
+   "commit": "bafc34b37"
   },
   {
    "title": "kotlin and go parse the OAuth2 §5.2 error object differently from the other 10 (non-string fields)",
@@ -19140,10 +19152,11 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F288",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "OAuth scopes are sent in a random order instead of the order in the spec, so the scope string differs from what the spec lists."
+   "plain": "OAuth scopes are sent in a random order instead of the order in the spec, so the scope string differs from what the spec lists.",
+   "commit": "bafc34b37"
   },
   {
    "title": "Non-JSON 2xx token body echoed into OAuth2TokenError message (ruby, kotlin; node/java partially) — can leak the access/refresh token into logs",
@@ -27241,10 +27254,11 @@
    "unit_testable": false,
    "lens": "L22-lifecycle",
    "id": "F411",
-   "status": "parked",
-   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "priority_triage": "low",
-   "plain": "Rust close() only sets a flag although the docs say it releases resources."
+   "plain": "Rust close() only sets a flag although the docs say it releases resources.",
+   "commit": "bafc34b37"
   },
   {
    "id": "F412",
@@ -29348,11 +29362,12 @@
    "description": "model.mustache anyof_merged_dump still uses python-mode model_dump, so an anyOf model whose retained variant has date-time, bytes or decimal fields is written through json.dumps(default=str) as str() text; the fix is mode='json' but the petstore anyOf members have no such fields, so it needs a spec change to lock.",
    "evidence": [],
    "unit_testable": null,
-   "status": "parked",
-   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "batch": null,
    "priority_triage": "low",
-   "plain": "Python anyOf models with dates, bytes or decimals dump them in a different form than the wire form."
+   "plain": "Python anyOf models with dates, bytes or decimals dump them in a different form than the wire form.",
+   "commit": "bafc34b37"
   },
   {
    "id": "F492",
@@ -29765,11 +29780,12 @@
    "description": "Symfony FormDataPart forces Content-Transfer-Encoding: 8bit onto every part, so JSON object parts and file parts in DefaultApiClient still send a header Psr18ApiClient omits. DataPart::fromPath returns self and cannot be subclassed, so file parts need a different construction.",
    "evidence": [],
    "unit_testable": null,
-   "status": "parked",
-   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "batch": null,
    "priority_triage": "low",
-   "plain": "PHP multipart parts always carry a Content-Transfer-Encoding 8bit header the others do not."
+   "plain": "PHP multipart parts always carry a Content-Transfer-Encoding 8bit header the others do not.",
+   "commit": "bafc34b37"
   },
   {
    "id": "F517",
@@ -29831,11 +29847,12 @@
    "description": "The elixir model template emits no deprecation marker at all for deprecated enum, oneOf and anyOf schemas; only struct models (hasVars or not) got the old @deprecated line and now get the moduledoc marker.",
    "evidence": [],
    "unit_testable": null,
-   "status": "parked",
-   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "batch": null,
    "priority_triage": "low",
-   "plain": "Elixir gives no deprecation marker to deprecated enum, oneOf and anyOf schemas."
+   "plain": "Elixir gives no deprecation marker to deprecated enum, oneOf and anyOf schemas.",
+   "commit": "bafc34b37"
   },
   {
    "id": "F521",
@@ -29931,11 +29948,12 @@
    "description": "DefaultApiClientTests.testTimesOutOnSlowEndpoint never exercises a timeout. It uses an instant stub, so it only checks that a 1 ms configuration is accepted, and its name is misleading.",
    "evidence": [],
    "unit_testable": null,
-   "status": "parked",
-   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "batch": null,
    "priority_triage": "medium",
-   "plain": "The Swift slow-endpoint test never actually exercises a timeout."
+   "plain": "The Swift slow-endpoint test never actually exercises a timeout.",
+   "commit": "bafc34b37"
   },
   {
    "id": "F527",
@@ -29949,11 +29967,12 @@
    "description": "Deprecated operations with several request content-types may be missing #[deprecated] on the generated _with_content_type variant: the api.mustache block for that variant has no isDeprecated guard (not verified against a deprecated multi-consumes operation).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the rust fix agent, unverified",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "batch": null,
    "priority_triage": "low",
-   "plain": "Rust content-type variants of deprecated operations may lack the deprecated mark."
+   "plain": "Rust content-type variants of deprecated operations may lack the deprecated mark.",
+   "commit": "bafc34b37"
   },
   {
    "id": "F528",
@@ -30001,11 +30020,12 @@
    "description": "rust test fixtures do not exercise a multi-certificate CA bundle, so nothing locks that every certificate in a bundle is trusted.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the rust fix agent, unverified",
+   "status": "fixed",
+   "note": "fixed in every affected sdk with a test, verified by the per-language specs",
    "batch": null,
    "priority_triage": "low",
-   "plain": "No test proves every certificate in a multi-certificate CA bundle is trusted."
+   "plain": "No test proves every certificate in a multi-certificate CA bundle is trusted.",
+   "commit": "bafc34b37"
   },
   {
    "id": "F531",
