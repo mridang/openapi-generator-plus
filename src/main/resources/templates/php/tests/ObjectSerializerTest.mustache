@@ -682,6 +682,16 @@ test('deserialize holds the exact string default literal for greeting', function
     expect($defaults->greeting)->toBe("it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b");
 });
 
+test('numeric schema defaults are exact typed values', function (): void {
+    /** @var Defaults $defaults */
+    $defaults = ObjectSerializer::deserialize('{}', Defaults::class);
+
+    expect($defaults->ratio)->toBe(1.5);
+    expect($defaults->scale)->toBe(0.25);
+    expect($defaults->weight)->toBe(2.0);
+    expect($defaults->ceiling)->toBe(9000000000);
+});
+
 test('deserialize preserves explicit null over a defaulted field', function (): void {
     $json = '{"label":null,"retries":7}';
     /** @var Defaults $defaults */
