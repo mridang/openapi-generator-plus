@@ -503,6 +503,37 @@ void main() {
       );
     });
 
+    for (final tokenType in ['"DPoP"', '"MAC"', '42']) {
+      test('token_type $tokenType is refused without echoing it', () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+            '{"access_token":"tok","token_type":$tokenType,"expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+        await expectLater(
+          () => manager.getAccessToken('https://auth.example.com/token',
+              {'grant_type': 'client_credentials'}),
+          throwsA(isA<OAuth2TokenException>().having((e) => e.message,
+              'message', 'Unsupported token_type in token response')),
+        );
+      });
+    }
+
+    for (final tokenType in ['bearer', 'Bearer', 'BEARER']) {
+      test('token_type $tokenType is accepted', () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+            '{"access_token":"tok","token_type":"$tokenType","expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+        expect(
+          await manager.getAccessToken('https://auth.example.com/token',
+              {'grant_type': 'client_credentials'}),
+          equals('tok'),
+        );
+      });
+    }
+
     test('a non-JSON token response carries no parser detail', () async {
       final client = _FakeApiClient();
       client.enqueue('<html>not json</html>');

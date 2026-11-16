@@ -160,6 +160,37 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       );
     }
 
+    /* OpenID Connect Discovery 1.0 section 4.3: the issuer must equal the URL
+     * the document was fetched from (minus the well-known suffix), the
+     * defence against a document served for another issuer. A document
+     * without an issuer, or a discovery URL of another shape, is not
+     * checked. */
+    const wellKnown = '/.well-known/openid-configuration';
+    final issuer = decoded['issuer'];
+    if (issuer is String && _openIdConnectUrl.endsWith(wellKnown)) {
+      final expected = _openIdConnectUrl
+          .substring(0, _openIdConnectUrl.length - wellKnown.length);
+      if (_stripTrailingSlash(issuer) != _stripTrailingSlash(expected)) {
+        throw SerializationException(
+          'OIDC discovery document issuer does not match the discovery URL',
+        );
+      }
+    }
+    /* The authorization code and the client secret travel to these
+     * endpoints: refuse clear text unless the host is a loopback address
+     * (RFC 8252 section 8.3). */
+    if (!_isSecureOrLoopback(authorizationEndpoint)) {
+      throw SerializationException(
+        'OIDC discovery document field must be an https URL: '
+        'authorization_endpoint',
+      );
+    }
+    if (!_isSecureOrLoopback(tokenEndpoint)) {
+      throw SerializationException(
+        'OIDC discovery document field must be an https URL: token_endpoint',
+      );
+    }
+
     final expiry = DateTime.now()
         .add(Duration(seconds: _parseMaxAge(response.headers)));
 
@@ -193,6 +224,26 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
     _discoveryExpiry = expiry;
 
     return _delegate!;
+  }
+
+  static String _stripTrailingSlash(String url) =>
+      url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+
+  /// An https URL, or an http URL whose host is a loopback address.
+  static bool _isSecureOrLoopback(String url) {
+    final Uri uri;
+    try {
+      uri = Uri.parse(url);
+    } on FormatException {
+      return false;
+    }
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme == 'https') {
+      return true;
+    }
+    final host = uri.host.toLowerCase();
+    return scheme == 'http' &&
+        (host == 'localhost' || host == '127.0.0.1' || host == '::1');
   }
 
   /// Parse `Cache-Control: max-age=<seconds>` from response headers.

@@ -1039,6 +1039,65 @@ void main() {
       }
     });
 
+    /* A deepObject query parameter with an additionalProperties schema is sent
+     * as one bracketed pair per entry. */
+    test('findPetsByStatus sends the deepObject filter as bracketed pairs', () async {
+      String? capturedQuery;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedQuery = request.uri.query;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.findPetsByStatus(const FindPetsByStatusOptions(
+            filter: {'owner': 'ann', 'tier': 'gold'}));
+
+        final decoded = Uri.decodeQueryComponent(capturedQuery ?? '');
+        expect(decoded, contains('filter[owner]=ann'));
+        expect(decoded, contains('filter[tier]=gold'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* A matrix-style path parameter renders as `;name=value` and a label-style
+     * one as `.value`. */
+    test('getPetTag sends the matrix and label path parameters in their styles', () async {
+      String? capturedPath;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedPath = request.uri.path;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":5,"name":"Rex","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetTag(5, 'cute', null);
+
+        expect(capturedPath, equals('/pet/;petId=5/tag/.cute'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('addPetTreatment sends the chosen anyOf variant as the request body', () async {
       String? requestBody;
       String? requestPath;

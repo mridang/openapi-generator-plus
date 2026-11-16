@@ -91,6 +91,12 @@ void main() {
       expect(opts.userAgent, isNotEmpty);
     });
 
+    test('the default userAgent is the registry name, the version and the language', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.userAgent,
+          matches(RegExp(r'^{{packageName}}/[^ ]+ \(dart\)$')));
+    });
+
     test('userAgent can be set to null to omit the header', () {
       final opts = TransportOptionsBuilder().userAgent(null).build();
       expect(opts.userAgent, isNull);
@@ -165,6 +171,7 @@ void main() {
         'a secret@proxy:3128': 'Invalid proxy URL',
         'ftp://user:secret@proxy:21': 'Invalid proxy URL (must use http or https scheme)',
         'http://user:secret@:3128': 'Invalid proxy URL (missing host)',
+        'http://user:secret@[::1:3128': 'Invalid proxy URL',
       };
       rejected.forEach((url, message) {
         expect(
@@ -174,6 +181,20 @@ void main() {
               .having((e) => e.toString(), 'toString', isNot(contains('secret')))),
         );
       });
+    });
+
+    test('a proxy URL with user-info, an IPv6 literal or a path is accepted', () {
+      for (final url in [
+        'http://user:pw@proxy:3128',
+        'http://[::1]:3128',
+        'http://proxy:3128/path?q=1',
+      ]) {
+        expect(TransportOptionsBuilder().proxy(url).build().proxy,
+            equals(Uri.parse(url)));
+      }
+      expect(
+          TransportOptionsBuilder().proxy('http://[::1]:3128').build().proxy!.host,
+          equals('::1'));
     });
 
     test('an invalid proxy URL is rejected at build, not in the setter', () {

@@ -165,6 +165,22 @@ void main() {
       );
     });
 
+    test('repeated response headers are joined in order', () async {
+      final resp = await DefaultApiClient().sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/response-headers',
+        {},
+        null,
+      );
+      expect(resp.headers['x-custom-header'], equals('foo'));
+      final link = resp.headers['link']!;
+      expect(link.indexOf('rel="next"'), greaterThanOrEqualTo(0));
+      expect(link.indexOf('rel="next"'), lessThan(link.indexOf('rel="prev"')));
+      final cookies = resp.headers['set-cookie']!;
+      expect(cookies.indexOf('a=1'), greaterThanOrEqualTo(0));
+      expect(cookies.indexOf('a=1'), lessThan(cookies.indexOf('b=2')));
+    });
+
     test('injects custom User-Agent header', () async {
       final transport = TransportOptionsBuilder()
           .userAgent('MyApp/1.0')
