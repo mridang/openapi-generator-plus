@@ -153,6 +153,27 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
             throw new SerializationException("OIDC discovery document is missing 'token_endpoint'");
         }
 
+        /* OpenID Connect Discovery 1.0 section 4.3: the issuer must equal the
+         * URL the document was fetched from (minus the well-known suffix),
+         * which is the defence against a document served for another issuer.
+         * A document that carries no issuer is not rejected here. */
+        $wellKnown = '/.well-known/openid-configuration';
+        $issuer = $discovery['issuer'] ?? null;
+        if (is_string($issuer) && str_ends_with($this->openIdConnectUrl, $wellKnown)) {
+            $expectedIssuer = rtrim(substr($this->openIdConnectUrl, 0, -strlen($wellKnown)), '/');
+            if (rtrim($issuer, '/') !== $expectedIssuer) {
+                throw new SerializationException(
+                    "OIDC discovery issuer '" . $issuer . "' does not match '" . $expectedIssuer . "'"
+                );
+            }
+        }
+        /* The authorization code and the client secret travel to these
+         * endpoints: refuse clear text unless the host is a loopback address
+         * (RFC 8252 section 8.3). */
+        foreach (['authorization_endpoint' => $authorizationEndpoint, 'token_endpoint' => $tokenEndpoint] as $name => $endpoint) {
+            self::assertSecureEndpoint($name, $endpoint);
+        }
+
         /* The session (tokens and the exchanged flag) lives in the token manager,
          * which outlives discovery: a document that names the same endpoints keeps
          * the delegate, and one that names new endpoints gets a delegate built
@@ -187,6 +208,28 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         $this->discoveryExpiry = time() + $this->parseMaxAge($response->headers);
 
         return $this->delegate;
+    }
+
+    /**
+     * Rejects a discovered endpoint that is not https, unless it is a loopback host.
+     *
+     * @throws SerializationException when the endpoint would send credentials in clear text
+     */
+    private static function assertSecureEndpoint(string $name, string $endpoint): void
+    {
+        $parts = parse_url($endpoint);
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower(trim((string) ($parts['host'] ?? ''), '[]'));
+        if ($scheme === 'https') {
+            return;
+        }
+        $loopback = $host === 'localhost' || $host === '::1' || str_starts_with($host, '127.');
+        if ($scheme === 'http' && $loopback) {
+            return;
+        }
+        throw new SerializationException(
+            "OIDC discovery document '" . $name . "' must be an https URL (got '" . $endpoint . "')"
+        );
     }
 
     /**
