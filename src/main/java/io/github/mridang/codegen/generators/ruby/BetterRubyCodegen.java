@@ -302,6 +302,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("errors/not_found_error.mustache", errorsPath, "not_found_error.rb"),
             new SupportingFileSpec("errors/conflict_error.mustache", errorsPath, "conflict_error.rb"),
             new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsPath, "unprocessable_entity_error.rb"),
+            new SupportingFileSpec("errors/too_many_requests_error.mustache", errorsPath, "too_many_requests_error.rb"),
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsPath, "internal_server_error.rb"),
             new SupportingFileSpec("errors/network_error.mustache", errorsPath, "network_error.rb"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsPath, "network_timeout_error.rb"),

@@ -171,6 +171,22 @@ import Testing
         }
     }
 
+    @Test func testErrorDispatch429() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 429
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        do {
+            _ = try await api.getPetById(petId: 1)
+            Issue.record("Expected error for status 429")
+        } catch let error as TooManyRequestsError {
+            #expect(error is ClientError)
+            #expect(error.statusCode == 429)
+        }
+    }
+
     @Test func testErrorDispatch500() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 500

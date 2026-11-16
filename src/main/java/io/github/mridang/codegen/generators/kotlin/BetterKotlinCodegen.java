@@ -409,6 +409,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.kt"),
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.kt"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.kt"),
+            new SupportingFileSpec("errors/TooManyRequestsException.mustache", errorsFolder, "TooManyRequestsException.kt"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.kt"),
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.kt"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.kt"),

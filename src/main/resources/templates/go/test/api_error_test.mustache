@@ -29,6 +29,7 @@ var (
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.NotFoundError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.ConflictError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.UnprocessableEntityError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.TooManyRequestsError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.InternalServerError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.NetworkError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.NetworkTimeoutError)(nil)
@@ -348,6 +349,7 @@ func TestFromResponse_MapsEveryStatusToItsType(t *testing.T) {
 		{404, "*errors.NotFoundError"},
 		{409, "*errors.ConflictError"},
 		{422, "*errors.UnprocessableEntityError"},
+		{429, "*errors.TooManyRequestsError"},
 		{418, "*errors.ClientError"},
 		{500, "*errors.InternalServerError"},
 		{503, "*errors.ServerError"},
@@ -398,6 +400,7 @@ func TestPackageRoot_ReexportsTheErrorTree(t *testing.T) {
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.NotFoundError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.ConflictError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.UnprocessableEntityError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.TooManyRequestsError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.ServerError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.InternalServerError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.NetworkError)(nil)

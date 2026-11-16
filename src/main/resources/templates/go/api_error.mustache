@@ -248,6 +248,8 @@ func FromResponse(statusCode int, headers map[string]string, body string) error 
 			return &ConflictError{ClientError: clientErr}
 		case 422:
 			return &UnprocessableEntityError{ClientError: clientErr}
+		case 429:
+			return &TooManyRequestsError{ClientError: clientErr}
 		default:
 			return &clientErr
 		}

@@ -290,3 +290,8 @@ Test: `python3 etc/api-surface.py check`.
 - Regenerate the golden: `mvn test -Dtest='Generate*ClientTest,FixtureVocabularyLeakTest' -DforkCount=0 -Djacoco.skip=true -DfailIfNoTests=false`, then commit all twelve goldens current
 - `python3 etc/api-surface.py check` must not get worse after a change
 - Inside a generated tree: `bundle exec rake test`, `bundle exec rubocop`, `bundle exec steep check`, `bundle exec yard doc --fail-on-warning`
+
+### Batch 5 fixes (F824, F831, F832, F833, F839)
+Rule: `Client#close` closes the `DefaultApiClient` the SDK built (a supplied Faraday connection is never closed; a closed client raises the existing closed `RuntimeError`); `Errors::TooManyRequestsError` (429, a `ClientError`) is selected in `ApiError.from_response`; the unexpected-Content-Type `SerializationError` names `Class.operation` through the `operation_id:` keyword of `invoke_api_for_result`; a `content:` cookie is percent-encoded by `ValueSerializer.encode_content_cookie` (only A-Z a-z 0-9 - . _ ~ literal); on 301/302 only POST becomes GET, on 303 every method but HEAD becomes GET, 307/308 never change the method.
+Where: `client.mustache`, `errors/too_many_requests_error.mustache`, `base_api.mustache`, `value_serializer.mustache`, `default_api_client.mustache`, `infrastructure_rbs.mustache`.
+Test: `client_test`, `api_error_test`, `base_api_test`, `value_serializer_test`, `default_api_client_test`.

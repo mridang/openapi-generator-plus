@@ -15,6 +15,7 @@ package errors
 //	 │   ├─ ClientError (4xx)          BadRequest(400) Unauthorized(401)
 //	 │   │                             Forbidden(403) NotFound(404)
 //	 │   │                             Conflict(409) UnprocessableEntity(422)
+//	 │   │                             TooManyRequests(429)
 //	 │   ├─ ServerError (5xx)          InternalServerError(500)
 //	 │   └─ NetworkError               (no HTTP response: connection, DNS, TLS, reset)
 //	 │       └─ NetworkTimeoutError    (the request timed out)

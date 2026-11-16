@@ -58,9 +58,10 @@ class BaseApiTest {
             body: Any? = null,
             accepts: Array<String> = arrayOf("application/json"),
             contentType: String = "application/json",
-            auth: Authenticator? = null
+            auth: Authenticator? = null,
+            operation: String = "TestableApi.callForResult"
         ): ApiResult<T> {
-            return invokeApiForResult<T>(method, path, queryParams, headerParams, body, accepts, contentType, auth)
+            return invokeApiForResult<T>(method, path, queryParams, headerParams, body, accepts, contentType, auth, operation)
         }
     }
 
@@ -186,6 +187,14 @@ class BaseApiTest {
         fun throws409() {
             assertThrows(ConflictException::class.java) {
                 runBlocking { api().call("GET", "/test/status/409") }
+            }
+        }
+
+        @Test
+        @DisplayName("429 throws TooManyRequestsException")
+        fun throws429() {
+            assertThrows(TooManyRequestsException::class.java) {
+                runBlocking { api().call("GET", "/test/status/429") }
             }
         }
 
@@ -1017,10 +1026,14 @@ class BaseApiTest {
                 {{invokerPackage}}.errors.SerializationException::class.java
             ) {
                 runBlocking {
-                    testApi.callForResult<Int>("GET", "/api/text", accepts = arrayOf("text/plain"))
+                    testApi.callForResult<Int>(
+                        "GET", "/api/text", accepts = arrayOf("text/plain"), operation = "PetApi.getText"
+                    )
                 }
             }
             assertTrue(ex.message!!.contains("text/plain"))
+            assertTrue(ex.message!!.contains("for PetApi.getText:"))
+            assertFalse(ex.message!!.contains("invokeApiForResult"))
         }
 
         @Test

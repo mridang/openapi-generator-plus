@@ -549,6 +549,38 @@ public class DefaultApiClientTest
         Assert.Equal(HttpMethod.Get, handler.Requests[1].Method);
     }
 
+    [Theory]
+    [InlineData(301, "POST", "GET", false)]
+    [InlineData(302, "POST", "GET", false)]
+    [InlineData(301, "PUT", "PUT", true)]
+    [InlineData(302, "PATCH", "PATCH", true)]
+    [InlineData(302, "DELETE", "DELETE", true)]
+    [InlineData(303, "PUT", "GET", false)]
+    [InlineData(303, "POST", "GET", false)]
+    [InlineData(303, "HEAD", "HEAD", false)]
+    [InlineData(307, "PUT", "PUT", true)]
+    [InlineData(308, "DELETE", "DELETE", true)]
+    public async Task RedirectRewritesTheMethodPerRfc9110(
+        int status, string method, string expectedMethod, bool expectedBody)
+    {
+        var handler = new DowngradeRedirectHandler(
+            firstStatus: (HttpStatusCode)status,
+            location: new Uri("http://secure.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            method,
+            new Uri("http://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            method == "HEAD" ? null : "payload"
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(new HttpMethod(expectedMethod), handler.Requests[1].Method);
+        Assert.Equal(expectedBody, handler.HadBody[1]);
+    }
+
     [Fact]
     public async Task Downgrade307WithBodyThrows()
     {
@@ -843,6 +875,7 @@ public class DefaultApiClientTest
         private readonly HttpStatusCode _firstStatus;
         private readonly Uri _location;
         public List<HttpRequestMessage> Requests { get; } = [];
+        public List<bool> HadBody { get; } = [];
 
         public DowngradeRedirectHandler(HttpStatusCode firstStatus, Uri location)
         {
@@ -862,6 +895,7 @@ public class DefaultApiClientTest
                 snapshot.Headers.TryAddWithoutValidation(h.Key, h.Value);
             }
             Requests.Add(snapshot);
+            HadBody.Add(request.Content != null);
 
             if (Requests.Count == 1)
             {

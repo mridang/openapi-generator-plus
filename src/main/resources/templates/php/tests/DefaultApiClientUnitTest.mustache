@@ -472,6 +472,27 @@ test('multipart file part carries no content transfer encoding', function (): vo
     }
 });
 
+test('multipart psr7 stream part is sent as a file part with its bytes', function (): void {
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    $client = new StubbedDefaultApiClient($mockClient);
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        ['file' => (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('stream-bytes')]
+    );
+
+    expect($capturedBody)->toContain('stream-bytes');
+    expect($capturedBody)->toContain('filename="file"');
+});
+
 test('multipart pdf file gets application pdf content type', function (): void {
     $tmp = tempnam(sys_get_temp_dir(), 'mp_');
     expect($tmp)->toBeString();

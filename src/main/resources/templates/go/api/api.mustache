@@ -4,9 +4,9 @@ package {{packageName}}
 import (
 	"context"
 	"fmt"
-{{#hasOsImport}}
-	"os"
-{{/hasOsImport}}
+{{#hasIoImport}}
+	"io"
+{{/hasIoImport}}
 {{#hasStringsImport}}
 	"strings"
 {{/hasStringsImport}}
@@ -202,7 +202,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 {{#required}}
 {{! A required form/file param is only meaningfully present if its field is set.
     Enforce that per field type: empty string for string params, nil for a single
-    *os.File, and an empty slice for repeated files / array params. Other shapes
+    io.Reader, and an empty slice for repeated files / array params. Other shapes
     (e.g. a model value type) have no unset sentinel, so the nil-options guard
     above is the only check that applies. }}
 {{#isString}}
@@ -373,7 +373,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 			if cerr != nil {
 				return nil, cerr
 			}
-			cookieValue = string(contentBytes)
+			cookieValue = encodeContentCookieValue(contentBytes)
 		}
 {{/vendorExtensions.goContent}}
 {{^vendorExtensions.goContent}}
@@ -397,7 +397,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 			if cerr != nil {
 				return nil, cerr
 			}
-			cookieValue = string(contentBytes)
+			cookieValue = encodeContentCookieValue(contentBytes)
 		}
 {{/vendorExtensions.goContent}}
 {{^vendorExtensions.goContent}}
@@ -423,9 +423,16 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 		formBody["{{baseName}}"] = options.{{nameInPascalCase}}
 {{/required}}
 {{^required}}
+{{#isFile}}
+		if options.{{nameInPascalCase}} != nil {
+			formBody["{{baseName}}"] = options.{{nameInPascalCase}}
+		}
+{{/isFile}}
+{{^isFile}}
 		if options.{{nameInPascalCase}} != nil {
 			formBody["{{baseName}}"] = *options.{{nameInPascalCase}}
 		}
+{{/isFile}}
 {{/required}}
 {{/formParams}}
 	}

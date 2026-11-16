@@ -438,6 +438,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.java"),
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.java"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.java"),
+            new SupportingFileSpec("errors/TooManyRequestsException.mustache", errorsFolder, "TooManyRequestsException.java"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.java"),
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.java"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.java"),

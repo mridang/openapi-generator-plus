@@ -58,6 +58,22 @@ public sealed class ClientTest : IDisposable
         Assert.False(handler.Disposed);
     }
 
+    [Fact]
+    public async Task ClosedClientRejectsFurtherRequestsAndKeepsTheSuppliedHandlerOpen()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var client = new {{clientClassName}}(_authenticator, transport);
+        client.Dispose();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.Store.GetInventoryAsync());
+
+        Assert.Contains("closed", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(0, handler.Requests);
+        Assert.False(handler.Disposed);
+    }
+
     private sealed class RecordingHandler : HttpMessageHandler
     {
         public int Requests { get; private set; }

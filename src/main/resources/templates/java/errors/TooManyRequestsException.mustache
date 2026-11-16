@@ -1,0 +1,64 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors;
+
+import java.util.Map;
+import javax.annotation.Nullable;
+
+/**
+ * Exception for HTTP 429 Too Many Requests.
+ */
+public class TooManyRequestsException extends ClientException {
+    @java.io.Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Creates a new exception with an empty message and no response context.
+     */
+    public TooManyRequestsException() {
+        this("", null, null, null);
+    }
+
+    /**
+     * Creates a new exception with no response context.
+     *
+     * @param message the error message
+     */
+    public TooManyRequestsException(String message) {
+        this(message, null, null, null);
+    }
+
+    /**
+     * Creates a new exception.
+     *
+     * @param message the error message
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @param errorBody the deserialized error body, if available
+     */
+    public TooManyRequestsException(
+            String message,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody,
+            @Nullable Object errorBody) {
+        super(429, message, responseHeaders, responseBody, errorBody);
+    }
+
+    /**
+     * Creates a new exception that keeps the underlying failure as its cause.
+     *
+     * @param message the error message
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @param errorBody the deserialized error body, if available
+     * @param cause the underlying failure, if any
+     */
+    public TooManyRequestsException(
+            String message,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody,
+            @Nullable Object errorBody,
+            @Nullable Throwable cause) {
+        super(429, message, responseHeaders, responseBody, errorBody, cause);
+    }
+}

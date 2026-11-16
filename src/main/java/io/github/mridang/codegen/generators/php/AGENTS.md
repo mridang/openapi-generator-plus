@@ -50,6 +50,12 @@ This folder holds `BetterPHPCodegen` (generator name `php-plus`), which turns an
 
 Newest first. Ids are from `PARITY_DECISIONS.md` (D), the root `AGENTS.md` (R-), and the 2026-11-16 session (S).
 
+### Batch 5 (2026-11-16)
+Rule: `Client::close()` (and `__destruct`) rejects later requests from every API group with the closed-client `\LogicException` and releases only a transport the SDK built itself (S9: a supplied transport is never closed). HTTP 429 maps to `TooManyRequestsException` (a `ClientException`, same constructor shape). The redirect loop follows RFC 9110 15.4 (301/302: only POST becomes GET; 303: all but HEAD become GET; 307/308 keep method), and the HTTPS to HTTP body-replay refusal applies whenever the body would be replayed. Binary bodies and multipart parts also accept a PSR-7 `StreamInterface`. `content:` cookies are `rawurlencode` of the serializer JSON (already the D52 set). The 'Unexpected response Content-Type' error does not exist in php.
+Open: the declared parameter type of binary bodies and upload fields is still `\SplFileObject` (a union with string, resource and `StreamInterface` needs an API-shape decision); the runtime already accepts them.
+Where: `client.mustache`, `abstract_api_client.mustache`, `base_api.mustache`, `default_api_client.mustache`, `psr18_api_client.mustache`, `errors/TooManyRequestsException.mustache`, `api_error.mustache`.
+Test: `ClientTest`, `ApiExceptionTest`, `BaseApiTest`, `Psr18ApiClientUnitTest`, `DefaultApiClientUnitTest`, `ObjectSerializerTest`.
+
 ### Container responses are checked element by element (S1, F006, 2026-11-16, pending in the golden)
 Rule: a response typed as a container of primitives (`map<string,int32>`, `array<array<int32>>`) is checked per element exactly like a single primitive.
 Why: php was one of seven SDKs where the container bypassed the strict primitive checks; the owner decided all twelve agree.

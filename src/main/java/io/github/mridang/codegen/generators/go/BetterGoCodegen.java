@@ -116,7 +116,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         typeMapping.put("map", "map");
         typeMapping.put("object", "any");
         typeMapping.put("AnyType", "any");
-        typeMapping.put("file", "*os.File");
+        typeMapping.put("file", "io.Reader");
         typeMapping.put("binary", "[]byte");
         typeMapping.put("ByteArray", "[]byte");
         typeMapping.put("UUID", "uuid.UUID");
@@ -536,6 +536,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "pkg/errors",
                         "unprocessable_entity_error.go"),
                 new SupportingFileSpec(
+                        "errors/too_many_requests_error.mustache",
+                        "pkg/errors",
+                        "too_many_requests_error.go"),
+                new SupportingFileSpec(
                         "errors/internal_server_error.mustache",
                         "pkg/errors",
                         "internal_server_error.go"),
@@ -718,7 +722,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     protected Map<String, String> getOperationContextFlags() {
         return Map.of(
-                "type:os.File", "hasOsImport",
+                "type:io.Reader", "hasIoImport",
                 "type:uuid.UUID", "hasUuidImport",
                 "servers", "hasStringsImport",
                 "cookieParams", "hasStringsImport");
@@ -742,7 +746,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "string", "bool", "int32", "int64", "float32", "float64",
                         "any", "byte", "[]byte");
         boolean hasModelImport = false;
-        boolean hasOsImport = false;
+        boolean hasIoImport = false;
         boolean hasUuidImport = false;
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
@@ -750,6 +754,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             param.put("name", optionsFieldName(p.paramName));
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            param.put("isReader", "io.Reader".equals(p.dataType));
             // A parameter declared `deprecated: true` in the spec must carry that
             // signal onto its Options field. The native CodegenParameter.deprecated
             // flag is threaded here so the template can emit the Go deprecation doc
@@ -773,8 +778,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     dataType == null ? "" : dataType.replace("[]", "").replace("*", "");
             if (dataType != null && WRAPPER_TYPE.matcher(dataType).find()) {
                 hasModelImport = true;
-            } else if (p.isFile || (dataType != null && dataType.contains("os.File"))) {
-                hasOsImport = true;
+            } else if (p.isFile || (dataType != null && dataType.contains("io.Reader"))) {
+                hasIoImport = true;
             } else if (dataType != null && dataType.contains("uuid.UUID")) {
                 hasUuidImport = true;
             } else if (!p.isPrimitiveType
@@ -802,8 +807,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         if (hasModelImport) {
             context.put("hasModelImport", true);
         }
-        if (hasOsImport) {
-            context.put("hasOsImport", true);
+        if (hasIoImport) {
+            context.put("hasIoImport", true);
         }
         if (hasUuidImport) {
             context.put("hasUuidImport", true);
@@ -1070,15 +1075,15 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
 
     /**
      * Rewrites binary ({@code format: binary}) response bodies from
-     * {@code *os.File} to the idiomatic {@code []byte}.
+     * {@code io.Reader} to the idiomatic {@code []byte}.
      *
      * <p>OpenAPI's {@code DefaultCodegen} resolves a
      * {@code type: string, format: binary} schema to the {@code file}
-     * type, which {@link #typeMapping} maps to {@code *os.File}. For a
+     * type, which {@link #typeMapping} maps to {@code io.Reader}. For a
      * response body the codegen then sets {@code op.returnType} to that
      * pointer type and the api template wraps the convenience variant in
      * a further pointer ({@code *T}), yielding a non-idiomatic
-     * {@code **os.File} double pointer (and {@code ApiResult[*os.File]}
+     * {@code *io.Reader} double pointer (and {@code ApiResult[io.Reader]}
      * for the WithHTTPInfo variant).
      *
      * <p>The transport layer carries the response body as a base64
@@ -1087,7 +1092,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
      * via {@code decodeBinaryResponse}, so {@code []byte} is the single
      * type the transport can cleanly produce. Rewriting the return type
      * here (rather than globally in {@code getSchemaType}) leaves binary
-     * <em>request</em> bodies and multipart file uploads as {@code *os.File},
+     * <em>request</em> bodies and multipart file uploads as {@code io.Reader},
      * which is the idiomatic Go type for streaming a file from disk.
      */
     @Override
@@ -1100,8 +1105,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     (List<CodegenOperation>) operations.get("operation");
             if (ops != null) {
                 for (final CodegenOperation op : ops) {
-                    if ("os.File".equals(op.returnBaseType)
-                            || (op.returnType != null && op.returnType.contains("os.File"))) {
+                    if ("io.Reader".equals(op.returnBaseType)
+                            || (op.returnType != null && op.returnType.contains("io.Reader"))) {
                         op.returnType = "[]byte";
                         op.returnBaseType = "byte";
                         op.returnContainer = "array";

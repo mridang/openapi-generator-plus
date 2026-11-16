@@ -160,6 +160,15 @@ class DefaultApiClientUnitTest {
           exchange.close();
         });
     server.createContext(
+        "/redirect-status",
+        exchange -> {
+          String code = exchange.getRequestURI().getRawQuery();
+          exchange.getRequestBody().readAllBytes();
+          exchange.getResponseHeaders().add("Location", "/echo");
+          exchange.sendResponseHeaders(Integer.parseInt(code), -1);
+          exchange.close();
+        });
+    server.createContext(
         "/redirect-loop",
         exchange -> {
           exchange.getResponseHeaders().add("Location", "/redirect-loop");
@@ -419,6 +428,43 @@ class DefaultApiClientUnitTest {
     DefaultApiClient reuse =
         new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
     assertEquals(200, reuse.sendRequest("GET", baseUrl + "/echo", Map.of(), null).statusCode());
+  }
+
+  private static String echoed(String method, String body) {
+    return "{\"method\":\"" + method + "\",\"body\":\"" + body + "\"}";
+  }
+
+  private String methodAndBodyAfterRedirect(String method, int status) {
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+    ApiHttpResponse response =
+        client.sendRequest(method, baseUrl + "/redirect-status?" + status, Map.of(), "payload");
+    assertEquals(200, response.statusCode());
+    return response.body();
+  }
+
+  @Test
+  void redirect301And302RewriteOnlyPostToGet() {
+    for (int status : new int[] {301, 302}) {
+      assertEquals(echoed("GET", ""), methodAndBodyAfterRedirect("POST", status));
+      for (String method : new String[] {"PUT", "PATCH", "DELETE"}) {
+        assertEquals(echoed(method, "payload"), methodAndBodyAfterRedirect(method, status));
+      }
+    }
+  }
+
+  @Test
+  void redirect303RewritesEveryMethodToGet() {
+    for (String method : new String[] {"POST", "PUT", "PATCH", "DELETE"}) {
+      assertEquals(echoed("GET", ""), methodAndBodyAfterRedirect(method, 303));
+    }
+  }
+
+  @Test
+  void redirect307And308KeepMethodAndBody() {
+    for (int status : new int[] {307, 308}) {
+      assertEquals(echoed("PUT", "payload"), methodAndBodyAfterRedirect("PUT", status));
+    }
   }
 
   @Test

@@ -739,6 +739,45 @@ describe {{moduleName}}::DefaultApiClient do
     end
   end
 
+  # RFC 9110 section 15.4: which method and body the follow-up request carries.
+  describe 'redirect method rewriting' do
+    def redirect_connection(status, seen)
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        %i[get head post put patch delete].each do |verb|
+          stub.public_send(verb, '/start') { [status, { 'location' => '/final' }, ''] }
+          stub.public_send(verb, '/final') do |env|
+            seen << [env.method.to_s.upcase, env.body.to_s]
+            [200, { 'content-type' => 'text/plain' }, 'ok']
+          end
+        end
+      end
+      Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+    end
+
+    {
+      301 => { 'POST' => 'GET', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE' },
+      302 => { 'POST' => 'GET', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE' },
+      303 => { 'POST' => 'GET', 'PUT' => 'GET', 'PATCH' => 'GET', 'DELETE' => 'GET', 'HEAD' => 'HEAD' },
+      307 => { 'POST' => 'POST', 'PUT' => 'PUT', 'DELETE' => 'DELETE' },
+      308 => { 'POST' => 'POST', 'PATCH' => 'PATCH' }
+    }.each do |status, expectations|
+      expectations.each do |verb, expected|
+        it "a #{status} redirect sends #{verb} on as #{expected}" do
+          seen = [] # : Array[Array[String]]
+          transport = {{moduleName}}::TransportOptions.builder
+                                                      .connection(redirect_connection(status, seen))
+                                                      .follow_redirects(true).build
+          client = {{moduleName}}::DefaultApiClient.new(transport)
+
+          resp = client.send_request(verb.downcase.to_sym, 'http://localhost/start', {}, 'payload')
+
+          _(resp.status_code).must_equal(200)
+          _(seen).must_equal([[expected, expected == verb ? 'payload' : '']])
+        end
+      end
+    end
+  end
+
   describe 'injected Faraday connection' do
     def injected_connection(seen)
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|

@@ -47,10 +47,13 @@ class {{clientClassName}} {
 {{/apis}}
 {{/apiInfo}}
 
+  final DefaultApiClient _apiClient;
+
   {{clientClassName}}._({
     required Authenticator authenticator,
     required DefaultApiClient apiClient,
-  }) : {{#apiInfo}}{{#apis}}{{#operations}}{{clientPropertyName}} = _create{{classname}}(authenticator, apiClient){{^-last}},
+  }) : _apiClient = apiClient,
+       {{#apiInfo}}{{#apis}}{{#operations}}{{clientPropertyName}} = _create{{classname}}(authenticator, apiClient){{^-last}},
        {{/-last}}{{#-last}};{{/-last}}{{/operations}}{{/apis}}{{/apiInfo}}
 
   /// Creates a new client with the given authenticator and transport options.
@@ -86,6 +89,15 @@ class {{clientClassName}} {
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+
+  /// Releases the HTTP transport this client built for itself.
+  ///
+  /// A transport supplied by the caller through
+  /// [TransportOptions.httpClient] is never closed: the caller owns it. After
+  /// this call any further request raises a [StateError]. Idempotent.
+  void close() {
+    _apiClient.close();
+  }
 
   /// Creates a client authenticated with a static Bearer token.
   ///

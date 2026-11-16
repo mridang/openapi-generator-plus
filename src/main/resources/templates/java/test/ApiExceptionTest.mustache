@@ -187,6 +187,11 @@ class ApiExceptionTest {
         assertEquals(409, new {{invokerPackage}}.errors.ConflictException("m", null, null, null, cause).getStatusCode());
         assertEquals(cause, new {{invokerPackage}}.errors.UnprocessableEntityException("m", null, null, null, cause).getCause());
         assertEquals(422, new {{invokerPackage}}.errors.UnprocessableEntityException("m", null, null, null, cause).getStatusCode());
+        assertEquals(cause, new {{invokerPackage}}.errors.TooManyRequestsException("m", null, null, null, cause).getCause());
+        assertEquals(429, new {{invokerPackage}}.errors.TooManyRequestsException("m", null, null, null, cause).getStatusCode());
+        assertInstanceOf(
+                {{invokerPackage}}.errors.ClientException.class,
+                new {{invokerPackage}}.errors.TooManyRequestsException("m", null, null, null, cause));
         assertEquals(cause, new {{invokerPackage}}.errors.InternalServerErrorException("m", null, null, null, cause).getCause());
         assertEquals(500, new {{invokerPackage}}.errors.InternalServerErrorException("m", null, null, null, cause).getStatusCode());
         assertEquals(cause, new {{invokerPackage}}.errors.ClientException(418, "m", null, null, null, cause).getCause());
@@ -216,6 +221,7 @@ class ApiExceptionTest {
                 Map.entry(404, {{invokerPackage}}.errors.NotFoundException.class),
                 Map.entry(409, {{invokerPackage}}.errors.ConflictException.class),
                 Map.entry(422, {{invokerPackage}}.errors.UnprocessableEntityException.class),
+                Map.entry(429, {{invokerPackage}}.errors.TooManyRequestsException.class),
                 Map.entry(418, {{invokerPackage}}.errors.ClientException.class),
                 Map.entry(500, {{invokerPackage}}.errors.InternalServerErrorException.class),
                 Map.entry(503, {{invokerPackage}}.errors.ServerException.class),
@@ -319,6 +325,7 @@ class ApiExceptionTest {
                 {{invokerPackage}}.errors.NotFoundException.class,
                 {{invokerPackage}}.errors.ConflictException.class,
                 {{invokerPackage}}.errors.UnprocessableEntityException.class,
+                {{invokerPackage}}.errors.TooManyRequestsException.class,
                 {{invokerPackage}}.errors.InternalServerErrorException.class,
                 {{invokerPackage}}.errors.NetworkException.class,
                 {{invokerPackage}}.errors.NetworkTimeoutException.class,

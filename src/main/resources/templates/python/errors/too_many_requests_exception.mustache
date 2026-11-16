@@ -1,0 +1,19 @@
+{{>api_info}}
+
+from typing import Any, Optional
+
+from {{packageName}}.errors.client_exception import ClientException
+
+
+class TooManyRequestsException(ClientException):
+    """Exception for HTTP 429 Too Many Requests."""
+
+    def __init__(
+        self,
+        message: Optional[str] = None,
+        response_headers: Optional[Any] = None,
+        response_body: Optional[str] = None,
+        error_body: Optional[Any] = None,
+        cause: Optional[BaseException] = None,
+    ) -> None:
+        super().__init__(status_code=429, message=message, response_headers=response_headers, response_body=response_body, error_body=error_body, cause=cause)

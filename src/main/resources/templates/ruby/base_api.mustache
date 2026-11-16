@@ -64,11 +64,13 @@ module {{moduleName}}
       # @param auth [Object, nil] operation-specific auth resolution. Three states:
       #   NO_AUTH suppresses auth (security: [] operation), nil falls back to the
       #   client-level authenticator, and a real authenticator is a per-call override.
+      # @param operation_id [String, nil] the calling operation as +Class.operation+, named in a
+      #   serialization error (defaults to the API class name)
       # @return [ApiResult] ApiResult containing deserialized data, status code, raw body, and headers
       # @raise [Errors::ApiError] if the API call fails
       def invoke_api_for_result(
         method, path, query_params, header_params, body,
-        accepts, content_type, return_type, auth = nil, raw_body: false
+        accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil
       )
         url = if path.start_with?('http://', 'https://')
                 path
@@ -171,7 +173,7 @@ module {{moduleName}}
                    # refuse it and name the Content-Type.
                    raise ::{{moduleName}}::Errors::SerializationError.new(
                      "Unexpected response Content-Type '#{resp_content_type}' for " \
-                     "#{self.class.name.to_s.split('::').last}.#{method.downcase}: expected a JSON body", nil
+                     "#{operation_id || self.class.name.to_s.split('::').last}: expected a JSON body", nil
                    )
                  end
         end
@@ -197,15 +199,16 @@ module {{moduleName}}
       # @param auth [Object, nil] operation-specific auth resolution. Three states:
       #   NO_AUTH suppresses auth (security: [] operation), nil falls back to the
       #   client-level authenticator, and a real authenticator is a per-call override.
+      # @param operation_id [String, nil] the calling operation as +Class.operation+
       # @return [Object, nil] deserialized response or nil
       # @raise [Errors::ApiError] if the API call fails
       def invoke_api(
         method, path, query_params, header_params, body,
-        accepts, content_type, return_type, auth = nil
+        accepts, content_type, return_type, auth = nil, operation_id: nil
       )
         invoke_api_for_result(
           method, path, query_params, header_params, body,
-          accepts, content_type, return_type, auth
+          accepts, content_type, return_type, auth, operation_id: operation_id
         ).data
       end
 

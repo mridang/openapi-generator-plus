@@ -572,7 +572,8 @@ public class {{classname}} : BaseApi
     (passing null here would WRONGLY re-acquire it and leak the credential). }}
                 {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
                 rawBody: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
-                cancellationToken: cancellationToken
+                cancellationToken: cancellationToken,
+                operationName: "{{classname}}.{{operationId}}"
             )
             .ConfigureAwait(false);
     }

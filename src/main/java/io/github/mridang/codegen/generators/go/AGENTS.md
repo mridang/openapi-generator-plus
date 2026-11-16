@@ -56,7 +56,7 @@ Where: `object_serializer.mustache`, `base_api.mustache`.
 Test: `test/object_serializer_test.mustache` and the `getInventory`/`getMatrix` rows in `test/api/store_api_test.mustache`.
 
 ### Content parameters use the SDK serializer (S2, F054, F068, D50, D80)
-Rule: a `content: application/json` parameter is encoded by the package `serialize()` (an `Encoder` with HTML escaping off) and its `*SerializationError` is returned from the operation before any request. The query, options and required arms are landed; header, path and cookie arms are intended (F054 is open in the ledger, F833 tracks cookie percent-encoding).
+Rule: a `content: application/json` parameter is encoded by the package `serialize()` (an `Encoder` with HTML escaping off) and its `*SerializationError` is returned from the operation before any request. The query, options and required arms are landed; header and path arms are intended (F054 is open in the ledger). A `content:` cookie is serialised by `serialize()` and then percent-encoded by `encodeContentCookieValue`, keeping only A-Z a-z 0-9 - . _ ~ literal (F833, D52), and still passes `isValidCookieValue`.
 Why: `json.Marshal` escaped `<`, `>`, `&` and its error was discarded, so the bytes differed from the other eleven.
 Where: `api/api.mustache`, `object_serializer.mustache`.
 Test: `searchStore.q` rows in `test/api/store_api_test.mustache`.
@@ -275,7 +275,7 @@ Test: the matching generated tests; the ledger rows hold the per-decision lock.
 
 Out of scope in every SDK, and the README says so (S11, closed backlog issues #53, #70, #78, #88, #90): callbacks and webhooks, XML bodies and `xml.nodeType`, Link Objects and mutual TLS. OpenAPI 3.2 and 3.1 are tracked by epics #49 and #96, and loading 3.2 documents is issue #50 (the pinned swagger-parser rejects it).
 
-Open or deferred ledger items that touch go: F021 (`InjectTraceContext(headers)` takes no context, so the registered OpenTelemetry propagator never sees the caller's span; now that operations take `ctx` the hook can take it, deferred); F842 (a multi-consumes operation spends its only variadic slot on `requestContentType ...string`, so a later per-call `...RequestOption` (F827) would be a breaking change; needs an owner decision); F826 (a binary body or upload field is a `*os.File` in go, so a caller holding `[]byte` or an `io.Reader` must write a temp file; the `rawBody` path accepts `[]byte`, `string` and `io.Reader` for a body, upload fields are still files); F290 (the infallible `AuthHeaders()` returns an empty map on failure, open API-shape question, see Settled); F316 (a go model struct can be built with zero values and without validation, forced); F308 (integer enum members ignore the language casing, parked); F057 (allOf with a discriminator), F215, F054 and F803 are open in the ledger and described under Settled.
+Open or deferred ledger items that touch go: F021 (`InjectTraceContext(headers)` takes no context, so the registered OpenTelemetry propagator never sees the caller's span; now that operations take `ctx` the hook can take it, deferred); F842 (a multi-consumes operation spends its only variadic slot on `requestContentType ...string`, so a later per-call `...RequestOption` (F827) would be a breaking change; needs an owner decision); F290 (the infallible `AuthHeaders()` returns an empty map on failure, open API-shape question, see Settled); F316 (a go model struct can be built with zero values and without validation, forced); F308 (integer enum members ignore the language casing, parked); F057 (allOf with a discriminator), F215, F054 and F803 are open in the ledger and described under Settled.
 
 Not harmonised on purpose: the multipart file part sends a real filename and a sniffed MIME through the `*os.File` options types (the other nine send the field name and `application/octet-stream`); the OAuth2 token decode is typed, so a numeric `access_token` or `refresh_token` fails the exchange where ten SDKs ignore the bad field (borderline-forced); `ClientAuthMethod` has no `String()` and the OAuth2 `String` forms differ (F285); go model `%v` prints pointer addresses for optional fields (F321, no decision); a oneOf or anyOf wrapper with no match returns `data does not match any oneOf schemas for <X>` while the central helper says `No oneOf/anyOf variant matched the JSON` (F396). `format: number` is `float64` and lossy by design. SOCKS proxies are not supported.
 
@@ -297,3 +297,12 @@ mvn verify -Dgroups=go
 ```
 
 Inside the generated module: `make lint`, `make vet`, `make staticcheck`, `make test`, `make docs`.
+
+## Batch 5 (landed)
+
+- F826: `format: binary` request bodies and upload fields are `io.Reader` (`typeMapping` `file`), arrays are `[]io.Reader`; an `*os.File` still satisfies it and keeps its real filename and sniffed MIME in the multipart part. Tests: `test/api/pet_api_test.mustache` (`...AcceptsAnIoReader`), `test/skills_test.mustache`.
+- F831: `TooManyRequestsError` (429, a `ClientError`) selected by `FromResponse`; test rows in `test/api_error_test.mustache`.
+- F833: see Content parameters above; test `TestEncodeContentCookieValue_UsesTheUnreservedSetOnly` in `test/object_serializer_test.mustache`.
+- F839: `CheckRedirect` restores the method and body on 301/302 for every method except POST (net/http demotes all of them); 303 and 307/308 already conform. Test `TestDefaultApiClient_RedirectMethodRewriting`.
+- F824: `Close()` cancels the base context, closes idle connections of the owned transport only, and later calls return `ErrClientClosed`; test `TestDefaultApiClient_ClosedClientRejectsRequestsAndLeavesSuppliedDoerOpen`.
+- F832: already conforming (the error names `Class.operationId`).

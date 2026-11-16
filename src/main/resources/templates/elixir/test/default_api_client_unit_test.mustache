@@ -1249,5 +1249,34 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
                  "--b--\r\n"
     end
   end
+
+  describe "redirect_method/2 (RFC 9110 section 15.4)" do
+    alias {{moduleName}}.DefaultApiClient
+
+    test "301 and 302 turn only POST into GET" do
+      for status <- [301, 302] do
+        assert DefaultApiClient.redirect_method(status, :post) == :get
+        assert DefaultApiClient.redirect_method(status, :put) == :put
+        assert DefaultApiClient.redirect_method(status, :patch) == :patch
+        assert DefaultApiClient.redirect_method(status, :delete) == :delete
+        assert DefaultApiClient.redirect_method(status, :head) == :head
+        assert DefaultApiClient.redirect_method(status, :get) == :get
+      end
+    end
+
+    test "303 turns every method except HEAD into GET" do
+      for method <- [:post, :put, :patch, :delete, :get] do
+        assert DefaultApiClient.redirect_method(303, method) == :get
+      end
+
+      assert DefaultApiClient.redirect_method(303, :head) == :head
+    end
+
+    test "307 and 308 never change the method" do
+      for status <- [307, 308], method <- [:post, :put, :patch, :delete, :get, :head] do
+        assert DefaultApiClient.redirect_method(status, method) == method
+      end
+    end
+  end
 end
 {{/generateTests}}

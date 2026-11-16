@@ -555,8 +555,7 @@ public final class DefaultApiClient implements ApiClient {
                      * tokens, multipart parts) into cleartext. We only refuse
                      * when the next-hop method would actually carry the original
                      * body — that means 307/308 redirects of a body-bearing
-                     * request. 303 always coerces to GET and 301/302 historically
-                     * drop the body for non-GET/HEAD, so those cases are safe. */
+                     * request. 303 coerces to GET, so that case is safe. */
                     if (shouldRefuseHttpsToHttpBodyReplay(
                             originalUri, redirectUri, response.statusCode(),
                             currentBody != NO_BODY)) {
@@ -568,27 +567,24 @@ public final class DefaultApiClient implements ApiClient {
                                 null);
                     }
 
-                    /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
-                     *   307 + 308: preserve original method and body.
-                     *   303:       force GET, drop the body (and Content-Type/Length).
-                     *   301 + 302: historical browser behaviour — switch to GET for
-                     *              non-GET/HEAD requests, drop the body. */
+                    /* RFC 9110 section 15.4: pick the follow-up method and body.
+                     *   307 + 308: keep the method and body.
+                     *   303:       every method except HEAD becomes GET, body dropped.
+                     *   301 + 302: only POST becomes GET, body dropped; every other
+                     *              method keeps its method and body. */
                     int statusCode = response.statusCode();
                     String nextMethod;
                     HttpRequest.BodyPublisher nextBody;
-                    if (statusCode == 307 || statusCode == 308) {
-                        nextMethod = currentMethod;
-                        nextBody = currentBody;
-                    } else if (statusCode == 303) {
+                    boolean rewriteToGet =
+                            (statusCode == 303 && !"HEAD".equalsIgnoreCase(currentMethod))
+                                    || ((statusCode == 301 || statusCode == 302)
+                                            && "POST".equalsIgnoreCase(currentMethod));
+                    if (rewriteToGet) {
                         nextMethod = "GET";
                         nextBody = NO_BODY;
-                    } else if ("GET".equalsIgnoreCase(currentMethod)
-                            || "HEAD".equalsIgnoreCase(currentMethod)) {
-                        nextMethod = currentMethod;
-                        nextBody = currentBody;
                     } else {
-                        nextMethod = "GET";
-                        nextBody = NO_BODY;
+                        nextMethod = currentMethod;
+                        nextBody = currentBody;
                     }
 
                     Map<String, String> redirectHeaders = new HashMap<>(currentHeaders);
@@ -605,10 +601,7 @@ public final class DefaultApiClient implements ApiClient {
                             && (sameOrigin || "http".equalsIgnoreCase(redirectUri.getScheme()))) {
                         redirectHeaders.put("Proxy-Authorization", proxyAuthHeader);
                     }
-                    if (nextBody == NO_BODY
-                            || ((statusCode == 303 || statusCode == 301 || statusCode == 302)
-                                    && !"GET".equalsIgnoreCase(currentMethod)
-                                    && !"HEAD".equalsIgnoreCase(currentMethod))) {
+                    if (nextBody == NO_BODY) {
                         redirectHeaders.keySet().removeIf(
                                 DefaultApiClient::isEntityHeader);
                     }

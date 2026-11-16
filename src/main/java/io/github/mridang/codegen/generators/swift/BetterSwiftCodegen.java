@@ -450,6 +450,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/not_found_error.mustache", errorsDir, "NotFoundError.swift"),
             new SupportingFileSpec("errors/conflict_error.mustache", errorsDir, "ConflictError.swift"),
             new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsDir, "UnprocessableEntityError.swift"),
+            new SupportingFileSpec("errors/too_many_requests_error.mustache", errorsDir, "TooManyRequestsError.swift"),
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "InternalServerError.swift"),
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "NetworkError.swift"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "NetworkTimeoutError.swift"),

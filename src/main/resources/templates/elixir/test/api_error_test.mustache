@@ -234,6 +234,7 @@ defmodule {{moduleName}}.ApiErrorTest do
             {{moduleName}}.Errors.NotFoundError,
             {{moduleName}}.Errors.ConflictError,
             {{moduleName}}.Errors.UnprocessableEntityError,
+            {{moduleName}}.Errors.TooManyRequestsError,
             {{moduleName}}.Errors.InternalServerError,
             {{moduleName}}.Errors.ClientError,
             {{moduleName}}.Errors.ServerError
@@ -271,6 +272,16 @@ defmodule {{moduleName}}.ApiErrorTest do
       refute {{moduleName}}.Errors.ApiError.api_error?(%ArgumentError{message: "unrelated"})
     end
 
+    test "a 429 is a TooManyRequestsError and a ClientError" do
+      err = {{moduleName}}.Errors.ApiError.from_response(429, %{"retry-after" => "3"}, nil)
+
+      assert %{{moduleName}}.Errors.TooManyRequestsError{status_code: 429} = err
+      assert err.message == "API returned status code 429"
+      assert {{moduleName}}.Errors.TooManyRequestsError.exception("slow down").status_code == 429
+      assert {{moduleName}}.Errors.ClientError.client_error?(err)
+      assert {{moduleName}}.Errors.ApiError.api_error?(err)
+    end
+
     # The public status factory every generated operation and the OpenID
     # Connect discovery request use: the most specific error for each status,
     # with the status, headers and body kept and a JSON body parsed.
@@ -284,6 +295,7 @@ defmodule {{moduleName}}.ApiErrorTest do
             {404, {{moduleName}}.Errors.NotFoundError},
             {409, {{moduleName}}.Errors.ConflictError},
             {422, {{moduleName}}.Errors.UnprocessableEntityError},
+            {429, {{moduleName}}.Errors.TooManyRequestsError},
             {418, {{moduleName}}.Errors.ClientError},
             {500, {{moduleName}}.Errors.InternalServerError},
             {503, {{moduleName}}.Errors.ServerError},

@@ -264,3 +264,8 @@ python3 etc/api-surface.py check
 ```
 
 Language-specific: `mvn verify -Dgroups=java`; inside a generated SDK `mvn compile`, `mvn test`, `mvn spotless:check`, `mvn spotbugs:check checkstyle:check`.
+
+### Batch 5 (F824, F831, F832, F833, F839)
+Rule: the `Client` facade is `AutoCloseable` and closes the `DefaultApiClient` it built (a caller-supplied `HttpClient` is never closed; a closed client throws `IllegalStateException`). HTTP 429 maps to `TooManyRequestsException` (a `ClientException`). The "Unexpected response Content-Type" error names `Class.operationId`, passed as the first argument of `invokeApi`/`invokeApiForResult`. A `content:` cookie is encoded by `BaseApi.encodeContentCookie` (only `A-Z a-z 0-9 - . _ ~` literal, UTF-8 percent-encoded). Redirects follow RFC 9110 15.4: 301/302 rewrite only POST to GET, 303 rewrites everything but HEAD, 307/308 keep method and body.
+Where: `client.mustache`, `errors/TooManyRequestsException.mustache`, `api_error.mustache`, `base_api.mustache`, `api/api.mustache`, `default_api_client.mustache`.
+Test: `ClientTest`, `ApiExceptionTest`, `BaseApiTest`, `DefaultApiClientUnitTest`.

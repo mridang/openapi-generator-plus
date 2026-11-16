@@ -137,7 +137,7 @@ describe {{moduleName}}::Errors::ApiError do
   it 'loads every error class into the Errors namespace' do
     %w[
       {{apiErrorParentSimpleName}} ApiError ClientError ServerError BadRequestError UnauthorizedError
-      ForbiddenError NotFoundError ConflictError UnprocessableEntityError
+      ForbiddenError NotFoundError ConflictError UnprocessableEntityError TooManyRequestsError
       InternalServerError NetworkError NetworkTimeoutError SerializationError
       OAuth2ServerError OAuth2TokenError
     ].each do |name|
@@ -154,6 +154,7 @@ describe {{moduleName}}::Errors::ApiError do
     404 => {{moduleName}}::Errors::NotFoundError,
     409 => {{moduleName}}::Errors::ConflictError,
     422 => {{moduleName}}::Errors::UnprocessableEntityError,
+    429 => {{moduleName}}::Errors::TooManyRequestsError,
     418 => {{moduleName}}::Errors::ClientError,
     500 => {{moduleName}}::Errors::InternalServerError,
     503 => {{moduleName}}::Errors::ServerError,

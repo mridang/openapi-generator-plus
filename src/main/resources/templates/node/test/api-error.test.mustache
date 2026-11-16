@@ -18,6 +18,7 @@ import {
   SerializationError,
   ServerError,
   UnauthorizedError,
+  TooManyRequestsError,
   UnprocessableEntityError,
 } from '../src/errors/index{{importFileExtension}}';
 import { Category } from '../src/models/index{{importFileExtension}}';
@@ -109,6 +110,7 @@ describe('ApiError', () => {
       ['NotFoundError', (c: Error) => new NotFoundError('m', null, null, null, { cause: c }), 404],
       ['ConflictError', (c: Error) => new ConflictError('m', null, null, null, { cause: c }), 409],
       ['UnprocessableEntityError', (c: Error) => new UnprocessableEntityError('m', null, null, null, { cause: c }), 422],
+      ['TooManyRequestsError', (c: Error) => new TooManyRequestsError('m', null, null, null, { cause: c }), 429],
       ['InternalServerError', (c: Error) => new InternalServerError('m', null, null, null, { cause: c }), 500],
       ['ClientError', (c: Error) => new ClientError(418, 'm', null, null, null, { cause: c }), 418],
       ['ServerError', (c: Error) => new ServerError(503, 'm', null, null, null, { cause: c }), 503],
@@ -179,6 +181,7 @@ describe('ApiError', () => {
       'NotFoundError',
       'ConflictError',
       'UnprocessableEntityError',
+      'TooManyRequestsError',
       'InternalServerError',
       'NetworkError',
       'NetworkTimeoutError',
@@ -231,6 +234,7 @@ describe('ApiError', () => {
       [404, NotFoundError],
       [409, ConflictError],
       [422, UnprocessableEntityError],
+      [429, TooManyRequestsError],
       [418, ClientError],
       [500, InternalServerError],
       [503, ServerError],

@@ -68,6 +68,10 @@ Why: one set of bytes in all twelve; the old `try?` silently omitted the paramet
 Where: `markContentParameters` sets `vendorExtensions.swiftContent`; `api/api.mustache`.
 Test: `ValueSerializerTests` and `PetApiTests` templates.
 
+### Batch 5 (F824, F831, F833, F839)
+Rule: the `Client` facade has `close()`, which closes the `DefaultApiClient` it built and never a session supplied through `TransportOptions.session`; HTTP 429 maps to `TooManyRequestsError` (a `ClientError`); a `content:` cookie is percent-encoded byte-wise keeping only `A-Za-z0-9-._~` (`ValueSerializer.encodeCookieValue`); a redirect sets its method by `DefaultApiClient.redirectMethod` (RFC 9110 15.4) and restores the body for a kept method.
+Test: `ClientTests`, `BaseApiTests`, `ApiErrorTests`, `ValueSerializerTests`, `DefaultApiClientUnitTests` templates.
+
 ### Cancellation (S7, F228, 2026-11-16)
 Rule: no cancellation parameter; cancelling the calling `Task` aborts the request and surfaces `CancellationError`, which the SDK never rewraps.
 Why: `Task` cancellation is the native handle in Swift.

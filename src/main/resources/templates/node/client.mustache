@@ -58,6 +58,8 @@ export interface {{clientClassName}}Options {
  * ```
  */
 export class {{clientClassName}} {
+  private readonly ownedClient: DefaultApiClient;
+
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
@@ -106,7 +108,8 @@ export class {{clientClassName}} {
     clientOptions?: {{clientClassName}}Options
   ) {
     const transport = transportOptions ?? TransportOptions.builder().build();
-    const apiClient: ApiClient = new DefaultApiClient(transport);
+    const apiClient: DefaultApiClient = new DefaultApiClient(transport);
+    this.ownedClient = apiClient;
 
     if (isHttpAwareAuthenticator(authenticator)) {
       authenticator.setApiClient(apiClient);
@@ -123,6 +126,21 @@ export class {{clientClassName}} {
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+  }
+
+  /**
+   * Releases the HTTP stack the SDK built itself (the connection pool of the
+   * default transport). Requests made after this call are rejected with the
+   * closed-client error. A caller-supplied `fetch` is never touched. Calling
+   * it again is harmless.
+   */
+  async close(): Promise<void> {
+    await this.ownedClient.close();
+  }
+
+  /** Supports `await using client = ...`; same as {@link close}. */
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.close();
   }
 
   /**

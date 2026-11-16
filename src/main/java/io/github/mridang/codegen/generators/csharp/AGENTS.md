@@ -306,3 +306,8 @@ Test: `python3 etc/api-surface.py check`.
 - One language end to end: `mvn verify -Dgroups=csharp`
 - API surface: `python3 etc/api-surface.py check` (must not get worse)
 - Generated client gates: `dotnet build --warnaserror`, `dotnet csharpier check .`, `dotnet format --verify-no-changes --severity warn`, `dotnet run --project PetstoreClient.Test.csproj -- -jUnit .out/reports/junit.xml`
+
+### Batch 5 (F824, F831, F832, F833, F839)
+Rule: `Client` is `IDisposable`, disposes the `DefaultApiClient` it built, and a closed client throws `InvalidOperationException` ("ApiClient has been closed"); a supplied `HttpMessageHandler` is never disposed (F824). HTTP 429 maps to `TooManyRequestsException`, a `ClientException` (F831). The non-JSON Content-Type `SerializationException` names `Class.operationId`, passed as `operationName` from each generated operation (F832). A `content:` cookie is JSON-serialised then `Uri.EscapeDataString`-encoded, already conforming to the unreserved set (F833). Redirects: 301/302 turn only POST into GET, 303 turns everything but HEAD into GET, 307/308 keep method and body; the HTTPS to HTTP body guard covers every hop that would replay a body (F839).
+
+Test: `ClientTest.mustache`, `ApiExceptionTest.mustache`, `BaseApiTest.mustache` (`ContentTypeErrorNamesTheOperationNotTheType`, `ContentCookieKeepsOnlyTheUnreservedSetLiteral`), `DefaultApiClientTest.mustache` (`RedirectRewritesTheMethodPerRfc9110`).
