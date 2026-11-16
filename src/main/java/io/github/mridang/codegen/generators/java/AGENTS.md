@@ -313,3 +313,5 @@ Already conforming: F803 (server before options), F054 (content parameters in ev
 
 - F1086 (D79): proxy URL validation messages replace any `user:password@` userinfo with `***@` (`TransportOptions.Builder.redactUserInfo`). Test: `TransportOptionsTest` (`unusableProxyUrlIsRejectedWithTheExactMessage` rows).
 - F860: a no-redirect request (the OAuth2 token POST) carries no `TransportOptions.defaultHeaders`; OIDC discovery still merges them (not changed). Test: `DefaultApiClientUnitTest`.
+- F1162 (D83): a `BigDecimal` is written in plain notation in bodies (`StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN`) and in `stringify` (`toPlainString`). Test: `ObjectSerializerTest` (`FixtureWireValueTests`).
+- F1080: the rendered `ApiException` caps the body at 1 KiB with a `... (N more bytes)` suffix, escapes CR, LF and control characters, and masks `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie` and any header containing key, token or secret as `***`. The fields keep the real values. Test: `ApiExceptionTest`.

@@ -79,6 +79,35 @@ class ApiExceptionTest {
     }
 
     @Test
+    void renderedFormMasksCredentialHeaders() {
+        ApiException ex = new ApiException(
+                401, "no", new java.util.LinkedHashMap<>(Map.of(
+                        "set-cookie", "sid=abc", "x-api-key", "k", "retry-after", "5")), null);
+
+        assertEquals(
+                "no\nHTTP status code: 401\nResponse headers: "
+                        + "{\"retry-after\":\"5\",\"set-cookie\":\"***\",\"x-api-key\":\"***\"}",
+                ex.toString());
+        assertEquals("sid=abc",
+                java.util.Objects.requireNonNull(ex.getResponseHeaders()).get("set-cookie"));
+    }
+
+    @Test
+    void renderedBodyIsCappedAndControlCharactersAreEscaped() {
+        String longBody = "x".repeat(1030);
+        ApiException capped = new ApiException(500, "boom", Map.of(), longBody);
+        assertEquals(
+                "boom\nHTTP status code: 500\nResponse body: " + "x".repeat(1024) + "... (6 more bytes)",
+                capped.toString());
+        assertEquals(longBody, capped.getResponseBody());
+
+        ApiException forged = new ApiException(500, "boom", Map.of(), "a\r\nHTTP status code: 200");
+        assertEquals(
+                "boom\nHTTP status code: 500\nResponse body: a\\r\\nHTTP status code: 200",
+                forged.toString());
+    }
+
+    @Test
     void getTypedErrorBodyDeserializesTheBodyIntoTheGivenClass() {
         // Built through fromResponse, the way a real response reaches a caller:
         // the typed body must come out of the raw body, not out of whatever the
