@@ -302,6 +302,44 @@ class ComposedSchemaTest {
     }
 
     @Nested
+    @DisplayName("anyOf - TreatmentRecord (variants declared Surgery then Medication)")
+    inner class TreatmentRecordTests {
+
+        @Test
+        @DisplayName("retains the matching variants in declaration order, not alphabetical order")
+        fun testVariantsAreRetainedInDeclarationOrder() {
+            val result = json.decodeFromString<TreatmentRecord>(
+                """{"drugName":"Amoxicillin","procedureName":"Spay"}""")
+
+            assertEquals(
+                listOf(Surgery::class, Medication::class),
+                result.matchedInstances.map { it!!::class },
+            )
+            assertTrue(result.actualInstance is Surgery)
+        }
+
+        @Test
+        @DisplayName("a shared property keeps the later-declared variant's value, emitted once")
+        fun testSharedPropertyKeepsTheLaterDeclaredVariant() {
+            val result = json.decodeFromString<TreatmentRecord>(
+                """{"drugName":"Amoxicillin","procedureName":"Spay","notes":"shared"}""")
+            val treatment = TreatmentRecord(
+                matchedInstances = listOf(
+                    Surgery(procedureName = "Spay", notes = "from-surgery"),
+                    Medication(drugName = "Amoxicillin", notes = "from-medication"),
+                ),
+            )
+
+            val encoded = json.encodeToString(treatment)
+
+            assertEquals(2, result.matchedInstances.size)
+            assertTrue(encoded.contains("from-medication"))
+            assertFalse(encoded.contains("from-surgery"))
+            assertEquals(2, encoded.split("\"notes\"").size)
+        }
+    }
+
+    @Nested
     @DisplayName("allOf - PetWithOwner")
     inner class PetWithOwnerTests {
 

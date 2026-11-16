@@ -341,6 +341,60 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return "Model";
     }
 
+    /**
+     * Kotlin standard-library types that a schema name must not shadow in the
+     * models package, where fields use them unqualified (a model named
+     * {@code List} would turn every {@code List<T>} field into the model).
+     */
+    private static final Set<String> KOTLIN_BUILT_IN_TYPES =
+            Set.of(
+                    "Error",
+                    "Exception",
+                    "Throwable",
+                    "Result",
+                    "Nothing",
+                    "Number",
+                    "Array",
+                    "List",
+                    "Map",
+                    "Set",
+                    "Pair",
+                    "Triple",
+                    "Comparable");
+
+    /**
+     * A schema named after a standard-library type ({@code Error},
+     * {@code Result}, {@code List}, ...) takes the {@code Model} prefix, like
+     * the primitive names; the wire name is unchanged (F173).
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        return KOTLIN_BUILT_IN_TYPES.contains(modelName) ? "Model" + modelName : modelName;
+    }
+
+    /**
+     * The names the generated operations add to their own signature or declare as
+     * locals, so a path or body parameter that carries one is suffixed instead of
+     * redeclaring it (F1055).
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "options",
+                "server",
+                "requestContentType",
+                "auth",
+                "path",
+                "url",
+                "headerParams",
+                "queryParams",
+                "formBody",
+                "serverUrl",
+                "declaredConsumes",
+                "effectiveRequestContentType");
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getUniqueItemsSetType() {
@@ -833,6 +887,13 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             if (p.description != null && !p.description.isBlank()) {
                 param.put("description", p.description);
             }
+            // The named examples of the parameter go into the same KDoc, as they
+            // do for a required parameter on the operation (F893).
+            final List<Map<String, Object>> examples = kdocExamples(p);
+            if (!examples.isEmpty()) {
+                param.put("pluralExamples", examples);
+                param.put("hasPluralExamples", true);
+            }
             params.add(param);
             if (p.required) {
                 requiredParams.add(param);
@@ -916,6 +977,30 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         injectAuthFieldContext(op, context);
         context.put("authImport", invokerPackage + ".auth." + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /**
+     * The named examples of a parameter as KDoc-safe single-line entries: a
+     * comment terminator or a line break inside a summary or value would end or
+     * break the comment.
+     */
+    private static List<Map<String, Object>> kdocExamples(CodegenParameter p) {
+        final List<Map<String, Object>> result = new ArrayList<>();
+        if (p.examples == null || p.examples.isEmpty()) {
+            return result;
+        }
+        for (final Map<String, Object> example : buildPluralExamplesList(p.examples)) {
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("summary", kdocLine(String.valueOf(example.get("summary"))));
+            entry.put("value", kdocLine(String.valueOf(example.get("value"))));
+            result.add(entry);
+        }
+        return result;
+    }
+
+    private static String kdocLine(String text) {
+        final String safe = text.replace("*/", "* /").replace("/*", "/ *");
+        return safe.replaceAll("\\s*[\\r\\n]+\\s*", " ");
     }
 
     /**

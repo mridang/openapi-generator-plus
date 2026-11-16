@@ -41,6 +41,39 @@ class ServerConfigurationTest {
     }
 
     @Test
+    @DisplayName("getUrl does not expand a placeholder that a substituted value introduces")
+    fun getUrlDoesNotReExpandSubstitutedPlaceholders() {
+        val variables = listOf(
+            mapOf(
+                "env" to ServerVariable("{version}"),
+                "version" to ServerVariable("v2")
+            ),
+            mapOf(
+                "version" to ServerVariable("v2"),
+                "env" to ServerVariable("{version}")
+            )
+        )
+        for (declared in variables) {
+            val server = ServerConfiguration("https://{env}.api.example.com/{version}", null, declared)
+            assertEquals("https://{version}.api.example.com/v2", server.getUrl())
+        }
+    }
+
+    @Test
+    @DisplayName("the third global server keeps its hostile text unchanged")
+    fun theThirdGlobalServerKeepsItsHostileTextUnchanged() {
+        val server = Servers.SERVER_2
+
+        assertEquals("https://{tenant}.example.com/api", server.urlTemplate)
+        assertEquals("Bob's \"sandbox\" & co: \$5 #{x} a*/b", server.description)
+        val tenant = server.variables.getValue("tenant")
+        assertEquals("o'neil", tenant.defaultValue)
+        assertEquals("Tenant's \"id\"", tenant.description)
+        assertEquals(listOf("o'neil", "a&b"), tenant.enumValues)
+        assertEquals("https://o'neil.example.com/api", server.getUrl())
+    }
+
+    @Test
     @DisplayName("getUrl with no variables returns the template verbatim")
     fun getUrlWithoutVariables() {
         val server = ServerConfiguration("https://api.example.com", null, emptyMap())

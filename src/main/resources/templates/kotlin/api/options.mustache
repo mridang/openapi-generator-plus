@@ -24,6 +24,9 @@ class {{className}}(
 {{#description}}
     /**
      * {{{description}}}
+{{#pluralExamples}}
+     * Example — {{{summary}}}: `{{{value}}}`
+{{/pluralExamples}}
      *
      * @deprecated This parameter is deprecated.
      */
@@ -34,9 +37,21 @@ class {{className}}(
     @Deprecated("This parameter is deprecated.")
 {{/deprecated}}
 {{^deprecated}}
+{{#hasPluralExamples}}
+    /**
+{{#description}}
+     * {{{description}}}
+{{/description}}
+{{#pluralExamples}}
+     * Example — {{{summary}}}: `{{{value}}}`
+{{/pluralExamples}}
+     */
+{{/hasPluralExamples}}
+{{^hasPluralExamples}}
 {{#description}}
     /** {{{description}}} */
 {{/description}}
+{{/hasPluralExamples}}
 {{/deprecated}}
     val {{paramName}}: {{{dataType}}},
 {{/requiredParams}}
@@ -45,6 +60,9 @@ class {{className}}(
 {{#description}}
     /**
      * {{{description}}}
+{{#pluralExamples}}
+     * Example — {{{summary}}}: `{{{value}}}`
+{{/pluralExamples}}
      *
      * @deprecated This parameter is deprecated.
      */
@@ -55,9 +73,21 @@ class {{className}}(
     @Deprecated("This parameter is deprecated.")
 {{/deprecated}}
 {{^deprecated}}
+{{#hasPluralExamples}}
+    /**
+{{#description}}
+     * {{{description}}}
+{{/description}}
+{{#pluralExamples}}
+     * Example — {{{summary}}}: `{{{value}}}`
+{{/pluralExamples}}
+     */
+{{/hasPluralExamples}}
+{{^hasPluralExamples}}
 {{#description}}
     /** {{{description}}} */
 {{/description}}
+{{/hasPluralExamples}}
 {{/deprecated}}
 {{! defaulted-body-param: a schema default on an optional param must surface as
     the Kotlin parameter default ONLY for a body param, whose value the SDK
