@@ -1,4 +1,4 @@
-.PHONY: install build test lint format typecheck docs clean
+.PHONY: install build test lint format typecheck audit docs clean
 
 install:
 	npm install
@@ -11,12 +11,16 @@ test: install
 
 lint: install
 	npx eslint .
+	npx prettier --check .
 
 format: install
 	npx prettier --write .
 
 typecheck: install
 	npx tsc --noEmit
+
+audit: install
+	npm audit --omit=dev
 
 docs: install
 	npx typedoc --out .out/docs --treatWarningsAsErrors
