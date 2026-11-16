@@ -226,12 +226,12 @@
       def self.decode: (String?) -> untyped
     end
     def initialize: (?TransportOptions?) -> void
-    def send_request: (Symbol | String, String, Hash[String, String], untyped, ?no_redirect: bool, ?retry_headers: (^() -> Hash[String, String])?) -> ApiHttpResponse
+    def send_request: (Symbol | String, String, Hash[String, String], untyped, ?no_redirect: bool, ?retry_headers: (^() -> Hash[String, String])?, ?no_default_headers: bool) -> ApiHttpResponse
     def close: () -> void
     def self.supported_encodings: () -> String
     private
-    def transmit: (Symbol | String, String, Hash[String, String], untyped, bool, Float?) -> untyped
-    def transmit_with_retries: (Symbol | String, String, Hash[String, String], untyped, bool, Float?, (^() -> Hash[String, String])?) -> untyped
+    def transmit: (Symbol | String, String, Hash[String, String], untyped, bool, Float?, bool) -> untyped
+    def transmit_with_retries: (Symbol | String, String, Hash[String, String], untyped, bool, Float?, (^() -> Hash[String, String])?, bool) -> untyped
     def give_up: (Errors::NetworkError?, untyped) -> untyped
     def retryable_network_error?: (Errors::NetworkError) -> bool
     def renewed_headers: (^() -> Hash[String, String]) -> Hash[String, String]?

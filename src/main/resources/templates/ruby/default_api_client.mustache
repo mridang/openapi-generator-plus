@@ -137,8 +137,12 @@ module {{moduleName}}
     # @param retry_headers [Proc, nil] returns the complete headers of a retry
     #   (authentication included, so a renewed token is picked up); without it
     #   a retry reuses +headers+
+    # @param no_default_headers [Boolean] when true, the transport's default
+    #   headers are not added. Used for the OAuth2 token and OIDC discovery
+    #   requests, which go to the identity provider and must not carry the
+    #   credentials meant for the API (F860).
     # @return [ApiHttpResponse] the HTTP response
-    def send_request(method, url, headers, body, no_redirect: false, retry_headers: nil)
+    def send_request(method, url, headers, body, no_redirect: false, retry_headers: nil, no_default_headers: false)
       # Bucket 3: using the client after #close has released its connection
       # pool is a caller error. Surface it loudly as a RuntimeError (the
       # invalid-state error) instead of lazily rebuilding a connection (which
@@ -151,7 +155,7 @@ module {{moduleName}}
       timeout_ms = @transport_options.timeout
       deadline = timeout_ms ? (Process.clock_gettime(Process::CLOCK_MONOTONIC) + (timeout_ms / 1000.0)).to_f : nil
 
-      response = transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers)
+      response = transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers)
       content_type = response.headers['content-type'].to_s
       # A malformed Content-Encoding body (a truncated/garbage
       # gzip/deflate/br/zstd payload) arrived with a real response, so it
@@ -228,10 +232,11 @@ module {{moduleName}}
 
     # One attempt: merge the headers, send the request (following redirects)
     # and return the Faraday response, or raise the SDK's network error.
-    def transmit(method, url, headers, body, no_redirect, deadline)
+    def transmit(method, url, headers, body, no_redirect, deadline, no_default_headers)
       # Field names are case-insensitive (RFC 9110 section 5.1): a caller's
       # header replaces a default of the same name whatever its casing.
-      merged = @transport_options.default_headers.reject { |name, _v| header?(headers, name.to_s) }.merge(headers)
+      defaults = no_default_headers ? {} : @transport_options.default_headers
+      merged = defaults.reject { |name, _v| header?(headers, name.to_s) }.merge(headers)
       # RFC 9110 §5.1: field names are case-insensitive, so a caller's
       # `user-agent` or `x-request-id` (any casing, even empty) wins and
       # nothing is injected alongside it.
@@ -394,7 +399,7 @@ module {{moduleName}}
     # Send the request, and send it again after a failure that is worth
     # another try, as far as +max_retries+, the body and the deadline allow.
     # The last failure is what the caller gets.
-    def transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers)
+    def transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers)
       max_retries = replayable_body?(body) ? @transport_options.max_retries : 0
       attempt = 0
       current_headers = headers
@@ -404,7 +409,7 @@ module {{moduleName}}
         # @type var response: untyped
         response = nil
         begin
-          response = transmit(method, url, current_headers, body, no_redirect, deadline)
+          response = transmit(method, url, current_headers, body, no_redirect, deadline, no_default_headers)
           return response unless attempt < max_retries && RETRYABLE_STATUS_CODES.include?(response.status.to_i)
         rescue Errors::NetworkError => e
           raise unless attempt < max_retries && retryable_network_error?(e)

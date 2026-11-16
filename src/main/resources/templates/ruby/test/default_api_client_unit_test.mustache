@@ -88,6 +88,26 @@ describe {{moduleName}}::DefaultApiClient do
     _(seen.values).must_equal ['caller']
   end
 
+  it 'leaves the default headers off a request that asks for none, keeping the SDK headers' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') do |env|
+        seen = env.request_headers.to_h.transform_keys(&:downcase)
+        [200, {}, 'ok']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder
+      .default_headers({ 'X-Token' => 'default' }).user_agent('sdk-ua/1').build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/echo', { 'Accept' => 'application/json' }, nil,
+                          no_default_headers: true)
+    end
+    _(seen).wont_include 'x-token'
+    _(seen['user-agent']).must_equal 'sdk-ua/1'
+    _(seen['accept']).must_equal 'application/json'
+  end
+
   def sent_query(query)
     sent = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
