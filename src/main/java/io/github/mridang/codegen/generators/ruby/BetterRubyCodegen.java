@@ -228,7 +228,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             // directory, or a previous formatter attempt) cannot poison the
             // bundle install.
             "rm -rf vendor .bundle",
-            "bundle config set --local path vendor/bundle",
+            "bundle config set --local path /cache/bundle",
             "bundle install --quiet",
             // rubocop -A exits 1 when it auto-corrects offenses and 2 on a real
             // error; tolerate only the success-with-corrections case so genuine

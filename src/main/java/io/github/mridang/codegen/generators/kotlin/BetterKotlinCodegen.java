@@ -321,11 +321,12 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
              * "/tmp/ktlint: Syntax error: redirection unexpected" (an HTML
              * error body executed as a script). --retry rides out transient
              * GitHub-release hiccups; -S surfaces the curl error on failure. */
-            "curl -fSL --retry 5 --retry-delay 2 --retry-all-errors"
-                + " -o /tmp/ktlint"
-                + " https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint",
-            "chmod +x /tmp/ktlint",
-            "/tmp/ktlint --format '**/*.kt'"
+            "[ -x /cache/ktlint-1.5.0 ] || { curl -fSL --retry 5 --retry-delay 2"
+                + " --retry-all-errors -o /cache/ktlint-1.5.0.part"
+                + " https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint"
+                + " && chmod +x /cache/ktlint-1.5.0.part"
+                + " && mv /cache/ktlint-1.5.0.part /cache/ktlint-1.5.0; }",
+            "/cache/ktlint-1.5.0 --format '**/*.kt'"
         };
     }
 

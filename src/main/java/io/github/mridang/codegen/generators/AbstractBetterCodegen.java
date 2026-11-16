@@ -5943,6 +5943,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         });
     }
 
+    /** Named Docker volume that caches downloads across formatter runs. */
+    private static final String FORMATTER_CACHE_VOLUME = "openapi-generator-plus-formatter-cache";
+
     /**
      * Builds the {@code docker run} invocation for the language formatter
      * (output directory bind-mounted at {@code /app}, commands joined with
@@ -5968,6 +5971,20 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         "docker",
                         "run",
                         "--rm",
+                        // One named volume holds every formatter's package cache (and
+                        // the Ruby gems and the ktlint binary), so a run downloads
+                        // nothing it already has. It lives on the container engine's
+                        // own disk, which is far faster than the bind mount below.
+                        "-v",
+                        FORMATTER_CACHE_VOLUME + ":/cache",
+                        "-e",
+                        "COMPOSER_CACHE_DIR=/cache/composer",
+                        "-e",
+                        "npm_config_cache=/cache/npm",
+                        "-e",
+                        "PUB_CACHE=/cache/pub",
+                        "-e",
+                        "GOMODCACHE=/cache/go-mod",
                         "-v",
                         workDir + ":/app",
                         "-w",

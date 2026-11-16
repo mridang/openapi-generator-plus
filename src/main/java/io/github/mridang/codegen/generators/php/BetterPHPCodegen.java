@@ -235,6 +235,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             // directory, or a previous formatter attempt) cannot cause a
             // partial install or bin-name conflict.
             "rm -rf vendor composer.lock",
+            // vendor/ holds thousands of small files; extracting them onto the
+            // bind-mounted output directory takes minutes on Docker Desktop, so it
+            // lives on the container's own disk and is only linked into place.
+            "mkdir -p /opt/vendor",
+            "ln -s /opt/vendor vendor",
+            "export COMPOSER_VENDOR_DIR=/opt/vendor",
             "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
             // Rector first, as a client's own `make format` does after
             // generating: it rewrites to the configured PHP level and
