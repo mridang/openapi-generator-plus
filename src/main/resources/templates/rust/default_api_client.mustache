@@ -1583,6 +1583,17 @@ mod tests {
         );
     }
 
+    /* F1136: a filename outside the BMP (an emoji) is one character, so the
+     * ASCII fallback has one underscore for it, and filename* carries its four
+     * UTF-8 bytes. */
+    #[test]
+    fn test_build_filename_directive_non_bmp_character_is_one_underscore_in_the_fallback() {
+        assert_eq!(
+            "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
+            build_filename_directive("\u{1F600}.png")
+        );
+    }
+
     #[test]
     fn test_build_filename_directive_ascii_only_omits_filename_star() {
         let directive = build_filename_directive("file.png");

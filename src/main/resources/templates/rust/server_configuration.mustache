@@ -126,7 +126,7 @@ impl ServerConfiguration {
     /// Returns [`ConfigurationError::InvalidServerVariable`] if an override value
     /// is not in the variable's enum constraint.
     pub fn url(&self, overrides: &HashMap<String, String>) -> Result<String, ConfigurationError> {
-        let mut result = self.url_template.clone();
+        let mut resolved: HashMap<&str, String> = HashMap::with_capacity(self.variables.len());
         for (var_name, variable) in &self.variables {
             let value = overrides
                 .get(var_name)
@@ -142,10 +142,70 @@ impl ServerConfiguration {
                 )));
             }
 
-{{=<% %>=}}
-            result = result.replace(&format!("{{{}}}", var_name), &value);
-<%={{ }}=%>
+            resolved.insert(var_name.as_str(), value);
         }
-        Ok(result)
+
+        let values: Vec<(&str, &str)> = resolved.iter().map(|(name, value)| (*name, value.as_str())).collect();
+        Ok(expand_placeholders(&self.url_template, &values))
+    }
+}
+
+/// Substitutes every `{name}` placeholder of `template` that names one of
+/// `values`, in one pass: a placeholder that a substituted value introduces is
+/// never expanded again, and the result does not depend on the order of
+/// `values`. A placeholder naming no value stays as written.
+pub(crate) fn expand_placeholders(template: &str, values: &[(&str, &str)]) -> String {
+    let mut result = String::with_capacity(template.len());
+    let mut rest = template;
+    while let Some(open) = rest.find('{') {
+        result.push_str(&rest[..open]);
+        let tail = &rest[open..];
+        let known = tail.find('}').and_then(|close| {
+            let name = &tail[1..close];
+            values.iter().find(|(candidate, _)| *candidate == name).map(|(_, value)| (close, *value))
+        });
+        match known {
+            Some((close, value)) => {
+                result.push_str(value);
+                rest = &tail[close + 1..];
+            }
+            None => {
+                result.push('{');
+                rest = &tail[1..];
+            }
+        }
+    }
+    result.push_str(rest);
+    result
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::expand_placeholders;
+
+    /* F1118: a value that carries a placeholder is written as is; the other
+     * variable's placeholder in the template is still substituted, in either
+     * order of the values. */
+    #[test]
+    fn test_a_value_that_carries_a_placeholder_is_not_expanded_again() {
+        let template = "https://{region}.example.com/{channel}/v1";
+        for values in [
+            [("region", "{channel}"), ("channel", "stable")],
+            [("channel", "stable"), ("region", "{channel}")],
+        ] {
+            assert_eq!(
+                "https://{channel}.example.com/stable/v1",
+                expand_placeholders(template, &values)
+            );
+        }
+    }
+
+    #[test]
+    fn test_an_unknown_placeholder_and_a_stray_brace_stay_as_written() {
+        assert_eq!(
+            "https://a.example.com/{other}/{ x/{",
+            expand_placeholders("https://{host}.example.com/{other}/{ x/{", &[("host", "a")])
+        );
     }
 }
