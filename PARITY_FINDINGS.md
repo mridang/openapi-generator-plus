@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 469, forced 4, needs-spec 2, open 127, parked 37, partial 5. Severity: critical 3, high 60, medium 547, low 212.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 470, forced 4, needs-spec 2, open 126, parked 37, partial 5. Severity: critical 3, high 60, medium 547, low 212.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -21,7 +21,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 469, forced 4,
 | F013 | high | fixed | L04-transport | swift | swift noRedirect (OAuth2 token) requests ignore the proxy and leak a URLSession per call |
 | F014 | high | fixed | L04-transport | swift | swift transport is stateful: URLSessionConfiguration.default stores and replays cookies and serves responses from URLCache |
 | F015 | high | fixed | L06-simple-auth | dart | dart BasicAuthenticator puts the raw password (and username) into its ArgumentError via ArgumentError.value, so the secret shows up in toString() and logs |
-| F016 | high | open | L07-oauth-oidc | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | OIDC rediscovery after Cache-Control max-age discards the exchanged delegate — every call after expiry throws 'Must call exchangeCode()' |
+| F016 | high | fixed | L07-oauth-oidc | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | OIDC rediscovery after Cache-Control max-age discards the exchanged delegate — every call after expiry throws 'Must call exchangeCode()' |
 | F017 | high | fixed | L07-oauth-oidc | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Refresh grant omits client authentication and the 'fallback' re-sends the same refresh grant (auth-code, OIDC, password BODY mode) — flows break permanently at first expiry against confidential-client OPs |
 | F018 | high | fixed | L07-oauth-oidc | go, rust, elixir | go/rust/elixir per-scheme OAuth wrappers drop the spec's declared scopes (no scope= on token request / authorize URL) |
 | F019 | high | fixed | L07-oauth-oidc | rust | rust OIDC take_delegate() makes concurrent calls rediscover and install an unexchanged delegate (intermittent CodeNotExchanged / permanent token loss) |
@@ -1024,7 +1024,7 @@ When the Basic credentials fail validation (CR/LF/NUL in the username or passwor
 - `src/spec/resources/generated/dart/test/basic_authenticator_test.dart:34`
 
 ## F016 [high] OIDC rediscovery after Cache-Control max-age discards the exchanged delegate — every call after expiry throws 'Must call exchangeCode()'
-- Status: **open** | Lens: L07-oauth-oidc | Category: behavior | Unit-testable (reviewer's view): True
+- Status: **fixed** (python, csharp, php and swift now keep the session on rediscovery, with a regression test each; the other eight already did) | Lens: L07-oauth-oidc | Category: behavior | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 When the discovery cache expires (default 86400 s, or the OP's max-age — e.g. Google sends max-age=3600, Auth0 max-age=15), getDelegate/resolveDelegate builds a brand-new OAuth2AuthorizationCodeAuthenticator (tokenExchanged=false, empty token manager) and replaces the old one. All access/refresh token state and the exchanged flag are lost, so the next getAuthHeaders throws the 'Must call exchangeCode() before making API requests' precondition error (rust/swift CodeNotExchanged). With max-age=0 the very first API call after exchangeCode fails. Rediscovery should only refresh endpoints (or carry the token manager/exchanged state over), not reset the session. Aggravated by discovery not being single-flight outside java/go (kotlin, python, node, dart, swift, csharp, php, ruby race and can create several delegates). No language has any test of max-age parsing or rediscovery (grep for max-age in every OpenIdConnectAuthenticator test returns 0), which is why this survived.

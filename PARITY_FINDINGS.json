@@ -941,10 +941,11 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F016",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "python, csharp, php and swift now keep the session on rediscovery, with a regression test each; the other eight already did",
    "priority_triage": "high",
-   "plain": "After the OpenID Connect discovery document expires, the client throws away the signed-in session, so every later call fails until the user signs in again."
+   "plain": "After the OpenID Connect discovery document expires, the client throws away the signed-in session, so every later call fails until the user signs in again.",
+   "commit": "2e957d705"
   },
   {
    "title": "Refresh grant omits client authentication and the 'fallback' re-sends the same refresh grant (auth-code, OIDC, password BODY mode) — flows break permanently at first expiry against confidential-client OPs",
