@@ -42,17 +42,25 @@ class TestOAuth2AuthorizationCodeAuthenticator:
     def test_exchange_code_rejects_empty_code(self) -> None:
         auth = _create_authenticator()
         auth.set_api_client(MagicMock())
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='^Authorization code must not be empty$'):
             auth.exchange_code('')
 
     def test_exchange_code_rejects_whitespace_code(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         auth.set_api_client(mock_client)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='^Authorization code must not be empty$'):
             auth.exchange_code('   ')
         # The token POST must never have been issued for an empty code.
         mock_client.send_request.assert_not_called()
+
+    def test_headers_before_the_exchange_name_the_canonical_call(self) -> None:
+        auth = _create_authenticator()
+        auth.set_api_client(MagicMock())
+        with pytest.raises(
+            RuntimeError, match=r'^Must call exchange_code\(\) before making API requests$'
+        ):
+            auth.get_auth_headers()
 
     def test_builds_authorization_url_with_state(self) -> None:
         auth = _create_authenticator()
@@ -309,7 +317,7 @@ class TestAuthorizationCodeSession:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
-            _code_reply(access_token="t1", refresh_token="r1", expires_in=1),
+            _code_reply(access_token="t1", refresh_token="r1", expires_in=0),
             _code_reply(access_token="t2", expires_in=3600),
         ]
         auth.set_api_client(mock_client)
@@ -330,7 +338,7 @@ class TestAuthorizationCodeSession:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
-            _code_reply(access_token="t1", refresh_token="r1", expires_in=1),
+            _code_reply(access_token="t1", refresh_token="r1", expires_in=0),
             _code_error("invalid_grant"),
             _code_reply(access_token="unexpected", expires_in=3600),
         ]
@@ -365,7 +373,7 @@ class TestAuthorizationCodeSession:
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
             _code_reply(access_token="t1", refresh_token="r1", expires_in=3600),
-            _code_reply(access_token="t2", expires_in=1),
+            _code_reply(access_token="t2", expires_in=0),
             _code_reply(access_token="t3", expires_in=3600),
         ]
         auth.set_api_client(mock_client)

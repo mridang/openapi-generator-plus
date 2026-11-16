@@ -1,6 +1,6 @@
 {{>api_info}}
 
-from typing import Any, Dict, FrozenSet, Optional, Tuple
+from typing import Any, Dict, FrozenSet, Mapping, Optional, Tuple
 import base64
 import gzip
 import mimetypes
@@ -147,17 +147,66 @@ def _network_exception(error: urllib3.exceptions.HTTPError) -> NetworkException:
     cause: BaseException = error
     if isinstance(error, urllib3.exceptions.MaxRetryError) and error.reason is not None:
         cause = error.reason
+    # The message comes from the underlying cause, never from the
+    # ``MaxRetryError`` wrapper: that one renders the request path and query
+    # ("Max retries exceeded with url: /pet?api_key=..."), which would copy a
+    # query-parameter API key into logs and error trackers.
+    message = str(cause)
     if isinstance(cause, urllib3.exceptions.NewConnectionError):
-        return NetworkException(message=str(error))
+        return NetworkException(message=message)
     if isinstance(cause, (urllib3.exceptions.TimeoutError, TimeoutError)):
-        return NetworkTimeoutException(message=str(error))
-    return NetworkException(message=str(error))
+        return NetworkTimeoutException(message=message)
+    return NetworkException(message=message)
 
 
 def _has_header(headers: Dict[str, str], name: str) -> bool:
     """Whether ``headers`` holds ``name`` under ASCII case-folding."""
     wanted = name.lower()
     return any(key.lower() == wanted for key in headers)
+
+
+def _redact_query(url: str) -> str:
+    """Replace a URL's query string with ``***`` before it goes into a message.
+
+    A query-parameter API key is appended to the URL before the transport sees
+    it, so any message that quotes the URL would copy the key into logs and
+    error trackers.
+    """
+    path, separator, _ = url.partition('?')
+    return path + separator + '***' if separator else url
+
+
+def _remove_header(headers: Dict[str, str], name: str) -> None:
+    """Drop every spelling of ``name`` from ``headers`` (ASCII case-folding)."""
+    wanted = name.lower()
+    for key in [key for key in headers if key.lower() == wanted]:
+        del headers[key]
+
+
+def _merge_headers(headers: Dict[str, str], overrides: Mapping[str, str]) -> None:
+    """Merge ``overrides`` into ``headers``, replacing a name written in any case.
+
+    Header names are case-insensitive (RFC 9110 section 5.1), so a default
+    ``accept`` replaces the selector's ``Accept`` instead of both going on the
+    wire. The override's own spelling is kept.
+    """
+    for name, value in overrides.items():
+        _remove_header(headers, name)
+        headers[name] = value
+
+
+def _lower_headers(headers: Any) -> Dict[str, str]:
+    """Lower-case the keys of a urllib3 header collection (D13).
+
+    Repeated lines are joined with ``", "``, the same form
+    ``ApiHttpResponse.headers`` carries.
+    """
+    lowered: Dict[str, str] = {}
+    if headers:
+        for name in set(headers.keys()):
+            values = headers.getlist(name) if hasattr(headers, 'getlist') else [headers[name]]
+            lowered[name.lower()] = ', '.join(values)
+    return lowered
 
 
 def _supported_encodings() -> str:
@@ -487,7 +536,7 @@ class DefaultApiClient:
             RuntimeError: If the client is closed, or the request was cancelled.
         """
         if self._closed:
-            raise RuntimeError('ApiClient has been closed and can no longer be used')
+            raise RuntimeError('ApiClient has been closed and can no longer send requests')
         if handle is None:
             handle = RequestHandle()
         with self._lock:
@@ -543,11 +592,11 @@ class DefaultApiClient:
         # (or silently succeeding against a cleared pool), matching the
         # closed-flag guard the other SDKs use.
         if self._closed:
-            raise RuntimeError('ApiClient has been closed and can no longer be used')
+            raise RuntimeError('ApiClient has been closed and can no longer send requests')
 
         # --- Merge headers: transport defaults < caller headers < injected ---
         merged_headers: Dict[str, str] = dict(self._transport_options.default_headers)
-        merged_headers.update(headers)
+        _merge_headers(merged_headers, headers)
 
         # Header names are case-insensitive (RFC 9110 section 5.1): any case
         # variant the caller set, even with an empty value, wins and nothing
@@ -562,19 +611,22 @@ class DefaultApiClient:
         ):
             merged_headers['X-Request-ID'] = str(uuid.uuid4())
 
-        merged_headers.setdefault('Accept-Encoding', _supported_encodings())
+        if not _has_header(merged_headers, 'Accept-Encoding'):
+            merged_headers['Accept-Encoding'] = _supported_encodings()
 
         if isinstance(body, dict):
             boundary = str(uuid.uuid4())
             merged_headers['Content-Type'] = f'multipart/form-data; boundary={boundary}'
             encoded_body = self._build_multipart_body(body, boundary)
-        elif isinstance(body, bytes):
-            encoded_body = body
+        elif isinstance(body, (bytes, bytearray, memoryview)):
+            # Every byte-like binary body goes out verbatim; anything else
+            # would fall through to the empty-body branch and upload nothing.
+            encoded_body = bytes(body)
         elif isinstance(body, str):
             encoded_body = body.encode('utf-8')
         else:
             encoded_body = None
-            merged_headers.pop('Content-Type', None)
+            _remove_header(merged_headers, 'Content-Type')
 
         # Some servers / WAFs treat POST/PUT/PATCH with no body and
         # no Content-Length as malformed (411 Length Required) or
@@ -582,7 +634,8 @@ class DefaultApiClient:
         # on body-bearing verbs when the body is None, matching
         # Kotlin's `ByteArray(0)` and the other 11 SDKs.
         if encoded_body is None and method.upper() in ('POST', 'PUT', 'PATCH'):
-            merged_headers.setdefault('Content-Length', '0')
+            if not _has_header(merged_headers, 'Content-Length'):
+                merged_headers['Content-Length'] = '0'
 
         # --- Timeout ---
         # The timeout is one end-to-end budget: every redirect hop draws from
@@ -676,7 +729,7 @@ class DefaultApiClient:
                 raise ApiException(
                     status_code=response.status,
                     message=f'Failed to decompress {content_encoding} response body: {e}',
-                    response_headers=dict(response.headers),
+                    response_headers=_lower_headers(response.headers),
                 ) from e
         except urllib3.exceptions.LocationValueError as e:
             # An unparseable request URL is a caller mistake, not a network
@@ -707,11 +760,7 @@ class DefaultApiClient:
         # needing structured cookie access should use http.cookies.SimpleCookie
         # or read response.headers.getlist('set-cookie') on the raw urllib3
         # HTTPHeaderDict.
-        response_headers: Dict[str, str] = {}
-        if response.headers:
-            for name in set(response.headers.keys()):
-                values = response.headers.getlist(name) if hasattr(response.headers, 'getlist') else [response.headers[name]]
-                response_headers[name.lower()] = ', '.join(values)
+        response_headers = _lower_headers(response.headers)
 
         return ApiHttpResponse(status_code=response.status, body=response_body, headers=response_headers)
 
@@ -805,8 +854,8 @@ class DefaultApiClient:
                 self._release_response(response)
                 raise ApiException(
                     status_code=response.status,
-                    message=f'Refusing to follow redirect to non-HTTP(S) URL: {next_url}',
-                    response_headers=dict(response.headers),
+                    message=f'Refusing to follow redirect to non-HTTP(S) URL: {_redact_query(next_url)}',
+                    response_headers=_lower_headers(response.headers),
                 )
 
             same_origin = self._same_origin(current_url, next_url)
@@ -830,10 +879,10 @@ class DefaultApiClient:
                 raise ApiException(
                     status_code=response.status,
                     message=(
-                        f'Refusing to replay request body across HTTPS -> HTTP '
-                        f'downgrade redirect ({response.status}) to {next_url}'
+                        f'Refusing to replay request body across HTTPS->HTTP '
+                        f'redirect: {_redact_query(current_url)} -> {_redact_query(next_url)}'
                     ),
-                    response_headers=dict(response.headers),
+                    response_headers=_lower_headers(response.headers),
                 )
 
             # Pick follow-up method/body per RFC 9110 section 15.4: 307 and 308
@@ -918,8 +967,8 @@ class DefaultApiClient:
             self._release_response(response)
             raise ApiException(
                 status_code=response.status,
-                message=f'Too many redirects (exceeded max_redirects={max_redirects})',
-                response_headers=dict(response.headers),
+                message=f'Too many redirects (exceeded {max_redirects})',
+                response_headers=_lower_headers(response.headers),
             )
 
         return response

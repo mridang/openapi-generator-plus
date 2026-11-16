@@ -1484,8 +1484,14 @@ class TestCanonicalSerdeBehaviours:
 
     def test_deep_json_beyond_cap_is_rejected(self) -> None:
         beyond = '[' * 1500 + ']' * 1500
-        with pytest.raises(SerializationException):
+        with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize(beyond, 'object')
+        assert str(exc_info.value) == 'JSON nesting depth 1500 exceeds limit 1000'
+
+    def test_malformed_json_message_has_the_canonical_prefix(self) -> None:
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().deserialize('{', 'Category')
+        assert str(exc_info.value).startswith('Failed to deserialize JSON: ')
 
 
 class TestWireDecodeIgnoresAttributeNames:
