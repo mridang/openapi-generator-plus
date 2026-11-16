@@ -1,4 +1,6 @@
 {{>api_info}}
+import 'dart:convert';
+
 import '../object_serializer.dart';
 import 'bad_request_exception.dart';
 import 'client_exception.dart';
@@ -202,7 +204,9 @@ class ApiException extends {{errorPrefix}}Exception {
     }
     final headers = responseHeaders;
     if (headers != null && headers.isNotEmpty) {
-      buf.write('\nResponse headers: $headers');
+      final sorted = Map<String, String>.fromEntries(
+          headers.entries.toList()..sort((a, b) => a.key.compareTo(b.key)));
+      buf.write('\nResponse headers: ${jsonEncode(sorted)}');
     }
     final body = responseBody;
     if (body != null && body.isNotEmpty) {

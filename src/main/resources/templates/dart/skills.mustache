@@ -275,7 +275,31 @@ All API methods are asynchronous; call them with `await`.
 Models are generated as Dart classes in the `models` directory.
 
 ```dart
-{{#models}}{{#model}}{{#-first}}final model = {{classname}}(/* properties */);{{/-first}}{{/model}}{{/models}}
+{{#models}}{{#model}}{{#-first}}final model = {{classname}}(
+{{#requiredVars}}
+{{#isString}}
+{{^isEnum}}
+  {{name}}: 'value',
+{{/isEnum}}
+{{/isString}}
+{{#isInteger}}
+{{^isEnum}}
+  {{name}}: 1,
+{{/isEnum}}
+{{/isInteger}}
+{{#isLong}}
+{{^isEnum}}
+  {{name}}: 1,
+{{/isEnum}}
+{{/isLong}}
+{{#isBoolean}}
+{{^isEnum}}
+  {{name}}: true,
+{{/isEnum}}
+{{/isBoolean}}
+{{/requiredVars}}
+);
+{{#requiredVars}}{{#-first}}print(model.{{name}});{{/-first}}{{/requiredVars}}{{/-first}}{{/model}}{{/models}}
 ```
 
 ## Binary / File Uploads

@@ -116,7 +116,7 @@ Where: `models/model.mustache`.
 Test: `object_serializer_test.mustache` (the `required_nullable` fixture).
 
 ### uniqueItems order is unspecified (S6, F319, D69)
-Rule: sets are sent in the `Set`'s natural order; the README documents it. D69 asked for sorted scalars and the template has a sort in `object_serializer.mustache`; S6 supersedes D69, so do not add sorting to models.
+Rule: sets are sent in the `Set`'s natural order; the README documents it. D69 asked for sorted scalars; S6 supersedes D69, so `wireList` in `object_serializer.mustache` no longer sorts (landed, F871, F892) and models must not sort. Test: `object_serializer_test.mustache` locks insertion order.
 Why: the owner chose "unspecified, do not sort" over byte-identical order.
 Where: `models/model.mustache`, `object_serializer.mustache`, `readme.mustache`.
 Test: `object_serializer_test.mustache`.
@@ -200,13 +200,13 @@ Where: `default_api_client_io.mustache`, `default_api_client_web.mustache`, `abs
 Test: `default_api_client_unit_test.mustache`.
 
 ### Redirects (D71, D16, Resolved: current-hop guard)
-Rule: an unparseable Location behaves like a missing one and returns the 3xx without draining the body; the HTTPS to HTTP body-replay guard anchors on the current hop (`currentUri`), while the cross-origin sensitive-header strip still uses the original URL. The unified refusal wordings (`non-HTTP(S)`, the canonical downgrade text, `Too many redirects (exceeded $maxRedirects)`) are intended: the template still says `Exceeded maximum number of redirects`.
+Rule: an unparseable Location behaves like a missing one and returns the 3xx without draining the body; the HTTPS to HTTP body-replay guard anchors on the current hop (`currentUri`), while the cross-origin sensitive-header strip still uses the original URL. The unified refusal wordings (`non-HTTP(S)`, the canonical downgrade text, `Too many redirects (exceeded $maxRedirects)`) are landed (F921): `Refusing to follow redirect to non-HTTP(S) URL: <next>`, `Refusing to replay request body across HTTPS->HTTP redirect: <current> -> <next>`, `Too many redirects (exceeded N)`. All three carry the real status and the lower-cased response headers (F917). A spent budget whose last 3xx has no usable Location returns that 3xx instead of raising (F916).
 Why: an original-anchored guard misses an http to https to http chain.
 Where: `abstract_api_client.mustache`.
 Test: `default_api_client_unit_test.mustache`.
 
 ### Error and serializer wording (D15, D17, D18, D07, D09, D29)
-Rule: intended: one serializer message set (`Failed to deserialize JSON: $e` for list and map variants), a compact sorted-key JSON `Response headers:` line (`jsonEncode(SplayTreeMap.of(headers))`), the exact auth-code precondition text `Must call exchangeCode() before making API requests`, no parser detail on token and discovery errors, and use-after-close as a `StateError` with the canonical text. The templates still print `Failed to deserialize JSON list/map`, `Response headers: $headers`, `exchangeCode before` and a `ClientException` for a closed client. A leading BOM is stripped inside the shared JSON parse (`_stripBom`, landed).
+Rule: landed (batch 6): one serializer message set (`Failed to deserialize JSON: $e` for list and map variants), a compact sorted-key JSON `Response headers:` line (`jsonEncode(SplayTreeMap.of(headers))`), the exact auth-code precondition text `Must call exchangeCode() before making API requests`, no parser detail on token and discovery errors, and use-after-close as a `StateError` with the canonical text. All are now in the templates: the `Response headers:` line is `jsonEncode` of the key-sorted map, and use after close is a `StateError('ApiClient has been closed and can no longer send requests')`. A leading BOM is stripped inside the shared JSON parse (`_stripBom`, landed).
 Why: the error contract is identical in all twelve.
 Where: `object_serializer.mustache`, `errors/api_exception.mustache`, `auth/oauth/*`, `abstract_api_client.mustache`.
 Test: `api_error_test.mustache`, `object_serializer_test.mustache`, `oauth2_*_test.mustache`.
@@ -327,3 +327,15 @@ Out of scope, per the closed backlog issues #53, #70, #78, #88 and #90 (S11): ca
 - Regenerate the golden: `mvn test -Dtest='Generate*ClientTest,FixtureVocabularyLeakTest' -DforkCount=0 -Djacoco.skip=true -DfailIfNoTests=false`, then commit all twelve goldens current
 - `python3 etc/api-surface.py check` must not get worse after a change
 - Inside a generated tree: `dart pub get`, `dart analyze --fatal-warnings --fatal-infos`, `dart test`, `dart format .`, `make docs`
+
+## Decisions taken in batch 6
+
+- Charset (F918): `_charsetOf` strips the quotes RFC 9110 allows around a parameter value, so `charset="windows-1252"` decodes like the unquoted form.
+- Multipart filename fallback (F919): one underscore per code point, not per UTF-16 unit (D90).
+- OAuth2 expiry (F910, F911, F854): one margin, `min(60 s, expires_in / 2)`, applied once when the expiry is stored and not again on read; a response with no `expires_in` clears the expiry (no expiry means cached until invalidated). The audit's proposal was taken as the default.
+- Timeout (F924, D77): the message is `Invalid timeout: must be a positive number of milliseconds (got N)`. Dart still accepts `0` (existing test, no behaviour change); only negatives are refused.
+- `ApiHttpResponse` copies its headers into an unmodifiable map (F325), so its constructor is no longer `const`.
+- uniqueItems (F871, F892): no sort anywhere; README states the Set's own order.
+- SKILLS "Models" sample (F887) builds the first model with its required primitive properties and reads one back.
+- Test parity (F922, F925, F926, F928, F931, F933): the D17, D29, D07, D20, D09 and D15 messages are pinned in the mirror test templates.
+- Already conforming: F278 (`escapeDartString` covers `'`, `$` and `\`, with a Java unit test) and F290 (`authHeaders()` throws `StateError` on every token-based flow).

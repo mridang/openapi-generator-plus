@@ -130,10 +130,9 @@ type checks the models make while decoding and the presence of required
 properties. If you want fast-fail validation before the network round trip,
 plug in a JSON Schema validator library.
 
-`uniqueItems` arrays are held in a `Set`. A `Set` of strings, of numbers or of
-booleans is sent in ascending natural order, so the same values always produce
-the same bytes; a `Set` of objects or of mixed kinds keeps its own iteration
-order.
+`uniqueItems` arrays are held in a `Set` and sent in the `Set`'s own iteration
+order (insertion order for the default `LinkedHashSet`). The order is not
+sorted and is not specified, so do not rely on it.
 
 ### Custom HTTP client
 

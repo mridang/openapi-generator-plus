@@ -120,7 +120,14 @@ void main() {
     });
 
     test('a negative timeout throws ArgumentError', () {
-      expect(() => TransportOptionsBuilder().timeout(-1), throwsA(isA<ArgumentError>()));
+      expect(
+        () => TransportOptionsBuilder().timeout(-1),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          'Invalid timeout: must be a positive number of milliseconds (got -1)',
+        )),
+      );
       expect(TransportOptionsBuilder().timeout(0).build().timeout, 0);
     });
 

@@ -114,7 +114,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
   @override
   Map<String, String> authHeaders() {
     if (!_tokenExchanged) {
-      throw StateError('Must call exchangeCode before making API requests');
+      throw StateError('Must call exchangeCode() before making API requests');
     }
     /* A valid token may need an async refresh; an empty map would send the
      * request unauthenticated without any error. */
@@ -126,7 +126,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
   @override
   Future<Map<String, String>> authHeadersAsync() async {
     if (!_tokenExchanged) {
-      throw StateError('Must call exchangeCode before making API requests');
+      throw StateError('Must call exchangeCode() before making API requests');
     }
 
     /* The refresh grant carries the client credentials (RFC 6749 sections

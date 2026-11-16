@@ -47,7 +47,7 @@ class _CapturingApiClient implements ApiClient {
   }) async {
     capturedUrl = url;
     capturedBody = body is List<int> ? utf8.decode(body) : '';
-    return const ApiHttpResponse(
+    return ApiHttpResponse(
       statusCode: 200,
       body: '{}',
       headers: {'content-type': 'application/json'},

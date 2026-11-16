@@ -485,7 +485,7 @@ Future<void> main(List<String> args) async {
             isA<ApiException>()
                 .having((e) => e.runtimeType, 'runtimeType', ApiException)
                 .having((e) => e.statusCode, 'statusCode', inInclusiveRange(307, 308))
-                .having((e) => e.message, 'message', contains('downgrade')),
+                .having((e) => e.message, 'message', contains('HTTPS->HTTP redirect')),
           ),
         );
         expect(targetHits, equals(0),
@@ -539,7 +539,7 @@ Future<void> main(List<String> args) async {
             isA<ApiException>()
                 .having((e) => e.runtimeType, 'runtimeType', ApiException)
                 .having((e) => e.statusCode, 'statusCode', inInclusiveRange(307, 308))
-                .having((e) => e.message, 'message', contains('downgrade')),
+                .having((e) => e.message, 'message', contains('HTTPS->HTTP redirect')),
           ),
         );
         expect(targetHits, equals(0),

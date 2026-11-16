@@ -317,9 +317,18 @@ void main() {
       expect(
         err.toString(),
         equals(
-          'not found\nHTTP status code: 404\nResponse headers: {x-request-id: abc}\nResponse body: {"id":7}',
+          'not found\nHTTP status code: 404\nResponse headers: {"x-request-id":"abc"}\nResponse body: {"id":7}',
         ),
       );
+    });
+
+    test('renders the response headers as compact sorted JSON', () {
+      const err = ApiException(
+        statusCode: 500,
+        message: 'boom',
+        responseHeaders: {'b': '2', 'a': 'x/y'},
+      );
+      expect(err.toString(), contains('Response headers: {"a":"x/y","b":"2"}'));
     });
 
     test('omits the status for a transport failure', () {
