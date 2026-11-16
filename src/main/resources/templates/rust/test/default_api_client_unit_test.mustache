@@ -257,6 +257,30 @@ async fn test_a_3xx_without_location_is_returned_unchanged_when_max_redirects_is
     assert_eq!(302, response.status_code());
 }
 
+/// A 3xx whose Location cannot be parsed (F1132) is not a redirect to follow:
+/// the 302 comes back as the response, with the redirect budget spent or not.
+#[tokio::test]
+async fn test_a_3xx_with_an_unparseable_location_is_returned_as_the_response() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 302 Found\r\nLocation: http://[bad\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    for max_redirects in [None, Some(0)] {
+        let transport = TransportOptionsBuilder::new()
+            .follow_redirects(true)
+            .max_redirects(max_redirects)
+            .build()
+            .expect("valid transport options");
+        let client = DefaultApiClient::new(Some(transport));
+
+        let response = client
+            .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+            .await
+            .expect("an unparseable Location is not an error");
+
+        assert_eq!(302, response.status_code(), "{:?}", max_redirects);
+    }
+}
+
 /// A 3xx that does carry a Location still fails once the budget is spent.
 #[tokio::test]
 async fn test_a_3xx_with_location_fails_when_max_redirects_is_zero() {
@@ -1514,6 +1538,27 @@ async fn test_every_advertised_content_encoding_is_decoded() {
     }
 }
 
+/// `Content-Encoding: identity` is no transformation: the body is passed
+/// through as it came and the header stays on the returned headers (F1135).
+#[tokio::test]
+async fn test_content_encoding_identity_is_passed_through_undecoded() {
+    let (base_url, _) =
+        start_encoded_body_server("identity", ENCODED_PAYLOAD.as_bytes().to_vec());
+    let client = DefaultApiClient::new(None);
+
+    let resp = client
+        .send_request("GET", &format!("{}/enc", base_url), &HashMap::new(), None)
+        .await
+        .expect("an identity response needs no decoding");
+
+    assert_eq!(resp.status_code(), 200);
+    assert_eq!(resp.body(), ENCODED_PAYLOAD);
+    assert_eq!(
+        resp.headers().get("content-encoding").map(|v| v.as_str()),
+        Some("identity")
+    );
+}
+
 /// `deflate` means zlib-wrapped data. A headerless RFC 1951 stream under that
 /// name is not decodable and surfaces as an `ApiError` carrying the real
 /// status, never a `NetworkError` and never the raw bytes passed through.
@@ -1847,6 +1892,53 @@ async fn test_request_after_close_returns_invalid_state() {
         ),
         other => panic!("expected ConfigurationError::InvalidState, got {:?}", other),
     }
+}
+
+/// Starts a server that reads one request and then holds the connection open
+/// without answering, for at most ten seconds.
+fn start_silent_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(10)));
+            let _ = stream.read(&mut buf);
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// F1064: cancelling an in-flight call is dropping its future. The call stops
+/// at once, without waiting for the server, and the client stays usable for
+/// the next call.
+#[tokio::test]
+async fn test_dropping_an_in_flight_call_cancels_it() {
+    let base_url = start_silent_server();
+    let client = DefaultApiClient::new(None);
+
+    let started = std::time::Instant::now();
+    let cancelled = tokio::time::timeout(
+        std::time::Duration::from_millis(300),
+        client.send_request("GET", &format!("{}/slow", base_url), &HashMap::new(), None),
+    )
+    .await;
+
+    assert!(cancelled.is_err(), "the unanswered call must still be pending when it is dropped");
+    assert!(started.elapsed() < std::time::Duration::from_secs(5), "the drop must not wait for the server");
+    assert!(!client.is_closed(), "cancelling a call does not close the client");
+    let echo_url = start_echo_server();
+    let response = client
+        .send_request("GET", &format!("{}/after", echo_url), &HashMap::new(), None)
+        .await
+        .expect("the client is usable after a cancelled call");
+    assert_eq!(200, response.status_code());
 }
 
 /// A malformed request URL is a caller mistake: `ConfigurationError::

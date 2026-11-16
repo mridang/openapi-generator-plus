@@ -207,4 +207,33 @@ mod tests {
 
         assert!(headers.is_empty());
     }
+
+    /* A transport that implements only `send_request` is still closable: the
+     * default `close` is a no-op, so calling it (twice, even) is harmless and
+     * the default `is_closed` stays false. */
+    struct MinimalClient;
+
+    impl ApiClient for MinimalClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+            Box::pin(async { Ok(ApiHttpResponse::new(200, String::new(), HashMap::new())) })
+        }
+    }
+
+    #[test]
+    fn test_a_minimal_transport_is_closable_through_the_default_close() {
+        let client = MinimalClient;
+
+        client.close();
+        client.close();
+
+        assert!(!client.is_closed());
+        assert_eq!(0, client.max_retries());
+        assert_eq!(None, client.request_timeout());
+    }
 }
