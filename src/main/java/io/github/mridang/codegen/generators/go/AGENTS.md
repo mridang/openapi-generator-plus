@@ -302,6 +302,20 @@ The audit's own proposal was the default wherever no owner decision existed.
 
 Skipped in batch 6, each needing a public go-only API change that the api-surface check and the other eleven SDKs must agree on first (the allow rules live in `etc/`): F842 (move `requestContentType` into a per-call option), F875 (`models.Date`), F876 (named inline parameter enums), F877 (return slices and maps by value), F878 (typed union constructors and accessors), F879 (per-tag service interfaces), F881 (exported `AllValues`/`IsValid`; `TestModel_InlineEnumValueListIsNotExported` pins the helper unexported today), F874 and F1053 (a context-aware auth method), F1048 (a response size limit option). F873 (single-pass model decode), F882 (operation doc comment layout, which the generated-prose alignment rules in `CLAUDE.md` pin) and F930 (no petstore operation has a nested object form field, so the check cannot be driven through the public API from `test/base_api_test.mustache`) need a larger change than could be verified without the Docker gate.
 
+## Decisions taken in batch 7
+
+The audit's own proposal was the default wherever no owner decision existed.
+
+- Decoded responses (F1165, D92): when the body was decompressed, the returned headers drop `content-encoding` and `content-length`; an empty body or `identity` leaves them. Tests: `assertDecompresses` in `test/default_api_client_test.mustache`, `TestDefaultApiClient_DecodesZlibWrappedDeflateResponse`.
+- Proxy URL in errors (F1086, D79): a rejected proxy value is shown with its `user:password@` part replaced by `***@` (`redactProxyUserinfo`, on the raw text because the value may not parse), and a `*url.Error` is unwrapped so the raw URL is not repeated. Test: `TestTransportOptions_ProxyRejectionMessages`.
+- Cross-origin redirects (F1093): besides the fixed allowlist and the spec's apiKey header names, every request header that `isSecretHeaderName` treats as a secret (S15: key, token, secret, Authorization, Cookie, Proxy-Authorization) is removed on a cross-origin hop. Test: `TestDefaultApiClient_StripsSecretNamedHeadersAcrossCrossOriginRedirect`.
+- Per-call authenticators (F856): `invokeApiForResult` injects the API's own client into a per-call override that implements `auth.HttpAwareAuthenticator`, so a per-call OAuth2 or OIDC authenticator no longer fails with `ErrApiClientNotInjected`. Test: `TestBaseApi_PerCallHttpAwareAuthenticatorIsInjected`.
+- Auth requests carry no caller default headers (F860): every request that goes through `authApiClientAdapter` (token endpoint, OIDC discovery) is marked with `authRequestContextKey` and `SendRequestWithOptions` then skips `TransportOptions.DefaultHeaders`; User-Agent, X-Request-ID and the SDK's own headers stay. No exported API changed. Test: `TestDefaultApiClient_AuthRequestsOmitTheCallersDefaultHeaders`.
+- File header (F1156): the info description in `api_info.mustache` goes through `unescapeDocComment`. Test: `TestMetadata_FileHeaderCarriesNoBackslashEscapedQuotes`.
+- Tests only: F1169 (cookie from auth now asserts the header), F1063 (Set-Cookie is not replayed), F1067 (duplicate key keeps the last value), F1111 (StrictTag), F1144 (hostile Availability members), F1145, F1146, F1114, F1115, F1116, F1124 (slug), F1127 (required header and cookie guards), F1128 (createAccount), F1130 (trackingId), F1163 (offset-less date-time), F1075 (token request headers), F1159 (openid scope), F1151 (caller-owned handles stay open).
+- Already conforming in go: F054 (the query, header, path and cookie content arms all use `serialize()`), F833, F854, F1044, F1045, F861, F922, F924, F925, F927, F931, F1142, F1079 (`Build()` rejects zero).
+- Skipped, needing shared Java, the `etc/` allow rules or an owner decision: F057, F215 (settled S5), F228, F1062 (several 2xx schemas), F855 (401 replay), F1048 (response size limit option), F1080 (bounded error text), F1055 (injected-name collisions need `computeSignatureArgs`), F859, F867, F1084, F1121 (no operation takes an Accept header parameter, so it is not reachable from a go test).
+
 ## Verify
 
 ```
