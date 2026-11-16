@@ -64,6 +64,16 @@ class TestAuthenticator < {{moduleName}}::Auth::Authenticator
   end
 end
 
+class HttpAwareTestAuthenticator < TestAuthenticator
+  include {{moduleName}}::Auth::HttpAwareAuthenticator
+
+  attr_reader :injected_client
+
+  def api_client=(client)
+    @injected_client = client
+  end
+end
+
 describe {{moduleName}}::Api::BaseApi do
   parallelize_me!
 
@@ -203,6 +213,16 @@ describe {{moduleName}}::Api::BaseApi do
     test_api.call('GET', '/test/echo', {}, {}, nil,
                   ['application/json'], 'application/json', nil, per_call_auth)
     _(client.captured_headers['X-Client-Auth']).must_equal 'per-call-token'
+  end
+
+  it 'hands the transport to a per-call authenticator that needs HTTP' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    per_call_auth = HttpAwareTestAuthenticator.new(headers: { 'X-Client-Auth' => 'per-call-token' })
+    test_api = TestableApi.new(client, config, nil)
+    test_api.call('GET', '/test/echo', {}, {}, nil,
+                  ['application/json'], 'application/json', nil, per_call_auth)
+    _(per_call_auth.injected_client).must_be_same_as client
   end
 
   # AUTH-APPLIED (Wave A1) — a configured authenticator must actually reach the

@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 {{> api_info}}
+
+require 'json'
+
 {{#apiErrorParentFile}}
 require_relative '{{apiErrorParentFile}}'
 
@@ -117,7 +120,7 @@ module {{moduleName}}
         msg = detail_message
 
         msg += "\nHTTP status code: #{status_code}" if status_code && status_code != 0
-        msg += "\nResponse headers: #{response_headers}" unless response_headers.nil? || response_headers.empty?
+        msg += "\nResponse headers: #{JSON.generate(response_headers.sort.to_h)}" unless response_headers.nil? || response_headers.empty?
         msg += "\nResponse body: #{response_body}" unless response_body.nil? || response_body.empty?
 
         msg

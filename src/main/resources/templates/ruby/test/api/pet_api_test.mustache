@@ -169,7 +169,7 @@ describe {{moduleName}}::Api::PetApi do
       error = assert_raises(ArgumentError) do
         @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"), request_content_type: 'application/unknown-type')
       end
-      _(error.message).must_match(/[Uu]nsupported request content-type/)
+      _(error.message).must_include "Unsupported request content-type 'application/unknown-type' for "
     end
 
     # Canonical regression (finding C1): setPetAvatar declares a request body of

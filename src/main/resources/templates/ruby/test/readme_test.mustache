@@ -25,4 +25,12 @@ describe 'README' do
     _(readme).must_include 'raises'
     _(readme).wont_include 'This matches Python'
   end
+
+  it 'lists the unsupported features and says uniqueItems order is unspecified' do
+    ['### XML bodies and `nodeType`', '### Link Objects', '### Mutual TLS security schemes', '### Automatic retries'].each do |heading|
+      _(readme).must_include heading
+    end
+    _(readme).wont_include 'ascending natural order'
+    _(readme).must_include '## Development'
+  end
 end
