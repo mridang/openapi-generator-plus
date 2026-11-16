@@ -198,6 +198,17 @@ class BaseApi
             $isNonJson = $respContentType !== null
                 && !$this->headerSelector->isJsonMime($respContentType);
 
+            if ($isNonJson && $returnType !== null && $returnType !== 'string'
+                && self::isTextMediaType((string) $respContentType)
+            ) {
+                /* A model, number or collection cannot be built from a
+                 * non-JSON text body, and handing back the raw string in its
+                 * place would give the caller the wrong type. */
+                throw new SerializationException(
+                    "Cannot deserialize a response with Content-Type '" . $respContentType
+                        . "' as " . $returnType . '; expected a JSON body'
+                );
+            }
             if ($isNonJson && self::isTextMediaType((string) $respContentType)) {
                 /* A text response (text/plain, XML, ...) crosses the
                  * transport as its decoded string, never base64: hand it

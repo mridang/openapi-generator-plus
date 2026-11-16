@@ -214,7 +214,10 @@ test('set pet avatar rejects an unrecognised request content-type', function ():
     $body = new \SplFileObject($tmpFile, 'r');
 
     expect(fn () => $this->api->setPetAvatar(1, $body, 'application/unknown-type'))
-        ->toThrow(\InvalidArgumentException::class);
+        ->toThrow(
+            \InvalidArgumentException::class,
+            "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are"
+        );
     unlink($tmpFile);
 });
 

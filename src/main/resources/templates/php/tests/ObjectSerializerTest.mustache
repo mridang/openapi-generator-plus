@@ -1315,6 +1315,19 @@ test('strict model rejects an undeclared key through deserialize', function (): 
         ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class, '(unevaluatedProperties:false)');
 });
 
+test('a plain model ignores an undeclared key and keeps the declared fields', function (): void {
+    $category = ObjectSerializer::deserialize(
+        '{"id":42,"name":"Dogs","unexpectedField":{"nested":[1,2]},"another":"x"}',
+        Category::class
+    );
+
+    expect($category)->toBeInstanceOf(Category::class);
+    assert($category instanceof Category);
+    expect($category->id)->toBe(42);
+    expect($category->name)->toBe('Dogs');
+    expect(property_exists($category, 'unexpectedField'))->toBeFalse();
+});
+
 test('strict model has no public unknown-property hook', function (): void {
     expect((new \ReflectionMethod(StrictTag::class, 'assertNoUnknownProperties'))->isPublic())->toBeFalse();
 });
@@ -1468,7 +1481,23 @@ test('nesting exactly at the depth cap decodes and one level past it is rejected
     $pastCap = str_repeat('[', ObjectSerializer::MAX_JSON_DEPTH + 1)
         . str_repeat(']', ObjectSerializer::MAX_JSON_DEPTH + 1);
     expect(fn (): mixed => ObjectSerializer::deserialize($pastCap, 'object[]'))
-        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+        ->toThrow(
+            \{{invokerPackage}}\Errors\SerializationException::class,
+            'JSON nesting depth 1001 exceeds limit 1000'
+        );
+});
+
+test('brackets inside string literals do not count towards the nesting depth', function (): void {
+    $body = '["' . str_repeat('[', 1500) . '"]';
+    expect(ObjectSerializer::deserialize($body, 'string[]'))->toBe([str_repeat('[', 1500)]);
+});
+
+test('a deserialize failure carries the canonical message with the parser detail', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"id":"not-a-number","name":"Dogs"}', Category::class))
+        ->toThrow(function (\Exception $e): void {
+            expect($e->getMessage())->toStartWith('Failed to deserialize JSON: ');
+            expect($e->getMessage())->not->toContain(' to ' . Category::class);
+        });
 });
 
 test('a container leaf is not JSON-decoded a second time', function (string $leafType, string $literal): void {

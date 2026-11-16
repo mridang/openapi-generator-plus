@@ -685,6 +685,34 @@ test('skips deserialization for non json content type', function (): void {
     expect($result)->toBe('hello');
 });
 
+test('rejects a text plain body for a model return with a serialization error naming the content type', function (string $returnType): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello', ['Content-Type' => 'text/plain; charset=utf-8']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+
+    expect(fn () => $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', $returnType))
+        ->toThrow(
+            \{{invokerPackage}}\Errors\SerializationException::class,
+            "Content-Type 'text/plain'"
+        );
+})->with(['\{{invokerPackage}}\Models\Pet', 'int', 'array<string>']);
+
 test('a binary return type gets the raw bytes of a JSON body', function (): void {
     $client = new class implements ApiClient {
         public function close(): void
