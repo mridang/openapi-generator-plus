@@ -1763,6 +1763,15 @@ test('a writeOnly property is serialized', function (): void {
     expect($json)->toContain('"password":"hunter2"');
 });
 
+test('a password property is masked in var_dump and print_r output', function (): void {
+    $account = new Account('ada', 7, 'hunter2');
+
+    expect(print_r($account, true))->not->toContain('hunter2');
+    expect(print_r($account, true))->toContain('***');
+    expect(print_r($account, true))->toContain('ada');
+    expect($account->password)->toBe('hunter2');
+});
+
 test('a writeOnly property is kept when decoded', function (): void {
     $account = ObjectSerializer::deserialize('{"username":"ada","password":"hunter2"}', Account::class);
 
