@@ -18,6 +18,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     private let scopes: [String]
     private var apiClient: ApiClient?
     private var delegate: OAuth2AuthorizationCodeAuthenticator?
+    private var discoveredEndpoints: String?
     private var discoveryExpiry: Date = Date(timeIntervalSince1970: 0)
     private let lock = NSLock()
 
@@ -153,23 +154,49 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
             throw SerializationError(message: "OIDC discovery document is missing 'token_endpoint'")
         }
 
-        let newDelegate = OAuth2AuthorizationCodeAuthenticator(
-            host: _host,
-            clientID: clientID,
-            clientSecret: clientSecret,
-            authorizationURL: authorizationEndpoint,
-            tokenURL: tokenEndpoint,
-            redirectURI: redirectURI,
-            scopes: scopes
-        )
-        newDelegate.setApiClient(client)
-
+        /* The session (tokens and the exchanged flag) lives in the token manager,
+         * which outlives discovery: a document that names the same endpoints keeps
+         * the delegate, and one that names new endpoints gets a delegate built
+         * around the previous token manager, so refreshing the discovery cache
+         * never discards the code exchange. */
+        let endpoints = authorizationEndpoint + "\n" + tokenEndpoint
         let maxAge = Self.parseMaxAge(response.headers)
-        lock.withLock {
-            self.delegate = newDelegate
+        let resolved: OAuth2AuthorizationCodeAuthenticator = lock.withLock {
+            let current: OAuth2AuthorizationCodeAuthenticator
+            if let previous = self.delegate {
+                if endpoints == self.discoveredEndpoints {
+                    current = previous
+                } else {
+                    current = OAuth2AuthorizationCodeAuthenticator(
+                        host: _host,
+                        clientID: clientID,
+                        clientSecret: clientSecret,
+                        authorizationURL: authorizationEndpoint,
+                        tokenURL: tokenEndpoint,
+                        redirectURI: redirectURI,
+                        scopes: scopes,
+                        refreshURL: "",
+                        tokenManager: previous.tokenManager
+                    )
+                }
+            } else {
+                current = OAuth2AuthorizationCodeAuthenticator(
+                    host: _host,
+                    clientID: clientID,
+                    clientSecret: clientSecret,
+                    authorizationURL: authorizationEndpoint,
+                    tokenURL: tokenEndpoint,
+                    redirectURI: redirectURI,
+                    scopes: scopes
+                )
+            }
+            self.delegate = current
+            self.discoveredEndpoints = endpoints
             self.discoveryExpiry = Date().addingTimeInterval(TimeInterval(maxAge))
+            return current
         }
-        return newDelegate
+        resolved.setApiClient(client)
+        return resolved
     }
 
     /// Longest time a discovery document is cached: one year. A larger

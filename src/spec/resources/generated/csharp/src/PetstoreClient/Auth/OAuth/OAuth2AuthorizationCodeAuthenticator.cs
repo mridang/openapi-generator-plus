@@ -33,7 +33,7 @@ public class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator, IHttpAwar
     private readonly Uri _refreshUrl;
     private readonly Uri _redirectUri;
     private readonly string[] _scopes;
-    private readonly OAuth2TokenManager _tokenManager = new();
+    private readonly OAuth2TokenManager _tokenManager;
 
     /* Written by ExchangeCodeAsync (typically from a callback thread) and read
      * by request threads, so volatile gives the reader a happens-before. */
@@ -60,7 +60,39 @@ public class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator, IHttpAwar
         string[] scopes,
         Uri? refreshUrl = null
     )
+        : this(
+            host,
+            clientId,
+            clientSecret,
+            authorizationUrl,
+            tokenUrl,
+            redirectUri,
+            scopes,
+            refreshUrl,
+            new OAuth2TokenManager(),
+            false
+        ) { }
+
+    /// <summary>
+    /// Create an authenticator around an existing session, so the tokens and the
+    /// exchanged flag carry over. OpenID Connect uses this when a rediscovery names
+    /// new endpoints.
+    /// </summary>
+    internal OAuth2AuthorizationCodeAuthenticator(
+        string host,
+        string clientId,
+        string clientSecret,
+        Uri authorizationUrl,
+        Uri tokenUrl,
+        Uri redirectUri,
+        string[] scopes,
+        Uri? refreshUrl,
+        OAuth2TokenManager tokenManager,
+        bool tokenExchanged
+    )
     {
+        _tokenManager = tokenManager;
+        _tokenExchanged = tokenExchanged;
         _host = host;
         _clientId = clientId;
         _clientSecret = clientSecret;
@@ -70,6 +102,12 @@ public class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator, IHttpAwar
         _redirectUri = redirectUri;
         _scopes = [.. scopes];
     }
+
+    /// <summary>The session this authenticator holds (internal, for rediscovery).</summary>
+    internal OAuth2TokenManager TokenManager => _tokenManager;
+
+    /// <summary>Whether a code exchange succeeded (internal, for rediscovery).</summary>
+    internal bool TokenExchanged => _tokenExchanged;
 
     /// <inheritdoc/>
     public void SetApiClient(IApiClient apiClient)

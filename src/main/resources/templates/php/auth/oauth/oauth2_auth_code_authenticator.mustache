@@ -70,7 +70,8 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
         string $tokenUrl,
         string $redirectUri,
         array $scopes,
-        ?string $refreshUrl = null
+        ?string $refreshUrl = null,
+        ?OAuth2TokenManager $tokenManager = null
     ) {
         $this->host = $host;
         $this->clientId = $clientId;
@@ -80,7 +81,18 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
         $this->refreshUrl = $refreshUrl ?? $tokenUrl;
         $this->redirectUri = $redirectUri;
         $this->scopes = $scopes;
-        $this->tokenManager = new OAuth2TokenManager();
+        $this->tokenManager = $tokenManager ?? new OAuth2TokenManager();
+    }
+
+    /**
+     * The token manager holding this authenticator's session (tokens and the
+     * exchanged flag), so OpenID Connect can carry it over on rediscovery.
+     *
+     * @internal
+     */
+    public function getTokenManager(): OAuth2TokenManager
+    {
+        return $this->tokenManager;
     }
 
     /**

@@ -382,6 +382,38 @@ test('oidc refetches discovery once its Cache-Control max-age has elapsed', func
     expect($client->capturedRequests)->toHaveCount(2);
 });
 
+test('oidc rediscovery after expiry keeps the exchanged session', function (): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $expired = ['Cache-Control' => 'max-age=0'];
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, $expired));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'at-1',
+        'token_type' => 'Bearer',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, $expired));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('the-code');
+
+    // The cached document has expired, so this call rediscovers; the exchange made
+    // before it must still count.
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer at-1']);
+});
+
 test('oidc keeps discovery cached while its Cache-Control max-age holds', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([

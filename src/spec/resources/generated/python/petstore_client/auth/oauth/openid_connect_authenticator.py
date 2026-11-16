@@ -8,7 +8,7 @@
 import json
 import re
 import time
-from typing import Dict, Mapping, Optional, Sequence
+from typing import Dict, Mapping, Optional, Sequence, Tuple
 
 from ...api_client import ApiClient
 from ..http_aware_authenticator import HttpAwareAuthenticator
@@ -84,6 +84,7 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
         self._api_client: Optional[ApiClient] = None
         self._delegate: Optional[OAuth2AuthorizationCodeAuthenticator] = None
         self._discovery_expiry: float = 0.0
+        self._discovered_endpoints: Optional[Tuple[str, str]] = None
 
     def set_api_client(self, api_client: ApiClient) -> None:
         """Inject the shared API client for making HTTP requests.
@@ -151,15 +152,34 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             raise SerializationException(
                 "OIDC discovery document is missing 'token_endpoint'"
             )
-        self._delegate = OAuth2AuthorizationCodeAuthenticator(
-            self._host,
-            self._client_id,
-            self._client_secret,
-            authorization_endpoint,
-            token_endpoint,
-            self._redirect_uri,
-            self._scopes,
-        )
+        # The session (tokens and the exchanged flag) lives in the token manager,
+        # which outlives discovery: a document that names the same endpoints keeps
+        # the delegate, and one that names new endpoints gets a delegate built
+        # around the previous token manager, so refreshing the discovery cache
+        # never discards the code exchange.
+        endpoints = (authorization_endpoint, token_endpoint)
+        if self._delegate is None:
+            self._delegate = OAuth2AuthorizationCodeAuthenticator(
+                self._host,
+                self._client_id,
+                self._client_secret,
+                authorization_endpoint,
+                token_endpoint,
+                self._redirect_uri,
+                self._scopes,
+            )
+        elif endpoints != self._discovered_endpoints:
+            self._delegate = OAuth2AuthorizationCodeAuthenticator(
+                self._host,
+                self._client_id,
+                self._client_secret,
+                authorization_endpoint,
+                token_endpoint,
+                self._redirect_uri,
+                self._scopes,
+                token_manager=self._delegate.token_manager,
+            )
+        self._discovered_endpoints = endpoints
         self._delegate.set_api_client(self._api_client)
         self._discovery_expiry = time.monotonic() + _parse_max_age(
             getattr(response, "headers", None)

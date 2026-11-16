@@ -48,6 +48,9 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
     /** @var OAuth2AuthorizationCodeAuthenticator|null The delegate authenticator. */
     private ?OAuth2AuthorizationCodeAuthenticator $delegate = null;
 
+    /** @var string|null The endpoints the current delegate was built for. */
+    private ?string $discoveredEndpoints = null;
+
     /** @var int Unix timestamp at which the cached discovery document expires. */
     private int $discoveryExpiry = 0;
 
@@ -146,15 +149,36 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
             throw new SerializationException("OIDC discovery document is missing 'token_endpoint'");
         }
 
-        $this->delegate = new OAuth2AuthorizationCodeAuthenticator(
-            $this->host,
-            $this->clientId,
-            $this->clientSecret,
-            $authorizationEndpoint,
-            $tokenEndpoint,
-            $this->redirectUri,
-            $this->scopes
-        );
+        /* The session (tokens and the exchanged flag) lives in the token manager,
+         * which outlives discovery: a document that names the same endpoints keeps
+         * the delegate, and one that names new endpoints gets a delegate built
+         * around the previous token manager, so refreshing the discovery cache
+         * never discards the code exchange. */
+        $endpoints = $authorizationEndpoint . "\n" . $tokenEndpoint;
+        if ($this->delegate === null) {
+            $this->delegate = new OAuth2AuthorizationCodeAuthenticator(
+                $this->host,
+                $this->clientId,
+                $this->clientSecret,
+                $authorizationEndpoint,
+                $tokenEndpoint,
+                $this->redirectUri,
+                $this->scopes
+            );
+        } elseif ($endpoints !== $this->discoveredEndpoints) {
+            $this->delegate = new OAuth2AuthorizationCodeAuthenticator(
+                $this->host,
+                $this->clientId,
+                $this->clientSecret,
+                $authorizationEndpoint,
+                $tokenEndpoint,
+                $this->redirectUri,
+                $this->scopes,
+                null,
+                $this->delegate->getTokenManager()
+            );
+        }
+        $this->discoveredEndpoints = $endpoints;
         $this->delegate->setApiClient($this->apiClient);
         $this->discoveryExpiry = time() + $this->parseMaxAge($response->headers);
 

@@ -250,6 +250,30 @@ import Testing
     #expect(client.getCount == 1)
   }
 
+  /* A rediscovery after the cached document expired must keep the code
+   * exchange made before it: the session lives in the token manager. */
+  @Test func testRediscoveryAfterExpiryKeepsTheExchangedSession() async throws {
+    let client = MockApiClient()
+    let expired = ApiHttpResponse(
+      statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": "max-age=0"])
+    client.responses.append(.success(expired))
+    client.responses.append(
+      .success(
+        ApiHttpResponse(
+          statusCode: 200,
+          body: "{\"access_token\":\"at-1\",\"token_type\":\"Bearer\",\"expires_in\":3600}",
+          headers: [:])))
+    client.responses.append(.success(expired))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("the-code")
+    let headers = try await auth.authHeaders()
+
+    #expect(headers["Authorization"] == "Bearer at-1")
+  }
+
   /* The discovery document is cached for the Cache-Control max-age the
    * server sent, and for a day when it sent none that can be read. */
   @Test(arguments: [

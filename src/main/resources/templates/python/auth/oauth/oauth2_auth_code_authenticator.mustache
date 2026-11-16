@@ -33,6 +33,7 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         redirect_uri: str,
         scopes: Sequence[str],
         refresh_url: Optional[str] = None,
+        token_manager: Optional[OAuth2TokenManager] = None,
     ) -> None:
         """Create a new authorization code authenticator.
 
@@ -46,6 +47,9 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
             scopes: Requested scopes.
             refresh_url: Token refresh endpoint URL. If ``None``, falls back
                 to ``token_url``.
+            token_manager: An existing session to continue (tokens and the
+                exchanged flag). OpenID Connect passes the previous delegate's
+                token manager here when a rediscovery names new endpoints.
         """
         self._host = host
         self._client_id = client_id
@@ -55,7 +59,12 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         self._refresh_url = refresh_url or token_url
         self._redirect_uri = redirect_uri
         self._scopes = tuple(scopes)
-        self._token_manager = OAuth2TokenManager()
+        self._token_manager = token_manager or OAuth2TokenManager()
+
+    @property
+    def token_manager(self) -> OAuth2TokenManager:
+        """The token manager that holds this authenticator's session (internal)."""
+        return self._token_manager
 
     def set_api_client(self, api_client: ApiClient) -> None:
         """Inject the shared API client for making token requests.

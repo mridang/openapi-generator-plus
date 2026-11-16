@@ -34,6 +34,7 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
     private IApiClient? _apiClient;
     private OAuth2AuthorizationCodeAuthenticator? _delegate;
     private DateTimeOffset _discoveryExpiry = DateTimeOffset.MinValue;
+    private string? _discoveredEndpoints;
 
     [GeneratedRegex("max-age=(\\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex MaxAgePattern();
@@ -111,15 +112,40 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
         Uri authorizationEndpoint = RequireEndpoint(root, "authorization_endpoint");
         Uri tokenEndpoint = RequireEndpoint(root, "token_endpoint");
 
-        _delegate = new OAuth2AuthorizationCodeAuthenticator(
-            _host,
-            _clientId,
-            _clientSecret,
-            authorizationEndpoint,
-            tokenEndpoint,
-            _redirectUri,
-            _scopes
-        );
+        /* The session (tokens and the exchanged flag) lives in the token manager,
+           which outlives discovery: a document that names the same endpoints keeps
+           the delegate, and one that names new endpoints gets a delegate built
+           around the previous session, so refreshing the discovery cache never
+           discards the code exchange. */
+        string endpoints = authorizationEndpoint + "\n" + tokenEndpoint;
+        if (_delegate is null)
+        {
+            _delegate = new OAuth2AuthorizationCodeAuthenticator(
+                _host,
+                _clientId,
+                _clientSecret,
+                authorizationEndpoint,
+                tokenEndpoint,
+                _redirectUri,
+                _scopes
+            );
+        }
+        else if (endpoints != _discoveredEndpoints)
+        {
+            _delegate = new OAuth2AuthorizationCodeAuthenticator(
+                _host,
+                _clientId,
+                _clientSecret,
+                authorizationEndpoint,
+                tokenEndpoint,
+                _redirectUri,
+                _scopes,
+                null,
+                _delegate.TokenManager,
+                _delegate.TokenExchanged
+            );
+        }
+        _discoveredEndpoints = endpoints;
         _delegate.SetApiClient(_apiClient);
         _discoveryExpiry = DateTimeOffset.UtcNow.AddSeconds(ParseMaxAge(response.Headers));
         return _delegate;

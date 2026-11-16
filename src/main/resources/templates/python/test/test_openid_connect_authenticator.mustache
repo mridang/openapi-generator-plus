@@ -243,6 +243,34 @@ class TestDiscoveryCacheLifetime:
 
         assert _parse_max_age(headers) == expected
 
+    def test_rediscovery_after_expiry_keeps_the_exchanged_session(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=100")
+        discovery = mock_client.send_request.return_value
+
+        def respond(method: str, url: str, *args: Any, **kwargs: Any) -> ApiHttpResponse:
+            if url.endswith("openid-configuration"):
+                return discovery
+            return ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({"access_token": "at-1", "token_type": "Bearer", "expires_in": 3600}),
+                headers={"content-type": "application/json"},
+            )
+
+        mock_client.send_request.side_effect = respond
+        auth.set_api_client(mock_client)
+        module = "{{packageName}}.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            auth.exchange_code("the-code")
+            clock.monotonic.return_value = 1100.0
+            # The cached document has expired: it is fetched again, and the code
+            # exchange made before it must still count.
+            assert auth.get_auth_headers() == {"Authorization": "Bearer at-1"}
+
     def test_a_document_is_refetched_once_its_max_age_has_passed(self) -> None:
         from unittest.mock import patch
 

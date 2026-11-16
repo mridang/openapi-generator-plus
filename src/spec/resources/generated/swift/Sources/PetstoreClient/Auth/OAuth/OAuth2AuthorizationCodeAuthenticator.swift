@@ -61,6 +61,32 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
     super.init()
   }
 
+  /// Creates an authenticator around an existing session, so the tokens and the
+  /// exchanged flag carry over. OpenID Connect uses this when a rediscovery names
+  /// new endpoints.
+  init(
+    host: String,
+    clientID: String,
+    clientSecret: String,
+    authorizationURL: String,
+    tokenURL: String,
+    redirectURI: String,
+    scopes: [String],
+    refreshURL: String,
+    tokenManager: OAuth2TokenManager
+  ) {
+    self._host = host
+    self.clientID = clientID
+    self.clientSecret = clientSecret
+    self.authorizationURL = authorizationURL
+    self.tokenURL = tokenURL
+    self.refreshURL = refreshURL.isEmpty ? tokenURL : refreshURL
+    self.redirectURI = redirectURI
+    self.scopes = scopes
+    self.tokenManager = tokenManager
+    super.init()
+  }
+
   /// Returns the API base URL.
   override public func host() -> String {
     return _host
