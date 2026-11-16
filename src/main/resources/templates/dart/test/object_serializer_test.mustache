@@ -527,6 +527,24 @@ void main() {
       expect(category!.id, equals(1));
     });
 
+    test('the four Separator wire values decode to distinct constants and re-encode', () {
+      final wires = [' ', '@@', 'a-b', 'a_b'];
+      final constants = wires.map(Separator.fromJson).toSet();
+      expect(constants, hasLength(4));
+      for (final wire in wires) {
+        expect(Separator.fromJson(wire).toJson(), equals(wire));
+        final decoded =
+            deserialize<EdgeCases>('{"separator":${jsonEncode(wire)}}', EdgeCases.fromJson)!;
+        expect(decoded.separator!.value, equals(wire));
+      }
+    });
+
+    test('a slug matching the declared pattern is accepted', () {
+      final decoded =
+          deserialize<EdgeCases>('{"slug":"12/ab"}', EdgeCases.fromJson)!;
+      expect(decoded.slug, equals('12/ab'));
+    });
+
     // DeserializationErrorWrappingTests
 
     // The error contract: every wire-shape failure throws exactly
