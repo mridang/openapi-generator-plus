@@ -199,7 +199,7 @@ describe('scheme authenticators the spec declares', () => {
         calls.push({ method, url, params: new URLSearchParams(body === null ? '' : String(body)) });
         return {
           statusCode: 200,
-          body: JSON.stringify({ access_token: 'at', refresh_token: 'rt', expires_in: 1 }),
+          body: JSON.stringify({ access_token: 'at', refresh_token: 'rt', expires_in: 0 }),
           headers: { 'content-type': 'application/json' },
         };
       },
@@ -340,6 +340,36 @@ describe('generated documentation', () => {
     expect(readme).toContain('RequestOptions');
     expect(readme).toContain('### Custom `fetch`');
     expect(readme).not.toContain('no cancellation API');
+  });
+
+  test('README opens with a quick start that installs the package by name and catches ApiError', () => {
+    const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8');
+
+    expect(readme).toContain('## Quick start');
+    expect(readme).toContain('npm install {{npmName}}');
+    expect(readme).toContain('if (error instanceof ApiError) {');
+    expect(readme).toContain('[SKILLS.md](SKILLS.md)');
+  });
+
+  test('README lists the features that are not generated', () => {
+    const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8');
+
+    expect(readme).toContain('### XML bodies and `nodeType`');
+    expect(readme).toContain('### Link Objects');
+    expect(readme).toContain('### Mutual TLS');
+  });
+
+  test('README and SKILLS cancel through the per-call signal, never a Configuration signal', () => {
+    const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8');
+
+    expect(readme).not.toContain('Configuration.builder().signal');
+    expect(readme).not.toContain('someOperation');
+    expect(skills).not.toContain('someOperation');
+    expect(readme).toContain('{ signal: controller.signal }');
+  });
+
+  test('SKILLS Testing shows how to stub the transport with a canned fetch', () => {
+    expect(skills).toContain('TransportOptions.builder().fetch(stub).build()');
   });
 
   test('README names the builder setter that rejects a SOCKS proxy', () => {

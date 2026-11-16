@@ -29,7 +29,36 @@ charset decoding, and header injection are identical everywhere:
   relies on reading `Location` from a `redirect: 'manual'` response, which CORS
   makes opaque.
 
-## Install
+## Quick start
+
+```bash
+npm install {{npmName}}
+```
+
+```typescript
+import { ApiError, {{clientClassName}} } from '{{npmName}}';
+
+const client = {{clientClassName}}.withToken('https://api.example.com', 'your-token');
+
+try {
+  const result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
+} catch (error) {
+  if (error instanceof ApiError) {
+    console.log(`API error ${error.statusCode}: ${error.message}`);
+  }
+}
+```
+
+Every API error derives from `ApiError`, with a subclass per status class. Authentication
+schemes, servers, custom transports, cancellation and testing are covered in
+[SKILLS.md](SKILLS.md).
+
+The package declares `sideEffects`, so a bundler drops what you do not use. For a
+size-sensitive edge bundle, import a single API class (for example
+`{{#apiInfo}}{{#apis}}{{#-first}}{{classname}}{{/-first}}{{/apis}}{{/apiInfo}}`) instead of the `{{clientClassName}}` facade, which
+constructs every API group.
+
+## Develop
 
 ```bash
 npm install
@@ -109,6 +138,20 @@ library.
 `uniqueItems` arrays are sent in the natural order of the collection
 (a `Set` keeps its insertion order), not sorted.
 
+### XML bodies and `nodeType`
+
+Request and response bodies are JSON (or form and multipart); XML bodies and the
+`xml.nodeType` annotation are not generated.
+
+### Link Objects
+
+OpenAPI `links` on a response are ignored; follow-up calls are made explicitly.
+
+### Mutual TLS
+
+Client certificates (mutual TLS) are not configurable. `caCertPath` and
+`verifySsl` cover server verification only.
+
 ### SOCKS proxies
 
 `TransportOptionsBuilder.proxy()` accepts only `http://` and `https://` URLs.
@@ -126,16 +169,17 @@ Every operation takes a trailing `RequestOptions` object carrying an
 
 ```typescript
 const controller = new AbortController();
-const pending = api.someOperation(requiredArg, { signal: controller.signal });
+// An operation with optional parameters takes them before the signal: pass
+// `undefined` to skip them.
+const pending = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{ signal: controller.signal }){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
 controller.abort();
 await pending; // rejects with the signal's reason (an AbortError by default)
 ```
 
 Pass a client-level signal as the third constructor argument
-(`new Client(authenticator, undefined, { signal })`) or with
-`Configuration.builder().signal(signal)` to cancel every call made through
-the client. The client-level and the per-call signals are merged: either one
-cancels the call. Cancellation is distinct from the timeout, which still fails
+(`new Client(authenticator, undefined, { signal })`) to cancel every call made
+through the client. The client-level and the per-call signals are merged: either
+one cancels the call. Cancellation is distinct from the timeout, which still fails
 with `NetworkTimeoutError`.
 
 ### Custom `fetch`

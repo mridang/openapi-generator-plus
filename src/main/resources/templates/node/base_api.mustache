@@ -142,10 +142,19 @@ export abstract class BaseApi {
 
     const isMultipart = contentType === 'multipart/form-data';
     const headers = this.headerSelector.selectHeaders(accepts, contentType, isMultipart);
-    Object.assign(headers, this.config.defaultHeaders);
-    Object.assign(headers, headerParams);
+    /* Header names are case-insensitive: a later layer replaces an earlier
+     * one of the same name whatever its case, so one value is sent. */
+    const overlay = (layer: Record<string, string>): void => {
+      const names = new Set(Object.keys(layer).map((key) => key.toLowerCase()));
+      for (const key of Object.keys(headers)) {
+        if (names.has(key.toLowerCase())) delete headers[key];
+      }
+      Object.assign(headers, layer);
+    };
+    overlay(this.config.defaultHeaders);
+    overlay(headerParams);
     if (effectiveAuth) {
-      Object.assign(headers, await effectiveAuth.getAuthHeadersAsync());
+      overlay(await effectiveAuth.getAuthHeadersAsync());
       const cookies = effectiveAuth.getCookieParams();
       const cookieEntries = Object.entries(cookies);
       if (cookieEntries.length > 0) {
@@ -176,7 +185,9 @@ export abstract class BaseApi {
 
     const serializedBody = this.serializeBody(body, contentType, rawBody);
     if (serializedBody === null) {
-      delete headers['Content-Type'];
+      for (const key of Object.keys(headers)) {
+        if (key.toLowerCase() === 'content-type') delete headers[key];
+      }
     }
 
     /* The client-level signal and the per-call signal are merged: either one

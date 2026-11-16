@@ -376,6 +376,30 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vendorExtensions.pluralExamples}}
    * @example {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
 {{/vendorExtensions.pluralExamples}}
+{{#pattern}}
+   * @pattern {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
+{{/pattern}}
+{{#minLength}}
+   * @minLength {{{.}}}
+{{/minLength}}
+{{#maxLength}}
+   * @maxLength {{{.}}}
+{{/maxLength}}
+{{#minimum}}
+   * @minimum {{{.}}}
+{{/minimum}}
+{{#maximum}}
+   * @maximum {{{.}}}
+{{/maximum}}
+{{#multipleOf}}
+   * @multipleOf {{{.}}}
+{{/multipleOf}}
+{{#minItems}}
+   * @minItems {{{.}}}
+{{/minItems}}
+{{#maxItems}}
+   * @maxItems {{{.}}}
+{{/maxItems}}
 {{#isReadOnly}}
    * @readonly
 {{/isReadOnly}}
@@ -392,6 +416,30 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   /** @deprecated This property is deprecated. */
 {{/deprecated}}
 {{^deprecated}}
+{{#pattern}}
+  /** @pattern {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}} */
+{{/pattern}}
+{{#minLength}}
+  /** @minLength {{{.}}} */
+{{/minLength}}
+{{#maxLength}}
+  /** @maxLength {{{.}}} */
+{{/maxLength}}
+{{#minimum}}
+  /** @minimum {{{.}}} */
+{{/minimum}}
+{{#maximum}}
+  /** @maximum {{{.}}} */
+{{/maximum}}
+{{#multipleOf}}
+  /** @multipleOf {{{.}}} */
+{{/multipleOf}}
+{{#minItems}}
+  /** @minItems {{{.}}} */
+{{/minItems}}
+{{#maxItems}}
+  /** @maxItems {{{.}}} */
+{{/maxItems}}
 {{#example}}
   /** @example {{{.}}} */
 {{/example}}
@@ -601,7 +649,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string> =
     new Set([{{#vars}}'{{baseName}}'{{^-last}}, {{/-last}}{{/vars}}]);
 
-  [key: string]: {{#additionalPropertiesType}}{{{additionalPropertiesType}}} | Record<string, {{{additionalPropertiesType}}}>{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}};
+  [key: string]: unknown;
 
   /**
    * A wire key literally named `additionalProperties`. It cannot live on the
@@ -609,18 +657,18 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * held here, merged into the accessor's record and emitted by the serializer
    * under its wire name.
    */
-  #additionalPropertiesKey?: { value: {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}} };
+  #additionalPropertiesKey?: { value: unknown };
 
   /**
    * The undeclared keys this instance carries, as a fresh record. Empty when
    * there are none, never undefined. Read-only: assign extra keys on the
    * instance itself.
    */
-  get additionalProperties(): Record<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}> {
-    const extras: Record<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}> = {};
+  get additionalProperties(): Record<string, unknown> {
+    const extras: Record<string, unknown> = {};
     for (const key of Object.keys(this)) {
       if (!{{classname}}.__additionalPropertiesDeclaredKeys.has(key)) {
-        extras[key] = (this as unknown as Record<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}>)[key];
+        extras[key] = (this as unknown as Record<string, unknown>)[key];
       }
     }
     if (this.#additionalPropertiesKey) {
@@ -633,7 +681,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * Internal: the value held for a wire key named `additionalProperties`, or
    * undefined when the instance has none. Read by the serializer.
    */
-  static __additionalPropertiesKeyOf(instance: object): { value: {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}} } | undefined {
+  static __additionalPropertiesKeyOf(instance: object): { value: unknown } | undefined {
     return #additionalPropertiesKey in instance ? (instance as {{classname}}).#additionalPropertiesKey : undefined;
   }
 
@@ -641,7 +689,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * Internal: hold the value of a wire key named `additionalProperties` on an
    * instance. Used by the serializer when it re-attaches free-form keys.
    */
-  static __holdAdditionalPropertiesKey(instance: object, value: {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}): void {
+  static __holdAdditionalPropertiesKey(instance: object, value: unknown): void {
     (instance as {{classname}}).#additionalPropertiesKey = { value };
   }
 {{/isAdditionalPropertiesTrue}}
@@ -666,16 +714,23 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#isAdditionalPropertiesTrue}}
     if (data) {
       this.#additionalPropertiesKey = Object.prototype.hasOwnProperty.call(data, 'additionalProperties')
-        ? { value: data['additionalProperties'] as {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}} }
+        ? { value: data['additionalProperties'] as unknown }
         : {{classname}}.__additionalPropertiesKeyOf(data);
     }
     Object.assign(
       this,
-      Object.fromEntries(Object.entries(data ?? {}).filter(([key]) => key !== 'additionalProperties')),
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(
+          ([key]) => key !== 'additionalProperties' && key !== '__proto__'
+        )
+      ),
     );
 {{/isAdditionalPropertiesTrue}}
 {{^isAdditionalPropertiesTrue}}
-    Object.assign(this, data);
+    Object.assign(
+      this,
+      Object.fromEntries(Object.entries(data ?? {}).filter(([key]) => key !== '__proto__')),
+    );
 {{/isAdditionalPropertiesTrue}}
 {{! default-on-deserialize: a field whose schema declares a default falls
     back to that default ONLY when the wire payload OMITS the key. An

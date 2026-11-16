@@ -105,6 +105,20 @@ function api(): TestableApi {
   return new TestableApi(new DefaultApiClient(), config);
 }
 
+/* The first request to a freshly started container can fail with a connection
+ * error before its port is serving. Warm the connection up once, retrying, so
+ * no test below observes that cold start. */
+beforeAll(async () => {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      await fetch(`${chasmUrl}/test/status/404`);
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
+}, 30_000);
+
 describe('BaseApi exception dispatch', () => {
   const cases: [number, new (...args: never[]) => ApiError][] = [
     [400, BadRequestError],
@@ -218,6 +232,35 @@ describe('BaseApi config default Accept', () => {
       ['application/json'], 'application/json',
       (json) => json as unknown);
     expect(client.capturedHeaders['Accept']).toBe('application/xml');
+  });
+
+  test('a default header in another case replaces the negotiated one, never sits beside it', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({
+      baseUrl: 'http://localhost',
+      defaultHeaders: { accept: 'application/vnd.x+json' }
+    });
+    const api = new TestableApi(client, config);
+    await api.call('GET', '/test/echo', {}, {}, null,
+      ['application/json'], 'application/json',
+      (json) => json as unknown);
+    const accepts = Object.keys(client.capturedHeaders).filter((k) => k.toLowerCase() === 'accept');
+    expect(accepts).toEqual(['accept']);
+    expect(client.capturedHeaders['accept']).toBe('application/vnd.x+json');
+  });
+
+  test('a body-less request drops a Content-Type written in any case', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({
+      baseUrl: 'http://localhost',
+      defaultHeaders: { 'content-type': 'application/json' }
+    });
+    const api = new TestableApi(client, config);
+    await api.call('GET', '/test/echo', {}, {}, null,
+      ['application/json'], 'application/json',
+      (json) => json as unknown);
+    const types = Object.keys(client.capturedHeaders).filter((k) => k.toLowerCase() === 'content-type');
+    expect(types).toEqual([]);
   });
 });
 
@@ -1019,11 +1062,24 @@ describe('SecurityNoneSuppressesClientAuth', () => {
     const clientAuth = new BearerAuthenticator('http://localhost', 'secret-token-123');
     const petApi = new PetApi(client, config, clientAuth);
     try {
-      await petApi.addPet({ name: 'Fido' });
+      await petApi.addPet({ name: 'Fido', photoUrls: [] });
     } catch {
       // capture-only
     }
     expect(client.capturedHeaders['Authorization']).toBe('Bearer secret-token-123');
+  });
+
+  /*
+   * A request body keeps its required fields at compile time: the
+   * `@ts-expect-error` below fails the type check if DeepInput ever makes
+   * every property optional again.
+   */
+  test('a request body missing a required field is a compile error', async () => {
+    const petApi = new PetApi(new CapturingApiClient(), new Configuration({ baseUrl: 'http://localhost' }));
+    // @ts-expect-error photoUrls is required
+    const missing = petApi.addPet({ name: 'Fido' });
+    await missing.catch(() => undefined);
+    expect(missing).toBeInstanceOf(Promise);
   });
 
   /*
