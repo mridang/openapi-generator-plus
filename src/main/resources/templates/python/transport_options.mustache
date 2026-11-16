@@ -50,6 +50,21 @@ def _assert_valid_timeout(timeout: Optional[int]) -> None:
         )
 
 
+def _assert_valid_max_retries(max_retries: int) -> None:
+    """Reject a retry count that is not a whole number of at least zero.
+
+    Shared by the constructor and the builder so a ``TransportOptions`` built
+    directly cannot carry a count the builder would have refused.
+
+    Raises:
+        ValueError: If the count is negative or not an integer.
+    """
+    if isinstance(max_retries, bool) or not isinstance(max_retries, int) or max_retries < 0:
+        raise ValueError(
+            f'Invalid max_retries: must be an integer of at least 0 (got {max_retries})'
+        )
+
+
 _REDACTED = '***'
 _SENSITIVE_HEADER_NAMES = ('authorization', 'proxy-authorization', 'cookie')
 _SENSITIVE_HEADER_FRAGMENTS = ('key', 'token', 'secret')
@@ -174,10 +189,22 @@ class TransportOptions:
     only injected if the caller has not already set one.
     """
 
+    max_retries: int = 2
+    """How many times a failed request is sent again.
+
+    A request is retried after a network error that happened before any
+    response and after a ``408``, ``409``, ``429`` or ``5xx`` (not ``501``)
+    response, waiting 0.5 s doubling to 8 s with up to 25% jitter, or as long
+    as a ``Retry-After`` header says (at most 60 s). The retries share the one
+    :attr:`timeout`: they never extend it. A body that cannot be sent twice (a
+    stream or a multipart upload) is never retried. ``0`` disables retries.
+    """
+
     def __post_init__(self) -> None:
-        """Validate the proxy and the timeout and make default_headers an immutable MappingProxyType."""
+        """Validate the proxy, the timeout and the retry count and make default_headers an immutable MappingProxyType."""
         _assert_valid_proxy(self.proxy)
         _assert_valid_timeout(self.timeout)
+        _assert_valid_max_retries(self.max_retries)
         if not isinstance(self.default_headers, MappingProxyType):
             object.__setattr__(self, 'default_headers', MappingProxyType(dict(self.default_headers)))
 
@@ -189,7 +216,8 @@ class TransportOptions:
             f'timeout={self.timeout!r}, follow_redirects={self.follow_redirects!r}, '
             f'max_redirects={self.max_redirects!r}, user_agent={self.user_agent!r}, '
             f'default_headers={_redact_headers(self.default_headers)!r}, '
-            f'inject_request_id={self.inject_request_id!r})'
+            f'inject_request_id={self.inject_request_id!r}, '
+            f'max_retries={self.max_retries!r})'
         )
 
     @classmethod
@@ -211,6 +239,7 @@ class TransportOptionsBuilder:
     - ``follow_redirects`` -- ``True``
     - ``inject_request_id`` -- ``False``
     - ``timeout`` -- ``10000`` (10 seconds)
+    - ``max_retries`` -- ``2``
     - ``user_agent`` -- a package-specific default string
     - All other fields -- ``None`` or empty
 
@@ -233,6 +262,7 @@ class TransportOptionsBuilder:
         self._user_agent: Optional[str] = '{{userAgentDefault}}'
         self._default_headers: Dict[str, str] = {}
         self._inject_request_id: bool = False
+        self._max_retries: int = 2
 
     def verify_ssl(self, verify_ssl: bool) -> 'TransportOptionsBuilder':
         """Enable or disable TLS certificate verification.
@@ -363,6 +393,22 @@ class TransportOptionsBuilder:
         self._inject_request_id = inject_request_id
         return self
 
+    def max_retries(self, max_retries: int) -> 'TransportOptionsBuilder':
+        """Set how many times a failed request is sent again.
+
+        Args:
+            max_retries: Number of retries (``0`` disables them; default ``2``).
+
+        Raises:
+            ValueError: If the count is negative or not an integer.
+
+        Returns:
+            This builder.
+        """
+        _assert_valid_max_retries(max_retries)
+        self._max_retries = max_retries
+        return self
+
     def build(self) -> TransportOptions:
         """Build and return an immutable :class:`TransportOptions` instance.
 
@@ -379,4 +425,5 @@ class TransportOptionsBuilder:
             user_agent=self._user_agent,
             default_headers=self._default_headers,
             inject_request_id=self._inject_request_id,
+            max_retries=self._max_retries,
         )

@@ -53,6 +53,26 @@ class TestTransportOptions:
         opts = TransportOptions.builder().build()
         assert opts.inject_request_id is False
 
+    def test_max_retries_defaults_to_two(self) -> None:
+        assert TransportOptions.builder().build().max_retries == 2
+        assert TransportOptions().max_retries == 2
+
+    def test_max_retries_is_set_by_the_builder_and_zero_disables_retries(self) -> None:
+        assert TransportOptions.builder().max_retries(5).build().max_retries == 5
+        assert TransportOptions.builder().max_retries(0).build().max_retries == 0
+
+    @pytest.mark.parametrize('value', [-1, True])
+    def test_an_invalid_max_retries_is_rejected_with_the_canonical_message(
+        self, value: int
+    ) -> None:
+        message = f'Invalid max_retries: must be an integer of at least 0 (got {value})'
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().max_retries(value)
+        assert str(exc_info.value) == message
+        with pytest.raises(ValueError) as direct:
+            TransportOptions(max_retries=value)
+        assert str(direct.value) == message
+
     def test_builder_sets_all_fields(self) -> None:
         opts = (
             TransportOptions.builder()

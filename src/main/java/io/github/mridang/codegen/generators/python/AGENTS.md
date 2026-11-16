@@ -329,6 +329,23 @@ Where: `value_serializer.mustache`, `api/api.mustache`, `base_api.mustache`. Tes
 - F1093 (credential strip by origin), F1080 (bounded ApiError body), F1100 (pagination), F1174, F1176 are design or gate work outside the templates.
 - F541 needs `PythonClientSpec.java`; F1072 needs a Java unit test class; F1153, F1154 are shared Java tests.
 
+## Decisions taken in batch 9
+
+### Retries and the 401 replay (F823, F855)
+Rule: `TransportOptions.max_retries` (default 2, `0` disables, validated by `_assert_valid_max_retries` in the constructor and the builder). The retry loop is SDK-level, in `BaseApi._send_with_retries`, not `urllib3.Retry`, so every retry rebuilds the headers (`build_headers`, authentication and trace context included) and the one end-to-end timeout is a `time.monotonic()` deadline handed to `DefaultApiClient.send_request(deadline=...)`. Retried: `NetworkException` that is not a `NetworkTimeoutException`, and statuses 408, 409, 429, 500-599 except 501. Wait: `Retry-After` (seconds or HTTP date, at most 60 s) else 0.5 s doubling to 8 s with up to 25% taken off; a wait that does not fit in the remaining budget ends the retries and the last outcome stands. A body that is not `None`, `str` or bytes-like (a stream, a multipart dict) is neither retried nor replayed. A custom `ApiClient` that is not a `DefaultApiClient` is never retried. A 401 on a call whose authenticator has `invalidate_access_token` (the OAuth2 and OIDC authenticators) drops the cached access token, rebuilds the headers and sends once more inside the same budget; a failed re-authentication or a second 401 leaves the usual `UnauthorizedException`. Token-endpoint and discovery calls go straight to `ApiClient.send_request` and are never retried.
+Where: `transport_options.mustache`, `default_api_client.mustache` (`_is_retryable_status`, `_retry_delay`, `deadline`), `base_api.mustache`, the four OAuth authenticators.
+Test: `test_base_api.mustache` (`TestAutomaticRetries`, `TestUnauthorizedReplay`), `test_default_api_client_unit.mustache` (`TestRetryPolicy`), `test_transport_options.mustache`, `test_oauth2_*_authenticator.mustache` and `test_openid_connect_authenticator.mustache` (`TestInvalidateAccessToken`). Tests that expect one failing request use `max_retries(0)` (the `api` fixture, `_create_mock_server`).
+
+### PKCE on the authorization-code flow (F858)
+Rule: `build_authorization_url` creates a 43-character verifier (`secrets.token_urlsafe(32)`), keeps it in the authenticator and adds `code_challenge` (base64url SHA-256, `hashlib`) and `code_challenge_method=S256` after `state`; `exchange_code` sends `code_verifier` and clears it after a successful exchange; an exchange without a built URL sends none; no nonce. OIDC passes the verifier to the delegate it rebuilds on a rediscovery with new endpoints.
+Where: `auth/oauth/oauth2_auth_code_authenticator.mustache`, `auth/oauth/openid_connect_authenticator.mustache`. Test: `test_oauth2_auth_code_authenticator.mustache` (`TestPkce`), `test_openid_connect_authenticator.mustache` (`TestOidcPkceAndInvalidation`).
+
+### ApiException rendering cap (F1080)
+Rule: `str(error)` renders the body cut at 1 KiB of UTF-8 with `... (N more bytes)`, control characters as `\n`, `\r`, `\t` or `\xNN`, and masks the values of `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `www-authenticate`, `proxy-authenticate` and any name containing `key`, `token` or `secret`; `response_body` and `response_headers` stay whole. Where: `errors.mustache`. Test: `test_api_error.mustache` (`TestApiErrorRendering`).
+
+### Not applicable in batch 9 (python)
+F825 is rust only.
+
 ## Build-breaking rules
 
 - No generated file may carry `# ruff: noqa` or any blanket suppression; the only per-file ignores are `E402` for `models/*.py` and `errors/__init__.py`, named with a reason in `pyproject_toml.mustache`.
