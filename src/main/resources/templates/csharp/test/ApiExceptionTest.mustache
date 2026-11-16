@@ -375,7 +375,7 @@ public class ApiExceptionTest
         var ex = new ApiException(502, "bad gateway", null, body);
 
         string rendered = ex.ToString();
-        Assert.Contains(new string('x', 1024) + "... (6 more characters)", rendered, StringComparison.Ordinal);
+        Assert.Contains(new string('x', 1024) + "... (6 more bytes)", rendered, StringComparison.Ordinal);
         Assert.DoesNotContain(new string('x', 1025), rendered, StringComparison.Ordinal);
         Assert.Equal(body, ex.ResponseBody);
     }

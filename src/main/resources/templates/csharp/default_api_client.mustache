@@ -361,12 +361,113 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     }
 
     /// <inheritdoc/>
+    public Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        CancellationToken cancellationToken
+    )
+    {
+        return SendRequestAsync(method, url, headers, body, noRedirect, null, cancellationToken);
+    }
+
+    /// <summary>The first backoff before a retry, doubled for each further retry.</summary>
+    private const double InitialRetryDelaySeconds = 0.5;
+
+    /// <summary>The ceiling of the exponential backoff, in seconds.</summary>
+    private const double MaxRetryDelaySeconds = 8;
+
+    /// <summary>The ceiling of a server-sent <c>Retry-After</c>, in seconds.</summary>
+    private const double MaxRetryAfterSeconds = 60;
+
+    /// <summary>Whether a status is worth another attempt: 408, 409, 429 and 500-599 except 501.</summary>
+    internal static bool IsRetryableStatus(int status)
+    {
+        return status is 408 or 409 or 429 || (status is >= 500 and <= 599 and not 501);
+    }
+
+    /// <summary>
+    /// The wait before retry number <paramref name="attempt"/> (0 for the first
+    /// retry): the server's <c>Retry-After</c> (seconds or an HTTP date, capped
+    /// at 60 s) when it sent a usable one, otherwise 0.5 s doubling to 8 s with
+    /// up to 25% jitter taken off. <paramref name="jitter"/> is a sample in
+    /// [0, 1).
+    /// </summary>
+    internal static TimeSpan RetryDelay(
+        int attempt,
+        IReadOnlyDictionary<string, string> responseHeaders,
+        DateTimeOffset now,
+        double jitter
+    )
+    {
+        foreach (KeyValuePair<string, string> entry in responseHeaders)
+        {
+            if (!string.Equals(entry.Key, "Retry-After", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            string value = entry.Value.Trim();
+            if (
+                double.TryParse(
+                    value,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out double seconds
+                )
+                && double.IsFinite(seconds)
+                && seconds >= 0
+            )
+            {
+                return TimeSpan.FromSeconds(Math.Min(seconds, MaxRetryAfterSeconds));
+            }
+            if (
+                DateTimeOffset.TryParse(
+                    value,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal,
+                    out DateTimeOffset date
+                )
+            )
+            {
+                double until = (date - now).TotalSeconds;
+                return TimeSpan.FromSeconds(Math.Clamp(until, 0, MaxRetryAfterSeconds));
+            }
+        }
+        double backoff = Math.Min(
+            InitialRetryDelaySeconds * Math.Pow(2, Math.Min(attempt, 16)),
+            MaxRetryDelaySeconds
+        );
+        return TimeSpan.FromSeconds(backoff * (1 - 0.25 * jitter));
+    }
+
+    /// <summary>A random sample in [0, 1) for the backoff jitter.</summary>
+    private static double Jitter()
+    {
+        return System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1000) / 1000d;
+    }
+
+    /// <summary>Whether the body can be sent again: only text and byte bodies, never a stream or multipart.</summary>
+    private static bool IsReplayableBody(object? body)
+    {
+        return body is null or string or byte[];
+    }
+
+    /// <summary>Tells the retry loop whether a response had started to arrive.</summary>
+    private sealed class AttemptState
+    {
+        public bool ResponseReceived { get; set; }
+    }
+
+    /// <inheritdoc/>
     public async Task<ApiHttpResponse> SendRequestAsync(
         string method,
         Uri url,
         Dictionary<string, string> headers,
         object? body,
         bool noRedirect,
+        Func<Task<Dictionary<string, string>>>? refreshHeaders,
         CancellationToken cancellationToken
     )
     {
@@ -386,6 +487,104 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             throw new ArgumentException($"Request URL must be absolute: {url}", nameof(url));
         }
 
+        /* One budget for every attempt, hop and the body read: a single token
+           created here is shared by each send, so neither a redirect chain nor
+           a retry can reset it. */
+        using CancellationTokenSource? timeoutSource = _transportOptions.Timeout.HasValue
+            ? new CancellationTokenSource(TimeSpan.FromMilliseconds(_transportOptions.Timeout.Value))
+            : null;
+        /* The caller's per-call token and the client-level token from
+           TransportOptions are linked with the timeout, so any of the three
+           aborts the in-flight request. Only the timeout source maps to the
+           timeout error; a caller or client cancellation propagates as
+           OperationCanceledException. */
+        using CancellationTokenSource linkedSource = CancellationTokenSource.CreateLinkedTokenSource(
+            timeoutSource?.Token ?? CancellationToken.None,
+            _transportOptions.CancellationToken,
+            cancellationToken);
+        CancellationToken timeoutToken = linkedSource.Token;
+
+        System.Diagnostics.Stopwatch elapsed = System.Diagnostics.Stopwatch.StartNew();
+        Dictionary<string, string> attemptHeaders = headers;
+        bool canRetry = _transportOptions.MaxRetries > 0 && IsReplayableBody(body);
+        int attempt = 0;
+        while (true)
+        {
+            AttemptState state = new();
+            TimeSpan delay;
+            try
+            {
+                ApiHttpResponse result = await SendAttemptAsync(
+                    method, url, attemptHeaders, body, noRedirect, timeoutSource, timeoutToken, state)
+                    .ConfigureAwait(false);
+                if (
+                    !canRetry
+                    || attempt >= _transportOptions.MaxRetries
+                    || !IsRetryableStatus(result.StatusCode)
+                )
+                {
+                    return result;
+                }
+                delay = RetryDelay(attempt, result.Headers, DateTimeOffset.UtcNow, Jitter());
+                if (!FitsBudget(elapsed, delay))
+                {
+                    return result;
+                }
+            }
+            catch (Errors.NetworkException ex) when (
+                canRetry
+                && attempt < _transportOptions.MaxRetries
+                && !state.ResponseReceived
+                && ex is not Errors.NetworkTimeoutException
+            )
+            {
+                delay = RetryDelay(
+                    attempt,
+                    new Dictionary<string, string>(),
+                    DateTimeOffset.UtcNow,
+                    Jitter());
+                if (!FitsBudget(elapsed, delay))
+                {
+                    throw;
+                }
+            }
+
+            try
+            {
+                await Task.Delay(delay, timeoutToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex) when (timeoutSource?.IsCancellationRequested == true)
+            {
+                throw new Errors.NetworkTimeoutException("Request timed out", ex);
+            }
+            attempt++;
+            /* Every retry is a fresh request: the headers are rebuilt, so a
+               token that went stale while waiting is fetched again. */
+            if (refreshHeaders != null)
+            {
+                attemptHeaders = await refreshHeaders().ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>Whether waiting <paramref name="delay"/> still leaves time inside the end-to-end timeout.</summary>
+    private bool FitsBudget(System.Diagnostics.Stopwatch elapsed, TimeSpan delay)
+    {
+        return !_transportOptions.Timeout.HasValue
+            || elapsed.Elapsed + delay < TimeSpan.FromMilliseconds(_transportOptions.Timeout.Value);
+    }
+
+    private async Task<ApiHttpResponse> SendAttemptAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        CancellationTokenSource? timeoutSource,
+        CancellationToken timeoutToken,
+        AttemptState state
+    )
+    {
         /* Field names are case-insensitive (RFC 9110 section 5.1), so a caller
          * header replaces a default of the same name whatever its casing and
          * both are never sent as two headers. */
@@ -503,27 +702,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             && !noRedirect
         )
         {
-            replayBytes = await request.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+            replayBytes = await request.Content.ReadAsByteArrayAsync(timeoutToken).ConfigureAwait(false);
             replayType = request.Content.Headers.ContentType;
             request.Content.Dispose();
             request.Content = CreateReplayContent(replayBytes, replayType);
         }
-
-        /* One budget for every hop and the body read: a single token created
-           here is shared by each send, so a redirect chain cannot reset it. */
-        using CancellationTokenSource? timeoutSource = _transportOptions.Timeout.HasValue
-            ? new CancellationTokenSource(TimeSpan.FromMilliseconds(_transportOptions.Timeout.Value))
-            : null;
-        /* The caller's per-call token and the client-level token from
-           TransportOptions are linked with the timeout, so any of the three
-           aborts the in-flight request. Only the timeout source maps to the
-           timeout error below; a caller or client cancellation propagates as
-           OperationCanceledException. */
-        using CancellationTokenSource linkedSource = CancellationTokenSource.CreateLinkedTokenSource(
-            timeoutSource?.Token ?? CancellationToken.None,
-            _transportOptions.CancellationToken,
-            cancellationToken);
-        CancellationToken timeoutToken = linkedSource.Token;
 
         HttpResponseMessage response;
         try
@@ -531,6 +714,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             response = await _httpClient
                 .SendAsync(request, timeoutToken)
                 .ConfigureAwait(false);
+            state.ResponseReceived = true;
 
             /* Gap BH: manual redirect loop with cross-origin sensitive-header strip.
                Gap 3.2: when noRedirect is set the loop is skipped entirely so a

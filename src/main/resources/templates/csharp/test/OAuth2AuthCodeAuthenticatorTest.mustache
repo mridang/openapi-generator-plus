@@ -90,7 +90,93 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         string url = auth.BuildAuthorizationUrl("").OriginalString;
 
         Assert.DoesNotContain("state", url, StringComparison.Ordinal);
-        Assert.Equal(auth.BuildAuthorizationUrl().OriginalString, url);
+        string withoutPkce = System.Text.RegularExpressions.Regex.Replace(
+            auth.BuildAuthorizationUrl().OriginalString,
+            "&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256$",
+            "");
+        Assert.Equal(withoutPkce, System.Text.RegularExpressions.Regex.Replace(
+            url, "&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256$", ""));
+    }
+
+
+    private static string S256(string verifier)
+    {
+        return Convert
+            .ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(verifier)))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
+    [Fact]
+    public async Task AuthorizationUrlCarriesAPkceS256ChallengeThatTheCodeExchangeProves()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var query = System.Web.HttpUtility.ParseQueryString(auth.BuildAuthorizationUrl("s").Query);
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        var form = System.Web.HttpUtility.ParseQueryString(client.LastBody!);
+
+        Assert.Equal("S256", query["code_challenge_method"]);
+        Assert.Equal(43, form["code_verifier"]!.Length);
+        Assert.Equal(S256(form["code_verifier"]!), query["code_challenge"]);
+        Assert.DoesNotContain("nonce", auth.BuildAuthorizationUrl().Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ACodeExchangeWithoutAnAuthorizationUrlSendsNoCodeVerifier()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        Assert.DoesNotContain("code_verifier", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task EveryAuthorizationUrlGetsAFreshVerifierAndAnExchangeSpendsIt()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var first = System.Web.HttpUtility.ParseQueryString(auth.BuildAuthorizationUrl().Query)["code_challenge"];
+        var second = System.Web.HttpUtility.ParseQueryString(auth.BuildAuthorizationUrl().Query)["code_challenge"];
+        await auth.ExchangeCodeAsync("one");
+        string firstBody = client.LastBody!;
+        await auth.ExchangeCodeAsync("two");
+
+        Assert.NotEqual(first, second);
+        Assert.Equal(second, S256(System.Web.HttpUtility.ParseQueryString(firstBody)["code_verifier"]!));
+        Assert.DoesNotContain("code_verifier", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task InvalidatingTheAccessTokenKeepsTheRefreshTokenAndRefreshesNext()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        Assert.Equal("Bearer tok1", (await auth.GetAuthHeadersAsync())["Authorization"]);
+        Assert.Equal(1, client.CallCount);
+
+        auth.InvalidateAccessToken();
+        var headers = await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("Bearer tok2", headers["Authorization"]);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("refresh_token=ref1", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]

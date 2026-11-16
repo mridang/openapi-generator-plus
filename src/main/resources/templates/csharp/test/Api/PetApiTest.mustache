@@ -1503,7 +1503,7 @@ public class PetApiTest
     public async Task GetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes(int status, Type expected)
     {
         var routed = new PetApi(
-            new DefaultApiClient(),
+            new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build()),
             Configuration.Builder().BaseUrl(_baseUrl + "/test/status/" + status).Build());
 
         await Assert.ThrowsAsync(expected, () => routed.GetPetByIdAsync(1L));

@@ -73,6 +73,20 @@ public class TransportOptionsTest
     }
 
     [Fact]
+    public void MaxRetriesDefaultsToTwoAndZeroDisablesRetrying()
+    {
+        Assert.Equal(2, TransportOptions.Builder().Build().MaxRetries);
+        Assert.Equal(0, TransportOptions.Builder().MaxRetries(0).Build().MaxRetries);
+        Assert.Equal(5, TransportOptions.Builder().MaxRetries(5).Build().MaxRetries);
+    }
+
+    [Fact]
+    public void MaxRetriesRejectsANegativeValue()
+    {
+        Assert.Throws<ArgumentException>(() => TransportOptions.Builder().MaxRetries(-1));
+    }
+
+    [Fact]
     public void InjectRequestIdDefaultsToFalse()
     {
         var opts = TransportOptions.Builder().Build();

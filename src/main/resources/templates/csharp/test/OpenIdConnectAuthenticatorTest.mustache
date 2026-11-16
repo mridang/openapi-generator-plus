@@ -409,6 +409,84 @@ public class OpenIdConnectAuthenticatorTest
         Assert.Equal("Bearer at-1", headers["Authorization"]);
     }
 
+    [Fact]
+    public async Task RediscoveryKeepsThePkceVerifierOfTheBuiltAuthorizationUrl()
+    {
+        /* Every discovery names a different token endpoint, so the second one
+           builds a new delegate around the previous session; the verifier of
+           the URL built before must survive into the code exchange. */
+        var client = new RotatingDiscoveryApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync("s");
+        await auth.ExchangeCodeAsync("the-code");
+
+        var challenge = System.Web.HttpUtility.ParseQueryString(url.Query)["code_challenge"];
+        var verifier = System.Web.HttpUtility.ParseQueryString(client.LastTokenBody!)["code_verifier"];
+        Assert.Equal(2, client.Discoveries);
+        Assert.Equal("S256", System.Web.HttpUtility.ParseQueryString(url.Query)["code_challenge_method"]);
+        Assert.Equal(43, verifier!.Length);
+        Assert.Equal(
+            Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(verifier)))
+                .TrimEnd('=').Replace('+', '-').Replace('/', '_'),
+            challenge);
+    }
+
+    [Fact]
+    public async Task InvalidatingTheAccessTokenRefreshesWithTheHeldRefreshToken()
+    {
+        var client = new RotatingDiscoveryApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        await auth.ExchangeCodeAsync("the-code");
+        Assert.Equal("Bearer at-1", (await auth.GetAuthHeadersAsync())["Authorization"]);
+
+        auth.InvalidateAccessToken();
+        var headers = await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("Bearer at-2", headers["Authorization"]);
+        Assert.Contains("grant_type=refresh_token", client.LastTokenBody!, StringComparison.Ordinal);
+        Assert.Contains("refresh_token=rt-1", client.LastTokenBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InvalidatingBeforeAnyDiscoveryIsHarmless()
+    {
+        CreateAuthenticator().InvalidateAccessToken();
+    }
+
+    private sealed class RotatingDiscoveryApiClient : IApiClient
+    {
+        private int _tokens;
+        public int Discoveries { get; private set; }
+        public string? LastTokenBody { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body)
+        {
+            if (method == "GET")
+            {
+                Discoveries++;
+                return Task.FromResult(new ApiHttpResponse(
+                    200,
+                    "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                        + "\"token_endpoint\":\"https://auth.example.com/token" + Discoveries + "\"}",
+                    new Dictionary<string, string> { { "Cache-Control", "max-age=0" } }));
+            }
+
+            LastTokenBody = body?.ToString();
+            _tokens++;
+            return Task.FromResult(new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"at-" + _tokens + "\",\"refresh_token\":\"rt-1\",\"expires_in\":3600}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
     private sealed class ExchangingApiClient : IApiClient
     {
         public Task<ApiHttpResponse> SendRequestAsync(

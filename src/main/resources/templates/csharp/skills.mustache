@@ -260,6 +260,10 @@ var client = new global::{{packageName}}.{{clientClassName}}(authenticator, tran
 
 The client implements `IDisposable`. Use `using` statements or call `Dispose()` when done.
 
+### Retries
+
+`TransportOptions.Builder().MaxRetries(n)` sets the automatic retries (default 2, `0` disables). Retried: a network error before a response and the statuses 408, 409, 429 and 500-599 except 501, after a 0.5 s backoff doubling to 8 s with 25% jitter or the server's `Retry-After` (at most 60 s). The retries never extend the timeout, rebuild the headers on every attempt, and skip stream and multipart bodies. A 401 on an OAuth2 or OpenID Connect call drops the cached access token and replays the request once (`InvalidateAccessToken()` on those authenticators does the same by hand).
+
 ### Cancellation
 
 Every operation takes a trailing `CancellationToken cancellationToken = default`. Cancelling it raises `OperationCanceledException` (not `NetworkTimeoutException`). `TransportOptions.Builder().CancellationToken(token)` adds a client-level token linked with each call's token.
