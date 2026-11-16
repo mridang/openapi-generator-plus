@@ -559,11 +559,11 @@ def header_parents(lang, stmt, name):
     found = []
     if lang in ("java", "php", "node", "dart"):
         for kw in ("extends", "implements", "with"):
-            m = re.search(r"\b%s\s+(.+?)(?=\b(?:extends|implements|with)\b|$)" % kw, rest)
+            m = re.search(r"\b%s\s+(.+?)(?=\b(?:extends|implements|with)\b|$)" % kw, rest, re.S)
             if m:
                 found += split_top(m.group(1))
     elif lang in ("kotlin", "csharp", "swift"):
-        m = re.match(r"\s*:\s*(.+?)(?:\bwhere\b|$)", rest)
+        m = re.match(r"\s*:\s*(.+?)(?:\bwhere\b|$)", rest, re.S)
         if m:
             found += split_top(m.group(1))
     out = []
@@ -586,7 +586,14 @@ class Clike:
         return False
 
     def continues(self, stmt, nxt):
-        return False
+        if nxt.startswith(":") and re.search(r"\b(?:class|struct|record|interface)\b", stmt):
+            return True
+        return self.wrapped_header(stmt)
+
+    def wrapped_header(self, stmt):
+        """A formatter wrapped a type header after a comma: the base list goes on."""
+        return stmt.rstrip().endswith(",") and re.search(
+            r"\b(?:class|struct|record|interface|protocol|enum|object)\b[^{;]*:", stmt) is not None
 
     def ends_without_body(self, stmt):
         return stmt.rstrip().endswith(";") or stmt.rstrip().endswith("}")
@@ -709,8 +716,7 @@ class Kotlin(Clike):
         return re.match(r"^@[\w.:]+(\(.*\))?$", line) is not None
 
     def continues(self, stmt, nxt):
-        return nxt.startswith(":") or (stmt.rstrip().endswith(")") and nxt.startswith("{")
-                                       and False)
+        return nxt.startswith(":") or self.wrapped_header(stmt)
 
     def decl(self, s, ctx, ann, line):
         s = re.sub(r"@[\w.:]+(\((?:[^()]|\([^()]*\))*\))?\s*", "", s).strip()

@@ -2066,6 +2066,126 @@
     "ruby"
    ],
    "reason": "tracked as F865: typed additionalProperties is populated by the shared generator for ruby only so far (populatesAdditionalPropertiesType hook); the other SDKs render it differently or still need the typing"
+  },
+  {
+   "element": [
+    "invalidatableauthenticator",
+    "accesstokeninvalidating",
+    "accesstokeninvalidator"
+   ],
+   "aspect": "type",
+   "languages": [
+    "csharp",
+    "dart",
+    "go"
+   ],
+   "reason": "F855: statically typed csharp, dart and go need a named capability interface (IInvalidatableAuthenticator, AccessTokenInvalidating, auth.AccessTokenInvalidator) so BaseApi can test for it; java/kotlin use a default method, rust a trait method, ruby/node/python/php/elixir duck-type"
+  },
+  {
+   "element": [
+    "httpawareauthenticator.invalidateaccesstoken",
+    "browserauthimplicitauthenticator.invalidateaccesstoken"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java"
+   ],
+   "reason": "F855: java has no structural typing, so the no-op default method invalidateAccessToken sits on HttpAwareAuthenticator (and is inherited by the implicit authenticator) for BaseApi to call without instanceof"
+  },
+  {
+   "element": [
+    "apiclient.maxretries",
+    "apiclient.requesttimeout"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "F823: rust trait objects have no RTTI, so BaseApi::invoke_api (which owns the retry loop) reads the retry limit and timeout through default trait methods on ApiClient; a custom client keeps the defaults and is never retried"
+  },
+  {
+   "element": "requestoptions.deadline",
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "F823: the one end-to-end deadline shared by all attempts is carried on RequestOptions in rust (public field and builder) because the loop lives in BaseApi::invoke_api and the transport takes only RequestOptions; other SDKs pass it as a send_request argument or keep it private"
+  },
+  {
+   "element": "openapierrorext",
+   "aspect": "type",
+   "languages": [
+    "rust"
+   ],
+   "reason": "F825: rust operations return Box<dyn Error + Send + Sync>; the <Prefix>ErrorExt extension trait (as_api_error, is_api_error, api_error_kind) is the only way to match SDK errors on the boxed trait object; rust only per the ledger"
+  },
+  {
+   "element": "defaultapiclient.sendrequest",
+   "aspect": "params",
+   "languages": [
+    "ruby",
+    "swift"
+   ],
+   "value": "*",
+   "reason": "F823: ruby and swift keep the retry loop in the transport's send_request/sendRequest, so it takes a callback (retry_headers / refreshHeaders) that rebuilds the authentication headers on every attempt; go, dart, python, php and rust loop in BaseApi and need no extra parameter"
+  },
+  {
+   "element": "transportoptions.validatemaxretries",
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F823: ruby has no package-private visibility, so the shared maxRetries check (non-negative integer) is a public class method called by both the constructor and the builder; python and node keep it as a private function"
+  },
+  {
+   "element": "baseapi.sleepbeforeretry",
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F823: dart's retry wait is an overridable BaseApi method (the test seam php exposes as a protected pause()) so no test sleeps; dart has no protected visibility, and a library-private name cannot be overridden from tests in another library"
+  },
+  {
+   "element": [
+    "oauth2authorizationcodeauthenticator.pkceverifier",
+    "oauth2authorizationcodeauthenticator.pendingpkceverifier",
+    "oauth2authorizationcodeauthenticator.resumepkce"
+   ],
+   "aspect": "member",
+   "languages": [
+    "python",
+    "ruby",
+    "dart"
+   ],
+   "reason": "F858: the OIDC authenticator hands the pending PKCE verifier to the delegate it rebuilds on rediscovery; java/go/kotlin do it with package- or module-private access, but python, ruby and dart privacy is per class or per file, so the verifier is a read accessor / constructor argument / resumePkce"
+  },
+  {
+   "element": [
+    "oauth2authorizationcodeauthenticator.pkcechallenge",
+    "oauth2authorizationcodeauthenticator.newpkceverifier"
+   ],
+   "aspect": "member",
+   "languages": [
+    "kotlin",
+    "dart"
+   ],
+   "reason": "F858: pkceChallenge is the S256 helper pinned by the RFC 7636 appendix B vector in tests; kotlin declares it (and newPkceVerifier) in an `internal` companion, which the extractor counts, and dart makes the static public because its tests live in another library"
+  },
+  {
+   "element": "pkcestate",
+   "aspect": "type",
+   "languages": [
+    "node"
+   ],
+   "reason": "F858: node's authorization URL builder is synchronous and JS has no package-private access, so the verifier lives in a PkceState object that the OIDC authenticator shares with every delegate it rebuilds"
+  },
+  {
+   "element": "retryingapiclient",
+   "aspect": "type",
+   "languages": [
+    "dart"
+   ],
+   "reason": "F823: dart's BaseApi owns the retry loop and reads the transport's policy through the RetryingApiClient interface (maxRetries, timeoutMillis); an ApiClient that does not implement it is never retried, so existing fakes keep working"
   }
  ]
 }
