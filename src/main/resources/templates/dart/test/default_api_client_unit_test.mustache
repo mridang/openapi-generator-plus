@@ -839,6 +839,71 @@ void main() {
       }
     });
 
+    test('strips a header whose name says key, token or secret on a cross-origin redirect', () async {
+      final seen = <String, String?>{};
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        seen['x-tenant-token'] = request.headers.value('x-tenant-token');
+        seen['x-custom-secret'] = request.headers.value('x-custom-secret');
+        seen['x-trace'] = request.headers.value('x-trace');
+        request.response
+          ..statusCode = 200
+          ..write('ok')
+          ..close();
+      });
+
+      final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      source.listen((request) {
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'GET',
+          'http://localhost:${source.port}/start',
+          {
+            'X-Tenant-Token': 'secret-1',
+            'X-Custom-Secret': 'secret-2',
+            'X-Trace': 'keep',
+          },
+          null,
+        );
+        expect(seen['x-tenant-token'], isNull);
+        expect(seen['x-custom-secret'], isNull);
+        expect(seen['x-trace'], equals('keep'));
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
+    test('a call header replaces a default header of the same name in any case', () async {
+      final values = <String>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        values.addAll(request.headers['x-env'] ?? const <String>[]);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder()
+            .defaultHeader('x-env', 'default')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        await client.sendRequest(
+            'GET', 'http://localhost:${server.port}/x', {'X-Env': 'call'}, null);
+        expect(values, equals(['call']));
+      } finally {
+        await server.close();
+      }
+    });
+
 {{#hasApiKeyHeaderNames}}
     /* Gap 3.1 (spec-driven apiKey headers): every apiKey-in-header scheme
      * the spec declares is folded into the cross-origin strip set at
