@@ -221,7 +221,10 @@ void main() {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/500')
           .build();
-      final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+      final api = StoreApi(
+          apiClient: DefaultApiClient(
+              transportOptions: TransportOptions.builder().maxRetries(0).build()),
+          config: config);
 
       try {
         await api.getOrderById(1);
@@ -245,7 +248,10 @@ void main() {
         final config = ConfigurationBuilder()
             .baseUrl('http://localhost:${server.port}')
             .build();
-        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+        final api = StoreApi(
+            apiClient: DefaultApiClient(
+                transportOptions: TransportOptions.builder().maxRetries(0).build()),
+            config: config);
 
         await api.placeOrder(Order());
         fail('Expected error for server error response');

@@ -75,6 +75,103 @@ class _CapturingApiClient implements ApiClient {
   }
 }
 
+/// Plays back a script of responses and transport errors, recording what was
+/// sent, and offers the retry policy the API classes read.
+class _ScriptedApiClient implements RetryingApiClient {
+  _ScriptedApiClient(this.script, {this.maxRetries = 2, this.timeoutMillis});
+
+  final List<Object> script;
+  final List<Map<String, String>> sentHeaders = [];
+
+  @override
+  final int maxRetries;
+
+  @override
+  final int? timeoutMillis;
+
+  @override
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+  }) async {
+    sentHeaders.add(Map<String, String>.from(headers));
+    final next = script.removeAt(0);
+    if (next is ApiHttpResponse) {
+      return next;
+    }
+    throw next;
+  }
+}
+
+ApiHttpResponse _reply(int status, {Map<String, String> headers = const {}}) =>
+    ApiHttpResponse(statusCode: status, body: '{}', headers: headers);
+
+/// A [BaseApi] that records the waits before a retry instead of sleeping.
+class _RecordingApi extends BaseApi {
+  _RecordingApi(ApiClient client, {Authenticator? authenticator})
+      : super(
+          apiClient: client,
+          config: ConfigurationBuilder().baseUrl('https://api.example.com').build(),
+          authenticator: authenticator,
+        );
+
+  final List<Duration> waits = [];
+
+  @override
+  Future<void> sleepBeforeRetry(Duration delay) async {
+    waits.add(delay);
+  }
+}
+
+/// An OAuth2-like authenticator: a new token generation after every
+/// invalidation, optionally failing to produce one.
+class _RotatingAuth extends BaseAuthenticator implements AccessTokenInvalidating {
+  int generation = 1;
+  int invalidations = 0;
+  bool failAfterInvalidation = false;
+
+  @override
+  String host() => '';
+
+  @override
+  Map<String, String> authHeaders() => {'Authorization': 'Bearer t$generation'};
+
+  @override
+  Future<Map<String, String>> authHeadersAsync() async {
+    if (failAfterInvalidation && invalidations > 0) {
+      throw StateError('no token');
+    }
+    return authHeaders();
+  }
+
+  @override
+  void invalidateAccessToken() {
+    invalidations++;
+    generation++;
+  }
+}
+
+/// An authenticator whose header differs on every call, to show a retry asks
+/// for the credentials again.
+class _CountingAuth extends BaseAuthenticator {
+  int calls = 0;
+
+  @override
+  String host() => '';
+
+  @override
+  Map<String, String> authHeaders() => {'Authorization': 'Bearer n$calls'};
+
+  @override
+  Future<Map<String, String>> authHeadersAsync() async {
+    calls++;
+    return authHeaders();
+  }
+}
+
 PetApi _chasmApi() {
   final config = ConfigurationBuilder()
       .baseUrl(chasmHttpUrl)
@@ -110,7 +207,10 @@ void main() {
         final errType = entry.value;
 
         final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
-        final api = BaseApi(apiClient: DefaultApiClient(), config: config);
+        final api = BaseApi(
+            apiClient: DefaultApiClient(
+                transportOptions: TransportOptions.builder().maxRetries(0).build()),
+            config: config);
 
         try {
           await api.invokeApi(method: 'GET', path: '/test/status/$status');
@@ -1685,7 +1785,10 @@ void main() {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/500')
           .build();
-      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+      final api = PetApi(
+          apiClient: DefaultApiClient(
+              transportOptions: TransportOptions.builder().maxRetries(0).build()),
+          config: config);
 
       try {
         await api.getPetById(1, null);
@@ -2202,6 +2305,324 @@ void main() {
       } finally {
         await server.close();
       }
+    });
+  });
+
+  group('BaseApi 401 replay', () {
+    test('a 401 drops the token and replays the request once with fresh headers', () async {
+      final auth = _RotatingAuth();
+      final client = _ScriptedApiClient([_reply(401), _reply(200)]);
+      final api = _RecordingApi(client, authenticator: auth);
+
+      final response = await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(response.statusCode, equals(200));
+      expect(auth.invalidations, equals(1));
+      expect(client.sentHeaders.map((h) => h['Authorization']),
+          equals(['Bearer t1', 'Bearer t2']));
+    });
+
+    test('a second 401 is reported as Unauthorized after exactly two sends', () async {
+      final auth = _RotatingAuth();
+      final client = _ScriptedApiClient([_reply(401), _reply(401)]);
+      final api = _RecordingApi(client, authenticator: auth);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      expect(client.sentHeaders, hasLength(2));
+      expect(auth.invalidations, equals(1));
+    });
+
+    test('a failed re-authentication leaves the 401 as it is', () async {
+      final auth = _RotatingAuth()..failAfterInvalidation = true;
+      final client = _ScriptedApiClient([_reply(401)]);
+      final api = _RecordingApi(client, authenticator: auth);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
+    });
+
+    test('an authenticator that holds no fetched token never replays', () async {
+      final client = _ScriptedApiClient([_reply(401)]);
+      final api = _RecordingApi(client,
+          authenticator: _BaseApiAuth(headers: {'Authorization': 'Bearer fixed'}));
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
+    });
+
+    test('a multipart body is not replayed', () async {
+      final auth = _RotatingAuth();
+      final client = _ScriptedApiClient([_reply(401)]);
+      final api = _RecordingApi(client, authenticator: auth);
+
+      await expectLater(
+        api.invokeApi(
+          method: 'POST',
+          path: '/x',
+          body: <String, Object?>{'a': 'b'},
+          contentType: 'multipart/form-data',
+        ),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
+      expect(auth.invalidations, equals(0));
+    });
+
+    test('a 401 is replayed even when retries are disabled', () async {
+      final auth = _RotatingAuth();
+      final client = _ScriptedApiClient([_reply(401), _reply(200)], maxRetries: 0);
+      final api = _RecordingApi(client, authenticator: auth);
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(client.sentHeaders, hasLength(2));
+    });
+  });
+
+  group('BaseApi retries', () {
+    test('a 503 is sent again once after about half a second', () async {
+      final client = _ScriptedApiClient([_reply(503), _reply(200)]);
+      final api = _RecordingApi(client);
+
+      final response = await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(response.statusCode, equals(200));
+      expect(client.sentHeaders, hasLength(2));
+      expect(api.waits, hasLength(1));
+      expect(api.waits.single.inMilliseconds, inInclusiveRange(375, 500));
+    });
+
+    test('the wait doubles and the failure is reported after maxRetries retries', () async {
+      final client = _ScriptedApiClient([_reply(500), _reply(500), _reply(500)]);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<InternalServerErrorException>()),
+      );
+      expect(client.sentHeaders, hasLength(3));
+      expect(api.waits.map((w) => w.inMilliseconds).toList(), hasLength(2));
+      expect(api.waits[1].inMilliseconds, inInclusiveRange(750, 1000));
+    });
+
+    test('408, 409, 429 and 502 are retried', () async {
+      for (final status in [408, 409, 429, 502]) {
+        final client = _ScriptedApiClient([_reply(status), _reply(200)]);
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(client.sentHeaders, hasLength(2), reason: 'status $status');
+      }
+    });
+
+    test('400, 404, 422 and 501 are not retried', () async {
+      for (final status in [400, 404, 422, 501]) {
+        final client = _ScriptedApiClient([_reply(status), _reply(200)]);
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<ApiException>()),
+        );
+        expect(client.sentHeaders, hasLength(1), reason: 'status $status');
+      }
+    });
+
+    test('maxRetries 0 sends once', () async {
+      final client = _ScriptedApiClient([_reply(503), _reply(200)], maxRetries: 0);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<ServerException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
+    });
+
+    test('Retry-After in seconds sets the wait', () async {
+      final client = _ScriptedApiClient([
+        _reply(429, headers: {'retry-after': '3'}),
+        _reply(200),
+      ]);
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(api.waits, equals([const Duration(seconds: 3)]));
+    });
+
+    test('Retry-After as an HTTP date sets the wait', () async {
+      final date = HttpDate.format(DateTime.now().toUtc().add(const Duration(seconds: 30)));
+      final client = _ScriptedApiClient([
+        _reply(503, headers: {'retry-after': date}),
+        _reply(200),
+      ]);
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(api.waits.single.inSeconds, inInclusiveRange(28, 30));
+    });
+
+    test('Retry-After is capped at 60 seconds', () async {
+      final client = _ScriptedApiClient([
+        _reply(503, headers: {'retry-after': '3600'}),
+        _reply(200),
+      ]);
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(api.waits, equals([const Duration(seconds: 60)]));
+    });
+
+    test('a wait that would outlast the timeout is not taken', () async {
+      final client = _ScriptedApiClient(
+        [_reply(503, headers: {'retry-after': '5'}), _reply(200)],
+        timeoutMillis: 1000,
+      );
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<ServerException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
+      expect(api.waits, isEmpty);
+    });
+
+    test('a network error before a response is retried', () async {
+      final client = _ScriptedApiClient([
+        const NetworkException(message: 'connection reset'),
+        _reply(200),
+      ]);
+      final api = _RecordingApi(client);
+
+      final response = await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(response.statusCode, equals(200));
+      expect(client.sentHeaders, hasLength(2));
+    });
+
+    test('a network error is reported once the retries are used up', () async {
+      final client = _ScriptedApiClient([
+        const NetworkException(message: 'a'),
+        const NetworkException(message: 'b'),
+        const NetworkException(message: 'c'),
+      ]);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<NetworkException>().having((e) => e.message, 'message', 'c')),
+      );
+      expect(client.sentHeaders, hasLength(3));
+    });
+
+    test('an error that is not a network failure is not retried', () async {
+      final client = _ScriptedApiClient([
+        const ApiException(statusCode: 0, message: 'bad encoding'),
+        _reply(200),
+      ]);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/x'),
+        throwsA(isA<ApiException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
+    });
+
+    test('a retry asks the authenticator for the headers again', () async {
+      final auth = _CountingAuth();
+      final client = _ScriptedApiClient([_reply(503), _reply(200)]);
+      final api = _RecordingApi(client, authenticator: auth);
+
+      await api.invokeApi(method: 'GET', path: '/x');
+
+      expect(client.sentHeaders.map((h) => h['Authorization']),
+          equals(['Bearer n1', 'Bearer n2']));
+    });
+
+    test('the default client retries a 503 over the wire and then succeeds', () async {
+      var requests = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        requests++;
+        request.response
+          ..statusCode = requests == 1 ? 503 : 200
+          ..headers.contentType = ContentType.json
+          ..write('{}')
+          ..close();
+      });
+      try {
+        final api = BaseApi(
+          apiClient: DefaultApiClient(),
+          config: ConfigurationBuilder().baseUrl('http://localhost:${server.port}').build(),
+        );
+
+        final response = await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(response.statusCode, equals(200));
+        expect(requests, equals(2));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('over the wire the retries stay inside the end-to-end timeout', () async {
+      var requests = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        requests++;
+        request.response
+          ..statusCode = 503
+          ..write('{}')
+          ..close();
+      });
+      try {
+        final api = BaseApi(
+          apiClient: DefaultApiClient(
+            transportOptions: TransportOptions.builder().timeout(200).build(),
+          ),
+          config: ConfigurationBuilder().baseUrl('http://localhost:${server.port}').build(),
+        );
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<ServerException>()),
+        );
+
+        expect(requests, equals(1));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('a multipart body is not retried', () async {
+      final client = _ScriptedApiClient([_reply(503), _reply(200)]);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApi(
+          method: 'POST',
+          path: '/x',
+          body: <String, Object?>{'a': 'b'},
+          contentType: 'multipart/form-data',
+        ),
+        throwsA(isA<ServerException>()),
+      );
+      expect(client.sentHeaders, hasLength(1));
     });
   });
 }
