@@ -354,14 +354,16 @@ internal enum ValueSerializer {
         _ paramName: String, value: Any
     ) throws -> [(key: String, value: String)] {
         if let dict = value as? [String: Any] {
-            return dict.keys.sorted().map { ("\(paramName)[\($0)]", ObjectSerializer.stringify(dict[$0])) }
+            return dict.keys.sorted().map {
+                (key: "\(paramName)[\($0)]", value: ObjectSerializer.stringify(dict[$0]))
+            }
         }
         guard let object = objectFields(value) else { return [] }
         switch object {
         case .failure(let error):
             throw error
         case .success(let fields):
-            return fields.map { ("\(paramName)[\($0.name)]", $0.value) }
+            return fields.map { (key: "\(paramName)[\($0.name)]", value: $0.value) }
         }
     }
 
