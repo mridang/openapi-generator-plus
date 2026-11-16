@@ -132,6 +132,10 @@ OAuth2 authenticators resolve the access token by making an HTTP call to the tok
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
 
+#### Expired tokens
+
+A 401 on a request authenticated by an OAuth2 or OpenID Connect authenticator drops the cached access token and replays the request once with fresh headers (a refresh grant first). A second 401 is raised as `UnauthorizedException`; a stream or multipart body is not replayed.
+
 #### Token caching
 
 The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
@@ -251,13 +255,33 @@ $transport = TransportOptions::builder()
 $client = new {{clientClassName}}($authenticator, $transport);
 ```
 
-### Automatic retries
+### Retries
 
 `TransportOptions::builder()->maxRetries(int)` sets the retries after a transient failure (default 2; 0 disables). Network errors before a response and 408, 409, 429 and 5xx (not 501) are retried with a 0.5 s to 8 s backoff and `Retry-After` honoured (at most 60 s). The retries stay inside the request timeout, a stream or multipart body is never retried, and each retry rebuilds the headers, authentication included.
 
 ```php
 $transport = TransportOptions::builder()->maxRetries(0)->build();
 ```
+
+### Custom HTTP client
+
+```php
+use {{invokerPackage}}\Psr18ApiClient;
+
+/* $httpClient is any PSR-18 client with redirects disabled; $psr17 is any PSR-17 factory. */
+$apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
+$client = {{clientClassName}}::withToken('https://api.example.com', 'your-token', null, $apiClient);
+```
+
+The SDK sends every request through your client and never closes it. Combining a supplied client with `proxy`, `caCertPath` or `verifySsl(false)` throws `InvalidArgumentException`.
+
+### Cancellation
+
+The SDK has no per-call cancellation. Bound a call with `TransportOptions::builder()->timeout(5000)`; a call that exceeds it throws `NetworkTimeoutException`.
+
+### Raw responses, timeouts and the request id
+
+Each operation has a `...WithHttpInfo` variant returning an `ApiResult` (`statusCode`, `data`, `rawBody`, `headers`). `timeout` is one end-to-end budget in milliseconds. `TransportOptions::builder()->injectRequestId(true)` adds an `X-Request-ID` header to each request unless you set one.
 
 ## API Methods
 
