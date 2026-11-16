@@ -33,3 +33,17 @@ abstract class ApiClient {
     bool noRedirect = false,
   });
 }
+
+/// Optional capability of an [ApiClient]: the retry policy the API classes
+/// apply around [ApiClient.sendRequest].
+///
+/// [DefaultApiClient] implements it from its [TransportOptions]. An
+/// [ApiClient] that does not implement it is never retried.
+abstract class RetryingApiClient implements ApiClient {
+  /// How many times a failed request is sent again; 0 disables retries.
+  int get maxRetries;
+
+  /// The end-to-end request timeout in milliseconds that retries must stay
+  /// within, or null when there is none.
+  int? get timeoutMillis;
+}

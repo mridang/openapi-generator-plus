@@ -36,7 +36,7 @@ import 'transport_options.dart';
 ///     auth, operation headers)
 ///  3. [TransportOptions.userAgent] -- injected if not already set
 ///  4. [TransportOptions.injectRequestId] -- injected if not already set
-abstract class AbstractApiClient implements ApiClient {
+abstract class AbstractApiClient implements RetryingApiClient {
   final TransportOptions _transportOptions;
   final http.Client _httpClient;
   /* dart:io's HttpClient has no API for proxy basic-auth credentials, so
@@ -65,6 +65,12 @@ abstract class AbstractApiClient implements ApiClient {
     this._proxyAuthHeader, [
     this._ownsClient = true,
   ]);
+
+  @override
+  int get maxRetries => _transportOptions.maxRetries;
+
+  @override
+  int? get timeoutMillis => _transportOptions.timeout;
 
   /// Returns the Proxy-Authorization header value extracted from the proxy
   /// URL's userinfo, or null when no credentials are configured. Exposed

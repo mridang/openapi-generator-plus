@@ -88,6 +88,16 @@ class TransportOptions {
   /// the combination.
   final http.Client? httpClient;
 
+  /// How many times a failed request is sent again, besides the first send.
+  ///
+  /// Defaults to 2; 0 disables retries. A request is retried after a network
+  /// error that happened before a response arrived, and after a response with
+  /// status 408, 409, 429 or 500-599 (not 501), waiting 0.5 s doubling to
+  /// 8 s with 25% jitter, or as long as a `Retry-After` header says (seconds
+  /// or an HTTP date, at most 60 s). Retries never extend [timeout] and a
+  /// request with a multipart body is never retried.
+  final int maxRetries;
+
   TransportOptions._({
     required this.verifySsl,
     required this.caCertPath,
@@ -99,6 +109,7 @@ class TransportOptions {
     required Map<String, String> defaultHeaders,
     required this.injectRequestId,
     required this.httpClient,
+    required this.maxRetries,
   }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
 
   /// Transport-level default headers included in every request.
@@ -118,6 +129,7 @@ class TransportOptions {
 /// - `verifySsl` -- true
 /// - `followRedirects` -- true
 /// - `injectRequestId` -- false
+/// - `maxRetries` -- 2
 /// - `timeout` -- 10000 (10 seconds)
 /// - `userAgent` -- a package-specific default string
 /// - All other fields -- null or empty
@@ -143,6 +155,7 @@ class TransportOptionsBuilder {
   final Map<String, String> _defaultHeaders = {};
   bool _injectRequestId = false;
   http.Client? _httpClient;
+  int _maxRetries = 2;
 
   /// Enable or disable TLS certificate verification.
   ///
@@ -242,6 +255,19 @@ class TransportOptionsBuilder {
     return this;
   }
 
+  /// Set how many times a failed request is sent again.
+  ///
+  /// Pass 0 to disable retries; the default is 2. Throws [ArgumentError] for
+  /// a negative value. See [TransportOptions.maxRetries] for what is retried.
+  TransportOptionsBuilder maxRetries(int val) {
+    if (val < 0) {
+      throw ArgumentError(
+          'Invalid maxRetries: must be zero or a positive number (got $val)');
+    }
+    _maxRetries = val;
+    return this;
+  }
+
   /// Build and return an immutable [TransportOptions] instance.
   ///
   /// Throws [ArgumentError] if the proxy URL is invalid, or if a custom
@@ -281,6 +307,7 @@ class TransportOptionsBuilder {
       defaultHeaders: Map<String, String>.from(_defaultHeaders),
       injectRequestId: _injectRequestId,
       httpClient: _httpClient,
+      maxRetries: _maxRetries,
     );
   }
 }
