@@ -4,6 +4,7 @@ package oauth
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -230,6 +231,7 @@ func (a *OpenIdConnectAuthenticator) discover() (*OAuth2AuthorizationCodeAuthent
 	}
 
 	var discovery struct {
+		Issuer                any    `json:"issuer"`
 		AuthorizationEndpoint string `json:"authorization_endpoint"`
 		TokenEndpoint         string `json:"token_endpoint"`
 	}
@@ -246,6 +248,28 @@ func (a *OpenIdConnectAuthenticator) discover() (*OAuth2AuthorizationCodeAuthent
 	}
 	if strings.TrimSpace(discovery.TokenEndpoint) == "" {
 		return nil, errors_pkg.NewSerializationError("oidc discovery document is missing 'token_endpoint'", nil)
+	}
+
+	/* OpenID Connect Discovery 1.0 section 4.3 / RFC 8414 section 3.3: the
+	 * issuer must equal the URL the document was fetched from, minus the
+	 * well-known suffix, which is the defence against a document served for
+	 * another issuer. A document with no issuer, or a discovery URL of another
+	 * shape, is not rejected here. */
+	const wellKnownSuffix = "/.well-known/openid-configuration"
+	if issuer, ok := discovery.Issuer.(string); ok && strings.HasSuffix(a.openIDConnectURL, wellKnownSuffix) {
+		expected := strings.TrimRight(strings.TrimSuffix(a.openIDConnectURL, wellKnownSuffix), "/")
+		if strings.TrimRight(issuer, "/") != expected {
+			return nil, errors_pkg.NewSerializationError("oidc discovery document issuer does not match the discovery URL", nil)
+		}
+	}
+	/* The authorization code and the client secret travel to these endpoints:
+	 * clear text is refused unless the host is a loopback address (RFC 8252
+	 * section 8.3). */
+	if !isSecureEndpoint(discovery.AuthorizationEndpoint) {
+		return nil, errors_pkg.NewSerializationError("oidc discovery authorization_endpoint must use https", nil)
+	}
+	if !isSecureEndpoint(discovery.TokenEndpoint) {
+		return nil, errors_pkg.NewSerializationError("oidc discovery token_endpoint must use https", nil)
 	}
 
 	fresh := NewOAuth2AuthorizationCodeAuthenticator(
@@ -269,4 +293,23 @@ func (a *OpenIdConnectAuthenticator) discover() (*OAuth2AuthorizationCodeAuthent
 	a.discoveryExpiry = time.Now().Add(time.Duration(parseDiscoveryMaxAge(resp.Headers)) * time.Second)
 
 	return a.delegate, nil
+}
+
+// isSecureEndpoint reports whether an endpoint may carry credentials: an https
+// URL, or an http URL whose host is a loopback address.
+func isSecureEndpoint(endpoint string) bool {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "https":
+		return true
+	case "http":
+		host := strings.ToLower(parsed.Hostname())
+		return host == "localhost" || strings.HasSuffix(host, ".localhost") ||
+			host == "127.0.0.1" || host == "::1"
+	default:
+		return false
+	}
 }

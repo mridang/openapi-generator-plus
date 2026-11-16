@@ -183,8 +183,63 @@ func TestServerConfiguration_RejectionMessageNamesValueVariableAndAllowedValues(
 	)
 
 	_, err := server.URL(map[string]string{"env": "invalid"})
-	want := "invalid server variable: invalid value 'invalid' for server variable 'env'. Allowed values: [api staging]"
+	want := "invalid server variable: invalid value 'invalid' for server variable 'env'. Allowed values: [api, staging]"
 	if err == nil || err.Error() != want {
 		t.Errorf("expected message %q, got %v", want, err)
+	}
+}
+
+// A value that introduces a placeholder is substituted literally: the result
+// never depends on which variable is visited first.
+func TestServerConfiguration_AValueIsNeverExpandedAgain(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.api.example.com/{version}",
+		"",
+		map[string]{{packageName}}.ServerVariable{
+			"env":     {{packageName}}.NewServerVariable("{version}", "", nil),
+			"version": {{packageName}}.NewServerVariable("v2", "", nil),
+		},
+	)
+
+	for i := 0; i < 20; i++ {
+		got, err := server.URL(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := "https://{version}.api.example.com/v2"; got != want {
+			t.Fatalf("expected %q, got %q", want, got)
+		}
+	}
+}
+
+// The third global server carries hostile text in its description and variable:
+// quotes, an ampersand, a dollar sign, a hash-brace and a comment-closing
+// sequence all come back unchanged.
+func TestServerConfiguration_TheHostileThirdServerRoundTripsUnchanged(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.AllServers[2]
+
+	if got, want := server.URLTemplate(), "https://{tenant}.example.com/api"; got != want {
+		t.Errorf("URLTemplate = %q, want %q", got, want)
+	}
+	if got, want := server.Description(), `Bob's "sandbox" & co: $5 #{x} a*/b`; got != want {
+		t.Errorf("Description = %q, want %q", got, want)
+	}
+	tenant, ok := server.Variables()["tenant"]
+	if !ok {
+		t.Fatal("expected a tenant variable")
+	}
+	if got, want := tenant.DefaultValue(), "o'neil"; got != want {
+		t.Errorf("DefaultValue = %q, want %q", got, want)
+	}
+	if got, want := tenant.Description(), `Tenant's "id"`; got != want {
+		t.Errorf("variable Description = %q, want %q", got, want)
+	}
+	if enum := tenant.EnumValues(); len(enum) != 2 || enum[0] != "o'neil" || enum[1] != "a&b" {
+		t.Errorf("EnumValues = %v, want [o'neil a&b]", enum)
+	}
+	if got, err := server.URL(nil); err != nil || got != "https://o'neil.example.com/api" {
+		t.Errorf("URL = %q, %v", got, err)
 	}
 }

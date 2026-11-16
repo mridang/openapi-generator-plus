@@ -33,6 +33,23 @@ const DefaultMaxRetries = 2
 // with errors.Is.
 var ErrInvalidCACertificate = errors.New("invalid CA certificate")
 
+// caCertificateError carries the canonical CA message the other SDKs use while
+// still matching ErrInvalidCACertificate (and the underlying cause, when there
+// is one) through errors.Is and errors.As.
+type caCertificateError struct {
+	message string
+	cause   error
+}
+
+func (e *caCertificateError) Error() string { return e.message }
+
+func (e *caCertificateError) Unwrap() []error {
+	if e.cause == nil {
+		return []error{ErrInvalidCACertificate}
+	}
+	return []error{ErrInvalidCACertificate, e.cause}
+}
+
 // ErrTransportConflict is returned by TransportOptionsBuilder.Build when a
 // caller-supplied HttpClient or RoundTripper is combined with the SDK's own
 // proxy, TLS verification or CA bundle settings (the supplied transport owns
@@ -384,11 +401,16 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 	if b.caCertPath != "" {
 		caCert, err := os.ReadFile(b.caCertPath)
 		if err != nil {
-			return nil, fmt.Errorf("%w: failed to read %q: %v", ErrInvalidCACertificate, b.caCertPath, err)
+			return nil, &caCertificateError{
+				message: fmt.Sprintf("failed to read CA certificate from %q: %v", b.caCertPath, err),
+				cause:   err,
+			}
 		}
 		caCertPool = x509.NewCertPool()
 		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, fmt.Errorf("%w: no PEM certificate found in %q", ErrInvalidCACertificate, b.caCertPath)
+			return nil, &caCertificateError{
+				message: fmt.Sprintf("failed to parse CA certificate from %q: no PEM blocks found", b.caCertPath),
+			}
 		}
 	}
 	headers := make(map[string]string, len(b.defaultHeaders))

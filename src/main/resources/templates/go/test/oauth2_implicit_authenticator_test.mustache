@@ -160,7 +160,7 @@ func TestOAuth2Implicit_SetAccessTokenRejectsInvalidToken(t *testing.T) {
 	}
 }
 
-func TestOAuth2ImplicitRedactsSecret(t *testing.T) {
+func TestOAuth2Implicit_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	auth := createImplicitAuthenticator()
 	if err := auth.SetAccessToken("implicit-tok"); err != nil {

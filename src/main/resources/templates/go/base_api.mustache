@@ -230,8 +230,16 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			 * returned as ErrInvalidCookie. */
 			cookies := effectiveAuth.CookieParams()
 			if len(cookies) > 0 {
+				/* A Go map has no order, so the cookies are written sorted by name:
+				 * the same header bytes on every run. */
+				cookieNames := make([]string, 0, len(cookies))
+				for k := range cookies {
+					cookieNames = append(cookieNames, k)
+				}
+				sort.Strings(cookieNames)
 				var cookieParts []string
-				for k, v := range cookies {
+				for _, k := range cookieNames {
+					v := cookies[k]
 					if !isValidCookieName(k) {
 						return "", nil, fmt.Errorf("%w: cookie name '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, k)
 					}

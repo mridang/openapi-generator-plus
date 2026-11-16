@@ -57,6 +57,38 @@ func TestBearerAuthenticator_MixedCaseBearerPrefixIsStripped(t *testing.T) {
 	}
 }
 
+// A token that merely starts with the letters "bearer" is a different
+// credential, so only a whole-word "Bearer " prefix is removed.
+func TestBearerAuthenticator_ATokenThatMerelyBeginsWithTheWordBearerIsKeptWhole(t *testing.T) {
+	t.Parallel()
+	a := mustBearer(t, "https://api.example.com", "bearerxyz")
+	if got, want := a.AuthHeaders()["Authorization"], "Bearer bearerxyz"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+// The prefix is removed once: a doubled prefix keeps its second word.
+func TestBearerAuthenticator_ADoubledPrefixIsStrippedOnlyOnce(t *testing.T) {
+	t.Parallel()
+	a := mustBearer(t, "https://api.example.com", "Bearer Bearer xyz")
+	if got, want := a.AuthHeaders()["Authorization"], "Bearer Bearer xyz"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+// A Unicode space is not blank: the printable-ASCII rule rejects it, not the
+// empty-token rule, as for the api-key authenticator.
+func TestBearerAuthenticator_AUnicodeSpaceIsNotBlankItFailsThePrintableAsciiRule(t *testing.T) {
+	t.Parallel()
+	for _, token := range []string{"\u00a0", "\u2003"} {
+		_, err := auth.NewBearerAuthenticator("https://api.example.com", token)
+		want := "bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+		if err == nil || err.Error() != want {
+			t.Errorf("token %q: expected %q, got %v", token, want, err)
+		}
+	}
+}
+
 // bearer-no-empty-token-guard: an empty or whitespace-only Bearer token would
 // emit the literal `Authorization: Bearer ` header and send the request
 // unauthenticated. RFC 7230 §3.2.6 — Bearer tokens commonly arrive with
