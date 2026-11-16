@@ -215,6 +215,26 @@ func TestPetApi_DeletePetWithHTTPInfo(t *testing.T) {
 	}
 }
 
+// F1158: a map-typed deepObject option goes out as bracketed keys.
+func TestPetApi_FindPetsByStatusSendsTheFilterAsDeepObject(t *testing.T) {
+	t.Parallel()
+	var query string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	filter := map[string]string{"color": "blue", "size": "large"}
+	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Filter: &filter})
+	if query != "filter%5Bcolor%5D=blue&filter%5Bsize%5D=large" {
+		t.Errorf("unexpected query %q", query)
+	}
+}
+
 func TestPetApi_FindPetsByStatus(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)

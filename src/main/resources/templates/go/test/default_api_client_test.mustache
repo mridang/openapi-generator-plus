@@ -20,6 +20,52 @@ import (
 	pkgerrors "{{packageName}}/pkg/errors"
 )
 
+// D76/F1133: the timeout is one budget for the whole redirect chain. Each of
+// the three hops takes about 500 ms, so 1200 ms runs out and 5000 ms does not.
+func TestDefaultApiClient_TimeoutCoversTheWholeRedirectChain(t *testing.T) {
+	t.Parallel()
+	send := func(timeoutMs int) (*ApiHttpResponse, error) {
+		transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(true).Timeout(&timeoutMs).Build()
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		return NewDefaultApiClient(transport).SendRequest("GET", chasmHTTPURL+"/test/redirect/chain/1", map[string]string{}, nil)
+	}
+	_, err := send(1200)
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Fatalf("expected *NetworkTimeoutError under a 1200 ms budget, got %T: %v", err, err)
+	}
+	resp, err := send(5000)
+	if err != nil {
+		t.Fatalf("expected the chain to complete under a 5000 ms budget, got %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+// F1161: repeated response headers (Link, Set-Cookie) arrive joined, in order,
+// under their lower-cased names.
+func TestDefaultApiClient_MultiValueResponseHeadersAreJoined(t *testing.T) {
+	t.Parallel()
+	resp, err := NewDefaultApiClient(nil).SendRequest("GET", chasmHTTPURL+"/test/response-headers", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Headers["x-custom-header"] == "" {
+		t.Errorf("expected x-custom-header, got %v", resp.Headers)
+	}
+	link := resp.Headers["link"]
+	if next, prev := strings.Index(link, "next"), strings.Index(link, "prev"); next < 0 || prev < next {
+		t.Errorf("expected both Link entries in order, got %q", link)
+	}
+	cookie := resp.Headers["set-cookie"]
+	if a, b := strings.Index(cookie, "a=1"), strings.Index(cookie, "b=2"); a < 0 || b < a {
+		t.Errorf("expected both Set-Cookie entries in order, got %q", cookie)
+	}
+}
+
 func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
 	t.Parallel()
 	transport, buildErr := NewTransportOptionsBuilder().VerifySsl(false).Build()
