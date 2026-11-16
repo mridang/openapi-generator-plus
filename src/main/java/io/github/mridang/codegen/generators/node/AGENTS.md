@@ -39,7 +39,7 @@ The node generator (`node-plus`) emits a TypeScript SDK that runs on Node 22 or 
 | Transport swap | `#transport` conditional import: Node gets undici, other runtimes get a fetch-only client that throws `TypeError` for proxy, custom CA or disabled TLS verification | non-Node runtimes have no dispatcher |
 | Content-Encoding | pass-through when the name is unknown; fetch already decoded gzip, deflate, br and zstd | forced, see D-FORCED-1 |
 | Helper visibility | extra helpers on `ObjectSerializer`, `ValueSerializer`, `HeaderSelector`, `AbstractApiClient`, `DefaultApiClient`, `NO_AUTH`, `markExchanged` and the token-manager hand-over | no package-private visibility across files |
-| Model equality and dump | classes with `equals()`; string form is the default `util.inspect` | JS has no structural equality; inspect already dumps fields |
+| Model equality and dump | classes with `equals()`; string form is `util.inspect`, with `format: password` fields masked as `***` (F867) | JS has no structural equality; inspect already dumps fields |
 | Missing-parameter error | `TypeError` with a double-quoted message string | the message embeds `'<param>'`, so a single-quoted literal is a syntax error |
 | Dates and times | `Date` for date-time, `Temporal.PlainDate`/`PlainTime` from `temporal-polyfill` | no native date-only or time-only type |
 | Decimals | branded `Decimal`; decode keeps the number text via `JSON.rawJSON`/reviver source | JS numbers are binary doubles |
@@ -191,7 +191,7 @@ Where: `base_api.mustache`, `api/apis.mustache`.
 Test: `test/base-api.test.mustache`.
 
 ### Wire encoding details (D36, D47, D48, D49, D51, D81, D82, D89, D90)
-Rule: multipart scalars are text parts using `ObjectSerializer.stringify`, only plain objects are JSON parts; object-valued params go through `toWireMap`; a path value of `.` or `..` throws `TypeError`; allowReserved keeps only the RFC 3986 query-legal set literal; `Buffer` values are base64 in parameters; `format: time` is `HH:mm:ss` plus `.SSS` only when milliseconds are non-zero; a `Set` parameter expands like an array; the multipart filename directive uses a byte-wise unreserved-only encoder.
+Rule: multipart scalars are text parts using `ObjectSerializer.stringify`, only plain objects are JSON parts; object-valued params go through `ValueSerializer.toWireMap` (batch 7); a path value of `.` or `..` throws `TypeError`; allowReserved keeps only the RFC 3986 query-legal set literal; `Buffer` values are base64 in parameters; `format: time` is `HH:mm:ss` plus `.SSS` only when milliseconds are non-zero; a `Set` parameter expands like an array; the multipart filename directive uses a byte-wise unreserved-only encoder.
 Why: byte-identical wire.
 Where: `abstract_api_client.mustache` (`buildContentDisposition`), `value_serializer.mustache`, `object_serializer.mustache`.
 Test: `test/value-serializer.test.mustache`, `test/base-api.test.mustache`.
@@ -234,7 +234,7 @@ Test: none beyond the golden.
 
 ## Known limitations and out of scope
 
-Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; the pinned swagger-parser rejects 3.2 documents (#50). The fetch-only transport cannot do proxies, a custom CA or disabled TLS verification and throws `TypeError` at construction. `Decimal` decode is lossy (F075, F133) until a reviver using `context.source` lands. int64 values beyond 2^53 are not preserved. The F469 and F470 container leaf and bare primitive checks cannot be locked until the petstore has those operations (spec change needed). The F446 raw operation-server description interpolated into a block comment is open. F779 (the petstore needs a model with `additionalProperties: {type: string}`) is open and needs a shared spec change; until then the index signature and the `additionalProperties` accessor are `unknown`-typed (F782: the typed branches were dead code and are gone, so the accessor can no longer conflict with the index signature). F278 is closed (`quoteSingle` escapes the scheme name, pinned by `BetterNodeCodegenTest`). F749 is closed (the base-api test warms the connection up in a `beforeAll`). F848 (error bodies decoded against a declared error schema), F846 (string enums as a const object plus literal union) and F852 (`prefixItems` tuples, under epic #96) are open. F191: typedoc is warnings-fatal in the Makefile but no spec runs it. Integer-enum casing is parked (F308), and the missing discriminator default (F129), the object-valued parameters (F063) and `format: time` parameters (F071) are parked as shared steps. The sorted-`Set` proposal (D69) and F090 environment proxy handling are not applied to node: node ignores ambient proxy variables because it only uses `TransportOptions.proxy`.
+Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; the pinned swagger-parser rejects 3.2 documents (#50). The fetch-only transport cannot do proxies, a custom CA or disabled TLS verification and throws `TypeError` at construction. `Decimal` decode is lossy (F075, F133) until a reviver using `context.source` lands. int64 values beyond 2^53 are not preserved. The F469 and F470 container leaf and bare primitive checks cannot be locked until the petstore has those operations (spec change needed). The F446 raw operation-server description interpolated into a block comment is open. F779 (the petstore needs a model with `additionalProperties: {type: string}`) is open and needs a shared spec change; until then the index signature and the `additionalProperties` accessor are `unknown`-typed (F782: the typed branches were dead code and are gone, so the accessor can no longer conflict with the index signature). F278 is closed (`quoteSingle` escapes the scheme name, pinned by `BetterNodeCodegenTest`). F749 is closed (the base-api test warms the connection up in a `beforeAll`). F848 (error bodies decoded against a declared error schema), F846 (string enums as a const object plus literal union) and F852 (`prefixItems` tuples, under epic #96) are open. F191: typedoc is warnings-fatal in the Makefile but no spec runs it. Integer-enum casing is parked (F308), and the missing discriminator default (F129), and `format: time` parameters (F071) are parked as shared steps. The sorted-`Set` proposal (D69) and F090 environment proxy handling are not applied to node: node ignores ambient proxy variables because it only uses `TransportOptions.proxy`.
 
 ## Build-breaking rules
 
@@ -304,3 +304,36 @@ Where: `readme.mustache`, `skills.mustache`. Test: `test/client.test.mustache` (
 - F290 already conformed (the sync accessor throws and names `...Async`).
 Where: `abstract_api_client.mustache`, `base_api.mustache`, `object_serializer.mustache`, `models/model.mustache`, `transport_options.mustache`, `auth/oauth/oauth2_token_manager.mustache`, `auth/oauth/openid_connect_authenticator.mustache`, `api_client.mustache`.
 Test: `test/default-api-client-unit.test.mustache`, `test/base-api.test.mustache`, `test/object-serializer.test.mustache`, `test/oauth2-token-manager.test.mustache`, `test/transport-options.test.mustache`, `test/oauth2-auth-code-authenticator.test.mustache`.
+
+## Decisions taken in batch 7
+
+Each uses the audit's own proposal as the default; none was re-opened with the owner.
+
+### Object-valued parameters expand per style (F1143, D47)
+Rule: an object-valued query, header, path or cookie parameter (a model or a free-form map) is expanded from `ValueSerializer.toWireMap`, which writes wire names in declaration order, drops nulls and rejects a nested object or array leaf with a `SerializationError`. `form` with `explode: true` becomes one query entry per property (`ExplodedObject`, expanded by `BaseApi`), `form` with `explode: false` and `simple` join `k,v,k,v`, `simple` with `explode: true` joins `k=v,k=v`, matrix, label, `spaceDelimited` and `pipeDelimited` follow RFC 6570. `deepObject` uses the same wire map.
+Where: `value_serializer.mustache`, `base_api.mustache`. Test: `test/value-serializer.test.mustache`, `test/api/pet-api.test.mustache` (`getPetTag` criteria).
+
+### Wire and auth details
+- F1138 (D08): the OAuth2 `expires_in` and the OIDC discovery `max-age` are clamped to 31,536,000 seconds (`oauth2_token_manager`, `openid_connect_authenticator`). Test: `test/oauth2-token-manager.test.mustache`, `test/openid-connect-authenticator.test.mustache`.
+- F1159 (D05): OIDC always requests `openid`, pinned by a table of caller scope lists.
+- F856: `BaseApi` hands its own `ApiClient` to a per-call `HttpAwareAuthenticator` before it asks for headers. Test: `test/base-api.test.mustache`.
+- F1059: any `multipart/*` request type is sent as a multipart envelope with the declared subtype (`multipart/mixed`, `multipart/related`) and the SDK boundary (`abstract_api_client.mustache`, `base_api.serializeBody`).
+- F1086 (D79): proxy URL errors print the userinfo as `***@`, and the unparseable-URL error no longer carries the parser error as `cause` (it holds the raw input). Test: `test/transport-options.test.mustache`.
+- F1093: headers the SDK attached from an authenticator or from default headers (tracked in `SendRequestOptions.credentialHeaderNames`, plus `TransportOptions.defaultHeaders`) are removed on a cross-origin redirect hop beside the fixed list. Test: `test/default-api-client-unit.test.mustache`.
+- F1080: the rendered `ApiError.toString()` prints the body capped at 1024 characters with a `... (N more bytes)` suffix, escapes CR, LF and other control characters, and prints credential-bearing response headers (Authorization, Proxy-Authorization, Cookie, Set-Cookie, WWW-Authenticate, Proxy-Authenticate, and names containing key, token or secret) as `***`, keys sorted. `responseBody` and `responseHeaders` stay whole. Test: `test/api-error.test.mustache`.
+- F1106: Temporal values are recognised by `Symbol.toStringTag` (`isTemporalValue`), so a native `Temporal` or a second polyfill copy is accepted.
+
+### Names and models
+- F173, F1131 (D45): a schema named `Error` or `Result` is generated as `ModelError` or `ModelResult` (`languageSpecificPrimitives`); the global `Error` is never shadowed. Test: `BetterNodeCodegenTest`, `test/object-serializer.test.mustache`.
+- F1055: a parameter named `options`, `requestOptions` or `server` becomes `optionsParam`, `requestOptionsParam`, `serverParam` (`BetterNodeCodegen.toParamName`). Test: `BetterNodeCodegenTest`.
+- F867: a model with a `format: password` field gets a `util.inspect` hook that prints the field as `***`; the field and the wire value are real. Test: `test/object-serializer.test.mustache`.
+- F1156: the file header prints the info description through `lambda.unescapeDocComment`. Test: `test/metadata.test.mustache`.
+
+### Documentation
+F1084: README and SKILLS name the root `<Prefix>Error`, the full tree (`ApiError`, `SerializationError`, `OAuth2ServerError`, `OAuth2TokenError`) and end the example with a root-error arm. Test: `test/client.test.mustache` (`generated documentation`).
+
+### Tests added to close parity gaps
+F1063, F1166 (`default-api-client-unit`), F1075 (`oauth2-token-manager`), F1114, F1116, F1117, F1144, F1146, F1148, F1149, F1067 (`object-serializer`), F1128, F1141 (`store-api`), F1113, F1127, F1158 (`pet-api`), F1169 (`base-api`, the cookie test now asserts).
+
+### Skipped in batch 7
+F1056 and F1121 contradict each other (drop `Accept`, `Content-Type` and `Authorization` header parameters versus a per-call `Accept` winning) and the first needs `AbstractBetterCodegen`; F1062, F1060, F865, F866, F1058, F1100 need shared Java or a spec change; F855, F857, F858, F859 change the auth API shape or add a retry and need an owner decision; F1082 changes the `format: date` type (a `Date` is kept); F1152, F1153, F1174, F1176 are gates outside the template tree.
