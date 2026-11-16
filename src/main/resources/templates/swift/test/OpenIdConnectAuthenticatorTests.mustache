@@ -71,6 +71,32 @@ import Testing
         #expect(url.contains("state=my-state"))
     }
 
+    /* D05: openid is always requested, put first, and a case-sensitive
+       duplicate is dropped. */
+    @Test(arguments: [
+        ([String](), "openid"),
+        (["profile", "email"], "openid profile email"),
+        (["profile", "openid"], "openid profile"),
+        (["OpenID", "profile"], "openid OpenID profile"),
+    ])
+    func testOpenidScopeIsAlwaysRequested(scopes: [String], expected: String) async throws {
+        let client = MockApiClient()
+        client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
+        let auth = OpenIdConnectAuthenticator(
+            host: "https://api.example.com",
+            openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration",
+            clientID: "my-client-id",
+            clientSecret: "my-secret",
+            redirectURI: "https://app.example.com/callback",
+            scopes: scopes)
+        auth.setApiClient(client)
+
+        let url = try await auth.buildAuthorizationURL()
+
+        let scope = URLComponents(string: url)?.queryItems?.first { $0.name == "scope" }?.value
+        #expect(scope == expected)
+    }
+
     @Test func testFetchesDiscoveryDocument() async throws {
         let client = MockApiClient()
         client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
