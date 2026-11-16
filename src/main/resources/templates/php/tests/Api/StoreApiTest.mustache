@@ -190,6 +190,7 @@ function newCapturingStoreApi(): array
 {
     $captured = new \stdClass();
     $captured->url = '';
+    $captured->body = '';
     /** @var array<string, string> $hdrs */
     $hdrs = [];
     $captured->headers = $hdrs;
@@ -207,6 +208,7 @@ function newCapturingStoreApi(): array
         {
             $this->captured->url = $url;
             $this->captured->headers = $headers;
+            $this->captured->body = is_string($body) ? $body : '';
             return new \{{invokerPackage}}\ApiHttpResponse(
                 200,
                 '{"id":1,"name":"sample"}',
@@ -283,4 +285,36 @@ test('named enum query and header params are omitted when absent', function (): 
 
     expect($captured->url)->toBe('http://localhost:9999/store/by-swatch/blue');
     expect($captured->headers)->not->toHaveKey('Preferred-Swatch');
+});
+
+test('a uuid path parameter puts the canonical lowercase uuid in the path', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    $api->getOrderByTrackingId(\Symfony\Component\Uid\Uuid::fromString('123E4567-E89B-12D3-A456-426614174000'));
+
+    expect($captured->url)->toBe('http://localhost:9999/store/order/by-tracking/123e4567-e89b-12d3-a456-426614174000');
+});
+
+test('a malformed uuid is refused before any request is sent', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    expect(fn () => $api->getOrderByTrackingId(\Symfony\Component\Uid\Uuid::fromString('not-a-uuid')))
+        ->toThrow(\InvalidArgumentException::class);
+    expect($captured->url)->toBe('');
+});
+
+test('create account sends the writeOnly password as an unauthenticated json body', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    try {
+        $api->createAccount(new \{{invokerPackage}}\Models\Account('ada', null, 'hunter2'));
+    } catch (\Throwable) {
+        // The canned reply has no username, so decoding it may fail; only the request matters.
+    }
+
+    expect($captured->url)->toBe('http://localhost:9999/store/account');
+    expect($captured->headers['Content-Type'] ?? null)->toBe('application/json');
+    expect($captured->headers)->not->toHaveKey('Authorization');
+    expect($captured->body)->toContain('"username":"ada"');
+    expect($captured->body)->toContain('"password":"hunter2"');
 });

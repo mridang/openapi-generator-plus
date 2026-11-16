@@ -438,6 +438,84 @@ test('get pet tag serializes optional array query params as styled values', func
 // only. The URL is built inside BaseApi before the request reaches the
 // ApiClient, so the URL-capturing fake client observes the exact query string.
 
+test('get pet tag uses the matrix and label path styles', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetTag(5, 'cute');
+    } catch (\Throwable) {
+        // Only the captured URL matters here.
+    }
+
+    expect($captured->url)->toBe('http://localhost:9999/pet/;petId=5/tag/.cute');
+});
+
+test('get pet tag sends object valued parameters in their declared styles', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+    $criteria = new \{{invokerPackage}}\Models\PetCriteria('lab', 3);
+
+    try {
+        $api->getPetTag(5, 'cute', new GetPetTagOptions(
+            criteria: $criteria,
+            criteriaCsv: $criteria,
+            criteriaDeep: $criteria,
+            xCriteria: $criteria
+        ));
+    } catch (\Throwable) {
+        // Only the captured request matters here.
+    }
+
+    expect($captured->url)->toContain('breed=lab&min_age=3');
+    expect($captured->url)->toContain('criteriaCsv=breed%2Clab%2Cmin_age%2C3');
+    expect($captured->url)->toContain('criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3');
+    expect($captured->headers['X-Criteria'] ?? null)->toBe('breed,lab,min_age,3');
+});
+
+test('find pets by status sends a deepObject filter and a digit-leading query name', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions(
+            filter: ['color' => 'blue', 'size' => 'large'],
+            n2ndPage: 2
+        ));
+    } catch (\Throwable) {
+        // Only the captured URL matters here.
+    }
+
+    expect($captured->url)->toContain('filter%5Bcolor%5D=blue&filter%5Bsize%5D=large');
+    expect($captured->url)->toContain('2ndPage=2');
+    expect($captured->url)->not->toContain('n2ndPage');
+});
+
+test('get pet summary sends the matrix date segment, the session cookie and the date array', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetSummary(7, new \DateTime('2024-01-15'), new GetPetSummaryOptions(
+            session: 'abc',
+            days: [new \DateTime('2024-02-01'), new \DateTime('2024-02-02')]
+        ));
+    } catch (\Throwable) {
+        // Only the captured request matters here.
+    }
+
+    expect($captured->url)->toContain('/pet/7/summary/;asOf=2024-01-15');
+    expect($captured->url)->toContain('days=2024-02-01&days=2024-02-02');
+    expect($captured->headers['Cookie'] ?? null)->toBe('session=abc');
+});
+
+test('get pet by name refuses a missing required header before sending', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    expect(fn () => $api->getPetByName('Rex', new GetPetByNameOptions(category: 'dogs', xCorrelationId: '')))
+        ->toThrow(
+            \InvalidArgumentException::class,
+            "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName"
+        );
+    expect($captured->url)->toBe('');
+});
+
 test('get pet tag preserves reserved chars only for allowReserved query param', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
