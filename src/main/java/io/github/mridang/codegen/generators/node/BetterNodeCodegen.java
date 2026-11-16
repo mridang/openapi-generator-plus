@@ -710,6 +710,20 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * Applies {@link #toModelName} to a reference to a schema named like a
+     * shadowing global. The base class returns the raw schema name for a
+     * {@code $ref}, so without this a property typed {@code Error} would import
+     * and decorate the global {@code Error} while the model file exports
+     * {@code ModelError}.
+     */
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        return SHADOWING_MODEL_NAMES.contains(type) ? toModelName(type) : type;
+    }
+
+    /**
      * Names of the arguments the SDK itself adds to every operation. A parameter
      * named like one would produce two parameters of the same name (TS2300).
      */

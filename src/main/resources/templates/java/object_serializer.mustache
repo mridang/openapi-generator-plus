@@ -246,7 +246,7 @@ public final class ObjectSerializer {
     static String formatDuration(Duration duration) {
         String sign = duration.isNegative() ? "-" : "";
         Duration abs = duration.abs();
-        long secs = abs.getSeconds();
+        long secs = abs.toSeconds();
         int nanos = abs.getNano();
         if (nanos == 0) {
             return sign + secs + "s";

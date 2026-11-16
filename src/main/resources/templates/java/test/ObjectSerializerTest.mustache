@@ -1876,14 +1876,14 @@ class ObjectSerializerTest {
                 + "\"null\":\"n\",\"true\":true,\"false\":false}";
             {{modelPackage}}.EdgeCases edge = java.util.Objects.requireNonNull(
                 serializer.deserialize(json, {{modelPackage}}.EdgeCases.class));
-            assertEquals(Boolean.TRUE, edge.and);
-            assertEquals(Boolean.FALSE, edge.or);
-            assertEquals(Boolean.TRUE, edge.not);
+            assertEquals(true, edge.and);
+            assertEquals(false, edge.or);
+            assertEquals(true, edge.not);
             assertEquals("c", edge._class);
             assertEquals("r", edge._return);
             assertEquals("n", edge._null);
-            assertEquals(Boolean.TRUE, edge._true);
-            assertEquals(Boolean.FALSE, edge._false);
+            assertEquals(true, edge._true);
+            assertEquals(false, edge._false);
             assertEquals(json, serializer.serialize(edge));
         }
 
@@ -1921,7 +1921,7 @@ class ObjectSerializerTest {
             }
             {{modelPackage}}.EdgeCases hour = java.util.Objects.requireNonNull(serializer.deserialize(
                 "{\"retryAfter\":\"3600s\"}", {{modelPackage}}.EdgeCases.class));
-            assertEquals(3600L, java.util.Objects.requireNonNull(hour.retryAfter).getSeconds());
+            assertEquals(3600L, java.util.Objects.requireNonNull(hour.retryAfter).toSeconds());
         }
 
         @Test
