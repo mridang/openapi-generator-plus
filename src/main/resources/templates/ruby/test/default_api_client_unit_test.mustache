@@ -1336,6 +1336,46 @@ describe {{moduleName}}::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  # D92: the returned headers describe the body the caller holds, so a decoded
+  # body drops Content-Encoding and Content-Length and keeps the rest.
+  it 'drops content-encoding and content-length from a decoded response' do
+    io = StringIO.new
+    gz = Zlib::GzipWriter.new(io)
+    gz.write('{"ok":true}')
+    gz.close
+    compressed = io.string
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/gz') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip',
+                'content-length' => compressed.bytesize.to_s, 'x-kept' => 'yes' }, compressed]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/gz', {}, nil)
+      _(response.headers.key?('content-encoding')).must_equal false
+      _(response.headers.key?('content-length')).must_equal false
+      _(response.headers['x-kept']).must_equal 'yes'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'keeps content-encoding and content-length on an identity response' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/plain') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'identity',
+                'content-length' => '11' }, '{"ok":true}']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/plain', {}, nil)
+      _(response.headers['content-encoding']).must_equal 'identity'
+      _(response.headers['content-length']).must_equal '11'
+    end
+    stubs.verify_stubbed_calls
+  end
+
   # Positive path: a brotli-encoded body decompresses through the `br` branch
   # of decompress_body. Deterministic (no external host): the body is brotli-
   # compressed in-process via the same gem the client uses to inflate it.
@@ -1412,6 +1452,29 @@ describe {{moduleName}}::DefaultApiClient do
       _(followed.key?('cookie')).must_equal false
       _(followed['x-trace']).must_equal 'keep'
     end
+  end
+
+  it 'strips default headers and credential-named headers on a cross-origin redirect' do
+    captured = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://other.test/landing' }, ''] }
+      stub.get('/landing') do |env|
+        captured = env.request_headers
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.default_header('X-Tenant', 'acme').build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    headers = { 'X-Custom-Auth' => 'abc', 'X-Session-Token' => 'def', 'X-Trace' => 'keep' }
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://origin.test/start', headers, nil)
+    end
+    followed = captured&.transform_keys(&:downcase)
+    _(followed).wont_be_nil
+    _(followed.key?('x-tenant')).must_equal false
+    _(followed.key?('x-custom-auth')).must_equal false
+    _(followed.key?('x-session-token')).must_equal false
+    _(followed['x-trace']).must_equal 'keep'
   end
 
   # ── a CA file that exists but holds no certificate ──

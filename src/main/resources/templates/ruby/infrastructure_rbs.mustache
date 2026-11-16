@@ -55,6 +55,8 @@
     def self.validate_connection!: (untyped, bool, String?, String?) -> void
     def self.redact_headers: (Hash[String, String]) -> Hash[String, String]
     def self.redact_url: (String?) -> String?
+    def self.mask_userinfo: (String) -> String
+    def self.sensitive_header?: (String) -> bool
     def inspect: () -> String
     def to_s: () -> String
 
