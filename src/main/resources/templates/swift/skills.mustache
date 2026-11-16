@@ -241,6 +241,8 @@ let transport = try TransportOptions.builder()
 let client = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
 ```
 
+Failed calls are retried automatically: `TransportOptions.builder().maxRetries(n)` sets the count (default 2, `0` disables). The SDK retries network errors that happened before a response and statuses 408, 409, 429 and 500 to 599 except 501, waiting 0.5 s doubling to 8 s with 25% jitter or the server's `Retry-After` (seconds or HTTP date, capped at 60 s). The `timeout` stays the one end-to-end budget, a stream body is never retried, and each retry re-applies the authentication headers.
+
 To send requests through your own `URLSession`, pass it to `TransportOptions.builder().session(mySession)`. The SDK keeps its timeout, user agent and headers on top and never invalidates the session; combining it with `proxy`, `caCertPath`, `verifySsl(false)`, `followRedirects(false)` or `maxRedirects` throws a `ConfigurationError`.
 
 ## API Methods
