@@ -197,6 +197,24 @@ fn test_url_substitutes_every_occurrence_and_keeps_unknown_placeholders() {
     );
 }
 
+/// F1124: the third global server keeps its hostile text unchanged: the
+/// description, the variable default and description, and the enum values.
+#[test]
+fn test_the_third_global_server_keeps_its_hostile_text_unchanged() {
+    let server = {{packageName}}::servers::server_2();
+
+    assert_eq!("https://{tenant}.example.com/api", server.url_template());
+    assert_eq!("Bob's \"sandbox\" & co: $5 #{x} a*/b", server.description());
+    let tenant = server.variables().get("tenant").expect("the tenant variable");
+    assert_eq!("o'neil", tenant.default_value());
+    assert_eq!("Tenant's \"id\"", tenant.description());
+    assert_eq!(vec!["o'neil".to_string(), "a&b".to_string()], tenant.enum_values());
+    assert_eq!("https://o'neil.example.com/api", server.url(&HashMap::new()).unwrap());
+    let mut overrides = HashMap::new();
+    overrides.insert("tenant".to_string(), "a&b".to_string());
+    assert_eq!("https://a&b.example.com/api", server.url(&overrides).unwrap());
+}
+
 /// SKILLS.md documents the `all_servers()` list next to the `server_N()`
 /// functions, like the other SDKs' Servers section.
 #[test]

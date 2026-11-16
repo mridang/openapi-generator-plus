@@ -949,6 +949,23 @@ fn test_edge_cases_keyword_named_properties_keep_their_wire_keys() {
     assert_eq!(edge, back);
 }
 
+/* F1124: constraint keywords are not enforced. A slug that breaks its pattern,
+ * a nickname that breaks its look-around pattern and a quantity above its
+ * maximum all decode as given, and the slug re-encodes unchanged. */
+#[test]
+fn test_constraint_keywords_are_not_enforced_on_decode() {
+    let edge: EdgeCases = serde_json::from_str(r#"{"slug":"12/ab"}"#).expect("failed to decode EdgeCases");
+    assert_eq!(edge.slug.as_deref(), Some("12/ab"));
+    assert_eq!(serde_json::to_string(&edge).expect("failed to encode EdgeCases"), r#"{"slug":"12/ab"}"#);
+
+    let pet: Pet = serde_json::from_str(r#"{"name":"n","photoUrls":["u"],"nickname":"ZZZZZZZZZZ"}"#)
+        .expect("failed to decode Pet");
+    assert_eq!(pet.nickname.as_deref(), Some("ZZZZZZZZZZ"));
+
+    let order: Order = serde_json::from_str(r#"{"quantity":500}"#).expect("failed to decode Order");
+    assert_eq!(order.quantity, Some(500));
+}
+
 /* -- numeric schema defaults are exact typed values (F1115) -- */
 
 #[test]
