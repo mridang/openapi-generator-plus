@@ -761,6 +761,11 @@ class DefaultApiClient:
         # or read response.headers.getlist('set-cookie') on the raw urllib3
         # HTTPHeaderDict.
         response_headers = _lower_headers(response.headers)
+        if raw_data and content_encoding not in ('', 'identity'):
+            # D92: the body above was decoded, so the headers must describe the
+            # body the caller receives, not the encoded bytes on the wire.
+            response_headers.pop('content-encoding', None)
+            response_headers.pop('content-length', None)
 
         return ApiHttpResponse(status_code=response.status, body=response_body, headers=response_headers)
 

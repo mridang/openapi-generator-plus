@@ -706,6 +706,23 @@ class TestRefreshGrant:
         assert client.send_request.call_count == 2
         assert manager.exchanged is False
 
+    def test_an_expires_in_beyond_one_year_is_clamped_to_one_year(self) -> None:
+        from unittest.mock import patch
+
+        manager, client = _manager_replying(
+            _token_reply(access_token="a1", expires_in=9999999999),
+            _token_reply(access_token="a2", expires_in=3600),
+        )
+        with patch("{{packageName}}.auth.oauth.oauth2_token_manager.time") as clock:
+            clock.time.return_value = 1000.0
+            manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+            clock.time.return_value = 1000.0 + 31_536_000 - 120.0
+            assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a1"
+            clock.time.return_value = 1000.0 + 31_536_000 - 59.0
+            assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a2"
+
+        assert client.send_request.call_count == 2
+
     def test_the_refresh_goes_to_the_refresh_url_with_the_extra_headers(self) -> None:
         manager, client = _manager_replying(
             _token_reply(access_token="a1", refresh_token="r1", expires_in=0),

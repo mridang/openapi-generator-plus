@@ -332,8 +332,17 @@ class TestAuthInjection:
 
     async def test_sets_cookie_header(self, api: Any) -> None:
         auth = StubAuthenticator(cookies={'session': 'abc123'})
-        await api.call('GET', '/test/echo', {}, {}, None,
-                       ['application/json'], 'application/json', None, auth)
+        result = await api.call('GET', '/test/echo', {}, {}, None,
+                                ['application/json'], 'application/json', 'object', auth)
+        assert result is not None
+        assert result['headers']['cookie'] == 'session=abc123'
+
+    async def test_joins_several_auth_cookies_with_a_semicolon(self, api: Any) -> None:
+        auth = StubAuthenticator(cookies={'session': 'abc123', 'theme': 'dark'})
+        result = await api.call('GET', '/test/echo', {}, {}, None,
+                                ['application/json'], 'application/json', 'object', auth)
+        assert result is not None
+        assert result['headers']['cookie'] == 'session=abc123; theme=dark'
 
     async def test_falls_back_to_client_level_authenticator(self) -> None:
         client = CapturingApiClient()

@@ -515,6 +515,25 @@ class TestPetApi:
         )
         assert expected in captured['path']
 
+    @pytest.mark.parametrize(
+        ('raw', 'query', 'header'),
+        [
+            (b'hi', 'fingerprint=aGk%3D', 'aGk='),
+            (b'\xfb\xff', 'fingerprint=%2B%2F8%3D', '+/8='),
+        ],
+    )
+    async def test_get_pet_tag_sends_byte_parameters_as_standard_padded_base64(
+        self, raw: bytes, query: str, header: str
+    ) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_tag(
+                5, 'cute', GetPetTagOptions(fingerprint=raw, x_fingerprint=raw)
+            )
+        )
+        assert query in captured['path']
+        sent = {name.lower(): value for name, value in captured['headers'].items()}
+        assert sent['x-fingerprint'] == header
+
     @pytest.mark.parametrize('name', ['.', '..'])
     async def test_get_pet_by_name_rejects_a_dot_segment(self, name: str) -> None:
         client = _RecordingApiClient()

@@ -255,6 +255,35 @@ class TestProxyUrlValidation:
         assert str(exc_info.value) == message
 
     @pytest.mark.parametrize(
+        ("proxy", "message"),
+        [
+            (
+                "socks5://svc:s3cret@proxy.example.com:1080",
+                "Invalid proxy URL (must use http or https scheme): socks5://***@proxy.example.com:1080",
+            ),
+            (
+                "ftp://svc@proxy.example.com:21",
+                "Invalid proxy URL (must use http or https scheme): ftp://***@proxy.example.com:21",
+            ),
+            (
+                "http://svc:s3cret@",
+                "Invalid proxy URL (missing host): http://***@",
+            ),
+        ],
+    )
+    def test_the_message_shows_the_userinfo_as_stars_never_the_password(
+        self, proxy: str, message: str
+    ) -> None:
+        with pytest.raises(ValueError) as builder_exc:
+            TransportOptions.builder().proxy(proxy)
+        with pytest.raises(ValueError) as direct_exc:
+            TransportOptions(proxy=proxy)
+
+        assert str(builder_exc.value) == message
+        assert str(direct_exc.value) == message
+        assert "s3cret" not in str(builder_exc.value)
+
+    @pytest.mark.parametrize(
         "proxy", ["HTTP://proxy.example.com:3128", "Https://proxy.example.com:3128"]
     )
     def test_an_upper_case_scheme_is_accepted(self, proxy: str) -> None:

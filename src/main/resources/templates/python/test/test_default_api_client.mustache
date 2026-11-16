@@ -53,6 +53,27 @@ class TestHttpProxy:
         assert '"method"' in response.body
 
 
+class TestAmbientProxyEnvironmentIsIgnored:
+    # D74: TransportOptions.proxy is the only proxy source. A dead proxy in the
+    # environment must not capture a client that configured none.
+    @pytest.mark.parametrize(
+        'variable',
+        ['HTTP_PROXY', 'http_proxy', 'HTTPS_PROXY', 'https_proxy', 'ALL_PROXY', 'all_proxy'],
+    )
+    def test_a_client_without_a_proxy_connects_directly(
+        self, chasm_internal_http_url: Any, monkeypatch: pytest.MonkeyPatch, variable: str
+    ) -> None:
+        monkeypatch.delenv('NO_PROXY', raising=False)
+        monkeypatch.delenv('no_proxy', raising=False)
+        monkeypatch.setenv(variable, 'http://127.0.0.1:1')
+        client = DefaultApiClient(TransportOptions.builder().build())
+
+        response = client.send_request('GET', chasm_internal_http_url + '/test/echo', {}, None)
+
+        assert response.status_code == 200
+        assert not isinstance(client._pool_manager, urllib3.ProxyManager)
+
+
 class TestProxyWithCredentials:
     # The fixture proxy's second port answers 407 unless the request carries
     # Proxy-Authorization, so these two prove the credentials in the proxy URL
@@ -746,7 +767,8 @@ class TestHttpCompression:
         )
 
         assert response.status_code == 200
-        assert response.headers["content-encoding"] == encoding
+        assert "content-encoding" not in response.headers
+        assert "content-length" not in response.headers
         assert json.loads(response.body)["title"] == "compressed fixture body"
 
 

@@ -635,6 +635,30 @@ class TestExtraFieldsOnDeserialize:
         assert category.name == 'Dogs'
 
 
+class TestUnevaluatedPropertiesFalseRejectsExtraKeys:
+    """A model declaring ``unevaluatedProperties: false`` (StrictTag) refuses an
+    undeclared key; a model without it (Category) keeps ignoring one."""
+
+    def test_an_undeclared_key_is_rejected(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(
+                '{"id":1,"name":"x","unexpected":true}', 'StrictTag'
+            )
+
+    def test_the_declared_keys_still_decode(self) -> None:
+        from {{packageName}}.models.strict_tag import StrictTag
+
+        tag = ObjectSerializer().deserialize('{"id":1,"name":"x"}', 'StrictTag')
+        assert isinstance(tag, StrictTag)
+        assert (tag.id, tag.name) == (1, 'x')
+
+    def test_the_strict_flag_does_not_leak_onto_other_models(self) -> None:
+        category = ObjectSerializer().deserialize(
+            '{"id":1,"name":"Dogs","unexpected":true}', 'Category'
+        )
+        assert isinstance(category, Category)
+
+
 class TestExcludeNoneOnSerialize:
     def test_none_values_are_omitted(self) -> None:
         import json
