@@ -620,6 +620,32 @@ describe {{moduleName}}::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  {
+    'photo.jpg' => 'image/jpeg',
+    'photo.jpeg' => 'image/jpeg',
+    'anim.gif' => 'image/gif',
+    'data.json' => 'application/json'
+  }.each do |filename, mime|
+    it "sets #{mime} for a #{File.extname(filename)} upload" do
+      captured_body = nil
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/upload') do |env|
+          captured_body = env.body
+          [200, {}, '{}']
+        end
+      end
+      require 'stringio'
+      io = StringIO.new('bytes')
+      io.define_singleton_method(:path) { filename }
+      client = {{moduleName}}::DefaultApiClient.new
+      client.stub(:build_connection, stub_connection(stubs)) do
+        client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+      end
+      _(captured_body.to_s).must_include "Content-Type: #{mime}"
+      stubs.verify_stubbed_calls
+    end
+  end
+
   it 'falls back to application/octet-stream for unknown extension' do
     captured_body = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|

@@ -178,6 +178,33 @@ describe 'Composed Schema' do
     end
   end
 
+  # D64: the same members as PetTreatment declared in the opposite order. The
+  # variants are tried in declaration order, so Surgery comes first and the
+  # later declared Medication wins a collision on a shared property.
+  describe 'anyOf variants are tried in declaration order: TreatmentRecord' do
+    it 'lists the variants in the order the spec declares them' do
+      _({{moduleName}}::Models::TreatmentRecord.openapi_any_of).must_equal(%i[Surgery Medication])
+    end
+
+    it 'retains the first declared variant first' do
+      both = {{moduleName}}::ObjectSerializer.deserialize('{"drugName":"a","procedureName":"b"}', 'TreatmentRecord')
+      _({{moduleName}}::Models::TreatmentRecord.matched_instances(both).map(&:class))
+        .must_equal([{{moduleName}}::Models::Surgery, {{moduleName}}::Models::Medication])
+      _({{moduleName}}::Models::TreatmentRecord.actual_instance(both)).must_be_kind_of({{moduleName}}::Models::Surgery)
+    end
+
+    it 'keeps the later declared variant on a collision, emitted once' do
+      surgery = {{moduleName}}::Models::Surgery.new(procedure_name: 'Spay', notes: 'from-surgery')
+      medication = {{moduleName}}::Models::Medication.new(drug_name: 'Amoxicillin', notes: 'from-medication')
+      composite = {{moduleName}}::Models::TreatmentRecord::Composite.new([surgery, medication])
+
+      serialized = {{moduleName}}::ObjectSerializer.serialize(composite)
+
+      _(JSON.parse(serialized)['notes']).must_equal('from-medication')
+      _(serialized.scan('"notes"').length).must_equal(1)
+    end
+  end
+
   describe 'setPetAvatarThumbnail byte oneOf round-trips through base64' do
     # SetPetAvatarThumbnailRequest is a oneOf of [ a scalar `format: byte`
     # value, an array of `format: byte` values ]. `format: byte` means the

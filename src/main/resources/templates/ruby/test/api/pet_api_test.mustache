@@ -207,6 +207,7 @@ describe {{moduleName}}::Api::PetApi do
         @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"), request_content_type: 'application/unknown-type')
       end
       _(error.message).must_include "Unsupported request content-type 'application/unknown-type' for "
+      _(error.message).must_match(%r{; declared types are \[[^"'\]]+(, [^"'\]]+)*\]\z})
     end
 
     # Canonical regression (finding C1): setPetAvatar declares a request body of
@@ -763,7 +764,7 @@ describe {{moduleName}}::Api::PetApi do
       }).must_raise(ArgumentError)
 
       _(err.message).must_equal(
-        %q(Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: ["staging", "sandbox"])
+        %q(Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: [staging, sandbox])
       )
     end
 
