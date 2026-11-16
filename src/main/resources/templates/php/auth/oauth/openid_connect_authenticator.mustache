@@ -57,6 +57,9 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
     /** RFC 8414 recommended default max-age for OIDC discovery documents. */
     private const int DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400;
 
+    /** Ceiling in seconds applied to a server-supplied max-age (one year). */
+    private const int MAX_DISCOVERY_MAX_AGE_SECONDS = 31536000;
+
     /**
      * Create a new OpenID Connect authenticator.
      *
@@ -197,7 +200,11 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         foreach ($headers as $name => $value) {
             if (strcasecmp((string) $name, 'Cache-Control') === 0) {
                 if (preg_match('/max-age=(\d+)/i', (string) $value, $matches) === 1) {
-                    return (int) $matches[1];
+                    $digits = ltrim($matches[1], '0');
+                    if (strlen($digits) > 8) {
+                        return self::MAX_DISCOVERY_MAX_AGE_SECONDS;
+                    }
+                    return min((int) $digits, self::MAX_DISCOVERY_MAX_AGE_SECONDS);
                 }
                 return self::DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
             }

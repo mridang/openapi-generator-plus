@@ -437,6 +437,31 @@ test('oidc keeps discovery cached while its Cache-Control max-age holds', functi
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
+test('oidc clamps a max-age beyond one year to one year', function (string $maxAge): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Cache-Control' => 'public, max-age=' . $maxAge]));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->buildAuthorizationUrl();
+
+    $expiry = (new \ReflectionProperty(OpenIdConnectAuthenticator::class, 'discoveryExpiry'))
+        ->getValue($authenticator);
+    expect($expiry)->toBeInt();
+    expect($expiry)->toBeLessThanOrEqual(time() + 31536000);
+    expect($expiry)->toBeGreaterThan(time() + 31536000 - 120);
+})->with(['9999999999', '99999999999999999999999999', '31536001']);
+
 test('oidc debug output keeps the non secret fields and masks the secret', function (): void {
     $authenticator = new OpenIdConnectAuthenticator(
         'https://api.example.com',

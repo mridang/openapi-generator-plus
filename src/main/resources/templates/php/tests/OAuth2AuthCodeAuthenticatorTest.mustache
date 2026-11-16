@@ -406,7 +406,7 @@ test('auth code refresh carries the client credentials', function (): void {
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access1',
         'refresh_token' => 'refresh1',
-        'expires_in' => 1,
+        'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access2',
@@ -439,7 +439,7 @@ test('auth code rejected refresh surfaces the server error after one refresh req
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access1',
         'refresh_token' => 'refresh1',
-        'expires_in' => 1,
+        'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(
         400,
@@ -505,7 +505,7 @@ test('second exchange without a refresh token drops the old refresh token', func
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'token2',
-        'expires_in' => 1,
+        'expires_in' => 0,
     ]), ['Content-Type' => 'application/json']));
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'token3',
