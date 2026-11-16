@@ -25619,8 +25619,8 @@
    "unit_testable": false,
    "lens": "L17-gates",
    "id": "F383",
-   "status": "open",
-   "note": "",
+   "status": "fixed",
+   "note": "swift formatting spec runs swift-format lint --strict",
    "outcomes": {
     "swift": {
      "outcome": "skipped",
@@ -25632,7 +25632,8 @@
    },
    "batch": 3,
    "priority_triage": "medium",
-   "plain": "The Swift format check runs without --strict so it never fails on a formatting problem."
+   "plain": "The Swift format check runs without --strict so it never fails on a formatting problem.",
+   "commit": "77befa5df"
   },
   {
    "title": "ruby (brotli, zstd) and elixir (brotli) codec tests are always skipped in CI because of build-config choices, not a runtime limit",
@@ -30092,11 +30093,12 @@
    "description": "kotlin OAuth2TokenManager keeps the old (expired) expiry when a refresh response omits expires_in (T3-16), which makes the next call refresh again; behaviour left untested because the intended contract is unclear.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the kotlin fix agent, unverified",
+   "status": "fixed",
+   "note": "a refresh response without expires_in gives the token no expiry, as in the other SDKs",
    "batch": null,
    "priority_triage": "low",
-   "plain": "When a token refresh response omits the lifetime, the old expired time is kept so every following call refreshes again."
+   "plain": "When a token refresh response omits the lifetime, the old expired time is kept so every following call refreshes again.",
+   "commit": "77befa5df"
   },
   {
    "id": "F537",
@@ -30320,11 +30322,12 @@
    "description": "Node operation-server variants take TypeScript enum types only, so a server-variable value outside the enum is not rejected at runtime (the ServerConfiguration class does reject it).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the node fix agent, unverified",
+   "status": "fixed",
+   "note": "node operation server variants reject a value outside the declared enum; tests added",
    "batch": null,
    "priority_triage": "low",
-   "plain": "Node operation-server variants accept only enum types, so an unlisted server variable value is not rejected at runtime."
+   "plain": "Node operation-server variants accept only enum types, so an unlisted server variable value is not rejected at runtime.",
+   "commit": "77befa5df"
   },
   {
    "id": "F551",
@@ -30466,11 +30469,12 @@
    "description": "Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkError; fix is f.adapter :net_http { |http| http.ignore_eof = false } in build_connection plus a Faraday#adapter RBS declaration (reproduced with a loopback TCPServer; chunked truncation and stalled bodies are already classified correctly).",
    "evidence": [],
    "unit_testable": null,
-   "status": "parked",
-   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
+   "status": "fixed",
+   "note": "ruby net_http adapter no longer ignores an early EOF; test added",
    "batch": null,
    "priority_triage": "medium",
-   "plain": "Ruby accepts a response body cut shorter than its Content-Length without error."
+   "plain": "Ruby accepts a response body cut shorter than its Content-Length without error.",
+   "commit": "77befa5df"
   },
   {
    "id": "F560",
@@ -31067,11 +31071,12 @@
    "description": "The 2ndPage query parameter (D43 fixture) has no csharp test asserting 2ndPage=2 on the wire yet.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the csharp fix agent, unverified",
+   "status": "fixed",
+   "note": "csharp test asserts 2ndPage=2 on the wire",
    "batch": null,
    "priority_triage": "low",
-   "plain": "No C# test asserts a digit-leading parameter name (2ndPage) on the wire."
+   "plain": "No C# test asserts a digit-leading parameter name (2ndPage) on the wire.",
+   "commit": "77befa5df"
   },
   {
    "id": "F597",
@@ -34300,9 +34305,10 @@
    "description": "From the go idiom review notes, confirmed against the canonical shape. `NewPetFood(actualInstance any)` accepts `&DryFood`, while decoding stores the `DryFood` value. A type switch on `ActualInstance()` then sees different dynamic types depending on how the value was built. To keep the canonical single-`any` constructor, normalise pointers to values in the constructor, or reject them, so that construction matches what decoding produces.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "go oneOf constructor stores a pointer variant by value; test added",
+   "batch": null,
+   "commit": "77befa5df"
   },
   {
    "id": "F778",
@@ -34413,9 +34419,10 @@
    "description": "Use AssertJ assertThatThrownBy consistently in the generated MetadataTest.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "java MetadataTest uses AssertJ throughout",
+   "batch": null,
+   "commit": "77befa5df"
   },
   {
    "id": "F785",
@@ -34464,9 +34471,10 @@
    "description": "DEFAULT_TIMEOUT_MS and DEFAULT_USER_AGENT sit after the instance fields in templates/java/transport_options.mustache (~lines 40-41) and the golden TransportOptions.java (~46-47). Configuration puts DEFAULT_BASE_URL first. Move the static constants above the first instance field in both.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "checked: java TransportOptions no longer has static constants after the instance fields; defaults live in the Builder",
+   "batch": null,
+   "commit": "77befa5df"
   },
   {
    "id": "F788",
@@ -34496,9 +34504,10 @@
    "description": "Idiom review of api-small-classes: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first, so the two classes disagree. Affects src/main/resources/templates/java/transport_options.mustache (the DEFAULT_TIMEOUT_MS and DEFAULT_USER_AGENT lines, template lines 40-41) and src/spec/resources/generated/java/src/main/java/com/example/petstore/TransportOptions.java lines 46-47.\n\nSuggested form: Move the two lines `private static final int DEFAULT_TIMEOUT_MS = 10000;` and `private static final String DEFAULT_USER_AGENT = \"...\";` above the first instance field (`private final boolean verifySsl;`, generated TransportOptions.java line 36, template equivalent) in both the template and the generated file, matching Configuration.java line 34. Keep the values and the blank line before the constructor unchanged.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "checked: java TransportOptions no longer has static constants after the instance fields; defaults live in the Builder",
+   "batch": null,
+   "commit": "77befa5df"
   },
   {
    "id": "F790",
@@ -34528,9 +34537,10 @@
    "description": "Idiom review of api-small-classes: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \\ReflectionMethod(Client::class, '__construct')->getNumberOfParameters()` without parentheses, while src/main/resources/templates/php/tests/ClientTest.mustache:89-91 uses `(new \\ReflectionMethod(...))->getNumberOfParameters()`. The same drift exists at src/spec/resources/generated/php/tests/TransportOptionsTest.php:244 against TransportOptionsTest.mustache:316. The goldens are not the template's output, and the unparenthesised form is not a form the template emits.\n\nSuggested form: Regenerate the goldens from the templates so they are byte-identical. Use the parenthesised form `(new \\ReflectionMethod(Client::class, '__construct'))->getNumberOfParameters()` and `(new ReflectionMethod(TransportOptions::class, 'assertValidProxy'))->isPrivate()`, which the templates already use and which parses on every PHP 8 version.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "checked: composer requires php ^8.5, where new X()->method() is valid; the formatter produces that form",
+   "batch": null,
+   "commit": "77befa5df"
   },
   {
    "id": "F792",
@@ -34560,9 +34570,10 @@
    "description": "Idiom review of api-small-classes: src/main/resources/templates/elixir/base_api.mustache:34 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:40) puts `@doc false` above a long `#` comment block that replaces the docstring for `invoke_api/10`. No tool reads that block, and an Elixir developer reads the pattern as a docstring in the wrong place.\n\nSuggested form: Keep only `@doc false` directly above `@spec invoke_api(` and delete the `#` block (or reduce it to a single `# Internal: ...` line). Do the same at base_api.mustache:71 (generated base_api.ex:99) for `invoke_api_for_result/10`.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "checked: invoke_api and invoke_api_for_result now carry real @doc docs, and no visibility test sits under the server overrides heading",
+   "batch": null,
+   "commit": "77befa5df"
   },
   {
    "id": "F794",
@@ -34576,9 +34587,10 @@
    "description": "Idiom review of api-small-classes: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-block-as-docstring pattern for `invoke_api_for_result/10`.\n\nSuggested form: Keep `@doc false` alone above `@spec invoke_api_for_result(`; drop the `#` block that restates the parameters and return value.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "checked: invoke_api and invoke_api_for_result now carry real @doc docs, and no visibility test sits under the server overrides heading",
+   "batch": null,
+   "commit": "77befa5df"
   },
   {
    "id": "F795",
@@ -34592,9 +34604,10 @@
    "description": "Idiom review of api-small-classes: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which checks the public surface of BaseApi, under the `# Server variable overrides` section heading. The test is misfiled and reads as a server-URL test.\n\nSuggested form: Move the test out of the server-overrides block into its own heading such as `# Public surface` (or the top of the module), leaving the `# Server variable overrides` heading to the server tests that follow it.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "checked: invoke_api and invoke_api_for_result now carry real @doc docs, and no visibility test sits under the server overrides heading",
+   "batch": null,
+   "commit": "77befa5df"
   },
   {
    "id": "F796",
@@ -34833,9 +34846,10 @@
    "description": "Idiom review of single-language-defects: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the new throw on one 111-column line. The sibling throws at lines 124-126 of the same template are wrapped to the 100-column limit, so this line breaks the formatting every other check in the function follows.\n\nSuggested form: Wrap it like the sibling throw: `throw IllegalArgumentException(` on one line, then `\"Invalid proxy URL (unterminated IPv6 literal): $proxy\",` indented one level deeper, then `)`. Apply the same wrap to the generated TransportOptions.kt line.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "",
-   "batch": null
+   "status": "fixed",
+   "note": "checked: the kotlin proxy throws are wrapped within 100 columns",
+   "batch": null,
+   "commit": "77befa5df"
   },
   {
    "id": "F810",

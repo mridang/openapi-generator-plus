@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 513, forced 4, needs-spec 2, open 87, parked 33, partial 5. Severity: critical 3, high 60, medium 547, low 212.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 527, forced 4, needs-spec 2, open 74, parked 32, partial 5. Severity: critical 3, high 60, medium 547, low 212.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -388,7 +388,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 513, forced 4,
 | F380 | low | fixed | L16-docs-packaging | java | java pom hardcodes the MIT licence URL instead of using `{{licenseUrl}}` |
 | F381 | low | fixed | L16-docs-packaging | python | python README type-mapping table says bare `number` maps to `pydantic.StrictFloat`; the code maps it to the Decimal-based `JsonNumber` |
 | F382 | low | fixed | L17-gates | elixir, php, swift | Spec comments claim the gates match the generated Makefile, but the elixir, php and swift Makefiles disagree |
-| F383 | low | open | L17-gates | swift | SwiftFormattingSpec runs swift-format lint without --strict, so it exits 0 on any formatting finding |
+| F383 | low | fixed | L17-gates | swift | SwiftFormattingSpec runs swift-format lint without --strict, so it exits 0 on any formatting finding |
 | F384 | low | fixed | L17-gates | ruby, elixir | ruby (brotli, zstd) and elixir (brotli) codec tests are always skipped in CI because of build-config choices, not a runtime limit |
 | F385 | low | fixed | L18a-wire-request | csharp, dart, kotlin | Multipart JSON part headers differ: csharp and dart add `; charset=utf-8` and change header order; kotlin adds a per-part Content-Length |
 | F386 | low | duplicate | L18a-wire-request | java, go, swift, ruby, elixir, rust, python, dart | Query, form and multipart parameter order is not the declared order in 7 languages: hash order, random or sorted |
@@ -541,7 +541,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 513, forced 4,
 | F533 | medium | false-positive | batch4-discovered | kotlin | src/main/resources/fixtures/certs/server.pem now lists IP Address:127.0.0.1 in its SAN, so the java DefaultApiClientTest comment ('cert has no 127.0.0.1') and its verifySslTrueRejectsHostnameMismatch  |
 | F534 | medium | false-positive | batch4-discovered | kotlin | kotlin MAX_JSON_DEPTH is 1000 (object_serializer.mustache) while F100 notes other SDKs cap error bodies at 128; the new ApiExceptionTest case uses 5000 levels so it holds for either limit |
 | F535 | medium | duplicate | batch4-discovered | kotlin | kotlin TransportOptions accepts a negative or zero timeout without any guard (rust rejects it, F359); no shared contract exists, so no test was added |
-| F536 | medium | open | batch4-discovered | kotlin | kotlin OAuth2TokenManager keeps the old (expired) expiry when a refresh response omits expires_in (T3-16), which makes the next call refresh again; behaviour left untested because the intended contrac |
+| F536 | medium | fixed | batch4-discovered | kotlin | kotlin OAuth2TokenManager keeps the old (expired) expiry when a refresh response omits expires_in (T3-16), which makes the next call refresh again; behaviour left untested because the intended contrac |
 | F537 | medium | false-positive | batch4-discovered | python | Branch name deviation: parity/b2-python is already checked out by the older worktree wf_4a554f2f-32a-5 (commit 031f8706c, not an ancestor of 77ef6e332), so 'git checkout -B parity/b2-python' was impos |
 | F538 | medium | duplicate | batch4-discovered | python | python OIDC rediscovery after Cache-Control max-age builds a new delegate and drops the exchanged tokens, so get_auth_headers raises 'Must call exchange_code()' (already ledgered as F016/F230); I test |
 | F539 | medium | duplicate | batch4-discovered | python | python int32 fields use unbounded StrictInt, so {"quantity":3000000000} deserializes and would be re-sent (the java/kotlin/csharp/go/rust/swift SDKs reject it); not fixed, needs a codegen type mapping |
@@ -555,7 +555,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 513, forced 4,
 | F547 | medium | false-positive | batch4-discovered | dart | Setup deviation: branch parity/b2-dart already exists with an earlier run's commit and is checked out in another worktree (wf_4a554f2f-32a-8), so git checkout -B would have orphaned that work; I branc |
 | F548 | medium | duplicate | batch4-discovered | node | Node ApiError.fromResponse leaves errorBody null for a body with a leading UTF-8 BOM |
 | F549 | medium | duplicate | batch4-discovered | node | Node TransportOptions and the transport accept timeout <= 0 without validation |
-| F550 | medium | open | batch4-discovered | node | Node operation-server variants take TypeScript enum types only, so a server-variable value outside the enum is not rejected at runtime (the ServerConfiguration class does reject it) |
+| F550 | medium | fixed | batch4-discovered | node | Node operation-server variants take TypeScript enum types only, so a server-variable value outside the enum is not rejected at runtime (the ServerConfiguration class does reject it) |
 | F551 | medium | false-positive | batch4-discovered | node | The golden test directory is tracked as test/Api (capital A) while the codegen writes Path.of('test','api') |
 | F552 | medium | fixed | batch4-discovered | php | Fixed here: AbstractApiClient::decompressBody treated a valid gzip or deflate stream that decodes to an empty string or "0" as corrupt (the ?: throw pattern tests falsiness), so such a response raised |
 | F553 | medium | fixed | batch4-discovered | php | Fixed here: DefaultApiClient::createHttpClient let openssl_x509_read emit an E_WARNING for an unparseable PEM, so under a framework error handler the documented InvalidArgumentException became an Erro |
@@ -564,7 +564,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 513, forced 4,
 | F556 | medium | duplicate | batch4-discovered | php | OAuth2TokenManager keeps the previous (already stale) expiry when a refresh response omits expires_in, so every following call refreshes again; the intended rule (T3-16) is untested and unclear for ph |
 | F557 | medium | fixed | batch4-discovered | java | OpenIdConnectAuthenticator replaced its delegate on every discovery refresh, so the token from exchangeCode was lost once the Cache-Control max-age expired (getAuthHeaders then threw IllegalStateExcep |
 | F558 | medium | duplicate | batch4-discovered | java | java has no negative or zero timeout guard in TransportOptions (rust rejects it); the cross-language contract is still undecided (F359 part 3) |
-| F559 | medium | parked | batch4-discovered | ruby | Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkErr |
+| F559 | medium | fixed | batch4-discovered | ruby | Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkErr |
 | F560 | medium | duplicate | batch4-discovered | ruby | Ruby gem entry point (gem.mustache) never requires the per-scheme wrapper authenticators (Auth::<Scheme>Authenticator, 12 files in the golden), so require 'petstore_client' alone leaves them undefined |
 | F561 | medium | fixed | batch4-discovered | ruby | Ruby OpenIdConnectAuthenticator rediscovery (default 86400s or max-age=0) builds a fresh OAuth2AuthorizationCodeAuthenticator and drops the exchanged token, so auth_headers raises 'Must call exchange_ |
 | F562 | medium | duplicate | batch4-discovered | ruby | Ruby accepts an int32 value of 3000000000 (ObjectSerializer Integer check is unbounded) and has no negative-timeout guard in TransportOptions, so both diverge from the SDKs that reject them; left unlo |
@@ -601,7 +601,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 513, forced 4,
 | F593 | medium | fixed | batch5-discovered | csharp | deepObject query params typed as a model (criteriaDeep: PetCriteria) called ToDictionary on the model |
 | F594 | medium | fixed | batch5-discovered | csharp | The new Error schema trips CA1716 |
 | F595 | medium | duplicate | batch5-discovered | csharp | csharp toDefaultValue still uses escapeText for string defaults, so the hostile Defaults.greeting default turns tab and newline into spaces and */ into *_/ |
-| F596 | medium | open | batch5-discovered | csharp | The 2ndPage query parameter (D43 fixture) has no csharp test asserting 2ndPage=2 on the wire yet |
+| F596 | medium | fixed | batch5-discovered | csharp | The 2ndPage query parameter (D43 fixture) has no csharp test asserting 2ndPage=2 on the wire yet |
 | F597 | medium | duplicate | batch5-discovered | ruby | ValueSerializer.serialize_deep_object calls each_with_object on its value, so a deepObject query param typed as a model (getPetTag criteriaDeep: PetCriteria) would raise NoMethodError at runtime |
 | F598 | medium | fixed | batch5-discovered | ruby | AbstractBetterCodegen builds server-variable enum constant names with UPPER_SNAKE_CASE of the raw value, so a&b gives 'A&B' and it's gives "IT'S", which are illegal identifiers in most languages |
 | F599 | medium | fixed | batch5-discovered | ruby | AbstractBetterCodegen.toEnumVarName returns an empty string when a value sanitizes to nothing (' ', '@@'); the dedupe then yields '' and '2' |
@@ -782,25 +782,25 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 513, forced 4,
 | F774 | medium | fixed | review | elixir | BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body). |
 | F775 | low | open | review | kotlin | kotlin RequiredNullable.note required-nullable is not in the api-surface allow-list |
 | F776 | low | open | review | go, rust | DateTime unwrap accessor (go Time() / rust into_inner()) is not allow-listed |
-| F777 | low | open | review | go | go oneOf constructor accepts pointer variants, unlike the decode path |
+| F777 | low | fixed | review | go | go oneOf constructor accepts pointer variants, unlike the decode path |
 | F778 | medium | fixed | review | node | The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an al |
 | F779 | medium | open | review | node | Spec change needed (shared): petstore openapi.yaml needs a model with `additionalProperties: {type: string}` so the typed index-signature case is compiled. |
 | F780 | low | open | review | go | go: oneOf ActualInstance() keeps a pointer receiver while MarshalJSON and the new anyOf accessors use value receivers |
 | F781 | low | open | review | kotlin | kotlin: rejectUnevaluatedKeys spells kotlinx.serialization.descriptors.StructureKind out in full instead of importing it |
 | F782 | medium | open | review | node | node: the get additionalProperties() accessor sits in the same class as an index signature of a different type |
 | F783 | low | open | review | php | php: byte-property docblocks contradict the property, and the byteProperties reflection walker is duplicated in ObjectSerializer and the model base |
-| F784 | low | open | review | java | java: MetadataTest mixes a fully-qualified JUnit assertThrows into a file that uses AssertJ exclusively |
+| F784 | low | fixed | review | java | java: MetadataTest mixes a fully-qualified JUnit assertThrows into a file that uses AssertJ exclusively |
 | F785 | medium | open | review | kotlin, csharp, dart, swift | Proxy validation timing differs: kotlin, csharp, dart and swift still validate in the builder proxy() setter |
 | F786 | low | open | review | java | Java hasOnlyOptionalBody is a vendorExtensions flag read by a template |
-| F787 | low | open | review | java | Java TransportOptions constants declared after the instance fields |
+| F787 | low | fixed | review | java | Java TransportOptions constants declared after the instance fields |
 | F788 | low | open | review | rust | Rust setPetAvatar/uploadPetDocument have no requestContentType argument |
-| F789 | low | open | review | java | java: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first |
+| F789 | low | fixed | review | java | java: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first |
 | F790 | low | open | review | php | php: The README snippet builds the Configuration with the builder chain, which is the awkward call site: src/main/resources/templates/php/readme.mustache:208 (and the golden src/spec/resources/generat |
-| F791 | low | open | review | php | php: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \ReflectionMethod(Client::class, '__construct') |
+| F791 | low | fixed | review | php | php: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \ReflectionMethod(Client::class, '__construct') |
 | F792 | low | open | review | php | php: assertValidProxy is made a non-static instance method, which is not the canonical shape and is not how a stateless validator should be written. src/main/resources/templates/php/transport_options. |
-| F793 | low | open | review | elixir | elixir: src/main/resources/templates/elixir/base_api.mustache:34 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:40) puts `@doc false` above a long `#` comment block |
-| F794 | low | open | review | elixir | elixir: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-b |
-| F795 | low | open | review | elixir | elixir: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which che |
+| F793 | low | fixed | review | elixir | elixir: src/main/resources/templates/elixir/base_api.mustache:34 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:40) puts `@doc false` above a long `#` comment block |
+| F794 | low | fixed | review | elixir | elixir: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-b |
+| F795 | low | fixed | review | elixir | elixir: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which che |
 | F796 | low | open | review | ruby | ruby: Stale selector name in a comment. src/main/resources/templates/ruby/test/api/pet_api_test.mustache:268 (and the generated src/spec/resources/generated/ruby/test/api/pet_api_test.rb:268) still sa |
 | F797 | medium | fixed | review | python | Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real Python |
 | F798 | medium | fixed | review | java | devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies. |
@@ -814,7 +814,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 513, forced 4,
 | F806 | low | open | review | java | java: src/spec/resources/generated/java/src/main/java/com/example/petstore/api/PetApi.java:976: the public overload getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) that exist |
 | F807 | low | open | review | java | java: src/spec/resources/generated/java/src/main/java/com/example/petstore/models/DryFood.java:14 and WetFood.java:14 now read 'extends DeprecatedFood' instead of 'extends PetFood' (HEAD). PetFood is |
 | F808 | low | open | review | java | java: src/spec/resources/generated/java/src/test/java/com/example/petstore/api/PetApiTest.java:83-100 (and its source template src/main/resources/templates/java/test/api/PetApiTest.mustache) tests Jav |
-| F809 | low | open | review | kotlin | kotlin: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the |
+| F809 | low | fixed | review | kotlin | kotlin: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the |
 | F810 | low | open | review | kotlin | kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:374 (and generated src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/api/PetApiTest.kt:388) calls `getEx |
 | F811 | low | open | review | node | node: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node develo |
 | F812 | low | fixed | review | swift | swift: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accept |
@@ -5524,7 +5524,7 @@ elixir: ElixirLintingSpec says it runs 'The generated Makefile's build, lint and
 - `src/spec/resources/generated/swift/Package.swift:63` — use class hierarchies + Any that aren't Sendable-compatible without significant refactor. Keep on v5 mode for now.
 
 ## F383 [low] SwiftFormattingSpec runs swift-format lint without --strict, so it exits 0 on any formatting finding
-- Status: **open** | Lens: L17-gates | Category: gate | Unit-testable (reviewer's view): False
+- Status: **fixed** (swift formatting spec runs swift-format lint --strict) | Lens: L17-gates | Category: gate | Unit-testable (reviewer's view): False
 - SDKs: swift
 
 swift-format lint reports findings as warnings and exits non-zero only when `--strict` is passed. SwiftFormattingSpec.generatedCodeShouldBeProperlyFormatted runs `swift-format lint --recursive Sources Tests` without it, so the test cannot fail on a formatting violation. Every other language's formatting spec exits non-zero on drift (`--check`, `--set-exit-if-changed`, `--check-formatted`, `test -z $(gofmt -l)`). Formatting is still covered, because SwiftLintingSpec runs `swift-format lint --strict`. The formatting spec itself is just a check that always passes, and a swift formatting regression is reported as a linting failure, not a formatting one.
@@ -6619,7 +6619,7 @@ kotlin MAX_JSON_DEPTH is 1000 (object_serializer.mustache) while F100 notes othe
 kotlin TransportOptions accepts a negative or zero timeout without any guard (rust rejects it, F359); no shared contract exists, so no test was added.
 
 ## F536 [medium] kotlin OAuth2TokenManager keeps the old (expired) expiry when a refresh response omits expires_in (T3-16), which makes the next call refresh again; behaviour left untested because the intended contrac
-- Status: **open** (reported by the kotlin fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (a refresh response without expires_in gives the token no expiry, as in the other SDKs) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: kotlin
 
 kotlin OAuth2TokenManager keeps the old (expired) expiry when a refresh response omits expires_in (T3-16), which makes the next call refresh again; behaviour left untested because the intended contract is unclear.
@@ -6703,7 +6703,7 @@ Node ApiError.fromResponse leaves errorBody null for a body with a leading UTF-8
 Node TransportOptions and the transport accept timeout <= 0 without validation. AbortSignal.timeout(negative) would throw a RangeError instead of a typed error. This needs a behaviour decision, not just a test.
 
 ## F550 [medium] Node operation-server variants take TypeScript enum types only, so a server-variable value outside the enum is not rejected at runtime (the ServerConfiguration class does reject it)
-- Status: **open** (reported by the node fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (node operation server variants reject a value outside the declared enum; tests added) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: node
 
 Node operation-server variants take TypeScript enum types only, so a server-variable value outside the enum is not rejected at runtime (the ServerConfiguration class does reject it).
@@ -6757,7 +6757,7 @@ OpenIdConnectAuthenticator replaced its delegate on every discovery refresh, so 
 java has no negative or zero timeout guard in TransportOptions (rust rejects it); the cross-language contract is still undecided (F359 part 3).
 
 ## F559 [medium] Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkErr
-- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (ruby net_http adapter no longer ignores an early EOF; test added) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: ruby
 
 Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkError; fix is f.adapter :net_http { |http| http.ignore_eof = false } in build_connection plus a Faraday#adapter RBS declaration (reproduced with a loopback TCPServer; chunked truncation and stalled bodies are already classified correctly).
@@ -6979,7 +6979,7 @@ The new Error schema trips CA1716. It is suppressed for Models/*.cs in .editorco
 csharp toDefaultValue still uses escapeText for string defaults, so the hostile Defaults.greeting default turns tab and newline into spaces and */ into *_/. It compiles, but the value differs from the spec (D40 remains open for csharp).
 
 ## F596 [medium] The 2ndPage query parameter (D43 fixture) has no csharp test asserting 2ndPage=2 on the wire yet
-- Status: **open** (reported by the csharp fix agent, unverified) | Lens: batch5-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (csharp test asserts 2ndPage=2 on the wire) | Lens: batch5-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: csharp
 
 The 2ndPage query parameter (D43 fixture) has no csharp test asserting 2ndPage=2 on the wire yet.
@@ -8429,7 +8429,7 @@ The canonical text (F732, D78) says kotlin `String?` with no default is already 
 The canonical file (api-models part 1, item 1) says go `DateTime.Time()` and rust `DateTime::into_inner()` are the same operation spelled per language, and that the allow rules are merged. The surface check still reports two rows with no allowed reason: `model datetime.time member {rust: missing}` and `model datetime.intoinner member {go: missing}`. Add a single allow entry that pairs them.
 
 ## F777 [low] go oneOf constructor accepts pointer variants, unlike the decode path
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (go oneOf constructor stores a pointer variant by value; test added) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: go
 
 From the go idiom review notes, confirmed against the canonical shape. `NewPetFood(actualInstance any)` accepts `&DryFood`, while decoding stores the `DryFood` value. A type switch on `ActualInstance()` then sees different dynamic types depending on how the value was built. To keep the canonical single-`any` constructor, normalise pointers to values in the constructor, or reject them, so that construction matches what decoding produces.
@@ -8471,7 +8471,7 @@ src/main/resources/templates/node/models/model.mustache (about lines 517-532). T
 Generated docblocks on byte properties keep the spec description 'Base64-encoded ...' although values are raw; the private static byteProperties(string $class) helper (about 25 lines) is copy-pasted into two templates.
 
 ## F784 [low] java: MetadataTest mixes a fully-qualified JUnit assertThrows into a file that uses AssertJ exclusively
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (java MetadataTest uses AssertJ throughout) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: java
 
 Use AssertJ assertThatThrownBy consistently in the generated MetadataTest.
@@ -8489,7 +8489,7 @@ This change makes invalid-proxy errors raise at build() in php, ruby and java, a
 BetterJavaCodegen.postProcessOperationsWithModels puts `hasOnlyOptionalBody` in op.vendorExtensions and api.mustache reads `{{#vendorExtensions.hasOnlyOptionalBody}}`. The repo CLAUDE.md says never to use vendor extensions in templates. It copies the existing hasMultipleConsumes pattern, so it is consistent with neighbouring code, but it conflicts with the written rule. Decide whether to move it to a native field or document the exception.
 
 ## F787 [low] Java TransportOptions constants declared after the instance fields
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (checked: java TransportOptions no longer has static constants after the instance fields; defaults live in the Builder) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: java
 
 DEFAULT_TIMEOUT_MS and DEFAULT_USER_AGENT sit after the instance fields in templates/java/transport_options.mustache (~lines 40-41) and the golden TransportOptions.java (~46-47). Configuration puts DEFAULT_BASE_URL first. Move the static constants above the first instance field in both.
@@ -8501,7 +8501,7 @@ DEFAULT_TIMEOUT_MS and DEFAULT_USER_AGENT sit after the instance fields in templ
 The surface check shows rust petapi.setpetavatar(petid, body) and uploadpetdocument(petid, options) with extra setpetavatarwithcontenttype and uploadpetdocumentwithcontenttype methods, whereas the canonical F665 shape is an optional requestContentType argument. This difference predates the change and is outside the staged set. Rule on it as an allow rule (no optional arguments in rust) or as a rename.
 
 ## F789 [low] java: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (checked: java TransportOptions no longer has static constants after the instance fields; defaults live in the Builder) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: java
 
 Idiom review of api-small-classes: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first, so the two classes disagree. Affects src/main/resources/templates/java/transport_options.mustache (the DEFAULT_TIMEOUT_MS and DEFAULT_USER_AGENT lines, template lines 40-41) and src/spec/resources/generated/java/src/main/java/com/example/petstore/TransportOptions.java lines 46-47.
@@ -8517,7 +8517,7 @@ Idiom review of api-small-classes: The README snippet builds the Configuration w
 Suggested form: Write `config: new \{{invokerPackage}}\Configuration(baseUrl: '{{basePath}}')` (golden: `config: new \PetstoreClient\Configuration(baseUrl: '/api/v3')`). This depends on canonical item 1 (Configuration's constructor takes optional baseUrl), so it must land in the same change set; until then the snippet cannot be made idiomatic.
 
 ## F791 [low] php: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \ReflectionMethod(Client::class, '__construct')
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (checked: composer requires php ^8.5, where new X()->method() is valid; the formatter produces that form) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: php
 
 Idiom review of api-small-classes: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \ReflectionMethod(Client::class, '__construct')->getNumberOfParameters()` without parentheses, while src/main/resources/templates/php/tests/ClientTest.mustache:89-91 uses `(new \ReflectionMethod(...))->getNumberOfParameters()`. The same drift exists at src/spec/resources/generated/php/tests/TransportOptionsTest.php:244 against TransportOptionsTest.mustache:316. The goldens are not the template's output, and the unparenthesised form is not a form the template emits.
@@ -8533,7 +8533,7 @@ Idiom review of api-small-classes: assertValidProxy is made a non-static instanc
 Suggested form: Keep it stateless: declare `private static function assertValidProxy(?string $proxy): void` and call `self::assertValidProxy($proxy);` from the constructor. That matches the canonical `private static` and keeps the constructor's call form as it was.
 
 ## F793 [low] elixir: src/main/resources/templates/elixir/base_api.mustache:34 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:40) puts `@doc false` above a long `#` comment block
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (checked: invoke_api and invoke_api_for_result now carry real @doc docs, and no visibility test sits under the server overrides heading) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: elixir
 
 Idiom review of api-small-classes: src/main/resources/templates/elixir/base_api.mustache:34 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:40) puts `@doc false` above a long `#` comment block that replaces the docstring for `invoke_api/10`. No tool reads that block, and an Elixir developer reads the pattern as a docstring in the wrong place.
@@ -8541,7 +8541,7 @@ Idiom review of api-small-classes: src/main/resources/templates/elixir/base_api.
 Suggested form: Keep only `@doc false` directly above `@spec invoke_api(` and delete the `#` block (or reduce it to a single `# Internal: ...` line). Do the same at base_api.mustache:71 (generated base_api.ex:99) for `invoke_api_for_result/10`.
 
 ## F794 [low] elixir: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-b
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (checked: invoke_api and invoke_api_for_result now carry real @doc docs, and no visibility test sits under the server overrides heading) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: elixir
 
 Idiom review of api-small-classes: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-block-as-docstring pattern for `invoke_api_for_result/10`.
@@ -8549,7 +8549,7 @@ Idiom review of api-small-classes: src/main/resources/templates/elixir/base_api.
 Suggested form: Keep `@doc false` alone above `@spec invoke_api_for_result(`; drop the `#` block that restates the parameters and return value.
 
 ## F795 [low] elixir: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which che
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (checked: invoke_api and invoke_api_for_result now carry real @doc docs, and no visibility test sits under the server overrides heading) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: elixir
 
 Idiom review of api-small-classes: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which checks the public surface of BaseApi, under the `# Server variable overrides` section heading. The test is misfiled and reads as a server-URL test.
@@ -8645,7 +8645,7 @@ Idiom review of single-language-defects: src/spec/resources/generated/java/src/t
 Suggested form: Read the file with Files.readString(source) as ClientTest does. Find the Javadoc block with one Pattern, for example a regex matching '/\*\*(?:(?!\*/).)*?@param options options carrying an optional per-call authenticator(?:(?!\*/).)*?\*/\s*public ApiResult<Pet> getExternalPetInfoWithHttpInfo\(\s*Long petId, @Nullable GetExternalPetInfoOptions options\)', compiled with DOTALL. Then assert the match is found and that it does not contain '@param auth'. Keep one claim per test.
 
 ## F809 [low] kotlin: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the
-- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **fixed** (checked: the kotlin proxy throws are wrapped within 100 columns) | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: kotlin
 
 Idiom review of single-language-defects: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the new throw on one 111-column line. The sibling throws at lines 124-126 of the same template are wrapped to the 100-column limit, so this line breaks the formatting every other check in the function follows.
