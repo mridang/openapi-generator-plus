@@ -15,6 +15,9 @@ use Throwable;
  */
 class ApiException extends {{errorPrefix}}Exception
 {
+    /** Most response-body bytes shown by {@see __toString()}. */
+    private const int MAX_RENDERED_BODY_BYTES = 1024;
+
     /**
      * The HTTP status code.
      */
@@ -208,11 +211,35 @@ class ApiException extends {{errorPrefix}}Exception
             $rendered .= "\nHTTP status code: " . $this->statusCode;
         }
         if ($this->responseHeaders !== null && $this->responseHeaders !== []) {
-            $rendered .= "\nResponse headers: "
-                . json_encode($this->responseHeaders, JSON_THROW_ON_ERROR);
+            $shown = [];
+            foreach ($this->responseHeaders as $name => $value) {
+                $lower = strtolower((string) $name);
+                $secret = in_array(
+                    $lower,
+                    ['authorization', 'proxy-authorization', 'cookie', 'set-cookie', 'www-authenticate', 'proxy-authenticate'],
+                    true
+                ) || preg_match('/key|token|secret/', $lower) === 1;
+                $shown[$name] = $secret ? '***' : $value;
+            }
+            $rendered .= "\nResponse headers: " . json_encode($shown, JSON_THROW_ON_ERROR);
         }
         if ($this->responseBody !== null && $this->responseBody !== '') {
-            $rendered .= "\nResponse body: " . $this->responseBody;
+            $body = $this->responseBody;
+            $omitted = strlen($body) - self::MAX_RENDERED_BODY_BYTES;
+            if ($omitted > 0) {
+                $body = substr($body, 0, self::MAX_RENDERED_BODY_BYTES);
+            }
+            /* A hostile server must not forge log lines, so control characters
+             * are shown escaped. The full body stays on getResponseBody(). */
+            $body = (string) preg_replace_callback(
+                '/[\x00-\x1F\x7F]/',
+                static fn (array $m): string => sprintf('\\x%02X', ord($m[0])),
+                $body
+            );
+            $rendered .= "\nResponse body: " . $body;
+            if ($omitted > 0) {
+                $rendered .= '... (' . $omitted . ' more bytes)';
+            }
         }
 
         return $rendered;
