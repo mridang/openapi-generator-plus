@@ -1711,6 +1711,29 @@ func zlibCompress(t *testing.T, payload string) []byte {
 	return buf.Bytes()
 }
 
+// F1063: the client keeps no cookie jar, so a Set-Cookie from one response is
+// never replayed as a Cookie header on the next request.
+func TestDefaultApiClient_SetCookieResponseIsNotReplayedOnTheNextRequest(t *testing.T) {
+	t.Parallel()
+	var cookies []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookies = append(cookies, r.Header.Get("Cookie"))
+		http.SetCookie(w, &http.Cookie{Name: "session", Value: "abc123", Path: "/"})
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	for i := 0; i < 2; i++ {
+		if _, err := client.SendRequest("GET", server.URL+"/items", map[string]string{}, nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if len(cookies) != 2 || cookies[0] != "" || cookies[1] != "" {
+		t.Errorf("expected no Cookie header on either request, got %q", cookies)
+	}
+}
+
 // HTTP "deflate" is the zlib format (RFC 1950), not a bare DEFLATE stream.
 func TestDefaultApiClient_DecodesZlibWrappedDeflateResponse(t *testing.T) {
 	t.Parallel()
@@ -1730,8 +1753,11 @@ func TestDefaultApiClient_DecodesZlibWrappedDeflateResponse(t *testing.T) {
 	if resp.Body != `{"ok":true}` {
 		t.Errorf("expected the inflated body, got %q", resp.Body)
 	}
-	if resp.Headers["content-encoding"] != "deflate" {
-		t.Errorf("expected the response to be deflate encoded on the wire, got %q", resp.Headers["content-encoding"])
+	if got, ok := resp.Headers["content-encoding"]; ok {
+		t.Errorf("expected the decoded response to drop Content-Encoding, got %q", got)
+	}
+	if got, ok := resp.Headers["content-length"]; ok {
+		t.Errorf("expected the decoded response to drop Content-Length, got %q", got)
 	}
 }
 

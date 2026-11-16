@@ -352,6 +352,13 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		)
 	}
 
+	/* D92: once the body was decoded the headers describe the body the caller
+	 * receives, so the encoding and the encoded length are dropped. */
+	if encoding := strings.ToLower(resp.Header.Get("Content-Encoding")); encoding != "" && encoding != "identity" && len(rawBody) > 0 {
+		delete(respHeaders, "content-encoding")
+		delete(respHeaders, "content-length")
+	}
+
 	contentType := resp.Header.Get("Content-Type")
 	var responseBody string
 	if isTextContentType(contentType) {

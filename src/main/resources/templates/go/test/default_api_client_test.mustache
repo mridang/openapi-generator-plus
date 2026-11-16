@@ -597,8 +597,8 @@ func TestMultipart_FieldNameWithCRLFRejectedOnStringValue(t *testing.T) {
 
 // assertDecompresses fetches the mock server's body compressed with the given
 // encoding. The client asks for that encoding itself, so net/http leaves the
-// body alone: the Content-Encoding header proves the server really compressed
-// it, and the readable body proves the client's own decoder inflated it.
+// body alone: the readable body proves the client's own decoder inflated it,
+// and the returned headers no longer describe the wire encoding (D92).
 func assertDecompresses(t *testing.T, encoding string) {
 	t.Helper()
 	client := NewDefaultApiClient(nil)
@@ -610,8 +610,11 @@ func assertDecompresses(t *testing.T, encoding string) {
 	if resp.StatusCode != 200 {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
-	if got := resp.Headers["content-encoding"]; got != encoding {
-		t.Errorf("expected the server to compress the body with %s, got Content-Encoding %q", encoding, got)
+	if got, ok := resp.Headers["content-encoding"]; ok {
+		t.Errorf("expected the decoded response to drop Content-Encoding, got %q", got)
+	}
+	if got, ok := resp.Headers["content-length"]; ok {
+		t.Errorf("expected the decoded response to drop Content-Length, got %q", got)
 	}
 	if !strings.Contains(resp.Body, "compressed fixture body") {
 		t.Errorf("expected the decoded fixture body, got %q", resp.Body)

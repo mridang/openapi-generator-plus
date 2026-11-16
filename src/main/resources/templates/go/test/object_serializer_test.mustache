@@ -1368,6 +1368,31 @@ func TestDeserialize_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
 	}
 }
 
+// F1067: a JSON object that repeats a key resolves to the last value, as in the
+// other eleven SDKs, whatever the decoder's own default would be.
+func TestDeserialize_DuplicateKeyKeepsTheLastValue(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"plain":            `{"id":1,"quantity":3,"id":2}`,
+		"escaped spelling": `{"\u0069d":1,"quantity":3,"id":2}`,
+		"with a mis-cased": `{"ID":9,"id":1,"quantity":3,"id":2}`,
+	}
+	for name, raw := range cases {
+		t.Run(name, func(t *testing.T) {
+			var order models.Order
+			if err := deserialize([]byte(raw), &order); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if order.Id == nil || *order.Id != 2 {
+				t.Errorf("expected id 2 (the last value), got %v", order.Id)
+			}
+			if order.Quantity == nil || *order.Quantity != 3 {
+				t.Errorf("expected quantity 3, got %v", order.Quantity)
+			}
+		})
+	}
+}
+
 func TestDeserialize_MiscasedRequiredKeyIsMissing(t *testing.T) {
 	t.Parallel()
 	var pet models.Pet
