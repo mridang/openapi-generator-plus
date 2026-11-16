@@ -104,6 +104,19 @@ and nothing else. The SDK does not check the remaining keywords before the
 request is sent. `uniqueItems` arrays are modelled as `HashSet<T>` and sent in
 the set's natural enumeration order, not sorted.
 
+### Retries
+
+A failed request is retried automatically, twice by default:
+`TransportOptionsBuilder.MaxRetries(n)` sets the number of retries and `0`
+turns them off. A retry is made after a network error that happened before a
+response arrived and after the statuses 408, 409, 429 and 500-599 (not 501).
+The wait is 0.5 s doubling to 8 s with up to 25% jitter, or the `Retry-After`
+the server sent (seconds or an HTTP date, at most 60 s). Retries never extend
+the request timeout, cancelling stops them, every retry rebuilds the headers
+(so it carries current authentication), and a stream or multipart body is
+never retried. A 401 on an OAuth2 or OpenID Connect call drops the cached
+access token (the refresh token is kept) and replays the request once.
+
 ### Cancellation
 
 Every operation takes a trailing `CancellationToken cancellationToken = default`.

@@ -119,6 +119,17 @@ public sealed class TransportOptions
     public HttpMessageHandler? HttpMessageHandler { get; }
 
     /// <summary>
+    /// Maximum number of automatic retries of a failed request. Defaults to
+    /// <c>2</c>; <c>0</c> disables retries. A retry is made on a network error
+    /// that happened before a response arrived and on the statuses 408, 409,
+    /// 429 and 500-599 (not 501), after an exponential backoff (0.5 s doubling
+    /// to 8 s with 25% jitter) or the <c>Retry-After</c> the server sent (capped
+    /// at 60 s). The retries never extend <see cref="Timeout"/>, and a stream or
+    /// multipart body is never retried.
+    /// </summary>
+    public int MaxRetries { get; }
+
+    /// <summary>
     /// Creates a new <see cref="TransportOptions"/> with the specified values.
     /// </summary>
     internal TransportOptions(
@@ -133,9 +144,11 @@ public sealed class TransportOptions
         bool injectRequestId,
         HttpClient? httpClient,
         HttpMessageHandler? httpMessageHandler,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        int maxRetries = 2
     )
     {
+        MaxRetries = maxRetries;
         CancellationToken = cancellationToken;
         HttpClient = httpClient;
         HttpMessageHandler = httpMessageHandler;
@@ -170,6 +183,7 @@ public sealed class TransportOptions
 ///   <item><description><c>VerifySsl</c> -- <c>true</c></description></item>
 ///   <item><description><c>FollowRedirects</c> -- <c>true</c></description></item>
 ///   <item><description><c>InjectRequestId</c> -- <c>false</c></description></item>
+///   <item><description><c>MaxRetries</c> -- <c>2</c></description></item>
 ///   <item><description><c>Timeout</c> -- <c>10000</c> (10 seconds)</description></item>
 ///   <item><description><c>UserAgent</c> -- a package-specific default string</description></item>
 ///   <item><description>All other fields -- <c>null</c> or empty</description></item>
@@ -186,6 +200,7 @@ public sealed class TransportOptionsBuilder
     private string? _userAgent = "{{userAgentDefault}}";
     private readonly Dictionary<string, string> _defaultHeaders = [];
     private bool _injectRequestId;
+    private int _maxRetries = 2;
     private CancellationToken _cancellationToken;
     private HttpClient? _httpClient;
     private HttpMessageHandler? _httpMessageHandler;
@@ -297,6 +312,23 @@ public sealed class TransportOptionsBuilder
     public TransportOptionsBuilder InjectRequestId(bool injectRequestId)
     {
         _injectRequestId = injectRequestId;
+        return this;
+    }
+
+    /// <summary>Set the maximum number of automatic retries.</summary>
+    /// <param name="maxRetries">Retries after the first attempt; <c>0</c> disables retrying (default <c>2</c>).</param>
+    /// <returns>This builder.</returns>
+    /// <exception cref="ArgumentException">When <paramref name="maxRetries"/> is negative.</exception>
+    public TransportOptionsBuilder MaxRetries(int maxRetries)
+    {
+        if (maxRetries < 0)
+        {
+            throw new ArgumentException(
+                $"Invalid maxRetries: must not be negative (got {maxRetries})",
+                nameof(maxRetries)
+            );
+        }
+        _maxRetries = maxRetries;
         return this;
     }
 
@@ -416,7 +448,8 @@ public sealed class TransportOptionsBuilder
             injectRequestId: _injectRequestId,
             httpClient: _httpClient,
             httpMessageHandler: _httpMessageHandler,
-            cancellationToken: _cancellationToken
+            cancellationToken: _cancellationToken,
+            maxRetries: _maxRetries
         );
     }
 

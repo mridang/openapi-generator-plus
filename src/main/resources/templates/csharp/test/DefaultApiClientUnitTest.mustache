@@ -1663,7 +1663,7 @@ public class DefaultApiClientUnitTest
     [Fact]
     public async Task ConnectionRefusedRaisesNetworkException()
     {
-        var client = new DefaultApiClient();
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
         var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(() => client.SendRequestAsync(
             "GET",
             new Uri("http://127.0.0.1:1/never"),
@@ -2268,6 +2268,270 @@ public class DefaultApiClientUnitTest
     {
         var handler = new MockHandler(statusCode, body, responseHeaders ?? []);
         return new HttpClient(handler);
+    }
+
+    // ---- automatic retries (F823) ----
+
+    private static Task<ApiHttpResponse> SendGet(
+        DefaultApiClient client,
+        object? body = null,
+        Func<Task<Dictionary<string, string>>>? refresh = null,
+        CancellationToken token = default,
+        string method = "GET")
+    {
+        return client.SendRequestAsync(
+            method,
+            new Uri("http://example.com/retry"),
+            new Dictionary<string, string>(),
+            body,
+            false,
+            refresh,
+            token);
+    }
+
+    private static HttpResponseMessage Respond(int status, string? retryAfter = "0")
+    {
+        var response = new HttpResponseMessage((HttpStatusCode)status) { Content = new StringContent("x") };
+        if (retryAfter != null)
+        {
+            response.Headers.TryAddWithoutValidation("Retry-After", retryAfter);
+        }
+        return response;
+    }
+
+    [Fact]
+    public async Task ARetryableStatusIsRetriedUpToMaxRetriesAndThenReturned()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Theory]
+    [InlineData(408)]
+    [InlineData(409)]
+    [InlineData(429)]
+    [InlineData(500)]
+    [InlineData(502)]
+    [InlineData(599)]
+    public async Task TheRetryableStatusesAreRetriedAndALaterSuccessIsReturned(int status)
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(status) : Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Theory]
+    [InlineData(400)]
+    [InlineData(404)]
+    [InlineData(501)]
+    public async Task OtherStatusesAreNotRetried(int status)
+    {
+        var handler = new SequenceHandler(_ => Respond(status));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(status, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task MaxRetriesZeroSendsTheRequestOnce()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(
+            new HttpClient(handler), TransportOptions.Builder().MaxRetries(0).Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task ANetworkErrorBeforeAResponseIsRetried()
+    {
+        var handler = new SequenceHandler(n => n == 0
+            ? throw new HttpRequestException("connection reset")
+            : Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task ANetworkErrorSurfacesWhenTheRetriesAreSpent()
+    {
+        var handler = new SequenceHandler(_ => throw new HttpRequestException("refused"));
+        var client = new DefaultApiClient(
+            new HttpClient(handler), TransportOptions.Builder().MaxRetries(1).Build());
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(() => SendGet(client));
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task AStreamBodyIsNeverRetried()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client, new MemoryStream([1, 2, 3]), method: "POST");
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task AMultipartBodyIsNeverRetried()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(
+            client, new Dictionary<string, object> { ["file"] = "text" }, method: "POST");
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task ATextBodyIsSentAgainOnEveryRetry()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(
+            new HttpClient(handler), TransportOptions.Builder().MaxRetries(1).Build());
+
+        _ = await SendGet(client, "{\"a\":1}", method: "POST");
+
+        Assert.Equal(2, handler.Bodies.Count);
+        Assert.All(handler.Bodies, b => Assert.Equal("{\"a\":1}", b));
+    }
+
+    [Fact]
+    public async Task EveryRetryRebuildsTheHeaders()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(503) : Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+        int rebuilt = 0;
+
+        var response = await SendGet(
+            client,
+            refresh: () =>
+            {
+                rebuilt++;
+                return Task.FromResult(new Dictionary<string, string> { ["Authorization"] = "Bearer fresh" });
+            });
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(1, rebuilt);
+        Assert.Null(handler.Authorizations[0]);
+        Assert.Equal("Bearer fresh", handler.Authorizations[1]);
+    }
+
+    [Fact]
+    public async Task ARetryAfterBeyondTheTimeoutBudgetReturnsTheResponseWithoutWaiting()
+    {
+        var handler = new SequenceHandler(_ => Respond(503, "5"));
+        var client = new DefaultApiClient(
+            new HttpClient(handler), TransportOptions.Builder().Timeout(300).Build());
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        var response = await SendGet(client);
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Single(handler.Requests);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(2), "the retry budget must not extend the timeout");
+    }
+
+    [Fact]
+    public async Task CancellingDuringTheBackoffStopsTheRetries()
+    {
+        var handler = new SequenceHandler(_ => Respond(503, "30"));
+        var client = new DefaultApiClient(
+            new HttpClient(handler), TransportOptions.Builder().Timeout(null).Build());
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => SendGet(client, token: cts.Token));
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public void BackoffStartsAtHalfASecondDoublesAndIsCappedAtEight()
+    {
+        var none = new Dictionary<string, string>();
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.Equal(TimeSpan.FromSeconds(0.5), DefaultApiClient.RetryDelay(0, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(1), DefaultApiClient.RetryDelay(1, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(4), DefaultApiClient.RetryDelay(3, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(8), DefaultApiClient.RetryDelay(4, none, now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(8), DefaultApiClient.RetryDelay(40, none, now, 0));
+    }
+
+    [Fact]
+    public void BackoffJitterTakesOffAtMostAQuarter()
+    {
+        var none = new Dictionary<string, string>();
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.Equal(TimeSpan.FromSeconds(0.375), DefaultApiClient.RetryDelay(0, none, now, 1));
+        Assert.Equal(TimeSpan.FromSeconds(6), DefaultApiClient.RetryDelay(9, none, now, 1));
+    }
+
+    [Fact]
+    public void RetryAfterInSecondsOrAsADateIsHonouredAndCappedAtSixtySeconds()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var inTenSeconds = now.AddSeconds(10).ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.Equal(TimeSpan.FromSeconds(7), DefaultApiClient.RetryDelay(0, Header("7"), now, 0.5));
+        Assert.Equal(TimeSpan.Zero, DefaultApiClient.RetryDelay(0, Header("0"), now, 0.5));
+        Assert.Equal(TimeSpan.FromSeconds(60), DefaultApiClient.RetryDelay(0, Header("3600"), now, 0.5));
+        Assert.Equal(
+            10,
+            Math.Round(DefaultApiClient.RetryDelay(0, Header(inTenSeconds), now, 0.5).TotalSeconds));
+        Assert.Equal(
+            TimeSpan.FromSeconds(0.5),
+            DefaultApiClient.RetryDelay(0, Header("soon"), now, 0));
+    }
+
+    private static Dictionary<string, string> Header(string retryAfter) =>
+        new() { ["retry-after"] = retryAfter };
+
+    private sealed class SequenceHandler : HttpMessageHandler
+    {
+        private readonly Func<int, HttpResponseMessage> _respond;
+        public List<string> Requests { get; } = [];
+        public List<string?> Authorizations { get; } = [];
+        public List<string> Bodies { get; } = [];
+
+        public SequenceHandler(Func<int, HttpResponseMessage> respond)
+        {
+            _respond = respond;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request.Method + " " + request.RequestUri);
+            Authorizations.Add(request.Headers.Authorization?.ToString());
+            Bodies.Add(request.Content == null ? "" : await request.Content.ReadAsStringAsync(cancellationToken));
+            return _respond(Requests.Count - 1);
+        }
     }
 
     private sealed class CapturingHandler : HttpMessageHandler
