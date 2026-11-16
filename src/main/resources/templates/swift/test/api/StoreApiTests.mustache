@@ -262,6 +262,48 @@ import Testing
                 == "https://example.com/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
     }
 
+    /* The response-shape operations decode a bare enum, a mutually recursive
+       pair, a self-recursive model, schema defaults and an integer-backed enum
+       with nested arrays. */
+    @Test func testGetSwatchDecodesABareEnum() async throws {
+        let mockApi = storeApiForMock(statusCode: 200, body: "\"green\"")
+        #expect(try await mockApi.getSwatch() == Swatch.green)
+    }
+
+    @Test func testGetDepartmentDecodesMutuallyRecursiveModels() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200,
+            body: "{\"name\":\"d\",\"lead\":{\"name\":\"e\",\"department\":{\"name\":\"d2\"}}}")
+        let result = try await mockApi.getDepartment()
+        #expect(result.name == "d")
+        #expect(result.lead?.name == "e")
+        #expect(result.lead?.department?.name == "d2")
+    }
+
+    @Test func testGetTreeDecodesASelfRecursiveModel() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200, body: "{\"value\":\"a\",\"child\":{\"value\":\"b\",\"child\":{\"value\":\"c\"}}}")
+        let result = try await mockApi.getTree()
+        #expect(result.value == "a")
+        #expect(result.child?.child?.value == "c")
+    }
+
+    @Test func testGetDefaultsAppliesSchemaDefaults() async throws {
+        let mockApi = storeApiForMock(statusCode: 200, body: "{}")
+        let result = try await mockApi.getDefaults()
+        #expect(result.retries == 3)
+        #expect(result.ratio == 1.5)
+        #expect(result.ceiling == 9_000_000_000)
+    }
+
+    @Test func testGetStockItemDecodesAnIntegerEnumAndNestedArrays() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200, body: "{\"priority\":2,\"matrix\":[[1],[2,3]]}")
+        let result = try await mockApi.getStockItem()
+        #expect(result.priority == .NUMBER_2)
+        #expect(result.matrix == [[1], [2, 3]])
+    }
+
     @Test func testDeleteOrderNotFound() async throws {
         let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
         let error = await #expect(throws: NotFoundError.self) {

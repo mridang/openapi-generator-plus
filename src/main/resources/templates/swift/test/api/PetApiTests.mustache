@@ -1064,6 +1064,30 @@ final class PetApiTests {
         #expect(mockClient.lastURL.isEmpty)
     }
 
+    // MARK: - Response shapes through the mock server
+
+    /* A response header repeated by the server keeps every value, and header
+       names are lower-cased. */
+    @Test func testRepeatedResponseHeadersKeepEveryValue() async throws {
+        let client = DefaultApiClient()
+        let response = try await client.sendRequest(
+            method: "GET", url: "\(chasmHttpUrl)/test/response-headers", headers: [:], body: nil)
+        #expect(response.statusCode == 200)
+        #expect(response.headers["x-custom-header"] == "foo")
+        let link = try #require(response.headers["link"])
+        #expect(link.contains("rel=\"next\""))
+        #expect(link.contains("rel=\"prev\""))
+    }
+
+    /* A 200 with no body comes back with an empty body, not an error. */
+    @Test func testEmptyBodyResponseIsReturnedAsIs() async throws {
+        let client = DefaultApiClient()
+        let response = try await client.sendRequest(
+            method: "GET", url: "\(chasmHttpUrl)/test/empty", headers: [:], body: nil)
+        #expect(response.statusCode == 200)
+        #expect(response.body.isEmpty)
+    }
+
     // MARK: - Redirects through the mock server
 
     /* A 3xx without a Location header is returned as the response. */
