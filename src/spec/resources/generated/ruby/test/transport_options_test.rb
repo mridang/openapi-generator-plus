@@ -144,8 +144,7 @@ describe Petstore::Client::TransportOptions do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('http://[::1:3128').build
     end
-    _(error.message).must_start_with 'Invalid proxy URL ('
-    _(error.message).must_end_with '): http://[::1:3128'
+    _(error.message).must_match(%r{\AInvalid proxy URL \(.*\): http://\[::1:3128\z}m)
   end
 
   it 'constructing directly with a non-http proxy scheme raises ArgumentError' do
