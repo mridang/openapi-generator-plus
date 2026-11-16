@@ -1464,3 +1464,21 @@ test('the third global server round trips its url, description and variable', fu
     expect($server->getUrl())->toBe("https://o'neil.example.com/api");
     expect($server->getUrl(['tenant' => 'a&b']))->toBe('https://a&b.example.com/api');
 });
+
+test('add pet treatment sends the chosen anyOf variant as the body', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+    $treatment = new \{{invokerPackage}}\Models\PetTreatment([
+        new \{{invokerPackage}}\Models\Medication('aspirin', '5mg'),
+    ]);
+
+    try {
+        $api->addPetTreatment(7, $treatment);
+    } catch (\Throwable) {
+        // The canned reply is not a treatment, so decoding it may fail; only the request matters.
+    }
+
+    expect($captured->url)->toBe('http://localhost:9999/pet/7/treatment');
+    expect($captured->headers['Content-Type'] ?? null)->toBe('application/json');
+    expect($captured->body)->toContain('"drugName":"aspirin"');
+    expect($captured->body)->toContain('"dosage":"5mg"');
+});
