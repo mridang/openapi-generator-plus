@@ -137,7 +137,14 @@ abstract class AbstractApiClient implements ApiClient {
     }
     final merged = <String, String>{};
 
-    merged.addAll(_transportOptions.defaultHeaders);
+    /* A call header replaces a default header of the same name whatever the
+     * case, so `authorization` and `Authorization` are never both sent. */
+    final callNames = headers.keys.map((k) => k.toLowerCase()).toSet();
+    _transportOptions.defaultHeaders.forEach((name, value) {
+      if (!callNames.contains(name.toLowerCase())) {
+        merged[name] = value;
+      }
+    });
     merged.addAll(headers);
 
     /* Header names are case-insensitive (RFC 9110 section 5.1): a caller's
@@ -157,9 +164,6 @@ abstract class AbstractApiClient implements ApiClient {
     }
 
     final proxyAuth = _proxyAuthHeader;
-    if (proxyAuth != null) {
-      merged['Proxy-Authorization'] = proxyAuth;
-    }
 
     /* A malformed request URL or a header value the transport would refuse
      * is a caller mistake: an ArgumentError, raised here before the
@@ -176,6 +180,14 @@ abstract class AbstractApiClient implements ApiClient {
     }
     if (!uri.hasScheme || uri.host.isEmpty) {
       throw ArgumentError('Request URL must be absolute');
+    }
+    /* The proxy credential goes only on a plain-http request, which the proxy
+     * itself reads. On an https target it would travel inside the TLS tunnel
+     * to the origin (dart:io answers the proxy's 407 on the CONNECT request
+     * through addProxyCredentials), so the API server and the identity
+     * provider never see it. */
+    if (proxyAuth != null && uri.scheme.toLowerCase() != 'https') {
+      merged['Proxy-Authorization'] = proxyAuth;
     }
     merged.forEach((name, value) {
       if (name.isEmpty || RegExp(r"[^!#$%&'*+\-.^_`|~0-9A-Za-z]").hasMatch(name)) {
@@ -341,7 +353,7 @@ abstract class AbstractApiClient implements ApiClient {
 
           final redirectHeaders = <String, String>{};
           currentHeaders.forEach((k, v) {
-            if (crossOrigin && sensitive.contains(k.toLowerCase())) return;
+            if (crossOrigin && _isCredentialHeader(k, sensitive)) return;
             if (nextBody == null
                 && (k.toLowerCase() == 'content-type'
                     || k.toLowerCase() == 'content-length')) {
@@ -352,10 +364,9 @@ abstract class AbstractApiClient implements ApiClient {
           /* The SDK's own Proxy-Authorization authenticates to the proxy,
            * which is the same for every hop, so it is re-applied after the
            * cross-origin strip (which removes only caller credentials). On a
-           * cross-origin hop to an https target it is NOT re-added: there it
-           * would travel inside the tunnel to an unrelated origin. */
-          if (proxyAuth != null &&
-              !(crossOrigin && nextUri.scheme.toLowerCase() == 'https')) {
+           * hop to an https target it is NOT re-added: there it would travel
+           * inside the tunnel to the origin. */
+          if (proxyAuth != null && nextUri.scheme.toLowerCase() != 'https') {
             redirectHeaders.removeWhere(
                 (k, _) => k.toLowerCase() == 'proxy-authorization');
             redirectHeaders['Proxy-Authorization'] = proxyAuth;
@@ -844,6 +855,16 @@ abstract class AbstractApiClient implements ApiClient {
     final wanted = name.toLowerCase();
     return headers.keys.any((key) => key.toLowerCase() == wanted);
   }
+
+  /* A header is credential-bearing when it is on the fixed or spec-declared
+   * list, or its name says so: it contains key, token or secret (the S15
+   * redaction rule), which catches bespoke headers a custom authenticator or
+   * a default header attaches. */
+  static final RegExp _credentialName =
+      RegExp(r'key|token|secret', caseSensitive: false);
+
+  static bool _isCredentialHeader(String name, Set<String> sensitive) =>
+      sensitive.contains(name.toLowerCase()) || _credentialName.hasMatch(name);
 
   static String _generateUuid() {
     final random = Random.secure();

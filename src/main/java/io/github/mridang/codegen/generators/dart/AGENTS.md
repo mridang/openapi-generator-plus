@@ -339,3 +339,14 @@ Out of scope, per the closed backlog issues #53, #70, #78, #88 and #90 (S11): ca
 - SKILLS "Models" sample (F887) builds the first model with its required primitive properties and reads one back.
 - Test parity (F922, F925, F926, F928, F931, F933): the D17, D29, D07, D20, D09 and D15 messages are pinned in the mirror test templates.
 - Already conforming: F278 (`escapeDartString` covers `'`, `$` and `\`, with a Java unit test) and F290 (`authHeaders()` throws `StateError` on every token-based flow).
+
+## Decisions taken in batch 7
+
+- Proxy credential (F1092): `Proxy-Authorization` is added to a request only when the target is plain http, and on a redirect hop only when the next URL is not https. On an https target `dart:io` answers the proxy's 407 on the CONNECT request through `addProxyCredentials`, so the header never travels inside the tunnel to the origin or the identity provider.
+- Per-call authenticators (F856): `BaseApi.invokeApi` injects its own `ApiClient` into a per-call `HttpAwareAuthenticator` before asking for headers, so a per-call OAuth2 or OIDC authenticator no longer fails with 'API client has not been injected'.
+- Object-valued parameters (F1143, D47): a model or map passed to a styled parameter is flattened through its `toJson()` map (`parameterObject`). Form-exploded query objects become one pair per property (`ExplodedObject`, expanded by `BaseApi._buildQueryString`); non-exploded form, simple, label and matrix join the properties as `key,value,...`; deepObject takes the same map. A nested object or array leaf throws `SerializationException`.
+- Redirect strip (F1093): besides the fixed and spec-declared lists, a header whose name contains `key`, `token` or `secret` (the S15 redaction rule) is dropped on a cross-origin hop.
+- Header merge (F860, in part): a call header replaces a default header of the same name in any case. Token and discovery requests still carry the transport default headers: stopping that needs a flag on the public `ApiClient.sendRequest`, which is a cross-language decision not taken here.
+- SKILLS.md (F1084): the Error Handling section renders the root `...Exception` tree, including `SerializationException`, `OAuth2ServerException` and `OAuth2TokenException`, and the sample ends with a catch of the root.
+- DEV-DEPENDENCIES (F1110): `metadata_test` checks every package in `.openapi-generator/DEV-DEPENDENCIES` against the pubspec `dev_dependencies`.
+- Test parity added in the mirror templates: F1111 (StrictTag), F1126 (byte parameters), F1113 (2ndPage), F1114, F1115, F1116, F1130, F1131, F1144, F1145, F1146, F1148, F1149, F1175 (model wire shapes in `object_serializer_test`), F1127, F1142, F1147, F1128, F1069, F1155 (operation tests), F1075 (token request headers), F1063 and F1067, F1121, F1124, F1169 (the cookie test now asserts the header on the wire).

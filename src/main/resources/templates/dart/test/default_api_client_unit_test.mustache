@@ -10,6 +10,22 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
 
+/* A transport-free client that holds a proxy credential, so the headers the
+ * SDK builds can be read from a stub instead of a real proxy tunnel. */
+class _ProxyCredentialClient extends AbstractApiClient {
+  _ProxyCredentialClient(http.Client inner)
+      : super(
+          TransportOptionsBuilder().build(),
+          inner,
+          AbstractApiClient.buildProxyAuthHeader(
+            Uri.parse('http://user:pass@proxy.test:3128'),
+          ),
+        );
+
+  @override
+  Uint8List decompressBytes(Uint8List bytes, String contentEncoding) => bytes;
+}
+
 class _CloseTrackingClient extends http.BaseClient {
   _CloseTrackingClient(this._inner);
 
@@ -820,6 +836,71 @@ void main() {
       } finally {
         await source.close();
         await target.close();
+      }
+    });
+
+    test('strips a header whose name says key, token or secret on a cross-origin redirect', () async {
+      final seen = <String, String?>{};
+      final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      target.listen((request) {
+        seen['x-tenant-token'] = request.headers.value('x-tenant-token');
+        seen['x-custom-secret'] = request.headers.value('x-custom-secret');
+        seen['x-trace'] = request.headers.value('x-trace');
+        request.response
+          ..statusCode = 200
+          ..write('ok')
+          ..close();
+      });
+
+      final source = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      source.listen((request) {
+        request.response
+          ..statusCode = 302
+          ..headers.set('Location', 'http://127.0.0.1:${target.port}/landed')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'GET',
+          'http://localhost:${source.port}/start',
+          {
+            'X-Tenant-Token': 'secret-1',
+            'X-Custom-Secret': 'secret-2',
+            'X-Trace': 'keep',
+          },
+          null,
+        );
+        expect(seen['x-tenant-token'], isNull);
+        expect(seen['x-custom-secret'], isNull);
+        expect(seen['x-trace'], equals('keep'));
+      } finally {
+        await source.close();
+        await target.close();
+      }
+    });
+
+    test('a call header replaces a default header of the same name in any case', () async {
+      final values = <String>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        values.addAll(request.headers['x-env'] ?? const <String>[]);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder()
+            .defaultHeader('x-env', 'default')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        await client.sendRequest(
+            'GET', 'http://localhost:${server.port}/x', {'X-Env': 'call'}, null);
+        expect(values, equals(['call']));
+      } finally {
+        await server.close();
       }
     });
 
@@ -2231,6 +2312,52 @@ void main() {
         expect(second['authorization'], isNull);
       } finally {
         await proxy.close();
+      }
+    });
+
+    for (final target in <List<Object>>[
+      ['http://api.test/x', true],
+      ['https://api.test/x', false],
+    ]) {
+      final url = target[0] as String;
+      final sent = target[1] as bool;
+      test('$url ${sent ? 'carries' : 'does not carry'} the proxy credential',
+          () async {
+        Map<String, String>? seen;
+        final stub = MockClient((request) async {
+          seen = request.headers;
+          return http.Response('ok', 200);
+        });
+        await _ProxyCredentialClient(stub).sendRequest('GET', url, {}, null);
+        final header = seen?.entries
+            .where((e) => e.key.toLowerCase() == 'proxy-authorization')
+            .map((e) => e.value)
+            .toList();
+        expect(header, sent ? equals(['Basic dXNlcjpwYXNz']) : isEmpty);
+      });
+    }
+  });
+
+  group('Response cookies', () {
+    test('a Set-Cookie answer is never replayed as a Cookie on the next request', () async {
+      final seen = <String?>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        seen.add(request.headers.value('cookie'));
+        request.response
+          ..statusCode = 200
+          ..headers.add('Set-Cookie', 'sid=abc; Path=/')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final url = 'http://localhost:${server.port}/x';
+        await client.sendRequest('GET', url, {}, null);
+        await client.sendRequest('GET', url, {}, null);
+        expect(seen, equals([null, null]));
+      } finally {
+        await server.close();
       }
     });
   });
