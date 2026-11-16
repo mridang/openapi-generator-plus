@@ -302,6 +302,37 @@ async fn test_a_3xx_with_location_fails_when_max_redirects_is_zero() {
     assert!(err.to_string().contains("Too many redirects (exceeded 0)"), "got: {}", err);
 }
 
+/// F860, F1181: a no-redirect request (the token POST) is sent without the
+/// transport's default headers, while an ordinary request carries them.
+#[tokio::test]
+async fn test_no_redirect_request_leaves_the_transport_default_headers_out() {
+    for (no_redirect, expected) in [(true, None), (false, Some("kept".to_string()))] {
+        let (base_url, head) = start_head_capture_server();
+        let transport = TransportOptionsBuilder::new()
+            .default_header("X-Default", "kept")
+            .build()
+            .expect("valid transport options");
+        let client = DefaultApiClient::new(Some(transport));
+        let mut headers = HashMap::new();
+        headers.insert("X-Caller".to_string(), "sent".to_string());
+
+        client
+            .send_request_with_options(
+                "GET",
+                &format!("{}/x", base_url),
+                &headers,
+                None,
+                &RequestOptions::new().no_redirect(no_redirect),
+            )
+            .await
+            .expect("request succeeds");
+
+        let head = head.recv_timeout(std::time::Duration::from_secs(5)).expect("a captured request");
+        assert_eq!(expected, head_header(&head, "X-Default"), "no_redirect={}", no_redirect);
+        assert_eq!(Some("sent".to_string()), head_header(&head, "X-Caller"));
+    }
+}
+
 /// F1044: two spellings of one header are sent once, the later layer winning,
 /// and a caller's lower-case Accept-Encoding suppresses the SDK's own.
 #[tokio::test]

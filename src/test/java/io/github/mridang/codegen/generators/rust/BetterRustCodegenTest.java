@@ -39,4 +39,15 @@ class BetterRustCodegenTest {
 
     assertThat(codegen.toDefaultValue(reference)).isEqualTo("Availability::OnHold");
   }
+
+  @Test
+  void aSchemaNamedLikeAPreludeItemGetsTheModelPrefix() {
+    final List<String> names =
+        List.of("Result", "Option", "Vec", "Box", "Some", "None", "Ok", "Err");
+    for (final String name : names) {
+      assertThat(codegen.toModelName(name)).isEqualTo("Model" + name);
+    }
+    assertThat(codegen.toModelName("Order")).isEqualTo("Order");
+    assertThat(codegen.toModelName("order_item")).isEqualTo("OrderItem");
+  }
 }

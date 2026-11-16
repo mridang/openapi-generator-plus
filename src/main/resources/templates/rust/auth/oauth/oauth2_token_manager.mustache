@@ -321,7 +321,7 @@ impl OAuth2TokenManager {
          * those credentials verbatim to an attacker-chosen URL. 301/302/303
          * still drop the body so they remain permitted by the redirect
          * loop. */
-        let request_options = RequestOptions::new().no_redirect(true).skip_default_headers(true);
+        let request_options = RequestOptions::new().no_redirect(true);
         let response = client
             .send_request_with_options(
                 "POST",
