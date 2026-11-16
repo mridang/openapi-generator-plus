@@ -1381,6 +1381,27 @@ fn test_deprecated_elements_carry_the_deprecated_attribute() {
     );
 }
 
+/* F1068: a matrix-style `format: date` path segment and a date-array query
+ * reach the URL as dates. */
+#[tokio::test]
+async fn test_pet_api_get_pet_summary_sends_the_matrix_date_and_the_date_array() {
+    let (api, client) = new_pet_api_recording_urls();
+    let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).expect("a valid date");
+    let days = vec![
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 1).expect("a valid date"),
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 2).expect("a valid date"),
+    ];
+    let opts = GetPetSummaryOptions::new("s".to_string()).days(days);
+
+    /* The stub answers `{}`, which is not a String body; only the URL matters. */
+    let _ = api.get_pet_summary(1, as_of, Some(&opts)).await;
+
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(urls[0].contains("/pet/1/summary/;asOf=2024-01-31"), "{}", urls[0]);
+    assert!(urls[0].contains("days=2024-02-01&days=2024-02-02"), "{}", urls[0]);
+}
+
 /// Records the URL of every request and answers with an empty JSON object.
 struct UrlRecordingApiClient {
     urls: std::sync::Mutex<Vec<String>>,
