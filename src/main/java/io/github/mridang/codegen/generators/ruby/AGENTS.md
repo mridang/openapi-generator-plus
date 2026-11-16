@@ -369,3 +369,30 @@ Test: `skills_test`.
 - F866 (sibling `default` on a `$ref` property is dropped before the template sees it), F1062 (several 2xx schemas), F1055 (a parameter named like an injected argument), F1058 (Encoding Object), F1060 (one OAuth2 flow per scheme): the loss is in `AbstractBetterCodegen`.
 - F855 (401 invalidation and replay), F857 (per-scheme credentials), F858 (PKCE), F840 (form-style cookies), F229 (keep-alive), F912 (end-to-end timeout), F1100 (pagination): design decisions that are not taken.
 - F1152, F1153, F1174, F1161: gates and fixtures outside the ruby tree.
+
+## Decisions taken in batch 9
+
+### A 401 on an OAuth2 call renews the token and replays once (F855)
+Rule: `invalidate_access_token` is public on the client-credentials, password, authorization-code and OpenID Connect authenticators (the OIDC one does nothing before its first discovery); it drops the cached access token and keeps the refresh token. `BaseApi#invoke_api_for_result` calls it when the response is 401 and the authenticator responds to it, rebuilds the headers and sends the request once more; a second 401 is the usual `UnauthorizedError`, a failed renewal (any SDK error) leaves the first 401, a multipart or stream body (anything but `nil` or a `String`) is not replayed, and API key, basic, bearer, implicit and `NO_AUTH` never replay.
+Why: a revoked or rotated token otherwise keeps failing until it expires.
+Where: `auth/oauth/*.mustache`, `base_api.mustache`, `infrastructure_rbs.mustache`.
+Test: `base_api_test` (`ReplayApiClient`), `oauth2_auth_code_authenticator_test`, `openid_connect_authenticator_test`.
+
+### PKCE S256 on the authorization code flow (F858)
+Rule: every `build_authorization_url` makes a new 43-character verifier (`SecureRandom.urlsafe_base64(32)`), keeps it in the authenticator (`pkce_verifier`, `@api private`) and adds `code_challenge` (SHA-256, base64url without padding) and `code_challenge_method=S256`; `exchange_code` sends `code_verifier` while one is held and forgets it after a successful exchange. The OIDC delegate rebuilt on rediscovery is handed the previous verifier (`pkce_verifier:`). No `nonce`. The Steep targets list the stdlib `digest`.
+Where: `auth/oauth/oauth2_auth_code_authenticator.mustache`, `auth/oauth/openid_connect_authenticator.mustache`, `steepfile.mustache`.
+Test: `oauth2_auth_code_authenticator_test`, `openid_connect_authenticator_test` (verifier survives a rediscovery).
+
+### Automatic retries with backoff (F823)
+Rule: `TransportOptions.builder.max_retries(n)` (default 2, `0` disables, a negative or non-integer raises `ArgumentError`; the keyword constructor takes an optional `max_retries: 2`). `DefaultApiClient#send_request` sends again after a network error that came before any response and after 408, 409, 429 and 5xx except 501; a TLS failure is not retried (another try cannot fix a certificate). The wait is 0.5 s doubling to 8 s with up to 25% jitter, or `Retry-After` (seconds or HTTP date, capped at 60 s). The deadline of the single `timeout` budget is shared by every attempt: a retry whose wait would end past it is not started and the last response or network error is returned. A body that is not `nil` or a `String` (multipart Hash, stream) is never retried. Each retry is a fresh `transmit`: the transport merges its headers again (new `X-Request-ID`), and `BaseApi` passes `retry_headers:` (a lambda rebuilding authentication and trace headers) to the SDK's own `DefaultApiClient`; a custom `ApiClient` is called as before and does its own retrying. A failed header rebuild (an SDK error) ends the retrying. Ruby has no cancellation handle (S7), so there is nothing else to honour. The README moved "Automatic retries" from Not supported to Configuration.
+Why: the decided Stainless-style default.
+Where: `default_api_client.mustache` (`transmit_with_retries`, `pause` is overridden by tests), `transport_options.mustache`, `base_api.mustache`, `readme.mustache`, `skills.mustache`.
+Test: `default_api_client_unit_test` (retry count, statuses, `Retry-After`, budget, no retry on 4xx, `max_retries` 0, headers rebuilt), `transport_options_test`, `readme_test`, `skills_test`. Tests that expect one failing request build their client with `max_retries(0)`.
+
+### Rendered ApiError masks the challenge headers too (F1080)
+Rule: already in place since batch 7 (1 KiB body cap with `... (N more bytes)`, control characters escaped, credential headers masked). The masked set now also holds `WWW-Authenticate` and `Proxy-Authenticate` (with `Set-Cookie`); `response_headers` and `response_body` keep the full values.
+Where: `errors/api_error.mustache`.
+Test: `api_error_test`.
+
+### Skipped: F825
+Rust only.

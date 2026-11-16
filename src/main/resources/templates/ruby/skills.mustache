@@ -73,6 +73,8 @@ authenticator = {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticato
 client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ```
 
+`build_authorization_url` adds a PKCE `S256` challenge (RFC 7636); the authenticator keeps its 43-character verifier and `exchange_code` sends it as `code_verifier`.
+
 {{/hasOAuth2AuthorizationCode}}
 {{#hasOAuth2Password}}
 ### OAuth2 Password
@@ -120,6 +122,10 @@ OAuth2 authenticators resolve the access token by making an HTTP call to the tok
 #### Refresh tokens
 
 When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Expired or revoked tokens
+
+When an API call answers `401` the cached access token is dropped (`invalidate_access_token`; the refresh token is kept), a new one is obtained and the request is sent once more. A second `401` raises `UnauthorizedError`. A multipart or stream body is not sent again, and API key, basic and bearer authenticators never replay.
 
 #### Token caching
 
@@ -231,9 +237,17 @@ transport = {{moduleName}}::TransportOptions.builder.connection(connection).buil
 client = {{moduleName}}::{{clientClassName}}.new(authenticator, transport)
 ```
 
+### Retries
+
+`max_retries` (default `2`; `0` disables) sets how many times a failed request is sent again: after a network error before any response, and after a `408`, `409`, `429` or `5xx` (not `501`) status. The wait is 0.5 seconds doubling to 8 with up to 25% jitter, or the `Retry-After` header (at most 60 seconds). Retries never extend the `timeout` budget, a TLS failure is not retried, and a multipart or stream body is never sent twice.
+
+```ruby
+transport = {{moduleName}}::TransportOptions.builder.max_retries(0).build
+```
+
 ### Timeouts
 
-`timeout` is in milliseconds and is one end-to-end budget for the whole call, redirects included. A non-positive value raises `ArgumentError`; an exceeded budget raises `NetworkTimeoutError`.
+`timeout` is in milliseconds and is one end-to-end budget for the whole call, redirects and retries included. A non-positive value raises `ArgumentError`; an exceeded budget raises `NetworkTimeoutError`.
 
 ### Request id
 

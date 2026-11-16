@@ -48,10 +48,12 @@
     attr_reader user_agent: String?
     attr_reader default_headers: Hash[String, String]
     attr_reader inject_request_id: bool
+    attr_reader max_retries: Integer
     attr_reader connection: untyped
-    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Integer?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool, ?connection: untyped) -> void
+    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Integer?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool, ?max_retries: Integer, ?connection: untyped) -> void
     def self.builder: () -> TransportOptions::Builder
     def self.validate_proxy!: (String?) -> void
+    def self.validate_max_retries!: (untyped) -> Integer
     def self.validate_connection!: (untyped, bool, String?, String?) -> void
     def self.redact_headers: (Hash[String, String]) -> Hash[String, String]
     def self.redact_url: (String?) -> String?
@@ -71,6 +73,7 @@
       def default_header: (String, String) -> Builder
       def default_headers: (Hash[String, String]) -> Builder
       def inject_request_id: (bool) -> Builder
+      def max_retries: (Integer) -> Builder
       def connection: (untyped) -> Builder
       def build: () -> TransportOptions
     end
@@ -131,6 +134,7 @@
       def message: () -> String
       def typed_error_body: (untyped) -> untyped
       MAX_RENDERED_BODY_BYTES: Integer
+      CREDENTIAL_RESPONSE_HEADERS: Array[String]
 
       private
 
@@ -211,16 +215,31 @@
   class DefaultApiClient < ApiClient
     EXTRA_SENSITIVE_HEADER_NAMES: Array[String]
     STANDARD_METHODS: Array[Symbol]
+    RETRYABLE_STATUS_CODES: Array[Integer]
+    RETRY_BASE_DELAY_S: Float
+    RETRY_MAX_DELAY_S: Float
+    RETRY_JITTER: Float
+    RETRY_AFTER_CAP_S: Float
     module QueryParamsEncoder
       RAW_QUERY_KEY: String
       def self.encode: (untyped) -> String?
       def self.decode: (String?) -> untyped
     end
     def initialize: (?TransportOptions?) -> void
-    def send_request: (Symbol | String, String, Hash[String, String], untyped, ?no_redirect: bool) -> ApiHttpResponse
+    def send_request: (Symbol | String, String, Hash[String, String], untyped, ?no_redirect: bool, ?retry_headers: (^() -> Hash[String, String])?) -> ApiHttpResponse
     def close: () -> void
     def self.supported_encodings: () -> String
     private
+    def transmit: (Symbol | String, String, Hash[String, String], untyped, bool, Float?) -> untyped
+    def transmit_with_retries: (Symbol | String, String, Hash[String, String], untyped, bool, Float?, (^() -> Hash[String, String])?) -> untyped
+    def give_up: (Errors::NetworkError?, untyped) -> untyped
+    def retryable_network_error?: (Errors::NetworkError) -> bool
+    def renewed_headers: (^() -> Hash[String, String]) -> Hash[String, String]?
+    def replayable_body?: (untyped) -> bool
+    def retry_delay: (Integer, untyped) -> Float
+    def retry_after: (untyped) -> Float?
+    def http_date_wait: (String) -> Float?
+    def pause: (Float) -> void
     def run_hop: (Symbol, String, untyped, Hash[String, String], Float?) -> untyped
     def dispatch: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
     def header?: (Hash[String, String], String) -> bool
@@ -386,6 +405,7 @@
         include HttpAwareAuthenticator
         def initialize: (String, String, String, String, Array[String], ?client_auth_method: Symbol) -> void
         def api_client=: (ApiClient) -> void
+        def invalidate_access_token: () -> void
 
         private
 
@@ -398,6 +418,7 @@
         include HttpAwareAuthenticator
         def initialize: (String, String, String, String, String, String, Array[String], ?refresh_url: String?, ?client_auth_method: Symbol) -> void
         def api_client=: (ApiClient) -> void
+        def invalidate_access_token: () -> void
 
         private
 
@@ -408,9 +429,11 @@
 {{#hasOAuth2AuthorizationCode}}
       class OAuth2AuthorizationCodeAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
-        def initialize: (String, String, String, String, String, String, Array[String], ?refresh_url: String?, ?token_manager: OAuth2TokenManager?) -> void
+        def initialize: (String, String, String, String, String, String, Array[String], ?refresh_url: String?, ?token_manager: OAuth2TokenManager?, ?pkce_verifier: String?) -> void
         attr_reader token_manager: OAuth2TokenManager
+        attr_reader pkce_verifier: String?
         def api_client=: (ApiClient) -> void
+        def invalidate_access_token: () -> void
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
       end
@@ -433,6 +456,7 @@
         attr_writer api_client: ApiClient?
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
+        def invalidate_access_token: () -> void
         private
         def resolve_delegate: () -> OAuth2AuthorizationCodeAuthenticator
         def discover_delegate: () -> OAuth2AuthorizationCodeAuthenticator
@@ -499,6 +523,9 @@
       def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?) -> ApiResult[untyped]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private
+      def authenticated_headers: (Hash[String, String], untyped) -> Hash[String, String]
+      def dispatch_request: (Symbol, String, Hash[String, String], untyped, ^() -> Hash[String, String]) -> ApiHttpResponse
+      def replayable_body?: (untyped) -> bool
       def throw_api_error: (ApiHttpResponse) -> void
       def build_query_string: (Hash[String, untyped]) -> String
       def encode_query_value: (untyped, bool) -> String

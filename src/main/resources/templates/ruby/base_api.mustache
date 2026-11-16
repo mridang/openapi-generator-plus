@@ -123,31 +123,31 @@ module {{moduleName}}
         headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
         headers.merge!(@config.default_headers)
         headers.merge!(header_params)
-        headers.merge!(effective_auth.auth_headers) if effective_auth
-        cookies = effective_auth&.cookie_params || {}
-        unless cookies.empty?
-          # RFC 6265 — don't URL-encode cookie name/value; most cookie
-          # parsers don't URL-decode, so `=` (base64 padding) would
-          # arrive as literal `%3D` and break JWT/session cookies.
-          # Validate and pass through raw instead.
-          cookie_str = cookies.map do |k, v|
-            name = k.to_s
-            value = v.to_s
-            unless name.match?(/\A[A-Za-z0-9!#$%&'*+\-.^_`|~]+\z/)
-              raise ArgumentError, "Cookie name '#{name}' contains characters forbidden by RFC 6265"
-            end
-            unless value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
-              raise ArgumentError, "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
-            end
-            "#{name}=#{value}"
-          end.join('; ')
-          existing = headers['Cookie']
-          headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
-        end
-        ::{{moduleName}}::TraceContextUtil.inject_trace_context(headers)
+        request_headers = authenticated_headers(headers, effective_auth)
         serialized_body = serialize_body(body, content_type, raw_body: raw_body)
-        headers.delete('Content-Type') if serialized_body.nil?
-        response = @api_client.send_request(method, url, headers, serialized_body)
+        request_headers.delete('Content-Type') if serialized_body.nil?
+        # Every retry and replay is a fresh request: its headers (the
+        # authentication among them, which may now hold a renewed token) are
+        # rebuilt from the same inputs.
+        fresh_headers = lambda do
+          fresh = authenticated_headers(headers, effective_auth)
+          fresh.delete('Content-Type') if serialized_body.nil?
+          fresh
+        end
+        response = dispatch_request(method, url, request_headers, serialized_body, fresh_headers)
+        if response.status_code == 401 && effective_auth.respond_to?(:invalidate_access_token) && replayable_body?(serialized_body)
+          # A revoked or rotated token keeps failing while it is cached. Drop it,
+          # obtain a new one (a refresh grant first) and replay the request
+          # once. A body that cannot be replayed (multipart, a stream) is not
+          # sent again, and a failed re-authentication leaves the 401 as is.
+          effective_auth.invalidate_access_token
+          renewed = begin
+            fresh_headers.call
+          rescue {{apiErrorParent}}
+            nil
+          end
+          response = dispatch_request(method, url, renewed, serialized_body, fresh_headers) if renewed
+        end
         throw_api_error(response) if response.status_code < 200 || response.status_code >= 300
 
         data = nil
@@ -220,6 +220,51 @@ module {{moduleName}}
       end
 
       private
+
+      # The request headers: +base_headers+ plus what +effective_auth+ adds
+      # (its headers and cookies) and the trace context, as a new Hash.
+      def authenticated_headers(base_headers, effective_auth)
+        headers = base_headers.dup
+        headers.merge!(effective_auth.auth_headers) if effective_auth
+        cookies = effective_auth&.cookie_params || {}
+        unless cookies.empty?
+          # RFC 6265 — don't URL-encode cookie name/value; most cookie
+          # parsers don't URL-decode, so `=` (base64 padding) would
+          # arrive as literal `%3D` and break JWT/session cookies.
+          # Validate and pass through raw instead.
+          cookie_str = cookies.map do |k, v|
+            name = k.to_s
+            value = v.to_s
+            unless name.match?(/\A[A-Za-z0-9!#$%&'*+\-.^_`|~]+\z/)
+              raise ArgumentError, "Cookie name '#{name}' contains characters forbidden by RFC 6265"
+            end
+            unless value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
+              raise ArgumentError, "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
+            end
+            "#{name}=#{value}"
+          end.join('; ')
+          existing = headers['Cookie']
+          headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
+        end
+        ::{{moduleName}}::TraceContextUtil.inject_trace_context(headers)
+        headers
+      end
+
+      # Send one request. The SDK's own transport also gets +fresh_headers+, so
+      # an automatic retry rebuilds the headers (and re-authenticates) first.
+      def dispatch_request(method, url, headers, body, fresh_headers)
+        unless @api_client.is_a?(::{{moduleName}}::DefaultApiClient)
+          return @api_client.send_request(method, url, headers, body)
+        end
+
+        @api_client.send_request(method, url, headers, body, retry_headers: fresh_headers)
+      end
+
+      # Whether a request body can be sent a second time: none, or a string. A
+      # multipart form or a stream handle is consumed by the first send.
+      def replayable_body?(body)
+        body.nil? || body.is_a?(String)
+      end
 
       # Raises the error ApiError.from_response maps the response to. The body
       # is parsed as JSON where possible so that structured error data (e.g.
