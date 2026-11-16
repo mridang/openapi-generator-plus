@@ -341,6 +341,60 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return "Model";
     }
 
+    /**
+     * Kotlin standard-library types that a schema name must not shadow in the
+     * models package, where fields use them unqualified (a model named
+     * {@code List} would turn every {@code List<T>} field into the model).
+     */
+    private static final Set<String> KOTLIN_BUILT_IN_TYPES =
+            Set.of(
+                    "Error",
+                    "Exception",
+                    "Throwable",
+                    "Result",
+                    "Nothing",
+                    "Number",
+                    "Array",
+                    "List",
+                    "Map",
+                    "Set",
+                    "Pair",
+                    "Triple",
+                    "Comparable");
+
+    /**
+     * A schema named after a standard-library type ({@code Error},
+     * {@code Result}, {@code List}, ...) takes the {@code Model} prefix, like
+     * the primitive names; the wire name is unchanged (F173).
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        return KOTLIN_BUILT_IN_TYPES.contains(modelName) ? "Model" + modelName : modelName;
+    }
+
+    /**
+     * The names the generated operations add to their own signature or declare as
+     * locals, so a path or body parameter that carries one is suffixed instead of
+     * redeclaring it (F1055).
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "options",
+                "server",
+                "requestContentType",
+                "auth",
+                "path",
+                "url",
+                "headerParams",
+                "queryParams",
+                "formBody",
+                "serverUrl",
+                "declaredConsumes",
+                "effectiveRequestContentType");
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getUniqueItemsSetType() {

@@ -36,7 +36,7 @@ class ServerConfiguration(
      * @throws IllegalArgumentException if an override value is not in the variable's enum
      */
     fun getUrl(overrides: Map<String, String> = emptyMap()): String {
-        var url = urlTemplate
+        val resolved = HashMap<String, String>()
         for ((varName, variable) in variables) {
             val value = overrides.getOrDefault(varName, variable.defaultValue)
             val enumValues = variable.enumValues
@@ -45,9 +45,15 @@ class ServerConfiguration(
                     "Invalid value '$value' for server variable '$varName'. Allowed values: $enumValues"
                 )
             }
-            url = url.replace("{$varName}", value)
+            resolved[varName] = value
         }
-        return url
+        // One pass over the template: a placeholder that a substituted value
+        // introduces is never expanded again, whatever the variable order.
+        return PLACEHOLDER.replace(urlTemplate) { match -> resolved[match.groupValues[1]] ?: match.value }
+    }
+
+    private companion object {
+        private val PLACEHOLDER = Regex("""\{([^{}]+)\}""")
     }
 }
 

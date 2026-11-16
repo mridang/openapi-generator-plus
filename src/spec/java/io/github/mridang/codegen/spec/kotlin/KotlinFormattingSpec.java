@@ -50,4 +50,17 @@ public class KotlinFormattingSpec extends AbstractFormattingSpec implements Kotl
                         "Generated Kotlin code is not properly formatted:\n%s", result.output())
                 .isTrue();
     }
+
+    @Test
+    void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+        Path petApi =
+                tempOutputDir.resolve("src/main/kotlin/com/example/petstore/api/PetApi.kt");
+        String src = java.nio.file.Files.readString(petApi);
+        assertThat(src)
+                .as("kotlin PetApi.kt should attribute plural examples to their parameter")
+                .contains(
+                        "@param petId ID of pet to return (required)\n"
+                                + "     * Example — Small breed ID: `1`\n"
+                                + "     * Example — Large breed ID: `42`\n");
+    }
 }

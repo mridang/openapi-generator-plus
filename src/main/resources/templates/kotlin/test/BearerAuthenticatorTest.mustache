@@ -42,6 +42,34 @@ class BearerAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("a token that merely begins with the word bearer is kept whole")
+    fun lookalikeTokenIsKeptWhole() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "bearerxyz")
+        assertEquals("Bearer bearerxyz", auth.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    @DisplayName("a doubled Bearer prefix is stripped only once")
+    fun doubledPrefixIsStrippedOnce() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "Bearer Bearer xyz")
+        assertEquals("Bearer Bearer xyz", auth.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    @DisplayName("a Unicode space is not blank, so the printable ASCII check rejects it")
+    fun unicodeSpaceIsNotBlank() {
+        for (space in listOf("\u00A0", "\u2003")) {
+            val ex = assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com", space)
+            }
+            assertEquals(
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                ex.message
+            )
+        }
+    }
+
+    @Test
     @DisplayName("empty token is rejected at construction")
     fun emptyTokenIsRejectedAtConstruction() {
         // An empty or whitespace-only token would emit a credential-less

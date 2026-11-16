@@ -848,9 +848,12 @@ class BaseApiTest {
         @Test
         @DisplayName("sends no body when body is null")
         fun sendsNoBodyWhenNull() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                api().call("GET", "/test/echo")
+                testApi.call("GET", "/test/echo")
             }
+            assertNull(client.capturedBody)
         }
 
         @Test

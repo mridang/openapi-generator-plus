@@ -913,6 +913,45 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("a header whose name contains key, token or secret is stripped on a cross-origin redirect")
+        fun credentialLookingHeadersAreStrippedOnCrossOriginRedirect() {
+            var hopHeaders: io.ktor.http.Headers? = null
+            var hopCount = 0
+            val engine = MockEngine { req ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://other.example.com/dest"),
+                    )
+                } else {
+                    hopHeaders = req.headers
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest(
+                    "GET",
+                    "http://first.example.com/start",
+                    mapOf(
+                        "X-Auth-Token" to "t",
+                        "Api-Key" to "k",
+                        "X-Tenant-Secret" to "s",
+                        "X-Trace" to "keep",
+                    ),
+                    null,
+                )
+            }
+            assertNull(hopHeaders?.get("X-Auth-Token"))
+            assertNull(hopHeaders?.get("Api-Key"))
+            assertNull(hopHeaders?.get("X-Tenant-Secret"))
+            assertEquals("keep", hopHeaders?.get("X-Trace"))
+        }
+
+        @Test
         @DisplayName("the SDK's own Proxy-Authorization survives a cross-origin http hop; caller credentials do not")
         fun proxyCredentialsSurviveCrossOriginRedirect() {
             val hops = mutableListOf<io.ktor.http.Headers>()
@@ -1668,6 +1707,35 @@ class DefaultApiClientUnitTest {
             }
             assertFalse({{errorPrefix}}Exception::class.java.isInstance(ex), "a configuration mistake must not be an SDK error")
             assertNotNull(ex.cause, "the read/parse failure must be kept as the cause")
+        }
+
+        @Test
+        @DisplayName("an unreadable caCertPath is reported as a read failure naming the quoted path")
+        fun unreadableCaCertPathNamesTheReadFailure() {
+            val path = "/nonexistent/ca.pem"
+            val transport = TransportOptions.builder().caCertPath(path).build()
+            val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
+                DefaultApiClient(transport)
+            }
+            assertTrue(
+                ex.message!!.startsWith("failed to read CA certificate from \"$path\": "),
+                ex.message
+            )
+        }
+
+        @Test
+        @DisplayName("a file without PEM blocks is reported as a parse failure naming the quoted path")
+        fun nonPemCaCertFileNamesTheParseFailure(@org.junit.jupiter.api.io.TempDir dir: java.nio.file.Path) {
+            val file = java.io.File(dir.toFile(), "ca.pem")
+            file.writeText("not a certificate")
+            val transport = TransportOptions.builder().caCertPath(file.path).build()
+            val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
+                DefaultApiClient(transport)
+            }
+            assertTrue(
+                ex.message!!.startsWith("failed to parse CA certificate from \"${file.path}\": "),
+                ex.message
+            )
         }
     }
 

@@ -125,15 +125,22 @@ internal actual fun buildPlatformHttpClient(options: TransportOptions): HttpClie
  * Loads every certificate in a PEM bundle (a root plus intermediates, or two roots
  * during a CA rotation) into the trust store, not just the first one.
  */
-internal fun loadCaCertTrustManager(caCertPath: String): X509TrustManager =
-    try {
+internal fun loadCaCertTrustManager(caCertPath: String): X509TrustManager {
+    // A missing or unreadable file and a file that is no PEM bundle are two different
+    // configuration mistakes, so each has its own message. Both are raised at construction
+    // as IllegalArgumentException (cause preserved) so TLS pinning never silently falls
+    // back to the system store.
+    val pem =
+        try {
+            FileInputStream(caCertPath).use { it.readBytes() }
+        } catch (e: java.io.IOException) {
+            throw IllegalArgumentException("failed to read CA certificate from \"$caCertPath\": ${e.message ?: e}", e)
+        }
+    return try {
         val cf = CertificateFactory.getInstance("X.509")
-        val caCerts =
-            FileInputStream(caCertPath).use { fis ->
-                cf.generateCertificates(fis).map { it as X509Certificate }
-            }
+        val caCerts = cf.generateCertificates(pem.inputStream()).map { it as X509Certificate }
         if (caCerts.isEmpty()) {
-            throw java.security.cert.CertificateException("no certificate found in the file")
+            throw java.security.cert.CertificateException("no PEM blocks found")
         }
         val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
         trustStore.load(null, null)
@@ -142,10 +149,8 @@ internal fun loadCaCertTrustManager(caCertPath: String): X509TrustManager =
         tmf.init(trustStore)
         tmf.trustManagers[0] as X509TrustManager
     } catch (e: java.io.IOException) {
-        // A missing/unreadable/unparseable CA cert is a configuration mistake, not
-        // an API failure: raise IllegalArgumentException (cause preserved) at
-        // construction so TLS pinning never silently falls back to the system store.
-        throw IllegalArgumentException("failed to read or parse CA certificate from $caCertPath: $e", e)
+        throw IllegalArgumentException("failed to parse CA certificate from \"$caCertPath\": ${e.message ?: e}", e)
     } catch (e: java.security.GeneralSecurityException) {
-        throw IllegalArgumentException("failed to read or parse CA certificate from $caCertPath: $e", e)
+        throw IllegalArgumentException("failed to parse CA certificate from \"$caCertPath\": ${e.message ?: e}", e)
     }
+}
