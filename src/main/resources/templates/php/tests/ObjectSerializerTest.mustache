@@ -1323,6 +1323,48 @@ test('byte fields hold raw bytes and are base64 only on the wire', function (): 
     expect($backScans->toArray())->toBe([$scanA, 'scan-B']);
 });
 
+test('a contentEncoding base64 property holds raw bytes and is base64 on the wire', function (): void {
+    $passport = new PetPassport(biometricChip: "chip\x00\xff");
+
+    $json = ObjectSerializer::serialize($passport);
+    /** @var array<string, mixed> $data */
+    $data = json_decode($json, true);
+    expect($data['biometricChip'])->toBe(base64_encode("chip\x00\xff"));
+
+    /** @var PetPassport $back */
+    $back = ObjectSerializer::deserialize('{"biometricChip":"' . base64_encode("chip\x00\xff") . '"}', PetPassport::class);
+    expect($back->biometricChip)->toBe("chip\x00\xff");
+});
+
+test('a prefixItems array of mixed element types round trips in order', function (): void {
+    /** @var Pet $pet */
+    $pet = ObjectSerializer::deserialize(
+        '{"name":"n","photoUrls":[],"location":[1.5,2.5,"here"]}',
+        Pet::class
+    );
+
+    expect($pet->location)->toBeInstanceOf(\Ds\Vector::class);
+    expect($pet->location?->toArray())->toBe([1.5, 2.5, 'here']);
+    expect(ObjectSerializer::serialize($pet))->toContain('"location":[1.5,2.5,"here"]');
+});
+
+test('a duplicate object key resolves to the last value', function (): void {
+    /** @var Category $category */
+    $category = ObjectSerializer::deserialize('{"id":1,"id":2,"name":"Dogs"}', Category::class);
+
+    expect($category->id)->toBe(2);
+    expect($category->name)->toBe('Dogs');
+});
+
+test('a digit-leading property keeps its wire name', function (): void {
+    $json = ObjectSerializer::serialize(new EdgeCases(n2fa: true));
+
+    expect($json)->toContain('"2fa":true');
+    /** @var EdgeCases $back */
+    $back = ObjectSerializer::deserialize('{"2fa":true}', EdgeCases::class);
+    expect($back->n2fa)->toBeTrue();
+});
+
 test('byte models expose no raw-bytes accessors', function (): void {
     foreach (['getThumbnailAsBytes', 'setThumbnailFromBytes', 'getScansAsBytes', 'setScansFromBytes'] as $method) {
         expect(method_exists(PetPassport::class, $method))->toBeFalse();
