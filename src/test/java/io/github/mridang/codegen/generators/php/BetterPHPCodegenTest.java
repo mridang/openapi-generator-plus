@@ -2,9 +2,11 @@ package io.github.mridang.codegen.generators.php;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.openapitools.codegen.CodegenParameter;
 
 /**
  * Validates the string-literal rendering that the PHP authenticator wrappers use
@@ -64,5 +66,56 @@ class BetterPHPCodegenTest {
 
         assertEquals(
                 List.of(path, options), BetterPHPCodegen.serverBeforeOptions(List.of(path, options)));
+    }
+
+    @Test
+    void prefixesAModelNamedLikeAForbiddenClassName() {
+        final BetterPHPCodegen codegen = new BetterPHPCodegen();
+
+        assertEquals("ModelString", codegen.toModelName("String"));
+        assertEquals("ModelObject", codegen.toModelName("Object"));
+        assertEquals("ModelInt", codegen.toModelName("Int"));
+        assertEquals("ModelMixed", codegen.toModelName("Mixed"));
+    }
+
+    @Test
+    void keepsAModelNamedLikeAnSdkOrBuiltInTypeThatPhpAllows() {
+        final BetterPHPCodegen codegen = new BetterPHPCodegen();
+
+        assertEquals("Error", codegen.toModelName("Error"));
+        assertEquals("Result", codegen.toModelName("Result"));
+        assertEquals("Pet", codegen.toModelName("Pet"));
+    }
+
+    @Test
+    void suffixesAParameterNamedLikeAnInjectedArgument() {
+        final BetterPHPCodegen codegen = new BetterPHPCodegen();
+
+        assertEquals("optionsParam", codegen.toParamName("options"));
+        assertEquals("serverParam", codegen.toParamName("server"));
+        assertEquals("requestContentTypeParam", codegen.toParamName("requestContentType"));
+        assertEquals("petId", codegen.toParamName("pet_id"));
+    }
+
+    @Test
+    void rendersTheNamedExamplesOfAParameterAsDocblockLines() {
+        final CodegenParameter parameter = new CodegenParameter();
+        parameter.vendorExtensions = new HashMap<>();
+        parameter.vendorExtensions.put(
+                "pluralExamples",
+                List.of(
+                        Map.of("value", "available", "summary", "Only free items"),
+                        Map.of("value", "a*/b", "summary", "Bad */ text")));
+
+        assertEquals(
+                List.of("available Only free items", "a*_/b Bad *_/ text"),
+                BetterPHPCodegen.exampleDocLines(parameter));
+    }
+
+    @Test
+    void rendersNoExampleLinesForAParameterWithoutExamples() {
+        final CodegenParameter parameter = new CodegenParameter();
+
+        assertEquals(List.of(), BetterPHPCodegen.exampleDocLines(parameter));
     }
 }

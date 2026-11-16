@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -50,6 +51,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     /** Scheme constructor parameters that carry a secret and must stay out of stack traces. */
     private static final Set<String> SENSITIVE_PARAMS = Set.of("apiKey", "token", "password", "clientSecret");
+
+    /* Type names PHP forbids as a class name, in any letter case. */
+    private static final Set<String> FORBIDDEN_CLASS_NAMES =
+            Set.of(
+                    "int", "float", "bool", "string", "true", "false", "null", "void", "iterable",
+                    "object", "mixed", "never", "self", "parent");
 
     protected String invokerPackage = "OpenAPI\\Client";
 
@@ -206,6 +213,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     protected NamingConvention getVarCasing() {
         return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of("options", "server", "requestContentType");
     }
 
     /** {@inheritDoc} */
@@ -707,6 +720,19 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return Path.of(outputFolder, toSrcPath(apiPackage)).toString();
     }
 
+    /*
+     * A model named like a type PHP forbids as a class name (String, Object, Int) takes the
+     * Model prefix; Error and Result are legal in the models namespace and keep their name.
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        if (FORBIDDEN_CLASS_NAMES.contains(modelName.toLowerCase(Locale.ROOT))) {
+            return "Model" + modelName;
+        }
+        return modelName;
+    }
+
     /**
      * Overrides the base class because PHP needs special
      * handling for {@code anyOf}/{@code oneOf} composed schemas
@@ -1025,7 +1051,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             final String phpDocType = resolvePhpDocType(p);
             param.put("phpType", phpType);
             param.put("phpDocType", phpDocType);
-            final boolean hasDocType = !phpType.equals(phpDocType);
+            final List<String> exampleLines = exampleDocLines(p);
+            param.put("exampleLines", exampleLines);
+            /* A parameter with named examples is documented even when its docblock
+             * type equals its native type, so the examples reach the options class. */
+            final boolean hasDocType = !phpType.equals(phpDocType) || !exampleLines.isEmpty();
             param.put("hasDocType", hasDocType);
             if (hasDocType) {
                 hasAnyDocTypes = true;
@@ -1110,6 +1140,26 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     protected String getOptionsFilePath(String operationId, String optionsClassName) {
         return Path.of(outputFolder, SRC_BASE_PATH, "Api", "Options", optionsClassName + ".php")
                 .toString();
+    }
+
+    /**
+     * The named examples of a parameter as docblock lines, each {@code value summary}, with
+     * the comment terminator neutralised. Empty when the parameter declares none.
+     */
+    static List<String> exampleDocLines(CodegenParameter p) {
+        final List<String> lines = new ArrayList<>();
+        if (p.vendorExtensions == null
+                || !(p.vendorExtensions.get("pluralExamples") instanceof List<?> examples)) {
+            return lines;
+        }
+        for (final Object example : examples) {
+            if (example instanceof Map<?, ?> entry) {
+                final Object value = entry.get("value");
+                final Object summary = entry.get("summary");
+                lines.add(escapeForPhpdoc(value + " " + summary));
+            }
+        }
+        return lines;
     }
 
     /**
