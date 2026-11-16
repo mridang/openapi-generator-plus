@@ -191,6 +191,17 @@ closes anything you supply. Combining a custom `fetch` with `proxy`,
 `caCertPath` or `verifySsl(false)` throws a `TypeError` at `build()`, because
 those belong on the `fetch` you provide.
 
+### Automatic retries
+
+Every call is retried up to twice by default (`TransportOptions.builder().maxRetries(n)`, `0`
+disables it). A request is retried after a network error that happened before any
+response arrived and after a `408`, `409`, `429` or `5xx` response other than `501`.
+The wait is 0.5 s doubling to 8 s with up to 25% jitter, or the server's `Retry-After`
+(seconds or an HTTP date, at most 60 s). The retries share the one end-to-end `timeout`
+(they never extend it), stop at once when the call is cancelled, rebuild every header and
+ask the authenticator for its headers again. A timeout and a failure while reading a
+response body that did arrive are not retried.
+
 ### `LICENSE` file is not auto-emitted
 
 The package manifest declares {{licenseId}}, but no `LICENSE` / `LICENSE.md` file
