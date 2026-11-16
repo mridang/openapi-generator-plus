@@ -1496,6 +1496,42 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * The names an operation signature or body already uses: the injected arguments ({@code
+     * options}, {@code server}, {@code request_content_type}) and the locals of the operation
+     * body. A parameter named like one is renamed so it cannot be shadowed or collide (F1055).
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "options",
+                "server",
+                "request_content_type",
+                "path",
+                "query_params",
+                "header_params",
+                "cookie_parts",
+                "form_pairs",
+                "headers",
+                "auth",
+                "params",
+                "result",
+                "status_code",
+                "raw_body",
+                "server_url",
+                "opts",
+                "items",
+                "multipart",
+                "request_body",
+                "object_pairs");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getInjectedArgumentSuffix() {
+        return "_param";
+    }
+
+    /**
      * Returns whether {@code file} declares at least one {@code pub} item, and
      * so has anything for the module index to re-export.
      */

@@ -50,4 +50,13 @@ class BetterRustCodegenTest {
     assertThat(codegen.toModelName("Order")).isEqualTo("Order");
     assertThat(codegen.toModelName("order_item")).isEqualTo("OrderItem");
   }
+
+  @Test
+  void renamesAParameterNamedLikeAnInjectedArgumentOrALocal() {
+    assertThat(codegen.toParamName("options")).isEqualTo("options_param");
+    assertThat(codegen.toParamName("server")).isEqualTo("server_param");
+    assertThat(codegen.toParamName("path")).isEqualTo("path_param");
+    assertThat(codegen.toParamName("headers")).isEqualTo("headers_param");
+    assertThat(codegen.toParamName("item_id")).isEqualTo("item_id");
+  }
 }

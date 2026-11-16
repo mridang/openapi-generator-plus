@@ -106,7 +106,7 @@ fn test_url_rejection_message_names_the_value_the_variable_and_the_allowed_value
     assert_eq!(
         server.url(&overrides),
         Err(ConfigurationError::InvalidServerVariable(
-            "Invalid value 'invalid' for server variable 'env'. Allowed values: [\"api\", \"staging\"]"
+            "Invalid value 'invalid' for server variable 'env'. Allowed values: [api, staging]"
                 .to_string()
         ))
     );
@@ -132,7 +132,7 @@ fn test_default_outside_the_enum_is_rejected() {
     assert_eq!(
         server.url(&HashMap::new()),
         Err(ConfigurationError::InvalidServerVariable(
-            "Invalid value 'dev' for server variable 'env'. Allowed values: [\"api\", \"staging\"]"
+            "Invalid value 'dev' for server variable 'env'. Allowed values: [api, staging]"
                 .to_string()
         ))
     );

@@ -285,7 +285,7 @@ async fn test_pet_api_set_pet_avatar_rejects_unknown_content_type() {
         err.downcast_ref::<ConfigurationError>(),
         Some(&ConfigurationError::InvalidArgument(
             "Unsupported request content-type 'application/unknown-type' for set_pet_avatar; \
-declared types are [\"image/jpeg\", \"image/png\", \"application/json\"]"
+declared types are [image/jpeg, image/png, application/json]"
                 .to_string()
         ))
     );
@@ -304,7 +304,7 @@ async fn test_pet_api_upload_pet_document_rejects_unknown_content_type() {
         err.downcast_ref::<ConfigurationError>(),
         Some(&ConfigurationError::InvalidArgument(
             "Unsupported request content-type 'application/unknown-type' for upload_pet_document; \
-declared types are [\"multipart/form-data\", \"application/octet-stream\"]"
+declared types are [multipart/form-data, application/octet-stream]"
                 .to_string()
         ))
     );

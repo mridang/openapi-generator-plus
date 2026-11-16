@@ -137,8 +137,10 @@ impl ServerConfiguration {
                 && !variable.enum_values.contains(&value)
             {
                 return Err(ConfigurationError::InvalidServerVariable(format!(
-                    "Invalid value '{}' for server variable '{}'. Allowed values: {:?}",
-                    value, var_name, variable.enum_values
+                    "Invalid value '{}' for server variable '{}'. Allowed values: [{}]",
+                    value,
+                    var_name,
+                    variable.enum_values.join(", ")
                 )));
             }
 

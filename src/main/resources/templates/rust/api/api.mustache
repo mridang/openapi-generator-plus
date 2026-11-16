@@ -251,8 +251,9 @@ impl {{classname}} {
         if !DECLARED_CONSUMES.contains(&request_content_type) {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "Unsupported request content-type '{}' for {{operationId}}; declared types are {:?}",
-                    request_content_type, DECLARED_CONSUMES
+                    "Unsupported request content-type '{}' for {{operationId}}; declared types are [{}]",
+                    request_content_type,
+                    DECLARED_CONSUMES.join(", ")
                 )),
             ));
         }
