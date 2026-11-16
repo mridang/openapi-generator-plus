@@ -17,7 +17,7 @@ import Testing
             apiKey: "abc123",
             location: .header
         )
-        let headers = try await auth.authHeaders()
+        let headers = await auth.authHeaders()
         #expect(headers["X-API-Key"] == "abc123")
     }
 

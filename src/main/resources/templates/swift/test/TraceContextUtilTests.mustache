@@ -167,7 +167,7 @@ import Testing
 
         TraceContextUtil.injectTraceContext(headers: &headers)
         span.end()
-        _ = provider.forceFlush()
+        provider.forceFlush()
 
         let context = span.context
         #expect(
