@@ -35402,7 +35402,7 @@
    ],
    "unit_testable": null,
    "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - no per-call options slot added; java AGENTS.md:309, kotlin:294, go:278, elixir:248 list F827 as skipped pending cross-la",
+   "note": "owner decision 2026-11-17: ADD per-call options now: optional timeout, headers, maxRetries on the existing per-operation Options object in all 12 SDKs (go/node/rust extend their existing per-call request options); no operation signature change; wave b11 after b10 merges",
    "batch": null
   },
   {
@@ -35784,8 +35784,8 @@
     }
    ],
    "unit_testable": null,
-   "status": "open",
-   "note": "still open: java,kotlin,csharp,php,python,ruby,node,dart,go,rust,swift,elixir - java NON_NULL still drops null (src/main/resources/templates/java/object_serializer.mustache:474); no tri-state/JsonNull",
+   "status": "forced",
+   "note": "owner decision 2026-11-17 (after industry research, scratchpad/research/nullable-*.md): no generator-owned wrapper type; optional+nullable maps to each language's native idiom; each README documents that absent and null collapse (except TypeScript); opt-in three-state for PATCH-style APIs is a later addition",
    "batch": null
   },
   {
