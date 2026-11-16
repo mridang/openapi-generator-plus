@@ -656,6 +656,8 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
 
     assert response.status_code == 200
     assert String.contains?(response.body, "compressed fixture body")
+    refute Map.has_key?(response.headers, "content-encoding")
+    refute Map.has_key?(response.headers, "content-length")
   end
 
   # :brotli is an optional NIF declared only: :prod, so it is not loaded in
@@ -695,6 +697,8 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
 
     assert response.status_code == 200
     assert String.contains?(response.body, "compressed fixture body")
+    refute Map.has_key?(response.headers, "content-encoding")
+    refute Map.has_key?(response.headers, "content-length")
   end
 
   # Gap T6 / close-lifecycle: close/1 is idempotent and returns :ok, and

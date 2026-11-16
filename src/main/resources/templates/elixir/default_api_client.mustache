@@ -315,6 +315,15 @@ defmodule {{moduleName}}.DefaultApiClient do
         Base.encode64(body_binary)
       end
 
+    # D92: once the body has been decoded the returned headers no longer
+    # describe it, so Content-Encoding and Content-Length are dropped. An
+    # identity or empty body was not decoded and keeps them.
+    decoded? =
+      (response.body || "") != "" and
+        String.downcase(String.trim(content_encoding)) not in ["", "identity"]
+
+    headers = if decoded?, do: Map.drop(headers, ["content-encoding", "content-length"]), else: headers
+
     %{{moduleName}}.ApiHttpResponse{
       status_code: response.status,
       body: response_body,

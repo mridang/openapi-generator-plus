@@ -279,6 +279,10 @@ Rule: a 3xx whose `Location` is absent, cannot be resolved, or names an http(s) 
 
 Rule: every spec value written into an authenticator constructor call (api key name, token, authorization and OpenID Connect URLs, scopes) goes through `BetterElixirCodegen.toElixirStringLiteral` (backslash, quote, `#{`, line breaks and tab escaped). A path or body parameter named like a binding the operation function makes itself (`api`, `opts`, `options`, `auth`, `path`, `server` and the request-building locals) gets the suffix `_param`; the wire name is unaffected. Where: `BetterElixirCodegen`. Test: `BetterElixirCodegenTest`.
 
+### Decoded responses drop Content-Encoding and Content-Length (F1165, D92)
+
+Rule: when a non-empty body was decoded (any Content-Encoding other than none or `identity`) the returned headers no longer carry `content-encoding` or `content-length`; an identity or empty body and an undecodable one (the `ApiError`) keep them. Where: `default_api_client.mustache`. Test: `test/default_api_client_test.mustache` (gzip, zstd), `test/default_api_client_unit_test.mustache` (identity).
+
 ### SKILLS error section (F1084)
 
 Rule: the Error Handling section names the root grouping (`<Prefix>Error`, `exceptions/0`, `<prefix>_error?/1`), `SerializationError`, `OAuth2ServerError` and `OAuth2TokenError`, and ends the example with the root predicate. Where: `skills.mustache`.

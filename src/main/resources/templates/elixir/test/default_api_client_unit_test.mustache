@@ -1014,6 +1014,17 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert err.status_code == 302
   end
 
+  test "an identity-encoded body keeps its Content-Encoding and Content-Length headers" do
+    base_url = start_server(200, "text/plain", "plain", [{"Content-Encoding", "identity"}])
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/plain", %{}, nil)
+
+    assert response.body == "plain"
+    assert response.headers["content-encoding"] == "identity"
+    assert response.headers["content-length"] == "5"
+  end
+
   # ── Gap AL — Content-Encoding lie (gzip header, non-gzip body) ─────────────
   #
   # Canonical cross-SDK scenario: a server advertises `Content-Encoding: gzip`
