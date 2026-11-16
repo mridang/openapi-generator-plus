@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 119, duplicate 89, false-positive 81, fixed 710, forced 15, open 80, parked 18, partial 70. Severity: critical 3, high 69, medium 797, low 313.
+Status counts: deferred 118, duplicate 89, false-positive 81, fixed 710, forced 15, open 81, parked 18, partial 70. Severity: critical 3, high 69, medium 797, low 313.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -1067,7 +1067,7 @@ Status counts: deferred 119, duplicate 89, false-positive 81, fixed 710, forced 
 | F1059 | medium | fixed | oas-conformance:content-types | node, python | multipart/mixed and multipart/related request bodies are classified as multipart by the codegen but sent as JSON with an invalid Content-Type at runtime |
 | F1060 | medium | open | oas-conformance:security | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Only one flow of an OAuth2 security scheme gets an authenticator; the other declared flows are dropped without a warning |
 | F1061 | low | open | oas-conformance:security | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | http security schemes other than basic and bearer (digest, negotiate, custom schemes) produce no authenticator and the warning hides the scheme name |
-| F1062 | high | deferred | oas-conformance:responses | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | When an operation declares several 2xx responses with different schemas, every success body is decoded as the lexicographically lowest one |
+| F1062 | high | open | oas-conformance:responses | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | When an operation declares several 2xx responses with different schemas, every success body is decoded as the lexicographically lowest one |
 | F1063 | medium | fixed | transports | java, kotlin, php, python, ruby, node, dart, go, rust, elixir | Set-Cookie statelessness (no cookie jar, a response cookie is never replayed) is tested only in csharp and swift |
 | F1064 | low | partial | transports | rust, ruby, dart, php, elixir | Cancelling an in-flight call is tested in java, kotlin, csharp, python, node, go and swift but in none of rust, ruby, dart, php, elixir |
 | F1065 | low | open | transports | java, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | A proxy URL with an IPv6 literal host is accepted (and an unterminated one rejected) only in kotlin's TransportOptions tests |
@@ -11586,7 +11586,7 @@ OAS 4.8.27 http scheme takes any IANA HTTP Authentication Scheme name. buildSche
 - `src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java:1190` — LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
 
 ## F1062 [high] When an operation declares several 2xx responses with different schemas, every success body is decoded as the lexicographically lowest one
-- Status: **deferred** (default applied 2026-11-17 (owner did not answer): multiple 2xx schemas deferred; README documents that the first 2xx schema wins; tracking issue to be filed) | Lens: oas-conformance:responses | Category: spec-coverage | Unit-testable (reviewer's view): True
+- Status: **open** (owner decision 2026-11-17: FIX NOW, spec compliant: operations with several distinct 2xx schemas return a union of exactly those schemas, decoded by the actual status code; shared Java exposes per-status response data (b11-shared), then 12 language agents; fixture operation added to the petstore spec) | Lens: oas-conformance:responses | Category: spec-coverage | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 OAS Responses Object (4.8.16) maps each status code to its own content. Upstream findMethodResponse picks one response, the smallest key among those starting with `2` or equal to `default` (DefaultCodegen.java:4591-4603), and sets returnType from it. Nothing in this repo reads op.responses (no is2xx/{{#responses}} in any template; AbstractBetterCodegen only touches op.getResponses for doc text), so every SDK has a single return type and decodes any 2xx body with it. With `200: Pet` and `201: Order` (or `202: Job`), a 201 body is parsed as Pet and fails with a SerializationError or returns a Pet of nulls; with `200` having no content and `202` carrying Job, the Job is discarded and the method returns void. 200/204 pairs work by accident through the empty-body path. Canonical: generate a result union per operation when 2xx schemas differ (or at least expose the status code and raw decoded value), and add a petstore operation with two success schemas.

@@ -44985,8 +44985,8 @@
     }
    ],
    "unit_testable": true,
-   "status": "deferred",
-   "note": "default applied 2026-11-17 (owner did not answer): multiple 2xx schemas deferred; README documents that the first 2xx schema wins; tracking issue to be filed",
+   "status": "open",
+   "note": "owner decision 2026-11-17: FIX NOW, spec compliant: operations with several distinct 2xx schemas return a union of exactly those schemas, decoded by the actual status code; shared Java exposes per-status response data (b11-shared), then 12 language agents; fixture operation added to the petstore spec",
    "batch": null
   },
   {
