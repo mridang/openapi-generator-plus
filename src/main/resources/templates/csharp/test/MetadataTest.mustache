@@ -185,6 +185,29 @@ public class MetadataTest
     }
 
     [Fact]
+    public void ReadmeSocksNoteNamesTheBuilderSetter()
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+
+        Assert.Contains(
+            "`TransportOptionsBuilder.Proxy(...)` accepts only `http://` and `https://` URLs.",
+            readme,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("`TransportOptions.Proxy(...)`", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SkillsModelSampleSuppliesTheRequiredField()
+    {
+        /* The first model has a required property, so a bare constructor call would
+           not compile; the sample passes a value for it. */
+        var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
+
+        Assert.Contains("var model = new Account(\"example\");", skills, StringComparison.Ordinal);
+        Assert.DoesNotContain("new Account()", skills, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ModelWithoutAnExampleDoesNotDocumentALiteralNull()
     {
         /* A property that declares no example leaves the codegen example as the

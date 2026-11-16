@@ -285,7 +285,7 @@ Models are generated as C# classes under the `{{packageName}}.Models` namespace.
 ```csharp
 using {{packageName}}.Models;
 
-{{#models}}{{#model}}{{#-first}}var model = new {{classname}}();{{/-first}}{{/model}}{{/models}}
+{{#models}}{{#model}}{{#-first}}var model = new {{classname}}({{#requiredVars}}{{#isEnum}}default!{{/isEnum}}{{^isEnum}}{{#isString}}"example"{{/isString}}{{^isString}}{{#isLong}}1L{{/isLong}}{{^isLong}}{{#isInteger}}1{{/isInteger}}{{^isInteger}}{{#isBoolean}}true{{/isBoolean}}{{^isBoolean}}default!{{/isBoolean}}{{/isInteger}}{{/isLong}}{{/isString}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}});{{/-first}}{{/model}}{{/models}}
 ```
 
 ## Binary / File Uploads

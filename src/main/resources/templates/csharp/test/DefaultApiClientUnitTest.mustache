@@ -1696,6 +1696,10 @@ public class DefaultApiClientUnitTest
         var ex = Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
         Assert.False(typeof({{errorPrefix}}Exception).IsInstanceOfType(ex), "a configuration mistake must not be an SDK error");
         Assert.NotNull(ex.InnerException);
+        Assert.StartsWith(
+            "failed to read CA certificate from \"/nonexistent/ca.pem\": ",
+            ex.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1721,8 +1725,10 @@ public class DefaultApiClientUnitTest
             File.WriteAllText(path, contents);
             var transport = TransportOptions.Builder().CaCertPath(path).Build();
             var ex = Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
-            Assert.Contains("CA certificate from", ex.Message, StringComparison.Ordinal);
-            Assert.Contains(path, ex.Message, StringComparison.Ordinal);
+            Assert.StartsWith(
+                "failed to parse CA certificate from \"" + path + "\": ",
+                ex.Message,
+                StringComparison.Ordinal);
             Assert.False(typeof({{errorPrefix}}Exception).IsInstanceOfType(ex), "a configuration mistake must not be an SDK error");
         }
         finally

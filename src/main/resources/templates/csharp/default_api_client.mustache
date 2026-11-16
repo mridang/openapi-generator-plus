@@ -206,10 +206,17 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 caCerts.ImportFromPemFile(transportOptions.CaCertPath);
             }
-            catch (Exception ex) when (ex is System.IO.IOException or System.Security.Cryptography.CryptographicException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
             {
                 throw new ArgumentException(
-                    $"failed to load CA certificate from \"{transportOptions.CaCertPath}\": {ex.Message}",
+                    $"failed to read CA certificate from \"{transportOptions.CaCertPath}\": {ex.Message}",
+                    nameof(transportOptions),
+                    ex);
+            }
+            catch (System.Security.Cryptography.CryptographicException ex)
+            {
+                throw new ArgumentException(
+                    $"failed to parse CA certificate from \"{transportOptions.CaCertPath}\": {ex.Message}",
                     nameof(transportOptions),
                     ex);
             }
@@ -217,7 +224,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             if (caCerts.Count == 0)
             {
                 throw new ArgumentException(
-                    $"failed to parse CA certificate from \"{transportOptions.CaCertPath}\": no PEM blocks found or unparseable",
+                    $"failed to parse CA certificate from \"{transportOptions.CaCertPath}\": no PEM blocks found",
                     nameof(transportOptions));
             }
             if (transportOptions.VerifySsl)
