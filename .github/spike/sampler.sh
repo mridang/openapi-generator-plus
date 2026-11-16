@@ -13,6 +13,17 @@ echo "ts,cpu_user,cpu_nice,cpu_sys,cpu_idle,cpu_iowait,cpu_irq,cpu_softirq,cpu_s
   done
 ) &
 
+(
+  mkdir -p "$out/dumps"
+  while true; do
+    ts=$(date +%s)
+    for pid in $(pgrep java || true); do
+      jcmd "$pid" Thread.print > "$out/dumps/$ts-$pid.txt" 2>&1 || true
+    done
+    sleep 15
+  done
+) &
+
 while true; do
   ts=$(date +%s)
   cpu=$(awk '/^cpu /{print $2","$3","$4","$5","$6","$7","$8","$9}' /proc/stat)

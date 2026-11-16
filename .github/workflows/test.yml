@@ -67,8 +67,11 @@ jobs:
 
       - name: Run Junit
         shell: bash
+        env:
+          JAVA_TOOL_OPTIONS: -XX:StartFlightRecording=filename=${{ runner.temp }}/spike/jfr/rec-%p-%t.jfr,settings=profile,dumponexit=true
         run: |
           set -o pipefail
+          mkdir -p "$RUNNER_TEMP/spike/jfr"
           mvn verify --batch-mode 2>&1 | perl -MTime::HiRes=time -pe 'BEGIN{$|=1} $_=sprintf("%.3f %s",time,$_)' | tee "$RUNNER_TEMP/spike/mvn-timestamped.log"
 
       - name: Stop sampler and summarise
