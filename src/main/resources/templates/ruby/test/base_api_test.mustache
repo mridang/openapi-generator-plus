@@ -189,9 +189,23 @@ describe {{moduleName}}::Api::BaseApi do
   end
 
   it 'sets Cookie header from auth cookies' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
     auth = TestAuthenticator.new(cookies: { 'session' => 'abc123' })
-    api.call('GET', '/test/echo', {}, {}, nil,
-             ['application/json'], 'application/json', nil, auth)
+    test_api.call('GET', '/test/echo', {}, {}, nil,
+                  ['application/json'], 'application/json', nil, auth)
+    _(client.captured_headers['Cookie']).must_equal 'session=abc123'
+  end
+
+  it 'appends auth cookies to a Cookie header the operation already set' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    auth = TestAuthenticator.new(cookies: { 'session' => 'abc123' })
+    test_api.call('GET', '/test/echo', {}, { 'Cookie' => 'theme=dark' }, nil,
+                  ['application/json'], 'application/json', nil, auth)
+    _(client.captured_headers['Cookie']).must_equal 'theme=dark; session=abc123'
   end
 
   it 'falls back to client-level authenticator when no per-call auth is supplied' do
@@ -350,6 +364,18 @@ describe {{moduleName}}::Api::BaseApi do
       .server({{moduleName}}::Servers::SERVER_1)
       .build
     _(config.base_url).must_equal('https://api.example.com/api/v3')
+  end
+
+  # The third declared server carries quotes and an ampersand in its values:
+  # they reach the URL exactly as written.
+  it 'resolves the default and an enum value of the server with special characters' do
+    default_config = {{moduleName}}::Configuration.builder.server({{moduleName}}::Servers::SERVER_2).build
+    _(default_config.base_url).must_equal("https://o'neil.example.com/api")
+
+    other_config = {{moduleName}}::Configuration.builder
+      .server({{moduleName}}::Servers::SERVER_2, 'tenant' => 'a&b')
+      .build
+    _(other_config.base_url).must_equal('https://a&b.example.com/api')
   end
 
   it 'invalid enum value raises ArgumentError' do

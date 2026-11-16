@@ -177,6 +177,11 @@ module {{moduleName}}
       return nil if value.nil? && location == :query
       return '' if value.nil?
 
+      # An object value (a model or a Hash) goes through its wire-named fields,
+      # expanded by style and explode (D47).
+      fields = object_fields(value)
+      return serialize_object(param_name, fields, location, style, explode) if fields
+
       case style
       when 'matrix'
         if value.is_a?(Array)
@@ -238,6 +243,78 @@ module {{moduleName}}
       location == :path ? encode_path_segment(str) : str
     end
 
+    # The query entries one parameter contributes. A model or Hash value in an
+    # exploded form-style parameter is expanded to one entry per property
+    # (name=value); every other value is a single entry under +param_name+, as
+    # {.serialize_styled} renders it.
+    #
+    # @param param_name [String] the parameter name
+    # @param value [Object] the non-nil value
+    # @param schema_type [String] the schema type name
+    # @param collection_format [Symbol, nil] legacy collection format
+    # @param style [String, nil] OAS style
+    # @param explode [Boolean] whether the value is exploded
+    # @param allow_reserved [Boolean] whether the parameter declares +allowReserved+
+    # @return [Hash{String => Object}] query parameter names to values
+    def self.query_entries(param_name, value, schema_type, collection_format, style, explode, allow_reserved)
+      # @type var entries: Hash[String, untyped]
+      entries = {}
+      fields = object_fields(value)
+      if fields && explode && ['form', '', nil].include?(style)
+        fields.each do |key, field|
+          next if field.nil?
+
+          text = field.is_a?(Array) ? field.map { |item| ObjectSerializer.stringify(item) } : ObjectSerializer.stringify(field)
+          entries[key.to_s] = maybe_allow_reserved(text, allow_reserved)
+        end
+      else
+        styled = serialize_styled(param_name, value, :query, schema_type, collection_format, style, explode)
+        entries[param_name] = maybe_allow_reserved(styled, allow_reserved)
+      end
+      entries
+    end
+
+    # The wire-named fields of an object value: a Hash as given, a generated
+    # model reduced through the SDK serializer (unset fields omitted). Anything
+    # else is not an object.
+    #
+    # @param value [Object] a parameter value
+    # @return [Hash, nil] the fields, or nil when +value+ is not an object
+    def self.object_fields(value)
+      return value if value.is_a?(Hash)
+      return nil unless value.class.const_defined?(:ATTRIBUTE_MAP)
+
+      parsed = JSON.parse(ObjectSerializer.serialize(value))
+      parsed.is_a?(Hash) ? parsed : nil
+    end
+
+    # Render an object by style and explode: +matrix+ and +label+ prefix it,
+    # +simple+ and +form+ separate the pairs with commas (name=value when
+    # exploded), +spaceDelimited+ and +pipeDelimited+ flatten it with their
+    # delimiter.
+    def self.serialize_object(param_name, fields, location, style, explode)
+      pairs = fields.map { |key, field| [encode_item(key.to_s, location), encode_item(object_field_text(field), location)] }
+      joined = pairs.map { |key, text| "#{key}=#{text}" }
+      case style
+      when 'matrix'
+        explode ? joined.map { |pair| ";#{pair}" }.join : ";#{param_name}=#{pairs.flatten.join(',')}"
+      when 'label'
+        explode ? ".#{joined.join('.')}" : ".#{pairs.flatten.join(',')}"
+      when 'spaceDelimited'
+        pairs.flatten.join(' ')
+      when 'pipeDelimited'
+        pairs.flatten.join('|')
+      else
+        separator = location == :cookie ? '&' : ','
+        explode ? joined.join(separator) : pairs.flatten.join(',')
+      end
+    end
+
+    # The text of one object property: an array is its items joined by commas.
+    def self.object_field_text(field)
+      field.is_a?(Array) ? field.map { |item| ObjectSerializer.stringify(item) }.join(',') : ObjectSerializer.stringify(field)
+    end
+
     # Serialize a deepObject-style query parameter.
     #
     # Produces a hash of flattened keys in the form +param_name[key]+ to
@@ -264,6 +341,7 @@ module {{moduleName}}
       end
     end
 
-    private_class_method :serialize_nil, :serialize_array, :serialize_query_array, :encode_item
+    private_class_method :serialize_nil, :serialize_array, :serialize_query_array, :encode_item,
+                         :object_fields, :serialize_object, :object_field_text
   end
 end

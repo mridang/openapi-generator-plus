@@ -323,3 +323,48 @@ Test: `default_api_client_unit_test`.
 Rule: the README opens with consumer Installation and Usage, then Configuration (timeout unit, proxy, request id), Custom HTTP client, Raw responses and Cancellation; Not supported lists webhooks, XML bodies and `nodeType`, Link Objects, mutual TLS and automatic retries before the ruby-specific items; build, test and lint moved to a final Development section; the `uniqueItems` text now says the order is unspecified (S6); SKILLS builds the sample model from its required attributes and documents timeouts, request id, cancellation and `*_with_http_info`; a binary response is documented as a `StringIO`.
 Where: `readme.mustache`, `skills.mustache`.
 Test: `readme_test`, `skills_test`.
+
+## Decisions taken in batch 7
+
+Each follows the audit's own proposal unless noted.
+
+### Object-valued parameters are expanded by style (D47, F1143, F1158)
+Rule: a model or Hash value of a styled parameter is reduced to its wire-named fields (`JSON.parse(ObjectSerializer.serialize(v))`) and expanded by style and explode: an exploded form query value becomes one `name=value` entry per property (`ValueSerializer.query_entries`, which the generated API methods call for every styled query parameter); `form` non-exploded, `simple`, `matrix`, `label`, `spaceDelimited` and `pipeDelimited` render through `ValueSerializer.serialize_object`. Before this batch the value went through `to_s`.
+Where: `value_serializer.mustache`, `api/api.mustache`, `infrastructure_rbs.mustache`.
+Test: `value_serializer_test` (object values), `api/pet_api_test` (wire bytes of `getPetTag`).
+
+### Returned headers describe the decoded body (D92, F1165)
+Rule: when a response body was decoded (a non-identity `Content-Encoding` and a non-empty body) `Content-Encoding` and `Content-Length` are dropped from `ApiHttpResponse#headers`; identity and empty bodies keep them.
+Where: `default_api_client.mustache`.
+Test: `default_api_client_unit_test`, `default_api_client_test` (gzip, br, zstd).
+
+### Rendered ApiError is bounded and redacted (F1080)
+Rule: `ApiError#message` renders at most 1 KiB of the body (`... (N more bytes)` suffix, control characters escaped as `\n`, `\r`, `\t`, `\xNN`) and redacts the headers with the S15 list plus `Set-Cookie`. `response_body` and `response_headers` keep the full values.
+Where: `errors/api_error.mustache`, `infrastructure_rbs.mustache`.
+Test: `api_error_test`.
+
+### Proxy errors mask the userinfo; redirects strip every credential-like header (F1086, F1093)
+Rule: every `Invalid proxy URL` message replaces the userinfo of any URL in it with `***@` (`TransportOptions.mask_userinfo`, D79). A cross-origin redirect hop also drops every transport default header and every header whose name contains `auth` or matches the S15 name pattern (key, token, secret), besides the fixed list and the spec's apiKey names.
+Where: `transport_options.mustache`, `default_api_client.mustache`.
+Test: `transport_options_test`, `default_api_client_unit_test`.
+
+### `format: password` is masked in `inspect` (F867)
+Rule: the field stays a plain value and is still sent and decoded; `Model#inspect` prints it as `***` (`PASSWORD_ATTRIBUTES`, a private constant); a model without password fields keeps the default `inspect`.
+Where: `models/model.mustache`, `models/model_rbs.mustache`.
+Test: `object_serializer_test` (Account).
+
+### Protobuf duration bound (D88)
+Rule: a protobuf-JSON duration is accepted up to +-315 576 000 000 s (nanoseconds only below the bound); beyond it `SerializationError`.
+Where: `object_serializer.mustache`.
+Test: `object_serializer_test`.
+
+### SKILLS.md names the whole error tree (F1084)
+Rule: the Error Handling section names the root type (`apiErrorParent`), `SerializationError`, `OAuth2ServerError` and `OAuth2TokenError`, and its example ends with a rescue of `SerializationError` and of the root.
+Where: `skills.mustache`.
+Test: `skills_test`.
+
+### Not done in batch 7 (needs shared Java, another language, or an owner decision)
+- F860 (token and discovery requests still merge transport default headers): needs a change to the `ApiClient#send_request` contract in all twelve.
+- F866 (sibling `default` on a `$ref` property is dropped before the template sees it), F1062 (several 2xx schemas), F1055 (a parameter named like an injected argument), F1058 (Encoding Object), F1060 (one OAuth2 flow per scheme): the loss is in `AbstractBetterCodegen`.
+- F855 (401 invalidation and replay), F857 (per-scheme credentials), F858 (PKCE), F840 (form-style cookies), F229 (keep-alive), F912 (end-to-end timeout), F1100 (pagination): design decisions that are not taken.
+- F1152, F1153, F1174, F1161: gates and fixtures outside the ruby tree.

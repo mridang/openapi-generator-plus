@@ -55,6 +55,8 @@
     def self.validate_connection!: (untyped, bool, String?, String?) -> void
     def self.redact_headers: (Hash[String, String]) -> Hash[String, String]
     def self.redact_url: (String?) -> String?
+    def self.mask_userinfo: (String) -> String
+    def self.sensitive_header?: (String) -> bool
     def inspect: () -> String
     def to_s: () -> String
 
@@ -128,6 +130,12 @@
       def detail_message: () -> String
       def message: () -> String
       def typed_error_body: (untyped) -> untyped
+      MAX_RENDERED_BODY_BYTES: Integer
+
+      private
+
+      def rendered_headers: () -> Hash[String, String]
+      def rendered_body: () -> String
     end
 
     class ClientError < ApiError
@@ -245,6 +253,7 @@
     def self.serialize: (untyped, Symbol, String, ?collection_format: Symbol?) -> untyped
     def self.serialize_styled: (String, untyped, Symbol, String, Symbol?, String?, bool) -> untyped
     def self.serialize_deep_object: (String, untyped) -> Hash[String, String]
+    def self.query_entries: (String, untyped, String, Symbol?, String?, bool, bool) -> Hash[String, untyped]
     def self.encode_query_allowing_reserved: (String?) -> String
     def self.maybe_allow_reserved: (untyped, bool) -> untyped
     def self.encode_path_segment: (String str) -> String
@@ -264,6 +273,9 @@
     def self.serialize_array: (Array[untyped], Symbol, Symbol?) -> untyped
     def self.serialize_query_array: (Array[untyped], Symbol?) -> untyped
     def self.encode_item: (untyped value, Symbol location) -> String
+    def self.object_fields: (untyped) -> Hash[untyped, untyped]?
+    def self.serialize_object: (String, Hash[untyped, untyped], Symbol, String?, bool) -> String
+    def self.object_field_text: (untyped) -> String
   end
 
   class ObjectSerializer
@@ -271,6 +283,7 @@
     RFC3339_DATETIME_REGEX: Regexp
     MAX_JSON_DEPTH: Integer
     PROTOBUF_DURATION_REGEX: Regexp
+    PROTOBUF_DURATION_MAX_SECONDS: Integer
     UUID_REGEX: Regexp
     def self.stringify: (untyped) -> String
     def self.encode_base64_param: (String?) -> String?

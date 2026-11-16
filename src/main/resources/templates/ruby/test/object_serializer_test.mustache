@@ -542,6 +542,28 @@ describe {{moduleName}}::ObjectSerializer do
       _(from_null.retries).must_equal(7)
     end
 
+    # Numeric defaults keep their exact typed value, and the component
+    # default of a $ref'd enum applies on absence.
+    it 'applies exact numeric and referenced-enum defaults for absent fields' do
+      defaults = {{moduleName}}::ObjectSerializer.deserialize('{}', 'Defaults')
+      _(defaults.ratio).must_equal(1.5)
+      _(defaults.scale).must_equal(0.25)
+      _(defaults.weight).must_equal(2)
+      _(defaults.ceiling).must_equal(9_000_000_000)
+      _(defaults.swatch).must_equal('green')
+    end
+
+    # Department and Employee reference each other: both directions decode to
+    # typed models and write back unchanged.
+    it 'decodes and writes mutually recursive Department and Employee models' do
+      json = '{"name":"Eng","lead":{"name":"Ann","department":{"name":"Eng"}}}'
+      department = {{moduleName}}::ObjectSerializer.deserialize(json, 'Department')
+      _(department.lead).must_be_kind_of({{moduleName}}::Models::Employee)
+      _(department.lead.department).must_be_kind_of({{moduleName}}::Models::Department)
+      _(department.lead.department.name).must_equal('Eng')
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(department))).must_equal(JSON.parse(json))
+    end
+
     # Inline property enums are nested constants classes named
     # <Model>::<Prop>Enum with the same shape as a top-level enum class.
     it 'exposes inline property enums as nested constants classes' do
@@ -586,6 +608,35 @@ describe {{moduleName}}::ObjectSerializer do
     it 'documents the Account externalDocs description verbatim' do
       path = String(Object.const_source_location({{moduleName}}::Models::Account.name)&.first)
       _(File.read(path)).must_include(%q(# @see https://example.com/docs/account Account <docs> & "notes" it's here))
+    end
+
+    # readOnly and writeOnly have no wire effect: a readOnly property is still
+    # decoded and a writeOnly one is still written and decoded.
+    it 'decodes a readOnly property' do
+      account = {{moduleName}}::ObjectSerializer.deserialize('{"id":7,"username":"ann"}', 'Account')
+      _(account.id).must_equal(7)
+    end
+
+    it 'serializes a writeOnly property' do
+      account = {{moduleName}}::Models::Account.new(username: 'ann', password: 'hunter2')
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(account))).must_equal(
+        'username' => 'ann', 'password' => 'hunter2'
+      )
+    end
+
+    it 'decodes a writeOnly property' do
+      account = {{moduleName}}::ObjectSerializer.deserialize('{"username":"ann","password":"hunter2"}', 'Account')
+      _(account.password).must_equal('hunter2')
+    end
+
+    # format: password stays a plain String but never prints in a model's
+    # string form.
+    it 'masks a format: password property in inspect' do
+      account = {{moduleName}}::Models::Account.new(username: 'ann', password: 'hunter2')
+      _(account.inspect).must_include('password=***')
+      _(account.inspect).must_include('username="ann"')
+      _(account.inspect).wont_include('hunter2')
+      _(account.password).must_equal('hunter2')
     end
 
     # Self-referential model (TreeNode has a `child` of its own type). A
@@ -935,6 +986,147 @@ describe {{moduleName}}::ObjectSerializer do
     it 'writes a nil value as an explicit null' do
       model = {{moduleName}}::Models::RequiredNullable.new(note: nil)
       _({{moduleName}}::ObjectSerializer.serialize(model)).must_equal('{"note":null}')
+    end
+  end
+
+  # ── fixture round trips (model bodies the format tables above do not reach) ──
+
+  describe 'EdgeCases model body' do
+    it 'decodes and writes a format: time property, keeping whole seconds' do
+      edge = {{moduleName}}::ObjectSerializer.deserialize('{"cutoff":"10:30:00.123"}', 'EdgeCases')
+      _(edge.cutoff).must_be_kind_of(Tod::TimeOfDay)
+      _(edge.cutoff.hour).must_equal(10)
+      _(edge.cutoff.minute).must_equal(30)
+      _({{moduleName}}::ObjectSerializer.serialize(edge)).must_equal('{"cutoff":"10:30:00"}')
+    end
+
+    it 'decodes and writes a protobuf-JSON duration property' do
+      edge = {{moduleName}}::ObjectSerializer.deserialize('{"retryAfter":"3600s"}', 'EdgeCases')
+      _(edge.retry_after).must_be_kind_of(ISO8601::Duration)
+      _(edge.retry_after.to_seconds).must_equal(3600)
+      _({{moduleName}}::ObjectSerializer.serialize(edge)).must_equal('{"retryAfter":"3600s"}')
+    end
+
+    # D88: the protobuf duration range is +-315 576 000 000 s.
+    it 'accepts a duration at the protobuf bound and rejects one past it' do
+      ok = {{moduleName}}::ObjectSerializer.deserialize('{"retryAfter":"315576000000s"}', 'EdgeCases')
+      _(ok.retry_after).must_be_kind_of(ISO8601::Duration)
+      ['315576000001s', '-315576000001s', '315576000000.000000001s'].each do |text|
+        _(proc {
+          {{moduleName}}::ObjectSerializer.deserialize(%({"retryAfter":"#{text}"}), 'EdgeCases')
+        }).must_raise({{moduleName}}::Errors::SerializationError)
+      end
+    end
+
+    # The models named Error and Result keep their names inside Models and
+    # round trip as the nested lastError and outcome properties.
+    it 'round trips the Error and Result models as nested properties' do
+      json = '{"lastError":{"code":7,"message":"boom"},"outcome":{"ok":true}}'
+      edge = {{moduleName}}::ObjectSerializer.deserialize(json, 'EdgeCases')
+      _(edge.last_error).must_be_kind_of({{moduleName}}::Models::Error)
+      _(edge.last_error.code).must_equal(7)
+      _(edge.last_error.message).must_equal('boom')
+      _(edge.outcome).must_be_kind_of({{moduleName}}::Models::Result)
+      _(edge.outcome.ok).must_equal(true)
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(edge))).must_equal(JSON.parse(json))
+    end
+
+    # Separator values sanitise to colliding or empty constant names; the wire
+    # value is what round trips.
+    [' ', '@@', 'a-b', 'a_b'].each do |value|
+      it "round trips the Separator value #{value.inspect}" do
+        edge = {{moduleName}}::ObjectSerializer.deserialize(JSON.generate({ 'separator' => value }), 'EdgeCases')
+        _(edge.separator).must_equal(value)
+        _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(edge))['separator']).must_equal(value)
+      end
+    end
+  end
+
+  # S3 / D55: the client does not enforce pattern, minimum or maximum; a value
+  # outside the declared bounds decodes as sent and the server owns validation.
+  describe 'schema constraints are not enforced' do
+    it 'decodes a quantity above its maximum' do
+      order = {{moduleName}}::ObjectSerializer.deserialize('{"quantity":500}', 'Order')
+      _(order.quantity).must_equal(500)
+    end
+
+    it 'decodes a nickname and a slug that violate their patterns' do
+      pet = {{moduleName}}::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"nickname":"X!"}', 'Pet')
+      _(pet.nickname).must_equal('X!')
+      edge = {{moduleName}}::ObjectSerializer.deserialize('{"slug":"not-a-slug"}', 'EdgeCases')
+      _(edge.slug).must_equal('not-a-slug')
+    end
+  end
+
+  # F865: a typed additionalProperties schema types and checks the extra keys
+  # like a declared map, and a round trip keeps them.
+  describe 'typed additionalProperties' do
+    it 'captures string-valued extras next to the declared properties and writes them back' do
+      json = '{"createdAt":"2024-01-01T00:00:00Z","note":"x","owner":"ann"}'
+      meta = {{moduleName}}::ObjectSerializer.deserialize(json, 'Metadata')
+      _(meta.additional_properties).must_equal('note' => 'x', 'owner' => 'ann')
+      written = JSON.parse({{moduleName}}::ObjectSerializer.serialize(meta))
+      _(written['note']).must_equal('x')
+      _(written['owner']).must_equal('ann')
+    end
+
+    it 'rejects an extra whose value is not a string' do
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize('{"note":5}', 'Metadata')
+      }).must_raise({{moduleName}}::Errors::SerializationError)
+    end
+  end
+
+  # D46: Availability members that are special inside a string literal keep
+  # their exact wire value through decode and encode.
+  describe 'Availability members with literal-special characters' do
+    ["o'clock", 'a\\b', '$eq', '#{x}'].each do |value|
+      it "round trips #{value.inspect}" do
+        _({{moduleName}}::Models::Availability::VALUES).must_include(value)
+        json = JSON.generate({ 'priority' => 1, 'availability' => value })
+        item = {{moduleName}}::ObjectSerializer.deserialize(json, 'StockItem')
+        _(item.availability).must_equal(value)
+        _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(item))['availability']).must_equal(value)
+      end
+    end
+  end
+
+  # A JSON body that repeats an object key resolves to the last value.
+  describe 'duplicate object keys' do
+    it 'resolves a repeated key to the last value' do
+      json = '{"name":"first","name":"second","photoUrls":[]}'
+      pet = {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
+      _(pet.name).must_equal('second')
+    end
+  end
+
+  # D84: request JSON writes everything but quote, backslash and the controls
+  # below U+0020 literally.
+  describe 'request JSON string escaping' do
+    it 'writes U+2028, U+2029 and DEL literally' do
+      json = {{moduleName}}::ObjectSerializer.serialize({ 'note' => "a\u2028b\u2029c\u007Fd" })
+      _(json).must_equal("{\"note\":\"a\u2028b\u2029c\u007Fd\"}")
+    end
+
+    it 'writes slash, angle brackets, ampersand and non-ASCII literally' do
+      json = {{moduleName}}::ObjectSerializer.serialize({ 'note' => "/<>&\u00E9" })
+      _(json).must_equal("{\"note\":\"/<>&\u00E9\"}")
+    end
+
+    it 'escapes the quote, the backslash and controls below U+0020' do
+      json = {{moduleName}}::ObjectSerializer.serialize({ 'note' => "\"\\\u0001" })
+      _(json).must_equal('{"note":"\\"\\\\\\u0001"}')
+    end
+  end
+
+  # OAS 3.1 prefixItems: a heterogeneous tuple (number, number, string) is
+  # carried as a plain array and returns unchanged.
+  describe 'prefixItems tuple property' do
+    it 'decodes and writes Pet.location as a heterogeneous array' do
+      json = '{"name":"Rex","photoUrls":["u"],"location":[1.5,2.5,"depot"]}'
+      pet = {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
+      _(pet.location).must_equal([1.5, 2.5, 'depot'])
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(pet))['location']).must_equal([1.5, 2.5, 'depot'])
     end
   end
 
@@ -1353,6 +1545,19 @@ describe {{moduleName}}::ObjectSerializer do
       json = {{moduleName}}::ObjectSerializer.serialize(model)
       restored = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetPassport')
       _(restored.scans).must_equal([raw])
+    end
+  end
+
+  # OAS 3.1 contentEncoding: base64 is normalised to a byte field, so the
+  # biometric chip is base64 on the wire and raw bytes in the model.
+  describe 'contentEncoding base64 property' do
+    it 'decodes and writes PetPassport.biometricChip as base64' do
+      raw = "chip\x00\xFF".dup.force_encoding(Encoding::BINARY)
+      json = %({"biometricChip":"#{Base64.strict_encode64(raw)}"})
+      passport = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetPassport')
+      _(passport.biometric_chip).must_equal(raw)
+      written = JSON.parse({{moduleName}}::ObjectSerializer.serialize(passport))
+      _(written['biometricChip']).must_equal(Base64.strict_encode64(raw))
     end
   end
 

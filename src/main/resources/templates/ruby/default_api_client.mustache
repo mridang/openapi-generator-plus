@@ -240,10 +240,17 @@ module {{moduleName}}
               # document at codegen time. Without this an `X-Api-Key`
               # header would otherwise be silently replayed to an
               # attacker-controlled host on a malicious 302.
+              # Credentials that arrive through default headers or an
+              # authenticator carry arbitrary names, so the redaction list
+              # (auth, key, token, secret) and every default header are stripped too.
+              default_names = @transport_options.default_headers.keys.map { |n| n.to_s.downcase }
               redirect_headers.delete_if do |k, _v|
                 lower = k.to_s.downcase
                 %w[authorization cookie proxy-authorization].include?(lower) ||
-                  EXTRA_SENSITIVE_HEADER_NAMES.include?(lower)
+                  EXTRA_SENSITIVE_HEADER_NAMES.include?(lower) ||
+                  default_names.include?(lower) ||
+                  lower.include?('auth') ||
+                  TransportOptions.sensitive_header?(lower)
               end
             end
             if next_body.nil?
@@ -305,6 +312,14 @@ module {{moduleName}}
       response.headers.each do |name, value|
         joined = value.is_a?(Array) ? value.join(', ') : value.to_s
         normalized_headers[name.to_s.downcase] = joined
+      end
+      # D92: once the body has been decoded, Content-Encoding and Content-Length
+      # describe bytes the caller no longer holds, so they are not returned. An
+      # identity or empty body keeps both.
+      content_encoding = normalized_headers['content-encoding'].to_s.strip.downcase
+      unless response.body.to_s.empty? || ['', 'identity'].include?(content_encoding)
+        normalized_headers.delete('content-encoding')
+        normalized_headers.delete('content-length')
       end
 
       ApiHttpResponse.new(
