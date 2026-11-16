@@ -54,6 +54,21 @@ import FoundationNetworking
         #expect(!(opts.injectRequestID))
     }
 
+    @Test func testMaxRetriesDefaultsToTwo() throws {
+        #expect(try TransportOptionsBuilder().build().maxRetries == 2)
+    }
+
+    @Test func testMaxRetriesCanBeSetAndDisabled() throws {
+        #expect(try TransportOptionsBuilder().maxRetries(5).build().maxRetries == 5)
+        #expect(try TransportOptionsBuilder().maxRetries(0).build().maxRetries == 0)
+    }
+
+    @Test func testNegativeMaxRetriesIsRejected() throws {
+        #expect(throws: ConfigurationError.self) {
+            try TransportOptionsBuilder().maxRetries(-1).build()
+        }
+    }
+
     @Test func testSessionDefaultsToNil() throws {
         #expect(try TransportOptionsBuilder().build().session == nil)
     }
