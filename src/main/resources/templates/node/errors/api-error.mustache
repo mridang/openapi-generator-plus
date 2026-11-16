@@ -148,11 +148,70 @@ export class ApiError<T = unknown> extends {{errorPrefix}}Error {
       msg += `\nHTTP status code: ${this.statusCode}`;
     }
     if (this.responseHeaders !== null && Object.keys(this.responseHeaders).length > 0) {
-      msg += `\nResponse headers: ${JSON.stringify(this.responseHeaders)}`;
+      msg += `\nResponse headers: ${ApiError.renderHeaders(this.responseHeaders)}`;
     }
     if (this.responseBody !== null && this.responseBody !== '') {
-      msg += `\nResponse body: ${this.responseBody}`;
+      msg += `\nResponse body: ${ApiError.renderBody(this.responseBody)}`;
     }
     return msg;
+  }
+
+  /**
+   * Render the response headers as compact JSON with sorted keys, with the
+   * value of every credential-bearing header replaced by `***`: Authorization,
+   * Proxy-Authorization, Cookie, Set-Cookie, WWW-Authenticate,
+   * Proxy-Authenticate and any name containing key, token or secret. The
+   * `responseHeaders` field keeps the real values.
+   */
+  private static renderHeaders(headers: Record<string, string>): string {
+    const sensitive = (name: string): boolean => {
+      const lower = name.toLowerCase();
+      return (
+        lower === 'authorization' ||
+        lower === 'proxy-authorization' ||
+        lower === 'cookie' ||
+        lower === 'set-cookie' ||
+        lower === 'www-authenticate' ||
+        lower === 'proxy-authenticate' ||
+        /key|token|secret/.test(lower)
+      );
+    };
+    const shown = Object.fromEntries(
+      Object.keys(headers)
+        .sort()
+        .map((name): [string, string] => [name, sensitive(name) ? '***' : headers[name]!])
+    );
+    return JSON.stringify(shown);
+  }
+
+  /**
+   * Render the response body for the message: at most 1024 characters, then
+   * a `... (N more bytes)` suffix, with CR, LF and every other control
+   * character escaped so a hostile server cannot forge log lines. The
+   * `responseBody` field keeps the whole body.
+   */
+  private static renderBody(body: string): string {
+    const limit = 1024;
+    const kept = body.length > limit ? body.slice(0, limit) : body;
+    let escaped = '';
+    for (const ch of kept) {
+      const code = ch.charCodeAt(0);
+      if (ch === '\n') {
+        escaped += '\\n';
+      } else if (ch === '\r') {
+        escaped += '\\r';
+      } else if (ch === '\t') {
+        escaped += '\\t';
+      } else if (code < 0x20 || code === 0x7f) {
+        escaped += `\\u${code.toString(16).padStart(4, '0')}`;
+      } else {
+        escaped += ch;
+      }
+    }
+    if (kept.length === body.length) {
+      return escaped;
+    }
+    const more = Buffer.byteLength(body, 'utf8') - Buffer.byteLength(kept, 'utf8');
+    return `${escaped}... (${more} more bytes)`;
   }
 }
