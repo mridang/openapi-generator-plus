@@ -9,9 +9,9 @@ import Foundation
 
 /// Surgery is a model class generated from the OpenAPI schema.
 public struct Surgery: Codable, Sendable, Equatable, Hashable {
-  public var procedureName: String
-  public var durationMinutes: Int?
-  public var notes: String?
+  public let procedureName: String
+  public let durationMinutes: Int?
+  public let notes: String?
 
   enum CodingKeys: String, CodingKey {
     case procedureName = "procedureName"
@@ -24,6 +24,17 @@ public struct Surgery: Codable, Sendable, Equatable, Hashable {
     self.procedureName = procedureName
     self.durationMinutes = durationMinutes
     self.notes = notes
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    procedureName: String? = nil, durationMinutes: Int?? = .none, notes: String?? = .none
+  ) -> Surgery {
+    return Surgery(
+      procedureName: procedureName ?? self.procedureName,
+      durationMinutes: durationMinutes ?? self.durationMinutes, notes: notes ?? self.notes)
   }
 
   /// Decodes this instance from the given decoder.

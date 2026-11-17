@@ -10,14 +10,16 @@ import Foundation
 /// Error for HTTP 500 Internal Server Error.
 public class InternalServerError: ServerError, @unchecked Sendable {
   /// Creates the error. The status is fixed at 500, so this type never
-  /// reports another one; ``ApiError/fromResponse(statusCode:headers:body:)``
+  /// reports another one; ``ApiError/fromResponse(statusCode:headers:body:requestMethod:requestPath:)``
   /// is the only place a status is mapped to a type.
   public init(
     message: String = "",
     responseBody: String? = nil,
     responseHeaders: [String: String]? = nil,
     errorBody: Any? = nil,
-    underlyingError: Error? = nil
+    underlyingError: Error? = nil,
+    requestMethod: String? = nil,
+    requestPath: String? = nil
   ) {
     super.init(
       statusCode: 500,
@@ -25,7 +27,9 @@ public class InternalServerError: ServerError, @unchecked Sendable {
       responseBody: responseBody,
       responseHeaders: responseHeaders,
       errorBody: errorBody,
-      underlyingError: underlyingError
+      underlyingError: underlyingError,
+      requestMethod: requestMethod,
+      requestPath: requestPath
     )
   }
 }

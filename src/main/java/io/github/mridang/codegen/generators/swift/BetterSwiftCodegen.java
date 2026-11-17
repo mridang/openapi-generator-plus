@@ -123,6 +123,77 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 CodegenConstants.PACKAGE_NAME_DESC));
         cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
                 "Version of the generated Swift package (default: 1.0.0).").defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString("repositoryUrl",
+                "Source repository URL, listed in the README Package section."));
+        cliOptions.add(CliOption.newString("homepageUrl",
+                "Project home page, listed in the README Package section."));
+        cliOptions.add(CliOption.newString("authors",
+                "Package authors, listed in the README Package section."));
+        cliOptions.add(CliOption.newString("documentationUrl",
+                "Documentation URL, listed in the README Package section."));
+        cliOptions.add(CliOption.newString("issueTrackerUrl",
+                "Issue tracker URL, listed in the README Package section."));
+        cliOptions.add(CliOption.newString("envPrefix",
+                "Prefix of the environment variables the client reads credentials from "
+                        + "(default: the upper-case snake form of the package name)."));
+    }
+
+    /**
+     * The default prefix of the credential environment variables: the package
+     * name in upper-case snake form, so {@code PetstoreClient} reads
+     * {@code PETSTORE_CLIENT_TOKEN}.
+     */
+    static String environmentPrefix(final String packageName) {
+        final StringBuilder prefix = new StringBuilder();
+        char previous = '_';
+        for (int i = 0; i < packageName.length(); i++) {
+            final char c = packageName.charAt(i);
+            if (!Character.isLetterOrDigit(c)) {
+                if (previous != '_') {
+                    prefix.append('_');
+                }
+                previous = '_';
+                continue;
+            }
+            if (Character.isUpperCase(c) && previous != '_' && !Character.isUpperCase(previous)) {
+                prefix.append('_');
+            }
+            prefix.append(Character.toUpperCase(c));
+            previous = c;
+        }
+        return prefix.toString();
+    }
+
+    /**
+     * Gives an integer-enum member the same lowerCamel naming as the
+     * identifiers Swift uses elsewhere: {@code NUMBER_1} becomes
+     * {@code number1} and {@code NUMBER_MINUS_1} becomes {@code numberMinus1}
+     * (F308).
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String name = super.toEnumVarName(value, datatype);
+        if (!value.isEmpty() && isNumericEnumDatatype(datatype)) {
+            return getEnumCasing().apply(name.toLowerCase(Locale.ROOT));
+        }
+        return name;
+    }
+
+    /**
+     * Names that the generated operation methods and options structs inject
+     * beside the spec's own parameters, so a parameter named like one of them
+     * gets the {@code Param} suffix instead of a duplicate declaration (F1055).
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "options",
+                "server",
+                "auth",
+                "requestContentType",
+                "timeout",
+                "headers",
+                "maxRetries");
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -153,6 +224,16 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             return;
         }
         final Map<String, Object> d = (Map<String, Object>) decorator;
+        boolean hasOptionsObject = false;
+        final Object signature = d.get("signatureArgs");
+        if (signature instanceof List) {
+            for (final Map<String, Object> arg : (List<Map<String, Object>>) signature) {
+                if (Boolean.TRUE.equals(arg.get("isOptions"))) {
+                    hasOptionsObject = true;
+                }
+            }
+        }
+        d.put("hasOptionsObject", hasOptionsObject);
         for (final String key : List.of(
                 "signatureArgs", "signatureArgsNoOptions")) {
             final Object value = d.get(key);
@@ -492,6 +573,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         packageName = getPropertyOrDefault("packageName", packageName);
         packageVersion = getPropertyOrDefault("packageVersion", packageVersion);
         additionalProperties.put("packageName", packageName);
+        if (!additionalProperties.containsKey("envPrefix")) {
+            additionalProperties.put("envPrefix", environmentPrefix(packageName));
+        }
         additionalProperties.put(
                 "userAgentDefault", packageName + "/" + packageVersion + " (swift)");
 
@@ -807,7 +891,55 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             }
             modelMap.put("hasPasswordVars", model.vars.stream().anyMatch(v -> v.isPassword));
         }
+        for (final ModelMap modelMap : result.getModels()) {
+            nameUnionVariants(modelMap.getModel());
+        }
         return result;
+    }
+
+    /**
+     * Gives every oneOf variant a camelCase-ready name for the typed
+     * {@code from<Variant>}, {@code is<Variant>} and {@code as<Variant>}
+     * members of the union wrapper: the variant type with every non-letter and
+     * non-digit dropped and each word capitalised, so {@code Reservation}
+     * stays {@code Reservation} and {@code [String]} becomes {@code String}
+     * and {@code [Data]} {@code Data}.
+     */
+    static void nameUnionVariants(@Nullable CodegenModel model) {
+        if (model == null
+                || model.getComposedSchemas() == null
+                || model.getComposedSchemas().getOneOf() == null) {
+            return;
+        }
+        final Set<String> seen = new HashSet<>();
+        for (final org.openapitools.codegen.CodegenProperty variant :
+                model.getComposedSchemas().getOneOf()) {
+            final StringBuilder name = new StringBuilder();
+            boolean startOfWord = true;
+            final String type = String.valueOf(variant.dataType);
+            for (int i = 0; i < type.length(); i++) {
+                final char c = type.charAt(i);
+                if (Character.isLetterOrDigit(c)) {
+                    name.append(startOfWord ? Character.toUpperCase(c) : c);
+                    startOfWord = false;
+                } else {
+                    startOfWord = true;
+                }
+            }
+            if (type.startsWith("[") && type.contains(":")) {
+                name.append("Map");
+            } else if (type.startsWith("[")) {
+                name.append("List");
+            }
+            String unique = name.toString();
+            for (int n = 2; !seen.add(unique); n++) {
+                unique = name.toString() + n;
+            }
+            if (variant.vendorExtensions == null) {
+                variant.vendorExtensions = new HashMap<>();
+            }
+            variant.vendorExtensions.put("variantName", unique);
+        }
     }
 
     private static String formatSwiftScopes(@Nullable Map<String, String> scopes) {

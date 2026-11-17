@@ -23,6 +23,36 @@ public struct SetPetAvatarThumbnailRequest: Codable, @unchecked Sendable {
     self._value = value
   }
 
+  /// Wraps a ``Data`` as this union's value; the named form of ``init(_:)``.
+  public static func fromData(_ value: Data) -> SetPetAvatarThumbnailRequest {
+    return SetPetAvatarThumbnailRequest(value)
+  }
+
+  /// Whether this union holds a ``Data``.
+  public var isData: Bool {
+    return _value is Data
+  }
+
+  /// The held value as a ``Data``, or nil when this union holds another variant.
+  public var asData: Data? {
+    return _value as? Data
+  }
+
+  /// Wraps a ``[Data]`` as this union's value; the named form of ``init(_:)``.
+  public static func fromDataList(_ value: [Data]) -> SetPetAvatarThumbnailRequest {
+    return SetPetAvatarThumbnailRequest(value)
+  }
+
+  /// Whether this union holds a ``[Data]``.
+  public var isDataList: Bool {
+    return _value is [Data]
+  }
+
+  /// The held value as a ``[Data]``, or nil when this union holds another variant.
+  public var asDataList: [Data]? {
+    return _value as? [Data]
+  }
+
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
     let data = try container.decode(AnyCodable.self)

@@ -12,25 +12,25 @@ import Testing
 
     @Test func testRawTokenIsPrefixedWithBearer() async throws {
         let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
-        let headers = await auth.authHeaders()
+        let headers = try await auth.authHeaders()
         #expect(headers["Authorization"] == "Bearer xyz")
     }
 
     @Test func testAlreadyPrefixedTokenIsNotDoubled() async throws {
         let auth = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer xyz")
-        let headers = await auth.authHeaders()
+        let headers = try await auth.authHeaders()
         #expect(headers["Authorization"] == "Bearer xyz")
     }
 
     @Test func testLowercaseBearerPrefixIsStripped() async throws {
         let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearer xyz")
-        let headers = await auth.authHeaders()
+        let headers = try await auth.authHeaders()
         #expect(headers["Authorization"] == "Bearer xyz")
     }
 
     @Test func testMixedCaseBearerPrefixIsStripped() async throws {
         let auth = try BearerAuthenticator(host: "https://api.example.com", token: "BeArEr xyz")
-        let headers = await auth.authHeaders()
+        let headers = try await auth.authHeaders()
         #expect(headers["Authorization"] == "Bearer xyz")
     }
 
@@ -96,9 +96,9 @@ import Testing
      * merely starts with the letters is left alone. */
     @Test func testPrefixIsStrippedOnceAndOnlyAsWholeWord() async throws {
         let twice = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer Bearer xyz")
-        #expect(await twice.authHeaders()["Authorization"] == "Bearer Bearer xyz")
+        #expect(try await twice.authHeaders()["Authorization"] == "Bearer Bearer xyz")
         let lookalike = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
-        #expect(await lookalike.authHeaders()["Authorization"] == "Bearer bearerxyz")
+        #expect(try await lookalike.authHeaders()["Authorization"] == "Bearer bearerxyz")
     }
 
     // MARK: - Generated scheme wrappers
@@ -115,6 +115,55 @@ import Testing
         #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
             _ = try Self.schemeWrapper(scheme, token: "")
         }
+    }
+
+    // MARK: - Token provider
+
+    private final class TokenBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var count = 0
+
+        func next() -> String {
+            lock.lock()
+            defer { lock.unlock() }
+            count += 1
+            return "provided-\(count)"
+        }
+    }
+
+    private struct ProviderFailure: Error {}
+
+    /* The callback runs before every request, so a token refreshed elsewhere is
+     * picked up. */
+    @Test func testTokenProviderIsCalledBeforeEveryRequest() async throws {
+        let box = TokenBox()
+        let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { box.next() })
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
+    }
+
+    @Test func testTokenProviderResultIsValidatedLikeAStaticToken() async throws {
+        let empty = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "  " })
+        await #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
+            _ = try await empty.authHeaders()
+        }
+        let injected = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "a\r\nb" })
+        await #expect(throws: ConfigurationError.self) {
+            _ = try await injected.authHeaders()
+        }
+    }
+
+    @Test func testTokenProviderFailureFailsTheRequest() async throws {
+        let auth = BearerAuthenticator(
+            host: "https://api.example.com", tokenProvider: { throw ProviderFailure() })
+        await #expect(throws: ProviderFailure.self) {
+            _ = try await auth.authHeaders()
+        }
+    }
+
+    @Test func testTokenProviderAuthenticatorKeepsTheTokenOutOfItsDescription() {
+        let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "provided-1" })
+        #expect(!String(describing: auth).contains("provided-1"))
     }
 
     private static func schemeWrapper(_ scheme: String, token: String) throws -> BearerAuthenticator {

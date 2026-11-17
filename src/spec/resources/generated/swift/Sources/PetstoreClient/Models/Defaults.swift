@@ -9,22 +9,28 @@ import Foundation
 
 /// Defaults is a model class generated from the OpenAPI schema.
 /// Typed enum for Defaults.mode.
-public enum DefaultsModeEnum: String, Codable, Sendable, CaseIterable {
+public enum DefaultsModeEnum: String, Codable, Sendable, CaseIterable, CustomStringConvertible {
   case low = "low"
   case medium = "medium"
   case high = "high"
+
+  /// The wire value (`"active"`, `2`), not the case name, so interpolating
+  /// the enum prints what the server sees.
+  public var description: String {
+    return "\(rawValue)"
+  }
 }
 
 public struct Defaults: Codable, Sendable, Equatable, Hashable {
-  public var retries: Int?
-  public var mode: DefaultsModeEnum?
-  public var label: String?
-  public var greeting: String?
-  public var swatch: Swatch?
-  public var ratio: Double?
-  public var scale: Float?
-  public var weight: Double?
-  public var ceiling: Int64?
+  public let retries: Int?
+  public let mode: DefaultsModeEnum?
+  public let label: String?
+  public let greeting: String?
+  public let swatch: Swatch?
+  public let ratio: Double?
+  public let scale: Float?
+  public let weight: Double?
+  public let ceiling: Int64?
 
   enum CodingKeys: String, CodingKey {
     case retries = "retries"
@@ -55,6 +61,21 @@ public struct Defaults: Codable, Sendable, Equatable, Hashable {
     self.scale = scale
     self.weight = weight
     self.ceiling = ceiling
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    retries: Int?? = .none, mode: DefaultsModeEnum?? = .none, label: String?? = .none,
+    greeting: String?? = .none, swatch: Swatch?? = .none, ratio: Double?? = .none,
+    scale: Float?? = .none, weight: Double?? = .none, ceiling: Int64?? = .none
+  ) -> Defaults {
+    return Defaults(
+      retries: retries ?? self.retries, mode: mode ?? self.mode, label: label ?? self.label,
+      greeting: greeting ?? self.greeting, swatch: swatch ?? self.swatch,
+      ratio: ratio ?? self.ratio, scale: scale ?? self.scale, weight: weight ?? self.weight,
+      ceiling: ceiling ?? self.ceiling)
   }
 
   /// Decodes this instance from the given decoder.

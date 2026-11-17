@@ -781,6 +781,142 @@ import FoundationNetworking
         #expect(calls == 1)
     }
 
+    // MARK: - Per-call settings
+
+    /* A per-call retry limit replaces the transport's, up and down. */
+    @Test func testPerCallMaxRetriesReplacesTheTransportLimit() async throws {
+        var calls = 0
+        let client = try retryClient(maxRetries: 0) { _ in
+            calls += 1
+            return (Data(), 503, ["Retry-After": "0"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "http://localhost/per-call", headers: [:], body: nil,
+            noRedirect: false, refreshHeaders: nil, maxRetries: 2)
+        #expect(response.statusCode == 503)
+        #expect(calls == 3)
+    }
+
+    @Test func testPerCallMaxRetriesZeroTurnsRetriesOff() async throws {
+        var calls = 0
+        let client = try retryClient(maxRetries: 3) { _ in
+            calls += 1
+            return (Data(), 503, ["Retry-After": "0"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "http://localhost/per-call", headers: [:], body: nil,
+            noRedirect: false, refreshHeaders: nil, maxRetries: 0)
+        #expect(response.statusCode == 503)
+        #expect(calls == 1)
+    }
+
+    /* A per-call timeout replaces the transport's for that call only. */
+    @Test func testPerCallTimeoutReplacesTheTransportTimeoutForOneCall() async throws {
+        var seen: [TimeInterval] = []
+        let session = UnitStubURLProtocol.session { request in
+            seen.append(request.timeoutInterval)
+            return (Data(), 200, [:])
+        }
+        let client = try DefaultApiClient(
+            transportOptions: try TransportOptionsBuilder()
+                .session(session).timeout(10000).maxRetries(0).build())
+        _ = try await client.sendRequest(
+            method: "GET", url: "http://localhost/per-call", headers: [:], body: nil,
+            noRedirect: false, refreshHeaders: nil, timeout: 2500)
+        _ = try await client.sendRequest(
+            method: "GET", url: "http://localhost/per-call", headers: [:], body: nil)
+        #expect(seen.count == 2)
+        #expect(abs(seen[0] - 2.5) < 0.001)
+        #expect(abs(seen[1] - 10.0) < 0.001)
+    }
+
+    /* A client that built its own session still honours it: the call goes through a
+     * one-off copy of the session that carries the per-call timeout. */
+    @Test func testPerCallTimeoutReachesASessionTheSdkBuilt() async throws {
+        var seen: [TimeInterval] = []
+        let client = try retryClient(maxRetries: 0, timeout: 10000) { request in
+            seen.append(request.timeoutInterval)
+            return (Data(), 200, [:])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "http://localhost/per-call", headers: [:], body: nil,
+            noRedirect: false, refreshHeaders: nil, timeout: 2500)
+        #expect(response.statusCode == 200)
+        #expect(seen.count == 1)
+        #expect(abs((seen.first ?? 0) - 2.5) < 0.001)
+    }
+
+    /* A request to another origin leaves the default headers off, redirects still apply. */
+    @Test func testDefaultHeadersCanBeLeftOffOneRequest() async throws {
+        let transport = try TransportOptionsBuilder()
+            .defaultHeader(name: "Authorization", value: "Bearer api-token")
+            .maxRetries(0)
+            .build()
+        var seen: [[String: String]] = []
+        let client = makeClient(transport: transport) { request in
+            seen.append(request.allHTTPHeaderFields ?? [:])
+            return (Data(), 200, [:])
+        }
+        _ = try await client.sendRequest(
+            method: "GET", url: "http://localhost/other", headers: ["Accept": "application/json"],
+            body: nil, noRedirect: false, refreshHeaders: nil, sendDefaultHeaders: false)
+        _ = try await client.sendRequest(
+            method: "GET", url: "http://localhost/api", headers: ["Accept": "application/json"], body: nil)
+        #expect(seen[0]["Authorization"] == nil)
+        #expect(seen[0]["Accept"] == "application/json")
+        #expect(seen[1]["Authorization"] == "Bearer api-token")
+    }
+
+    /* The identity provider is another origin: discovery never carries the API's default headers. */
+    @Test func testOidcDiscoveryLeavesTheDefaultHeadersOff() async throws {
+        let transport = try TransportOptionsBuilder()
+            .defaultHeader(name: "Authorization", value: "Bearer api-token")
+            .maxRetries(0)
+            .build()
+        var discoveryHeaders: [String: String] = [:]
+        let client = makeClient(transport: transport) { request in
+            discoveryHeaders = request.allHTTPHeaderFields ?? [:]
+            let document = """
+                {"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}
+                """
+            return (Data(document.utf8), 200, ["Content-Type": "application/json"])
+        }
+        let auth = OpenIdConnectAuthenticator(
+            host: "https://api.example.com",
+            openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            redirectURI: "https://app.example.com/callback",
+            scopes: ["profile"]
+        )
+        auth.setApiClient(client)
+
+        _ = try await auth.buildAuthorizationURL(state: "my-state")
+
+        #expect(discoveryHeaders["Authorization"] == nil)
+        #expect(discoveryHeaders["Accept"] == "application/json")
+    }
+
+    /* A failed discovery names the request it made. */
+    @Test func testOidcDiscoveryFailureNamesTheRequest() async throws {
+        let client = makeClient { _ in (Data(), 404, [:]) }
+        let auth = OpenIdConnectAuthenticator(
+            host: "https://api.example.com",
+            openIDConnectURL: "https://auth.example.com/tenant/.well-known/openid-configuration?x=1",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            redirectURI: "https://app.example.com/callback",
+            scopes: []
+        )
+        auth.setApiClient(client)
+
+        let error = await #expect(throws: NotFoundError.self) {
+            _ = try await auth.buildAuthorizationURL(state: "my-state")
+        }
+        #expect(error?.requestMethod == "GET")
+        #expect(error?.requestPath == "/tenant/.well-known/openid-configuration")
+    }
+
     @Test(arguments: [400, 401, 403, 404, 422, 501])
     func testStatusesThatAreNotTransientAreNotRetried(status: Int) async throws {
         var calls = 0

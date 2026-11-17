@@ -9,8 +9,8 @@ import Foundation
 
 /// DryFood is a model class generated from the OpenAPI schema.
 public struct DryFood: Codable, Sendable, Equatable, Hashable {
-  public var foodType: String
-  public var weightKg: Double
+  public let foodType: String
+  public let weightKg: Double
 
   enum CodingKeys: String, CodingKey {
     case foodType = "foodType"
@@ -21,6 +21,13 @@ public struct DryFood: Codable, Sendable, Equatable, Hashable {
   public init(foodType: String = "dry", weightKg: Double) {
     self.foodType = foodType
     self.weightKg = weightKg
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(foodType: String? = nil, weightKg: Double? = nil) -> DryFood {
+    return DryFood(foodType: foodType ?? self.foodType, weightKg: weightKg ?? self.weightKg)
   }
 
   /// Decodes this instance from the given decoder.

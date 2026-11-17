@@ -1418,6 +1418,170 @@ import Testing
                 "Content-Disposition: form-data; name=\"meta\"\r\nContent-Type: application/json\r\n\r\n{"))
         #expect(bodyStr.components(separatedBy: "Content-Type:").count == 2)
     }
+
+    // MARK: - Request context on errors
+
+    /* A failure answered by the server names the request made through the API. */
+    @Test func testStatusErrorNamesTheRequestMadeThroughTheApi() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 404
+        let config = ConfigurationBuilder().baseURL("https://example.com/v2/").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        do {
+            _ = try await api.getPetById(petId: 7)
+            Issue.record("Expected NotFoundError")
+        } catch let error as NotFoundError {
+            #expect(error.requestMethod == "GET")
+            #expect(error.requestPath == "/v2/pet/7")
+            #expect(error.message == "API returned status code 404 for GET /v2/pet/7")
+        }
+    }
+
+    /* The query string never reaches the error, so a key sent in it stays out of logs. */
+    @Test func testQueryStringIsLeftOutOfTheErrorRequestPath() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 500
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let params = BaseApi.InvokeAPIParams(
+            method: "POST", path: "/items", queryParams: ["key": "secret-value"],
+            headerParams: [:], body: nil, accepts: ["application/json"],
+            contentType: "application/json", returnType: "String", auth: BaseApi.noAuthSentinel)
+
+        do {
+            _ = try await api.invokeAPI(params)
+            Issue.record("Expected ServerError")
+        } catch let error as ServerError {
+            #expect(error.requestMethod == "POST")
+            #expect(error.requestPath == "/items")
+            #expect(!error.message.contains("secret-value"))
+            #expect(error.errorDescription?.contains("secret-value") == false)
+        }
+    }
+
+    /* A failure that arrived without a response names the request too. */
+    @Test func testTransportFailureNamesTheRequest() async throws {
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: FailingApiClient(), config: config)
+
+        do {
+            _ = try await api.getPetById(petId: 3)
+            Issue.record("Expected NetworkError")
+        } catch let error as NetworkError {
+            #expect(error.requestMethod == "GET")
+            #expect(error.requestPath == "/pet/3")
+            #expect(error.message == "connection reset for GET /pet/3")
+        }
+    }
+
+    // MARK: - Per-call options
+
+    /* Per-call headers go on last: they replace a header of the same name from the
+     * authenticator, whatever its casing, and add the others. */
+    @Test func testPerCallHeadersAreAppliedLastAndReplaceAnyCasing() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(
+            apiClient: mockClient, config: config,
+            authenticator: MockAuth(headers: ["Authorization": "Bearer from-authenticator"]))
+        let options = AddPetOptions(headers: ["authorization": "Bearer per-call", "X-Extra": "1"])
+
+        _ = try? await api.addPet(pet: Pet(name: "test", photoUrls: []), options: options)
+
+        #expect(mockClient.lastHeaders["authorization"] == "Bearer per-call")
+        #expect(mockClient.lastHeaders["Authorization"] == nil)
+        #expect(mockClient.lastHeaders["X-Extra"] == "1")
+        #expect(mockClient.lastHeaders["Content-Type"] == "application/json")
+    }
+
+    @Test func testPerCallTimeoutMustBePositive() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        await #expect(throws: ConfigurationError.invalidTimeout(0)) {
+            _ = try await api.addPet(
+                pet: Pet(name: "test", photoUrls: []), options: AddPetOptions(timeout: 0))
+        }
+        #expect(mockClient.lastURL.isEmpty)
+    }
+
+    @Test func testPerCallMaxRetriesMustNotBeNegative() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        await #expect(throws: ConfigurationError.invalidArgument("maxRetries must not be negative: -1")) {
+            _ = try await api.addPet(
+                pet: Pet(name: "test", photoUrls: []), options: AddPetOptions(maxRetries: -1))
+        }
+        #expect(mockClient.lastURL.isEmpty)
+    }
+
+    // MARK: - Several success responses
+
+    /* The body is decoded as the schema of the status that arrived. */
+    @Test func testSeveralSuccessResponsesDecodeByTheStatusThatArrived() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"reservationId\":31,\"quantity\":4}"
+        let existing = try await api.reserveStockWithHTTPInfo()
+        #expect(existing.statusCode == 200)
+        #expect(existing.data?.asReservation?.reservationId == 31)
+        #expect(existing.data?.isReservationReceipt == false)
+
+        mockClient.responseStatusCode = 201
+        mockClient.responseBody = "{\"receiptCode\":\"rcpt-77\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}"
+        let created = try await api.reserveStockWithHTTPInfo()
+        #expect(created.statusCode == 201)
+        #expect(created.data?.asReservationReceipt?.receiptCode == "rcpt-77")
+        #expect(created.data?.isReservation == false)
+    }
+
+    /* A 201 body that happens to fit the 200 schema is still read as the 201 schema. */
+    @Test func testStatusDecidesTheSchemaNotTheShapeOfTheBody() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 201
+        mockClient.responseBody = "{\"reservationId\":31,\"quantity\":4}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        await #expect(throws: SerializationError.self) {
+            _ = try await api.reserveStockWithHTTPInfo()
+        }
+    }
+
+    @Test func testSeveralSuccessResponsesWithAnEmptyBodyHaveNoData() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 201
+        mockClient.responseBody = ""
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        let result = try await api.reserveStockWithHTTPInfo()
+        #expect(result.statusCode == 201)
+        #expect(result.data == nil)
+    }
+}
+
+/// A client whose transport always fails before a response arrives.
+private final class FailingApiClient: ApiClient, @unchecked Sendable {
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+        async throws -> ApiHttpResponse
+    {
+        try await sendRequest(
+            method: method, url: url, headers: headers, body: body, noRedirect: false)
+    }
+
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool)
+        async throws -> ApiHttpResponse
+    {
+        throw NetworkError(statusCode: 0, message: "connection reset")
+    }
 }
 
 /// A string enum standing in for a generated enum in the multipart tests.

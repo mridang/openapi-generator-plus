@@ -92,6 +92,15 @@ public class BaseApi: @unchecked Sendable {
     /// caller's bytes are sent unchanged under whichever declared
     /// Content-Type was selected, never re-encoded as JSON.
     var rawBody: Bool = false
+    /// Per-call timeout in milliseconds, from the operation's options; nil
+    /// keeps the transport's own.
+    var timeout: Int? = nil
+    /// Per-call request headers, from the operation's options; applied
+    /// last, so they replace a header of the same name from any other layer.
+    var requestHeaders: [String: String]? = nil
+    /// Per-call retry limit, from the operation's options; nil keeps the
+    /// transport's own and 0 turns retries off.
+    var maxRetries: Int? = nil
   }
 
   /// Sends one prepared request through the client. The SDK's own transport
@@ -99,14 +108,31 @@ public class BaseApi: @unchecked Sendable {
   /// supplied by the caller sees exactly one call.
   private func send(
     method: String, url: String, headers: [String: String], body: Data?,
-    refresh: (@Sendable () async throws -> [String: String])?
+    refresh: (@Sendable () async throws -> [String: String])?,
+    timeout: Int? = nil, maxRetries: Int? = nil
   ) async throws -> ApiHttpResponse {
-    if let client = apiClient as? DefaultApiClient {
-      return try await client.sendRequest(
-        method: method, url: url, headers: headers, body: body, noRedirect: false,
-        refreshHeaders: refresh)
+    do {
+      if let client = apiClient as? DefaultApiClient {
+        return try await client.sendRequest(
+          method: method, url: url, headers: headers, body: body, noRedirect: false,
+          refreshHeaders: refresh, timeout: timeout, maxRetries: maxRetries)
+      }
+      return try await apiClient.sendRequest(method: method, url: url, headers: headers, body: body)
+    } catch let error as ApiError {
+      /* A failure that arrived without a response carries the request too. */
+      error.attachRequest(method: method, path: ApiError.pathOfRequestURL(url))
+      throw error
     }
-    return try await apiClient.sendRequest(method: method, url: url, headers: headers, body: body)
+  }
+
+  /// Checks the per-call options before any request is built.
+  private static func validatePerCall(timeout: Int?, maxRetries: Int?) throws {
+    if let timeout = timeout, timeout <= 0 {
+      throw ConfigurationError.invalidTimeout(timeout)
+    }
+    if let maxRetries = maxRetries, maxRetries < 0 {
+      throw ConfigurationError.invalidArgument("maxRetries must not be negative: \(maxRetries)")
+    }
   }
 
   /// Invoke an API operation and return the raw response, handling URL
@@ -116,6 +142,7 @@ public class BaseApi: @unchecked Sendable {
   /// - Returns: The raw HTTP response.
   /// - Throws: ``ApiError`` if the API call fails.
   func invokeAPI(_ params: InvokeAPIParams) async throws -> ApiHttpResponse {
+    try Self.validatePerCall(timeout: params.timeout, maxRetries: params.maxRetries)
     var requestURL = params.path
     if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
       /* Strip trailing slash from baseUrl when path starts with `/` so
@@ -207,6 +234,12 @@ public class BaseApi: @unchecked Sendable {
       }
     }
 
+    /* Per-call headers go on last: they replace a header of the same name
+     * from every other layer, whatever its casing. */
+    if let perCall = params.requestHeaders {
+      headers = Self.mergeHeaders(headers, overriding: perCall)
+    }
+
     /* Inject trace context */
     TraceContextUtil.injectTraceContext(headers: &headers)
 
@@ -235,7 +268,7 @@ public class BaseApi: @unchecked Sendable {
     }
     var response = try await send(
       method: params.method, url: requestURL, headers: headers, body: serializedBody,
-      refresh: refresh)
+      refresh: refresh, timeout: params.timeout, maxRetries: params.maxRetries)
 
     /* A revoked or rotated token keeps failing while it is cached. On a 401
      * from a request that carried a token this SDK fetched, drop the token,
@@ -247,7 +280,7 @@ public class BaseApi: @unchecked Sendable {
         headers = Self.mergeHeaders(headers, overriding: fresh)
         response = try await send(
           method: params.method, url: requestURL, headers: headers, body: serializedBody,
-          refresh: refresh)
+          refresh: refresh, timeout: params.timeout, maxRetries: params.maxRetries)
       }
     }
 
@@ -256,7 +289,9 @@ public class BaseApi: @unchecked Sendable {
       throw ApiError.fromResponse(
         statusCode: response.statusCode,
         headers: response.headers,
-        body: response.body
+        body: response.body,
+        requestMethod: params.method,
+        requestPath: ApiError.pathOfRequestURL(requestURL)
       )
     }
 
@@ -324,6 +359,28 @@ public class BaseApi: @unchecked Sendable {
             + "\(params.operation): expected a JSON body")
       }
     }
+    return ApiResult<T>(
+      statusCode: response.statusCode,
+      data: data,
+      rawBody: response.body,
+      headers: response.headers
+    )
+  }
+
+  /// Invoke an operation that declares several 2xx responses with different
+  /// schemas and decode the body as the schema of the status that arrived.
+  ///
+  /// - Parameters:
+  ///   - params: The invocation parameters.
+  ///   - decode: Reads the body as the type of `response.statusCode` and wraps
+  ///     it in the operation's union; called only for a non-empty body.
+  /// - Returns: ``ApiResult`` with the decoded union, status code, raw body, and headers.
+  /// - Throws: ``ApiError`` if the API call fails.
+  func invokeAPIForResult<T: Sendable>(
+    _ params: InvokeAPIParams, decodingByStatus decode: (ApiHttpResponse) throws -> T?
+  ) async throws -> ApiResult<T> {
+    let response = try await invokeAPI(params)
+    let data: T? = response.body.isEmpty ? nil : try decode(response)
     return ApiResult<T>(
       statusCode: response.statusCode,
       data: data,

@@ -8,8 +8,14 @@
 import Foundation
 
 /// Task priority, integer-backed enum
-public enum Priority: Int, Codable, Sendable, CaseIterable {
-  case NUMBER_1 = 1
-  case NUMBER_2 = 2
-  case NUMBER_3 = 3
+public enum Priority: Int, Codable, Sendable, CaseIterable, CustomStringConvertible {
+  case number1 = 1
+  case number2 = 2
+  case number3 = 3
+
+  /// The wire value (`"active"`, `2`), not the case name, so interpolating
+  /// the enum prints what the server sees.
+  public var description: String {
+    return "\(rawValue)"
+  }
 }

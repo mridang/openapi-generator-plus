@@ -9,10 +9,10 @@ import Foundation
 
 /// Photo is a model class generated from the OpenAPI schema.
 public struct Photo: Codable, Sendable, Equatable, Hashable {
-  public var id: Int64?
-  public var caption: String?
-  public var isPrimary: Bool?
-  public var url: String?
+  public let id: Int64?
+  public let caption: String?
+  public let isPrimary: Bool?
+  public let url: String?
 
   enum CodingKeys: String, CodingKey {
     case id = "id"
@@ -28,6 +28,17 @@ public struct Photo: Codable, Sendable, Equatable, Hashable {
     self.caption = caption
     self.isPrimary = isPrimary
     self.url = url
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    id: Int64?? = .none, caption: String?? = .none, isPrimary: Bool?? = .none, url: String?? = .none
+  ) -> Photo {
+    return Photo(
+      id: id ?? self.id, caption: caption ?? self.caption, isPrimary: isPrimary ?? self.isPrimary,
+      url: url ?? self.url)
   }
 
   /// Decodes this instance from the given decoder.

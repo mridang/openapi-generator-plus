@@ -10,8 +10,8 @@ import Foundation
 /// Tag Tags are deprecated, use categories instead
 @available(*, deprecated, message: "This schema is deprecated.")
 public struct Tag: Codable, Sendable, Equatable, Hashable {
-  public var id: Int64?
-  public var name: String?
+  public let id: Int64?
+  public let name: String?
 
   enum CodingKeys: String, CodingKey {
     case id = "id"
@@ -22,6 +22,13 @@ public struct Tag: Codable, Sendable, Equatable, Hashable {
   public init(id: Int64? = nil, name: String? = nil) {
     self.id = id
     self.name = name
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(id: Int64?? = .none, name: String?? = .none) -> Tag {
+    return Tag(id: id ?? self.id, name: name ?? self.name)
   }
 
   /// Decodes this instance from the given decoder.

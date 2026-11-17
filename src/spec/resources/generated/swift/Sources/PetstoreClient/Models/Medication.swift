@@ -9,9 +9,9 @@ import Foundation
 
 /// Medication is a model class generated from the OpenAPI schema.
 public struct Medication: Codable, Sendable, Equatable, Hashable {
-  public var drugName: String
-  public var dosage: String?
-  public var notes: String?
+  public let drugName: String
+  public let dosage: String?
+  public let notes: String?
 
   enum CodingKeys: String, CodingKey {
     case drugName = "drugName"
@@ -24,6 +24,17 @@ public struct Medication: Codable, Sendable, Equatable, Hashable {
     self.drugName = drugName
     self.dosage = dosage
     self.notes = notes
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(drugName: String? = nil, dosage: String?? = .none, notes: String?? = .none)
+    -> Medication
+  {
+    return Medication(
+      drugName: drugName ?? self.drugName, dosage: dosage ?? self.dosage, notes: notes ?? self.notes
+    )
   }
 
   /// Decodes this instance from the given decoder.

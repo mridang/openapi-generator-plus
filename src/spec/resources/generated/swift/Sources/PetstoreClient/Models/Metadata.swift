@@ -9,10 +9,10 @@ import Foundation
 
 /// Metadata is a model class generated from the OpenAPI schema.
 public struct Metadata: Codable, Sendable, Equatable, Hashable {
-  public var createdAt: Date?
+  public let createdAt: Date?
 
   /// Additional properties not defined in the schema.
-  public var additionalProperties: [String: AnyCodable]
+  public let additionalProperties: [String: AnyCodable]
 
   enum CodingKeys: String, CodingKey {
     case createdAt = "createdAt"
@@ -22,6 +22,17 @@ public struct Metadata: Codable, Sendable, Equatable, Hashable {
   public init(createdAt: Date? = nil, additionalProperties: [String: AnyCodable] = [:]) {
     self.createdAt = createdAt
     self.additionalProperties = additionalProperties
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(createdAt: Date?? = .none, additionalProperties: [String: AnyCodable]? = nil)
+    -> Metadata
+  {
+    return Metadata(
+      createdAt: createdAt ?? self.createdAt,
+      additionalProperties: additionalProperties ?? self.additionalProperties)
   }
 
   public init(from decoder: Decoder) throws {

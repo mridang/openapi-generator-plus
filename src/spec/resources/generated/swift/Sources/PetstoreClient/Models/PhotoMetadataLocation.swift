@@ -9,8 +9,8 @@ import Foundation
 
 /// PhotoMetadataLocation is a model class generated from the OpenAPI schema.
 public struct PhotoMetadataLocation: Codable, Sendable, Equatable, Hashable {
-  public var lat: Double?
-  public var lng: Double?
+  public let lat: Double?
+  public let lng: Double?
 
   enum CodingKeys: String, CodingKey {
     case lat = "lat"
@@ -21,6 +21,13 @@ public struct PhotoMetadataLocation: Codable, Sendable, Equatable, Hashable {
   public init(lat: Double? = nil, lng: Double? = nil) {
     self.lat = lat
     self.lng = lng
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(lat: Double?? = .none, lng: Double?? = .none) -> PhotoMetadataLocation {
+    return PhotoMetadataLocation(lat: lat ?? self.lat, lng: lng ?? self.lng)
   }
 
   /// Decodes this instance from the given decoder.

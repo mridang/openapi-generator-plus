@@ -9,8 +9,8 @@ import Foundation
 
 /// StrictTag is a model class generated from the OpenAPI schema.
 public struct StrictTag: Codable, Sendable, Equatable, Hashable {
-  public var id: Int64?
-  public var name: String?
+  public let id: Int64?
+  public let name: String?
 
   enum CodingKeys: String, CodingKey {
     case id = "id"
@@ -21,6 +21,13 @@ public struct StrictTag: Codable, Sendable, Equatable, Hashable {
   public init(id: Int64? = nil, name: String? = nil) {
     self.id = id
     self.name = name
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(id: Int64?? = .none, name: String?? = .none) -> StrictTag {
+    return StrictTag(id: id ?? self.id, name: name ?? self.name)
   }
 
   /// Decodes this instance from the given decoder.

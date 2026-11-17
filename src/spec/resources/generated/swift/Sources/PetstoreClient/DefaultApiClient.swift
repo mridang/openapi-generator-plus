@@ -305,19 +305,32 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// request id is regenerated. The retry budget never extends the
   /// ``TransportOptions/timeout``, and a `noRedirect` request (the OAuth2
   /// token call) is never retried.
+  ///
+  /// - Parameters:
+  ///   - timeout: Per-call timeout in milliseconds that replaces the
+  ///     transport's for this call; nil keeps it.
+  ///   - maxRetries: Per-call retry limit that replaces the transport's for
+  ///     this call; 0 turns retries off and nil keeps it.
+  ///   - sendDefaultHeaders: When false, ``TransportOptions/defaultHeaders``
+  ///     are left off this request, as for a call to another origin (OIDC
+  ///     discovery); redirects are still followed.
   public func sendRequest(
     method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
-    refreshHeaders: (@Sendable () async throws -> [String: String])?
+    refreshHeaders: (@Sendable () async throws -> [String: String])?,
+    timeout: Int? = nil, maxRetries callRetries: Int? = nil, sendDefaultHeaders: Bool = true
   ) async throws -> ApiHttpResponse {
-    let maxRetries =
-      noRedirect || !DefaultApiClient.isReplayable(body) ? 0 : transportOptions.maxRetries
+    let limit = callRetries ?? transportOptions.maxRetries
+    let maxRetries = noRedirect || !DefaultApiClient.isReplayable(body) ? 0 : limit
+    let callTimeout: TimeInterval? = timeout.map { TimeInterval($0) / 1000.0 }
     if maxRetries == 0 {
       return try await sendOnce(
         method: method, url: url, headers: headers, body: body, noRedirect: noRedirect,
-        budget: nil)
+        budget: callTimeout, perCallTimeout: callTimeout,
+        sendDefaultHeaders: sendDefaultHeaders)
     }
     let started = Date()
-    let total: TimeInterval? = transportOptions.timeout.map { TimeInterval($0) / 1000.0 }
+    let total: TimeInterval? =
+      callTimeout ?? transportOptions.timeout.map { TimeInterval($0) / 1000.0 }
     var current = headers
     var attempt = 0
     while true {
@@ -328,7 +341,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       do {
         let received = try await sendOnce(
           method: method, url: url, headers: current, body: body, noRedirect: noRedirect,
-          budget: remaining)
+          budget: remaining, perCallTimeout: callTimeout,
+          sendDefaultHeaders: sendDefaultHeaders)
         if attempt >= maxRetries || !DefaultApiClient.isRetryableStatus(received.statusCode) {
           return received
         }
@@ -398,7 +412,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
   private func sendOnce(
     method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
-    budget: TimeInterval?
+    budget: TimeInterval?, perCallTimeout: TimeInterval? = nil, sendDefaultHeaders: Bool = true
   ) async throws -> ApiHttpResponse {
     /* Using the client after close() must surface a ConfigurationError, not a
        foreign URLSession invalidation exception. */
@@ -417,7 +431,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
      * origin: the caller's default headers (an API Authorization or key
      * header) are not sent there. */
     var merged = BaseApi.mergeHeaders(
-      noRedirect ? [:] : transportOptions.defaultHeaders, overriding: headers)
+      noRedirect || !sendDefaultHeaders ? [:] : transportOptions.defaultHeaders,
+      overriding: headers)
     /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
      * header in any case wins and nothing is injected beside it. */
     func hasHeader(_ name: String) -> Bool {
@@ -447,7 +462,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
        request. */
     let effectiveTimeout: TimeInterval? =
       budget ?? transportOptions.timeout.map { TimeInterval($0) / 1000.0 }
-    if !ownsSession, let timeout = effectiveTimeout {
+    if !ownsSession || perCallTimeout != nil, let timeout = effectiveTimeout {
       request.timeoutInterval = timeout
     }
 
@@ -489,6 +504,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
        task here so the post-completion `takeRedirectError(for:)` retrieves
        only this request's recorded refusal. */
     let task: URLSessionTask
+    var callDelegate: SessionDelegate?
     do {
       /* When noRedirect is set (used by the OAuth2 token
        * endpoint POST), route through a dedicated, non-following
@@ -497,10 +513,32 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
        * token manager inspects and rejects the 3xx itself, so the
        * credential-bearing body is never silently replayed to the
        * Location target. */
-      let activeSession: URLSession =
+      var activeSession: URLSession =
         noRedirect
         ? noRedirectSession()
         : session
+      /* A per-call timeout reaches a session the SDK built itself through
+         a one-off copy of it: the session's own deadlines would otherwise
+         cut a longer call short. It is released as soon as the call ends. */
+      var callSession: URLSession?
+      if ownsSession, !noRedirect, let callTimeout = perCallTimeout {
+        let configuration = session.configuration
+        configuration.timeoutIntervalForRequest = callTimeout
+        configuration.timeoutIntervalForResource = callTimeout
+        let delegate = SessionDelegate(
+          verifySsl: transportOptions.verifySsl,
+          caCertPath: transportOptions.caCertPath,
+          followRedirects: transportOptions.followRedirects,
+          maxRedirects: transportOptions.maxRedirects,
+          proxyCredential: proxyCredential
+        )
+        let created = URLSession(
+          configuration: configuration, delegate: delegate, delegateQueue: nil)
+        callSession = created
+        callDelegate = delegate
+        activeSession = created
+      }
+      defer { callSession?.finishTasksAndInvalidate() }
       (data, response, task) = try await DefaultApiClient.performDataTask(
         on: activeSession, for: request,
         taskDelegate: (!ownsSession && !noRedirect) ? sessionDelegate : nil,
@@ -537,7 +575,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
        returning the last 3xx response. Keying by task means a refusal
        recorded for a concurrent sibling request never surfaces on this
        one. */
-    if let refusal = sessionDelegate?.takeRedirectError(for: task) {
+    if let refusal = (callDelegate ?? sessionDelegate)?.takeRedirectError(for: task) {
       throw refusal
     }
 

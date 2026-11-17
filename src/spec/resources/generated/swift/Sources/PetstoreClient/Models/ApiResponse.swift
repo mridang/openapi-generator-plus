@@ -9,9 +9,9 @@ import Foundation
 
 /// ApiResponse is a model class generated from the OpenAPI schema.
 public struct ApiResponse: Codable, Sendable, Equatable, Hashable {
-  public var code: Int?
-  public var type: String?
-  public var message: String?
+  public let code: Int?
+  public let type: String?
+  public let message: String?
 
   enum CodingKeys: String, CodingKey {
     case code = "code"
@@ -24,6 +24,16 @@ public struct ApiResponse: Codable, Sendable, Equatable, Hashable {
     self.code = code
     self.type = type
     self.message = message
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(code: Int?? = .none, type: String?? = .none, message: String?? = .none)
+    -> ApiResponse
+  {
+    return ApiResponse(
+      code: code ?? self.code, type: type ?? self.type, message: message ?? self.message)
   }
 
   /// Decodes this instance from the given decoder.

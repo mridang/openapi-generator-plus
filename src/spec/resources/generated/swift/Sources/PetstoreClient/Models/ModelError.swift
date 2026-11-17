@@ -9,8 +9,8 @@ import Foundation
 
 /// ModelError is a model class generated from the OpenAPI schema.
 public struct ModelError: Codable, Sendable, Equatable, Hashable {
-  public var code: Int?
-  public var message: String?
+  public let code: Int?
+  public let message: String?
 
   enum CodingKeys: String, CodingKey {
     case code = "code"
@@ -21,6 +21,13 @@ public struct ModelError: Codable, Sendable, Equatable, Hashable {
   public init(code: Int? = nil, message: String? = nil) {
     self.code = code
     self.message = message
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(code: Int?? = .none, message: String?? = .none) -> ModelError {
+    return ModelError(code: code ?? self.code, message: message ?? self.message)
   }
 
   /// Decodes this instance from the given decoder.

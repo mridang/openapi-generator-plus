@@ -121,4 +121,102 @@ import Testing
       }
     }
   }
+
+  // MARK: - Immutable models
+
+  /* A model is immutable: copy replaces the properties it is given and keeps the rest. */
+  @Test func testCopyReplacesOnlyTheGivenProperties() {
+    let original = Order(id: 1, quantity: 7, status: .approved)
+    let changed = original.copy(quantity: 9)
+
+    #expect(changed.quantity == 9)
+    #expect(changed.id == 1)
+    #expect(changed.status == .approved)
+    #expect(original.quantity == 7)
+  }
+
+  @Test func testCopyClearsAnOptionalPropertyOnlyWithSomeNil() {
+    let original = Order(id: 1, quantity: 7)
+
+    #expect(original.copy(quantity: nil).quantity == 7)
+    #expect(original.copy(quantity: .some(nil)).quantity == nil)
+    #expect(original.copy(quantity: .some(nil)).id == 1)
+  }
+
+  @Test func testCopyOfARequiredPropertyKeepsTheOthers() {
+    let original = Reservation(reservationId: 31, quantity: 4)
+    let changed = original.copy(quantity: 5)
+
+    #expect(changed == Reservation(reservationId: 31, quantity: 5))
+    #expect(original.quantity == 4)
+  }
+
+  @Test func testCopyOfAModelWithAdditionalPropertiesKeepsThem() {
+    let when = Date(timeIntervalSince1970: 1_705_315_800)
+    let original = Metadata(createdAt: when, additionalProperties: ["extra": AnyCodable("x")])
+
+    let renamed = original.copy(additionalProperties: ["other": AnyCodable("y")])
+    #expect(renamed.createdAt == when)
+    #expect(renamed.additionalProperties.keys.sorted() == ["other"])
+
+    let moved = original.copy(createdAt: .some(nil))
+    #expect(moved.createdAt == nil)
+    #expect(moved.additionalProperties.keys.sorted() == ["extra"])
+  }
+
+  @Test func testCopyOfARecursiveModelKeepsTheChild() {
+    let original = TreeNode(value: "root", child: TreeNode(value: "leaf"))
+
+    #expect(original.copy(value: "renamed").child?.value == "leaf")
+    #expect(original.copy(child: .some(nil)).child == nil)
+  }
+
+  /* An enum prints its wire value, not the case name. */
+  @Test func testEnumDescriptionIsTheWireValue() {
+    #expect("\(OrderStatusEnum.approved)" == "approved")
+    #expect("\(Priority.number2)" == "2")
+    #expect(String(describing: Priority.number3) == "3")
+  }
+
+  @Test func testIntegerEnumMembersAreLowerCamelCase() {
+    #expect(Priority.allCases.map { "\($0)" } == ["1", "2", "3"])
+    #expect(Priority.number1.rawValue == 1)
+  }
+
+  // MARK: - README
+
+  private func readme() throws -> String {
+    let file = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+      .appendingPathComponent("README.md")
+    return try String(contentsOf: file, encoding: .utf8)
+  }
+
+  /* The README states the behaviours a caller cannot see from a signature. */
+  @Test(arguments: [
+    "## Per-call options",
+    "## Error details",
+    "## Immutable models",
+    "## Several success responses",
+    "## Credentials from the environment",
+    "## Response compression",
+    "## Logging",
+    "## Optional versus nullable",
+    "## Unknown enum values and discriminators",
+    "## Response headers",
+    "## Streaming",
+    "## Configuration and transport options",
+  ])
+  func testReadmeHasTheSection(heading: String) throws {
+    #expect(try readme().contains("\n\(heading)\n"))
+  }
+
+  @Test func testReadmeNamesTheRequestContextOnErrors() throws {
+    let text = try readme()
+    #expect(text.contains("`requestMethod` and `requestPath`"))
+    #expect(text.contains("API returned status code 404 for GET /items/7"))
+  }
+
+  @Test func testReadmeListsTheLicenseInThePackageSection() throws {
+    #expect(try readme().contains("- License: MIT"))
+  }
 }
