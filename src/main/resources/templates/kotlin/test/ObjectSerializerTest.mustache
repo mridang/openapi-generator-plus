@@ -111,6 +111,15 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject064 deserialize time as OffsetDateTime preserves the time portion and offset")
+        fun deserializedDateTimePreservesTimeAndOffset() {
+            val order = serializer.deserialize<{{modelPackage}}.Order>("{\"shipDate\":\"2024-01-15T10:30:00.123+05:30\"}")
+            assertNotNull(order)
+            assertEquals(java.time.LocalTime.of(10, 30, 0, 123_000_000), order!!.shipDate!!.toLocalTime())
+            assertEquals(ZoneOffset.ofHoursMinutes(5, 30), order.shipDate!!.offset)
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject144 round-trip: serialize then deserialize yields equivalent datetime")
         fun roundTripDateTime() {
             val original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30")
@@ -394,6 +403,57 @@ class ObjectSerializerTest {
         fun returnsNullForEmptyString() {
             val result: String? = serializer.deserialize("")
             assertNull(result)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject049 an explicit null decodes to nil for an optional property")
+        fun explicitNullDecodesToNil() {
+            val decoded = serializer.deserialize<{{modelPackage}}.Category>("{\"id\":null,\"name\":null}")
+            assertNotNull(decoded)
+            assertNull(decoded!!.id)
+            assertNull(decoded.name)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject050 a payload without a defaulted property gives it the default")
+        fun absentDefaultedPropertyTakesItsDefault() {
+            val defaults = serializer.deserialize<{{modelPackage}}.Defaults>("{\"label\":\"x\"}")
+            assertNotNull(defaults)
+            assertEquals(3, defaults!!.retries)
+            assertEquals({{modelPackage}}.Defaults.ModeEnum.MEDIUM, defaults.mode)
+            assertEquals("x", defaults.label)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject056 an explicit null wins over the default of an enum property")
+        fun explicitNullOverridesEnumDefault() {
+            val order = serializer.deserialize<{{modelPackage}}.Order>("{\"id\":10,\"status\":null}")
+            assertNotNull(order)
+            assertNull(order!!.status)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject066 invalid JSON text raises the SDK SerializationException")
+        fun invalidJsonRaisesSerializationException() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Category>("not json")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject084 an explicit null for a required container property throws")
+        fun explicitNullRequiredContainerThrows() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"n\",\"photoUrls\":null}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject089 an incomplete JSON object raises the SDK SerializationException")
+        fun incompleteObjectRaisesSerializationException() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Category>("{\"id\":1,\"name\":\"Dogs\"")
+            }
         }
 
         @Test
@@ -1179,6 +1239,15 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject048 a malformed uuid in an optional property is rejected on decode")
+        fun malformedOptionalUuidThrows() {
+            val raw = "{\"id\":\"550e8400-e29b-41d4-a716-446655440000\",\"optional\":\"not-a-uuid\"}"
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<UuidHolder>(raw)
+            }
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject103 malformed UUID string raises SerializationException on decode")
         fun malformedUuidThrows() {
             val raw = "{\"id\":\"not-a-uuid\"}"
@@ -1862,6 +1931,22 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject073 a duration round-trips through a model body")
+        fun durationRoundTripsThroughAModelBody() {
+            val wire = serializer.serialize({{modelPackage}}.EdgeCases(retryAfter = java.time.Duration.ofSeconds(90)))
+            assertTrue(wire.contains("\"retryAfter\":\"90s\""), "got: $wire")
+            val decoded = serializer.deserialize<{{modelPackage}}.EdgeCases>(wire)
+            assertEquals(java.time.Duration.ofSeconds(90), decoded!!.retryAfter)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject081 a duration field in a model body is written as whole protobuf seconds")
+        fun durationFieldIsWrittenAsWholeSeconds() {
+            val wire = serializer.serialize({{modelPackage}}.EdgeCases(retryAfter = java.time.Duration.ofHours(1)))
+            assertTrue(wire.contains("\"retryAfter\":\"3600s\""), "got: $wire")
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject080 format:duration that is malformed or overflows raises the SDK SerializationException")
         fun malformedOrOverflowingDurationRaisesSerializationException() {
             // Neither kotlinx's SerializationException nor a raw
@@ -1898,6 +1983,15 @@ class ObjectSerializerTest {
                 "{\"id\":1,\"name\":\"x\"}",
             )
             assertEquals("x", ok!!.name)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject047 declared keys decode on an unevaluatedProperties:false model")
+        fun declaredKeysDecode() {
+            val tag = serializer.deserialize<{{modelPackage}}.StrictTag>("{\"id\":7,\"name\":\"x\"}")
+            assertNotNull(tag)
+            assertEquals(7L, tag!!.id)
+            assertEquals("x", tag.name)
         }
 
         @Test
