@@ -1173,14 +1173,6 @@
    "reason": "kotlin sets the token manager API client through an internal property, since the token manager is internal support code"
   },
   {
-   "element": "requirednullable.note",
-   "aspect": "prop-optional",
-   "languages": [
-    "kotlin"
-   ],
-   "reason": "a required nullable property is String? with no default in kotlin: the caller must still pass it, which the surface check reads as optional because of the question mark"
-  },
-  {
    "element": [
     "objectserializer.*",
     "valueserializer.*",
@@ -1229,8 +1221,7 @@
    "languages": [
     "python",
     "node",
-    "elixir",
-    "kotlin"
+    "elixir"
    ],
    "reason": "each language passes the per-request redirect option in its own way: python with a defaulted body, node with an options object, elixir with a keyword list, kotlin by inheriting the interface default; the behaviour is the same"
   },
@@ -1244,8 +1235,7 @@
    "languages": [
     "python",
     "node",
-    "elixir",
-    "kotlin"
+    "elixir"
    ],
    "reason": "each language passes the per-request redirect option in its own way: python with a defaulted body, node with an options object, elixir with a keyword list, kotlin by inheriting the interface default; the behaviour is the same"
   },
@@ -3099,7 +3089,6 @@
    "element": "apierror.fromresponse",
    "aspect": "params",
    "languages": [
-    "kotlin",
     "php"
    ],
    "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
@@ -3108,7 +3097,6 @@
    "element": "apierror.fromresponse",
    "aspect": "optional",
    "languages": [
-    "kotlin",
     "php"
    ],
    "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
@@ -3332,7 +3320,6 @@
    "element": "apierror.fromresponse",
    "aspect": "params",
    "languages": [
-    "kotlin",
     "node"
    ],
    "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
@@ -3341,22 +3328,9 @@
    "element": "apierror.fromresponse",
    "aspect": "optional",
    "languages": [
-    "kotlin",
     "node"
    ],
    "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
-  },
-  {
-   "element": [
-    "clienterror.<ctor>",
-    "servererror.<ctor>"
-   ],
-   "aspect": "ctor",
-   "languages": [
-    "kotlin"
-   ],
-   "value": "*requestmethod, requestpath)",
-   "reason": "F830 owner decision: every ApiException subclass constructor takes the optional requestMethod and requestPath last; the two base classes of the 4xx and 5xx families still read as extra because the majority of the languages that have them has not landed the request context; drop this row once it has."
   },
   {
    "element": [
@@ -3413,7 +3387,7 @@
     "kotlin"
    ],
    "value": "extra*",
-   "reason": "F878: a kotlin oneOf wrapper holds an Any, so each variant gets a typed from<Variant> factory on its companion object and an is<Variant> property and an as<Variant>() accessor (a generic variant, which is erased at run time, only the factory), like swift, csharp and php; languages with native unions (node, rust, elixir) or isinstance (python) need none"
+   "reason": "F878: a kotlin oneOf or anyOf wrapper holds an Any, so each variant gets a typed from<Variant> factory on its companion object and an is<Variant> property and an as<Variant>() accessor (a generic variant, which is erased at run time, only the factory), like swift, csharp and php; languages with native unions (node, rust, elixir) or isinstance (python) need none"
   },
   {
    "element": "apierror.fromresponse",
@@ -3554,6 +3528,51 @@
    ],
    "value": "*?*",
    "reason": "F862 owner decision (an explicit credential wins, then the {PREFIX}_{FIELD} environment variable): the credential arguments of each scheme authenticator are optional so the variable can supply them; a missing one throws ConfigurationError at construction. Drop this row once the majority has it, as the kotlin rows above"
+  },
+  {
+   "element": [
+    "*options.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "kotlin"
+   ],
+   "reason": "F857 owner decision (the client takes one credential per security scheme, each operation uses the scheme its spec requires, no per-call scheme override): the kotlin Options classes carry no auth property. Delete this rule when the other languages land the same decision."
+  },
+  {
+   "element": [
+    "client.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "kotlin"
+   ],
+   "reason": "F857 owner decision: the kotlin client also takes one optional credential per distinct security scheme, named after the scheme (Client(host, petStoreBasic = ..., transportOptions)), which Kotlin's named and default arguments make one constructor; the (authenticator, transportOptions) constructor stays beside it, so a call site written against the canonical shape still compiles"
+  },
+  {
+   "element": [
+    "*api.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "kotlin"
+   ],
+   "reason": "F857 owner decision: an API class and BaseApi also take the per-scheme credentials the client holds (an optional fourth schemeAuthenticators argument keyed by scheme name), which an operation resolves for the scheme its spec requires; the (apiClient, config, authenticator) call site is unchanged"
+  },
+  {
+   "element": [
+    "apikeyheaderauthenticator.<ctor>",
+    "apikeyqueryauthenticator.<ctor>",
+    "internalapikeyauthenticator.<ctor>",
+    "sessioncookieauthenticator.<ctor>",
+    "petstorebearerauthenticator.<ctor>",
+    "servicetokenauthenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "kotlin"
+   ],
+   "reason": "F862 owner decision (a token-provider callback beside the static credential): kotlin takes it as a trailing suspend lambda (apiKeyProvider, tokenProvider) on each api key and bearer scheme authenticator, as it does on the base authenticators; drop this row once the majority has a provider on the per-scheme authenticators"
   }
  ]
 }

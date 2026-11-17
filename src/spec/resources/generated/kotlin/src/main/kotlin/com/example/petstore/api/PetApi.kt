@@ -178,10 +178,17 @@ class PetApi : BaseApi {
 
     constructor(apiClient: ApiClient, config: Configuration, authenticator: Authenticator?) : super(apiClient, config, authenticator)
 
+    constructor(
+        apiClient: ApiClient,
+        config: Configuration,
+        authenticator: Authenticator?,
+        schemeAuthenticators: Map<String, Authenticator>,
+    ) : super(apiClient, config, authenticator, schemeAuthenticators)
+
     /**
      * Add a new pet to the store
      * @param pet Create a new pet in the store (required)
-     * @param options per-operation authenticator override and the per-call timeout, headers and maxRetries
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return Pet
      * @throws ApiException if fails to make API call
@@ -204,7 +211,6 @@ class PetApi : BaseApi {
         pet: Pet,
         options: AddPetOptions? = null,
     ): ApiResult<Pet> {
-        val auth: Authenticator? = options?.auth
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -223,7 +229,7 @@ class PetApi : BaseApi {
             pet,
             arrayOf("application/json"),
             "application/json",
-            auth,
+            schemeAuthenticator("apiKeyHeader", "petStoreBearer"),
             "PetApi.addPet",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -290,7 +296,7 @@ class PetApi : BaseApi {
             formBody,
             arrayOf("application/json"),
             "multipart/form-data",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.addPetPhotos",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -302,7 +308,7 @@ class PetApi : BaseApi {
      * Record a treatment for a pet
      * @param petId  (required)
      * @param petTreatment  (required)
-     * @param options per-operation authenticator override and the per-call timeout, headers and maxRetries
+     * @param options the per-call timeout, headers and maxRetries
 
      * @return PetTreatment
      * @throws ApiException if fails to make API call
@@ -327,7 +333,6 @@ class PetApi : BaseApi {
         petTreatment: PetTreatment,
         options: AddPetTreatmentOptions? = null,
     ): ApiResult<PetTreatment> {
-        val auth: Authenticator? = options?.auth
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -354,7 +359,7 @@ class PetApi : BaseApi {
             petTreatment,
             arrayOf("application/json"),
             "application/json",
-            auth,
+            null,
             "PetApi.addPetTreatment",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -365,7 +370,7 @@ class PetApi : BaseApi {
     /**
      * Deletes a pet
      * @param petId Pet id to delete (required)
-     * @param options options for query, header, form, cookie parameters, per-operation auth and the per-call timeout, headers and maxRetries
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
      * @throws ApiException if fails to make API call
      */
@@ -381,7 +386,6 @@ class PetApi : BaseApi {
         petId: Long,
         options: DeletePetOptions? = null,
     ): ApiResult<Unit> {
-        val auth: Authenticator? = options?.auth
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -409,7 +413,7 @@ class PetApi : BaseApi {
                 "Cookie name '$cookieName' contains characters forbidden by RFC 6265"
             }
             require(isValidCookieValue(cookieValue)) {
-                "Cookie value for '$cookieName' contains characters forbidden by RFC 6265"
+                "Cookie value for '$cookieName' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
             }
             cookieParts.add("$cookieName=$cookieValue")
         }
@@ -425,7 +429,7 @@ class PetApi : BaseApi {
             null,
             arrayOf(),
             "application/json",
-            auth,
+            schemeAuthenticator("adminBasic", "machineAuth"),
             "PetApi.deletePet",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -492,7 +496,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/octet-stream"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.downloadPetDocument",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -549,7 +553,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.findPetsBornOn",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -623,7 +627,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.findPetsByStatus",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -701,7 +705,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getExternalPetInfo",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -779,7 +783,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getMultiServerPetInfo",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -837,7 +841,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("image/jpeg", "image/png"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getPetAvatar",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -895,7 +899,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getPetAvatarThumbnail",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -981,7 +985,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getPetById",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1069,7 +1073,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getPetByName",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1127,7 +1131,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getPetPassport",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1194,7 +1198,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("image/jpeg", "image/png", "application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getPetPhoto",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1279,7 +1283,7 @@ class PetApi : BaseApi {
                 "Cookie name '$cookieName' contains characters forbidden by RFC 6265"
             }
             require(isValidCookieValue(cookieValue)) {
-                "Cookie value for '$cookieName' contains characters forbidden by RFC 6265"
+                "Cookie value for '$cookieName' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
             }
             cookieParts.add("$cookieName=$cookieValue")
         }
@@ -1295,7 +1299,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("text/plain"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getPetSummary",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1435,7 +1439,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getPetTag",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1513,7 +1517,7 @@ class PetApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getStagingPetInfo",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1587,7 +1591,7 @@ class PetApi : BaseApi {
             body,
             arrayOf(),
             effectiveRequestContentType,
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.setPetAvatar",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1644,7 +1648,7 @@ class PetApi : BaseApi {
             setPetAvatarThumbnailRequest,
             arrayOf(),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.setPetAvatarThumbnail",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1722,7 +1726,7 @@ class PetApi : BaseApi {
             formBody,
             arrayOf("application/json"),
             "application/x-www-form-urlencoded",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.setPetPreferences",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1785,7 +1789,7 @@ class PetApi : BaseApi {
             pet,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.updatePet",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1848,7 +1852,7 @@ class PetApi : BaseApi {
             formBody,
             arrayOf("application/json"),
             "multipart/form-data",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.uploadPetCertificate",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -1946,7 +1950,7 @@ class PetApi : BaseApi {
             formBody,
             arrayOf("application/json"),
             effectiveRequestContentType,
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.uploadPetDocument",
             callTimeout = callTimeout,
             callHeaders = callHeaders,

@@ -163,6 +163,30 @@ used only when neither of the other two is set.
 val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { vault.currentToken() })
 ```
 
+{{#hasClientSchemes}}
+## Credentials per security scheme
+
+`{{clientClassName}}(host, <scheme> = credential, transportOptions)` takes one optional
+credential for each security scheme of the API, named after the scheme:{{#clientSchemes}} `{{{argName}}}`{{^-last}},{{/-last}}{{/clientSchemes}}.
+Each operation uses the credential of the first scheme its spec lists that you passed.
+There is no per-call override, so an operation's options object carries no authenticator.
+An operation none of whose schemes you passed a credential for uses the authenticator of
+`{{clientClassName}}(authenticator)` when you gave one and is otherwise sent without a
+credential; an operation declared with no security never sends one.
+
+{{/hasClientSchemes}}
+## Closing the client
+
+`close()` is graceful and idempotent: a request already in flight finishes, the transport
+the SDK created is released after the last one, and a request issued afterwards fails with
+`IllegalStateException`. A Ktor client you supplied is never closed.
+
+## Cookie parameters
+
+A cookie parameter is sent as you give it when every character is a legal RFC 6265
+cookie-octet, and otherwise fails with `IllegalArgumentException` before anything is sent.
+Percent-encode a value that needs it first; the SDK does not encode cookie values.
+
 ## Per-call options
 
 Every operation takes an options object, also an operation with no parameters and no

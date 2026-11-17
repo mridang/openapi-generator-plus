@@ -16,16 +16,19 @@ import com.example.petstore.auth.HttpAwareAuthenticator
 /**
  * Unified entry point for all API services.
  *
- * Takes an [Authenticator] and optionally [TransportOptions],
- * then exposes each API group as a typed property. If the authenticator
- * implements [HttpAwareAuthenticator], the shared [ApiClient]
- * is injected so that authentication HTTP calls (token exchange, discovery)
- * use the same transport configuration as regular API calls.
+ * Takes an [Authenticator] (or one optional credential per security scheme, named after the
+ * scheme) and optionally [TransportOptions], then exposes each API group as a typed property.
+ * If a credential implements [HttpAwareAuthenticator], the shared [ApiClient] is injected so
+ * that authentication HTTP calls (token exchange, discovery) use the same transport
+ * configuration as regular API calls.
  *
  * Usage:
  * ```kotlin
- * // Default transport
+ * // One credential for every operation
  * val client = Client(authenticator)
+ *
+ * // One credential per security scheme
+ * val client = Client("https://api.example.com", petStoreBasic = credential)
  *
  * // Custom transport (proxy, timeouts, etc.)
  * val transport = TransportOptions.builder()
@@ -56,30 +59,103 @@ class Client : AutoCloseable {
     /**
      * Creates a new client with the given authenticator and transport options.
      *
-     * If the authenticator implements [HttpAwareAuthenticator], the shared
-     * [ApiClient] is injected so that token exchange and discovery requests
-     * use the same proxy, TLS, and timeout settings.
+     * The authenticator is the credential for every operation. If it implements
+     * [HttpAwareAuthenticator], the shared [ApiClient] is injected so that token
+     * exchange and discovery requests use the same proxy, TLS, and timeout settings.
      *
      * @param authenticator provides host URL and auth headers
      * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
      * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
      */
-    constructor(authenticator: Authenticator, transportOptions: TransportOptions) {
+    constructor(authenticator: Authenticator, transportOptions: TransportOptions) :
+        this(emptyMap(), authenticator, authenticator.getHost(), transportOptions)
+
+    /**
+     * Creates a new client that holds one optional credential per security scheme the spec
+     * declares, each named after its scheme. An operation uses the credential of the first
+     * scheme its spec lists that you passed here; a call cannot pick another scheme. An
+     * operation none of whose schemes you passed a credential for is sent without one.
+     *
+     * @param host API base URL
+     * @param petStoreBasic credential for the `petStoreBasic` security scheme, or null for none
+     * @param adminBasic credential for the `adminBasic` security scheme, or null for none
+     * @param petStoreBearer credential for the `petStoreBearer` security scheme, or null for none
+     * @param serviceToken credential for the `serviceToken` security scheme, or null for none
+     * @param apiKeyHeader credential for the `apiKeyHeader` security scheme, or null for none
+     * @param internalApiKey credential for the `internalApiKey` security scheme, or null for none
+     * @param apiKeyQuery credential for the `apiKeyQuery` security scheme, or null for none
+     * @param sessionCookie credential for the `sessionCookie` security scheme, or null for none
+     * @param machineAuth credential for the `machineAuth` security scheme, or null for none
+     * @param legacyAuth credential for the `legacyAuth` security scheme, or null for none
+     * @param userAuth credential for the `userAuth` security scheme, or null for none
+     * @param browserAuth credential for the `browserAuth` security scheme, or null for none
+     * @param ssoAuth credential for the `ssoAuth` security scheme, or null for none
+     * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+     */
+    constructor(
+        host: String,
+        petStoreBasic: com.example.petstore.auth.PetStoreBasicAuthenticator? = null,
+        adminBasic: com.example.petstore.auth.AdminBasicAuthenticator? = null,
+        petStoreBearer: com.example.petstore.auth.PetStoreBearerAuthenticator? = null,
+        serviceToken: com.example.petstore.auth.ServiceTokenAuthenticator? = null,
+        apiKeyHeader: com.example.petstore.auth.ApiKeyHeaderAuthenticator? = null,
+        internalApiKey: com.example.petstore.auth.InternalApiKeyAuthenticator? = null,
+        apiKeyQuery: com.example.petstore.auth.ApiKeyQueryAuthenticator? = null,
+        sessionCookie: com.example.petstore.auth.SessionCookieAuthenticator? = null,
+        machineAuth: com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator? = null,
+        legacyAuth: com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator? = null,
+        userAuth: com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator? = null,
+        browserAuth: com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator? = null,
+        ssoAuth: com.example.petstore.auth.oauth.SsoAuthAuthenticator? = null,
+        transportOptions: TransportOptions? = null,
+    ) : this(
+        mapOfNotNull(
+            "petStoreBasic" to petStoreBasic,
+            "adminBasic" to adminBasic,
+            "petStoreBearer" to petStoreBearer,
+            "serviceToken" to serviceToken,
+            "apiKeyHeader" to apiKeyHeader,
+            "internalApiKey" to internalApiKey,
+            "apiKeyQuery" to apiKeyQuery,
+            "sessionCookie" to sessionCookie,
+            "machineAuth" to machineAuth,
+            "legacyAuth" to legacyAuth,
+            "userAuth" to userAuth,
+            "browserAuth" to browserAuth,
+            "ssoAuth" to ssoAuth,
+        ),
+        null,
+        host,
+        transportOptions ?: TransportOptions.builder().build(),
+    )
+
+    private constructor(
+        schemeAuthenticators: Map<String, Authenticator>,
+        authenticator: Authenticator?,
+        host: String,
+        transportOptions: TransportOptions,
+    ) {
         val apiClient: ApiClient = DefaultApiClient(transportOptions)
         this.apiClient = apiClient
 
         if (authenticator is HttpAwareAuthenticator) {
             authenticator.setApiClient(apiClient)
         }
+        for (scheme in schemeAuthenticators.values) {
+            if (scheme is HttpAwareAuthenticator) {
+                scheme.setApiClient(apiClient)
+            }
+        }
 
         val config =
             Configuration
                 .builder()
-                .baseUrl(authenticator.getHost())
+                .baseUrl(host)
                 .build()
 
-        this.pet = PetApi(apiClient, config, authenticator)
-        this.store = StoreApi(apiClient, config, authenticator)
+        this.pet = PetApi(apiClient, config, authenticator, schemeAuthenticators)
+        this.store = StoreApi(apiClient, config, authenticator, schemeAuthenticators)
     }
 
     /**
@@ -94,6 +170,17 @@ class Client : AutoCloseable {
     }
 
     companion object {
+        /** The credentials that were passed, keyed by scheme; a scheme given `null` is left out. */
+        private fun mapOfNotNull(vararg entries: Pair<String, Authenticator?>): Map<String, Authenticator> {
+            val held = LinkedHashMap<String, Authenticator>()
+            for ((scheme, credential) in entries) {
+                if (credential != null) {
+                    held[scheme] = credential
+                }
+            }
+            return held
+        }
+
         /**
          * Creates a client authenticated with a static Bearer token.
          *

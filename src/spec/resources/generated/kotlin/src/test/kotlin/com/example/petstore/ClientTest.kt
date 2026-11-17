@@ -44,6 +44,52 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName("F857: the scheme constructor takes one optional credential per scheme, named after it")
+    fun schemeConstructorTakesOneOptionalCredentialPerScheme() {
+        val client =
+            Client(
+                "/api/v3",
+                petStoreBasic = null,
+                adminBasic = null,
+                petStoreBearer = null,
+                serviceToken = null,
+                apiKeyHeader = null,
+                internalApiKey = null,
+                apiKeyQuery = null,
+                sessionCookie = null,
+                machineAuth = null,
+                legacyAuth = null,
+                userAuth = null,
+                browserAuth = null,
+                ssoAuth = null,
+                transportOptions = TransportOptions.builder().build(),
+            )
+
+        assertNotNull(client)
+        client.close()
+    }
+
+    @Test
+    @DisplayName("F857: a client given only a host sends no authentication header")
+    fun clientWithNoCredentialSendsNoAuthenticationHeader() {
+        var authorization: String? = "unset"
+        val engine =
+            MockEngine { request ->
+                authorization = request.headers["Authorization"]
+                respond("{}")
+            }
+        val client =
+            Client(
+                "/api/v3",
+                transportOptions = TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+            )
+
+        runBlocking { client.store.getInventory() }
+
+        assertNull(authorization)
+    }
+
+    @Test
     @DisplayName("Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
     fun bearerRejectsCrlfAndNonAscii() {
         assertThrows(IllegalArgumentException::class.java) {

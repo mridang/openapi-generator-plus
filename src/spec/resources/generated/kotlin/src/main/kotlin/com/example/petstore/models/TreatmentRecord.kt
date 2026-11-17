@@ -76,6 +76,28 @@ class TreatmentRecord(
             else -> a.hashCode()
         }
 
+    /** Tells whether this union retained a [Surgery]. */
+    val isSurgery: Boolean
+        get() = matchedInstances.any { it is Surgery }
+
+    /** The first retained [Surgery], or null when this union retained none. */
+    fun asSurgery(): Surgery? = matchedInstances.firstOrNull { it is Surgery } as? Surgery
+
+    /** Tells whether this union retained a [Medication]. */
+    val isMedication: Boolean
+        get() = matchedInstances.any { it is Medication }
+
+    /** The first retained [Medication], or null when this union retained none. */
+    fun asMedication(): Medication? = matchedInstances.firstOrNull { it is Medication } as? Medication
+
+    companion object {
+        /** Wraps a [Surgery] as this union. */
+        fun fromSurgery(value: Surgery): TreatmentRecord = TreatmentRecord(value)
+
+        /** Wraps a [Medication] as this union. */
+        fun fromMedication(value: Medication): TreatmentRecord = TreatmentRecord(value)
+    }
+
     internal object Serializer : kotlinx.serialization.KSerializer<TreatmentRecord> {
         override val descriptor =
             kotlinx.serialization.descriptors.buildClassSerialDescriptor("TreatmentRecord")

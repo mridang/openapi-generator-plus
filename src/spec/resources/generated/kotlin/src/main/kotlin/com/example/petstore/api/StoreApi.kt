@@ -61,6 +61,13 @@ class StoreApi : BaseApi {
 
     constructor(apiClient: ApiClient, config: Configuration, authenticator: Authenticator?) : super(apiClient, config, authenticator)
 
+    constructor(
+        apiClient: ApiClient,
+        config: Configuration,
+        authenticator: Authenticator?,
+        schemeAuthenticators: Map<String, Authenticator>,
+    ) : super(apiClient, config, authenticator, schemeAuthenticators)
+
     /**
      * Create an account
      * @param account  (required)
@@ -155,7 +162,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf(),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "StoreApi.deleteOrder",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -499,7 +506,7 @@ class StoreApi : BaseApi {
             null,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "StoreApi.getOrderById",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
@@ -823,7 +830,7 @@ class StoreApi : BaseApi {
             order,
             arrayOf("application/json"),
             "application/json",
-            null,
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "StoreApi.placeOrder",
             callTimeout = callTimeout,
             callHeaders = callHeaders,

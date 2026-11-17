@@ -566,4 +566,46 @@ class ComposedSchemaTest {
             assertNull(union.asReservationReceipt())
         }
     }
+
+    @Nested
+    @DisplayName("anyOf typed factories and accessors - PetTreatment")
+    inner class PetTreatmentAccessorTests {
+        @Test
+        @DisplayName("a factory wraps its variant and only its is accessor answers true")
+        fun testFactoryWrapsItsVariant() {
+            val medication = Medication(drugName = "Amoxicillin", dosage = "500mg")
+            val union = PetTreatment.fromMedication(medication)
+
+            assertSame(medication, union.actualInstance)
+            assertTrue(union.isMedication)
+            assertFalse(union.isSurgery)
+            assertSame(medication, union.asMedication())
+            assertNull(union.asSurgery())
+        }
+
+        @Test
+        @DisplayName("a payload that satisfies both variants answers true to both accessors")
+        fun testBothRetainedVariantsAreReachable() {
+            val union =
+                json.decodeFromString<PetTreatment>(
+                    """{"drugName":"Amoxicillin","dosage":"500mg","procedureName":"Spay","durationMinutes":45}""",
+                )
+
+            assertTrue(union.isMedication)
+            assertTrue(union.isSurgery)
+            assertEquals("Amoxicillin", union.asMedication()!!.drugName)
+            assertEquals("Spay", union.asSurgery()!!.procedureName)
+        }
+
+        @Test
+        @DisplayName("a union with no variant answers false and null to every accessor")
+        fun testEmptyUnionAnswersNothing() {
+            val union = PetTreatment()
+
+            assertFalse(union.isMedication)
+            assertNull(union.asMedication())
+            assertFalse(union.isSurgery)
+            assertNull(union.asSurgery())
+        }
+    }
 }

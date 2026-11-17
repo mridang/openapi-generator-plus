@@ -51,8 +51,11 @@ abstract class BaseApi {
     @PublishedApi
     internal val headerSelector: HeaderSelector
 
-    /** Default authenticator used when no per-operation auth is provided. */
+    /** Default authenticator used by an operation whose security schemes the client holds no credential for. */
     protected val authenticator: Authenticator?
+
+    /** The credential of each security scheme, keyed by the scheme's name in the spec. */
+    private val schemeAuthenticators: Map<String, Authenticator>
 
     /**
      * Create an API instance with the default configuration and default transport.
@@ -79,14 +82,52 @@ abstract class BaseApi {
      *
      * @param apiClient     the HTTP transport client
      * @param config        API-level configuration (base URL and default headers)
-     * @param authenticator default authenticator for operations without explicit auth
+     * @param authenticator default authenticator for operations no scheme credential covers
      */
-    constructor(apiClient: ApiClient, config: Configuration, authenticator: Authenticator?) {
+    constructor(apiClient: ApiClient, config: Configuration, authenticator: Authenticator?) :
+        this(apiClient, config, authenticator, emptyMap())
+
+    /**
+     * Create an API instance with a custom API client, configuration, default authenticator and
+     * one credential per security scheme.
+     *
+     * @param apiClient            the HTTP transport client
+     * @param config               API-level configuration (base URL and default headers)
+     * @param authenticator        default authenticator for operations no scheme credential covers
+     * @param schemeAuthenticators the credential of each security scheme, keyed by the scheme's
+     *   name in the spec
+     */
+    constructor(
+        apiClient: ApiClient,
+        config: Configuration,
+        authenticator: Authenticator?,
+        schemeAuthenticators: Map<String, Authenticator>,
+    ) {
         this.apiClient = apiClient
         this.config = config
         this.objectSerializer = ObjectSerializer()
         this.headerSelector = HeaderSelector()
         this.authenticator = authenticator
+        this.schemeAuthenticators = schemeAuthenticators.toMap()
+    }
+
+    /**
+     * The credential of the first of [schemeIds] this API holds one for, or `null` when it holds
+     * none of them, which leaves the call to the default [authenticator]. An operation lists the
+     * schemes its spec accepts in the order the spec names them, so the first one the client was
+     * given a credential for wins.
+     *
+     * @param schemeIds the security schemes an operation accepts, in the spec's order
+     * @return the credential to authenticate the call with, or `null`
+     */
+    protected fun schemeAuthenticator(vararg schemeIds: String): Authenticator? {
+        for (schemeId in schemeIds) {
+            val found = schemeAuthenticators[schemeId]
+            if (found != null) {
+                return found
+            }
+        }
+        return null
     }
 
     /**
@@ -105,7 +146,7 @@ abstract class BaseApi {
      * @param body        request body (model object or null)
      * @param accepts     acceptable response content types
      * @param contentType request content type
-     * @param auth        optional authenticator for operation-specific auth
+     * @param auth        the credential of the operation's security scheme, [NoAuth] for an unauthenticated operation, or null for the default authenticator
      * @param callTimeout optional end-to-end timeout in milliseconds for this call only
      * @param callHeaders optional headers for this call only; they replace a header of the same name
      * @param callMaxRetries optional number of retries for this call only; `0` disables them
@@ -148,9 +189,11 @@ abstract class BaseApi {
          *                               and do NOT fall back to the client-level
          *                               one, so the client credential is never
          *                               leaked to an unauthenticated endpoint.
-         *   - auth == null           -> no per-call override; fall back to the
-         *                               client-level authenticator (a secured op).
-         *   - auth is a real value   -> a per-call override; use it as-is.
+         *   - auth == null           -> the client holds no credential for any
+         *                               scheme the operation accepts; fall back to
+         *                               the client-level authenticator.
+         *   - auth is a real value   -> the credential of the first scheme the
+         *                               operation accepts that the client holds.
          */
         val effectiveAuth =
             when {
@@ -158,10 +201,11 @@ abstract class BaseApi {
                 auth != null -> auth
                 else -> this.authenticator
             }
-        /* A per-call authenticator that makes HTTP calls of its own (an OAuth2 or
-         * OpenID Connect flow) never went through the client facade, so it has no
-         * transport yet. Hand it this API's, so its token requests use the same
-         * proxy, TLS and timeout settings as the call it authenticates. */
+        /* A scheme credential that makes HTTP calls of its own (an OAuth2 or OpenID
+         * Connect flow) and was handed to an API class directly never went through
+         * the client facade, so it has no transport yet. Hand it this API's, so its
+         * token requests use the same proxy, TLS and timeout settings as the call
+         * it authenticates. */
         if (auth != null && auth !== NoAuth && effectiveAuth is HttpAwareAuthenticator) {
             effectiveAuth.setApiClient(apiClient)
         }
@@ -197,7 +241,7 @@ abstract class BaseApi {
                             "Cookie name '$name' contains characters forbidden by RFC 6265"
                         }
                         require(isValidCookieValue(value)) {
-                            "Cookie value for '$name' contains characters forbidden by RFC 6265"
+                            "Cookie value for '$name' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
                         }
                         "$name=$value"
                     }

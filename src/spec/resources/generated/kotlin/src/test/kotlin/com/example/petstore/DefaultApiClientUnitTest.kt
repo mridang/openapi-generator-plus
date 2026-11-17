@@ -1930,8 +1930,8 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("F1078: close is idempotent and lets a request already in flight finish")
-        fun closeIsGracefulAndIdempotent() {
+        @DisplayName("F1078: close lets a request already in flight finish and releases the transport after the last one")
+        fun closeLetsAnInFlightRequestFinishThenReleasesTheTransport() {
             val engine =
                 MockEngine { _ ->
                     kotlinx.coroutines.delay(300)
@@ -1941,7 +1941,8 @@ class DefaultApiClientUnitTest {
                         headers = headersOf("Content-Type", "application/json"),
                     )
                 }
-            val apiClient = DefaultApiClient(io.ktor.client.HttpClient(engine))
+            val transport = io.ktor.client.HttpClient(engine)
+            val apiClient = DefaultApiClient(transport)
             val result =
                 runBlocking {
                     val pending =
@@ -1950,13 +1951,30 @@ class DefaultApiClientUnitTest {
                         }
                     kotlinx.coroutines.delay(100)
                     apiClient.close()
-                    apiClient.close()
-                    assertThrowsExactly(IllegalStateException::class.java) {
-                        runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
-                    }
+                    assertTrue(transport.coroutineContext[kotlinx.coroutines.Job]!!.isActive, "released while a request is in flight")
+                    val rejected =
+                        assertThrowsExactly(IllegalStateException::class.java) {
+                            runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+                        }
+                    assertEquals("ApiClient has been closed and can no longer send requests", rejected.message)
                     pending.await()
                 }
             assertEquals(200, result.statusCode)
+            assertFalse(transport.coroutineContext[kotlinx.coroutines.Job]!!.isActive, "not released after the last request finished")
+        }
+
+        @Test
+        @DisplayName("F1078: closing with nothing in flight releases the transport and a second close does nothing")
+        fun closeIsIdempotent() {
+            val transport = io.ktor.client.HttpClient(MockEngine { respond("{}") })
+            val apiClient = DefaultApiClient(transport)
+
+            apiClient.close()
+            assertFalse(transport.coroutineContext[kotlinx.coroutines.Job]!!.isActive)
+            assertDoesNotThrow { apiClient.close() }
+            assertThrowsExactly(IllegalStateException::class.java) {
+                runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+            }
         }
     }
 

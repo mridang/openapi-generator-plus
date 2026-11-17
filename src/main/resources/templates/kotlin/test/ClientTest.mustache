@@ -39,6 +39,44 @@ class ClientTest {
         assertNotNull(client)
     }
 
+{{#hasClientSchemes}}
+    @Test
+    @DisplayName("F857: the scheme constructor takes one optional credential per scheme, named after it")
+    fun schemeConstructorTakesOneOptionalCredentialPerScheme() {
+        val client =
+            {{clientClassName}}(
+                "{{{basePath}}}",
+{{#clientSchemes}}
+                {{{argName}}} = null,
+{{/clientSchemes}}
+                transportOptions = TransportOptions.builder().build(),
+            )
+
+        assertNotNull(client)
+        client.close()
+    }
+
+{{/hasClientSchemes}}
+    @Test
+    @DisplayName("F857: a client given only a host sends no authentication header")
+    fun clientWithNoCredentialSendsNoAuthenticationHeader() {
+        var authorization: String? = "unset"
+        val engine =
+            MockEngine { request ->
+                authorization = request.headers["Authorization"]
+                respond("{}")
+            }
+        val client =
+            {{clientClassName}}(
+                "{{{basePath}}}",
+                transportOptions = TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+            )
+
+        runBlocking { client.store.getInventory() }
+
+        assertNull(authorization)
+    }
+
     @Test
     @DisplayName("Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
     fun bearerRejectsCrlfAndNonAscii() {
