@@ -174,7 +174,9 @@ import Testing
     #expect(client.urls == ["https://auth.example.com/token", "https://auth.example.com/refresh"])
   }
 
-  @Test func testRefreshGrantFallsBackToTokenUrlWithoutRefreshUrl() async throws {
+  @Test func testBhvAuthoauthtwopassword020RefreshGrantFallsBackToTokenUrlWithoutRefreshUrl()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))

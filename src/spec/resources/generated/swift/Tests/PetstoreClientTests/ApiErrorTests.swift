@@ -205,6 +205,33 @@ import Testing
 
   /* A 404 is a NotFoundError and a 500 an InternalServerError; each is an
    * ApiError of the right family and part of the OpenAPIError hierarchy. */
+  /* Every error type lives in the Errors folder, and the module exports each one under its own name. */
+  @Test func testBhvErrors044EveryErrorTypeLivesInTheErrorsFolderAndTheModuleExportsIt() {
+    let names = [
+      "OpenAPIError", "ApiError", "ClientError", "ServerError", "BadRequestError",
+      "UnauthorizedError", "ForbiddenError", "NotFoundError", "ConflictError",
+      "UnprocessableEntityError", "TooManyRequestsError", "InternalServerError", "NetworkError",
+      "NetworkTimeoutError", "SerializationError", "ConfigurationError", "OAuth2ServerError",
+      "OAuth2TokenError", "OAuth2AuthorizationCodeError",
+    ]
+    let exported: [Any.Type] = [
+      OpenAPIError.self, ApiError.self, ClientError.self, ServerError.self, BadRequestError.self,
+      UnauthorizedError.self, ForbiddenError.self, NotFoundError.self, ConflictError.self,
+      UnprocessableEntityError.self, TooManyRequestsError.self, InternalServerError.self,
+      NetworkError.self,
+      NetworkTimeoutError.self, SerializationError.self, ConfigurationError.self,
+      OAuth2ServerError.self,
+      OAuth2TokenError.self, OAuth2AuthorizationCodeError.self,
+    ]
+    #expect(exported.count == names.count)
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    for name in names {
+      let file = root.appendingPathComponent("Sources/PetstoreClient/Errors/\(name).swift")
+      #expect(
+        FileManager.default.fileExists(atPath: file.path), "\(name) must live in the Errors folder")
+    }
+  }
+
   @Test func testBhvErrors006StatusCodesMapToTypedErrors() {
     let notFound: any Error = ApiError.fromResponse(
       statusCode: 404, headers: [:], body: "")

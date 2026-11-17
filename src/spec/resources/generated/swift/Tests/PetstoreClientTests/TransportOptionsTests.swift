@@ -272,7 +272,7 @@ import Testing
 
   /* The README names the real setter, `TransportOptionsBuilder.proxy(_:)`,
      and not another language's accessor. */
-  @Test func testReadmeSocksSectionNamesTheSwiftSetter() throws {
+  @Test func testBhvOptions044ReadmeSocksSectionNamesTheSwiftSetter() throws {
     let readme = try String(
       contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         .appendingPathComponent("README.md"),

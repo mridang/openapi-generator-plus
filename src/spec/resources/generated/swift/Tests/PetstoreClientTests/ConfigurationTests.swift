@@ -169,6 +169,14 @@ import Testing
     #expect(config.defaultHeaders["X-Third"] == "three")
   }
 
+  /* A built Configuration is immutable: a change made through the builder afterwards does not reach it. */
+  @Test func testBhvConfig017BuiltConfigurationIgnoresLaterBuilderChanges() {
+    let builder = ConfigurationBuilder().defaultHeader(name: "X-Test", value: "before")
+    let config = builder.build()
+    builder.defaultHeader(name: "X-Test", value: "after")
+    #expect(config.defaultHeaders["X-Test"] == "before")
+  }
+
   @Test func testBhvConfig016InvalidServerVariableEnumValueThrows() {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.example.com",

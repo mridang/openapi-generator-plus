@@ -112,7 +112,7 @@ import Testing
   }
 
   /* An optional request body can be left out of the call altogether. */
-  @Test func testPlaceOrderBodyCanBeOmitted() async throws {
+  @Test func testBhvOperations126PlaceOrderBodyCanBeOmitted() async throws {
     let mockApi = storeApiForMock(statusCode: 200, body: "{\"id\":1}")
     let result = try await mockApi.placeOrder()
     #expect(result.id == 1)

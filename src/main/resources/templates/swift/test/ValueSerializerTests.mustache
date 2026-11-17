@@ -687,7 +687,7 @@ import Testing
         #expect(ValueSerializer.encodeCookieValue("a-b._~9") == "a-b._~9")
     }
 
-    @Test func testEncodeCookieValueMatchesTheSharedBytes() {
+    @Test func testBhvSerializationparam104EncodeCookieValueKeepsOnlyTheUnreservedSetLiteral() {
         #expect(
             ValueSerializer.encodeCookieValue("{\"k\":\"a b~*\u{00E9}\"}")
                 == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D")

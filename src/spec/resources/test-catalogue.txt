@@ -1006,7 +1006,7 @@ config017 | Configuration is immutable
 retries027 | Backoff doubles from half a second to eight seconds with quarter jitter
 serializationobject182 | Unknown enum value on deserialize throws
 serializationobject183 | Handles null
-authbasic012 | An empty variable counts as unset
+authbasic012 | An empty variable counts as unset | multi
 authoauthtwotokenmgr041 | A non-JSON 2xx token body is not echoed into the error message
 operations126 | Place order without an argument sends no body
 authapikey019 | Wrappers reject an empty key at construction

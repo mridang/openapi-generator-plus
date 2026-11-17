@@ -1222,6 +1222,42 @@ import Testing
     #expect(Date().timeIntervalSince(started) < 1.0)
   }
 
+  /* A Retry-After given in seconds sets the wait before the retry. */
+  @Test func testBhvRetries026RetryAfterSecondsSetsTheWait() async throws {
+    var calls = 0
+    let client = try retryClient { _ in
+      calls += 1
+      return calls < 2 ? (Data(), 503, ["Retry-After": "1"]) : (Data("{}".utf8), 200, [:])
+    }
+    let started = Date()
+    let response = try await client.sendRequest(
+      method: "GET", url: "http://localhost/retry-after", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
+    #expect(calls == 2)
+    #expect(Date().timeIntervalSince(started) >= 0.9)
+  }
+
+  /* Cancelling the caller while the retry wait runs ends the call at once, with no second request. */
+  @Test func testBhvRetries028CancellingDuringTheWaitStopsTheRetries() async throws {
+    var calls = 0
+    let client = try retryClient(timeout: nil) { _ in
+      calls += 1
+      return (Data(), 503, ["Retry-After": "30"])
+    }
+    let call = Task {
+      try await client.sendRequest(
+        method: "GET", url: "http://localhost/cancel", headers: [:], body: nil)
+    }
+    try await Task.sleep(nanoseconds: 200_000_000)
+    call.cancel()
+    let started = Date()
+    await #expect(throws: CancellationError.self) {
+      _ = try await call.value
+    }
+    #expect(Date().timeIntervalSince(started) < 5.0)
+    #expect(calls == 1)
+  }
+
   @Test func testStreamBodyIsNeverRetried() async throws {
     var calls = 0
     let client = try retryClient { _ in
@@ -1283,7 +1319,7 @@ import Testing
     #expect(ids[0] != nil && ids[0] != ids[1])
   }
 
-  @Test func testBackoffDoublesFromHalfASecondToEight() {
+  @Test func testBhvRetries027BackoffDoublesFromHalfASecondToEight() {
     let steps = (0..<7).map { DefaultApiClient.retryDelay(attempt: $0, retryAfter: nil, jitter: 0) }
     #expect(steps == [0.5, 1, 2, 4, 8, 8, 8])
   }
@@ -1811,7 +1847,7 @@ import Testing
 
   /* A bare utf-16 label honours a leading byte-order mark and drops it; the
      big-endian default only applies when there is none. */
-  @Test func testBareUtf16LittleEndianBomDecodesLittleEndian() async throws {
+  @Test func testBhvSerializationwire054BareUtf16LittleEndianBomDecodesLittleEndian() async throws {
     let client = makeClient { _ in
       (
         Data([0xFF, 0xFE, 0x41, 0x00, 0x42, 0x00]), 200,

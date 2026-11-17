@@ -202,6 +202,13 @@ import Testing
         }
     }
 
+    /* An unknown enum value on a scalar deserialize throws, never falling back to a default case. */
+    @Test func testBhvSerializationobject182UnknownEnumValueOnScalarDeserializeThrows() {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("\"teleported\"", as: OrderStatusEnum.self)
+        }
+    }
+
     @Test func testBhvSerializationobject014ReadOnlyPropertyIsDecoded() throws {
         let decoded = try ObjectSerializer.deserialize("{\"id\":7,\"username\":\"u\"}", as: Account.self)
         #expect(decoded?.id == 7)
