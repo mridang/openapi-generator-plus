@@ -397,7 +397,7 @@ mod tests {
     }
 
     #[test]
-    fn test_encode_path_segment_encodes_everything_else_once() {
+    fn test_bhv_serializationparam_004_encode_path_segment_encodes_everything_else_once() {
         assert_eq!(
             super::encode_path_segment("a b/c?d#e[f]g%h"),
             "a%20b%2Fc%3Fd%23e%5Bf%5Dg%25h"
@@ -406,10 +406,18 @@ mod tests {
         assert_eq!(super::encode_path_segment("caf\u{e9}"), "caf%C3%A9");
     }
 
+    #[test]
+    fn test_bhv_serializationparam_072_serialize_styled_simple_path_keeps_dots_inside_a_value() {
+        let result = super::serialize_styled(
+            "id", Some("a.b.c"), None, "path", "string", "", "simple", false,
+        );
+        assert_eq!(unwrap_single(result), "a.b.c");
+    }
+
     /* -- serialize_value by location -- */
 
     #[test]
-    fn test_bhv_serializationparam_062_serialize_value_path_null() {
+    fn test_bhv_serializationparam_062_bhv_serializationparam_066_serialize_value_path_null() {
         let result = super::serialize_value(None::<&str>, "path", "string", "");
         assert_eq!(result.unwrap(), "");
     }
@@ -478,6 +486,13 @@ mod tests {
     fn test_bhv_serializationparam_019_serialize_value_query_boolean_false() {
         let result = super::serialize_value(Some("false"), "query", "boolean", "");
         assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_006_serialize_array_value_query_default_joins_with_comma() {
+        let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+        let result = super::serialize_array_value(&items, "query", "");
+        assert_eq!(unwrap_single(result), "a,b,c");
     }
 
     #[test]
@@ -1173,7 +1188,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_serializationparam_003_encode_query_allowing_reserved_still_encodes_space() {
+    fn test_bhv_serializationparam_003_bhv_serializationparam_080_encode_query_allowing_reserved_still_encodes_space() {
         /* Space is not reserved, so it is still percent-encoded, while the
          * reserved `:` between the words stays literal. */
         assert_eq!(super::encode_query_allowing_reserved("a b:c"), "a%20b:c");

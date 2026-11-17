@@ -99,17 +99,76 @@ mod tests {
     use super::HeaderSelector;
 
     #[test]
-    fn test_header_selector_is_json_mime() {
+    fn test_bhv_headers_012_header_selector_is_json_mime_false_for_octet_stream() {
+        let hs = HeaderSelector::new();
+
+        assert!(!hs.is_json_mime("application/octet-stream"));
+    }
+
+    #[test]
+    fn test_bhv_headers_013_header_selector_is_json_mime_false_for_xml() {
+        let hs = HeaderSelector::new();
+
+        assert!(!hs.is_json_mime("application/xml"));
+    }
+
+    #[test]
+    fn test_bhv_headers_014_header_selector_is_json_mime_false_for_empty_string() {
+        let hs = HeaderSelector::new();
+
+        assert!(!hs.is_json_mime(""));
+    }
+
+    #[test]
+    fn test_bhv_headers_016_header_selector_is_json_mime_false_for_text_html() {
+        let hs = HeaderSelector::new();
+
+        assert!(!hs.is_json_mime("text/html"));
+        assert!(!hs.is_json_mime("text/plain"));
+    }
+
+    #[test]
+    fn test_bhv_headers_019_header_selector_is_json_mime_true_for_application_json() {
         let hs = HeaderSelector::new();
 
         assert!(hs.is_json_mime("application/json"));
+    }
+
+    #[test]
+    fn test_bhv_headers_020_header_selector_is_json_mime_true_with_charset() {
+        let hs = HeaderSelector::new();
+
         assert!(hs.is_json_mime("application/json; charset=utf-8"));
+    }
+
+    #[test]
+    fn test_bhv_headers_022_header_selector_is_json_mime_true_for_vendor_types() {
+        let hs = HeaderSelector::new();
+
         assert!(hs.is_json_mime("application/vnd.api+json"));
-        assert!(!hs.is_json_mime("application/xml"));
-        assert!(!hs.is_json_mime("text/plain"));
-        assert!(!hs.is_json_mime(""));
-        assert!(!hs.is_json_mime("application/octet-stream"));
         assert!(hs.is_json_mime("application/hal+json"));
+    }
+
+    #[test]
+    fn test_bhv_headers_025_header_selector_sets_content_type_when_not_multipart() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(&["application/json"], "text/plain", false);
+
+        assert_eq!(headers.get("Content-Type").unwrap(), "text/plain");
+    }
+
+    #[test]
+    fn test_bhv_headers_009_header_selector_filters_empty_and_blank_entries() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(
+            &["", "   ", "application/json", "\t", ""],
+            "application/json",
+            false,
+        );
+
+        assert_eq!(headers.get("Accept").unwrap(), "application/json");
     }
 
     #[test]
@@ -235,7 +294,7 @@ mod tests {
     }
 
     #[test]
-    fn test_header_selector_comma_space_separated() {
+    fn test_bhv_headers_026_header_selector_comma_space_separated() {
         let hs = HeaderSelector::new();
 
         let headers = hs.select_headers(&["text/html", "text/plain"], "application/json", false);
