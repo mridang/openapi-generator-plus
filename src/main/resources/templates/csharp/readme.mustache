@@ -61,8 +61,8 @@ never retried.
 
 ### Per-call options
 
-Every operation that takes an options object (`FindPetsByStatusOptions` and the
-like) accepts three per-call settings next to its parameters: `Timeout` (milliseconds,
+Every operation that takes an options object (named after the operation, as in
+`<Operation>Options`) accepts three per-call settings next to its parameters: `Timeout` (milliseconds,
 greater than zero) replaces the transport timeout for that call, `MaxRetries` replaces
 the retry limit (`0` turns retries off) and `Headers` adds request headers, sent after
 the default and authentication headers and replacing a header of the same name.
