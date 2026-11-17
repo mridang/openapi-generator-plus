@@ -194,7 +194,7 @@ shared with the copy, not duplicated.
 
 An operation whose 2xx responses have different schemas returns a union, and
 the body is decoded as the schema of the status code the server answered with.
-The union has one `fromX` named constructor, `isX` and `asX` accessor per model variant
+The union has one named constructor, `isX` and `asX` accessor per model variant
 as well as `actualInstance`.
 
 ### Response compression

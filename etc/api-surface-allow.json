@@ -3622,28 +3622,14 @@
   },
   {
    "element": [
-    "pettreatment.frommedication",
-    "pettreatment.fromsurgery",
-    "treatmentrecord.frommedication",
-    "treatmentrecord.fromsurgery"
+    "reservestockresponse.fromreservation",
+    "reservestockresponse.fromreservationreceipt"
    ],
    "aspect": "member",
    "languages": [
-    "java"
+    "dart"
    ],
-   "reason": "a java anyOf wrapper names its typed factory of<Variant> (PetTreatment.ofMedication), the JDK's static factory convention (Optional.of, List.of); the other languages say from<Variant>. The extra of<Variant> rule for java unions is the other half of this difference."
-  },
-  {
-   "element": [
-    "petfood.fromdryfood",
-    "petfood.fromwetfood"
-   ],
-   "aspect": "member",
-   "languages": [
-    "java",
-    "csharp"
-   ],
-   "reason": "a discriminated oneOf is the abstract base type PetFood with DryFood and WetFood as subtypes, so the decoded value is itself the variant and is built as one (new DryFood(...)); there is no wrapper to hold a typed factory"
+   "reason": "dart builds a union value with a named constructor named after the variant (ReserveStockResponse.reservation(v)), the language's own way to give a class several typed factories; the other languages say from<Variant>"
   }
  ]
 }

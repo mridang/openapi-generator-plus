@@ -259,11 +259,11 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void AnAnyOfTypedFactoryWrapsAVariantAndTheAccessorsReadItBack()
+    public void AnAnyOfAccessorsReadTheRetainedVariant()
     {
         var medication = new Medication { DrugName = "Amoxicillin", Dosage = "500mg" };
 
-        var union = PetTreatment.FromMedication(medication);
+        var union = new PetTreatment(medication);
 
         Assert.True(union.IsMedication());
         Assert.False(union.IsSurgery());

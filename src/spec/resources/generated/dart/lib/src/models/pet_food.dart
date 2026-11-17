@@ -26,7 +26,7 @@ class PetFood {
   Object? get actualInstance => _value;
 
   /// Wraps a [DryFood] as this union.
-  const PetFood.fromDryFood(DryFood value) : _value = value;
+  const PetFood.dryFood(DryFood value) : _value = value;
 
   /// Whether this union holds a [DryFood].
   bool get isDryFood => _value is DryFood;
@@ -38,7 +38,7 @@ class PetFood {
   }
 
   /// Wraps a [WetFood] as this union.
-  const PetFood.fromWetFood(WetFood value) : _value = value;
+  const PetFood.wetFood(WetFood value) : _value = value;
 
   /// Whether this union holds a [WetFood].
   bool get isWetFood => _value is WetFood;

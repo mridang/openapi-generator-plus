@@ -35,7 +35,7 @@ class TreatmentRecord {
   Object? get actualInstance => _values.isEmpty ? null : _values.first;
 
   /// Wraps a [Surgery] as this union.
-  TreatmentRecord.fromSurgery(Surgery value) : _values = [value];
+  TreatmentRecord.surgery(Surgery value) : _values = [value];
 
   /// Whether a retained variant of this union is a [Surgery].
   bool get isSurgery => valueOf<Surgery>() != null;
@@ -44,7 +44,7 @@ class TreatmentRecord {
   Surgery? get asSurgery => valueOf<Surgery>();
 
   /// Wraps a [Medication] as this union.
-  TreatmentRecord.fromMedication(Medication value) : _values = [value];
+  TreatmentRecord.medication(Medication value) : _values = [value];
 
   /// Whether a retained variant of this union is a [Medication].
   bool get isMedication => valueOf<Medication>() != null;

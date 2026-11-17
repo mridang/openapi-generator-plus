@@ -130,8 +130,8 @@ void main() {
     test(
       'PetFood typed constructors, is and as accessors name the variant',
       () {
-        final dry = PetFood.fromDryFood(DryFood(weightKg: 2.5));
-        final wet = PetFood.fromWetFood(WetFood(volumeMl: 400));
+        final dry = PetFood.dryFood(DryFood(weightKg: 2.5));
+        final wet = PetFood.wetFood(WetFood(volumeMl: 400));
 
         expect(dry.actualInstance, isA<DryFood>());
         expect(dry.isDryFood, isTrue);
@@ -149,7 +149,7 @@ void main() {
     test(
       'a result decoded by status code exposes its variant through the accessors',
       () {
-        final reservation = ReserveStockResponse.fromReservation(
+        final reservation = ReserveStockResponse.reservation(
           const Reservation(reservationId: 1, quantity: 2),
         );
 
@@ -159,7 +159,7 @@ void main() {
     );
 
     test('PetTreatment typed constructors and accessors name the variant', () {
-      final surgery = PetTreatment.fromSurgery(
+      final surgery = PetTreatment.surgery(
         Surgery(procedureName: 'Spay', durationMinutes: 45),
       );
 

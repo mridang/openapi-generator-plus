@@ -35,7 +35,7 @@ class PetTreatment {
   Object? get actualInstance => _values.isEmpty ? null : _values.first;
 
   /// Wraps a [Medication] as this union.
-  PetTreatment.fromMedication(Medication value) : _values = [value];
+  PetTreatment.medication(Medication value) : _values = [value];
 
   /// Whether a retained variant of this union is a [Medication].
   bool get isMedication => valueOf<Medication>() != null;
@@ -44,7 +44,7 @@ class PetTreatment {
   Medication? get asMedication => valueOf<Medication>();
 
   /// Wraps a [Surgery] as this union.
-  PetTreatment.fromSurgery(Surgery value) : _values = [value];
+  PetTreatment.surgery(Surgery value) : _values = [value];
 
   /// Whether a retained variant of this union is a [Surgery].
   bool get isSurgery => valueOf<Surgery>() != null;
