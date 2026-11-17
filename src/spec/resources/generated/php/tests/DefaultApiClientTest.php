@@ -462,7 +462,11 @@ test('bhv redirects 003 redirect count and limit are scoped per request not shar
 
     // Bind to an ephemeral loopback port. Port 0 lets the OS pick a free
     // port; we read it back from the server's startup banner on stderr.
-    $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+    /* The server's output goes to a file, not a pipe: nothing drains a pipe after
+     * the startup banner, and once its buffer fills the server blocks on its next
+     * log line and every request times out. */
+    $logFile = $tempBase . '.log';
+    $descriptors = [1 => ['file', $logFile, 'w'], 2 => ['file', $logFile, 'w']];
     /* Several workers, so a connection the client leaves open cannot block the
      * other requests of this test (the built-in server is single-threaded by
      * default), and every response closes its own connection. */
@@ -482,11 +486,10 @@ test('bhv redirects 003 redirect count and limit are scoped per request not shar
         // The built-in server prints "... started ... http://127.0.0.1:PORT"
         // to stderr once it is listening. Poll until we can parse the port.
         $port = 0;
-        stream_set_blocking($pipes[2], false);
         $deadline = microtime(true) + 10.0;
         $banner = '';
         while (microtime(true) < $deadline && $port === 0) {
-            $banner .= (string) fread($pipes[2], 4096);
+            $banner = (string) @file_get_contents($logFile);
             if (preg_match('#127\.0\.0\.1:(\d+)#', $banner, $m)) {
                 $port = (int) $m[1];
             } else {
@@ -559,16 +562,12 @@ test('bhv redirects 003 redirect count and limit are scoped per request not shar
             }
         }
     } finally {
-        foreach ($pipes as $pipe) {
-            if (is_resource($pipe)) {
-                fclose($pipe);
-            }
-        }
         if (is_resource($process)) {
             proc_terminate($process);
             proc_close($process);
         }
         @unlink($routerFile);
+        @unlink($logFile);
     }
 });
 
