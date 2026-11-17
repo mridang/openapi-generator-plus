@@ -142,12 +142,17 @@ module Petstore::Client
     # @param retry_headers [Proc, nil] returns the complete headers of a retry
     #   (authentication included, so a renewed token is picked up); without it
     #   a retry reuses +headers+
+    # @param timeout [Numeric, nil] the end-to-end timeout in milliseconds of
+    #   this call alone; when nil the transport's timeout applies
+    # @param max_retries [Integer, nil] the retry count of this call alone; when
+    #   nil the transport's +max_retries+ applies
     # @param no_default_headers [Boolean] when true, the transport's default
     #   headers are not added. Used for the OAuth2 token and OIDC discovery
     #   requests, which go to the identity provider and must not carry the
     #   credentials meant for the API (F860).
     # @return [ApiHttpResponse] the HTTP response
-    def send_request(method, url, headers, body, no_redirect: false, retry_headers: nil, no_default_headers: false)
+    def send_request(method, url, headers, body, no_redirect: false, retry_headers: nil, no_default_headers: false,
+                     timeout: nil, max_retries: nil)
       # Bucket 3: using the client after #close has released its connection
       # pool is a caller error. Surface it loudly as a RuntimeError (the
       # invalid-state error) instead of lazily rebuilding a connection (which
@@ -157,10 +162,11 @@ module Petstore::Client
       # The timeout is one budget for the whole call: every redirect hop and
       # every retry is sent with what is left of it, measured on the monotonic
       # clock.
-      timeout_ms = @transport_options.timeout
+      timeout_ms = timeout || @transport_options.timeout
       deadline = timeout_ms ? (Process.clock_gettime(Process::CLOCK_MONOTONIC) + (timeout_ms / 1000.0)).to_f : nil
 
-      response = transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers)
+      response = transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers,
+                                       timeout_ms, max_retries || @transport_options.max_retries)
       content_type = response.headers['content-type'].to_s
       # A malformed Content-Encoding body (a truncated/garbage
       # gzip/deflate/br/zstd payload) arrived with a real response, so it
@@ -237,7 +243,7 @@ module Petstore::Client
 
     # One attempt: merge the headers, send the request (following redirects)
     # and return the Faraday response, or raise the SDK's network error.
-    def transmit(method, url, headers, body, no_redirect, deadline, no_default_headers)
+    def transmit(method, url, headers, body, no_redirect, deadline, no_default_headers, timeout_ms)
       # Field names are case-insensitive (RFC 9110 section 5.1): a caller's
       # header replaces a default of the same name whatever its casing.
       # @type var defaults: Hash[String, String]
@@ -275,7 +281,7 @@ module Petstore::Client
       merged['Accept-Encoding'] ||= self.class.supported_encodings
 
       begin
-        response = run_hop(method.downcase.to_sym, url, serialized_body, merged, deadline)
+        response = run_hop(method.downcase.to_sym, url, serialized_body, merged, deadline, timeout_ms)
         # Gap BH: Faraday's follow_redirects middleware re-sends Authorization /
         # Cookie / Proxy-Authorization across cross-origin 3xx redirects by
         # default, which leaks bearer tokens to attacker-controlled hosts via
@@ -378,7 +384,7 @@ module Petstore::Client
             current_method = next_method
             current_body = next_body
             current_headers = redirect_headers
-            response = run_hop(next_method.to_s.downcase.to_sym, next_url, next_body, redirect_headers, deadline)
+            response = run_hop(next_method.to_s.downcase.to_sym, next_url, next_body, redirect_headers, deadline, timeout_ms)
             hops += 1
           end
           # Bucket 3: if we exhausted the redirect budget while the server is
@@ -401,8 +407,8 @@ module Petstore::Client
     # Send the request, and send it again after a failure that is worth
     # another try, as far as +max_retries+, the body and the deadline allow.
     # The last failure is what the caller gets.
-    def transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers)
-      max_retries = replayable_body?(body) ? @transport_options.max_retries : 0
+    def transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers, timeout_ms, call_max_retries)
+      max_retries = replayable_body?(body) ? call_max_retries : 0
       attempt = 0
       current_headers = headers
       loop do
@@ -411,7 +417,7 @@ module Petstore::Client
         # @type var response: untyped
         response = nil
         begin
-          response = transmit(method, url, current_headers, body, no_redirect, deadline, no_default_headers)
+          response = transmit(method, url, current_headers, body, no_redirect, deadline, no_default_headers, timeout_ms)
           return response unless attempt < max_retries && RETRYABLE_STATUS_CODES.include?(response.status.to_i)
         rescue Errors::NetworkError => e
           raise unless attempt < max_retries && retryable_network_error?(e)
@@ -504,7 +510,7 @@ module Petstore::Client
     # Send one hop of a call. With a +deadline+ (a monotonic clock reading)
     # the hop's connect, write and read timeouts are what remains of the
     # call's budget, and a hop is never started once the budget is spent.
-    def run_hop(method, url, body, headers, deadline)
+    def run_hop(method, url, body, headers, deadline, timeout_ms)
       if deadline.nil?
         return dispatch(method, url, body, headers) unless @transport_options.connection
 
@@ -514,7 +520,7 @@ module Petstore::Client
       end
 
       remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      raise Errors::NetworkTimeoutError.new(message: "Request timed out after #{@transport_options.timeout} ms") if remaining <= 0
+      raise Errors::NetworkTimeoutError.new(message: "Request timed out after #{timeout_ms} ms") if remaining <= 0
 
       dispatch(method, url, body, headers) do |request|
         # A supplied connection has its own encoder; the request-level one keeps

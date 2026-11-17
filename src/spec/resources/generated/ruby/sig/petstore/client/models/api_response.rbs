@@ -7,6 +7,7 @@ module Petstore::Client::Models
     REQUIRED_NULLABLE: Hash[Symbol, bool]
     PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
     def inspect: () -> String
+    def with: (**untyped) -> ApiResponse
     attr_reader code: Integer?
     attr_reader type: String?
     attr_reader message: String?

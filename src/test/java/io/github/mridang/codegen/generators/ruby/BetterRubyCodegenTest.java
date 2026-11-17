@@ -1,7 +1,10 @@
 package io.github.mridang.codegen.generators.ruby;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -70,5 +73,30 @@ class BetterRubyCodegenTest {
     @Test
     void anOrdinaryParameterNameKeepsItsName() {
         assertEquals("pet_id", new BetterRubyCodegen().toParamName("petId"));
+    }
+
+    @Test
+    void aParameterNamedLikeAPerCallOptionGetsASuffix() {
+        final BetterRubyCodegen codegen = new BetterRubyCodegen();
+        assertEquals("timeout_param", codegen.toParamName("timeout"));
+        assertEquals("headers_param", codegen.toParamName("headers"));
+        assertEquals("max_retries_param", codegen.toParamName("maxRetries"));
+    }
+
+    @Test
+    void manifestMetadataOptionsReachTheTemplatesAsQuoteSafeLiterals() {
+        final BetterRubyCodegen codegen = new BetterRubyCodegen();
+        codegen.additionalProperties().put("authors", "Ada L., Bob O'Neil");
+        codegen.additionalProperties().put("repositoryUrl", "https://example.test/o'r");
+        codegen.additionalProperties().put("homepageUrl", "  ");
+        codegen.processOpts();
+
+        final Map<String, Object> props = codegen.additionalProperties();
+        assertEquals(
+                List.of(Map.of("name", "Ada L."), Map.of("name", "Bob O\\'Neil")),
+                props.get("authorList"));
+        assertEquals("https://example.test/o\\'r", props.get("repositoryUrlLiteral"));
+        assertFalse(props.containsKey("homepageUrl"));
+        assertFalse(props.containsKey("documentationUrl"));
     }
 }

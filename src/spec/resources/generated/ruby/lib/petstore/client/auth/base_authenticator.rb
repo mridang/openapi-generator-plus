@@ -12,6 +12,11 @@ module Petstore::Client
     # Abstract base class providing default implementations for optional
     # Authenticator methods. Concrete authenticators should extend this class.
     class BaseAuthenticator < Authenticator
+      # The prefix of the environment variables a credential falls back to:
+      # +<PREFIX>_TOKEN+, +<PREFIX>_USERNAME+, +<PREFIX>_PASSWORD+ and
+      # +<PREFIX>_API_KEY+.
+      ENV_PREFIX = 'PETSTORE_CLIENT'
+
       # Returns the base URL of the API.
       # Subclasses must override this method.
       # @return [String]
@@ -36,6 +41,23 @@ module Petstore::Client
       # @return [Hash{String => String}]
       def cookie_params
         {}
+      end
+
+      private
+
+      # The credential to use: the explicit +value+ when one is given, else the
+      # environment variable +<PREFIX>_<FIELD>+, read now and not again. An
+      # empty variable counts as unset.
+      #
+      # @param value [String, nil] the credential given to the constructor
+      # @param field [String] the variable's field name (+TOKEN+, +API_KEY+, ...)
+      # @param env [#[]] where the variable is read from
+      # @return [String, nil] the credential, or nil when neither is set
+      def credential_from(value, field, env)
+        return value unless value.nil?
+
+        found = env["#{ENV_PREFIX}_#{field}"]
+        found.nil? || found.empty? ? nil : found
       end
     end
   end

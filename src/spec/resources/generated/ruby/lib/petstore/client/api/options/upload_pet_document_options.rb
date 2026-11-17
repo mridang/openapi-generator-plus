@@ -13,6 +13,12 @@ module Petstore::Client
   module Api
     module Options
       # Options for the upload_pet_document operation.
+      #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
       # @param file [File]
       # @param document_type [String]
       # @param notes [String]
@@ -21,9 +27,9 @@ module Petstore::Client
       # @param taken_at [Time]
       # @param swatch [Swatch]
       class UploadPetDocumentOptions
-        attr_reader :file, :document_type, :notes, :is_primary, :page_count, :taken_at, :swatch
+        attr_reader :file, :document_type, :notes, :is_primary, :page_count, :taken_at, :swatch, :timeout, :headers, :max_retries
 
-        def initialize(file:, document_type: nil, notes: nil, is_primary: nil, page_count: nil, taken_at: nil, swatch: nil)
+        def initialize(file:, document_type: nil, notes: nil, is_primary: nil, page_count: nil, taken_at: nil, swatch: nil, timeout: nil, headers: nil, max_retries: nil)
           @file = file
           @document_type = document_type
           @notes = notes
@@ -31,6 +37,9 @@ module Petstore::Client
           @page_count = page_count
           @taken_at = taken_at
           @swatch = swatch
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
           freeze
         end
       end

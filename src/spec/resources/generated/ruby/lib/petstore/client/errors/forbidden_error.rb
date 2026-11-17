@@ -10,13 +10,15 @@ module Petstore::Client
   module Errors
     # Exception for HTTP 403 Forbidden.
     class ForbiddenError < ClientError
-      def initialize(message: nil, response_body: nil, response_headers: nil, error_body: nil)
+      def initialize(message: nil, response_body: nil, response_headers: nil, error_body: nil, request_method: nil, request_path: nil)
         super({
           status_code: 403,
           message: message,
           response_body: response_body,
           response_headers: response_headers,
-          error_body: error_body
+          error_body: error_body,
+          request_method: request_method,
+          request_path: request_path
         })
       end
     end

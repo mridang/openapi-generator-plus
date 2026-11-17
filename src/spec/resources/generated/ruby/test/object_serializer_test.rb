@@ -836,6 +836,19 @@ describe Petstore::Client::ObjectSerializer do
       end
     end
 
+    it 'deserialize raises on a double literal that overflows to Infinity' do
+      error = _ { Petstore::Client::ObjectSerializer.deserialize('{"lat":1e400}', 'PhotoMetadataLocation') }
+              .must_raise Petstore::Client::Errors::SerializationError
+
+      _(error.message).must_include('Expected a finite number')
+    end
+
+    it 'deserialize keeps the largest finite double' do
+      location = Petstore::Client::ObjectSerializer.deserialize('{"lat":1.7976931348623157e308}', 'PhotoMetadataLocation')
+
+      _(location.lat).must_equal(Float::MAX)
+    end
+
     it 'deserialize raises on Infinity literal' do
       assert_raises(Petstore::Client::Errors::SerializationError) do
         Petstore::Client::ObjectSerializer.deserialize('{"val": Infinity}', 'Object')
@@ -992,12 +1005,24 @@ describe Petstore::Client::ObjectSerializer do
   # ── fixture round trips (model bodies the format tables above do not reach) ──
 
   describe 'EdgeCases model body' do
-    it 'decodes and writes a format: time property, keeping whole seconds' do
+    it 'decodes and writes a format: time property, keeping the milliseconds' do
       edge = Petstore::Client::ObjectSerializer.deserialize('{"cutoff":"10:30:00.123"}', 'EdgeCases')
       _(edge.cutoff).must_be_kind_of(Tod::TimeOfDay)
       _(edge.cutoff.hour).must_equal(10)
       _(edge.cutoff.minute).must_equal(30)
-      _(Petstore::Client::ObjectSerializer.serialize(edge)).must_equal('{"cutoff":"10:30:00"}')
+      _(Petstore::Client::ObjectSerializer.serialize(edge)).must_equal('{"cutoff":"10:30:00.123"}')
+    end
+
+    it 'cuts a finer fraction of a format: time property to the millisecond' do
+      edge = Petstore::Client::ObjectSerializer.deserialize('{"cutoff":"10:30:00.123456789"}', 'EdgeCases')
+      _(Petstore::Client::ObjectSerializer.serialize(edge)).must_equal('{"cutoff":"10:30:00.123"}')
+    end
+
+    it 'writes a format: time property without a fraction when it has none or it is zero' do
+      whole = Petstore::Client::ObjectSerializer.deserialize('{"cutoff":"10:30:00"}', 'EdgeCases')
+      zero = Petstore::Client::ObjectSerializer.deserialize('{"cutoff":"10:30:00.000"}', 'EdgeCases')
+      _(Petstore::Client::ObjectSerializer.serialize(whole)).must_equal('{"cutoff":"10:30:00"}')
+      _(Petstore::Client::ObjectSerializer.serialize(zero)).must_equal('{"cutoff":"10:30:00"}')
     end
 
     it 'decodes and writes a protobuf-JSON duration property' do
@@ -1186,9 +1211,9 @@ describe Petstore::Client::ObjectSerializer do
       _(result.second).must_equal(30)
     end
 
-    it 'accepts a fractional time and keeps whole seconds, since Tod::TimeOfDay cannot carry a fraction' do
+    it 'accepts a fractional time and keeps the milliseconds' do
       result = Petstore::Client::ObjectSerializer.convert_to_type('10:30:00.123', 'Tod::TimeOfDay')
-      _(Petstore::Client::ObjectSerializer.stringify(result)).must_equal('10:30:00')
+      _(Petstore::Client::ObjectSerializer.stringify(result)).must_equal('10:30:00.123')
     end
 
     it 'convert_to_type passes through an existing Tod::TimeOfDay' do

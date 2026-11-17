@@ -155,7 +155,8 @@ module Petstore::Client
           'application/json',
           'Category',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_by_swatch'
+          operation_id: 'StoreApi.get_by_swatch',
+          request_options: options
         )
       end
 
@@ -503,7 +504,8 @@ module Petstore::Client
           'application/json',
           'StockItem',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_stock_item'
+          operation_id: 'StoreApi.get_stock_item',
+          request_options: options
         )
       end
 
@@ -749,7 +751,7 @@ module Petstore::Client
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
-          'ReserveStockResponse',
+          { 200 => 'Reservation', 201 => 'ReservationReceipt' },
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.reserve_stock'
         )
@@ -810,7 +812,8 @@ module Petstore::Client
           'application/json',
           'Array<Order>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.search_store'
+          operation_id: 'StoreApi.search_store',
+          request_options: options
         )
       end
     end

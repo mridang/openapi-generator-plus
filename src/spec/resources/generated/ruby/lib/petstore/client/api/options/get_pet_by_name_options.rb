@@ -11,14 +11,23 @@ module Petstore::Client
   module Api
     module Options
       # Options for the get_pet_by_name operation.
+      #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
       # @param category [String]
       # @param x_correlation_id [String]
       class GetPetByNameOptions
-        attr_reader :category, :x_correlation_id
+        attr_reader :category, :x_correlation_id, :timeout, :headers, :max_retries
 
-        def initialize(category:, x_correlation_id:)
+        def initialize(category:, x_correlation_id:, timeout: nil, headers: nil, max_retries: nil)
           @category = category
           @x_correlation_id = x_correlation_id
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
           freeze
         end
       end

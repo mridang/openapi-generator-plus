@@ -77,6 +77,20 @@ module Petstore::Client
         "#<#{self.class.name} #{fields.join(' ')}>"
       end
 
+      # A copy of this model with +changes+ applied. A model has no writers, so
+      # this is how a value is modified: the receiver stays as it was.
+      #
+      # @param changes [Hash{Symbol => Object}] the attributes to replace, by name
+      # @return [PetCriteria] the copy
+      # @raise [ArgumentError] if a key is not an attribute of this model
+      def with(**changes)
+        known = self.class::ATTRIBUTE_MAP.keys
+        unknown = changes.keys - known
+        raise ArgumentError, "Unknown attribute for PetCriteria: #{unknown.join(', ')}" unless unknown.empty?
+
+        self.class.new(**attributes, **changes)
+      end
+
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
         JSON_KEY_MAP[key.to_s] || key.to_sym

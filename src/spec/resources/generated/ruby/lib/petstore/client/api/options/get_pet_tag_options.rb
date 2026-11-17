@@ -11,6 +11,12 @@ module Petstore::Client
   module Api
     module Options
       # Options for the get_pet_tag operation.
+      #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
       # @param colors [Array<String>]
       # @param sizes [Array<String>]
       # @param filter [String]
@@ -22,9 +28,9 @@ module Petstore::Client
       # @param x_criteria [PetCriteria]
       # @param x_fingerprint [String]
       class GetPetTagOptions
-        attr_reader :colors, :sizes, :filter, :revision, :criteria, :criteria_csv, :criteria_deep, :fingerprint, :x_criteria, :x_fingerprint
+        attr_reader :colors, :sizes, :filter, :revision, :criteria, :criteria_csv, :criteria_deep, :fingerprint, :x_criteria, :x_fingerprint, :timeout, :headers, :max_retries
 
-        def initialize(colors: nil, sizes: nil, filter: nil, revision: nil, criteria: nil, criteria_csv: nil, criteria_deep: nil, fingerprint: nil, x_criteria: nil, x_fingerprint: nil)
+        def initialize(colors: nil, sizes: nil, filter: nil, revision: nil, criteria: nil, criteria_csv: nil, criteria_deep: nil, fingerprint: nil, x_criteria: nil, x_fingerprint: nil, timeout: nil, headers: nil, max_retries: nil)
           @colors = colors
           @sizes = sizes
           @filter = filter
@@ -35,6 +41,9 @@ module Petstore::Client
           @fingerprint = fingerprint
           @x_criteria = x_criteria
           @x_fingerprint = x_fingerprint
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
           freeze
         end
       end

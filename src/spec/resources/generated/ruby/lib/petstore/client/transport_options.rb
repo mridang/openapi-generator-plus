@@ -197,7 +197,9 @@ module Petstore::Client
     # @param headers [Hash{String => String}] header names to values
     # @return [Hash{String => String}]
     def self.redact_headers(headers)
-      headers.to_h { |name, value| [name, sensitive_header?(name) ? '***' : value] }
+      redacted = {} # : Hash[String, String]
+      headers.each { |name, value| redacted[name] = sensitive_header?(name) ? '***' : value }
+      redacted
     end
 
     # +url+ with the password in its userinfo replaced by +***+.

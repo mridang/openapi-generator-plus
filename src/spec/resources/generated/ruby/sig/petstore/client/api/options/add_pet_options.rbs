@@ -7,7 +7,7 @@ module Petstore::Client
       # frozen after construction, so only readers are exposed.
       class AddPetOptions
         attr_reader auth: ::Petstore::Client::Auth::Authenticator?
-        def initialize: (?auth: ::Petstore::Client::Auth::Authenticator?) -> void
+        def initialize: (?auth: ::Petstore::Client::Auth::Authenticator?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
       end
     end
   end

@@ -10,7 +10,7 @@ module Petstore::Client
         attr_reader labels: Set[String]?
         attr_reader at: Tod::TimeOfDay?
         attr_reader x_filter: Hash[String, String]?
-        def initialize: (?q: Models::PhotoMetadata?, ?labels: Set[String]?, ?at: Tod::TimeOfDay?, ?x_filter: Hash[String, String]?) -> void
+        def initialize: (?q: Models::PhotoMetadata?, ?labels: Set[String]?, ?at: Tod::TimeOfDay?, ?x_filter: Hash[String, String]?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
       end
     end
   end

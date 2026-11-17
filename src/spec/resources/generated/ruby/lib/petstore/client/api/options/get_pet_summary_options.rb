@@ -11,14 +11,23 @@ module Petstore::Client
   module Api
     module Options
       # Options for the get_pet_summary operation.
+      #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
       # @param session [String] Session token: "a<b>" & it's required
       # @param days [Array<Date>] Extra dates to summarise
       class GetPetSummaryOptions
-        attr_reader :session, :days
+        attr_reader :session, :days, :timeout, :headers, :max_retries
 
-        def initialize(session:, days: nil)
+        def initialize(session:, days: nil, timeout: nil, headers: nil, max_retries: nil)
           @session = session
           @days = days
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
           freeze
         end
       end

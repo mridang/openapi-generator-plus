@@ -2262,6 +2262,95 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": "*.with",
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F868: a dry-struct model has no writers, so Ruby copies a model with `with(**changes)`; every language names its copy method in its own idiom (toBuilder, copy, copyWith, WithX, with_, struct update)"
+  },
+  {
+   "element": [
+    "*options.timeout",
+    "*options.maxretries",
+    "*options.headers"
+   ],
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F827: the per-call options (timeout, headers, max_retries) of an Options object; the other languages' members arrive with their own wave branches, and this rule is removed when the integrator merges them"
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath"
+   ],
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F830: the request context of an error; the other languages' members arrive with their own wave branches, and this rule is removed when the integrator merges them"
+  },
+  {
+   "element": "*",
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "value": "extra  (as_*",
+   "reason": "F878: the typed accessor of one union variant (`as_<variant>`); a Ruby union value is the variant itself, so the accessor checks the type and returns the value or nil, where go has As<Variant>() and java/kotlin/csharp a typed getter"
+  },
+  {
+   "element": "*",
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "value": "extra  (from_*",
+   "reason": "F878: the typed factory of one union variant (`from_<variant>`); a Ruby union value is the variant itself, so the factory checks the type and returns it, where go has New<Variant><Union>(v)"
+  },
+  {
+   "element": "*",
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "value": "extra  (*_variant?)",
+   "reason": "F878: the predicate of one union variant (`<variant>_variant?`); the `_variant` suffix keeps it apart from the model's own attribute readers, where go has Is<Variant>()"
+  },
+  {
+   "element": [
+    "*.parsetimeofday",
+    "*.formattimeofday"
+   ],
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F1145: Tod::TimeOfDay holds whole seconds, so ObjectSerializer parses and writes the milliseconds of a `format: time` value itself; the helpers sit beside the other serializer hooks"
+  },
+  {
+   "element": [
+    "bearerauthenticator.<ctor>",
+    "basicauthenticator.<ctor>",
+    "apikeyauthenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F862: the constructor reads <PREFIX>_TOKEN, _USERNAME, _PASSWORD or _API_KEY once; the `env:` keyword is the Ruby seam for the environment to read (default ENV) so a test or a caller need not mutate the process environment, which parallel Minitest cannot do safely; `token_provider:` is the token callback of the owner decision and is temporary here until the other languages' wave branches are merged"
+  },
+  {
+   "element": "baseauthenticator.envprefix",
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F862: the constant holding the prefix of the credential environment variables; Ruby has no other place for a class-level constant the tests and callers can read"
   }
  ]
 }

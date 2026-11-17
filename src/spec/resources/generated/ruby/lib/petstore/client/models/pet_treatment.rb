@@ -112,6 +112,62 @@ module Petstore::Client
           [value]
         end
 
+        # The +Medication+ variant of a built PetTreatment value.
+        #
+        # @param value [Object] the result of build
+        # @return [Medication, nil] the retained Medication, or nil
+        def as_medication(value)
+          matched_instances(value).find { |instance| instance.is_a?(::Petstore::Client::Models::Medication) }
+        end
+
+        # Whether a built PetTreatment value retains a +Medication+.
+        #
+        # @param value [Object] the result of build
+        # @return [Boolean]
+        def medication_variant?(value)
+          matched_instances(value).any?(::Petstore::Client::Models::Medication)
+        end
+
+        # Wraps a +Medication+ as a PetTreatment: the union value is the
+        # variant itself, so this checks the type and returns it.
+        #
+        # @param variant [Medication] the variant
+        # @return [Medication] +variant+
+        # @raise [ArgumentError] if +variant+ is not a Medication
+        def from_medication(variant)
+          return variant if variant.is_a?(::Petstore::Client::Models::Medication)
+
+          raise ArgumentError, "Expected a Medication for PetTreatment, got #{variant.class}"
+        end
+
+        # The +Surgery+ variant of a built PetTreatment value.
+        #
+        # @param value [Object] the result of build
+        # @return [Surgery, nil] the retained Surgery, or nil
+        def as_surgery(value)
+          matched_instances(value).find { |instance| instance.is_a?(::Petstore::Client::Models::Surgery) }
+        end
+
+        # Whether a built PetTreatment value retains a +Surgery+.
+        #
+        # @param value [Object] the result of build
+        # @return [Boolean]
+        def surgery_variant?(value)
+          matched_instances(value).any?(::Petstore::Client::Models::Surgery)
+        end
+
+        # Wraps a +Surgery+ as a PetTreatment: the union value is the
+        # variant itself, so this checks the type and returns it.
+        #
+        # @param variant [Surgery] the variant
+        # @return [Surgery] +variant+
+        # @raise [ArgumentError] if +variant+ is not a Surgery
+        def from_surgery(variant)
+          return variant if variant.is_a?(::Petstore::Client::Models::Surgery)
+
+          raise ArgumentError, "Expected a Surgery for PetTreatment, got #{variant.class}"
+        end
+
         # Builds the object
         # @param data [Object] data to be matched against the list of anyOf items
         # @return [Object] Returns a single variant when exactly one matches, a

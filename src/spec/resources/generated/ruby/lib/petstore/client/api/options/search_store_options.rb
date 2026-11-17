@@ -11,18 +11,27 @@ module Petstore::Client
   module Api
     module Options
       # Options for the search_store operation.
+      #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
       # @param q [PhotoMetadata] JSON-encoded query parameter (OAS `content`, not `schema`)
       # @param labels [Set<String>]
       # @param at [Tod::TimeOfDay]
       # @param x_filter [Hash<String, String>]
       class SearchStoreOptions
-        attr_reader :q, :labels, :at, :x_filter
+        attr_reader :q, :labels, :at, :x_filter, :timeout, :headers, :max_retries
 
-        def initialize(q: nil, labels: nil, at: nil, x_filter: nil)
+        def initialize(q: nil, labels: nil, at: nil, x_filter: nil, timeout: nil, headers: nil, max_retries: nil)
           @q = q
           @labels = labels
           @at = at
           @x_filter = x_filter
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
           freeze
         end
       end

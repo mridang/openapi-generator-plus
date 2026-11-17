@@ -8,7 +8,7 @@ module Petstore::Client
       class GetBySwatchOptions
         attr_reader query_swatch: Models::Swatch?
         attr_reader preferred_swatch: Models::Swatch?
-        def initialize: (?query_swatch: Models::Swatch?, ?preferred_swatch: Models::Swatch?) -> void
+        def initialize: (?query_swatch: Models::Swatch?, ?preferred_swatch: Models::Swatch?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
       end
     end
   end

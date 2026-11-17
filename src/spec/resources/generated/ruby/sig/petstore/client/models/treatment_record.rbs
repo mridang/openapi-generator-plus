@@ -12,6 +12,12 @@ module Petstore::Client::Models
     def self.openapi_any_of: () -> Array[Symbol]
     def self.actual_instance: (untyped) -> untyped
     def self.matched_instances: (untyped) -> Array[untyped]
+    def self.as_surgery: (untyped) -> Surgery?
+    def self.surgery_variant?: (untyped) -> bool
+    def self.from_surgery: (Surgery) -> Surgery
+    def self.as_medication: (untyped) -> Medication?
+    def self.medication_variant?: (untyped) -> bool
+    def self.from_medication: (Medication) -> Medication
     def self.build: (untyped) -> untyped
   end
 end

@@ -13,14 +13,23 @@ module Petstore::Client
   module Api
     module Options
       # Options for the get_by_swatch operation.
+      #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
       # @param query_swatch [Swatch]
       # @param preferred_swatch [Swatch]
       class GetBySwatchOptions
-        attr_reader :query_swatch, :preferred_swatch
+        attr_reader :query_swatch, :preferred_swatch, :timeout, :headers, :max_retries
 
-        def initialize(query_swatch: nil, preferred_swatch: nil)
+        def initialize(query_swatch: nil, preferred_swatch: nil, timeout: nil, headers: nil, max_retries: nil)
           @query_swatch = query_swatch
           @preferred_swatch = preferred_swatch
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
           freeze
         end
       end

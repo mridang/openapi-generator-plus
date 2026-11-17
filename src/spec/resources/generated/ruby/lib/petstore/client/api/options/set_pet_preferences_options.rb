@@ -11,20 +11,29 @@ module Petstore::Client
   module Api
     module Options
       # Options for the set_pet_preferences operation.
+      #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
       # @param nickname [String]
       # @param tags [Array<String>]
       # @param note [String]
       # @param renewal_date [Date]
       # @param reminder [Time]
       class SetPetPreferencesOptions
-        attr_reader :nickname, :tags, :note, :renewal_date, :reminder
+        attr_reader :nickname, :tags, :note, :renewal_date, :reminder, :timeout, :headers, :max_retries
 
-        def initialize(nickname:, tags: nil, note: nil, renewal_date: nil, reminder: nil)
+        def initialize(nickname:, tags: nil, note: nil, renewal_date: nil, reminder: nil, timeout: nil, headers: nil, max_retries: nil)
           @nickname = nickname
           @tags = tags
           @note = note
           @renewal_date = renewal_date
           @reminder = reminder
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
           freeze
         end
       end

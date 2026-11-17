@@ -11,7 +11,7 @@ module Petstore::Client
         attr_reader born_after: Date?
         attr_reader n2nd_page: Integer?
         attr_reader report_date: Date?
-        def initialize: (?status: String?, ?filter: Hash[String, String]?, ?born_after: Date?, ?n2nd_page: Integer?, ?report_date: Date?) -> void
+        def initialize: (?status: String?, ?filter: Hash[String, String]?, ?born_after: Date?, ?n2nd_page: Integer?, ?report_date: Date?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
       end
     end
   end

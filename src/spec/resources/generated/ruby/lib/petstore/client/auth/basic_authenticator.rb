@@ -15,11 +15,21 @@ module Petstore::Client
     class BasicAuthenticator < BaseAuthenticator
       attr_reader :host
 
+      # A credential left out comes from the environment variable
+      # +<PREFIX>_USERNAME+ or +<PREFIX>_PASSWORD+, read once, here (an empty
+      # value counts as unset); one that is still missing fails here.
+      #
       # @param host [String] API base URL
-      # @param username [String]
-      # @param password [String]
-      def initialize(host, username, password)
+      # @param username [String, nil]
+      # @param password [String, nil]
+      # @param env [#[]] where the variables are read from
+      def initialize(host, username = nil, password = nil, env: ENV)
         super()
+        username = credential_from(username, 'USERNAME', env)
+        password = credential_from(password, 'PASSWORD', env)
+        raise ArgumentError, 'Basic auth username must not be empty' if username.nil?
+        raise ArgumentError, 'Basic auth password must not be empty' if password.nil?
+
         # Validate eagerly at construction so a malformed credential surfaces
         # where it is supplied rather than lazily at first request.
         # RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
