@@ -53,6 +53,23 @@ fn test_pet_food_deserialize_wet_food() {
     }
 }
 
+/* F129 / D59: a subtype payload that leaves out its required discriminator is
+ * filled with the value its mapping declares, as in the other SDKs. */
+#[test]
+fn test_pet_food_subtype_without_its_discriminator_takes_the_mapping_value() {
+    let dry: DryFood =
+        serde_json::from_str(r#"{"weightKg":2.5}"#).expect("failed to decode DryFood");
+    let wet: WetFood =
+        serde_json::from_str(r#"{"volumeMl":400}"#).expect("failed to decode WetFood");
+
+    assert_eq!(dry.food_type, "dry");
+    assert_eq!(wet.food_type, "wet");
+    assert_eq!(
+        serde_json::to_string(&dry).expect("failed to encode DryFood"),
+        r#"{"foodType":"dry","weightKg":2.5}"#
+    );
+}
+
 #[test]
 fn test_pet_food_subtype_default_carries_its_mapping_value() {
     /* Struct-update syntax over `Default::default()` must keep the discriminator
@@ -606,7 +623,7 @@ fn test_defaults_explicit_null_is_preserved() {
 // the round-trip is exercised both bare and nested inside its owning model.
 #[test]
 fn test_priority_int_enum_serializes_as_json_number() {
-    let data = serde_json::to_string(&Priority::NUMBER_2).expect("failed to serialize Priority");
+    let data = serde_json::to_string(&Priority::Number2).expect("failed to serialize Priority");
     assert_eq!(
         data, "2",
         "integer-backed enum must serialize as a bare JSON number, got: {}",
@@ -614,7 +631,7 @@ fn test_priority_int_enum_serializes_as_json_number() {
     );
 
     // Nested inside StockItem the value is still a number, never a string.
-    let item = StockItem::new(Priority::NUMBER_3);
+    let item = StockItem::new(Priority::Number3);
     let nested = serde_json::to_string(&item).expect("failed to serialize StockItem");
     let parsed: serde_json::Value =
         serde_json::from_str(&nested).expect("failed to parse serialized StockItem");
@@ -630,11 +647,11 @@ fn test_priority_int_enum_serializes_as_json_number() {
 fn test_priority_int_enum_deserializes_from_json_number() {
     let priority: Priority =
         serde_json::from_str("2").expect("failed to deserialize Priority from number");
-    assert_eq!(priority, Priority::NUMBER_2);
+    assert_eq!(priority, Priority::Number2);
 
     let item: StockItem =
         serde_json::from_str(r#"{"priority":1}"#).expect("failed to deserialize StockItem");
-    assert_eq!(item.priority, Priority::NUMBER_1);
+    assert_eq!(item.priority, Priority::Number1);
 }
 
 // -- non-lowercase string enum preserves wire casing (behavior 2) --

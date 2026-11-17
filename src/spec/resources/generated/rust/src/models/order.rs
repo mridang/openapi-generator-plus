@@ -88,6 +88,62 @@ impl Order {
             complete: None,
         }
     }
+
+    /// Returns this value with `id` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_id(mut self, id: i64) -> Self {
+        self.id = Some(id);
+        self
+    }
+
+    /// Returns this value with `pet_id` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_pet_id(mut self, pet_id: i64) -> Self {
+        self.pet_id = Some(pet_id);
+        self
+    }
+
+    /// Returns this value with `quantity` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_quantity(mut self, quantity: i32) -> Self {
+        self.quantity = Some(quantity);
+        self
+    }
+
+    /// Returns this value with `tracking_id` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_tracking_id(mut self, tracking_id: uuid::Uuid) -> Self {
+        self.tracking_id = Some(tracking_id);
+        self
+    }
+
+    /// Returns this value with `ship_date` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_ship_date(mut self, ship_date: crate::date_time::DateTime) -> Self {
+        self.ship_date = Some(ship_date);
+        self
+    }
+
+    /// Returns this value with `status` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_status(mut self, status: OrderStatusEnum) -> Self {
+        self.status = Some(status);
+        self
+    }
+
+    /// Returns this value with `complete` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_complete(mut self, complete: bool) -> Self {
+        self.complete = Some(complete);
+        self
+    }
 }
 
 /* Hand-written `Default` impl (the derive is suppressed above) so that

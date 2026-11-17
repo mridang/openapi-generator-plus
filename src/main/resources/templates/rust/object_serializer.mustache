@@ -913,6 +913,44 @@ mod tests {
         );
     }
 
+    /* F933 / D15: the serializer's messages keep one prefix per direction, so a
+     * caller (and the other SDKs' tests) can tell a request that could not be
+     * written from a response that could not be read. */
+    #[test]
+    fn test_serialize_failure_messages_start_with_the_canonical_prefix() {
+        let non_finite = object_serializer::serialize(&f64::NAN).expect_err("NaN is refused");
+        assert_eq!(
+            "failed to serialize object to JSON: non-finite float (NaN or Infinity) is not permitted by RFC 8259",
+            non_finite.message()
+        );
+
+        let mut keyed_by_pair = std::collections::BTreeMap::new();
+        keyed_by_pair.insert((1, 2), 3);
+        let unwritable = object_serializer::serialize(&keyed_by_pair).expect_err("keys must be strings");
+        assert!(
+            unwritable.message().starts_with("failed to serialize object to JSON: "),
+            "{}",
+            unwritable.message()
+        );
+    }
+
+    #[test]
+    fn test_deserialize_failure_messages_start_with_the_canonical_prefix() {
+        let wrong_type = object_serializer::deserialize::<i32>(b"\"text\"").expect_err("a string is not an i32");
+        assert!(
+            wrong_type.message().starts_with("failed to deserialize JSON: "),
+            "{}",
+            wrong_type.message()
+        );
+
+        let trailing = object_serializer::deserialize::<i32>(b"1 2").expect_err("trailing data is refused");
+        assert!(
+            trailing.message().starts_with("failed to deserialize JSON: "),
+            "{}",
+            trailing.message()
+        );
+    }
+
     /* F1090: additional properties are written in ascending key order, so a body
      * with several extras has the same bytes in every process. */
     #[test]

@@ -46,4 +46,28 @@ impl Account {
             password: None,
         }
     }
+
+    /// Returns this value with `id` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_id(mut self, id: i64) -> Self {
+        self.id = Some(id);
+        self
+    }
+
+    /// Returns this value with `username` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_username(mut self, username: String) -> Self {
+        self.username = username;
+        self
+    }
+
+    /// Returns this value with `password` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_password(mut self, password: String) -> Self {
+        self.password = Some(password);
+        self
+    }
 }

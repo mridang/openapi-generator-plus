@@ -10,7 +10,7 @@
 use petstore::auth::api_key_authenticator::ApiKeyAuthenticator;
 use petstore::auth::api_key_location::ApiKeyLocation;
 use petstore::auth::Authenticator;
-use petstore::auth::BearerAuthenticator;
+use petstore::auth::{BearerAuthenticator, TokenProvider};
 use petstore::Client;
 use petstore::ConfigurationError;
 use petstore::TransportOptionsBuilder;
@@ -54,13 +54,13 @@ fn test_client_construct_with_transport_options() {
 #[test]
 fn test_client_with_token_rejects_invalid_tokens() {
     for token in ["tok\r\nInjected: yes", "ñoño", "", "   "] {
-        match Client::with_token("/api/v3", token, None) {
+        match Client::with_token(Some("/api/v3"), Some(token), None) {
             Err(ConfigurationError::InvalidArgument(_)) => {}
             Err(other) => panic!("expected InvalidArgument for {:?}, got {:?}", token, other),
             Ok(_) => panic!("expected InvalidArgument for {:?}, got a client", token),
         }
     }
-    assert!(Client::with_token("/api/v3", "test-token", None).is_ok());
+    assert!(Client::with_token(Some("/api/v3"), Some("test-token"), None).is_ok());
 }
 
 /// RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location rejects anything
@@ -101,7 +101,8 @@ fn test_client_api_groups_are_accessible() {
  * afterwards is rejected with the closed-client error. */
 #[test]
 fn test_client_close_marks_the_client_closed() {
-    let client = Client::with_token("/api/v3", "test-token", None).expect("valid token");
+    let client =
+        Client::with_token(Some("/api/v3"), Some("test-token"), None).expect("valid token");
     assert!(!client.is_closed());
     client.close();
     assert!(client.is_closed());
@@ -117,4 +118,109 @@ fn test_client_close_leaves_a_supplied_http_client_usable() {
     client.close();
     assert!(client.is_closed());
     assert!(supplied.get("http://127.0.0.1:1/").build().is_ok());
+}
+
+/* F862: credentials come from the argument first, then the environment (read
+ * once, an empty value counts as unset), and a missing one fails construction.
+ * The tests share the process environment, so they run one at a time. */
+static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+const BASE_URL_VAR: &str = "PETSTORE_BASE_URL";
+const ACCESS_TOKEN_VAR: &str = "PETSTORE_ACCESS_TOKEN";
+
+fn with_environment<R>(
+    base_url: Option<&str>,
+    access_token: Option<&str>,
+    body: impl FnOnce() -> R,
+) -> R {
+    let _guard = ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let saved = [
+        (BASE_URL_VAR, std::env::var(BASE_URL_VAR).ok()),
+        (ACCESS_TOKEN_VAR, std::env::var(ACCESS_TOKEN_VAR).ok()),
+    ];
+    for (name, value) in [(BASE_URL_VAR, base_url), (ACCESS_TOKEN_VAR, access_token)] {
+        match value {
+            Some(value) => std::env::set_var(name, value),
+            None => std::env::remove_var(name),
+        }
+    }
+    let result = body();
+    for (name, value) in saved {
+        match value {
+            Some(value) => std::env::set_var(name, value),
+            None => std::env::remove_var(name),
+        }
+    }
+    result
+}
+
+fn invalid_argument_text<T>(result: Result<T, ConfigurationError>) -> String {
+    match result {
+        Err(ConfigurationError::InvalidArgument(text)) => text,
+        Err(other) => panic!("expected InvalidArgument, got {:?}", other),
+        Ok(_) => panic!("expected InvalidArgument, got a client"),
+    }
+}
+
+#[test]
+fn test_client_with_token_reads_the_environment_when_nothing_is_passed() {
+    with_environment(Some("/api/v3"), Some("env-token"), || {
+        assert!(Client::with_token(None, None, None).is_ok());
+    });
+}
+
+#[test]
+fn test_client_with_token_prefers_the_argument_to_the_environment() {
+    /* The environment token is not a usable token, so the call can only
+     * succeed when it was never consulted. */
+    with_environment(Some("/api/v3"), Some("env\r\ntoken"), || {
+        assert!(Client::with_token(None, Some("test-token"), None).is_ok());
+    });
+    with_environment(Some("/api/v3"), Some("env-token"), || {
+        let text = invalid_argument_text(Client::with_token(None, Some("   "), None));
+        assert!(text.contains("Bearer token must not be empty"), "{}", text);
+    });
+}
+
+#[test]
+fn test_client_with_token_names_the_missing_host_and_token() {
+    with_environment(None, Some("env-token"), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(
+            text.contains("The API host is required: pass host or set PETSTORE_BASE_URL"),
+            "{}",
+            text
+        );
+    });
+    with_environment(Some("/api/v3"), None, || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_ACCESS_TOKEN"), "{}", text);
+    });
+}
+
+#[test]
+fn test_client_with_token_treats_an_empty_variable_as_unset() {
+    with_environment(Some(""), Some("env-token"), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_BASE_URL"), "{}", text);
+    });
+    with_environment(Some("/api/v3"), Some(""), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_ACCESS_TOKEN"), "{}", text);
+    });
+}
+
+#[test]
+fn test_client_with_token_provider_needs_a_host_but_no_token_variable() {
+    with_environment(Some("/api/v3"), None, || {
+        let provider: TokenProvider = std::sync::Arc::new(|| "provider-token".to_string());
+        assert!(Client::with_token_provider(None, provider, None).is_ok());
+    });
+    with_environment(None, None, || {
+        let provider: TokenProvider = std::sync::Arc::new(|| "provider-token".to_string());
+        let text = invalid_argument_text(Client::with_token_provider(None, provider, None));
+        assert!(text.contains("PETSTORE_BASE_URL"), "{}", text);
+    });
 }

@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.generators.rust;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -49,6 +50,12 @@ import org.slf4j.LoggerFactory;
 public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFileEmitter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRustCodegen.class);
+
+    private static final String OPTION_REPOSITORY_URL = "repositoryUrl";
+    private static final String OPTION_HOMEPAGE_URL = "homepageUrl";
+    private static final String OPTION_AUTHORS = "authors";
+    private static final String OPTION_DOCUMENTATION_URL = "documentationUrl";
+    private static final String OPTION_ISSUE_TRACKER_URL = "issueTrackerUrl";
 
     /**
      * A model-file import that names another generated model, as opposed to a
@@ -173,7 +180,24 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 CodegenConstants.PACKAGE_NAME_DESC));
         cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
                 "Version of the generated Rust crate (default: 1.0.0).").defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString(OPTION_REPOSITORY_URL,
+                "Source repository URL, written to the manifest and README."));
+        cliOptions.add(CliOption.newString(OPTION_HOMEPAGE_URL,
+                "Project homepage URL, written to the manifest and README."));
+        cliOptions.add(CliOption.newString(OPTION_AUTHORS,
+                "Comma-separated author names, written to the manifest."));
+        cliOptions.add(CliOption.newString(OPTION_DOCUMENTATION_URL,
+                "Documentation URL, written to the manifest and README (optional)."));
+        cliOptions.add(CliOption.newString(OPTION_ISSUE_TRACKER_URL,
+                "Issue tracker URL, written to the manifest and README (optional)."));
     }
+
+    /**
+     * Options classes this generator mints for operations the shared pass leaves without one (no
+     * query, header, form or cookie parameter and no security), so that every operation can take
+     * the per-call timeout, headers and retry budget (F827).
+     */
+    private final List<Map<String, String>> extraOptionsFiles = new ArrayList<>();
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
@@ -332,6 +356,46 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     public void processOpts() {
         super.processOpts();
+
+        /* The environment-variable prefix of the credentials the client reads once at
+         * construction ({PREFIX}_ACCESS_TOKEN, {PREFIX}_BASE_URL). */
+        additionalProperties.put(
+                "envPrefix",
+                NamingConvention.SNAKE_CASE
+                        .apply(getPropertyOrDefault("packageName", packageName))
+                        .toUpperCase(Locale.ROOT));
+
+        /* Package metadata options: the manifest and the README show only the ones given. */
+        final List<Map<String, String>> authorsList = new ArrayList<>();
+        final Object authorsOption = additionalProperties.get(OPTION_AUTHORS);
+        if (authorsOption != null) {
+            for (final String author : Splitter.on(',').split(String.valueOf(authorsOption))) {
+                if (!author.trim().isEmpty()) {
+                    authorsList.add(
+                            Map.of(
+                                    "name",
+                                    author.trim().replace("\\", "\\\\").replace("\"", "\\\"")));
+                }
+            }
+        }
+        additionalProperties.put("authorsList", authorsList);
+        additionalProperties.put("hasAuthors", !authorsList.isEmpty());
+        boolean hasProjectUrls = false;
+        for (final String urlOption :
+                new String[] {
+                    OPTION_REPOSITORY_URL,
+                    OPTION_HOMEPAGE_URL,
+                    OPTION_DOCUMENTATION_URL,
+                    OPTION_ISSUE_TRACKER_URL
+                }) {
+            final Object value = additionalProperties.get(urlOption);
+            if (value != null && !String.valueOf(value).trim().isEmpty()) {
+                hasProjectUrls = true;
+            } else {
+                additionalProperties.remove(urlOption);
+            }
+        }
+        additionalProperties.put("hasProjectUrls", hasProjectUrls);
 
         packageName = getPropertyOrDefault("packageName", packageName);
         packageVersion = getPropertyOrDefault("packageVersion", packageVersion);
@@ -646,6 +710,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             org.openapitools.codegen.CodegenProperty property) {
         super.postProcessModelProperty(model, property);
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        /* The name the `with_` copy method of the property carries: the field name without
+         * the raw-identifier prefix (`r#type` gives `with_type`). */
+        property.vendorExtensions.put(
+                "withName", property.name.startsWith("r#") ? property.name.substring(2) : property.name);
         /* format: time routes through the object_serializer::naive_time adapter
          * so a body writes HH:mm:ss(.SSS), the same text as a parameter. */
         property.vendorExtensions.put("isTime", "time".equals(property.dataFormat));
@@ -922,6 +990,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
         final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        addCallOptionsWhereMissing(result);
         final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
         if (operations != null) {
             final List<CodegenOperation> ops =
@@ -1024,6 +1093,16 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     public String toEnumVarName(String value, String datatype) {
         final String name = super.toEnumVarName(value, datatype);
+        if (isNumericEnumDatatype(datatype) && name.startsWith("NUMBER_")) {
+            /* An integer member takes the casing of every other Rust variant: the shared
+             * NUMBER_1 spelling becomes Number1, and NUMBER_MINUS_1 becomes NumberMinus1. */
+            final StringBuilder camel = new StringBuilder();
+            for (final String part : Splitter.on('_').omitEmptyStrings().split(name)) {
+                camel.append(part.substring(0, 1).toUpperCase(Locale.ROOT))
+                        .append(part.substring(1).toLowerCase(Locale.ROOT));
+            }
+            return camel.toString();
+        }
         return name.isEmpty() ? "Empty" : name;
     }
 
@@ -1421,9 +1500,72 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return Path.of(getOutputDir(), "src", "api", "options", fileName + ".rs").toString();
     }
 
+    /**
+     * Mints an Options struct, and the signature entry that takes it, for every operation the
+     * shared pass gave none. The per-call timeout, headers and retry budget live on that struct,
+     * so an operation without parameters still has the slot (F827). When the shared pass starts
+     * minting the struct itself every operation already has one and this does nothing.
+     */
+    @SuppressWarnings("unchecked")
+    private void addCallOptionsWhereMissing(OperationsMap processed) {
+        final Map<String, Object> operations = (Map<String, Object>) processed.get("operations");
+        if (operations == null) {
+            return;
+        }
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        for (final CodegenOperation op : ops) {
+            final Object decorator = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (!(decorator instanceof Map)) {
+                continue;
+            }
+            final Map<String, Object> deco = (Map<String, Object>) decorator;
+            final List<Map<String, Object>> sig = (List<Map<String, Object>>) deco.get("signatureArgs");
+            final List<Map<String, Object>> sigNoServer =
+                    (List<Map<String, Object>>) deco.get("signatureArgsNoServer");
+            if (sig == null
+                    || sigNoServer == null
+                    || sig.stream().anyMatch(a -> Boolean.TRUE.equals(a.get("isOptions")))) {
+                continue;
+            }
+            final String className = Objects.requireNonNull((String) deco.get("optionsClassName"));
+            final String content = generateOptionsFileContent(op, new ArrayList<>(), className);
+            if (content == null) {
+                continue;
+            }
+            final String filePath = getOptionsFilePath(op.operationId, className);
+            writeFile(filePath, content);
+            postProcessFile(Path.of(filePath).toFile(), "source");
+
+            final Map<String, String> meta = new HashMap<>();
+            meta.put("optionsClassName", className);
+            meta.put("optionsFilePath", filePath);
+            extraOptionsFiles.add(meta);
+
+            for (final List<Map<String, Object>> args : List.of(sig, sigNoServer)) {
+                final Map<String, Object> entry = new HashMap<>();
+                entry.put("kind", "options");
+                entry.put("isPath", false);
+                entry.put("isBody", false);
+                entry.put("isOptions", true);
+                entry.put("isServer", false);
+                entry.put("paramName", "options");
+                entry.put("dataType", className);
+                entry.put("nullable", true);
+                entry.put("isNullable", false);
+                args.add(entry);
+            }
+            deco.put("hasOptionsParam", true);
+        }
+    }
+
     /** {@inheritDoc} */
     @Override
-    public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
+    public void emitBarrelFiles(List<Map<String, String>> sharedOptionsFiles) {
+        final List<Map<String, String>> optionsFiles = new ArrayList<>(sharedOptionsFiles);
+        optionsFiles.addAll(extraOptionsFiles);
         if (optionsFiles.isEmpty()) {
             return;
         }
@@ -1452,6 +1594,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     public void postProcess() {
         writeModFile(Path.of(getOutputDir(), "src", "models"));
         writeModFile(Path.of(getOutputDir(), "src", "api"));
+        /* The options module is written even when every Options struct is one this
+         * generator minted, which the shared pass does not count. */
+        if (getAccumulatedOptionsFiles().isEmpty() && !extraOptionsFiles.isEmpty()) {
+            emitBarrelFiles(new ArrayList<>());
+        }
         super.postProcess();
     }
 
@@ -1506,6 +1653,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 "options",
                 "server",
                 "request_content_type",
+                "timeout",
+                "max_retries",
+                "header",
+                "call_options",
                 "path",
                 "query_params",
                 "header_params",

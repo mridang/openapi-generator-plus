@@ -24,6 +24,12 @@ impl NetworkTimeoutError {
     pub fn network_error(&self) -> &NetworkError {
         &self.network_error
     }
+
+    /// Records the request this error belongs to on the wrapped error.
+    pub(crate) fn with_request(mut self, method: &str, path: &str) -> Self {
+        self.network_error = self.network_error.with_request(method, path);
+        self
+    }
 }
 
 impl fmt::Display for NetworkTimeoutError {

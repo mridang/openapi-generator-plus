@@ -24,4 +24,20 @@ impl PetCriteria {
             min_age: None,
         }
     }
+
+    /// Returns this value with `breed` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_breed(mut self, breed: String) -> Self {
+        self.breed = Some(breed);
+        self
+    }
+
+    /// Returns this value with `min_age` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_min_age(mut self, min_age: i32) -> Self {
+        self.min_age = Some(min_age);
+        self
+    }
 }

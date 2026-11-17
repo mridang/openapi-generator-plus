@@ -895,6 +895,7 @@ impl {{classname}} {
             accepts: vec![{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
             content_type: request_content_type,
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
 {{#hasAuthMethods}}
             /* Secured operation: pass the resolved per-call authenticator (or
              * None for no override, which lets BaseApi fall back to the
@@ -919,7 +920,25 @@ impl {{classname}} {
         };
 
 {{#returnType}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+        /* Several 2xx responses with different schemas: the body is decoded as
+         * the variant the ACTUAL status code declares. A 2xx status the
+         * operation does not declare falls back to the union's own decoding. */
+        self.base
+            .invoke_api_for_status_union::<{{{.}}}, _>(params, |status, body| match status {
+{{#vendorExtensions.op}}
+{{#successResponses}}
+                {{#isRange}}200..=299{{/isRange}}{{^isRange}}{{statusCode}}{{/isRange}} => Ok(object_serializer::deserialize::<{{{returnType}}}>(body)?
+                    .map({{{successUnionType}}}::{{#rustVariantName}}{{{returnType}}}{{/rustVariantName}})),
+{{/successResponses}}
+{{/vendorExtensions.op}}
+                _ => object_serializer::deserialize::<{{{.}}}>(body),
+            })
+            .await
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{^vendorExtensions.op.hasMultiple2xx}}
         self.base.invoke_api_for_result::<{{{.}}}>(params).await
+{{/vendorExtensions.op.hasMultiple2xx}}
 {{/returnType}}
 {{^returnType}}
         self.base.invoke_api_for_empty_result(params).await

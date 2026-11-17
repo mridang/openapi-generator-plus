@@ -113,4 +113,116 @@ impl PetWithOwner {
             nickname: None,
         }
     }
+
+    /// Returns this value with `id` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_id(mut self, id: i64) -> Self {
+        self.id = Some(id);
+        self
+    }
+
+    /// Returns this value with `name` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
+    /// Returns this value with `category` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_category(mut self, category: Category) -> Self {
+        self.category = Some(category);
+        self
+    }
+
+    /// Returns this value with `photo_urls` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_photo_urls(mut self, photo_urls: std::collections::HashSet<String>) -> Self {
+        self.photo_urls = photo_urls;
+        self
+    }
+
+    /// Returns this value with `tags` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_tags(mut self, tags: Vec<Tag>) -> Self {
+        self.tags = Some(tags);
+        self
+    }
+
+    /// Returns this value with `status` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_status(mut self, status: PetWithOwnerStatusEnum) -> Self {
+        self.status = Some(status);
+        self
+    }
+
+    /// Returns this value with `location` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_location(mut self, location: Vec<crate::json_value::JsonValue>) -> Self {
+        self.location = Some(location);
+        self
+    }
+
+    /// Returns this value with `homepage_url` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_homepage_url(mut self, homepage_url: String) -> Self {
+        self.homepage_url = Some(homepage_url);
+        self
+    }
+
+    /// Returns this value with `thumbnail_ref` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_thumbnail_ref(mut self, thumbnail_ref: String) -> Self {
+        self.thumbnail_ref = Some(thumbnail_ref);
+        self
+    }
+
+    /// Returns this value with `link_template` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_link_template(mut self, link_template: String) -> Self {
+        self.link_template = Some(link_template);
+        self
+    }
+
+    /// Returns this value with `owner_email` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_owner_email(mut self, owner_email: String) -> Self {
+        self.owner_email = Some(owner_email);
+        self
+    }
+
+    /// Returns this value with `weight_kg` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_weight_kg(mut self, weight_kg: f64) -> Self {
+        self.weight_kg = Some(weight_kg);
+        self
+    }
+
+    /// Returns this value with `nickname` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_nickname(mut self, nickname: String) -> Self {
+        self.nickname = Some(nickname);
+        self
+    }
+
+    /// Returns this value with `owner_name` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_owner_name(mut self, owner_name: String) -> Self {
+        self.owner_name = owner_name;
+        self
+    }
 }

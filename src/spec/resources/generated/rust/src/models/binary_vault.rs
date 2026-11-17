@@ -45,4 +45,28 @@ impl BinaryVault {
             labels: None,
         }
     }
+
+    /// Returns this value with `seal` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_seal(mut self, seal: Vec<u8>) -> Self {
+        self.seal = Some(seal);
+        self
+    }
+
+    /// Returns this value with `shards` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_shards(mut self, shards: Vec<Vec<u8>>) -> Self {
+        self.shards = Some(shards);
+        self
+    }
+
+    /// Returns this value with `labels` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_labels(mut self, labels: std::collections::HashMap<String, Vec<u8>>) -> Self {
+        self.labels = Some(labels);
+        self
+    }
 }

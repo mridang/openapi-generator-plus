@@ -151,3 +151,32 @@ async fn test_scheme_wrapper_emits_the_bearer_header_and_validates_eagerly() {
         Err(ConfigurationError::InvalidArgument(_))
     ));
 }
+
+/* F862: a token provider is called for every request, so a renewed token is
+ * picked up, and a token it returns that is not usable fails that request. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_provider_is_called_for_every_request() {
+    let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counter = calls.clone();
+    let provider: {{packageName}}::auth::TokenProvider = std::sync::Arc::new(move || {
+        format!("tok{}", counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1)
+    });
+    let auth = BearerAuthenticator::with_token_provider("https://api.example.com", provider);
+
+    let first = auth.try_auth_headers().await.unwrap();
+    let second = auth.try_auth_headers().await.unwrap();
+
+    assert_eq!(first.get("Authorization").map(|s| s.as_str()), Some("Bearer tok1"));
+    assert_eq!(second.get("Authorization").map(|s| s.as_str()), Some("Bearer tok2"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_provider_returning_an_unusable_token_fails_the_request() {
+    let provider: {{packageName}}::auth::TokenProvider = std::sync::Arc::new(|| "   ".to_string());
+    let auth = BearerAuthenticator::with_token_provider("https://api.example.com", provider);
+
+    let err = auth.try_auth_headers().await.expect_err("an empty token must fail");
+
+    assert!(err.to_string().contains("Bearer token must not be empty"), "{}", err);
+    assert!(auth.auth_headers().await.is_empty());
+}

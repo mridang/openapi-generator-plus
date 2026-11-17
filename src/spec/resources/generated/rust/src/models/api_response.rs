@@ -27,4 +27,28 @@ impl ApiResponse {
             message: None,
         }
     }
+
+    /// Returns this value with `code` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_code(mut self, code: i32) -> Self {
+        self.code = Some(code);
+        self
+    }
+
+    /// Returns this value with `r#type` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_type(mut self, r#type: String) -> Self {
+        self.r#type = Some(r#type);
+        self
+    }
+
+    /// Returns this value with `message` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_message(mut self, message: String) -> Self {
+        self.message = Some(message);
+        self
+    }
 }

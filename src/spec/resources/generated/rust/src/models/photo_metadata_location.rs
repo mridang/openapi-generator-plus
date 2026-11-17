@@ -24,4 +24,20 @@ impl PhotoMetadataLocation {
             lng: None,
         }
     }
+
+    /// Returns this value with `lat` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_lat(mut self, lat: f64) -> Self {
+        self.lat = Some(lat);
+        self
+    }
+
+    /// Returns this value with `lng` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_lng(mut self, lng: f64) -> Self {
+        self.lng = Some(lng);
+        self
+    }
 }

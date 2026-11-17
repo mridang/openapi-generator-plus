@@ -30,7 +30,7 @@ async fn test_base_api_error_dispatch_400() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 400");
 }
 
@@ -44,7 +44,7 @@ async fn test_base_api_error_dispatch_401() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 401");
 }
 
@@ -58,7 +58,7 @@ async fn test_base_api_error_dispatch_403() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 403");
 }
 
@@ -72,7 +72,7 @@ async fn test_base_api_error_dispatch_404() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 404");
 }
 
@@ -91,7 +91,7 @@ async fn test_base_api_error_dispatch_409() {
     ));
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 409");
 }
 
@@ -105,7 +105,7 @@ async fn test_base_api_error_dispatch_422() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 422");
 }
 
@@ -124,7 +124,7 @@ async fn test_base_api_error_dispatch_500() {
     ));
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 500");
 }
 
@@ -143,7 +143,7 @@ async fn test_base_api_error_dispatch_502() {
     ));
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 502");
 }
 
@@ -159,7 +159,7 @@ async fn test_base_api_parses_json_error_body() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 400");
     let err = result.unwrap_err();
     let bad_request = err
@@ -381,7 +381,7 @@ async fn test_base_api_rejects_a_text_plain_body_for_a_model_return() {
         .build();
     let api = PetApi::new(client, config, None);
     let err = api
-        .get_pet_by_id_with_http_info(1, None)
+        .get_pet_by_id_with_http_info(1, None, None)
         .await
         .expect_err("a text/plain body for a model return must be an error");
     let serialization = err
@@ -441,7 +441,7 @@ async fn test_base_api_deserializes_vendor_json_mime_type() {
      * goes through the model decoder: it lacks the required members, which is a
      * SerializationError from the decoder and not the Content-Type error. */
     let err = api
-        .get_pet_by_id(1, None)
+        .get_pet_by_id(1, None, None)
         .await
         .expect_err("the JSON body lacks the required members");
     let serialization = err
@@ -566,7 +566,7 @@ async fn test_base_api_config_default_header_overrides_negotiated_accept() {
         .default_header("Accept", "application/xml")
         .build();
     let api = PetApi::new(client.clone(), config, None);
-    let _ = api.get_pet_by_id(1, None).await;
+    let _ = api.get_pet_by_id(1, None, None).await;
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(
         headers.get("Accept").map(|s| s.as_str()),
@@ -933,7 +933,7 @@ async fn test_base_api_error_dispatch_418() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 418");
     let err = result.unwrap_err();
     assert!(
@@ -955,7 +955,7 @@ async fn test_base_api_not_found_is_client_error() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 404");
     let err = result.unwrap_err();
     let not_found = err
@@ -980,7 +980,7 @@ async fn test_base_api_internal_server_error_is_server_error() {
     ));
     let api = PetApi::new(Arc::new(client), config, None);
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_err(), "expected error for status 500");
     let err = result.unwrap_err();
     let ise = err
@@ -1176,7 +1176,7 @@ async fn test_base_api_empty_content_type_defaults_to_json() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client.clone(), config, None);
-    let _ = api.get_pet_by_id(1, None).await;
+    let _ = api.get_pet_by_id(1, None, None).await;
     let headers = client.captured_headers.lock().unwrap();
     if let Some(ct) = headers.get("Content-Type") {
         assert_eq!(
@@ -1258,7 +1258,7 @@ async fn test_base_api_query_param_empty_when_no_options() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client.clone(), config, None);
-    let _ = api.get_pet_by_id(1, None).await;
+    let _ = api.get_pet_by_id(1, None, None).await;
     let url = client.captured_url.lock().unwrap();
     assert!(
         !url.contains("?"),
@@ -1442,7 +1442,7 @@ async fn test_base_api_serializes_number_query_params() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client.clone(), config, None);
-    let _ = api.get_pet_by_id(10, None).await;
+    let _ = api.get_pet_by_id(10, None, None).await;
     let url = client.captured_url.lock().unwrap();
     assert!(
         !url.contains("10.0"),
@@ -1512,7 +1512,7 @@ async fn test_binary_response_octet_stream_decoded_from_base64() {
     let api = PetApi::new(client, config, None);
 
     let result = api
-        .get_pet_avatar_with_http_info(1)
+        .get_pet_avatar_with_http_info(1, None)
         .await
         .expect("binary response must surface as Ok");
 
@@ -1551,7 +1551,7 @@ async fn test_binary_response_image_png_decoded_from_base64() {
     let api = PetApi::new(client, config, None);
 
     let result = api
-        .get_pet_avatar_with_http_info(1)
+        .get_pet_avatar_with_http_info(1, None)
         .await
         .expect("binary response must surface as Ok");
 
@@ -1572,7 +1572,7 @@ async fn test_json_response_for_a_model_return_is_parsed_to_the_model() {
         .build();
     let api = PetApi::new(client, config, None);
     let pet = api
-        .get_pet_by_id(42, None)
+        .get_pet_by_id(42, None, None)
         .await
         .expect("a JSON body for a model return must decode");
     assert_eq!(Some(42), pet.id);
@@ -1595,7 +1595,7 @@ async fn test_byte_over_json_response_decodes_to_bytes() {
     let api = PetApi::new(client, config, None);
 
     let bytes: Vec<u8> = api
-        .get_pet_avatar_thumbnail(1)
+        .get_pet_avatar_thumbnail(1, None)
         .await
         .expect("byte-over-JSON response must decode to Ok");
     assert_eq!(
@@ -1634,7 +1634,7 @@ async fn test_text_plain_body_for_a_model_return_is_a_serialization_error_naming
         .build();
     let api = PetApi::new(client, config, None);
     let err = api
-        .get_pet_by_id(1, None)
+        .get_pet_by_id(1, None, None)
         .await
         .expect_err("text/plain cannot be a model");
     let serialization = err
@@ -1761,7 +1761,7 @@ async fn test_get_request_with_no_body_omits_content_type() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client.clone(), config, None);
-    let _ = api.get_pet_by_id(1, None).await;
+    let _ = api.get_pet_by_id(1, None, None).await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         !headers.contains_key("Content-Type"),
@@ -2145,7 +2145,7 @@ async fn test_base_api_security_none_op_suppresses_client_authenticator() {
     // get_inventory is declared `security: []` -> the SDK passes the no-auth
     // sentinel, so NONE of the client credential's transport positions may
     // appear on the wire.
-    let _ = api.get_inventory().await;
+    let _ = api.get_inventory(None).await;
 
     let headers = client.captured_headers.lock().unwrap();
     let url = client.captured_url.lock().unwrap();
@@ -2218,7 +2218,7 @@ async fn test_base_api_inherited_security_op_applies_client_authenticator() {
     // get_pet_by_id inherits the global security requirement and receives no
     // per-call override (None) -> BaseApi must fall back to the client-level
     // authenticator and apply its credential.
-    let _ = api.get_pet_by_id(1, None).await;
+    let _ = api.get_pet_by_id(1, None, None).await;
 
     let headers = client.captured_headers.lock().unwrap();
     assert_eq!(

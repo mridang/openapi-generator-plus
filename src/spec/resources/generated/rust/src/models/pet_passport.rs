@@ -54,4 +54,44 @@ impl PetPassport {
             biometric_chip: None,
         }
     }
+
+    /// Returns this value with `pet` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_pet(mut self, pet: Pet) -> Self {
+        self.pet = Some(pet);
+        self
+    }
+
+    /// Returns this value with `thumbnail` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_thumbnail(mut self, thumbnail: Vec<u8>) -> Self {
+        self.thumbnail = Some(thumbnail);
+        self
+    }
+
+    /// Returns this value with `scans` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_scans(mut self, scans: Vec<Vec<u8>>) -> Self {
+        self.scans = Some(scans);
+        self
+    }
+
+    /// Returns this value with `issued_at` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_issued_at(mut self, issued_at: crate::date_time::DateTime) -> Self {
+        self.issued_at = Some(issued_at);
+        self
+    }
+
+    /// Returns this value with `biometric_chip` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_biometric_chip(mut self, biometric_chip: Vec<u8>) -> Self {
+        self.biometric_chip = Some(biometric_chip);
+        self
+    }
 }

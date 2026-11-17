@@ -23,4 +23,20 @@ impl Department {
     pub fn new(name: String) -> Self {
         Self { name, lead: None }
     }
+
+    /// Returns this value with `name` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
+    /// Returns this value with `lead` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_lead(mut self, lead: Box<Employee>) -> Self {
+        self.lead = Some(lead);
+        self
+    }
 }

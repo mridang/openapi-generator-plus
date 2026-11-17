@@ -10,14 +10,68 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use super::Authenticator;
 use crate::errors::configuration_error::ConfigurationError;
 
+/// A callback that returns the current bearer token. It is called for every
+/// request, so a token that is renewed elsewhere is picked up without
+/// rebuilding the client.
+pub type TokenProvider = Arc<dyn Fn() -> String + Send + Sync>;
+
+/// Where a [`BearerAuthenticator`] gets its token from.
+#[derive(Clone)]
+enum TokenSource {
+    /// A fixed token, validated when the authenticator is built.
+    Fixed(String),
+    /// A callback, validated each time it is called.
+    Provider(TokenProvider),
+}
+
 /// Authenticator for HTTP Bearer token authentication.
 pub struct BearerAuthenticator {
     host: String,
-    token: String,
+    source: TokenSource,
+}
+
+/// Checks a token against RFC 7230 §3.2.6 and the empty-token guard.
+fn validate_token(token: &str) -> Result<(), ConfigurationError> {
+    /* Reject empty / whitespace-only tokens: emitting a bare
+     * `Authorization: Bearer ` header would send the request
+     * unauthenticated. Fail closed. */
+    if token
+        .chars()
+        .all(|c| matches!(c, ' ' | '\t' | '\n' | '\r' | '\x0b' | '\x0c'))
+    {
+        return Err(ConfigurationError::InvalidArgument(
+            "Bearer token must not be empty".to_string(),
+        ));
+    }
+    if token
+        .chars()
+        .any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F))
+    {
+        return Err(ConfigurationError::InvalidArgument(
+            "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                .to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// The `Authorization` header value for a token, without a doubled prefix.
+fn authorization_value(token: &str) -> String {
+    /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+     * from env files are commonly stored already-prefixed; emitting
+     * "Bearer Bearer xyz" would otherwise silently break auth. */
+    let value: &str = if token.len() >= 7 && token.as_bytes()[..7].eq_ignore_ascii_case(b"Bearer ")
+    {
+        &token[7..]
+    } else {
+        token
+    };
+    format!("Bearer {}", value)
 }
 
 impl BearerAuthenticator {
@@ -37,30 +91,22 @@ impl BearerAuthenticator {
     /// otherwise emit the literal `Authorization: Bearer ` header, sending the
     /// request effectively unauthenticated.
     pub fn new(host: &str, token: &str) -> Result<Self, ConfigurationError> {
-        /* Reject empty / whitespace-only tokens: emitting a bare
-         * `Authorization: Bearer ` header would send the request
-         * unauthenticated. Fail closed. */
-        if token
-            .chars()
-            .all(|c| matches!(c, ' ' | '\t' | '\n' | '\r' | '\x0b' | '\x0c'))
-        {
-            return Err(ConfigurationError::InvalidArgument(
-                "Bearer token must not be empty".to_string(),
-            ));
-        }
-        if token
-            .chars()
-            .any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F))
-        {
-            return Err(ConfigurationError::InvalidArgument(
-                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
-                    .to_string(),
-            ));
-        }
+        validate_token(token)?;
         Ok(Self {
             host: host.to_string(),
-            token: token.to_string(),
+            source: TokenSource::Fixed(token.to_string()),
         })
+    }
+
+    /// Creates a Bearer authenticator whose token comes from `provider`, which
+    /// is called for every request. A token the provider returns that is empty
+    /// or holds a character a header cannot carry fails that request with
+    /// [`ConfigurationError::InvalidArgument`].
+    pub fn with_token_provider(host: &str, provider: TokenProvider) -> Self {
+        Self {
+            host: host.to_string(),
+            source: TokenSource::Provider(provider),
+        }
     }
 }
 
@@ -85,19 +131,42 @@ impl Authenticator for BearerAuthenticator {
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
-            /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
-             * from env files are commonly stored already-prefixed; emitting
-             * "Bearer Bearer xyz" would otherwise silently break auth. */
-            let value: &str = if self.token.len() >= 7
-                && self.token.as_bytes()[..7].eq_ignore_ascii_case(b"Bearer ")
-            {
-                &self.token[7..]
-            } else {
-                &self.token
-            };
             let mut headers = HashMap::new();
-            headers.insert("Authorization".to_string(), format!("Bearer {}", value));
+            let token = match &self.source {
+                TokenSource::Fixed(token) => token.clone(),
+                TokenSource::Provider(provider) => provider(),
+            };
+            /* A provider token that is not usable yields no header here;
+             * `try_auth_headers`, which the API client calls, reports why. */
+            if validate_token(&token).is_ok() {
+                headers.insert("Authorization".to_string(), authorization_value(&token));
+            }
             headers
+        })
+    }
+
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        HashMap<String, String>,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            let token = match &self.source {
+                TokenSource::Fixed(token) => token.clone(),
+                TokenSource::Provider(provider) => provider(),
+            };
+            validate_token(&token)?;
+            let mut headers = HashMap::new();
+            headers.insert("Authorization".to_string(), authorization_value(&token));
+            Ok(headers)
         })
     }
 }

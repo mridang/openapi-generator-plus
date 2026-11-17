@@ -17,6 +17,12 @@ impl NetworkError {
     pub fn api_error(&self) -> &ApiError {
         &self.api_error
     }
+
+    /// Records the request this error belongs to on the wrapped [`ApiError`].
+    pub(crate) fn with_request(mut self, method: &str, path: &str) -> Self {
+        self.api_error = self.api_error.with_request(method, path);
+        self
+    }
 }
 
 impl fmt::Display for NetworkError {

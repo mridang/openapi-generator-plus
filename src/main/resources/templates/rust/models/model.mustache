@@ -141,6 +141,16 @@ fn default_{{name}}() -> Option<{{{dataType}}}> {
 {{/required}}
 {{/isDiscriminator}}
 {{/isEnum}}
+{{#isDiscriminator}}
+{{#defaultValue}}
+/// Serde default for the discriminator `{{name}}`: a payload that leaves out
+/// `{{baseName}}` takes the value this schema's mapping declares.
+fn default_{{name}}() -> {{{dataType}}} {
+    {{{defaultValue}}}.to_string()
+}
+
+{{/defaultValue}}
+{{/isDiscriminator}}
 {{/vars}}
 {{! When any optional field carries a schema `default`, the derived `Default`
     impl would seed that field with `None` — diverging from `new()`, which
@@ -194,7 +204,7 @@ pub struct {{classname}} {
      * untagged enum can dispatch. Initialised by `new()` to the
      * mapping value; left as a plain (non-Option) field so callers
      * can read it without unwrapping. */
-    #[serde(rename = "{{baseName}}")]
+    #[serde(rename = "{{baseName}}"{{#defaultValue}}, default = "default_{{name}}"{{/defaultValue}})]
     pub {{name}}: {{{dataType}}},
 {{/isDiscriminator}}
 {{^isDiscriminator}}
@@ -305,6 +315,26 @@ impl {{classname}} {
 {{/isAdditionalPropertiesTrue}}
         }
     }
+{{#vars}}
+{{^isDiscriminator}}
+
+    /// Returns this value with `{{name}}` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_{{vendorExtensions.withName}}(mut self, {{name}}: {{#required}}{{#isNullable}}Option<{{/isNullable}}{{/required}}{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#required}}{{#isNullable}}>{{/isNullable}}{{/required}}) -> Self {
+        self.{{name}} = {{#required}}{{name}}{{/required}}{{^required}}Some({{name}}){{/required}};
+        self
+    }
+{{/isDiscriminator}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    /// Returns this value with its additional properties replaced.
+    pub fn with_additional_properties(mut self, additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>) -> Self {
+        self.additional_properties = additional_properties;
+        self
+    }
+{{/isAdditionalPropertiesTrue}}
 }
 {{#hasDefaultedOptionalVars}}
 

@@ -14,7 +14,7 @@ petstore = "1.0.0"
 ```rust
 use petstore::Client;
 
-let client = Client::with_token("https://api.example.com", "your-token", None)?;
+let client = Client::with_token(Some("https://api.example.com"), Some("your-token"), None)?;
 ```
 
 ## Authentication
@@ -30,6 +30,20 @@ use petstore::Client;
 let authenticator = BearerAuthenticator::new("https://api.example.com", "your-token")?;
 let client = Client::new(Box::new(authenticator), None);
 ```
+
+`with_token(host, access_token, transport_options)` takes `Option<&str>` values: an argument wins, then `PETSTORE_BASE_URL` and `PETSTORE_ACCESS_TOKEN` are read once at construction (an empty variable is unset), and a value that is neither passed nor set fails with `ConfigurationError::InvalidArgument`. `with_token_provider(host, provider, transport_options)` takes an `Arc<dyn Fn() -> String + Send + Sync>` that is called for every request.
+
+### Per-call options
+
+Every operation takes `options: Option<&...Options>`. Besides the operation's own optional parameters it carries `timeout(Duration)`, `max_retries(u32)` and `header(name, value)` for that one call; they replace the client's timeout and retry budget and win over its default headers.
+
+### Errors with request context
+
+`ApiError::request_method()` and `request_path()` (also on `ApiErrorFields`, and through `api_error()` on every status wrapper) name the request that failed, without its query string.
+
+### Compression, logging and versioning
+
+Responses are decoded from gzip, deflate, br and zstd. The crate does not log; with the `opentelemetry` feature the W3C trace context is injected. The minimum supported Rust version is 1.85.
 
 ### Basic Auth
 
@@ -158,7 +172,7 @@ use std::collections::HashMap;
 use petstore::servers::server_0;
 use petstore::Client;
 
-let client = Client::with_token(&server_0().url(&HashMap::new())?, "your-token", None)?;
+let client = Client::with_token(Some(&server_0().url(&HashMap::new())?), Some("your-token"), None)?;
 ```
 
 ## Testing

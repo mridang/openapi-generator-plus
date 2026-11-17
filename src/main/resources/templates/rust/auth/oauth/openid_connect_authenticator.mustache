@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::api_client::ApiClient;
+use crate::api_client::{ApiClient, RequestOptions};
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_authorization_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
 use crate::auth::Authenticator;
@@ -194,9 +194,19 @@ impl OpenIdConnectAuthenticator {
         headers.insert("Accept".to_string(), "application/json".to_string());
 
         /* Discovery is an HTTP call like any other: a transport failure is
-         * already a NetworkError or NetworkTimeoutError and passes through. */
+         * already a NetworkError or NetworkTimeoutError and passes through. It
+         * is sent without following redirects, which also leaves the
+         * transport's default headers out, so an `Authorization` or API-key
+         * header meant for the API never reaches the identity provider, and a
+         * 307 or 308 from the discovery URL is an error rather than a hop. */
         let response = client
-            .send_request("GET", &self.openid_connect_url, &headers, None)
+            .send_request_with_options(
+                "GET",
+                &self.openid_connect_url,
+                &headers,
+                None,
+                &RequestOptions::new().no_redirect(true),
+            )
             .await?;
 
         /* oauth-oidc-discovery-no-status-check: reject a non-2xx discovery
@@ -208,6 +218,8 @@ impl OpenIdConnectAuthenticator {
                 response.status_code(),
                 response.headers(),
                 response.body(),
+                Some("GET"),
+                Some(&self.openid_connect_url),
             ));
         }
 

@@ -131,7 +131,7 @@ async fn test_store_api_place_order_omitted_body_sends_no_body_and_no_content_ty
         .base_url("http://localhost")
         .build();
     let api = StoreApi::new(client.clone(), config, None);
-    let _ = api.place_order_with_http_info(None).await;
+    let _ = api.place_order_with_http_info(None, None).await;
     let headers = client.headers.lock().unwrap();
     assert!(
         headers.contains_key("Accept"),
@@ -211,7 +211,9 @@ async fn test_store_api_place_order_supplied_body_sends_json_with_content_type()
         .base_url("http://localhost")
         .build();
     let api = StoreApi::new(client.clone(), config, None);
-    let _ = api.place_order_with_http_info(Some(Order::new())).await;
+    let _ = api
+        .place_order_with_http_info(Some(Order::new()), None)
+        .await;
     let body = client.body.lock().unwrap();
     assert!(
         body.as_ref().is_some_and(|b| b.starts_with(b"{")),
@@ -231,14 +233,14 @@ async fn test_store_api_place_order_supplied_body_sends_json_with_content_type()
 #[tokio::test]
 async fn test_store_api_get_inventory() {
     let api = new_store_api_for_integration();
-    let result = api.get_inventory().await;
+    let result = api.get_inventory(None).await;
     assert!(result.is_ok(), "GetInventory failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_store_api_get_inventory_with_http_info() {
     let api = new_store_api_for_integration();
-    let result = api.get_inventory_with_http_info().await;
+    let result = api.get_inventory_with_http_info(None).await;
     assert!(
         result.is_ok(),
         "GetInventoryWithHttpInfo failed: {:?}",
@@ -252,14 +254,14 @@ async fn test_store_api_get_inventory_with_http_info() {
 #[tokio::test]
 async fn test_store_api_get_order_by_id() {
     let api = new_store_api_for_integration();
-    let result = api.get_order_by_id(1).await;
+    let result = api.get_order_by_id(1, None).await;
     assert!(result.is_ok(), "GetOrderById failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_store_api_get_order_by_id_with_http_info() {
     let api = new_store_api_for_integration();
-    let result = api.get_order_by_id_with_http_info(1).await;
+    let result = api.get_order_by_id_with_http_info(1, None).await;
     assert!(
         result.is_ok(),
         "GetOrderByIdWithHttpInfo failed: {:?}",
@@ -274,7 +276,7 @@ async fn test_store_api_get_order_by_id_with_http_info() {
 async fn test_store_api_place_order_with_http_info() {
     let api = new_store_api_for_integration();
     let order = Order::new();
-    let result = api.place_order_with_http_info(Some(order)).await;
+    let result = api.place_order_with_http_info(Some(order), None).await;
     assert!(
         result.is_ok(),
         "PlaceOrderWithHttpInfo failed: {:?}",
@@ -289,14 +291,14 @@ async fn test_store_api_place_order_with_http_info() {
 async fn test_store_api_place_order() {
     let api = new_store_api_for_integration();
     let order = Order::new();
-    let result = api.place_order(Some(order)).await;
+    let result = api.place_order(Some(order), None).await;
     assert!(result.is_ok(), "PlaceOrder failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_store_api_delete_order() {
     let api = new_store_api_for_integration();
-    let result = api.delete_order(1).await;
+    let result = api.delete_order(1, None).await;
     assert!(result.is_ok(), "DeleteOrder failed: {:?}", result.err());
 }
 
@@ -305,7 +307,7 @@ async fn test_store_api_get_order_not_found() {
     let api = new_store_api_for_mock(404, "application/json", r#"{"message":"Order not found"}"#);
 
     let err = api
-        .get_order_by_id(99999)
+        .get_order_by_id(99999, None)
         .await
         .expect_err("expected error for non-existent order");
     let not_found = err
@@ -334,7 +336,7 @@ async fn test_store_api_get_order_by_id_picks_the_status_specific_error_kind() {
         );
 
         let err = api
-            .get_order_by_id(1)
+            .get_order_by_id(1, None)
             .await
             .expect_err("a typed status route answers with an error status");
 
@@ -371,7 +373,7 @@ async fn test_store_api_place_order_server_error() {
 
     let order = Order::new();
     let err = api
-        .place_order(Some(order))
+        .place_order(Some(order), None)
         .await
         .expect_err("expected error for server error response");
     let server_error = err
@@ -385,7 +387,7 @@ async fn test_store_api_delete_order_not_found() {
     let api = new_store_api_for_mock(404, "application/json", r#"{"message":"Order not found"}"#);
 
     let err = api
-        .delete_order(99999)
+        .delete_order(99999, None)
         .await
         .expect_err("expected error for deleting non-existent order");
     let not_found = err
@@ -408,7 +410,7 @@ async fn test_store_api_get_grouped_categories_typed_leaves() {
     );
 
     let result = api
-        .get_grouped_categories()
+        .get_grouped_categories(None)
         .await
         .expect("GetGroupedCategories failed");
 
@@ -424,19 +426,19 @@ async fn test_store_api_get_grouped_categories_typed_leaves() {
 async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
     let api = new_store_api_for_mock(200, "application/json", "[[1,2],[3]]");
     assert_eq!(
-        api.get_matrix().await.expect("get_matrix failed"),
+        api.get_matrix(None).await.expect("get_matrix failed"),
         vec![vec![1, 2], vec![3]]
     );
 
     let api = new_store_api_for_mock(200, "application/json", r#""green""#);
     assert_eq!(
-        api.get_swatch().await.expect("get_swatch failed"),
+        api.get_swatch(None).await.expect("get_swatch failed"),
         Swatch::Green
     );
 
     let api = new_store_api_for_mock(200, "application/json", r#"[{"a":"red"},{"b":"blue"}]"#);
     let groups = api
-        .get_swatch_groups()
+        .get_swatch_groups(None)
         .await
         .expect("get_swatch_groups failed");
     assert_eq!(groups.len(), 2);
@@ -449,7 +451,7 @@ async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
         r#"[{"at":"2024-01-15T10:30:00Z"}]"#,
     );
     let stamps = api
-        .get_timestamp_groups()
+        .get_timestamp_groups(None)
         .await
         .expect("get_timestamp_groups failed");
     assert_eq!(stamps.len(), 1);
@@ -460,7 +462,7 @@ async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
         "application/json",
         r#"{"value":"root","child":{"value":"leaf"}}"#,
     );
-    let tree = api.get_tree().await.expect("get_tree failed");
+    let tree = api.get_tree(None).await.expect("get_tree failed");
     assert_eq!(tree.value, "root");
     assert_eq!(tree.child.expect("expected a child node").value, "leaf");
 }
@@ -470,7 +472,7 @@ async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
 #[tokio::test]
 async fn test_store_api_defaults_cycles_and_integer_enums_decode() {
     let api = new_store_api_for_mock(200, "application/json", "{}");
-    let defaults = api.get_defaults().await.expect("get_defaults failed");
+    let defaults = api.get_defaults(None).await.expect("get_defaults failed");
     assert_eq!(defaults.retries, Some(3));
     assert_eq!(defaults.mode, Some(DefaultsModeEnum::Medium));
 
@@ -479,7 +481,10 @@ async fn test_store_api_defaults_cycles_and_integer_enums_decode() {
         "application/json",
         r#"{"name":"ops","lead":{"name":"ann","department":{"name":"inner"}}}"#,
     );
-    let department = api.get_department().await.expect("get_department failed");
+    let department = api
+        .get_department(None)
+        .await
+        .expect("get_department failed");
     assert_eq!(department.name, "ops");
     let lead = department.lead.expect("expected a lead");
     assert_eq!(lead.name, "ann");
@@ -497,7 +502,7 @@ async fn test_store_api_defaults_cycles_and_integer_enums_decode() {
         .get_stock_item(Some(&GetStockItemOptions::new()))
         .await
         .expect("get_stock_item failed");
-    assert_eq!(item.priority, Priority::NUMBER_2);
+    assert_eq!(item.priority, Priority::Number2);
     assert_eq!(item.matrix, Some(vec![vec![1, 2]]));
 }
 
@@ -510,7 +515,7 @@ async fn test_store_api_get_order_by_id_malformed_body_fails_loud() {
     let api = new_store_api_for_mock(200, "application/json", "this is not valid json at all");
 
     let err = api
-        .get_order_by_id(1)
+        .get_order_by_id(1, None)
         .await
         .expect_err("a malformed 2xx body must fail loud, not return the raw string");
     assert!(
@@ -565,7 +570,7 @@ async fn test_store_api_get_order_by_tracking_id_puts_the_lowercase_uuid_in_the_
     let tracking_id =
         uuid::Uuid::parse_str("E621E1F8-C36C-495A-93FC-0C247A3E6E5F").expect("a valid uuid");
 
-    api.get_order_by_tracking_id(tracking_id)
+    api.get_order_by_tracking_id(tracking_id, None)
         .await
         .expect("get_order_by_tracking_id failed");
 
@@ -589,7 +594,7 @@ async fn test_store_api_create_account_sends_the_write_only_password() {
 
     /* The stub answers `{}`, which lacks the required username, so the decode
      * fails after the request was dispatched; only the request is asserted. */
-    let _ = api.create_account_with_http_info(account).await;
+    let _ = api.create_account_with_http_info(account, None).await;
 
     let body = client
         .body
@@ -606,7 +611,7 @@ async fn test_store_api_create_account_keeps_the_read_only_id() {
     let api = new_store_api_for_mock(200, "application/json", r#"{"id":7,"username":"u"}"#);
 
     let created = api
-        .create_account(Account::new("u".to_string()))
+        .create_account(Account::new("u".to_string()), None)
         .await
         .expect("create_account failed");
 
@@ -637,4 +642,30 @@ fn test_parameter_description_keeps_backticks() {
     let source = include_str!("../src/api/store_api.rs");
     assert!(source
         .contains("    /// * `q`: JSON-encoded query parameter (OAS `content`, not `schema`)\n"));
+}
+
+/* F1062: an operation with several 2xx schemas decodes the body as the variant
+ * the actual status declares. The body satisfies both schemas, so only the
+ * status can tell the 200 (existing reservation) from the 201 (new receipt). */
+#[tokio::test]
+async fn test_store_api_reserve_stock_decodes_the_variant_of_the_actual_status() {
+    let body = r#"{"reservationId":1,"quantity":2,"receiptCode":"rcpt-1","expiresAt":"2030-01-01T00:00:00Z"}"#;
+
+    let created = new_store_api_for_mock(201, "application/json", body)
+        .reserve_stock(None)
+        .await
+        .expect("a 201 must decode");
+    let existing = new_store_api_for_mock(200, "application/json", body)
+        .reserve_stock(None)
+        .await
+        .expect("a 200 must decode");
+
+    assert!(
+        matches!(created, ReserveStockResponse::ReservationReceipt(_)),
+        "{created:?}"
+    );
+    assert!(
+        matches!(existing, ReserveStockResponse::Reservation(_)),
+        "{existing:?}"
+    );
 }

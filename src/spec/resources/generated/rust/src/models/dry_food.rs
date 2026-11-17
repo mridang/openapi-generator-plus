@@ -8,13 +8,19 @@
  */
 
 /// DryFood is a model class generated from the OpenAPI schema.
+/// Serde default for the discriminator `food_type`: a payload that leaves out
+/// `foodType` takes the value this schema's mapping declares.
+fn default_food_type() -> String {
+    "dry".to_string()
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DryFood {
     /* Discriminator field — always present on the wire so the parent
      * untagged enum can dispatch. Initialised by `new()` to the
      * mapping value; left as a plain (non-Option) field so callers
      * can read it without unwrapping. */
-    #[serde(rename = "foodType")]
+    #[serde(rename = "foodType", default = "default_food_type")]
     pub food_type: String,
     #[serde(rename = "weightKg")]
     pub weight_kg: f64,
@@ -28,6 +34,14 @@ impl DryFood {
             /* Auto-set discriminator from oneOf mapping. */
             food_type: "dry".to_string(),
         }
+    }
+
+    /// Returns this value with `weight_kg` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_weight_kg(mut self, weight_kg: f64) -> Self {
+        self.weight_kg = weight_kg;
+        self
     }
 }
 
