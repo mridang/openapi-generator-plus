@@ -103,6 +103,14 @@ mod {{module}} {
             assert!({{className}}::new({{{explicitArgs}}}).is_ok());
         });
     }
+
+    #[test]
+    fn test_bhv_authscheme_003_a_scheme_authenticator_fails_naming_its_variable_when_empty() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
 {{/isBasic}}
 {{#isApiKey}}
 
@@ -112,6 +120,32 @@ mod {{module}} {
         with_variables(&unusable, || {
             assert!({{className}}::new({{{explicitArgs}}}).is_ok());
         });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authapikey_021_the_key_is_read_from_the_environment_and_a_passed_key_wins() {
+        let from_environment = with_variables(&set_all(), || {
+            {{className}}::new({{{bareArgs}}}).unwrap()
+        });
+        let expected = "value-{{firstParam}}";
+        let headers = from_environment.auth_headers().await;
+        let query = from_environment.query_params();
+        let cookies = from_environment.cookie_params();
+        assert!(
+            headers.values().chain(query.values()).chain(cookies.values()).any(|v| v.as_str() == expected),
+            "the environment value was not emitted"
+        );
+
+        let explicit = with_variables(&set_all(), || {
+            {{className}}::new({{{explicitArgs}}}).unwrap()
+        });
+        let headers = explicit.auth_headers().await;
+        let query = explicit.query_params();
+        let cookies = explicit.cookie_params();
+        assert!(
+            headers.values().chain(query.values()).chain(cookies.values()).any(|v| v.as_str() == "explicit-{{firstParam}}"),
+            "the passed key was not emitted"
+        );
     }
 {{/isApiKey}}
 {{#bearerIdOnce}}
@@ -140,6 +174,42 @@ mod {{module}} {
             headers.get("Authorization").map(|s| s.as_str()),
             Some("Bearer explicit-{{firstParam}}")
         );
+    }
+
+    #[test]
+    fn test_bhv_authbearer_019_an_empty_environment_value_counts_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authbearer_023_generated_bearer_wrappers_emit_a_bearer_header_and_keep_their_name() {
+        let auth = {{className}}::new({{{explicitArgs}}}).unwrap();
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer explicit-{{firstParam}}")
+        );
+        let debug = format!("{:?}", auth);
+        assert!(debug.starts_with("{{className}}("), "{}", debug);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authbearer_025_the_environment_variable_is_read_once_for_every_request() {
+        let auth = with_variables(&set_all(), || {
+            let auth = {{className}}::new({{{bareArgs}}}).unwrap();
+            std::env::set_var("{{firstEnvName}}", "changed-after-build");
+            auth
+        });
+        for _ in 0..2 {
+            let headers = auth.auth_headers().await;
+            assert_eq!(
+                headers.get("Authorization").map(|s| s.as_str()),
+                Some("Bearer value-{{firstParam}}")
+            );
+        }
     }
 {{/bearerIdOnce}}
 {{#isBearer}}
