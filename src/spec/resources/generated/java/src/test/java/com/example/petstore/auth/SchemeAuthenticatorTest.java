@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -112,7 +113,8 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void aMissingCredentialNamesItsVariable() {
+    @DisplayName("a missing credential names its variable")
+    void missingCredentialNamesItsVariable() {
       IllegalArgumentException ex =
           assertThrows(
               IllegalArgumentException.class,
@@ -198,7 +200,8 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void aMissingCredentialNamesItsVariable() {
+    @DisplayName("a missing credential names its variable")
+    void missingCredentialNamesItsVariable() {
       IllegalArgumentException ex =
           assertThrows(
               IllegalArgumentException.class,
@@ -355,7 +358,8 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void aMissingCredentialNamesItsVariable() {
+    @DisplayName("a missing credential names its variable")
+    void missingCredentialNamesItsVariable() {
       IllegalArgumentException ex =
           assertThrows(
               IllegalArgumentException.class,
