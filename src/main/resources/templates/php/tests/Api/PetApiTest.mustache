@@ -1205,7 +1205,9 @@ test('the credential of the scheme the operation requires is sent', function ():
     /* addPet accepts the apiKeyHeader scheme or the petStoreBearer scheme; only the
      * bearer credential is configured here, so it is the one that reaches the wire. */
     $captured = new \stdClass();
-    $captured->headers = [];
+    /** @var array<string, string> $none */
+    $none = [];
+    $captured->headers = $none;
     $client = new class($captured) implements \{{invokerPackage}}\ApiClient {
         public function __construct(private readonly \stdClass $captured)
         {
