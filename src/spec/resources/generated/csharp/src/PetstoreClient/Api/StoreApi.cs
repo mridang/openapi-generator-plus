@@ -74,15 +74,21 @@ public class StoreApi : BaseApi
     /// Create an account
     /// </summary>
     /// <param name="account"></param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Account]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Account> CreateAccountAsync(
         Account account,
+        CreateAccountOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<Account>> task = CreateAccountWithHttpInfoAsync(account, cancellationToken);
+        Task<ApiResult<Account>> task = CreateAccountWithHttpInfoAsync(
+            account,
+            options,
+            cancellationToken
+        );
         ApiResult<Account> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -112,11 +118,13 @@ public class StoreApi : BaseApi
     /// Create an account (with HTTP info)
     /// </summary>
     /// <param name="account"></param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Account>> CreateAccountWithHttpInfoAsync(
         Account account,
+        CreateAccountOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -136,7 +144,10 @@ public class StoreApi : BaseApi
                 typeof(Account),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.CreateAccount"
+                operationName: "StoreApi.CreateAccount",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -145,11 +156,20 @@ public class StoreApi : BaseApi
     /// Delete purchase order by ID
     /// </summary>
     /// <param name="orderId">ID of the order to delete</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task DeleteOrderAsync(long orderId, CancellationToken cancellationToken = default)
+    public async Task DeleteOrderAsync(
+        long orderId,
+        DeleteOrderOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<object?>> task = DeleteOrderWithHttpInfoAsync(orderId, cancellationToken);
+        Task<ApiResult<object?>> task = DeleteOrderWithHttpInfoAsync(
+            orderId,
+            options,
+            cancellationToken
+        );
         _ = await task.ConfigureAwait(false);
     }
 
@@ -157,11 +177,13 @@ public class StoreApi : BaseApi
     /// Delete purchase order by ID (with HTTP info)
     /// </summary>
     /// <param name="orderId">ID of the order to delete</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<object?>> DeleteOrderWithHttpInfoAsync(
         long orderId,
+        DeleteOrderOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -196,7 +218,10 @@ public class StoreApi : BaseApi
                 null,
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.DeleteOrder"
+                operationName: "StoreApi.DeleteOrder",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -329,12 +354,16 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a model exercising schema defaults on deserialize.
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Defaults]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Defaults> GetDefaultsAsync(CancellationToken cancellationToken = default)
+    public async Task<Defaults> GetDefaultsAsync(
+        GetDefaultsOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Defaults>> task = GetDefaultsWithHttpInfoAsync(cancellationToken);
+        Task<ApiResult<Defaults>> task = GetDefaultsWithHttpInfoAsync(options, cancellationToken);
         ApiResult<Defaults> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -363,10 +392,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a model exercising schema defaults on deserialize. (with HTTP info)
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Defaults>> GetDefaultsWithHttpInfoAsync(
+        GetDefaultsOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -386,7 +417,10 @@ public class StoreApi : BaseApi
                 typeof(Defaults),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetDefaults"
+                operationName: "StoreApi.GetDefaults",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -394,12 +428,19 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a department (mutual-recursion codegen fixture).
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Department]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Department> GetDepartmentAsync(CancellationToken cancellationToken = default)
+    public async Task<Department> GetDepartmentAsync(
+        GetDepartmentOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Department>> task = GetDepartmentWithHttpInfoAsync(cancellationToken);
+        Task<ApiResult<Department>> task = GetDepartmentWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
         ApiResult<Department> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -428,10 +469,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a department (mutual-recursion codegen fixture). (with HTTP info)
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Department>> GetDepartmentWithHttpInfoAsync(
+        GetDepartmentOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -451,7 +494,10 @@ public class StoreApi : BaseApi
                 typeof(Department),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetDepartment"
+                operationName: "StoreApi.GetDepartment",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -459,15 +505,17 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns categories grouped into an array of string-keyed maps.
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Dictionary<string, Category>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<List<Dictionary<string, Category>>> GetGroupedCategoriesAsync(
+        GetGroupedCategoriesOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
         Task<ApiResult<List<Dictionary<string, Category>>>> task =
-            GetGroupedCategoriesWithHttpInfoAsync(cancellationToken);
+            GetGroupedCategoriesWithHttpInfoAsync(options, cancellationToken);
         ApiResult<List<Dictionary<string, Category>>> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -496,12 +544,16 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns categories grouped into an array of string-keyed maps. (with HTTP info)
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<
         ApiResult<List<Dictionary<string, Category>>>
-    > GetGroupedCategoriesWithHttpInfoAsync(CancellationToken cancellationToken = default)
+    > GetGroupedCategoriesWithHttpInfoAsync(
+        GetGroupedCategoriesOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/grouped-categories";
 
@@ -519,7 +571,10 @@ public class StoreApi : BaseApi
                 typeof(List<Dictionary<string, Category>>),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetGroupedCategories"
+                operationName: "StoreApi.GetGroupedCategories",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -527,14 +582,17 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns pet inventories by status
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Dictionary<string, int>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Dictionary<string, int>> GetInventoryAsync(
+        GetInventoryOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
         Task<ApiResult<Dictionary<string, int>>> task = GetInventoryWithHttpInfoAsync(
+            options,
             cancellationToken
         );
         ApiResult<Dictionary<string, int>> result = await task.ConfigureAwait(false);
@@ -565,10 +623,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns pet inventories by status (with HTTP info)
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Dictionary<string, int>>> GetInventoryWithHttpInfoAsync(
+        GetInventoryOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -588,7 +648,10 @@ public class StoreApi : BaseApi
                 typeof(Dictionary<string, int>),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetInventory"
+                operationName: "StoreApi.GetInventory",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -596,12 +659,19 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a matrix as an array of integer arrays.
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<List<int>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<List<List<int>>> GetMatrixAsync(CancellationToken cancellationToken = default)
+    public async Task<List<List<int>>> GetMatrixAsync(
+        GetMatrixOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<List<List<int>>>> task = GetMatrixWithHttpInfoAsync(cancellationToken);
+        Task<ApiResult<List<List<int>>>> task = GetMatrixWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
         ApiResult<List<List<int>>> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -630,10 +700,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a matrix as an array of integer arrays. (with HTTP info)
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<List<List<int>>>> GetMatrixWithHttpInfoAsync(
+        GetMatrixOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -653,7 +725,10 @@ public class StoreApi : BaseApi
                 typeof(List<List<int>>),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetMatrix"
+                operationName: "StoreApi.GetMatrix",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -662,15 +737,21 @@ public class StoreApi : BaseApi
     /// Find purchase order by ID
     /// </summary>
     /// <param name="orderId">ID of order to return</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Order> GetOrderByIdAsync(
         long orderId,
+        GetOrderByIdOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<Order>> task = GetOrderByIdWithHttpInfoAsync(orderId, cancellationToken);
+        Task<ApiResult<Order>> task = GetOrderByIdWithHttpInfoAsync(
+            orderId,
+            options,
+            cancellationToken
+        );
         ApiResult<Order> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -700,11 +781,13 @@ public class StoreApi : BaseApi
     /// Find purchase order by ID (with HTTP info)
     /// </summary>
     /// <param name="orderId">ID of order to return</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Order>> GetOrderByIdWithHttpInfoAsync(
         long orderId,
+        GetOrderByIdOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -739,7 +822,10 @@ public class StoreApi : BaseApi
                 typeof(Order),
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetOrderById"
+                operationName: "StoreApi.GetOrderById",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -748,16 +834,19 @@ public class StoreApi : BaseApi
     /// Find purchase order by tracking id
     /// </summary>
     /// <param name="trackingId"></param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Order> GetOrderByTrackingIdAsync(
         Guid trackingId,
+        GetOrderByTrackingIdOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
         Task<ApiResult<Order>> task = GetOrderByTrackingIdWithHttpInfoAsync(
             trackingId,
+            options,
             cancellationToken
         );
         ApiResult<Order> result = await task.ConfigureAwait(false);
@@ -789,11 +878,13 @@ public class StoreApi : BaseApi
     /// Find purchase order by tracking id (with HTTP info)
     /// </summary>
     /// <param name="trackingId"></param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Order>> GetOrderByTrackingIdWithHttpInfoAsync(
         Guid trackingId,
+        GetOrderByTrackingIdOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -828,7 +919,10 @@ public class StoreApi : BaseApi
                 typeof(Order),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetOrderByTrackingId"
+                operationName: "StoreApi.GetOrderByTrackingId",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -925,12 +1019,16 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a bare enum (value-type response codegen fixture).
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Swatch]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Swatch> GetSwatchAsync(CancellationToken cancellationToken = default)
+    public async Task<Swatch> GetSwatchAsync(
+        GetSwatchOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<Swatch>> task = GetSwatchWithHttpInfoAsync(cancellationToken);
+        Task<ApiResult<Swatch>> task = GetSwatchWithHttpInfoAsync(options, cancellationToken);
         ApiResult<Swatch> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -959,10 +1057,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a bare enum (value-type response codegen fixture). (with HTTP info)
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Swatch>> GetSwatchWithHttpInfoAsync(
+        GetSwatchOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -982,7 +1082,10 @@ public class StoreApi : BaseApi
                 typeof(Swatch),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetSwatch"
+                operationName: "StoreApi.GetSwatch",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -990,14 +1093,17 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns swatches grouped as an array of string-keyed enum maps.
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Dictionary<string, Swatch>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<List<Dictionary<string, Swatch>>> GetSwatchGroupsAsync(
+        GetSwatchGroupsOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
         Task<ApiResult<List<Dictionary<string, Swatch>>>> task = GetSwatchGroupsWithHttpInfoAsync(
+            options,
             cancellationToken
         );
         ApiResult<List<Dictionary<string, Swatch>>> result = await task.ConfigureAwait(false);
@@ -1028,10 +1134,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns swatches grouped as an array of string-keyed enum maps. (with HTTP info)
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<List<Dictionary<string, Swatch>>>> GetSwatchGroupsWithHttpInfoAsync(
+        GetSwatchGroupsOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -1051,7 +1159,10 @@ public class StoreApi : BaseApi
                 typeof(List<Dictionary<string, Swatch>>),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetSwatchGroups"
+                operationName: "StoreApi.GetSwatchGroups",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -1059,15 +1170,17 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns timestamps grouped as an array of string-keyed maps.
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Dictionary<string, DateTimeOffset>>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<List<Dictionary<string, DateTimeOffset>>> GetTimestampGroupsAsync(
+        GetTimestampGroupsOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
         Task<ApiResult<List<Dictionary<string, DateTimeOffset>>>> task =
-            GetTimestampGroupsWithHttpInfoAsync(cancellationToken);
+            GetTimestampGroupsWithHttpInfoAsync(options, cancellationToken);
         ApiResult<List<Dictionary<string, DateTimeOffset>>> result = await task.ConfigureAwait(
             false
         );
@@ -1098,12 +1211,16 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns timestamps grouped as an array of string-keyed maps. (with HTTP info)
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<
         ApiResult<List<Dictionary<string, DateTimeOffset>>>
-    > GetTimestampGroupsWithHttpInfoAsync(CancellationToken cancellationToken = default)
+    > GetTimestampGroupsWithHttpInfoAsync(
+        GetTimestampGroupsOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
         string path = "/store/timestamp-groups";
 
@@ -1121,7 +1238,10 @@ public class StoreApi : BaseApi
                 typeof(List<Dictionary<string, DateTimeOffset>>),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetTimestampGroups"
+                operationName: "StoreApi.GetTimestampGroups",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -1129,12 +1249,16 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a self-referential tree (recursive-type codegen fixture)
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[TreeNode]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<TreeNode> GetTreeAsync(CancellationToken cancellationToken = default)
+    public async Task<TreeNode> GetTreeAsync(
+        GetTreeOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        Task<ApiResult<TreeNode>> task = GetTreeWithHttpInfoAsync(cancellationToken);
+        Task<ApiResult<TreeNode>> task = GetTreeWithHttpInfoAsync(options, cancellationToken);
         ApiResult<TreeNode> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1163,10 +1287,12 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a self-referential tree (recursive-type codegen fixture) (with HTTP info)
     /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<TreeNode>> GetTreeWithHttpInfoAsync(
+        GetTreeOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -1186,7 +1312,10 @@ public class StoreApi : BaseApi
                 typeof(TreeNode),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetTree"
+                operationName: "StoreApi.GetTree",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -1195,15 +1324,21 @@ public class StoreApi : BaseApi
     /// Place an order for a pet
     /// </summary>
     /// <param name="order"></param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Order> PlaceOrderAsync(
         Order? order = null,
+        PlaceOrderOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<Order>> task = PlaceOrderWithHttpInfoAsync(order, cancellationToken);
+        Task<ApiResult<Order>> task = PlaceOrderWithHttpInfoAsync(
+            order,
+            options,
+            cancellationToken
+        );
         ApiResult<Order> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1233,11 +1368,13 @@ public class StoreApi : BaseApi
     /// Place an order for a pet (with HTTP info)
     /// </summary>
     /// <param name="order"></param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Order>> PlaceOrderWithHttpInfoAsync(
         Order? order = null,
+        PlaceOrderOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -1257,7 +1394,10 @@ public class StoreApi : BaseApi
                 typeof(Order),
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.PlaceOrder"
+                operationName: "StoreApi.PlaceOrder",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -1266,14 +1406,17 @@ public class StoreApi : BaseApi
     /// Reserve stock, answering with the existing or a new reservation
     /// </summary>
     /// <remarks>Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.</remarks>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[ReserveStockResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ReserveStockResponse> ReserveStockAsync(
+        ReserveStockOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
         Task<ApiResult<ReserveStockResponse>> task = ReserveStockWithHttpInfoAsync(
+            options,
             cancellationToken
         );
         ApiResult<ReserveStockResponse> result = await task.ConfigureAwait(false);
@@ -1305,10 +1448,12 @@ public class StoreApi : BaseApi
     /// Reserve stock, answering with the existing or a new reservation (with HTTP info)
     /// </summary>
     /// <remarks>Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.</remarks>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<ReserveStockResponse>> ReserveStockWithHttpInfoAsync(
+        ReserveStockOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -1340,7 +1485,10 @@ public class StoreApi : BaseApi
                         body
                     );
                     return lastVariant is null ? null : new ReserveStockResponse(lastVariant);
-                }
+                },
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }

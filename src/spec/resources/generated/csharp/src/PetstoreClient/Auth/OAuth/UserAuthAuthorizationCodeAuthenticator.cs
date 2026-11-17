@@ -10,22 +10,38 @@ namespace PetstoreClient.Auth.OAuth;
 
 /// <summary>
 /// Scheme-specific authenticator for the <c>userAuth</c> security scheme.
+/// Each credential argument left null is read once, in the constructor, from its
+/// environment variable; an empty variable counts as unset, and a credential that is
+/// neither passed nor set fails the constructor with <see cref="InvalidOperationException"/>.
+/// <list type="bullet">
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID</c> for <c>clientId</c></description></item>
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET</c> for <c>clientSecret</c></description></item>
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI</c> for <c>redirectUri</c></description></item>
+/// </list>
 /// </summary>
 public sealed class UserAuthAuthorizationCodeAuthenticator : OAuth2AuthorizationCodeAuthenticator
 {
+    /// <summary>Creates the authenticator, reading each credential left null from the environment.</summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="clientId">The clientId, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID</c>.</param>
+    /// <param name="clientSecret">The clientSecret, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET</c>.</param>
+    /// <param name="redirectUri">The redirectUri, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI</c>.</param>
     public UserAuthAuthorizationCodeAuthenticator(
         string host,
-        string clientId,
-        string clientSecret,
-        Uri redirectUri
+        string? clientId = null,
+        string? clientSecret = null,
+        Uri? redirectUri = null
     )
         : base(
             host,
-            clientId,
-            clientSecret,
+            ResolveCredential(clientId, "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID"),
+            ResolveCredential(
+                clientSecret,
+                "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET"
+            ),
             new Uri("https://auth.example.com/authorize"),
             new Uri("https://auth.example.com/oauth/token"),
-            redirectUri,
+            ResolveUri(redirectUri, "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI"),
             ["pets:read", "pets:write"],
             new Uri("https://auth.example.com/oauth/refresh")
         ) { }

@@ -10,18 +10,32 @@ namespace PetstoreClient.Auth.OAuth;
 
 /// <summary>
 /// Scheme-specific authenticator for the <c>machineAuth</c> security scheme.
+/// Each credential argument left null is read once, in the constructor, from its
+/// environment variable; an empty variable counts as unset, and a credential that is
+/// neither passed nor set fails the constructor with <see cref="InvalidOperationException"/>.
+/// <list type="bullet">
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID</c> for <c>clientId</c></description></item>
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET</c> for <c>clientSecret</c></description></item>
+/// </list>
 /// </summary>
 public sealed class MachineAuthClientCredentialsAuthenticator : OAuth2ClientCredentialsAuthenticator
 {
+    /// <summary>Creates the authenticator, reading each credential left null from the environment.</summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="clientId">The clientId, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID</c>.</param>
+    /// <param name="clientSecret">The clientSecret, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET</c>.</param>
     public MachineAuthClientCredentialsAuthenticator(
         string host,
-        string clientId,
-        string clientSecret
+        string? clientId = null,
+        string? clientSecret = null
     )
         : base(
             host,
-            clientId,
-            clientSecret,
+            ResolveCredential(clientId, "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID"),
+            ResolveCredential(
+                clientSecret,
+                "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET"
+            ),
             new Uri("https://auth.example.com/oauth/token"),
             ["pets:read", "pets:write"]
         ) { }

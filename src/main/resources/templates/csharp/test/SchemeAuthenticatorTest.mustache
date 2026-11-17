@@ -1,0 +1,177 @@
+{{>api_info}}
+
+using Xunit;
+
+/* These tests exercise the SDK without a test-runner cancellation token on purpose. */
+#pragma warning disable xUnit1051
+
+namespace Test;
+
+/* The environment is process-wide, so every test that sets a variable shares one
+ * collection and the runner never executes two of them at the same time. */
+[Collection("Environment")]
+public sealed class SchemeAuthenticatorTest
+{
+    private const string Host = "https://api.example.com";
+
+    private static readonly Uri ExplicitUri = new("https://explicit.example.com/callback");
+
+    private static string EnvValue(string field)
+    {
+        return field == "redirectUri" ? "https://env.example.com/callback" : "env-" + field;
+    }
+
+    private static string ExplicitValue(string field)
+    {
+        return "explicit-" + field;
+    }
+
+    private static string BasicHeader(string username, string password)
+    {
+        return "Basic "
+            + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(username + ":" + password));
+    }
+
+    private static List<string> Carried({{packageName}}.Auth.IAuthenticator auth)
+    {
+        return [.. auth.GetAuthHeaders().Values, .. auth.GetQueryParams().Values, .. auth.GetCookieParams().Values];
+    }
+
+    /* Every variable of the scheme set to its sample value, except one that is replaced
+     * (an empty string) or left unset (null). */
+    private static Dictionary<string, string?> Complete(
+        string[] variables,
+        string[] fields,
+        string? replaced = null,
+        string? replacement = null)
+    {
+        Dictionary<string, string?> values = [];
+        for (int i = 0; i < variables.Length; i++)
+        {
+            values[variables[i]] = variables[i] == replaced ? replacement : EnvValue(fields[i]);
+        }
+        return values;
+    }
+
+    private static void WithEnvironment(Dictionary<string, string?> values, Action body)
+    {
+        Dictionary<string, string?> saved = [];
+        foreach (string name in values.Keys)
+        {
+            saved[name] = Environment.GetEnvironmentVariable(name);
+        }
+        try
+        {
+            foreach (KeyValuePair<string, string?> pair in values)
+            {
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            }
+            body();
+        }
+        finally
+        {
+            foreach (KeyValuePair<string, string?> pair in saved)
+            {
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            }
+        }
+    }
+{{#schemeAuthTests}}
+
+    private static readonly string[] {{className}}Variables = [{{#envVars}}"{{envName}}"{{^-last}}, {{/-last}}{{/envVars}}];
+
+    private static readonly string[] {{className}}Fields = [{{#envVars}}"{{field}}"{{^-last}}, {{/-last}}{{/envVars}}];
+
+    [Fact]
+    public void {{className}}ReadsEveryCredentialFromItsVariable()
+    {
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+        {
+            var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host);
+{{#isBasic}}
+            Assert.Equal(BasicHeader(EnvValue("username"), EnvValue("password")), auth.GetAuthHeaders()["Authorization"]);
+{{/isBasic}}
+{{#isBearer}}
+            Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+{{/isBearer}}
+{{#isApiKey}}
+            Assert.Contains(EnvValue("apiKey"), Carried(auth));
+{{/isApiKey}}
+{{#isOAuth}}
+            Assert.Contains("ClientId=" + EnvValue("clientId"), auth.ToString(), StringComparison.Ordinal);
+{{/isOAuth}}
+        });
+    }
+
+    [Fact]
+    public void {{className}}PrefersTheArgumentsOverTheEnvironment()
+    {
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+        {
+            var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+{{#isBasic}}
+            Assert.Equal(BasicHeader(ExplicitValue("username"), ExplicitValue("password")), auth.GetAuthHeaders()["Authorization"]);
+{{/isBasic}}
+{{#isBearer}}
+            Assert.Equal("Bearer " + ExplicitValue("token"), auth.GetAuthHeaders()["Authorization"]);
+{{/isBearer}}
+{{#isApiKey}}
+            Assert.Contains(ExplicitValue("apiKey"), Carried(auth));
+{{/isApiKey}}
+{{#isOAuth}}
+            Assert.Contains("ClientId=" + ExplicitValue("clientId"), auth.ToString(), StringComparison.Ordinal);
+{{/isOAuth}}
+        });
+    }
+
+    [Fact]
+    public void {{className}}TreatsAnEmptyVariableAsUnset()
+    {
+        foreach (string variable in {{className}}Variables)
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+            });
+        }
+    }
+
+    [Fact]
+    public void {{className}}FailsWhenACredentialIsMissing()
+    {
+        foreach (string variable in {{className}}Variables)
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, null), () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+            });
+        }
+    }
+{{#isBearer}}
+
+    [Fact]
+    public async Task {{className}}TokenProviderWinsOverTheEnvironment()
+    {
+        {{packageName}}.Auth.IAuthenticator? auth = null;
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+            auth = new {{packageName}}.Auth.{{className}}(Host, _ => Task.FromResult("provided-token")));
+
+        Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync();
+
+        Assert.Equal("Bearer provided-token", headers["Authorization"]);
+    }
+
+    [Fact]
+    public void {{className}}TokenProviderNeedsNoEnvironment()
+    {
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields, {{className}}Variables[0], null), () =>
+        {
+            var auth = new {{packageName}}.Auth.{{className}}(Host, _ => Task.FromResult("provided-token"));
+            Assert.NotNull(auth);
+        });
+    }
+{{/isBearer}}
+{{/schemeAuthTests}}
+}

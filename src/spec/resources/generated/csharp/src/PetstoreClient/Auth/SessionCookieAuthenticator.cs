@@ -10,9 +10,23 @@ namespace PetstoreClient.Auth;
 
 /// <summary>
 /// Scheme-specific authenticator for the <c>sessionCookie</c> security scheme.
+/// Each credential argument left null is read once, in the constructor, from its
+/// environment variable; an empty variable counts as unset, and a credential that is
+/// neither passed nor set fails the constructor with <see cref="InvalidOperationException"/>.
+/// <list type="bullet">
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY</c> for <c>apiKey</c></description></item>
+/// </list>
 /// </summary>
 public sealed class SessionCookieAuthenticator : ApiKeyAuthenticator
 {
-    public SessionCookieAuthenticator(string host, string apiKey)
-        : base(host, "SESSION_ID", apiKey, ApiKeyLocation.Cookie) { }
+    /// <summary>Creates the authenticator, reading each credential left null from the environment.</summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="apiKey">The apiKey, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY</c>.</param>
+    public SessionCookieAuthenticator(string host, string? apiKey = null)
+        : base(
+            host,
+            "SESSION_ID",
+            ResolveCredential(apiKey, "SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY"),
+            ApiKeyLocation.Cookie
+        ) { }
 }

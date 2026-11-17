@@ -7,7 +7,14 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.openapitools.codegen.CodegenMediaType;
 import org.openapitools.codegen.CodegenParameter;
 
@@ -126,9 +133,80 @@ class BetterCSharpCodegenTest {
   }
 
   @Test
-  void derivesTheCredentialEnvironmentPrefixFromThePackageName() {
-    assertThat(BetterCSharpCodegen.environmentPrefix("PetstoreClient")).isEqualTo("PETSTORE_CLIENT");
-    assertThat(BetterCSharpCodegen.environmentPrefix("Acme.Api")).isEqualTo("ACME_API");
-    assertThat(BetterCSharpCodegen.environmentPrefix("HTTPClient")).isEqualTo("HTTPCLIENT");
+  void mintsAnOptionsObjectForEveryOperation() {
+    assertThat(new BetterCSharpCodegen().mintsOptionsForEveryOperation()).isTrue();
+  }
+
+  /** Exposes the shared scheme-spec builder, which is protected in the abstract generator. */
+  private static final class Probe extends BetterCSharpCodegen {
+    private final Map<String, SecurityScheme> schemes = new LinkedHashMap<>();
+
+    String render(final String scheme) {
+      final SecurityScheme found = Objects.requireNonNull(schemes.get(scheme));
+      return renderSchemeAuthenticator(Objects.requireNonNull(buildSchemeAuthSpec(scheme, found)));
+    }
+  }
+
+  private static Probe codegenWithSchemes(final String prefix, final Path outputDir) {
+    final Probe codegen = new Probe();
+    codegen.setOutputDir(outputDir.toString());
+    codegen.schemes.put("tok", new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer"));
+    codegen.schemes.put("login", new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("basic"));
+    codegen.schemes.put(
+        "sso",
+        new SecurityScheme()
+            .type(SecurityScheme.Type.OPENIDCONNECT)
+            .openIdConnectUrl("https://auth.example.com/.well-known/openid-configuration"));
+    codegen.additionalProperties().put("envVarPrefix", prefix);
+    codegen.processOpts();
+    final Components components = new Components();
+    codegen.schemes.forEach(components::addSecuritySchemes);
+    codegen.processOpenAPI(
+        new OpenAPI().info(new Info().title("Acme").version("1")).components(components));
+    return codegen;
+  }
+
+  @Test
+  void aSchemeAuthenticatorReadsEachCredentialFromItsSharedVariable(@TempDir final Path outputDir) {
+    final String source = codegenWithSchemes("Acme SDK", outputDir).render("login");
+
+    assertThat(source)
+        .contains("string? username = null")
+        .contains("ResolveCredential(username, \"ACME_SDK_USERNAME\")")
+        .contains("ResolveCredential(password, \"ACME_SDK_PASSWORD\")");
+  }
+
+  @Test
+  void aBearerSchemeAuthenticatorAlsoTakesATokenProvider(@TempDir final Path outputDir) {
+    final String source = codegenWithSchemes("Acme SDK", outputDir).render("tok");
+
+    assertThat(source)
+        .contains("ResolveCredential(token, \"ACME_SDK_TOKEN\")")
+        .contains("Func<CancellationToken, Task<string>> tokenProvider");
+  }
+
+  @Test
+  void aRedirectUriIsReadAsAUri(@TempDir final Path outputDir) {
+    final String source = codegenWithSchemes("Acme SDK", outputDir).render("sso");
+
+    assertThat(source)
+        .contains("Uri? redirectUri = null")
+        .contains("ResolveUri(redirectUri, \"ACME_SDK_REDIRECT_URI\")")
+        .contains("ResolveCredential(clientSecret, \"ACME_SDK_CLIENT_SECRET\")");
+  }
+
+  @Test
+  void everySchemeAuthenticatorIsRecordedForItsTest(@TempDir final Path outputDir) {
+    final Probe codegen = codegenWithSchemes("Acme SDK", outputDir);
+
+    @SuppressWarnings("unchecked")
+    final List<Map<String, Object>> entries =
+        (List<Map<String, Object>>)
+            Objects.requireNonNull(codegen.additionalProperties().get("schemeAuthTests"));
+    assertThat(entries).extracting(entry -> entry.get("className"))
+        .containsExactly("TokAuthenticator", "LoginAuthenticator", "SsoAuthenticator");
+    assertThat(entries.get(0)).containsEntry("isBearer", true);
+    assertThat(entries.get(1)).containsEntry("isBasic", true);
+    assertThat(entries.get(2)).containsEntry("isOAuth", true).containsEntry("namespaceSuffix", "OAuth");
   }
 }

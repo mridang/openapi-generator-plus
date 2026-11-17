@@ -10,9 +10,23 @@ namespace PetstoreClient.Auth.OAuth;
 
 /// <summary>
 /// Scheme-specific authenticator for the <c>browserAuth</c> security scheme.
+/// Each credential argument left null is read once, in the constructor, from its
+/// environment variable; an empty variable counts as unset, and a credential that is
+/// neither passed nor set fails the constructor with <see cref="InvalidOperationException"/>.
+/// <list type="bullet">
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID</c> for <c>clientId</c></description></item>
+/// </list>
 /// </summary>
 public sealed class BrowserAuthImplicitAuthenticator : OAuth2ImplicitAuthenticator
 {
-    public BrowserAuthImplicitAuthenticator(string host, string clientId)
-        : base(host, clientId, new Uri("https://auth.example.com/authorize"), ["read"]) { }
+    /// <summary>Creates the authenticator, reading each credential left null from the environment.</summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="clientId">The clientId, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID</c>.</param>
+    public BrowserAuthImplicitAuthenticator(string host, string? clientId = null)
+        : base(
+            host,
+            ResolveCredential(clientId, "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"),
+            new Uri("https://auth.example.com/authorize"),
+            ["read"]
+        ) { }
 }

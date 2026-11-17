@@ -1500,6 +1500,29 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void AvailabilityStartsAtTheDefaultNextToItsReference()
+        {
+            var item = new StockItem(Priority.Number1);
+            Assert.Equal(Availability.OnHold, item.Availability);
+        }
+
+        [Fact]
+        public void AvailabilityTakesTheDefaultNextToItsReferenceWhenTheKeyIsAbsent()
+        {
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":1}");
+            Assert.Equal(Availability.OnHold, item!.Availability);
+        }
+
+        [Fact]
+        public void AnExplicitAvailabilityWinsOverTheDefaultNextToItsReference()
+        {
+            var item = _serializer.Deserialize<StockItem>(
+                "{\"priority\":1,\"availability\":\"Sold\"}"
+            );
+            Assert.Equal(Availability.Sold, item!.Availability);
+        }
+
+        [Fact]
         public void AvailabilityRoundTripsAllWireValues()
         {
             foreach (

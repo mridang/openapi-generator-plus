@@ -10,9 +10,30 @@ namespace PetstoreClient.Auth;
 
 /// <summary>
 /// Scheme-specific authenticator for the <c>petStoreBearer</c> security scheme.
+/// Each credential argument left null is read once, in the constructor, from its
+/// environment variable; an empty variable counts as unset, and a credential that is
+/// neither passed nor set fails the constructor with <see cref="InvalidOperationException"/>.
+/// <list type="bullet">
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN</c> for <c>token</c></description></item>
+/// </list>
 /// </summary>
 public sealed class PetStoreBearerAuthenticator : BearerAuthenticator
 {
-    public PetStoreBearerAuthenticator(string host, string token)
-        : base(host, token) { }
+    /// <summary>Creates the authenticator, reading each credential left null from the environment.</summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="token">The token, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN</c>.</param>
+    public PetStoreBearerAuthenticator(string host, string? token = null)
+        : base(
+            host,
+            ResolveCredential(token, "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN")
+        ) { }
+
+    /// <summary>Creates the authenticator with a token that a callback returns before every request.</summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="tokenProvider">Returns the current bearer token; it wins over the environment.</param>
+    public PetStoreBearerAuthenticator(
+        string host,
+        Func<CancellationToken, Task<string>> tokenProvider
+    )
+        : base(host, tokenProvider) { }
 }

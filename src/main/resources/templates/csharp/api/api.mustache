@@ -149,7 +149,9 @@ public class {{classname}} : BaseApi
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
     /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
 {{/-first}}{{/cookieParams}}{{^cookieParams}}{{#hasAuthMethods}}
-    /// <param name="options">Options carrying an optional per-operation authenticator.</param>
+    /// <param name="options">Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry budget.</param>
+{{/hasAuthMethods}}{{^hasAuthMethods}}
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
 {{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
@@ -238,7 +240,9 @@ public class {{classname}} : BaseApi
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
     /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
 {{/-first}}{{/cookieParams}}{{^cookieParams}}{{#hasAuthMethods}}
-    /// <param name="options">Options carrying an optional per-operation authenticator.</param>
+    /// <param name="options">Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry budget.</param>
+{{/hasAuthMethods}}{{^hasAuthMethods}}
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
 {{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
@@ -589,13 +593,10 @@ public class {{classname}} : BaseApi
                     return lastVariant is null ? null : new {{{vendorExtensions.op.successUnionType}}}(lastVariant);
 {{/isLast}}
 {{/vendorExtensions.op.successResponses}}
-                }{{/vendorExtensions.op.hasMultiple2xx}}{{#vendorExtensions.op.hasOptionsParam}},
+                }{{/vendorExtensions.op.hasMultiple2xx}},
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
-                maxRetries: options?.MaxRetries{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}},
-                timeout: options?.Timeout,
-                extraHeaders: options?.Headers,
-                maxRetries: options?.MaxRetries{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }

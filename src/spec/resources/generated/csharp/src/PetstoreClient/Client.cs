@@ -98,9 +98,9 @@ public sealed class Client : IDisposable
     /// <summary>
     /// Creates a client from explicit options first and the environment second.
     /// The host is the <paramref name="host"/> argument, else the environment
-    /// variable <c>PETSTORE_CLIENT_HOST</c>; the credential is the
+    /// variable <c>SWAGGER_PETSTORE_OPEN_API_3_0_HOST</c>; the credential is the
     /// <paramref name="tokenProvider"/> callback, else the <paramref name="token"/>
-    /// argument, else <c>PETSTORE_CLIENT_TOKEN</c>. The environment is read once, here,
+    /// argument, else <c>SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN</c>. The environment is read once, here,
     /// and an empty value counts as unset. A missing host or credential fails the
     /// call that builds the client, not a later request.
     /// </summary>
@@ -117,11 +117,11 @@ public sealed class Client : IDisposable
         TransportOptions? transportOptions = null
     )
     {
-        string? resolvedHost = FirstSet(host, "PETSTORE_CLIENT_HOST");
+        string? resolvedHost = FirstSet(host, "SWAGGER_PETSTORE_OPEN_API_3_0_HOST");
         if (resolvedHost is null)
         {
             throw new InvalidOperationException(
-                "No API host: pass host or set the PETSTORE_CLIENT_HOST environment variable"
+                "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable"
             );
         }
         if (tokenProvider is not null)
@@ -131,11 +131,11 @@ public sealed class Client : IDisposable
                 transportOptions
             );
         }
-        string? resolvedToken = FirstSet(token, "PETSTORE_CLIENT_TOKEN");
+        string? resolvedToken = FirstSet(token, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN");
         if (resolvedToken is null)
         {
             throw new InvalidOperationException(
-                "No credential: pass token or tokenProvider, or set the PETSTORE_CLIENT_TOKEN environment variable"
+                "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
             );
         }
         return new Client(new BearerAuthenticator(resolvedHost, resolvedToken), transportOptions);

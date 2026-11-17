@@ -321,7 +321,7 @@ public class PetApiTest
         // (ArgumentException), not passed onto the wire as an undeclared type.
         var imageData = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF });
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            _api.SetPetAvatarAsync(1L, imageData, "application/unknown-type")
+            _api.SetPetAvatarAsync(1L, imageData, requestContentType: "application/unknown-type")
         );
         Assert.Equal(
             "Unsupported request content-type 'application/unknown-type' for SetPetAvatar;"
@@ -360,7 +360,7 @@ public class PetApiTest
         await pngApi.SetPetAvatarAsync(
             1L,
             new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }),
-            "image/png"
+            requestContentType: "image/png"
         );
         Assert.Equal("image/png", pngClient.CapturedHeaders["Content-Type"]);
     }
@@ -374,7 +374,7 @@ public class PetApiTest
         await api.SetPetAvatarAsync(
             1L,
             new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }),
-            "application/json"
+            requestContentType: "application/json"
         );
 
         MemoryStream sent = Assert.IsType<MemoryStream>(client.CapturedBody);

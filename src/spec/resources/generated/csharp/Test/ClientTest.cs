@@ -16,6 +16,7 @@ using Xunit;
 
 namespace Test;
 
+[Collection("Environment")]
 public sealed class ClientTest : IDisposable
 {
     private readonly BearerAuthenticator _authenticator = new("/api/v3", "test-token");
@@ -117,8 +118,8 @@ public sealed class ClientTest : IDisposable
         }
     }
 
-    private const string HostVariable = "PETSTORE_CLIENT_HOST";
-    private const string TokenVariable = "PETSTORE_CLIENT_TOKEN";
+    private const string HostVariable = "SWAGGER_PETSTORE_OPEN_API_3_0_HOST";
+    private const string TokenVariable = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN";
 
     private static void WithEnvironment(string? host, string? token, Action body)
     {

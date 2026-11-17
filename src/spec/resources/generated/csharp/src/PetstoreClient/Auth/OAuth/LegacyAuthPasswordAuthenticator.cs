@@ -10,23 +10,41 @@ namespace PetstoreClient.Auth.OAuth;
 
 /// <summary>
 /// Scheme-specific authenticator for the <c>legacyAuth</c> security scheme.
+/// Each credential argument left null is read once, in the constructor, from its
+/// environment variable; an empty variable counts as unset, and a credential that is
+/// neither passed nor set fails the constructor with <see cref="InvalidOperationException"/>.
+/// <list type="bullet">
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID</c> for <c>clientId</c></description></item>
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET</c> for <c>clientSecret</c></description></item>
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME</c> for <c>username</c></description></item>
+/// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD</c> for <c>password</c></description></item>
+/// </list>
 /// </summary>
 public sealed class LegacyAuthPasswordAuthenticator : OAuth2PasswordAuthenticator
 {
+    /// <summary>Creates the authenticator, reading each credential left null from the environment.</summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="clientId">The clientId, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID</c>.</param>
+    /// <param name="clientSecret">The clientSecret, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET</c>.</param>
+    /// <param name="username">The username, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME</c>.</param>
+    /// <param name="password">The password, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD</c>.</param>
     public LegacyAuthPasswordAuthenticator(
         string host,
-        string clientId,
-        string clientSecret,
-        string username,
-        string password
+        string? clientId = null,
+        string? clientSecret = null,
+        string? username = null,
+        string? password = null
     )
         : base(
             host,
-            clientId,
-            clientSecret,
+            ResolveCredential(clientId, "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID"),
+            ResolveCredential(
+                clientSecret,
+                "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET"
+            ),
             new Uri("https://auth.example.com/oauth/token"),
-            username,
-            password,
+            ResolveCredential(username, "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME"),
+            ResolveCredential(password, "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD"),
             ["read"],
             new Uri("https://auth.example.com/oauth/refresh")
         ) { }

@@ -45,6 +45,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterCSharpCodegen.class);
 
+    /** One entry per per-scheme authenticator, read by {@code SchemeAuthenticatorTest}. */
+    private final List<Map<String, Object>> schemeAuthTests = new ArrayList<>();
+
     protected String sourceFolder = "src";
     protected String packageName = "OpenApi";
 
@@ -124,9 +127,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 "Documentation URL, linked from the README."));
         cliOptions.add(CliOption.newString("issueTrackerUrl",
                 "Issue tracker URL, linked from the README."));
-        cliOptions.add(CliOption.newString("envPrefix",
-                "Prefix of the environment variables the client reads credentials from "
-                        + "(default: the upper-case snake form of the package name)."));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -247,31 +247,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             }
         }
         return path + "README.md";
-    }
-
-    /**
-     * The default prefix of the credential environment variables: the package name in upper-case
-     * snake form, so {@code PetstoreClient} reads {@code PETSTORE_CLIENT_TOKEN}.
-     */
-    static String environmentPrefix(final String packageName) {
-        final StringBuilder prefix = new StringBuilder();
-        char previous = '_';
-        for (int i = 0; i < packageName.length(); i++) {
-            final char c = packageName.charAt(i);
-            if (!Character.isLetterOrDigit(c)) {
-                if (previous != '_') {
-                    prefix.append('_');
-                }
-                previous = '_';
-                continue;
-            }
-            if (Character.isUpperCase(c) && previous != '_' && !Character.isUpperCase(previous)) {
-                prefix.append('_');
-            }
-            prefix.append(Character.toUpperCase(c));
-            previous = c;
-        }
-        return prefix.toString();
     }
 
     /**
@@ -495,9 +470,8 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 "repositoryIsGitHub",
                 repositoryUrl != null
                         && repositoryUrl.toString().toLowerCase(Locale.ROOT).contains("github.com"));
-        if (!additionalProperties.containsKey("envPrefix")) {
-            additionalProperties.put("envPrefix", environmentPrefix(packageName));
-        }
+
+        additionalProperties.put("schemeAuthTests", schemeAuthTests);
 
         final String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
@@ -629,6 +603,10 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         if (hasApiKeyAuth) {
             supportingFiles.add(new SupportingFile(
                     "test/ApiKeyAuthenticatorTest.mustache", "Test", "ApiKeyAuthenticatorTest.cs"));
+        }
+        if (Boolean.TRUE.equals(additionalProperties.get("hasSecuritySchemeEnvVars"))) {
+            supportingFiles.add(new SupportingFile(
+                    "test/SchemeAuthenticatorTest.mustache", "Test", "SchemeAuthenticatorTest.cs"));
         }
     }
 
@@ -870,7 +848,13 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 new OAuthTestFileSpec("test/OpenIdConnectAuthenticatorTest.mustache", "Test", "OpenIdConnectAuthenticatorTest.cs", OAuthTestCondition.OIDC));
     }
 
-    /** {@inheritDoc} */
+    /**
+     * Renders the per-scheme authenticator. Every credential argument is optional: left null it
+     * is read once, in the constructor, from the scheme's environment variable (F862), and a
+     * credential that is neither passed nor set fails there. The variable names come from the
+     * shared {@code envVars} entries of {@link #baseSchemeContext}, so all twelve languages read
+     * the same names.
+     */
     @Override
     @SuppressWarnings("StringConcatenationMissingWhitespace")
     @SuppressFBWarnings(
@@ -878,100 +862,156 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             justification = "Comparing with ASCII-only scheme values")
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
         final String scopes = formatCSharpScopes(spec.scopes());
-        final String constructorSig;
-        final String superCall;
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        final Map<String, String> envNames = new HashMap<>();
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> envVars =
+                (List<Map<String, Object>>) java.util.Objects.requireNonNull(ctx.get("envVars"));
+        for (final Map<String, Object> envVar : envVars) {
+            envNames.put(String.valueOf(envVar.get("field")), String.valueOf(envVar.get("envName")));
+        }
         final String namespaceSuffix;
+        final String superCall;
+        final String baseClass = spec.baseClass();
+        final String refreshArg =
+                spec.refreshUrl() != null ? "new Uri(\"" + spec.refreshUrl() + "\")" : "null";
 
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
-            constructorSig = "string host, string username, string password";
-            superCall = "host, username, password";
+        if ("BasicAuthenticator".equals(baseClass)) {
+            superCall = "host, " + credential(envNames, "username") + ", "
+                    + credential(envNames, "password");
             namespaceSuffix = null;
-        } else if ("BearerAuthenticator".equals(spec.baseClass())) {
-            constructorSig = "string host, string token";
-            superCall = "host, token";
+        } else if ("BearerAuthenticator".equals(baseClass)) {
+            superCall = "host, " + credential(envNames, "token");
             namespaceSuffix = null;
-        } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            ctx.put("isBearer", true);
+        } else if ("ApiKeyAuthenticator".equals(baseClass)) {
             final String loc = NamingConvention.PASCAL_CASE.apply(
                     spec.keyIn() != null
                             ? spec.keyIn().toLowerCase(Locale.ROOT)
                             : "header");
-            constructorSig = "string host, string apiKey";
             superCall =
                     "host, \""
                             + escapeStringLiteralBody(java.util.Objects.toString(spec.keyParamName(), ""))
-                            + "\", apiKey, ApiKeyLocation."
+                            + "\", " + credential(envNames, "apiKey") + ", ApiKeyLocation."
                             + loc;
             namespaceSuffix = null;
-        } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
-            constructorSig = "string host, string clientId, string clientSecret";
+        } else if ("OAuth2ClientCredentialsAuthenticator".equals(baseClass)) {
             superCall =
-                    "host, clientId, clientSecret, new Uri(\""
+                    "host, " + credential(envNames, "clientId") + ", "
+                            + credential(envNames, "clientSecret") + ", new Uri(\""
                             + spec.tokenUrl()
                             + "\"), "
                             + scopes;
             namespaceSuffix = "OAuth";
-        } else if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
-            final String refreshArg =
-                    spec.refreshUrl() != null
-                            ? "new Uri(\"" + spec.refreshUrl() + "\")"
-                            : "null";
-            constructorSig =
-                    "string host, string clientId, string clientSecret, "
-                            + "string username, string password";
+        } else if ("OAuth2PasswordAuthenticator".equals(baseClass)) {
             superCall =
-                    "host, clientId, clientSecret, new Uri(\""
+                    "host, " + credential(envNames, "clientId") + ", "
+                            + credential(envNames, "clientSecret") + ", new Uri(\""
                             + spec.tokenUrl()
-                            + "\"), username, password, "
+                            + "\"), " + credential(envNames, "username") + ", "
+                            + credential(envNames, "password") + ", "
                             + scopes
                             + ", "
                             + refreshArg;
             namespaceSuffix = "OAuth";
-        } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
-            final String refreshArg =
-                    spec.refreshUrl() != null
-                            ? "new Uri(\"" + spec.refreshUrl() + "\")"
-                            : "null";
-            constructorSig =
-                    "string host, string clientId, string clientSecret, Uri redirectUri";
+        } else if ("OAuth2AuthorizationCodeAuthenticator".equals(baseClass)) {
             superCall =
-                    "host, clientId, clientSecret, new Uri(\""
+                    "host, " + credential(envNames, "clientId") + ", "
+                            + credential(envNames, "clientSecret") + ", new Uri(\""
                             + spec.authorizationUrl()
                             + "\"), new Uri(\""
                             + spec.tokenUrl()
-                            + "\"), redirectUri, "
+                            + "\"), " + credential(envNames, "redirectUri") + ", "
                             + scopes
                             + ", "
                             + refreshArg;
             namespaceSuffix = "OAuth";
-        } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
-            constructorSig = "string host, string clientId";
+        } else if ("OAuth2ImplicitAuthenticator".equals(baseClass)) {
             superCall =
-                    "host, clientId, new Uri(\""
+                    "host, " + credential(envNames, "clientId") + ", new Uri(\""
                             + spec.authorizationUrl()
                             + "\"), "
                             + scopes;
             namespaceSuffix = "OAuth";
-        } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
-            constructorSig =
-                    "string host, string clientId, string clientSecret, Uri redirectUri";
+        } else if ("OpenIdConnectAuthenticator".equals(baseClass)) {
             superCall =
                     "host, new Uri(\""
                             + spec.openIdConnectUrl()
-                            + "\"), clientId, clientSecret, redirectUri, []";
+                            + "\"), " + credential(envNames, "clientId") + ", "
+                            + credential(envNames, "clientSecret") + ", "
+                            + credential(envNames, "redirectUri") + ", []";
             namespaceSuffix = "OAuth";
         } else {
-            LOGGER.warn("Unsupported scheme base class: {}", spec.baseClass());
+            LOGGER.warn("Unsupported scheme base class: {}", baseClass);
             return "";
         }
 
-        final Map<String, Object> ctx = baseSchemeContext(spec);
+        final List<Map<String, Object>> credentialParams = new ArrayList<>();
+        for (final Map<String, Object> envVar : envVars) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("name", envVar.get("field"));
+            param.put("envName", envVar.get("envName"));
+            param.put("isUri", isUriField(String.valueOf(envVar.get("field"))));
+            credentialParams.add(param);
+        }
         ctx.put("imports", List.of());
-        ctx.put("constructorSignature", constructorSig);
+        ctx.put("credentialParams", credentialParams);
         ctx.put("superCall", superCall);
         if (namespaceSuffix != null) {
             ctx.put("namespaceSuffix", namespaceSuffix);
         }
+        recordSchemeAuthTest(spec, namespaceSuffix, envVars);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /** Whether a credential field is a {@code Uri} in C#, read from its variable as text. */
+    private static boolean isUriField(final String field) {
+        return "redirectUri".equals(field);
+    }
+
+    /**
+     * The expression that resolves one credential field: the argument, else its environment
+     * variable, else a failure. A {@code Uri} field is parsed from the variable's text.
+     */
+    private static String credential(final Map<String, String> envNames, final String field) {
+        final String variable = envNames.get(field);
+        return (isUriField(field) ? "ResolveUri(" : "ResolveCredential(")
+                + field + ", \"" + variable + "\")";
+    }
+
+    /**
+     * Records what {@code SchemeAuthenticatorTest} needs to exercise one per-scheme authenticator:
+     * its class, its base kind and its environment variables.
+     */
+    private void recordSchemeAuthTest(
+            final SchemeAuthSpec spec,
+            @Nullable final String namespaceSuffix,
+            final List<Map<String, Object>> envVars) {
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        if (namespaceSuffix != null) {
+            entry.put("namespaceSuffix", namespaceSuffix);
+        }
+        entry.put("isBasic", "BasicAuthenticator".equals(spec.baseClass()));
+        entry.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
+        entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
+        entry.put("isOAuth", spec.isOAuth());
+        final List<Map<String, Object>> vars = new ArrayList<>();
+        for (final Map<String, Object> envVar : envVars) {
+            final Map<String, Object> var = new HashMap<>();
+            var.put("field", envVar.get("field"));
+            var.put("envName", envVar.get("envName"));
+            var.put("isUri", isUriField(String.valueOf(envVar.get("field"))));
+            vars.add(var);
+        }
+        entry.put("envVars", vars);
+        schemeAuthTests.add(entry);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
     }
 
     private static String formatCSharpScopes(@Nullable Map<String, String> scopes) {
