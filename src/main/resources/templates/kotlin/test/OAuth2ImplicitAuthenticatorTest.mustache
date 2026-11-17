@@ -172,4 +172,12 @@ class OAuth2ImplicitAuthenticatorTest {
             auth.buildAuthorizationUrl(),
         )
     }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoimplicit016 an implicit access token may contain a tab")
+    fun aTabIsAllowedInsideAnAccessToken() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("a\tb")
+        assertEquals("Bearer a\tb", runBlocking { auth.getAuthHeaders() }["Authorization"])
+    }
 }

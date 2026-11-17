@@ -514,4 +514,28 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         runBlocking { auth.getAuthHeaders() }
         assertEquals("https://auth.example.com/oauth/refresh", client.lastUrl)
     }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoauthcode030 auth headers before the code exchange fail naming the exchange call to make first")
+    fun authHeadersBeforeTheExchangeNameTheExchangeCall() {
+        val auth = createAuthenticator()
+        auth.setApiClient(FakeApiClient())
+        val ex = assertThrows(IllegalStateException::class.java) { runBlocking { auth.getAuthHeaders() } }
+        assertEquals("Must call exchangeCode() before making API requests", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoauthcode032 the authorization code exchange body uses a fixed parameter order")
+    fun codeExchangeBodyUsesAFixedParameterOrder() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"at","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        runBlocking { auth.exchangeCode("C") }
+        assertEquals(
+            "grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret" +
+                "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback",
+            client.lastBody,
+        )
+    }
 }

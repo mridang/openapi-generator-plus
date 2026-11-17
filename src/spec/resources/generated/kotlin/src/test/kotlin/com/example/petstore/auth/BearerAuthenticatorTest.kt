@@ -298,7 +298,9 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: a scheme's authenticator with no token, variable or provider fails naming its variable")
+    @DisplayName(
+        "bhvAuthscheme010 an empty environment variable for the bearer scheme credential is treated as unset and fails naming the variable",
+    )
     fun schemeWrapperMissingTokenFails() {
         val ex =
             withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "")) {

@@ -1160,7 +1160,7 @@ class OAuth2TokenManagerTest {
         }
 
         assertEquals(
-            "grant_type=client_credentials&scope=read+write&client_id=a-b._~c%2Ad%21e%27f%28g%29h",
+            "grant_type=client_credentials&client_id=a-b._~c%2Ad%21e%27f%28g%29h&scope=read+write",
             client.lastBody,
         )
     }
@@ -1183,5 +1183,92 @@ class OAuth2TokenManagerTest {
             "Token request failed with status 400: invalid_grant -- refresh token expired",
             full.message,
         )
+    }
+
+    @Test
+    @DisplayName("bhvErrors049 an OAuth2 server error message names the status and the error code")
+    fun serverErrorMessageNamesTheStatusAndTheErrorCode() {
+        val ex = oauth2ErrorFor("""{"error":"invalid_grant"}""")
+        assertEquals(400, ex.statusCode)
+        assertEquals("invalid_grant", ex.code)
+        assertEquals("Token request failed with status 400: invalid_grant", ex.message)
+    }
+
+    @Test
+    @DisplayName(
+        "bhvAuthoauthtwotokenmgr042 a token server error message names the status and, when present, the error code and description",
+    )
+    fun tokenServerErrorMessageNamesTheStatusCodeAndDescription() {
+        val withDescription =
+            oauth2ErrorFor(
+                """{"error":"invalid_grant","error_description":"refresh token expired"}""",
+            )
+        assertEquals(
+            "Token request failed with status 400: invalid_grant -- refresh token expired",
+            withDescription.message,
+        )
+        val withoutDescription = oauth2ErrorFor("""{"error":"invalid_grant"}""")
+        assertEquals("Token request failed with status 400: invalid_grant", withoutDescription.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwotokenmgr043 the token request body is serialised with the parameters in a fixed shared key order")
+    fun tokenBodyIsSerialisedInTheSharedKeyOrder() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf(
+                    "zeta" to "z",
+                    "scope" to "s",
+                    "redirect_uri" to "r",
+                    "client_secret" to "cs",
+                    "client_id" to "ci",
+                    "password" to "p",
+                    "username" to "u",
+                    "refresh_token" to "rt",
+                    "code" to "c",
+                    "alpha" to "a",
+                    "grant_type" to "g",
+                ),
+            )
+        }
+        assertEquals(
+            "grant_type=g&code=c&refresh_token=rt&username=u&password=p&client_id=ci" +
+                "&client_secret=cs&redirect_uri=r&scope=s&alpha=a&zeta=z",
+            client.lastBody,
+        )
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwotokenmgr045 a padded decimal string expires_in is accepted as a lifetime so the token is cached")
+    fun paddedDecimalExpiresInIsAcceptedAndCached() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"padded","expires_in":" 3600.5\n"}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val params = mapOf("grant_type" to "client_credentials")
+        assertEquals("padded", runBlocking { manager.getAccessToken("https://auth.example.com/token", params) })
+        assertEquals("padded", runBlocking { manager.getAccessToken("https://auth.example.com/token", params) })
+        assertEquals(1, client.bodies.size)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwotokenmgr046 a string expires_in outside the plain decimal grammar leaves the token stale")
+    fun expiresInOutsideThePlainDecimalGrammarLeavesTheTokenStale() {
+        for (raw in listOf("0x1000", "1e4", "1_000_000", "3600d", "-5")) {
+            val client = FakeApiClient()
+            client.enqueue("""{"access_token":"first","expires_in":"$raw"}""")
+            client.enqueue("""{"access_token":"second","expires_in":3600}""")
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+            val params = mapOf("grant_type" to "client_credentials")
+            assertEquals("first", runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }, raw)
+            assertEquals("second", runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }, raw)
+            assertEquals(2, client.bodies.size, raw)
+        }
     }
 }

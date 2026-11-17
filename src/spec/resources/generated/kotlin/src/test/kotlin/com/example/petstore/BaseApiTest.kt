@@ -868,6 +868,43 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvAuthintegration018 a configured client authenticator is applied to a secured operation")
+        fun configuredClientAuthenticatorAppliesToASecuredOperation() {
+            val client = CapturingApiClient()
+            val clientAuth = TestAuthenticator(mapOf("api-key" to "key-from-client"), emptyMap(), emptyMap())
+            val api = TestableApiWithAuth(client, "http://localhost", clientAuth)
+            runBlocking { api.call("GET", "/test/echo") }
+            assertEquals("key-from-client", client.capturedHeaders["api-key"])
+        }
+
+        @Test
+        @DisplayName("bhvAuthintegration019 an invalid auth cookie fails the call before any request is sent")
+        fun invalidAuthCookieFailsBeforeAnyRequestIsSent() {
+            val client = CapturingApiClient()
+            val auth = TestAuthenticator(emptyMap(), emptyMap(), mapOf("session" to "a;b"))
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking { TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", auth = auth) }
+                }
+            assertTrue(ex.message!!.contains("session"), ex.message)
+            assertEquals("", client.capturedUrl)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam107 a query value keeps only the unreserved set literal and percent-encodes * ! ' ( )")
+        fun queryValueEncodesEverythingOutsideTheUnreservedSet() {
+            val client = CapturingApiClient()
+            runBlocking {
+                TestableApiWithClient(client, "http://localhost").call(
+                    "GET",
+                    "/test/echo",
+                    queryParams = mutableMapOf("k*'" to "a~b*c!d'e(f)g"),
+                )
+            }
+            assertEquals("http://localhost/test/echo?k%2A%27=a~b%2Ac%21d%27e%28f%29g", client.capturedUrl)
+        }
+
+        @Test
         @DisplayName("bhvAuthintegration013 a per-call auth overrides the client-level authenticator")
         fun perCallAuthOverridesClientLevelAuthenticator() {
             val client = CapturingApiClient()

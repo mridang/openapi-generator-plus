@@ -421,7 +421,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun generatedSchemeWrapperRoutesTheFirstGrantToTheTokenUrlAndTheRefreshToTheRefreshUrl() {
+    fun bhvAuthoauthtwopassword022GeneratedSchemeWrapperRoutesTheFirstGrantToTheTokenUrlAndTheRefreshToTheRefreshUrl() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -486,5 +486,20 @@ class OAuth2PasswordAuthenticatorTest {
                 }
             }
         assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwopassword021 the password grant token request body uses a fixed parameter order")
+    fun tokenBodyUsesAFixedParameterOrder() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        runBlocking { auth.getAuthHeaders() }
+        assertEquals(
+            "grant_type=password&username=testuser&password=testpass&client_id=my-client-id" +
+                "&client_secret=my-client-secret&scope=read+write",
+            client.lastBody,
+        )
     }
 }

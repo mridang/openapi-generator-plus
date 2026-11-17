@@ -42,6 +42,24 @@ class OAuth2TokenManager {
         /** Longest token lifetime honoured (one year), so a huge `expires_in`
          *  cannot overflow the millisecond expiry arithmetic. */
         private const val MAX_EXPIRES_IN_SECONDS: Long = 31_536_000L
+
+        /** A string `expires_in` must be a plain decimal (digits, optionally a fraction). Hex,
+         *  exponent, digit separators, a type suffix and a sign are not lifetimes. */
+        private val PLAIN_DECIMAL = Regex("[0-9]+(\\.[0-9]+)?")
+
+        /** The fixed cross-SDK key order of a token request body; other keys follow, sorted. */
+        private val SHARED_KEY_ORDER =
+            listOf(
+                "grant_type",
+                "code",
+                "refresh_token",
+                "username",
+                "password",
+                "client_id",
+                "client_secret",
+                "redirect_uri",
+                "scope",
+            )
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -261,10 +279,15 @@ class OAuth2TokenManager {
                 .replace("*", "%2A")
                 .replace("%7E", "~")
 
+        /* The body follows the fixed shared key order, then any other key sorted, so the
+         * bytes do not depend on the order in which the caller built the map. */
+        fun keyRank(key: String): Int = SHARED_KEY_ORDER.indexOf(key).let { if (it < 0) SHARED_KEY_ORDER.size else it }
         val body =
-            params.entries.joinToString("&") { (k, v) ->
-                "${formEncode(k)}=${formEncode(v)}"
-            }
+            params.entries
+                .sortedWith(compareBy<Map.Entry<String, String>>({ keyRank(it.key) }, { it.key }))
+                .joinToString("&") { (k, v) ->
+                    "${formEncode(k)}=${formEncode(v)}"
+                }
 
         val headers =
             mapOf(
@@ -421,6 +444,9 @@ class OAuth2TokenManager {
         }
         val raw = element.content.trim()
         if (raw.isEmpty()) {
+            return 0L
+        }
+        if (element.isString && !PLAIN_DECIMAL.matches(raw)) {
             return 0L
         }
         val asDouble = raw.toDoubleOrNull() ?: return 0L
