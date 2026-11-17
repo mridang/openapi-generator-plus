@@ -680,7 +680,7 @@ describe("StoreApi error dispatch through the typed status routes", () => {
     [500, InternalServerError],
     [502, ServerError],
   ])(
-    "getOrderById answered with %i raises the status-specific error",
+    "bhv operations 110 getOrderById picks the status-specific error for status %i",
     async (status, expected) => {
       const statusApi = new StoreApi(
         new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
@@ -748,6 +748,36 @@ describe("StoreApi", () => {
       );
     } finally {
       close();
+    }
+  });
+});
+
+describe("StoreApi operation without parameters or security", () => {
+  test("bhv operations 096 an operation without parameters or security takes per call headers", async () => {
+    const seen: Array<string | undefined> = [];
+    const server = http.createServer((req, res) => {
+      seen.push(req.headers["x-call"] as string | undefined);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end('{"message":"Internal server error"}');
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", () => resolve()),
+    );
+    try {
+      const addr = server.address() as { port: number };
+      const mockApi = new StoreApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        Configuration.builder()
+          .baseUrl(`http://127.0.0.1:${addr.port}`)
+          .build(),
+      );
+
+      await expect(
+        mockApi.getInventory({ headers: { "X-Call": "1" }, maxRetries: 0 }),
+      ).rejects.toBeInstanceOf(InternalServerError);
+      expect(seen).toEqual(["1"]);
+    } finally {
+      server.close();
     }
   });
 });

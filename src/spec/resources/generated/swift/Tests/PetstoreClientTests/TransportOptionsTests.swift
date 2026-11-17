@@ -390,6 +390,22 @@ import Testing
     #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
   }
 
+  /* Inspecting the options hides the proxy password and a credential-bearing
+   * default header; the rest of the text stays readable. */
+  @Test func testBhvOptions023InspectMasksTheProxyPasswordAndSensitiveDefaultHeaders() throws {
+    let password = "pass" + "-" + "value"
+    let token = "tok" + "-" + "value"
+    let opts = try TransportOptionsBuilder()
+      .proxy("http://user:\(password)@proxy.example.com:8080")
+      .defaultHeader(name: "Authorization", value: "Bearer \(token)")
+      .build()
+    let shown = String(reflecting: opts)
+    #expect(!shown.contains(password))
+    #expect(!shown.contains(token))
+    #expect(shown.contains("user:***@proxy.example.com:8080"))
+    #expect(shown.contains("***"))
+  }
+
   #if os(Linux)
     @Test func testSettingProxyRaisesOnLinux() throws {
       // On Linux, URLSession does not support proxy configuration.

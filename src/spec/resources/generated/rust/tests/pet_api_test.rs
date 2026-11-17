@@ -1306,8 +1306,30 @@ async fn test_bhv_operations_024_pet_api_add_pet_treatment_sends_the_chosen_vari
 /// client points at a closed port, so any request would fail with a network
 /// error instead of this ConfigurationError.
 #[tokio::test]
-async fn test_bhv_operations_051_bhv_serializationparam_029_pet_api_get_pet_by_name_rejects_dot_segments(
-) {
+async fn test_bhv_operations_051_pet_api_get_pet_by_name_rejects_dot_segments() {
+    let config = ConfigurationBuilder::new()
+        .base_url("http://127.0.0.1:1")
+        .build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let opts = GetPetByNameOptions::new("cats".to_string(), "corr-1".to_string());
+    for value in [".", ".."] {
+        let err = api
+            .get_pet_by_name(value.to_string(), Some(&opts))
+            .await
+            .expect_err("a dot-segment path parameter must be rejected");
+        assert_eq!(
+            err.downcast_ref::<ConfigurationError>(),
+            Some(&ConfigurationError::InvalidArgument(
+                "Path parameter 'name' must not be '.' or '..'".to_string()
+            )),
+            "path value {:?}",
+            value
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_serializationparam_029_dot_segment_path_values_raise_configuration_error() {
     let config = ConfigurationBuilder::new()
         .base_url("http://127.0.0.1:1")
         .build();

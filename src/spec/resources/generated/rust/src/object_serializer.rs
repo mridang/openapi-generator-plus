@@ -1620,6 +1620,21 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationparam_083_to_query_value_expands_a_set_like_a_list() {
+        use std::collections::BTreeSet;
+
+        let set: BTreeSet<String> = ["a".to_string(), "b".to_string()].into_iter().collect();
+        match object_serializer::to_query_value(&set, "multi") {
+            QueryValue::Multi(v) => assert_eq!(v, vec!["a", "b"]),
+            _ => panic!("expected QueryValue::Multi"),
+        }
+        match object_serializer::to_query_value(&set, "csv") {
+            QueryValue::Single(v) => assert_eq!(v, "a,b"),
+            _ => panic!("expected QueryValue::Single"),
+        }
+    }
+
+    #[test]
     fn test_bhv_serializationobject_135_to_query_value_string_slice_multi() {
         let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let result = object_serializer::to_query_value(&items, "multi");
@@ -1747,6 +1762,12 @@ mod tests {
     fn test_bhv_serializationobject_078_stringify_float_returns_string_representation() {
         assert_eq!(object_serializer::stringify(&1.5_f64), "1.5");
         assert_eq!(object_serializer::stringify(&-2.25_f64), "-2.25");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_091_stringify_integer_returns_string_representation() {
+        assert_eq!(object_serializer::stringify(&42_i32), "42");
+        assert_eq!(object_serializer::stringify(&-7_i64), "-7");
     }
 
     #[test]

@@ -474,7 +474,13 @@ mod tests {
     /* -- serialize_value by location -- */
 
     #[test]
-    fn test_bhv_serializationparam_062_bhv_serializationparam_066_serialize_value_path_null() {
+    fn test_bhv_serializationparam_062_serialize_value_path_null() {
+        let result = super::serialize_value(None::<&str>, "path", "string", "");
+        assert_eq!(result.unwrap(), "");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_066_null_returns_empty_string_in_path_location() {
         let result = super::serialize_value(None::<&str>, "path", "string", "");
         assert_eq!(result.unwrap(), "");
     }
@@ -1492,11 +1498,20 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_serializationparam_003_bhv_serializationparam_080_encode_query_allowing_reserved_still_encodes_space(
-    ) {
+    fn test_bhv_serializationparam_003_encode_query_allowing_reserved_still_encodes_space() {
         /* Space is not reserved, so it is still percent-encoded, while the
          * reserved `:` between the words stays literal. */
         assert_eq!(super::encode_query_allowing_reserved("a b:c"), "a%20b:c");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_080_reserved_characters_literal_other_characters_encoded() {
+        /* The reserved `:`, `/`, `+` stay literal; the space and the non-ASCII
+         * `e` with acute accent are percent-encoded. */
+        assert_eq!(
+            super::encode_query_allowing_reserved("a:b/c+d e\u{e9}"),
+            "a:b/c+d%20e%C3%A9"
+        );
     }
 
     #[test]

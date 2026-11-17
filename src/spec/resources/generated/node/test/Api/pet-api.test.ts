@@ -511,7 +511,7 @@ describe("PetApi", () => {
     }
   });
 
-  test("bhv operations 038 500 response throws error", async () => {
+  test("bhv operations 038 error handling server error throws InternalServerError", async () => {
     const { api: mockApi, close } = await createMockServer(
       500,
       "application/json",
@@ -817,7 +817,7 @@ describe("PetApi form-urlencoded body serialization", () => {
 
   // #4 — a `format: date` form field (renewalDate) is date-only on the wire:
   // renewalDate=2024-01-01, with no time component (java's LocalDate form).
-  test("bhv operations 019 #4 date-only form field serializes as YYYY-MM-DD", async () => {
+  test("bhv operations 019 date-only form field serializes as YYYY-MM-DD", async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
       const options: SetPetPreferencesOptions = {
@@ -1279,7 +1279,7 @@ describe("PetApi against a recording client", () => {
       "https://ap.example.com/v1/",
     ],
   ])(
-    "getMultiServerPetInfo sends the request to the chosen one of several servers",
+    "bhv operations 085 the multi-server operation offers a fixed and a templated server: %j",
     async (server, prefix) => {
       await recordingApi.getMultiServerPetInfo(1, server);
 
@@ -1298,7 +1298,7 @@ describe("PetApi against a recording client", () => {
       "https://eu.mirror.example.com/it's/v1/pet/3/multi",
     ],
   ])(
-    "getMultiServerPetInfo resolves the Mirror variant for the channel %s",
+    "bhv operations 084 the mirror operation server resolves reserved characters raw for channel %s",
     async (channel, expected) => {
       await recordingApi.getMultiServerPetInfo(
         3,
@@ -1734,6 +1734,73 @@ describe("PetApi against a recording client", () => {
       await petApi.addPet(newPet());
 
       expect(recorded[0]!.headers["Authorization"]).toBe("Bearer bearer-token");
+    });
+
+    test("bhv operations 078 addPet uses the configured credentials when no scheme credential is held", async () => {
+      const configured = Configuration.builder()
+        .baseUrl(host)
+        .defaultHeader("Authorization", "Bearer configured-token")
+        .build();
+      const petApi = new PetApi(recordingClient, configured, null, {});
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers["Authorization"]).toBe(
+        "Bearer configured-token",
+      );
+    });
+
+    test("bhv operations 081 addPet without an Options object completes with the configured credentials", async () => {
+      const server = http.createServer((req, res) => {
+        const accepted =
+          req.headers.authorization === "Bearer configured-token";
+        res.writeHead(accepted ? 200 : 401, {
+          "Content-Type": "application/json",
+        });
+        res.end(
+          accepted
+            ? '{"id":7,"name":"recorded","photoUrls":[]}'
+            : '{"message":"Unauthorized"}',
+        );
+      });
+      await new Promise<void>((resolve) =>
+        server.listen(0, "127.0.0.1", () => resolve()),
+      );
+      try {
+        const addr = server.address() as { port: number };
+        const configured = Configuration.builder()
+          .baseUrl(`http://127.0.0.1:${addr.port}`)
+          .defaultHeader("Authorization", "Bearer configured-token")
+          .build();
+        const petApi = new PetApi(
+          new DefaultApiClient(
+            TransportOptions.builder().maxRetries(0).build(),
+          ),
+          configured,
+          null,
+          {},
+        );
+
+        const pet = await petApi.addPet(newPet());
+
+        expect(pet.name).toBe("recorded");
+      } finally {
+        server.close();
+      }
+    });
+
+    test("bhv operations 082 no operation options offers a per call authenticator", () => {
+      const dir = path.join(process.cwd(), "src/api/options");
+      const files = fs
+        .readdirSync(dir)
+        .filter((name) => name.endsWith(".ts") && name !== "index.ts");
+
+      expect(files.length).toBeGreaterThan(0);
+      for (const name of files) {
+        const source = fs.readFileSync(path.join(dir, name), "utf8");
+        expect(source).not.toMatch(/^\s*(readonly\s+)?auth\??\s*:/m);
+        expect(source).not.toMatch(/Authenticator/);
+      }
     });
 
     test("bhv operations 086 there is no per-call authenticator: no Options object has an auth member", async () => {

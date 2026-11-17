@@ -339,6 +339,13 @@ import Testing
       "expected backslash-escaped backslash in body, got: \(bodyStr)")
   }
 
+  /* An ASCII-only filename needs no RFC 5987 parameter: only filename= is sent. */
+  @Test func testBhvSerializationwire041MultipartAsciiOnlyFilenameOmitsFilenameStar() throws {
+    let value = try DefaultApiClient.buildContentDisposition(name: "file", filename: "report.pdf")
+    #expect(value == "Content-Disposition: form-data; name=\"file\"; filename=\"report.pdf\"")
+    #expect(!value.contains("filename*"))
+  }
+
   @Test func testBhvSerializationwire044MultipartNonAsciiFilenameUsesRFC5987() throws {
     let formParts: [String: Any] = ["日本.pdf": Data([0x01])]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")

@@ -290,7 +290,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
     end
 
-    test "bhv authoauthtwotokenmgr 027 10 concurrent get_access_token calls hit token endpoint exactly once" do
+    test "bhv authoauthtwotokenmgr 027 ten concurrent get_access_token calls hit token endpoint exactly once" do
       counting_client = CountingApiClient.new()
 
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()

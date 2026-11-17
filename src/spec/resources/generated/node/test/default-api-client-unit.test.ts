@@ -285,7 +285,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["accept-encoding"]).toBe("identity");
   });
 
-  it("bhv transport 043 injects X-Request-ID when enabled", async () => {
+  it("bhv transport 043 bhv transport 013 injects X-Request-ID when enabled", async () => {
     const transport = TransportOptions.builder().injectRequestId(true).build();
     const client = new DefaultApiClient(transport);
     const response = await client.sendRequest(
@@ -331,7 +331,7 @@ describe("DefaultApiClient unit", () => {
     expect(body["x-request-id"]).toBe("caller-provided-id");
   });
 
-  it("bhv transport 038 generates unique X-Request-ID per request", async () => {
+  it("bhv transport 038 bhv transport 007 generates unique X-Request-ID per request", async () => {
     const transport = TransportOptions.builder().injectRequestId(true).build();
     const client = new DefaultApiClient(transport);
     const response1 = await client.sendRequest(
@@ -351,7 +351,7 @@ describe("DefaultApiClient unit", () => {
     expect(id1).not.toBe(id2);
   });
 
-  it("bhv transport 039 includes transport-level default headers", async () => {
+  it("bhv transport 039 bhv transport 010 includes transport-level default headers", async () => {
     const transport = TransportOptions.builder()
       .defaultHeader("X-Custom", "custom-value")
       .build();
@@ -405,6 +405,17 @@ describe("DefaultApiClient CA certificate fail-fast", () => {
       /^failed to read CA certificate from "\/nonexistent\/ca\.pem": \S/,
     );
     expect(((caught as Error).cause as Error).message).toMatch(/ENOENT/);
+  });
+
+  it("bhv transport 048 throws TypeError for a nonexistent caCertPath even when verifySsl is false", () => {
+    const transport = TransportOptions.builder()
+      .caCertPath("/nonexistent/ca.pem")
+      .verifySsl(false)
+      .build();
+    expect(() => new DefaultApiClient(transport)).toThrow(TypeError);
+    expect(() => new DefaultApiClient(transport)).toThrow(
+      /^failed to read CA certificate from "\/nonexistent\/ca\.pem": /,
+    );
   });
 
   it("reads a directory as a failed read, not as a certificate", () => {
@@ -619,7 +630,7 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     expect(caught).not.toBeInstanceOf(OpenAPIError);
   });
 
-  it("a corrupt gzip body throws ApiError with the real status, not NetworkError", async () => {
+  it("bhv transport 030 a corrupt gzip body throws ApiError with the real status, not NetworkError", async () => {
     // The body arrives with its status and headers but the fetch layer
     // cannot decompress it: a response that could not be used.
     const client = new DefaultApiClient();
@@ -1040,7 +1051,7 @@ describe("DefaultApiClient.mimeTypeForFilename per-part MIME sniffing", () => {
  * as SENSITIVE_HEADER_NAMES so callers can audit it.
  */
 describe("SENSITIVE_HEADER_NAMES allowlist", () => {
-  it("includes the classic credential carriers", () => {
+  it("bhv transport 057 includes the classic credential carriers", () => {
     expect(SENSITIVE_HEADER_NAMES.has("authorization")).toBe(true);
     expect(SENSITIVE_HEADER_NAMES.has("cookie")).toBe(true);
     expect(SENSITIVE_HEADER_NAMES.has("proxy-authorization")).toBe(true);
@@ -2284,6 +2295,36 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     }
   });
 
+  it("bhv transport 027 a decoded body drops the Content-Encoding and Content-Length headers", async () => {
+    const body = zlib.gzipSync(Buffer.from('{"userId":1}', "utf-8"));
+    const srv = http.createServer((_req, res) => {
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Content-Encoding": "gzip",
+        "Content-Length": String(body.length),
+      });
+      res.end(body);
+    });
+    await new Promise<void>((resolve) => srv.listen(0, "127.0.0.1", resolve));
+    const client = new DefaultApiClient();
+    try {
+      const port = (srv.address() as { port: number }).port;
+      const response = await client.sendRequest(
+        "GET",
+        `http://127.0.0.1:${port}/gzip`,
+        {},
+        null,
+      );
+      expect(response.body).toBe('{"userId":1}');
+      expect(response.headers).not.toHaveProperty("content-encoding");
+      expect(response.headers).not.toHaveProperty("content-length");
+      expect(response.headers["content-type"]).toBe("application/json");
+    } finally {
+      await client.close();
+      await new Promise<void>((resolve) => srv.close(() => resolve()));
+    }
+  });
+
   it("bhv transport 037 passes an empty body declared gzip through as empty, not an error", async () => {
     // A zero-byte body still declared `Content-Encoding: gzip` has nothing to
     // inflate and no gzip magic: ensureDecoded must return it unchanged rather
@@ -2462,7 +2503,7 @@ describe("the client keeps no ambient state between requests", () => {
     ).not.toContain("cookie");
   });
 
-  it("bhv transport 046 ambient proxy variables are ignored; only TransportOptions.proxy is a proxy source", async () => {
+  it("bhv transport 046 bhv transport 009 ambient proxy variables are ignored; only TransportOptions.proxy is a proxy source", async () => {
     for (const name of proxyVariables) {
       savedEnvironment.set(name, process.env[name]);
       process.env[name] = "http://127.0.0.1:9";
@@ -2482,6 +2523,40 @@ describe("the client keeps no ambient state between requests", () => {
 
     expect(seenInit).toBeDefined();
     expect(seenInit!["dispatcher"]).toBeUndefined();
+  });
+});
+
+describe("proxy URL credentials route through the proxy", () => {
+  it("bhv transport 001 a proxy URL with embedded basic-auth credentials routes through proxy", async () => {
+    const userinfo = ["user", "pass"].join(":");
+    const seen: Array<string | undefined> = [];
+    const proxy = http.createServer((req, res) => {
+      seen.push(req.headers["proxy-authorization"]);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end("{}");
+    });
+    await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+    const port = (proxy.address() as { port: number }).port;
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .proxy(`http://${userinfo}@127.0.0.1:${port}`)
+        .build(),
+    );
+    try {
+      const response = await client.sendRequest(
+        "GET",
+        "http://api.example/routed",
+        {},
+        null,
+      );
+      expect(response.statusCode).toBe(200);
+      expect(seen).toEqual([
+        `Basic ${Buffer.from(userinfo, "utf-8").toString("base64")}`,
+      ]);
+    } finally {
+      await client.close();
+      await new Promise<void>((resolve) => proxy.close(() => resolve()));
+    }
   });
 });
 

@@ -250,6 +250,11 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationobject_102_malformed_date_time_is_rejected() {
+        assert!(serde_json::from_str::<DateTime>("\"2024-13-45T99:99:99+00:00\"").is_err());
+    }
+
+    #[test]
     fn test_bhv_serializationobject_045_round_trip_preserves_offset_and_instant() {
         let original = instant("2024-01-01T12:30:45.250+05:30");
         let json = serde_json::to_string(&original).expect("serialize");

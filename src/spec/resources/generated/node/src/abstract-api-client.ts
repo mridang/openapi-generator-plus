@@ -827,6 +827,9 @@ export abstract class AbstractApiClient implements ApiClient {
      * a response that could not be used: an ApiError carrying the
      * response's real status. */
     let responseBytes: Buffer;
+    const contentEncoding = (response.headers.get("content-encoding") ?? "")
+      .trim()
+      .toLowerCase();
     try {
       responseBytes = Buffer.from(await response.arrayBuffer());
       /* Gap AL: a server may advertise `Content-Encoding: gzip` (etc.) but
@@ -840,9 +843,6 @@ export abstract class AbstractApiClient implements ApiClient {
        * as the SDK's own ApiError, so a Content-Encoding lie can never leak
        * corrupted bytes -- matching java/python/ruby/go/php/rust/elixir which
        * wrap the decompression failure rather than crashing or passing it on. */
-      const contentEncoding = (response.headers.get("content-encoding") ?? "")
-        .trim()
-        .toLowerCase();
       responseBytes = await AbstractApiClient.ensureDecoded(
         responseBytes,
         contentEncoding,
@@ -891,6 +891,13 @@ export abstract class AbstractApiClient implements ApiClient {
      * either parse `set-cookie` themselves or use `response.headers.getSetCookie()`.
      */
     const responseHeaders = AbstractApiClient.collectHeaders(response);
+    if (contentEncoding !== "" && contentEncoding !== "identity") {
+      /* The body returned above is decoded, so the encoding and the length
+       * of the encoded bytes no longer describe it; the caller never sees
+       * the encoded form, so neither header is returned. */
+      delete responseHeaders["content-encoding"];
+      delete responseHeaders["content-length"];
+    }
 
     return {
       statusCode: response.status,

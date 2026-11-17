@@ -158,6 +158,13 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       refute inspect(auth) =~ "super-secret-token"
     end
 
+    test "bhv authbearer 001 the redacted representation names the authenticator and masks the token" do
+      auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
+
+      assert inspect(auth) =~ "PetstoreClient.Auth.BearerAuthenticator"
+      refute inspect(auth) =~ "super-secret-token"
+    end
+
     test "bhv authbearer 006 a generated scheme wrapper emits a bearer header and masks the token" do
       wrapper =
         PetstoreClient.Auth.PetStoreBearerAuthenticator.new("https://api.example.com", "xyz")

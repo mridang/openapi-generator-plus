@@ -2088,6 +2088,38 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "bhv operations 066 an allowReserved query value percent-encodes a hash and keeps the other params" do
+    {:ok, name} = UrlCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{"tag" => {:allow_reserved, "a#b c"}, "page" => "2"},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = UrlCapturingApiClient.captured_url(name)
+
+    assert String.contains?(url, "tag=a%23b%20c"),
+           "Expected the hash and space percent-encoded in the allowReserved value, got: #{url}"
+
+    assert String.contains?(url, "page=2"),
+           "Expected the query to keep the params after the reserved one, got: #{url}"
+
+    refute String.contains?(url, "#"),
+           "A raw hash would truncate the query as a fragment, got: #{url}"
+
+    Agent.stop(name)
+  end
+
   # Empty array in query is omitted (item #20)
 
   test "bhv serializationwire 010 empty array query param is omitted entirely" do
@@ -2305,6 +2337,29 @@ defmodule PetstoreClient.Api.BaseApiTest do
       )
 
     assert BodyCapturingApiClient.captured_body(name) == "z=1&a=2"
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 016 sends no body when the body is nil" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: BodyCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/test/echo",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    assert BodyCapturingApiClient.captured_body(name) == nil
 
     Agent.stop(name)
   end

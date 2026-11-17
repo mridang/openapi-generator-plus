@@ -662,10 +662,7 @@ import Testing
   }
 
   /* A refresh_token that is not a JSON string is ignored, so the stored one is kept. */
-  @Test
-  func testBhvAuthoauthtwotokenmgr017BhvAuthoauthtwotokenmgr020NonStringRefreshTokenIsIgnored()
-    async throws
-  {
+  @Test func testBhvAuthoauthtwotokenmgr017NonStringRefreshTokenIsIgnored() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(
@@ -680,6 +677,38 @@ import Testing
 
     let params = ["grant_type": "authorization_code"]
     let tokenURL = "https://auth.example.com/token"
+
+    _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+    #expect(manager.refreshToken == "old_refresh")
+
+    _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+    #expect(manager.refreshToken == "old_refresh")
+  }
+
+  /* A refresh_token of any non-string JSON type (boolean, array) is ignored, so the stored one is kept. */
+  @Test func testBhvAuthoauthtwotokenmgr020NonStringRefreshTokenOfOtherJsonTypesIsIgnored()
+    async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(
+        body: "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":0}"
+      ))
+    client.responses.append(
+      makeResponse(
+        body: "{\"access_token\":\"new_access\",\"expires_in\":0,\"refresh_token\":true}"))
+    client.responses.append(
+      makeResponse(
+        body: "{\"access_token\":\"newer_access\",\"expires_in\":3600,\"refresh_token\":[\"x\"]}"))
+
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    let params = ["grant_type": "authorization_code"]
+    let tokenURL = "https://auth.example.com/token"
+
+    _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+    #expect(manager.refreshToken == "old_refresh")
 
     _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
     #expect(manager.refreshToken == "old_refresh")

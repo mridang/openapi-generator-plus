@@ -470,7 +470,7 @@ fn test_bhv_authoauthtwoauthcode_020_scheme_wrapper_requests_the_scopes_declared
 /// exchange did, and a rejected refresh surfaces once, after exactly one
 /// refresh request.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_bhv_authoauthtwoauthcode_026_bhv_authoauthtwoauthcode_002_refresh_carries_the_client_credentials_and_a_rejection_is_sent_once(
+async fn test_bhv_authoauthtwoauthcode_026_refresh_carries_the_client_credentials_and_a_rejection_is_sent_once(
 ) {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
@@ -502,6 +502,36 @@ async fn test_bhv_authoauthtwoauthcode_026_bhv_authoauthtwoauthcode_002_refresh_
         ),
         client.last_body()
     );
+}
+
+/// A rejected refresh surfaces as `OAuth2ServerError` once, after exactly one
+/// refresh request, and the refresh is not retried.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwoauthcode_002_a_rejected_refresh_surfaces_oauth2_server_error_after_one_post(
+) {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
+        200,
+    );
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    auth.exchange_code("code-a")
+        .await
+        .expect("exchange succeeds");
+
+    let err = auth
+        .try_auth_headers()
+        .await
+        .expect_err("the refresh is rejected");
+
+    assert!(
+        err.downcast_ref::<petstore::OAuth2ServerError>().is_some(),
+        "got: {}",
+        err
+    );
+    assert_eq!(2, client.urls().len(), "{:?}", client.urls());
 }
 
 /// A second exchange always sends the new code, even while the first
@@ -655,8 +685,16 @@ async fn test_bhv_authoauthtwoauthcode_023_authorization_code_flow_uses_pkce_s25
 
 /* Every authorization URL starts a new PKCE pair. */
 #[tokio::test]
-async fn test_bhv_authoauthtwoauthcode_008_bhv_authoauthtwoauthcode_009_each_authorization_url_has_its_own_code_challenge(
-) {
+async fn test_bhv_authoauthtwoauthcode_008_each_authorization_url_has_its_own_code_challenge() {
+    let auth = create_authenticator();
+    let first = auth.build_authorization_url("");
+    let second = auth.build_authorization_url("");
+    assert_ne!(first, second);
+}
+
+/* Every authorization URL starts a new PKCE verifier, so no two URLs share one. */
+#[tokio::test]
+async fn test_bhv_authoauthtwoauthcode_009_every_authorization_url_starts_a_new_verifier() {
     let auth = create_authenticator();
     let first = auth.build_authorization_url("");
     let second = auth.build_authorization_url("");

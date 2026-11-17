@@ -12,8 +12,16 @@ use std::collections::HashMap;
 use petstore::*;
 
 #[test]
-fn test_bhv_config_014_bhv_config_005_configuration_default_values() {
+fn test_bhv_config_014_configuration_default_values() {
     let config = Configuration::default();
+
+    assert_eq!(config.base_url(), "/api/v3");
+    assert!(config.default_headers().is_empty());
+}
+
+#[test]
+fn test_bhv_config_005_builder_produces_correct_defaults() {
+    let config = ConfigurationBuilder::new().build();
 
     assert_eq!(config.base_url(), "/api/v3");
     assert!(config.default_headers().is_empty());

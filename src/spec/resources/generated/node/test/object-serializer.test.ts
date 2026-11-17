@@ -121,7 +121,8 @@ describe("ObjectSerializer", () => {
     test("bhv serializationobject 149 bhv serializationobject 150 serialized datetime string ends with an offset", () => {
       const date = new Date("2024-01-01T12:30:45.000Z");
       const result = ObjectSerializer.stringify(date);
-      expect(result).toMatch(/[+-]\d{2}:\d{2}$|Z$/);
+      expect(result).toMatch(/[+-]\d{2}:\d{2}$/);
+      expect(result).not.toMatch(/Z$/);
     });
 
     test("bhv serializationobject 134 date formatted as ISO 8601 date-time contains T separator", () => {
@@ -156,8 +157,14 @@ describe("ObjectSerializer", () => {
   });
 
   describe("SerializationErrorWrappingTests", () => {
-    test("bhv serializationobject 170 bhv serializationobject 089 truncated JSON throws SerializationError not raw parse error", () => {
+    test("bhv serializationobject 170 truncated JSON throws SerializationError not raw parse error", () => {
       expect(() => ObjectSerializer.parseJson("{")).toThrow(SerializationError);
+    });
+
+    test("bhv serializationobject 089 an incomplete JSON object raises SerializationError", () => {
+      expect(() => ObjectSerializer.parseJson('{"name": "Rex"')).toThrow(
+        SerializationError,
+      );
     });
 
     test("bhv serializationobject 095 invalid json structure throws SerializationError", () => {
@@ -791,6 +798,16 @@ describe("ObjectSerializer", () => {
       const json = { name: "x", photoUrls: [], tags: [{ id: 1 }, { id: "7" }] };
       expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
         /^Failed to deserialize JSON: id must be a number, got string$/,
+      );
+    });
+
+    test("bhv serializationobject 118 raises SerializationError for a scalar where a nested model is expected", () => {
+      const json = { value: "root", child: 5 };
+      expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(
+        SerializationError,
+      );
+      expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(
+        /child must be an object, got number/,
       );
     });
 
@@ -1883,7 +1900,7 @@ describe("ObjectSerializer", () => {
         );
       });
 
-      test("bhv serializationobject 145 bhv serializationobject 073 round-trip: stringify then durationFromProtoJson is lossless", () => {
+      test("bhv serializationobject 145 round-trip: stringify then durationFromProtoJson is lossless", () => {
         const original = Temporal.Duration.from("PT1H30M");
         const restored = durationFromProtoJson(
           ObjectSerializer.stringify(original),
@@ -2118,6 +2135,9 @@ describe("ObjectSerializer", () => {
         StockItem,
       );
       expect(restored!.availability).toBe(Availability.OnHold);
+      expect(
+        JSON.parse(ObjectSerializer.serialize(original)).availability,
+      ).toBe("on-hold");
     });
   });
 
@@ -2362,13 +2382,16 @@ describe("ObjectSerializer", () => {
     });
 
     // A bare JSON null body decodes to null for a model return type.
-    test("bhv serializationobject 138 bhv serializationobject 067 a literal null body deserializes to null", () => {
+    test("bhv serializationobject 067 a literal null body deserializes to null", () => {
       expect(
         ObjectSerializer.deserialize(
           ObjectSerializer.parseJson("null"),
           Category,
         ),
       ).toBeNull();
+    });
+
+    test("bhv serializationobject 138 returns nil for nil input", () => {
       expect(ObjectSerializer.deserialize(null, Category)).toBeNull();
     });
 
@@ -2817,7 +2840,7 @@ describe("model value-equality", () => {
     expect(a.equals(c)).toBe(false);
   });
 
-  test("bhv serializationobject 005 bhv serializationobject 075 equality compares byte arrays by content (bare, list and map)", () => {
+  test("bhv serializationobject 005 a differing byte inside a map VALUE makes them unequal", () => {
     const vault = (
       seal: number[],
       shard: number[],
@@ -2833,6 +2856,23 @@ describe("model value-equality", () => {
     expect(base.equals(vault([1, 2, 9], [4, 5], [6]))).toBe(false);
     expect(base.equals(vault([1, 2, 3], [4, 9], [6]))).toBe(false);
     expect(base.equals(vault([1, 2, 3], [4, 5], [9]))).toBe(false);
+  });
+
+  test("bhv serializationobject 075 equality compares byte arrays by content (bare, list and map)", () => {
+    const vault = (
+      seal: number[],
+      shard: number[],
+      label: number[],
+    ): BinaryVault =>
+      new BinaryVault({
+        seal: Buffer.from(seal),
+        shards: [Buffer.from(shard)],
+        labels: { a: Buffer.from(label) },
+      });
+    const base = vault([1, 2, 3], [4, 5], [6]);
+    expect(base.equals(vault([1, 2, 3], [4, 5], [6]))).toBe(true);
+    expect(base.equals(vault([1, 2, 9], [4, 5], [6]))).toBe(false);
+    expect(base.equals(vault([1, 2, 3], [4, 9], [6]))).toBe(false);
   });
 
   test("bhv serializationobject 009 a list of byte arrays is not equal to a map of them", () => {
@@ -3015,13 +3055,21 @@ describe("toBinary", () => {
       expect(decoded.n2fa).toBe(true);
     });
 
-    test("bhv serializationobject 014 bhv serializationobject 017 a readOnly property is decoded and a writeOnly property is written and decoded", () => {
+    test("bhv serializationobject 014 a readOnly property is decoded", () => {
       const decoded = ObjectSerializer.deserialize(
         { id: 7, username: "u", password: "p" },
         Account,
       )!;
 
       expect(decoded.id).toBe(7);
+    });
+
+    test("bhv serializationobject 017 a writeOnly property is decoded and kept on the wire", () => {
+      const decoded = ObjectSerializer.deserialize(
+        { id: 7, username: "u", password: "p" },
+        Account,
+      )!;
+
       expect(decoded.password).toBe("p");
       expect(
         JSON.parse(
@@ -3218,6 +3266,18 @@ describe("toBinary", () => {
           ),
         ),
       ).toMatchObject({ retryAfter: "3600.500s" });
+    });
+
+    test("bhv serializationobject 073 a Duration round-trips through a model body", () => {
+      const json = ObjectSerializer.serialize(
+        new EdgeCases({ retryAfter: Temporal.Duration.from("PT1H30M") }),
+      );
+      const decoded = ObjectSerializer.deserialize(
+        JSON.parse(json),
+        EdgeCases,
+      )!;
+
+      expect(durationToProtoJson(decoded.retryAfter!)).toBe("5400s");
     });
   });
 });

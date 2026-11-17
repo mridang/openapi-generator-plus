@@ -68,7 +68,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   }
 
   /* Closing the client never invalidates a session the caller supplied. */
-  @Test func testBhvLifecycle007BhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
+  @Test func testBhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
     let probe = InvalidationProbe()
     let session = URLSession(configuration: .ephemeral, delegate: probe, delegateQueue: nil)
     let transport = try TransportOptionsBuilder().session(session).build()
@@ -79,10 +79,37 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     session.invalidateAndCancel()
   }
 
+  /* After the client closes, the caller's session still accepts new tasks. */
+  @Test func testBhvLifecycle007CloseOnAClientWithASuppliedTransportLeavesItUsable() throws {
+    let session = URLSession(configuration: .ephemeral)
+    let transport = try TransportOptionsBuilder().session(session).build()
+    let client = try Client(authenticator: authenticator, transportOptions: transport)
+    client.close()
+    let url = try #require(URL(string: "https://api.example.com/"))
+    let task = session.dataTask(with: url)
+    #expect(task.state == .suspended)
+    task.cancel()
+    session.invalidateAndCancel()
+  }
+
   @Test func testBhvLifecycle011ConstructWithAuthenticatorAndTransportOptions() throws {
     let transport = try TransportOptionsBuilder().build()
 
     _ = try Client(authenticator: authenticator, transportOptions: transport)
+  }
+
+  /* An API key sent in a header rejects CR/LF and non-ASCII characters at
+   * construction, with ConfigurationError.invalidArgument. */
+  @Test(arguments: ["abc\r\nInjected: yes", "kéy"])
+  func testBhvLifecycle002ApiKeyHeaderRejectsCrlfAndNonAscii(apiKey: String) {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try ApiKeyAuthenticator(
+        host: "/api/v3", keyParamName: "X-API-Key", apiKey: apiKey, location: .header)
+    }
+    guard case .invalidArgument? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
   }
 
   @Test func testBhvLifecycle003ApiKeyQueryAcceptsNonAscii() throws {
@@ -289,16 +316,25 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002PetStoreBasicAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002PetStoreBasicAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try PetStoreBasicAuthenticator(
       host: "https://api.example.com", username: "explicit-value", password: "explicit-value",
       environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015PetStoreBasicAuthenticatorCredentialKeywordCanBeOmitted() throws {
+    _ = try PetStoreBasicAuthenticator(
+      host: "https://api.example.com",
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD": "env-value",
+      ])
   }
 
   @Test func testBhvLifecycle004PetStoreBasicAuthenticatorFailsWhenACredentialIsMissing() {
@@ -336,16 +372,25 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002AdminBasicAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002AdminBasicAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try AdminBasicAuthenticator(
       host: "https://api.example.com", username: "explicit-value", password: "explicit-value",
       environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015AdminBasicAuthenticatorCredentialKeywordCanBeOmitted() throws {
+    _ = try AdminBasicAuthenticator(
+      host: "https://api.example.com",
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "env-value",
+      ])
   }
 
   @Test func testBhvLifecycle004AdminBasicAuthenticatorFailsWhenACredentialIsMissing() {
@@ -380,15 +425,21 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-value"])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002PetStoreBearerAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002PetStoreBearerAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try PetStoreBearerAuthenticator(
       host: "https://api.example.com", token: "explicit-value", environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015PetStoreBearerAuthenticatorCredentialKeywordCanBeOmitted() throws {
+    _ = try PetStoreBearerAuthenticator(
+      host: "https://api.example.com",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-value"])
   }
 
   @Test func testBhvLifecycle004PetStoreBearerAuthenticatorFailsWhenACredentialIsMissing() {
@@ -420,15 +471,21 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-value"])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002ServiceTokenAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002ServiceTokenAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try ServiceTokenAuthenticator(
       host: "https://api.example.com", token: "explicit-value", environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015ServiceTokenAuthenticatorCredentialKeywordCanBeOmitted() throws {
+    _ = try ServiceTokenAuthenticator(
+      host: "https://api.example.com",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-value"])
   }
 
   @Test func testBhvLifecycle004ServiceTokenAuthenticatorFailsWhenACredentialIsMissing() {
@@ -460,15 +517,21 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY": "env-value"])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002ApiKeyHeaderAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002ApiKeyHeaderAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try ApiKeyHeaderAuthenticator(
       host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015ApiKeyHeaderAuthenticatorCredentialKeywordCanBeOmitted() throws {
+    _ = try ApiKeyHeaderAuthenticator(
+      host: "https://api.example.com",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY": "env-value"])
   }
 
   @Test func testBhvLifecycle004ApiKeyHeaderAuthenticatorFailsWhenACredentialIsMissing() {
@@ -500,15 +563,21 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY": "env-value"])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002InternalApiKeyAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002InternalApiKeyAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try InternalApiKeyAuthenticator(
       host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015InternalApiKeyAuthenticatorCredentialKeywordCanBeOmitted() throws {
+    _ = try InternalApiKeyAuthenticator(
+      host: "https://api.example.com",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY": "env-value"])
   }
 
   @Test func testBhvLifecycle004InternalApiKeyAuthenticatorFailsWhenACredentialIsMissing() {
@@ -540,15 +609,21 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY": "env-value"])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002ApiKeyQueryAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002ApiKeyQueryAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try ApiKeyQueryAuthenticator(
       host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015ApiKeyQueryAuthenticatorCredentialKeywordCanBeOmitted() throws {
+    _ = try ApiKeyQueryAuthenticator(
+      host: "https://api.example.com",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY": "env-value"])
   }
 
   @Test func testBhvLifecycle004ApiKeyQueryAuthenticatorFailsWhenACredentialIsMissing() {
@@ -580,15 +655,21 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY": "env-value"])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002SessionCookieAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002SessionCookieAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try SessionCookieAuthenticator(
       host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015SessionCookieAuthenticatorCredentialKeywordCanBeOmitted() throws {
+    _ = try SessionCookieAuthenticator(
+      host: "https://api.example.com",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY": "env-value"])
   }
 
   @Test func testBhvLifecycle004SessionCookieAuthenticatorFailsWhenACredentialIsMissing() {
@@ -625,16 +706,28 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002MachineAuthClientCredentialsAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002MachineAuthClientCredentialsAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try MachineAuthClientCredentialsAuthenticator(
       host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
       environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test
+  func testBhvLifecycle015MachineAuthClientCredentialsAuthenticatorCredentialKeywordCanBeOmitted()
+    throws
+  {
+    _ = try MachineAuthClientCredentialsAuthenticator(
+      host: "https://api.example.com",
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET": "env-value",
+      ])
   }
 
   @Test
@@ -677,16 +770,29 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002LegacyAuthPasswordAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002LegacyAuthPasswordAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try LegacyAuthPasswordAuthenticator(
       host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
       username: "explicit-value", password: "explicit-value", environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015LegacyAuthPasswordAuthenticatorCredentialKeywordCanBeOmitted()
+    throws
+  {
+    _ = try LegacyAuthPasswordAuthenticator(
+      host: "https://api.example.com",
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD": "env-value",
+      ])
   }
 
   @Test func testBhvLifecycle004LegacyAuthPasswordAuthenticatorFailsWhenACredentialIsMissing() {
@@ -731,16 +837,29 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002UserAuthAuthorizationCodeAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002UserAuthAuthorizationCodeAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try UserAuthAuthorizationCodeAuthenticator(
       host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
       redirectUri: "explicit-value", environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test
+  func testBhvLifecycle015UserAuthAuthorizationCodeAuthenticatorCredentialKeywordCanBeOmitted()
+    throws
+  {
+    _ = try UserAuthAuthorizationCodeAuthenticator(
+      host: "https://api.example.com",
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI": "env-value",
+      ])
   }
 
   @Test
@@ -779,15 +898,23 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID": "env-value"])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002BrowserAuthImplicitAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002BrowserAuthImplicitAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try BrowserAuthImplicitAuthenticator(
       host: "https://api.example.com", clientId: "explicit-value", environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015BrowserAuthImplicitAuthenticatorCredentialKeywordCanBeOmitted()
+    throws
+  {
+    _ = try BrowserAuthImplicitAuthenticator(
+      host: "https://api.example.com",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID": "env-value"])
   }
 
   @Test func testBhvLifecycle004BrowserAuthImplicitAuthenticatorFailsWhenACredentialIsMissing() {
@@ -822,16 +949,26 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       ])
   }
 
-  /* One optional keyword credential per scheme, named after it, and an explicit one
-   * needs no environment at all. */
+  /* An explicit credential needs no environment at all. */
   @Test
   func
-    testBhvLifecycle015BhvAuthscheme002SsoAuthAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+    testBhvAuthscheme002SsoAuthAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try SsoAuthAuthenticator(
       host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
       redirectUri: "explicit-value", environment: [:])
+  }
+
+  /* The credential keyword is optional: leaving it out reads the environment. */
+  @Test func testBhvLifecycle015SsoAuthAuthenticatorCredentialKeywordCanBeOmitted() throws {
+    _ = try SsoAuthAuthenticator(
+      host: "https://api.example.com",
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI": "env-value",
+      ])
   }
 
   @Test func testBhvLifecycle004SsoAuthAuthenticatorFailsWhenACredentialIsMissing() {

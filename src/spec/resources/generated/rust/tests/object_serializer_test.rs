@@ -408,6 +408,7 @@ fn test_bhv_serializationobject_054_proto_duration_parses_fractional_seconds() {
     );
 }
 
+#[test]
 fn test_bhv_serializationobject_057_double_literal_overflowing_to_infinity_is_refused() {
     use petstore::models::Pet;
 
@@ -547,6 +548,7 @@ fn test_bhv_serializationobject_109_non_lowercase_string_enum_keeps_wire_casing_
     assert!(json.contains(r#""availability":"Sold""#), "{json}");
 }
 
+#[test]
 fn test_bhv_serializationobject_112_proto_duration_parse_whole_seconds() {
     use chrono::Duration;
     use petstore::proto_duration;

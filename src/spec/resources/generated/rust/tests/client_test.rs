@@ -165,8 +165,14 @@ fn invalid_argument_text<T>(result: Result<T, ConfigurationError>) -> String {
 }
 
 #[test]
-fn test_bhv_lifecycle_014_bhv_authbearer_010_client_with_token_reads_the_environment_when_nothing_is_passed(
-) {
+fn test_bhv_lifecycle_014_client_with_token_reads_the_environment_when_nothing_is_passed() {
+    with_environment(Some("/api/v3"), Some("env-token"), || {
+        assert!(Client::with_token(None, None, None).is_ok());
+    });
+}
+
+#[test]
+fn test_bhv_authbearer_010_reads_the_token_from_the_environment_when_none_is_passed() {
     with_environment(Some("/api/v3"), Some("env-token"), || {
         assert!(Client::with_token(None, None, None).is_ok());
     });

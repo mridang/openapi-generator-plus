@@ -37,7 +37,18 @@ fn server_with_vars() -> ServerConfiguration {
 }
 
 #[test]
-fn test_bhv_servers_010_bhv_servers_001_url_substitutes_overrides() {
+fn test_bhv_servers_010_url_substitutes_overrides() {
+    let server = server_with_vars();
+
+    let mut overrides = HashMap::new();
+    overrides.insert("env".to_string(), "staging".to_string());
+
+    let url = server.url(&overrides).expect("valid override resolves");
+    assert_eq!(url, "https://staging.example.com/api/v3");
+}
+
+#[test]
+fn test_bhv_servers_001_partial_override_keeps_the_other_defaults() {
     let server = server_with_vars();
 
     let mut overrides = HashMap::new();
@@ -84,7 +95,29 @@ fn test_bhv_servers_006_server_configuration_accessors_expose_the_raw_template_a
 }
 
 #[test]
-fn test_bhv_servers_003_bhv_servers_014_unconstrained_variable_accepts_any_override() {
+fn test_bhv_servers_003_unconstrained_variable_accepts_any_override() {
+    let mut variables = HashMap::new();
+    variables.insert(
+        "tenant".to_string(),
+        ServerVariable::new("acme".to_string(), String::new(), vec![]),
+    );
+    let server = ServerConfiguration::new(
+        "https://{tenant}.example.com".to_string(),
+        String::new(),
+        variables,
+    );
+
+    let mut overrides = HashMap::new();
+    overrides.insert("tenant".to_string(), "globex".to_string());
+
+    let url = server
+        .url(&overrides)
+        .expect("unconstrained value accepted");
+    assert_eq!(url, "https://globex.example.com");
+}
+
+#[test]
+fn test_bhv_servers_014_variable_without_an_enum_accepts_any_override() {
     let mut variables = HashMap::new();
     variables.insert(
         "tenant".to_string(),
