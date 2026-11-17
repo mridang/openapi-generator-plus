@@ -5509,10 +5509,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
 
         final String[] fixtures = {
-            "certs/ca.pem",
-            "certs/ca-key.pem",
-            "certs/server.pem",
-            "certs/server-key.pem",
             "proxy/squid.conf"
         };
         final Path fixturesBase = outputDir.resolve(getTestFixturesDir());

@@ -17,8 +17,9 @@ import org.testcontainers.utility.MountableFile;
  * addresses reach every runtime container as environment variables; a generated fixture that finds
  * them uses these instances, and starts its own containers otherwise (a standalone SDK).
  *
- * <p>Both servers are stateless, and the certificates, the OpenAPI document and squid.conf are
- * byte-identical in all twelve SDKs, so one instance serves every language.
+ * <p>Both servers are stateless, and the OpenAPI document and squid.conf are byte-identical in all
+ * twelve SDKs, so one instance serves every language. The TLS certificates are generated for the
+ * run by {@link TestCertificates}; no private key is committed.
  */
 final class SharedHelperContainers {
 
@@ -39,6 +40,7 @@ final class SharedHelperContainers {
     }
     String workdir = System.getProperty("openapi.workdir", "");
     Path fixtures = Path.of("src/main/resources/fixtures").toAbsolutePath();
+    Path certs = TestCertificates.directory();
     Path spec = Path.of("src/spec/resources/specs/petstore/openapi.yaml").toAbsolutePath();
 
     GenericContainer<?> chasm =
@@ -46,9 +48,9 @@ final class SharedHelperContainers {
             .withExposedPorts(4010, 8443)
             .withCopyFileToContainer(MountableFile.forHostPath(spec), "/tmp/openapi.yaml")
             .withCopyFileToContainer(
-                MountableFile.forHostPath(fixtures.resolve("certs/server.pem")), "/certs/cert.pem")
+                MountableFile.forHostPath(certs.resolve("server.pem")), "/certs/cert.pem")
             .withCopyFileToContainer(
-                MountableFile.forHostPath(fixtures.resolve("certs/server-key.pem")),
+                MountableFile.forHostPath(certs.resolve("server-key.pem")),
                 "/certs/key.pem")
             .withCommand(
                 "mock",
