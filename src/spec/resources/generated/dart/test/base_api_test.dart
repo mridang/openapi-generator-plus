@@ -2263,7 +2263,7 @@ void main() {
       },
     );
 
-    test('418 throws ClientException', () async {
+    test('bhv errors 048 a 418 response throws ClientException', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/418')
           .build();
@@ -3218,6 +3218,22 @@ void main() {
 
       expect(api.waits, equals([const Duration(seconds: 3)]));
     });
+
+    test(
+      'bhv retries 029 falls back to the backoff when Retry-After is not understood',
+      () async {
+        final client = _ScriptedApiClient([
+          _reply(503, headers: {'retry-after': 'soon'}),
+          _reply(200),
+        ]);
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(api.waits, hasLength(1));
+        expect(api.waits.single.inMilliseconds, inInclusiveRange(375, 500));
+      },
+    );
 
     test('bhv retries 022 Retry-After as an HTTP date sets the wait', () async {
       final date = HttpDate.format(

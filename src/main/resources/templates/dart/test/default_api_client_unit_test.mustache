@@ -2258,6 +2258,30 @@ void main() {
       }
     });
 
+    test('bhv serializationwire 056 a binary field with an unknown extension falls back to octet-stream', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = await readBodyAsLatin1(request);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {'blob.unknownext': Uint8List.fromList([0x00, 0x01, 0x02])},
+        );
+        expect(body, contains('content-type: application/octet-stream'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv serializationwire 037 multipart text file part sets text/plain Content-Type from its extension', () async {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

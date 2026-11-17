@@ -71,6 +71,16 @@ void main() {
       },
     );
 
+    test(
+      'bhv serializationparam 106 a path parameter with no style behaves like simple',
+      () {
+        expect(
+          serializeStyled('id', '5', 'path', 'string', '', '', false),
+          equals('5'),
+        );
+      },
+    );
+
     test('bhv serializationparam 044 serializeValue path integer', () {
       final result = serializeValue(42, 'path', 'integer', '');
       expect(result, equals('42'));
@@ -401,7 +411,7 @@ void main() {
 
     // SerializeStyled: form
 
-    test('serializeStyled form scalar', () {
+    test('bhv serializationparam 105 serializeStyled form scalar', () {
       final result = serializeStyled(
         'color',
         'blue',
@@ -1148,12 +1158,15 @@ void main() {
       );
     });
 
-    test('a form component encodes a space as plus', () {
-      expect(
-        encodeRfc3986QueryComponent("a~b*c!d'e(f)g h", spaceToPlus: true),
-        equals('a~b%2Ac%21d%27e%28f%29g+h'),
-      );
-    });
+    test(
+      'bhv serializationwire 055 a form component encodes a space as plus',
+      () {
+        expect(
+          encodeRfc3986QueryComponent("a~b*c!d'e(f)g h", spaceToPlus: true),
+          equals('a~b%2Ac%21d%27e%28f%29g+h'),
+        );
+      },
+    );
 
     test('a literal plus is always %2B', () {
       expect(encodeRfc3986QueryComponent('1+2'), equals('1%2B2'));

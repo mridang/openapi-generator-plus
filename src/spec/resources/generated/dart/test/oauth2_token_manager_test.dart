@@ -858,13 +858,22 @@ void main() {
       expect(err.message, equals('boom'));
     });
 
-    test('OAuth2ServerException is a OpenAPIException (branded root)', () {
-      final err = OAuth2ServerException(400, 'invalid_grant', null, null, '{}');
+    test(
+      'bhv errors 045 OAuth2ServerException is a OpenAPIException (branded root)',
+      () {
+        final err = OAuth2ServerException(
+          400,
+          'invalid_grant',
+          null,
+          null,
+          '{}',
+        );
 
-      expect(err, isA<OAuth2ServerException>());
-      expect(err, isA<OpenAPIException>());
-      expect(err, isA<Exception>());
-    });
+        expect(err, isA<OAuth2ServerException>());
+        expect(err, isA<OpenAPIException>());
+        expect(err, isA<Exception>());
+      },
+    );
   });
 
   group('OAuth2TokenManager refresh grant', () {
@@ -1119,6 +1128,40 @@ void main() {
   });
 
   group('OAuth2ServerException message', () {
+    test(
+      'bhv errors 046 the message has three forms: a raw body, a code, and a code with a description',
+      () {
+        expect(
+          OAuth2ServerException(
+            502,
+            null,
+            null,
+            null,
+            '<html>bad gateway</html>',
+          ).message,
+          equals(
+            'Token request failed with status 502: <html>bad gateway</html>',
+          ),
+        );
+        expect(
+          OAuth2ServerException(400, 'invalid_grant', null, null, '{}').message,
+          equals('Token request failed with status 400: invalid_grant'),
+        );
+        expect(
+          OAuth2ServerException(
+            400,
+            'invalid_grant',
+            'refresh token expired',
+            null,
+            '{}',
+          ).message,
+          equals(
+            'Token request failed with status 400: invalid_grant -- refresh token expired',
+          ),
+        );
+      },
+    );
+
     test('without an error code it carries the raw body', () {
       final err = OAuth2ServerException(502, null, null, null, 'Bad Gateway');
 

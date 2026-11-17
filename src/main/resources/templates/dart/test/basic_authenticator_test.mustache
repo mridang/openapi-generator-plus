@@ -10,7 +10,7 @@ String basic(String userinfo) => 'Basic ${base64Encode(utf8.encode(userinfo))}';
 
 void main() {
   group('BasicAuthenticator', () {
-    test('explicit credentials win over the environment', () {
+    test('bhv authbasic 013 explicit credentials win over the environment', () {
       final auth = BasicAuthenticator(
         host: 'https://api.example.com',
         username: 'alice',

@@ -35,7 +35,7 @@ void main() {
       },
     );
 
-    test('enumValues are exposed for validation', () {
+    test('bhv servers 018 enumValues are exposed for validation', () {
       // ServerConfiguration validates overrides against this set, so the
       // enum list must surface exactly the allowed values.
       const variable = ServerVariable(
@@ -49,15 +49,18 @@ void main() {
       expect(variable.enumValues, contains('staging'));
     });
 
-    test('enum does not contain a value outside the allowed set', () {
-      // An out-of-set value (e.g. "dev") is absent from the enum, which is
-      // what drives ServerConfiguration to reject it.
-      const variable = ServerVariable(
-        defaultValue: 'prod',
-        enumValues: ['prod', 'staging'],
-      );
+    test(
+      'bhv servers 019 enum does not contain a value outside the allowed set',
+      () {
+        // An out-of-set value (e.g. "dev") is absent from the enum, which is
+        // what drives ServerConfiguration to reject it.
+        const variable = ServerVariable(
+          defaultValue: 'prod',
+          enumValues: ['prod', 'staging'],
+        );
 
-      expect(variable.enumValues, isNot(contains('dev')));
-    });
+        expect(variable.enumValues, isNot(contains('dev')));
+      },
+    );
   });
 }
