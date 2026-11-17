@@ -885,6 +885,11 @@ def _create_mock_server(
             self.wfile.write(body.encode("utf-8"))
 
         def do_POST(self) -> None:
+            # Read the request body first: replying with it unread lets the
+            # close reset the connection before the client reads the response.
+            length = int(self.headers.get("Content-Length", 0))
+            if length:
+                self.rfile.read(length)
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.end_headers()
