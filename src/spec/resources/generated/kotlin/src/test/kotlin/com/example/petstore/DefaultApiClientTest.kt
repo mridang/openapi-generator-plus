@@ -712,7 +712,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("303 switches to GET and drops body")
+        @DisplayName("redirect 303 switches to GET and drops body")
         fun redirect303SwitchesToGetAndDropsBody() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
