@@ -270,6 +270,12 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationwire042 multipart filename backslash-escapes quotes and backslashes")
+        fun multipartFilenameBackslashEscapesQuotes() {
+            assertEquals("filename=\"a\\\"b\\\\c.txt\"", buildFilenameDirective("a\"b\\c.txt"))
+        }
+
+        @Test
         @DisplayName("bhvSerializationwire043 CRLF in filename throws IllegalArgumentException")
         fun multipartFilenameCRLFRejected() {
             for (bad in listOf("a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf")) {
@@ -405,7 +411,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationwire042 every part carries only Content-Disposition and Content-Type; field names are backslash-escaped")
+        @DisplayName("every part carries only Content-Disposition and Content-Type; field names are backslash-escaped")
         fun partsCarryOnlyDispositionAndContentType() {
             var bodyBytes: ByteArray? = null
             var contentLength: Long? = null

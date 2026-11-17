@@ -18,6 +18,19 @@ class ServerVariableTest {
     }
 
     @Test
+    @DisplayName("bhvServers016 empty enum values means any value allowed")
+    fun emptyEnumValuesMeansAnyValueAllowed() {
+        val variable = ServerVariable("prod")
+        assertTrue(variable.enumValues.isEmpty())
+        val server = ServerConfiguration(
+            "https://{tenant}.example.com",
+            null,
+            mapOf("tenant" to variable)
+        )
+        assertEquals("https://anything.example.com", server.getUrl(mapOf("tenant" to "anything")))
+    }
+
+    @Test
     @DisplayName("bhvServers015 allows a null description")
     fun allowsNullDescription() {
         val variable = ServerVariable("api", null, emptyList())
