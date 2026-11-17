@@ -22,7 +22,7 @@ enum MonotonicClock {
 /// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
 ///
 /// Concurrent calls to ``getAccessToken(tokenURL:params:extraHeaders:refreshURL:)`` are
-/// coalesced into a single in-flight refresh ``Task``. If N callers race on an
+/// coalesced into a single in-flight refresh `Task`. If N callers race on an
 /// expired token, exactly one HTTP request is sent to the token endpoint and all
 /// callers await the same result. This avoids the thundering-herd pattern that
 /// otherwise overloads the OP and consumes refresh-token rotations.
@@ -73,7 +73,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     /// Returns a valid access token, fetching or refreshing as necessary.
     ///
     /// Concurrent callers that arrive while a refresh is in flight all await the
-    /// same ``Task``, so the token endpoint is hit exactly once per refresh
+    /// same `Task`, so the token endpoint is hit exactly once per refresh
     /// regardless of caller concurrency.
     ///
     /// - Parameters:

@@ -650,7 +650,7 @@ internal enum ObjectSerializer {
     return stringify(value)
   }
 
-  /// Encodes a ``TimeInterval`` (seconds) as a canonical protobuf-JSON
+  /// Encodes a `TimeInterval` (seconds) as a canonical protobuf-JSON
   /// duration literal (e.g. ``3600s``, ``1.500s``). Used by generated
   /// models when a property's OpenAPI schema is ``format: duration`` —
   /// the underlying wire type is a String even though the Swift type is
@@ -661,7 +661,7 @@ internal enum ObjectSerializer {
     return try formatProtobufDuration(interval)
   }
 
-  /// Decodes a protobuf-JSON duration literal into a ``TimeInterval``.
+  /// Decodes a protobuf-JSON duration literal into a `TimeInterval`.
   /// Throws ``SerializationError`` when the literal is malformed.
   static func decodeDuration(_ literal: String) throws -> TimeInterval {
     return try parseProtobufDuration(literal)

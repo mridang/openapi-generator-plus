@@ -538,7 +538,7 @@ public struct {{classname}}: Codable, @unchecked Sendable {
     private let _value: Any
 {{#oneOf}}
 
-    /// Wraps a ``{{{.}}}`` as this union's value, so a request body can be
+    /// Wraps a `{{{.}}}` as this union's value, so a request body can be
     /// built in code and not only decoded from JSON.
     public init(_ value: {{{.}}}) {
         self._value = value
@@ -546,17 +546,17 @@ public struct {{classname}}: Codable, @unchecked Sendable {
 {{/oneOf}}
 {{#composedSchemas.oneOf}}
 
-    /// Wraps a ``{{{dataType}}}`` as this union's value; the named form of ``init(_:)``.
+    /// Wraps a `{{{dataType}}}` as this union's value; the named form of `init(_:)`.
     public static func from{{vendorExtensions.variantName}}(_ value: {{{dataType}}}) -> {{classname}} {
         return {{classname}}(value)
     }
 
-    /// Whether this union holds a ``{{{dataType}}}``.
+    /// Whether this union holds a `{{{dataType}}}`.
     public var is{{vendorExtensions.variantName}}: Bool {
         return _value is {{{dataType}}}
     }
 
-    /// The held value as a ``{{{dataType}}}``, or nil when this union holds another variant.
+    /// The held value as a `{{{dataType}}}`, or nil when this union holds another variant.
     public var as{{vendorExtensions.variantName}}: {{{dataType}}}? {
         return _value as? {{{dataType}}}
     }
@@ -692,12 +692,12 @@ public struct {{classname}}: Codable, @unchecked Sendable {
     }
 {{#composedSchemas.anyOf}}
 
-    /// Whether any retained variant is a ``{{{dataType}}}``.
+    /// Whether any retained variant is a `{{{dataType}}}`.
     public var is{{vendorExtensions.variantName}}: Bool {
         return _values.contains { $0 is {{{dataType}}} }
     }
 
-    /// The first retained variant that is a ``{{{dataType}}}``, or nil when none is.
+    /// The first retained variant that is a `{{{dataType}}}`, or nil when none is.
     public var as{{vendorExtensions.variantName}}: {{{dataType}}}? {
         return _values.lazy.compactMap { $0 as? {{{dataType}}} }.first
     }

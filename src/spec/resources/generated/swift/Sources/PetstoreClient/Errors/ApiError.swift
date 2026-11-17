@@ -181,7 +181,7 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
   /// access in a strongly-typed way. This is the one accessor for
   /// spec-declared error schemas. Returns nil if the body is empty.
   ///
-  /// Routing through ``ObjectSerializer`` keeps the depth cap in play, so a
+  /// Routing through `ObjectSerializer` keeps the depth cap in play, so a
   /// malicious deeply nested error payload cannot stack-overflow the decoder.
   public func getTypedErrorBody<T: Decodable>(_ type: T.Type) throws -> T? {
     guard let body = responseBody, !body.isEmpty else {

@@ -308,9 +308,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// token call) is never retried.
   ///
   /// - Parameters:
+  ///   - method: The HTTP method of the request.
+  ///   - url: The absolute URL of the request.
+  ///   - headers: The request headers, before the defaults are applied.
+  ///   - body: The request body, or nil when there is none.
+  ///   - noRedirect: When true, redirects are not followed and the request is not retried.
+  ///   - refreshHeaders: Rebuilds the headers before each retry, or nil to reuse them.
   ///   - timeout: Per-call timeout in milliseconds that replaces the
   ///     transport's for this call; nil keeps it.
-  ///   - maxRetries: Per-call retry limit that replaces the transport's for
+  ///   - callRetries: Per-call retry limit that replaces the transport's for
   ///     this call; 0 turns retries off and nil keeps it.
   ///   - sendDefaultHeaders: When false, ``TransportOptions/defaultHeaders``
   ///     are left off this request, as for a call to another origin (OIDC

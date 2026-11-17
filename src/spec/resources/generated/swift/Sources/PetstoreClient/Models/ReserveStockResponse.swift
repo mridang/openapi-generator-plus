@@ -11,44 +11,44 @@ import Foundation
 public struct ReserveStockResponse: Codable, @unchecked Sendable {
   private let _value: Any
 
-  /// Wraps a ``Reservation`` as this union's value, so a request body can be
+  /// Wraps a `Reservation` as this union's value, so a request body can be
   /// built in code and not only decoded from JSON.
   public init(_ value: Reservation) {
     self._value = value
   }
 
-  /// Wraps a ``ReservationReceipt`` as this union's value, so a request body can be
+  /// Wraps a `ReservationReceipt` as this union's value, so a request body can be
   /// built in code and not only decoded from JSON.
   public init(_ value: ReservationReceipt) {
     self._value = value
   }
 
-  /// Wraps a ``Reservation`` as this union's value; the named form of ``init(_:)``.
+  /// Wraps a `Reservation` as this union's value; the named form of `init(_:)`.
   public static func fromReservation(_ value: Reservation) -> ReserveStockResponse {
     return ReserveStockResponse(value)
   }
 
-  /// Whether this union holds a ``Reservation``.
+  /// Whether this union holds a `Reservation`.
   public var isReservation: Bool {
     return _value is Reservation
   }
 
-  /// The held value as a ``Reservation``, or nil when this union holds another variant.
+  /// The held value as a `Reservation`, or nil when this union holds another variant.
   public var asReservation: Reservation? {
     return _value as? Reservation
   }
 
-  /// Wraps a ``ReservationReceipt`` as this union's value; the named form of ``init(_:)``.
+  /// Wraps a `ReservationReceipt` as this union's value; the named form of `init(_:)`.
   public static func fromReservationReceipt(_ value: ReservationReceipt) -> ReserveStockResponse {
     return ReserveStockResponse(value)
   }
 
-  /// Whether this union holds a ``ReservationReceipt``.
+  /// Whether this union holds a `ReservationReceipt`.
   public var isReservationReceipt: Bool {
     return _value is ReservationReceipt
   }
 
-  /// The held value as a ``ReservationReceipt``, or nil when this union holds another variant.
+  /// The held value as a `ReservationReceipt`, or nil when this union holds another variant.
   public var asReservationReceipt: ReservationReceipt? {
     return _value as? ReservationReceipt
   }

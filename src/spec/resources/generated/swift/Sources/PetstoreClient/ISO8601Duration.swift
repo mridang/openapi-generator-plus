@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Parses a protobuf-JSON duration literal into a ``TimeInterval``
+/// Parses a protobuf-JSON duration literal into a `TimeInterval`
 /// (seconds, possibly fractional).
 ///
 /// Accepts the `google.protobuf.Duration` JSON grammar
@@ -47,7 +47,7 @@ public func parseProtobufDuration(_ input: String) throws -> TimeInterval {
   return negative ? -total : total
 }
 
-/// Formats a ``TimeInterval`` (seconds) as a canonical protobuf-JSON
+/// Formats a `TimeInterval` (seconds) as a canonical protobuf-JSON
 /// duration literal.
 ///
 /// Follows the `google.protobuf.Duration` JSON mapping: a decimal
