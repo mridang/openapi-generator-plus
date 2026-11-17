@@ -5,6 +5,8 @@ import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.NamingConvention;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
+import com.samskivert.mustache.Mustache;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
@@ -951,6 +953,32 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     @Override
     public String escapeUnsafeCharacters(String input) {
         return input;
+    }
+
+    /**
+     * Registers the {@code rstText} Mustache lambda, which escapes reStructuredText
+     * inline markup in spec prose so that Sphinx, run with warnings as errors by
+     * {@code make docs}, reads a tag description or link text as plain words.
+     *
+     * @return the base lambdas plus {@code rstText}
+     */
+    @Override
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put("rstText", (fragment, writer) -> writer.write(toRstText(fragment.execute())));
+    }
+
+    /**
+     * Backslash-escapes the characters that reStructuredText reads as inline markup
+     * (emphasis and strong stars, interpreted-text backquotes, substitution bars and
+     * the trailing underscore of a reference), so spec text such as {@code /pets/**}
+     * renders as written.
+     *
+     * @param text the raw spec prose
+     * @return the prose with every markup character escaped
+     */
+    static String toRstText(String text) {
+        return text.replaceAll("([\\\\*`|_])", "\\\\$1");
     }
 
     /**

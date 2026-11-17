@@ -39,6 +39,13 @@ class BetterPythonCodegenTest {
     }
 
     @Test
+    void rstInlineMarkupInSpecProseIsEscaped() {
+        assertEquals(
+                "/pets/\\*\\*/ a\\_b \\`c\\` \\|d\\|",
+                BetterPythonCodegen.toRstText("/pets/**/ a_b `c` |d|"));
+    }
+
+    @Test
     void controlCharactersUseEscapeSequences() {
         assertEquals("a\\nb\\rc\\td", BetterPythonCodegen.pythonStringBody("a\nb\rc\td"));
         assertEquals("a\\x01b\\x1f", BetterPythonCodegen.pythonStringBody("a" + (char) 1 + "b" + (char) 31));

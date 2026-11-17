@@ -72,12 +72,12 @@ class {{serverTypeName}}{{variantName}}({{serverTypeName}}):
 class {{classname}}(BaseApi):
     """{{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
-    {{{.}}}
+    {{#lambda.rstText}}{{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}{{/lambda.rstText}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
 
     .. seealso::
-        `{{{description}}} <{{{url}}}>`_
+        `{{#lambda.rstText}}{{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}{{/lambda.rstText}} <{{{url}}}>`_
 {{/tagExternalDocs}}
     """
 
