@@ -186,12 +186,12 @@ defmodule {{moduleName}}.ValueSerializer do
   Everything that is not RFC 3986 reserved or unreserved — spaces, control
   characters, non-ASCII — is still percent-encoded, so the result is always a
   valid URL query segment. In particular a space becomes `%20` (not `+`). Only
-  the reserved set `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` (plus the unreserved
-  characters) is kept literal.
+  the query-legal reserved set `: / ? @ ! $ & ' ( ) * + , ; =` (plus the unreserved
+  characters) is kept literal, so `#`, `[` and `]` are encoded.
   """
   @spec encode_query_allowing_reserved(String.t()) :: String.t()
   def encode_query_allowing_reserved(value) do
-    URI.encode(value, fn c -> URI.char_unreserved?(c) or c in ~c":/?#[]@!$&'()*+,;=" end)
+    URI.encode(value, fn c -> URI.char_unreserved?(c) or c in ~c":/?@!$&'()*+,;=" end)
   end
 
   @doc """

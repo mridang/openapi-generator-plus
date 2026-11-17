@@ -29,6 +29,46 @@ defmodule {{moduleName}}.SchemeAuthenticatorTest do
 
   defp build(module, args), do: apply(module, :new, args)
 
+{{#hasOpenIdConnect}}
+  # Records the URL a discovery request is sent to, and answers with a valid document.
+  defmodule DiscoveryRecorder do
+    defstruct []
+
+    def send_request(%__MODULE__{}, :get, url, _headers, nil) do
+      send(self(), {:discovered, url})
+
+      %{{moduleName}}.ApiHttpResponse{
+        status_code: 200,
+        body:
+          Jason.encode!(%{
+            "issuer" => "https://auth.example.com",
+            "authorization_endpoint" => "https://auth.example.com/authorize",
+            "token_endpoint" => "https://auth.example.com/token"
+          })
+      }
+    end
+  end
+
+  test "bhv authoidc 012 an OpenID Connect scheme wrapper discovers from its spec url and sends the openid scope" do
+    for {module, vars} <- @schemes do
+      auth = build(module, [@host | Enum.map(vars, fn {arg, _env} -> "explicit-" <> arg end)])
+
+      case auth do
+        %{__struct__: {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator} ->
+          authenticator = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, %DiscoveryRecorder{})
+          url = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(authenticator)
+
+          assert_received {:discovered, discovered_url}
+          assert discovered_url == auth.openid_connect_url
+          assert url =~ "scope=openid"
+
+        _other ->
+          :ok
+      end
+    end
+  end
+{{/hasOpenIdConnect}}
+
   for {module, vars} <- @schemes do
     describe "#{inspect(module)}" do
       @module module

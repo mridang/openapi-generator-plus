@@ -91,7 +91,7 @@ defmodule {{moduleName}}.Auth.BearerAuthenticatorTest do
       assert BearerAuthenticator.auth_headers(explicit)["Authorization"] == "Bearer xyz"
     end
 
-    test "an empty or absent environment variable fails when the authenticator is built" do
+    test "bhv lifecycle 013 an empty or absent environment variable fails when no token is passed" do
       name = "{{envVarPrefix}}_TOKEN"
       on_exit(fn -> System.delete_env(name) end)
       message = "Missing the credential 'token': pass it, or set the environment variable #{name}"
@@ -106,6 +106,24 @@ defmodule {{moduleName}}.Auth.BearerAuthenticatorTest do
 
       assert_raise ArgumentError, message, fn ->
         BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv lifecycle 014 reads the token from the environment when none is passed" do
+      name = "{{envVarPrefix}}_TOKEN"
+      System.put_env(name, "env-token")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", nil)
+
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer env-token"
+    end
+
+    test "bhv lifecycle 016 a token provider that fails stops the request before it is sent" do
+      auth = BearerAuthenticator.new("https://api.example.com", fn -> raise "token provider failed" end)
+
+      assert_raise RuntimeError, "token provider failed", fn ->
+        BearerAuthenticator.auth_headers(auth)
       end
     end
 
