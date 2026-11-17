@@ -697,7 +697,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task BhvRetries011Downgrade307WithBodyThrows()
+    public async Task BhvRetries010Downgrade307WithBodyThrows()
     {
         var handler = new DowngradeRedirectHandler(
             firstStatus: HttpStatusCode.RedirectKeepVerb, // 307
@@ -718,6 +718,28 @@ public class DefaultApiClientTest
         // A refused redirect is a response that arrived but could not be
         // used: ApiException carrying the redirect's real status.
         Assert.Equal(307, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvRetries011Downgrade308WithBodyThrows()
+    {
+        var handler = new DowngradeRedirectHandler(
+            firstStatus: HttpStatusCode.PermanentRedirect, // 308
+            location: new Uri("http://downgraded.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        // 308 preserves method+body, so the replay across the HTTPS->HTTP
+        // downgrade is refused as a typed SDK error, as for 307.
+        var ex = await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
+            "POST",
+            new Uri("https://secure.example.com/start"),
+            new Dictionary<string, string>(),
+            "secret-payload"
+        ));
+
+        Assert.Single(handler.Requests);
+        Assert.Contains("downgrade", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(308, ex.StatusCode);
     }
 
     /* T-new-3: multipart body replay on 307/308 is NOT exercisable from
@@ -960,7 +982,7 @@ public class DefaultApiClientTest
      * Set-Cookie response.
      */
     [Fact]
-    public async Task SetCookieResponseNotReplayedOnNextRequest()
+    public async Task BhvRetries015SetCookieResponseNotReplayedOnNextRequest()
     {
         var client = new DefaultApiClient();
 
