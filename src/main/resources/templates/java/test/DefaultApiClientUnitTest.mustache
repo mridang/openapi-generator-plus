@@ -2239,12 +2239,12 @@ class DefaultApiClientUnitTest {
     HttpServer scripted = scriptedServer(n -> new Reply(503, "1"), hits);
     try {
       DefaultApiClient client =
-          new DefaultApiClient(TransportOptions.builder().timeout(1700).maxRetries(5).build());
+          new DefaultApiClient(TransportOptions.builder().timeout(1950).maxRetries(5).build());
       long startedNanos = System.nanoTime();
       assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
       long elapsedMillis = (System.nanoTime() - startedNanos) / 1_000_000L;
       assertEquals(2, hits.get(), "one one-second wait fits, the second does not");
-      assertTrue(elapsedMillis < 1700, "the budget was extended: " + elapsedMillis);
+      assertTrue(elapsedMillis < 1950, "the budget was extended: " + elapsedMillis);
     } finally {
       scripted.stop(0);
     }

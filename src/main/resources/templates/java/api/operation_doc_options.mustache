@@ -1,0 +1,11 @@
+{{#queryParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{^cookieParams}}{{#vendorExtensions.op.optionsForEveryOperation}}
+     * @param options options carrying the per-call timeout, retry count and headers
+{{/vendorExtensions.op.optionsForEveryOperation}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}

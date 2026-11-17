@@ -664,6 +664,9 @@ public abstract class BaseApi {
    * <p>Visible to generated API subclasses (different package) so that operation-level cookie
    * parameters can be validated with the exact same RFC 6265 rule the auth-provided cookie path
    * uses, rather than being interpolated into the Cookie header unchecked.
+   *
+   * @param name the cookie name to check
+   * @return {@code true} if the name is a valid RFC 6265 token
    */
   protected static boolean isValidCookieName(String name) {
     if (name == null || name.isEmpty()) {
@@ -692,6 +695,9 @@ public abstract class BaseApi {
    * parameters can be validated with the exact same RFC 6265 rule the auth-provided cookie path
    * uses. This is what makes a CR/LF or control-char value fail closed instead of being smuggled
    * into the Cookie request header (header injection).
+   *
+   * @param value the cookie value to check
+   * @return {@code true} if the value consists only of RFC 6265 cookie-octets
    */
   protected static boolean isValidCookieValue(String value) {
     if (value == null) {

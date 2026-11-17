@@ -411,6 +411,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param pet Create a new pet in the store (required)
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -425,6 +426,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param pet Create a new pet in the store (required)
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -436,6 +438,7 @@ public class PetApi extends BaseApi {
    * Add a new pet to the store
    *
    * @param pet Create a new pet in the store (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -447,6 +450,7 @@ public class PetApi extends BaseApi {
    * Add a new pet to the store
    *
    * @param pet Create a new pet in the store (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -557,6 +561,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param petTreatment (required)
    * @return {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
@@ -571,6 +577,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param petTreatment (required)
    * @return the API result wrapping {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
@@ -584,6 +592,7 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param petTreatment (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
@@ -598,6 +607,7 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param petTreatment (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code PetTreatment}
    * @throws ApiException if fails to make API call
    */
@@ -649,6 +659,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId Pet id to delete (required)
    * @throws ApiException if fails to make API call
    */
   public void deletePet(Long petId) {
@@ -662,6 +673,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId Pet id to delete (required)
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
@@ -757,6 +769,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param documentId (required)
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
    */
@@ -771,6 +785,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param documentId (required)
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
    */
@@ -857,6 +873,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param bornOn Date of birth to match (required)
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
    */
@@ -871,6 +888,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param bornOn Date of birth to match (required)
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
    */
@@ -1088,6 +1106,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1102,6 +1121,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1212,6 +1232,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1226,6 +1247,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1311,6 +1333,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
    */
@@ -1325,6 +1348,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
    */
@@ -1396,6 +1420,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return {@code byte[]}
    * @throws ApiException if fails to make API call
    */
@@ -1410,6 +1435,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return the API result wrapping {@code byte[]}
    * @throws ApiException if fails to make API call
    */
@@ -1513,6 +1539,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1528,6 +1556,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1704,6 +1734,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return {@code PetPassport}
    * @throws ApiException if fails to make API call
    */
@@ -1718,6 +1749,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return the API result wrapping {@code PetPassport}
    * @throws ApiException if fails to make API call
    */
@@ -1793,6 +1825,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param photoId (required)
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
    */
@@ -1807,6 +1841,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param photoId (required)
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
    */
@@ -2001,6 +2037,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param tagName (required)
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -2015,6 +2053,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param tagName (required)
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -2208,6 +2248,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -2222,6 +2263,7 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -2306,6 +2348,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param body (required)
    * @throws ApiException if fails to make API call
    */
   public void setPetAvatar(Long petId, InputStream body) {
@@ -2319,6 +2363,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param body (required)
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
@@ -2347,6 +2393,9 @@ public class PetApi extends BaseApi {
    * as the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
    * type, matching the overload without a selector.
    *
+   * @param petId (required)
+   * @param body (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @param requestContentType the request content-type to send, or {@code null} for the default
    * @throws ApiException if fails to make API call
    */
@@ -2366,6 +2415,9 @@ public class PetApi extends BaseApi {
    * as the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
    * type.
    *
+   * @param petId (required)
+   * @param body (required)
+   * @param options options carrying the per-call timeout, retry count and headers
    * @param requestContentType the request content-type to send, or {@code null} for the default
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
@@ -2463,6 +2515,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param setPetAvatarThumbnailRequest (required)
    * @throws ApiException if fails to make API call
    */
   public void setPetAvatarThumbnail(
@@ -2477,6 +2531,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId (required)
+   * @param setPetAvatarThumbnailRequest (required)
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
@@ -2644,6 +2700,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId ID of pet to update (required)
+   * @param pet Pet object that needs to be updated (required)
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -2658,6 +2716,8 @@ public class PetApi extends BaseApi {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
+   * @param petId ID of pet to update (required)
+   * @param pet Pet object that needs to be updated (required)
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -2816,6 +2876,8 @@ public class PetApi extends BaseApi {
    * the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
    * type, matching the overload without a selector.
    *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param requestContentType the request content-type to send, or {@code null} for the default
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
@@ -2834,6 +2896,8 @@ public class PetApi extends BaseApi {
    * the {@code Content-Type} request header. Passing {@code null} defaults to the first declared
    * type.
    *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param requestContentType the request content-type to send, or {@code null} for the default
    * @return the API result wrapping {@code ApiResponse}
    * @throws ApiException if fails to make API call
