@@ -123,6 +123,16 @@ test('injected api client is wired into every api group', function (): void {
 {{/apiInfo}}
 });
 
+test('bhv lifecycle 017 a token provider in place of the token builds a client', function (): void {
+    /* The facade's withToken() takes a static string; a rotating token goes
+     * through a provider on the bearer authenticator handed to withAuthenticator(). */
+    $authenticator = new BearerAuthenticator('{{{basePath}}}', null, fn (): string => 'rotating-token');
+
+    $client = {{clientClassName}}::withAuthenticator($authenticator);
+
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
+
 test('bhv lifecycle 007 close on a client with a supplied transport leaves that transport usable', function (): void {
     $stub = new class implements ApiClient {
         public int $sent = 0;

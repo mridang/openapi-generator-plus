@@ -4,6 +4,9 @@ namespace {{invokerPackage}}\Test;
 
 use {{invokerPackage}}\ApiHttpResponse;
 use {{invokerPackage}}\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
+{{#oauthAuthCodeScheme}}
+use {{invokerPackage}}\Auth\OAuth\{{className}};
+{{/oauthAuthCodeScheme}}
 use {{invokerPackage}}\Errors\OAuth2ServerException;
 
 function makeOAuth2AuthCodeMockClient(
@@ -697,3 +700,17 @@ test('bhv authoauthtwoauthcode 016 invalidate access token drops the access toke
     expect($refreshRequest['body'] ?? '')->toContain('refresh_token=refresh1');
     expect($headers['Authorization'])->toBe('Bearer access2');
 });
+
+{{#oauthAuthCodeScheme}}
+
+test('bhv authoauthtwoauthcode 020 scheme wrapper sends the spec scopes and urls', function (): void {
+    $authenticator = new {{className}}('https://api.example.com', 'my-client-id', 'my-client-secret', 'https://app.example.com/callback');
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toStartWith({{{authorizationUrlLiteral}}} . '?');
+{{#hasScopes}}
+    expect($url)->toContain('scope=' . rawurlencode(implode(' ', {{{scopesLiteral}}})));
+{{/hasScopes}}
+});
+{{/oauthAuthCodeScheme}}
