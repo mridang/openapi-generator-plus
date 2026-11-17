@@ -700,7 +700,9 @@ class TestMultipartContentType:
         body = client._build_multipart_body({"upload": file_like}, "boundary")
         assert b"Content-Type: image/png" in body
 
-    def test_multipart_body_uses_octet_stream_for_bytes_without_filename(self) -> None:
+    def test_bhv_serializationwire_056_multipart_body_uses_octet_stream_for_bytes_without_filename(
+        self,
+    ) -> None:
         client = DefaultApiClient()
         body = client._build_multipart_body({"upload": b"\x00\x01\x02"}, "boundary")
         assert b"Content-Type: application/octet-stream" in body
@@ -2411,7 +2413,7 @@ class TestInjectedPoolManager:
             TransportOptions.builder().ca_cert_path("/tmp/ca.pem").build(),
         ],
     )
-    def test_a_supplied_pool_manager_conflicts_with_proxy_and_tls_settings(
+    def test_bhv_lifecycle_024_a_supplied_pool_manager_conflicts_with_proxy_and_tls_settings(
         self, transport: TransportOptions
     ) -> None:
         with pytest.raises(ValueError, match="pool_manager"):
@@ -2461,7 +2463,7 @@ class TestRetryPolicy:
         assert _retry_delay(0, formatdate(900, usegmt=True), now=1000.0) == 0.0
 
     @pytest.mark.parametrize("header", ["", "soon", "-5", "nan", "inf"])
-    def test_an_unusable_retry_after_falls_back_to_the_backoff(
+    def test_bhv_retries_029_an_unusable_retry_after_falls_back_to_the_backoff(
         self, header: str
     ) -> None:
         assert _retry_delay(1, header, jitter=0.0) == 1.0

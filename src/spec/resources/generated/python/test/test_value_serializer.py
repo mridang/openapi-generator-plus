@@ -348,6 +348,16 @@ class TestFormStyleWithExplode:
             "color", ["blue", "black"], "query", "array", None, "form", True
         ) == ["blue", "black"]
 
+    def test_bhv_serializationparam_105_form_scalar_is_serialized_as_the_value(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.serialize_styled(
+                "color", "blue", "query", "string", None, "form", True
+            )
+            == "blue"
+        )
+
     def test_bhv_serializationparam_041_scalar_with_explode_true_returns_string_not_list(
         self,
     ) -> None:
@@ -433,7 +443,9 @@ class TestSimpleStyleBackwardCompatibility:
 
 
 class TestNullStyleFallback:
-    def test_path_with_null_style_behaves_like_simple(self) -> None:
+    def test_bhv_serializationparam_106_path_with_null_style_behaves_like_simple(
+        self,
+    ) -> None:
         assert (
             ValueSerializer.serialize_styled(
                 "id", "5", "path", "string", None, None, False

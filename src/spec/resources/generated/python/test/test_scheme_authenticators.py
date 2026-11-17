@@ -266,7 +266,7 @@ API_KEY_SCHEMES = [
 
 @pytest.mark.parametrize("module,name,variables", BEARER_SCHEMES)
 class TestBearerSchemeAuthenticator:
-    def test_an_explicit_token_wins_over_the_environment(
+    def test_bhv_authbearer_018_an_explicit_token_wins_over_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -295,7 +295,7 @@ class TestBearerSchemeAuthenticator:
             == "Bearer from-environment"
         )
 
-    def test_the_environment_is_read_once_when_it_is_built(
+    def test_bhv_lifecycle_025_the_environment_is_read_once_when_it_is_built(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -356,7 +356,7 @@ class TestBearerSchemeAuthenticator:
 
 @pytest.mark.parametrize("module,name,variables", BASIC_SCHEMES)
 class TestBasicSchemeAuthenticator:
-    def test_an_explicit_credential_wins_over_the_environment(
+    def test_bhv_authbasic_013_an_explicit_credential_wins_over_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -389,7 +389,7 @@ class TestBasicSchemeAuthenticator:
 
 @pytest.mark.parametrize("module,name,variables", API_KEY_SCHEMES)
 class TestApiKeySchemeAuthenticator:
-    def test_an_explicit_key_wins_over_the_environment(
+    def test_bhv_serializationobject_187_an_explicit_key_wins_over_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
