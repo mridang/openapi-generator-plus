@@ -1608,8 +1608,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         } catch (NumberFormatException e) {
             return null;
         }
-        if ("bool".equals(type) && ("true".equalsIgnoreCase(wire) || "false".equalsIgnoreCase(wire))) {
-            return wire.toLowerCase(Locale.ROOT);
+        if ("bool".equals(type) && ("true".equals(wire) || "false".equals(wire))) {
+            return wire;
         }
         return null;
     }

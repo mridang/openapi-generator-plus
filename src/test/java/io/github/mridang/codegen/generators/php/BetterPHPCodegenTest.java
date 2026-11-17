@@ -189,7 +189,7 @@ class BetterPHPCodegenTest {
         count.dataType = "int";
         final CodegenProperty ratio = siblingDefault("0.5", false);
         ratio.dataType = "float";
-        final CodegenProperty flag = siblingDefault("TRUE", false);
+        final CodegenProperty flag = siblingDefault("true", false);
         flag.dataType = "bool";
 
         assertEquals("'it\\'s'", BetterPHPCodegen.siblingDefaultLiteral(text));
