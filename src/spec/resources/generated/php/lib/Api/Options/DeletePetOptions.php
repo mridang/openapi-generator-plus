@@ -13,8 +13,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api\Options;
 
-use PetstoreClient\Auth\Authenticator;
-
 /**
  * Options for the deletePet operation.
  */
@@ -27,7 +25,6 @@ class DeletePetOptions
      */
     public function __construct(
         public readonly ?string $apiKey = null,
-        public readonly ?Authenticator $auth = null,
         public readonly ?int $timeout = null,
         public readonly ?array $headers = null,
         public readonly ?int $maxRetries = null,

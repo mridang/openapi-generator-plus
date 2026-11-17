@@ -420,6 +420,85 @@ test('per-call auth overrides the client-level authenticator', function (): void
     expect($client->capturedHeaders['X-Client-Auth'] ?? '')->toBe('per-call-token');
 });
 
+// -- one credential per security scheme (F857) --
+
+/**
+ * Builds a TestableApi with the given scheme credentials and the default authenticator.
+ *
+ * @param array<string, Authenticator> $schemes
+ * @return array{0: TestableApi, 1: CapturingApiClient}
+ */
+function newSchemeApi(array $schemes, ?Authenticator $default = null): array
+{
+    $client = new CapturingApiClient();
+
+    return [new TestableApi($client, new Configuration('http://localhost'), $default, $schemes), $client];
+}
+
+test('an operation uses the credential of the scheme its requirement names', function (): void {
+    [$api, $client] = newSchemeApi([
+        'bearer' => new TestAuthenticator(headers: ['Authorization' => 'Bearer b']),
+        'key' => new TestAuthenticator(headers: ['X-Key' => 'k']),
+    ]);
+
+    $api->callWithRequirements(['application/json'], [['key']]);
+
+    expect($client->capturedHeaders['X-Key'] ?? null)->toBe('k');
+    expect($client->capturedHeaders)->not->toHaveKey('Authorization');
+});
+
+test('an operation uses the first alternative whose schemes are all configured', function (): void {
+    [$api, $client] = newSchemeApi([
+        'bearer' => new TestAuthenticator(headers: ['Authorization' => 'Bearer b']),
+    ]);
+
+    $api->callWithRequirements(['application/json'], [['key'], ['bearer']]);
+
+    expect($client->capturedHeaders['Authorization'] ?? null)->toBe('Bearer b');
+});
+
+test('an alternative that needs two schemes applies both credentials', function (): void {
+    [$api, $client] = newSchemeApi([
+        'bearer' => new TestAuthenticator(headers: ['Authorization' => 'Bearer b']),
+        'key' => new TestAuthenticator(headers: ['X-Key' => 'k']),
+    ]);
+
+    $api->callWithRequirements(['application/json'], [['key', 'bearer']]);
+
+    expect($client->capturedHeaders['X-Key'] ?? null)->toBe('k');
+    expect($client->capturedHeaders['Authorization'] ?? null)->toBe('Bearer b');
+});
+
+test('an alternative with a scheme that has no credential is not used', function (): void {
+    [$api, $client] = newSchemeApi([
+        'key' => new TestAuthenticator(headers: ['X-Key' => 'k']),
+    ]);
+
+    $api->callWithRequirements(['application/json'], [['key', 'bearer']]);
+
+    expect($client->capturedHeaders)->not->toHaveKey('X-Key');
+});
+
+test('an operation sends no credential when none of its schemes is configured', function (): void {
+    [$api, $client] = newSchemeApi(
+        ['key' => new TestAuthenticator(headers: ['X-Key' => 'k'])],
+        new TestAuthenticator(headers: ['X-Default' => 'd'])
+    );
+
+    $api->callWithRequirements(['application/json'], [['bearer']]);
+
+    expect($client->capturedHeaders)->not->toHaveKey('X-Key');
+    expect($client->capturedHeaders)->not->toHaveKey('X-Default');
+});
+
+test('without scheme credentials the default authenticator applies to a secured operation', function (): void {
+    [$api, $client] = newSchemeApi([], new TestAuthenticator(headers: ['X-Default' => 'd']));
+
+    $api->callWithRequirements(['application/json'], [['bearer']]);
+
+    expect($client->capturedHeaders['X-Default'] ?? null)->toBe('d');
+});
+
 // -- AUTH-APPLIED (Wave A1) --
 //
 // Regression guard for the Elixir bug where a CONFIGURED authenticator was
@@ -442,14 +521,14 @@ test('configured bearer authenticator is applied to a secured operation', functi
     expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
 });
 
-test('per-operation bearer authenticator is applied to a secured operation', function (): void {
+test('the bearer scheme credential is applied to an operation that requires it', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
     $auth = new BearerAuthenticator('http://localhost', 'per-op-token');
-    $api = new PetApi($client, $config);
+    $api = new PetApi($client, $config, null, ['petStoreBearer' => $auth]);
     $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
     try {
-        $api->addPetWithHttpInfo($pet, new AddPetOptions($auth));
+        $api->addPetWithHttpInfo($pet);
     } catch (\Exception) {
         // Response deserialization may fail; we only care about the captured request
     }

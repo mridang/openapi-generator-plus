@@ -18,6 +18,8 @@ $client = Client::withToken('https://api.example.com', 'your-token');
 
 ## Authentication
 
+Configure one optional credential per security scheme on the client, by name: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth` (`new Client(petStoreBasic: $credential)`). Each operation uses the scheme its security requirement names; there is no per-call authenticator.
+
 All authentication is handled via `Authenticator` implementations passed to the client constructor.
 
 ### Bearer Token

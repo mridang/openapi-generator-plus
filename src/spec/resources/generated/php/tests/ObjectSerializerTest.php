@@ -1263,6 +1263,18 @@ test('integer-backed enum deserializes from a JSON number', function (): void {
     expect($item->priority)->toBe(Priority::NUMBER_2);
 });
 
+test('constructing a model never validates the values it is given', function (): void {
+    $item = new StockItem(Priority::NUMBER_1, null, new \Ds\Vector());
+
+    expect($item->availability)->toBeNull();
+    expect($item->matrix?->count())->toBe(0);
+});
+
+test('an enum string that is not a case fails at decode and not at construction', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"priority":2,"availability":"unknown"}', StockItem::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
 test('a property with a default beside its reference starts at that default', function (): void {
     $item = new StockItem(Priority::NUMBER_2);
 

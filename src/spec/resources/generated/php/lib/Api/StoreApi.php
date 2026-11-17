@@ -109,6 +109,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -173,13 +174,14 @@ class StoreApi extends BaseApi
             [],
             'application/json',
             null,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -290,6 +292,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -357,6 +360,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -424,6 +428,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -492,6 +497,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -560,6 +566,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -628,6 +635,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -708,13 +716,14 @@ class StoreApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Order::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -801,6 +810,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -879,6 +889,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -946,6 +957,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1014,6 +1026,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1082,6 +1095,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1149,6 +1163,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1208,13 +1223,14 @@ class StoreApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Order::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1287,6 +1303,7 @@ class StoreApi extends BaseApi
                 '200' => \PetstoreClient\Models\Reservation::class,
                 '201' => \PetstoreClient\Models\ReservationReceipt::class,
             ],
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1384,6 +1401,7 @@ class StoreApi extends BaseApi
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [],
         );
         return $result;
     }

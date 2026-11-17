@@ -56,7 +56,7 @@ class PetApi extends BaseApi
     /**
      * Add a new pet to the store
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
-     * @param AddPetOptions|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
+     * @param AddPetOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPet(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null): \PetstoreClient\Models\Pet
@@ -82,16 +82,12 @@ class PetApi extends BaseApi
 
     /**
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
-     * @param AddPetOptions|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
+     * @param AddPetOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPetWithHttpInfo(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null): ApiResult
     {
-        /* Per-operation auth is sourced from the Options object's $auth field.
-         * A null options or a null $auth falls back to the client's configured
-         * credentials. */
-        $auth = $options?->auth;
         $path = '/pet';
         $queryParams = [];
         /* OAS allowReserved: query parameters declared `allowReserved: true`
@@ -114,11 +110,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            $auth,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['apiKeyHeader'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -201,20 +200,21 @@ class PetApi extends BaseApi
             ['application/json'],
             'multipart/form-data',
             '\Ds\Vector<Photo>',
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
 
     /**
      * Record a treatment for a pet
-     * @param AddPetTreatmentOptions|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
+     * @param AddPetTreatmentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): \PetstoreClient\Models\PetTreatment
@@ -239,16 +239,12 @@ class PetApi extends BaseApi
     }
 
     /**
-     * @param AddPetTreatmentOptions|null $options Options carrying an optional per-operation authenticator and the per-call timeout, headers and retry count
+     * @param AddPetTreatmentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\PetTreatment>
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPetTreatmentWithHttpInfo(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): ApiResult
     {
-        /* Per-operation auth is sourced from the Options object's $auth field.
-         * A null options or a null $auth falls back to the client's configured
-         * credentials. */
-        $auth = $options?->auth;
         $path = '/pet/{petId}/treatment';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled(
@@ -290,11 +286,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\PetTreatment::class,
-            $auth,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petstore_auth']],
         );
         return $result;
     }
@@ -302,7 +301,7 @@ class PetApi extends BaseApi
     /**
      * Deletes a pet
      * @param int $petId Pet id to delete
-     * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters, and an optional per-operation authenticator
+     * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function deletePet(int $petId, ?DeletePetOptions $options = null): void
@@ -312,16 +311,12 @@ class PetApi extends BaseApi
 
     /**
      * @param int $petId Pet id to delete
-     * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters, and an optional per-operation authenticator
+     * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function deletePetWithHttpInfo(int $petId, ?DeletePetOptions $options = null): ApiResult
     {
-        /* Per-operation auth is sourced from the Options object's $auth field.
-         * A null options or a null $auth falls back to the client's configured
-         * credentials. */
-        $auth = $options?->auth;
         $path = '/pet/{petId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled(
@@ -380,11 +375,14 @@ class PetApi extends BaseApi
             [],
             'application/json',
             null,
-            $auth,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['adminBasic'], ['machineAuth']],
         );
         return $result;
     }
@@ -483,13 +481,14 @@ class PetApi extends BaseApi
             ['application/octet-stream'],
             'application/json',
             'string',
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -571,13 +570,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             '\Ds\Vector<Pet>',
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -686,13 +686,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             '\Ds\Vector<Pet>',
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -777,13 +778,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -868,13 +870,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -954,13 +957,14 @@ class PetApi extends BaseApi
             ['image/jpeg', 'image/png'],
             'application/json',
             'string',
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1040,13 +1044,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             'byte',
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1138,13 +1143,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1247,13 +1253,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1333,13 +1340,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\PetPassport::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1438,13 +1446,14 @@ class PetApi extends BaseApi
             ['image/jpeg', 'image/png', 'application/json'],
             'application/json',
             'string',
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1574,13 +1583,14 @@ class PetApi extends BaseApi
             ['text/plain'],
             'application/json',
             'string',
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1784,13 +1794,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1875,13 +1886,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1957,14 +1969,15 @@ class PetApi extends BaseApi
             [],
             $requestContentType ?? 'image/jpeg',
             null,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             rawBody: true,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -2028,13 +2041,14 @@ class PetApi extends BaseApi
             [],
             'application/json',
             null,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -2130,13 +2144,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/x-www-form-urlencoded',
             \PetstoreClient\Models\ApiResponse::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -2219,13 +2234,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -2306,13 +2322,14 @@ class PetApi extends BaseApi
             ['application/json'],
             'multipart/form-data',
             \PetstoreClient\Models\ApiResponse::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -2423,13 +2440,14 @@ class PetApi extends BaseApi
             ['application/json'],
             $requestContentType ?? 'multipart/form-data',
             \PetstoreClient\Models\ApiResponse::class,
-            /* Inherits the global security requirement; pass null so BaseApi
-             * falls back to the client credential. */
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
             null,
             $allowReservedKeys,
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }

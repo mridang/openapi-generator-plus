@@ -165,6 +165,87 @@ test('close on a client that built its own transport rejects later requests and 
         ->toThrow(\LogicException::class, 'closed');
 });
 
+/**
+ * A transport that counts how often it was asked to send and to close.
+ *
+ * @return array{0: ApiClient, 1: \stdClass}
+ */
+function newRecordingTransport(): array
+{
+    $counts = new \stdClass();
+    $counts->sent = 0;
+    $counts->closes = 0;
+    $transport = new readonly class ($counts) implements ApiClient {
+        public function __construct(private \stdClass $counts)
+        {
+        }
+
+        public function close(): void
+        {
+            $this->counts->closes++;
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->counts->sent++;
+
+            return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+
+    return [$transport, $counts];
+}
+
+test('a closed client fails new requests with one canonical error even on a supplied transport', function (): void {
+    [$transport, $counts] = newRecordingTransport();
+    $client = new Client($this->authenticator, null, $transport);
+    $client->close();
+
+    $api = $client->pet;
+    $method = new \ReflectionMethod($api, 'invokeApiForResult');
+    expect(fn () => $method->invoke($api, 'GET', '/ping', [], [], null, ['application/json'], null, null))
+        ->toThrow(\LogicException::class, 'client closed');
+    expect($counts->sent)->toBe(0);
+});
+
+test('closing a client never closes a transport the caller supplied', function (): void {
+    [$transport, $counts] = newRecordingTransport();
+    $client = new Client($this->authenticator, null, $transport);
+    $client->close();
+    $client->close();
+
+    expect($counts->closes)->toBe(0);
+});
+
+test('a client that is not closed still sends', function (): void {
+    [$transport, $counts] = newRecordingTransport();
+    $client = new Client($this->authenticator, null, $transport);
+
+    $api = $client->pet;
+    $method = new \ReflectionMethod($api, 'invokeApiForResult');
+    $method->invoke($api, 'GET', '/ping', [], [], null, ['application/json'], null, null);
+    expect($counts->sent)->toBe(1);
+});
+
+test('a client needs an authenticator or a scheme credential', function (): void {
+    expect(fn () => new Client())
+        ->toThrow(\InvalidArgumentException::class, 'at least one security scheme');
+});
+
+test('a client can be built from the credential of one security scheme alone', function (): void {
+    $credential = new BearerAuthenticator('/api/v3', 'scheme-token');
+    $client = new Client(petStoreBasic: $credential);
+
+    $property = (new \ReflectionClass(\PetstoreClient\Api\BaseApi::class))->getProperty('schemeAuthenticators');
+    expect($property->getValue($client->pet))->toBe(['petStoreBasic' => $credential]);
+});
+
 test('a supplied psr18 client receives the request from every api group', function (): void {
     $factory = new Psr17Factory();
     $responses = [];
