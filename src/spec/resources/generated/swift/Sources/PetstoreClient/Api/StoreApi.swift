@@ -12,15 +12,18 @@ import Foundation
 public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Creates a new `StoreApi`.
   public override init(
-    apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil
+    apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,
+    schemeAuthenticators: [String: Authenticator] = [:]
   ) {
-    super.init(apiClient: apiClient, config: config, authenticator: authenticator)
+    super.init(
+      apiClient: apiClient, config: config, authenticator: authenticator,
+      schemeAuthenticators: schemeAuthenticators)
   }
 
   /// Create an account
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func createAccount(account: Account, options: CreateAccountOptions? = nil) async throws
     -> Account
   {
@@ -71,7 +74,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - orderId: ID of the order to delete
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func deleteOrder(orderId: Int64, options: DeleteOrderOptions? = nil) async throws {
     let result = try await deleteOrderWithHTTPInfo(orderId: orderId, options: options)
     _ = result
@@ -103,7 +106,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: [],
       contentType: "application/json",
       returnType: "",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "StoreApi.deleteOrder",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -116,7 +119,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Echoes a swatch supplied via path, query and header parameters.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getBySwatch(pathSwatch: Swatch, options: GetBySwatchOptions? = nil) async throws
     -> Category
   {
@@ -183,7 +186,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Returns a model exercising schema defaults on deserialize.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getDefaults(options: GetDefaultsOptions? = nil) async throws -> Defaults {
     let result = try await getDefaultsWithHTTPInfo(options: options)
     guard let data = result.data else {
@@ -231,7 +234,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Returns a department (mutual-recursion codegen fixture).
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getDepartment(options: GetDepartmentOptions? = nil) async throws -> Department {
     let result = try await getDepartmentWithHTTPInfo(options: options)
     guard let data = result.data else {
@@ -279,7 +282,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Returns categories grouped into an array of string-keyed maps.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getGroupedCategories(options: GetGroupedCategoriesOptions? = nil) async throws
     -> [[String: Category]]
   {
@@ -329,7 +332,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Returns pet inventories by status
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getInventory(options: GetInventoryOptions? = nil) async throws -> [String: Int] {
     let result = try await getInventoryWithHTTPInfo(options: options)
     guard let data = result.data else {
@@ -377,7 +380,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Returns a matrix as an array of integer arrays.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getMatrix(options: GetMatrixOptions? = nil) async throws -> [[Int]] {
     let result = try await getMatrixWithHTTPInfo(options: options)
     guard let data = result.data else {
@@ -426,7 +429,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - orderId: ID of order to return
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getOrderById(orderId: Int64, options: GetOrderByIdOptions? = nil) async throws
     -> Order
   {
@@ -468,7 +471,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Order",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "StoreApi.getOrderById",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -481,7 +484,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Find purchase order by tracking id
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getOrderByTrackingId(trackingId: UUID, options: GetOrderByTrackingIdOptions? = nil)
     async throws -> Order
   {
@@ -540,7 +543,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - asOf: Only consider stock as of this instant
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getStockItem(options: GetStockItemOptions? = nil) async throws -> StockItem {
     let result = try await getStockItemWithHTTPInfo(options: options)
     guard let data = result.data else {
@@ -594,7 +597,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Returns a bare enum (value-type response codegen fixture).
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getSwatch(options: GetSwatchOptions? = nil) async throws -> Swatch {
     let result = try await getSwatchWithHTTPInfo(options: options)
     guard let data = result.data else {
@@ -642,7 +645,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Returns swatches grouped as an array of string-keyed enum maps.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getSwatchGroups(options: GetSwatchGroupsOptions? = nil) async throws -> [[String:
     Swatch]]
   {
@@ -692,7 +695,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Returns timestamps grouped as an array of string-keyed maps.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getTimestampGroups(options: GetTimestampGroupsOptions? = nil) async throws
     -> [[String: Date]]
   {
@@ -742,7 +745,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Returns a self-referential tree (recursive-type codegen fixture)
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func getTree(options: GetTreeOptions? = nil) async throws -> TreeNode {
     let result = try await getTreeWithHTTPInfo(options: options)
     guard let data = result.data else {
@@ -790,7 +793,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Place an order for a pet
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func placeOrder(order: Order? = nil, options: PlaceOrderOptions? = nil) async throws
     -> Order
   {
@@ -827,7 +830,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "Order",
-      auth: nil,
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "StoreApi.placeOrder",
       timeout: options?.timeout,
       requestHeaders: options?.headers,
@@ -841,7 +844,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
   ///
   /// - Parameters:
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func reserveStock(options: ReserveStockOptions? = nil) async throws -> ReserveStockResponse
   {
     let result = try await reserveStockWithHTTPInfo(options: options)
@@ -903,7 +906,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - q: JSON-encoded query parameter (OAS `content`, not `schema`)
-  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
   public func searchStore(options: SearchStoreOptions? = nil) async throws -> [Order] {
     let result = try await searchStoreWithHTTPInfo(options: options)
     guard let data = result.data else {

@@ -1860,19 +1860,6 @@
   },
   {
    "element": [
-    "*authenticator.invalidateaccesstoken"
-   ],
-   "aspect": "member",
-   "languages": [
-    "kotlin",
-    "php",
-    "swift",
-    "rust"
-   ],
-   "reason": "tracked as F1180: a public invalidateAccessToken on every authenticator (F855, the 401 drop-and-replay) exists in kotlin, php, swift and rust only; ruby, node, dart, python, go, java, csharp and elixir skipped F855, so the shared 401 behaviour and its public name are still undecided"
-  },
-  {
-   "element": [
     "accesstokeninvalidating"
    ],
    "aspect": "type",
@@ -1959,18 +1946,6 @@
     "dart"
    ],
    "reason": "F827 wave 3: every dart operation takes the options argument, also an operation with no query, header, form or cookie parameter and no security; the other eleven add it in their own adopt branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "addpetoptions.auth",
-    "addpettreatmentoptions.auth",
-    "deletepetoptions.auth"
-   ],
-   "aspect": "member",
-   "languages": [
-    "dart"
-   ],
-   "reason": "F857 (owner decision 2026-11-17): the credential is set per security scheme on the client and an operation uses the scheme its spec names, so dart's Options objects carry no per-call authenticator; the other eleven drop the field in their own adopt branches, after which this rule is deleted"
   },
   {
    "element": [
@@ -3305,38 +3280,6 @@
   },
   {
    "element": [
-    "*api.*"
-   ],
-   "aspect": "params",
-   "languages": [
-    "swift"
-   ],
-   "value": "*options*",
-   "reason": "F827 wave 3: every operation takes an options object as its last argument (before requestContentType where there is one); swift lands first and the other languages add the same slot in their own adoption branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "*options"
-   ],
-   "aspect": "type",
-   "languages": [
-    "swift"
-   ],
-   "reason": "F827 wave 3: every operation has an <Operation>Options type carrying timeout, headers and maxRetries, even one with no parameters and no security; swift lands first and the other languages mint the same types in their own adoption branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "*authenticator.<ctor>"
-   ],
-   "aspect": "ctor-optional",
-   "languages": [
-    "swift"
-   ],
-   "value": "*?*",
-   "reason": "F862 owner decision (an explicit credential wins, then the {PREFIX}_{FIELD} environment variable): the credential arguments of each scheme authenticator are optional so the variable can supply them; a missing one throws ConfigurationError at construction. Drop this row once the majority has it, as the kotlin rows above"
-  },
-  {
-   "element": [
     "petapi.*",
     "storeapi.*"
    ],
@@ -3697,6 +3640,31 @@
     "kotlin"
    ],
    "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
+  },
+  {
+   "element": [
+    "*authenticator.invalidateaccesstoken"
+   ],
+   "aspect": "member",
+   "languages": [
+    "kotlin",
+    "php",
+    "rust"
+   ],
+   "reason": "tracked as F1180: a public invalidateAccessToken on every authenticator (F855, the 401 drop-and-replay) exists in kotlin, php, swift and rust only; ruby, node, dart, python, go, java, csharp and elixir skipped F855, so the shared 401 behaviour and its public name are still undecided"
+  },
+  {
+   "element": [
+    "addpetoptions.auth",
+    "addpettreatmentoptions.auth",
+    "deletepetoptions.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart",
+    "swift"
+   ],
+   "reason": "F857 (owner decision 2026-11-17): the credential is set per security scheme on the client and an operation uses the scheme its spec names, so the dart and swift Options objects carry no per-call authenticator; the other eleven drop the field in their own adopt branches, after which this rule is deleted"
   }
  ]
 }

@@ -690,6 +690,18 @@ public struct {{classname}}: Codable, @unchecked Sendable {
         guard !values.isEmpty else { return nil }
         self._values = values
     }
+{{#composedSchemas.anyOf}}
+
+    /// Whether any retained variant is a ``{{{dataType}}}``.
+    public var is{{vendorExtensions.variantName}}: Bool {
+        return _values.contains { $0 is {{{dataType}}} }
+    }
+
+    /// The first retained variant that is a ``{{{dataType}}}``, or nil when none is.
+    public var as{{vendorExtensions.variantName}}: {{{dataType}}}? {
+        return _values.lazy.compactMap { $0 as? {{{dataType}}} }.first
+    }
+{{/composedSchemas.anyOf}}
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()

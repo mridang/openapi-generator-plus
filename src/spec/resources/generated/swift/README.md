@@ -155,6 +155,61 @@ a header of the same name. Anything left `nil` keeps the transport's setting. An
 operation with no parameters and no security requirement still has the struct,
 with only these three settings: `try await api.operation(options: OperationOptions(timeout: 2000))`.
 
+## One credential per security scheme
+
+An API that declares several security schemes does not need one authenticator that
+fits them all. `Client(host:...)` takes one optional credential per scheme,
+each named after its scheme, and any ``Authenticator`` will do:
+
+```swift
+let client = try Client(host: "https://api.example.com", petStoreBasic: authenticator)
+```
+
+| Scheme | Argument | Typical authenticator |
+|---|---|---|
+| `petStoreBasic` | `petStoreBasic` | `PetStoreBasicAuthenticator` |
+| `adminBasic` | `adminBasic` | `AdminBasicAuthenticator` |
+| `petStoreBearer` | `petStoreBearer` | `PetStoreBearerAuthenticator` |
+| `serviceToken` | `serviceToken` | `ServiceTokenAuthenticator` |
+| `apiKeyHeader` | `apiKeyHeader` | `ApiKeyHeaderAuthenticator` |
+| `internalApiKey` | `internalApiKey` | `InternalApiKeyAuthenticator` |
+| `apiKeyQuery` | `apiKeyQuery` | `ApiKeyQueryAuthenticator` |
+| `sessionCookie` | `sessionCookie` | `SessionCookieAuthenticator` |
+| `machineAuth` | `machineAuth` | `MachineAuthClientCredentialsAuthenticator` |
+| `legacyAuth` | `legacyAuth` | `LegacyAuthPasswordAuthenticator` |
+| `userAuth` | `userAuth` | `UserAuthAuthorizationCodeAuthenticator` |
+| `browserAuth` | `browserAuth` | `BrowserAuthImplicitAuthenticator` |
+| `ssoAuth` | `ssoAuth` | `SsoAuthAuthenticator` |
+
+Each operation uses the credential of the first scheme its own spec lists that you
+gave the client, so a credential never goes to an operation that does not accept its
+scheme, and a call cannot pick another scheme: there is no per-call authenticator. An
+operation declared without security (`security: []`) never carries a credential. An
+operation none of whose schemes has a credential uses the single authenticator of
+`Client(authenticator:)` when the client was built from one, and is sent
+without a credential otherwise. A credential that makes HTTP calls of its own (OAuth2,
+OpenID Connect) is given the client's transport, so it shares its proxy, TLS and
+timeout settings.
+
+## Closing the client
+
+`client.close()` is graceful and idempotent. It marks the client closed at once: a
+request made afterwards throws `ConfigurationError.invalidState` with the text
+`ApiClient has been closed and can no longer send requests`. A request already in
+flight finishes, retries included, and the `URLSession` the SDK built is released when
+the last of them ends (at once when none is running). A second `close()` does nothing,
+and a `URLSession` you supplied is never invalidated.
+
+## Cookie parameters
+
+A cookie parameter is sent exactly as you pass it when every character is an RFC 6265
+cookie-octet: printable ASCII except space, double quote, comma, semicolon and
+backslash (a percent sign is allowed). Any other character throws
+`ConfigurationError.invalidArgument` before a request is sent, so percent-encode a
+value that needs it yourself; the SDK never encodes a cookie value for you. A cookie
+declared with `content:` holds a typed value, which the SDK serialises to JSON and
+percent-encodes.
+
 ## Error details
 
 An `ApiError` and every subclass carry `requestMethod` and `requestPath` (the
@@ -171,6 +226,14 @@ optional property pass `.some(nil)`. The copy is shallow, so an array or
 dictionary property still holds the same elements. A union (`oneOf`) wrapper is
 immutable too: build it with `Wrapper.fromVariant(value)` or `Wrapper(value)`
 and read it back with `isVariant` and `asVariant`.
+
+## Building a model checks nothing
+
+A model's initializer never validates and never throws: a value the schema would
+refuse is still a value you can build, and an unknown enum string builds no enum at
+all (`Status(rawValue: "x")` is `nil`). Checking happens when the SDK decodes a payload: an
+unknown enum string, a missing required property or a `format: uri` that is not an
+absolute URI throws `SerializationError`.
 
 ## Several success responses
 

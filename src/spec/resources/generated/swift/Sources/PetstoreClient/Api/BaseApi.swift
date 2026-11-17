@@ -16,10 +16,11 @@ import Foundation
 ///
 /// - `auth` is the sentinel: the operation is unauthenticated; the
 ///   client-level authenticator must NOT be applied (no credential leak);
-/// - `auth == nil`: a secured operation with no per-call override; fall back
-///   to the client-level authenticator (unchanged behaviour);
-/// - `auth` is any other instance: a per-call override; use it (unchanged
-///   behaviour).
+/// - `auth == nil`: a secured operation for which the client holds no
+///   credential of the scheme it names; fall back to the client-level
+///   authenticator, and send no credential when there is none;
+/// - `auth` is any other instance: the credential the client holds for the
+///   first scheme the operation accepts (see `schemeAuthenticator(_:)`); use it.
 ///
 /// This is an internal, identity-comparable (`===`) reference type; it returns
 /// empty header/query/cookie maps so that even if it were ever applied it
@@ -44,8 +45,13 @@ public class BaseApi: @unchecked Sendable {
   /// Content negotiation logic for Accept and Content-Type headers.
   let headerSelector: HeaderSelector
 
-  /// Default authenticator used when no per-operation auth is provided.
+  /// Default authenticator used when the client holds no credential for the
+  /// security scheme an operation names.
   let authenticator: Authenticator?
+
+  /// The credential the client holds for each security scheme, by the
+  /// scheme's name in the spec.
+  let schemeAuthenticators: [String: Authenticator]
 
   /// The single shared no-auth sentinel instance. Identity-comparable.
   /// Generated api methods for `security: []` operations pass this value as
@@ -61,14 +67,34 @@ public class BaseApi: @unchecked Sendable {
   /// - Parameters:
   ///   - apiClient: The HTTP transport client.
   ///   - config: API-level configuration (base URL and default headers).
-  ///   - authenticator: Default authenticator for operations without explicit auth.
+  ///   - authenticator: Default authenticator for an operation whose scheme has no credential.
+  ///   - schemeAuthenticators: The credential for each security scheme, by the scheme's name.
   init(
-    apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil
+    apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,
+    schemeAuthenticators: [String: Authenticator] = [:]
   ) {
     self.apiClient = apiClient ?? DefaultApiClient()
     self.config = config ?? Configuration.default()
     self.headerSelector = HeaderSelector()
     self.authenticator = authenticator
+    self.schemeAuthenticators = schemeAuthenticators
+  }
+
+  /// Returns the credential the client holds for the first of the given
+  /// scheme names that has one, or nil when it holds none of them. An
+  /// operation passes the schemes its spec accepts, in the order the spec
+  /// lists them, so it always uses a scheme the spec names and a caller
+  /// cannot pick another one per call. A nil leaves the call to the
+  /// client-level authenticator, and to no credential when there is none.
+  ///
+  /// - Parameter schemeIds: The names of the security schemes the operation accepts.
+  func schemeAuthenticator(_ schemeIds: [String]) -> Authenticator? {
+    for schemeId in schemeIds {
+      if let found = schemeAuthenticators[schemeId] {
+        return found
+      }
+    }
+    return nil
   }
 
   /// Parameters for an API invocation: HTTP method, URL path (with path
@@ -159,12 +185,13 @@ public class BaseApi: @unchecked Sendable {
 
     /* Resolve authentication into three distinct states (the sentinel
      * disambiguates an explicitly-unauthenticated op from a secured op
-     * with no per-call override):
+     * whose scheme the client holds no credential for):
      *   - auth IS the no-auth sentinel -> NO auth (security: [] op);
      *     do NOT fall back to the client authenticator.
-     *   - auth is nil                  -> secured op, no per-call override;
+     *   - auth is nil                  -> no scheme credential matched;
      *     fall back to the client-level authenticator.
-     *   - auth is a real authenticator -> per-call override; use it. */
+     *   - auth is a real authenticator -> the credential of the first
+     *     accepted scheme the client holds; use it. */
     var queryParams = params.queryParams
     let effectiveAuth: Authenticator?
     if let suppliedAuth = params.auth {
@@ -175,10 +202,10 @@ public class BaseApi: @unchecked Sendable {
         effectiveAuth = nil
       } else {
         effectiveAuth = suppliedAuth
-        /* Only the client-level authenticator is injected by the client
-         * constructor, so a per-call OAuth2 or OIDC authenticator would
-         * otherwise fail on its first token request with no transport.
-         * Hand it this API's own client. */
+        /* The client hands its transport to every credential it is
+         * given; an API built directly gets the same here, so an OAuth2
+         * or OIDC authenticator never fails its first token request
+         * with no transport. */
         if let httpAware = suppliedAuth as? HttpAwareAuthenticator {
           httpAware.setApiClient(apiClient)
         }
@@ -811,7 +838,7 @@ public class BaseApi: @unchecked Sendable {
       }
       if !BaseApi.isValidCookieValue(v) {
         throw ConfigurationError.invalidArgument(
-          "Cookie value for '\(k)' contains characters forbidden by RFC 6265"
+          "Cookie value for '\(k)' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
         )
       }
       return "\(k)=\(v)"

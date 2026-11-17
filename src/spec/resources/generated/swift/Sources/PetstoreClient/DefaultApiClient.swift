@@ -43,11 +43,12 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   private let transportOptions: TransportOptions
   private let session: URLSession
   private let sessionDelegate: SessionDelegate?
-  /* A closed-flag so that using the client after ``close()`` surfaces a
-     ``ConfigurationError`` instead of a foreign URLSession "session
-     invalidated" exception, matching the close-lifecycle behaviour of the
-     other SDKs. */
-  private let closedFlag = LockedFlag()
+  /* The close lifecycle: a request is counted in before it starts and out
+     when it ends, ``close()`` marks the client closed, and the session the
+     SDK built is released when the last request in flight ends. A request
+     after ``close()`` surfaces a ``ConfigurationError`` instead of a foreign
+     URLSession "session invalidated" exception. */
+  private let lifecycle = ClientLifecycle()
   /* False when the caller supplied the session through
      ``TransportOptionsBuilder/session(_:)``: the caller owns its lifecycle,
      so ``close()`` must never invalidate it. */
@@ -319,6 +320,16 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     refreshHeaders: (@Sendable () async throws -> [String: String])?,
     timeout: Int? = nil, maxRetries callRetries: Int? = nil, sendDefaultHeaders: Bool = true
   ) async throws -> ApiHttpResponse {
+    /* One logical request, retries included, counts as one in flight: a
+       retry or a refreshed token after close() still finishes. */
+    guard lifecycle.enter() else {
+      throw DefaultApiClient.closedError
+    }
+    defer {
+      if lifecycle.leave() {
+        releaseTransport()
+      }
+    }
     let limit = callRetries ?? transportOptions.maxRetries
     let maxRetries = noRedirect || !DefaultApiClient.isReplayable(body) ? 0 : limit
     let callTimeout: TimeInterval? = timeout.map { TimeInterval($0) / 1000.0 }
@@ -414,12 +425,6 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
     budget: TimeInterval?, perCallTimeout: TimeInterval? = nil, sendDefaultHeaders: Bool = true
   ) async throws -> ApiHttpResponse {
-    /* Using the client after close() must surface a ConfigurationError, not a
-       foreign URLSession invalidation exception. */
-    if closedFlag.isSet {
-      throw ConfigurationError.invalidState(
-        "ApiClient has been closed and can no longer send requests")
-    }
     guard let requestURL = URL(string: url),
       let scheme = requestURL.scheme?.lowercased(),
       scheme == "http" || scheme == "https"
@@ -1271,23 +1276,48 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     return sessionDelegate != nil
   }
 
-  /// Releases the underlying URLSession's connection pool / delegate queue.
-  /// Calls `finishTasksAndInvalidate()` so in-flight requests can complete
-  /// and the session is permanently invalidated.
-  /// A session supplied through ``TransportOptionsBuilder/session(_:)`` belongs
-  /// to the caller and is left untouched.
-  /// Idempotent — safe to call multiple times. After close(), any further
-  /// ``sendRequest(method:url:headers:body:noRedirect:)`` throws
-  /// ``ConfigurationError/invalidState(_:)`` rather than a foreign
-  /// URLSession invalidation exception.
+  /// The error a request raises once the client is closed.
+  static let closedError = ConfigurationError.invalidState(
+    "ApiClient has been closed and can no longer send requests")
+
+  /// Whether ``close()`` has been called.
+  var isClosed: Bool {
+    return lifecycle.isClosed
+  }
+
+  /// Whether the session this client built has been released. It is false
+  /// while a request is still in flight after ``close()``, and stays false
+  /// for a client built over a caller-supplied session, which is never
+  /// released.
+  var isTransportReleased: Bool {
+    return lifecycle.isReleased && ownsSession
+  }
+
+  /// Closes the client. It is graceful and idempotent.
+  ///
+  /// This marks the client closed at once: a request sent afterwards throws
+  /// ``ConfigurationError/invalidState(_:)`` rather than a foreign URLSession
+  /// invalidation exception. A request already in flight finishes, retries
+  /// and token refreshes included, and the URLSession the SDK built is
+  /// released (`finishTasksAndInvalidate()`) when the last of them ends, or
+  /// at once when none is running. A second call does nothing. A session
+  /// supplied through ``TransportOptionsBuilder/session(_:)`` belongs to the
+  /// caller and is left untouched.
   public func close() {
-    closedFlag.set()
+    if lifecycle.close() {
+      releaseTransport()
+    }
+  }
+
+  /// Releases the connection pools and delegate queues this client built.
+  private func releaseTransport() {
     if ownsSession {
       session.finishTasksAndInvalidate()
     }
     noRedirectLock.lock()
     noRedirectSessionStorage?.finishTasksAndInvalidate()
     noRedirectLock.unlock()
+    lifecycle.markReleased()
   }
 }
 
@@ -1692,18 +1722,53 @@ extension DefaultApiClient {
   }
 }
 
-/// Thread-safe boolean flag used by ``DefaultApiClient`` to record that
-/// ``DefaultApiClient/close()`` has been called.
-private final class LockedFlag: @unchecked Sendable {
-  private var value: Bool = false
+/// Thread-safe close lifecycle of a ``DefaultApiClient``: whether it is closed,
+/// how many requests are in flight, and whether its transport has been released.
+private final class ClientLifecycle: @unchecked Sendable {
+  private var closed = false
+  private var inFlight = 0
+  private var released = false
   private let lock = NSLock()
 
-  var isSet: Bool {
-    lock.withLock { value }
+  var isClosed: Bool {
+    lock.withLock { closed }
   }
 
-  func set() {
-    lock.withLock { value = true }
+  var isReleased: Bool {
+    lock.withLock { released }
+  }
+
+  /// Counts a request in. False, with nothing counted, once the client is closed.
+  func enter() -> Bool {
+    lock.withLock {
+      if closed { return false }
+      inFlight += 1
+      return true
+    }
+  }
+
+  /// Counts a request out. True when the client is closed and this was the
+  /// last request in flight, so the caller releases the transport.
+  func leave() -> Bool {
+    lock.withLock {
+      inFlight -= 1
+      return closed && inFlight == 0
+    }
+  }
+
+  /// Marks the client closed. True only on the first call and only when no
+  /// request is in flight, so the caller releases the transport now; the
+  /// last request in flight releases it otherwise.
+  func close() -> Bool {
+    lock.withLock {
+      if closed { return false }
+      closed = true
+      return inFlight == 0
+    }
+  }
+
+  func markReleased() {
+    lock.withLock { released = true }
   }
 }
 

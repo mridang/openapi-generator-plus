@@ -1489,6 +1489,107 @@ import Testing
           "ApiClient has been closed and can no longer send requests"))
   }
 
+  /* F1078: close() is graceful. A request already in flight finishes, the
+     transport the SDK built is released only when it has, and a request made
+     meanwhile fails with the one canonical error. */
+  @Test func testCloseLetsARequestInFlightFinishAndThenReleasesTheTransport() async throws {
+    let gate = CloseGate()
+    let client = makeClient { _ in
+      gate.holdRequest()
+      return (Data("{}".utf8), 200, [:])
+    }
+    let inFlight = Task {
+      try await client.sendRequest(
+        method: "GET", url: "https://example.com/slow", headers: [:], body: nil)
+    }
+    try await gate.waitUntilHeld()
+
+    client.close()
+
+    #expect(client.isClosed)
+    #expect(!client.isTransportReleased)
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/next", headers: [:], body: nil)
+    }
+    #expect(error == DefaultApiClient.closedError)
+
+    gate.release()
+    let response = try await inFlight.value
+    #expect(response.statusCode == 200)
+    #expect(client.isTransportReleased)
+  }
+
+  /* A retry of a request that was already in flight when close() came is part
+     of that request, so it still goes out. */
+  @Test func testCloseLetsTheRetriesOfARequestInFlightFinish() async throws {
+    let gate = CloseGate()
+    let calls = CallCounter()
+    let client = makeClient { _ in
+      if calls.next() == 1 {
+        gate.holdRequest()
+        return (Data("{}".utf8), 503, ["Retry-After": "0"])
+      }
+      return (Data("{}".utf8), 200, [:])
+    }
+    let inFlight = Task {
+      try await client.sendRequest(
+        method: "GET", url: "https://example.com/flaky", headers: [:], body: nil)
+    }
+    try await gate.waitUntilHeld()
+
+    client.close()
+    gate.release()
+
+    let response = try await inFlight.value
+    #expect(response.statusCode == 200)
+    #expect(calls.count == 2)
+    #expect(client.isTransportReleased)
+  }
+
+  /* Closing an idle client releases the transport at once, and a second close
+     changes nothing. */
+  @Test func testCloseOfAnIdleClientReleasesAtOnceAndASecondCloseIsANoOp() async throws {
+    let client = makeClient { _ in (self.body(), 200, [:]) }
+    _ = try await client.sendRequest(
+      method: "GET", url: "https://example.com/once", headers: [:], body: nil)
+
+    client.close()
+    #expect(client.isClosed)
+    #expect(client.isTransportReleased)
+
+    client.close()
+    #expect(client.isClosed)
+    #expect(client.isTransportReleased)
+    await #expect(throws: ConfigurationError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/twice", headers: [:], body: nil)
+    }
+  }
+
+  /* A session the caller supplied is never released by close(), and keeps
+     working afterwards. */
+  @Test func testCloseNeverReleasesACallerSuppliedSession() async throws {
+    let probe = SessionInvalidationProbe()
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [UnitStubURLProtocol.self]
+    let session = URLSession(configuration: configuration, delegate: probe, delegateQueue: nil)
+    UnitStubURLProtocol.handler = { _ in (Data("{}".utf8), 200, [:]) }
+    let supplied = try TransportOptionsBuilder().session(session).build()
+    let client = try DefaultApiClient(transportOptions: supplied)
+    _ = try await client.sendRequest(
+      method: "GET", url: "https://example.com/mine", headers: [:], body: nil)
+
+    client.close()
+    client.close()
+    try await Task.sleep(nanoseconds: 200_000_000)
+
+    #expect(client.isClosed)
+    #expect(!client.isTransportReleased)
+    #expect(!probe.invalidated)
+    session.invalidateAndCancel()
+  }
+
   /* The token request goes to another origin, so the caller's default
      headers stay off it; its own headers and the User-Agent still go. */
   @Test func testNoRedirectRequestCarriesNoDefaultHeaders() async throws {
@@ -1668,6 +1769,78 @@ private struct MultipartModelPartFixture: Codable {
 /// A string enum standing in for a generated enum in the multipart tests.
 private enum MultipartEnumFixture: String, Codable {
   case crimson = "crimson-red"
+}
+
+// MARK: - Close-lifecycle helpers
+
+/// Holds a stubbed request in flight until the test lets it go.
+private final class CloseGate: @unchecked Sendable {
+  private let lock = NSLock()
+  private var flag = false
+  private let proceed = DispatchSemaphore(value: 0)
+
+  /// Called by the stub when the request has reached it; blocks until `release()`.
+  func holdRequest() {
+    lock.lock()
+    flag = true
+    lock.unlock()
+    proceed.wait()
+  }
+
+  /// Lets the held request go on.
+  func release() {
+    proceed.signal()
+  }
+
+  /// Waits, without blocking a thread, until the stub holds the request.
+  func waitUntilHeld() async throws {
+    for _ in 0..<500 {
+      lock.lock()
+      let held = flag
+      lock.unlock()
+      if held { return }
+      try await Task.sleep(nanoseconds: 10_000_000)
+    }
+    throw ConfigurationError.invalidState("the request never reached the stub")
+  }
+}
+
+/// Counts the requests a stub has answered.
+private final class CallCounter: @unchecked Sendable {
+  private let lock = NSLock()
+  private var calls = 0
+
+  /// Counts one more call and returns its number, starting at 1.
+  func next() -> Int {
+    lock.lock()
+    defer { lock.unlock() }
+    calls += 1
+    return calls
+  }
+
+  var count: Int {
+    lock.lock()
+    defer { lock.unlock() }
+    return calls
+  }
+}
+
+/// Records whether a session was invalidated.
+private final class SessionInvalidationProbe: NSObject, URLSessionDelegate, @unchecked Sendable {
+  private let lock = NSLock()
+  private var flag = false
+
+  var invalidated: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return flag
+  }
+
+  func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?) {
+    lock.lock()
+    flag = true
+    lock.unlock()
+  }
 }
 
 // MARK: - URL Protocol stub for unit tests

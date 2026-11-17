@@ -9,11 +9,12 @@ import Foundation
 
 /// Unified entry point for all API services.
 ///
-/// Takes an ``Authenticator`` and optionally ``TransportOptions``, then exposes
-/// each API group as a typed property. If the authenticator conforms to
-/// ``HttpAwareAuthenticator``, the shared ``ApiClient`` is injected so that
-/// authentication HTTP calls (token exchange, discovery) use the same
-/// transport configuration as regular API calls.
+/// Takes an ``Authenticator`` (or, where the API declares security schemes, one
+/// optional credential per scheme, named after the scheme) and optionally
+/// ``TransportOptions``, then exposes each API group as a typed property. If a
+/// credential conforms to ``HttpAwareAuthenticator``, the shared ``ApiClient`` is
+/// injected so that authentication HTTP calls (token exchange, discovery) use the
+/// same transport configuration as regular API calls.
 ///
 /// Usage:
 ///
@@ -39,9 +40,10 @@ public final class Client: Sendable {
 
   /// Creates a new client with the given authenticator and transport options.
   ///
-  /// If the authenticator conforms to ``HttpAwareAuthenticator``, the shared
-  /// ``ApiClient`` is injected so that token exchange and discovery requests use
-  /// the same proxy, TLS, and timeout settings.
+  /// The authenticator is the credential for every operation that is not
+  /// declared without security. If it conforms to ``HttpAwareAuthenticator``,
+  /// the shared ``ApiClient`` is injected so that token exchange and discovery
+  /// requests use the same proxy, TLS, and timeout settings.
   ///
   /// - Parameters:
   ///   - authenticator: Provides host URL and auth headers.
@@ -49,7 +51,109 @@ public final class Client: Sendable {
   ///     default transport settings when omitted.
   /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
   ///   be read or parsed.
-  public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) throws {
+  public convenience init(authenticator: Authenticator, transportOptions: TransportOptions? = nil)
+    throws
+  {
+    try self.init(
+      baseURL: authenticator.host(), authenticator: authenticator, schemes: [:],
+      transportOptions: transportOptions)
+  }
+
+  /// Creates a new client that holds one optional credential per security scheme
+  /// the API declares, each named after its scheme.
+  ///
+  /// An operation uses the credential of the first scheme its spec lists that
+  /// you gave here; a call cannot pick another scheme. An operation none of
+  /// whose schemes has a credential is sent without one. A credential that
+  /// conforms to ``HttpAwareAuthenticator`` gets the shared ``ApiClient``, as the
+  /// authenticator of ``init(authenticator:transportOptions:)`` does.
+  ///
+  /// - Parameters:
+  ///   - host: API base URL.
+  ///   - petStoreBasic: Credential for the `petStoreBasic` security scheme (typically ``PetStoreBasicAuthenticator``), or nil for none.
+  ///   - adminBasic: Credential for the `adminBasic` security scheme (typically ``AdminBasicAuthenticator``), or nil for none.
+  ///   - petStoreBearer: Credential for the `petStoreBearer` security scheme (typically ``PetStoreBearerAuthenticator``), or nil for none.
+  ///   - serviceToken: Credential for the `serviceToken` security scheme (typically ``ServiceTokenAuthenticator``), or nil for none.
+  ///   - apiKeyHeader: Credential for the `apiKeyHeader` security scheme (typically ``ApiKeyHeaderAuthenticator``), or nil for none.
+  ///   - internalApiKey: Credential for the `internalApiKey` security scheme (typically ``InternalApiKeyAuthenticator``), or nil for none.
+  ///   - apiKeyQuery: Credential for the `apiKeyQuery` security scheme (typically ``ApiKeyQueryAuthenticator``), or nil for none.
+  ///   - sessionCookie: Credential for the `sessionCookie` security scheme (typically ``SessionCookieAuthenticator``), or nil for none.
+  ///   - machineAuth: Credential for the `machineAuth` security scheme (typically ``MachineAuthClientCredentialsAuthenticator``), or nil for none.
+  ///   - legacyAuth: Credential for the `legacyAuth` security scheme (typically ``LegacyAuthPasswordAuthenticator``), or nil for none.
+  ///   - userAuth: Credential for the `userAuth` security scheme (typically ``UserAuthAuthorizationCodeAuthenticator``), or nil for none.
+  ///   - browserAuth: Credential for the `browserAuth` security scheme (typically ``BrowserAuthImplicitAuthenticator``), or nil for none.
+  ///   - ssoAuth: Credential for the `ssoAuth` security scheme (typically ``SsoAuthAuthenticator``), or nil for none.
+  ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
+  ///     default transport settings when omitted.
+  /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
+  ///   be read or parsed.
+  public convenience init(
+    host: String,
+    petStoreBasic: Authenticator? = nil,
+    adminBasic: Authenticator? = nil,
+    petStoreBearer: Authenticator? = nil,
+    serviceToken: Authenticator? = nil,
+    apiKeyHeader: Authenticator? = nil,
+    internalApiKey: Authenticator? = nil,
+    apiKeyQuery: Authenticator? = nil,
+    sessionCookie: Authenticator? = nil,
+    machineAuth: Authenticator? = nil,
+    legacyAuth: Authenticator? = nil,
+    userAuth: Authenticator? = nil,
+    browserAuth: Authenticator? = nil,
+    ssoAuth: Authenticator? = nil,
+    transportOptions: TransportOptions? = nil
+  ) throws {
+    var schemes: [String: Authenticator] = [:]
+    if let credential = petStoreBasic {
+      schemes["petStoreBasic"] = credential
+    }
+    if let credential = adminBasic {
+      schemes["adminBasic"] = credential
+    }
+    if let credential = petStoreBearer {
+      schemes["petStoreBearer"] = credential
+    }
+    if let credential = serviceToken {
+      schemes["serviceToken"] = credential
+    }
+    if let credential = apiKeyHeader {
+      schemes["apiKeyHeader"] = credential
+    }
+    if let credential = internalApiKey {
+      schemes["internalApiKey"] = credential
+    }
+    if let credential = apiKeyQuery {
+      schemes["apiKeyQuery"] = credential
+    }
+    if let credential = sessionCookie {
+      schemes["sessionCookie"] = credential
+    }
+    if let credential = machineAuth {
+      schemes["machineAuth"] = credential
+    }
+    if let credential = legacyAuth {
+      schemes["legacyAuth"] = credential
+    }
+    if let credential = userAuth {
+      schemes["userAuth"] = credential
+    }
+    if let credential = browserAuth {
+      schemes["browserAuth"] = credential
+    }
+    if let credential = ssoAuth {
+      schemes["ssoAuth"] = credential
+    }
+    try self.init(
+      baseURL: host, authenticator: nil, schemes: schemes, transportOptions: transportOptions)
+  }
+
+  private init(
+    baseURL: String,
+    authenticator: Authenticator?,
+    schemes: [String: Authenticator],
+    transportOptions: TransportOptions?
+  ) throws {
     let opts = transportOptions ?? TransportOptions.defaults
     let apiClient = try DefaultApiClient(transportOptions: opts)
     self.ownedClient = apiClient
@@ -57,19 +161,31 @@ public final class Client: Sendable {
     if let httpAware = authenticator as? HttpAwareAuthenticator {
       httpAware.setApiClient(apiClient)
     }
+    for credential in schemes.values {
+      if let httpAware = credential as? HttpAwareAuthenticator {
+        httpAware.setApiClient(apiClient)
+      }
+    }
 
     let config = ConfigurationBuilder()
-      .baseURL(authenticator.host())
+      .baseURL(baseURL)
       .build()
 
-    self.pet = PetApi(apiClient: apiClient, config: config, authenticator: authenticator)
-    self.store = StoreApi(apiClient: apiClient, config: config, authenticator: authenticator)
+    self.pet = PetApi(
+      apiClient: apiClient, config: config, authenticator: authenticator,
+      schemeAuthenticators: schemes)
+    self.store = StoreApi(
+      apiClient: apiClient, config: config, authenticator: authenticator,
+      schemeAuthenticators: schemes)
   }
 
-  /// Releases the HTTP stack this client built. A `URLSession` supplied through
-  /// ``TransportOptionsBuilder/session(_:)`` belongs to the caller and is never
-  /// invalidated. Idempotent; any request made afterwards throws
-  /// ``ConfigurationError/invalidState(_:)``.
+  /// Closes the client. It is graceful and idempotent: a request already in flight
+  /// finishes, the HTTP stack this client built is released when the last of them
+  /// completes, and a request made afterwards throws
+  /// ``ConfigurationError/invalidState(_:)`` (`ApiClient has been closed and can no
+  /// longer send requests`). A second call does nothing. A `URLSession` supplied
+  /// through ``TransportOptionsBuilder/session(_:)`` belongs to the caller and is
+  /// never invalidated.
   public func close() {
     ownedClient.close()
   }

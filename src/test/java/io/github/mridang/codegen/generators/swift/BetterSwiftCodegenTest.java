@@ -1,6 +1,7 @@
 package io.github.mridang.codegen.generators.swift;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
@@ -129,7 +130,6 @@ class BetterSwiftCodegenTest {
                 List.of(
                         "options",
                         "server",
-                        "auth",
                         "requestContentType",
                         "timeout",
                         "headers",
@@ -138,10 +138,38 @@ class BetterSwiftCodegenTest {
         }
     }
 
+    /* F857: no options object has an auth field any more, so a parameter named auth keeps its name. */
+    @Test
+    void authIsNoLongerAnInjectedArgument() {
+        assertFalse(new BetterSwiftCodegen().getInjectedArgumentNames().contains("auth"));
+    }
+
+    /* F857: a client argument is the scheme name, in backticks when Swift reserves the word. */
+    @Test
+    void clientArgumentsAreBacktickedOnlyForReservedWords() {
+        final BetterSwiftCodegen codegen = new BetterSwiftCodegen();
+        assertEquals("petStoreBearer", codegen.clientArgumentName("petStoreBearer"));
+        assertEquals("`default`", codegen.clientArgumentName("default"));
+        assertEquals("`class`", codegen.clientArgumentName("class"));
+    }
+
     private static CodegenProperty variant(String dataType) {
         final CodegenProperty property = new CodegenProperty();
         property.dataType = dataType;
         return property;
+    }
+
+    private static List<String> anyOfVariantNames(String... dataTypes) {
+        final CodegenModel model = new CodegenModel();
+        final List<CodegenProperty> variants = new java.util.ArrayList<>();
+        for (final String dataType : dataTypes) {
+            variants.add(variant(dataType));
+        }
+        model.setComposedSchemas(new CodegenComposedSchemas(null, null, variants, null));
+        BetterSwiftCodegen.nameUnionVariants(model);
+        return variants.stream()
+                .map(v -> (String) v.vendorExtensions.get("variantName"))
+                .collect(Collectors.toList());
     }
 
     private static List<String> variantNames(String... dataTypes) {
@@ -167,5 +195,12 @@ class BetterSwiftCodegenTest {
     @Test
     void unionVariantNamesNeverCollide() {
         assertEquals(List.of("String", "String2"), variantNames("String", "String"));
+    }
+
+    /* An anyOf wrapper gets typed is and as members like a oneOf one, so every variant is named. */
+    @Test
+    void anyOfVariantsAreNamedLikeOneOfVariants() {
+        assertEquals(List.of("Medication", "Surgery"), anyOfVariantNames("Medication", "Surgery"));
+        assertEquals(List.of("String", "String2"), anyOfVariantNames("String", "String"));
     }
 }

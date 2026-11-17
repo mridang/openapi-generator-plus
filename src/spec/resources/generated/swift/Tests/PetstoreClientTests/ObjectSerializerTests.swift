@@ -1205,6 +1205,31 @@ import Testing
     }
   }
 
+  // MARK: - No validation at construction (F316)
+
+  /* Building a model checks nothing: a value the schema would refuse is still
+     a value, and an unknown enum string builds no enum at all, so it never
+     raises. Refusing happens when a payload is decoded. */
+  @Test func testConstructionNeverValidates() {
+    let pet = Pet(name: "", photoUrls: [], homepageUrl: "not an absolute uri")
+    #expect(pet.homepageUrl == "not an absolute uri")
+    #expect(PetStatusEnum(rawValue: "teleported") == nil)
+    let order = Order(quantity: 1000, status: OrderStatusEnum(rawValue: "teleported"))
+    #expect(order.quantity == 1000)
+    #expect(order.status == nil)
+  }
+
+  @Test func testTheValuesConstructionAcceptsAreRefusedWhenDecoded() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(
+        "{\"name\":\"Fido\",\"photoUrls\":[],\"homepageUrl\":\"not an absolute uri\"}", as: Pet.self
+      )
+    }
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"status\":\"teleported\"}", as: Order.self)
+    }
+  }
+
   @Test func testUriReferenceStaysAPlainString() throws {
     let json = "{\"name\":\"Fido\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb-fido.png\"}"
     let pet = try ObjectSerializer.deserialize(json, as: Pet.self)

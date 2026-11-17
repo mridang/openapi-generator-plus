@@ -13,19 +13,14 @@ public struct DeletePetOptions: Sendable {
   /// Per-call retry limit. Replaces the transport's `maxRetries` for this
   /// call; 0 turns retries off and nil keeps the transport's value.
   public let maxRetries: Int?
-  /// Per-operation authenticator. When set, it overrides the client's
-  /// configured credentials for this call only; when nil, the configured
-  /// credentials are used.
-  public let auth: Authenticator?
 
   public init(
     apiKey: String? = nil, timeout: Int? = nil, headers: [String: String]? = nil,
-    maxRetries: Int? = nil, auth: Authenticator? = nil
+    maxRetries: Int? = nil
   ) {
     self.apiKey = apiKey
     self.timeout = timeout
     self.headers = headers
     self.maxRetries = maxRetries
-    self.auth = auth
   }
 }
