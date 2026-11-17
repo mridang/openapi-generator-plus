@@ -5,7 +5,7 @@ This repository generates one SDK in twelve languages (java, kotlin, csharp, php
 ## Read first
 
 - [Repository root AGENTS.md](../../../../../../../../AGENTS.md): working rules, commands, Docker, the client SDKs.
-- [CLAUDE.md](../../../../../../../../CLAUDE.md): devbox, Mustache-only file generation, no vendor extensions in templates, save long maven output to a file.
+- The template and generated-prose rules (Mustache-only file generation, no spec-sourced vendor extensions, character-level alignment of the twelve SDKs) are in the root AGENTS.md, section "Template and generated-prose rules".
 - Shared code in this folder: [AbstractBetterCodegen.java](AbstractBetterCodegen.java), [DockerFormatter.java](DockerFormatter.java), [NamingConvention.java](NamingConvention.java), [BarrelFileEmitter.java](BarrelFileEmitter.java), [WithTypeSignatureSupport.java](WithTypeSignatureSupport.java).
 - Per-language canonical files: `<lang>/AGENTS.md` in this folder (the template folders `../../../../../../resources/templates/<lang>/AGENTS.md` only point back to them).
 - Specs: `src/spec/java/io/github/mridang/codegen/spec/<lang>/`; goldens: `src/spec/resources/generated/<lang>/`; the fixture spec `src/spec/resources/specs/petstore/openapi.yaml`.
@@ -54,6 +54,36 @@ Ordered by how much they cost in past sessions. Each rule: what to do, an exampl
 - No stray files: `git add` explicit paths, never `git add -A` at the repo root (wheels were committed once); check `git status --porcelain | grep '^??'` before a push, since untracked new templates with their goldens must be committed together. Keep logs and scripts under private names, not shared ones like `regen.sh`.
 - Update the ledger (`PARITY_FINDINGS.json`) and the relevant `AGENTS.md` with each batch; a finding that is not written to a file with an id is lost at the next context cut.
 - Do not say "starting" or "running" without a live process: confirm with `ps` and log growth, and never end a turn on intent.
+
+## Process lessons (read before running agents or pushing)
+
+These came out of the long parity session and each one cost at least a CI round. They add to the [Gate lessons](#gate-lessons-working-with-the-generators-read-before-editing-a-template) above and do not repeat them.
+
+### Agents and worktrees
+- Never resume or message a running agent to add scope. A message to a still-running agent starts a second instance on the same worktree, and the two race each other's gates and edits. Give new scope to a fresh agent with its own worktree and branch, or wait for the first to finish. Example: a "please also fix X" sent mid-run produced two gates on one tree and a golden that matched neither.
+- One agent per worktree and one gate per worktree. Never kill processes you did not start; a gate that looks stuck is usually a Docker or container wait, so read its log first. Example: killing a surefire JVM left half-formatted goldens (`git checkout -- <goldens>` fixed it).
+- Gate slots: the machine has 16 GB, so run at most four gates at once, taking a slot through a small local helper (a lock directory per slot, released when the gate exits; keep it out of the repository). Exit 137 from a container or a JVM means out of memory: lower the number of concurrent gates, do not retry blindly.
+
+### Gate and push
+- A gate result counts only when all four steps print `ok` on a clean committed tree. The PHP gate once passed on uncommitted edits from another instance and CI then failed. Run `git status --short` before and after the gate, and quote the sha it ran on.
+- Never push when `python3 etc/api-surface.py check` or the quick gate fails, and never push a failure without saying so. Run `etc/ci-local.sh check --quick` on the merged head before every push, because a clean branch and a clean integration branch can still fail together.
+- A full gate takes about 5 minutes now that Chasm and Squid are shared; plan batches around that and not around the old 2 minutes per language.
+- A timing test waits for an observable condition (the server's hit count, a callback), never a fixed sleep. Example: a retry test that slept 200 ms flaked on a loaded runner; waiting for the second request did not.
+- A test that pins a default must not depend on which language class is used once every language overrides the hook. Example: the default options hook is pinned with a subclass, not with a particular language's generator.
+
+### Merging language branches into the integration branch
+- `etc/api-surface-allow.json` conflicts on every merge. Resolve it by merging the rule lists, never by taking one side: union the rules added since the merge base and subtract the rules removed. A short script that loads the three versions (base, ours, theirs) and writes the sorted result is the safe way; check the result with `python3 etc/api-surface.py check`.
+- A transitional allow rule must say "delete when X" in its reason, and is deleted in the change that lands X. Example: a rule that exists only until a language adopts the shared hook.
+
+### Secrets and fixtures
+- GitGuardian: never write a base64 Basic-auth literal or a password literal in a test template. Build the value at runtime (concatenate or generate it). A finding on a history commit stays until a human ignores it in GitGuardian, so say so in the PR.
+- No petstore operation names in shipped READMEs or templates. Example: `FixtureVocabularyLeakTest` caught `FindPetsByStatusOptions` in a README.
+- The shared helper containers start once per Maven run (`SharedHelperContainers`), and the generated tests use `CHASM_HTTP_URL` and `PROXY_URL` when they are set. A TLS host-name test must match the stable part of the message, because the shared container name replaces the IP in it.
+- Kotlin: the ktlint download races when two processes share one cache path. Download to a per-process file and move it into place.
+
+### Docker and reading logs
+- If `docker ps` hangs, the Docker VMM has a wedged vCPU: container creation stalls and a restart of the daemon does not clear it. Stop, say so, and let the owner restart Docker; do not queue more runs behind it.
+- Read the newest log of the current run and check its mtime. A stale log from an earlier run once showed a green result for a gate that had not run.
 
 ## Layout
 
