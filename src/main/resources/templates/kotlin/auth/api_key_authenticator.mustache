@@ -94,7 +94,7 @@ open class ApiKeyAuthenticator internal constructor(
 
     private suspend fun currentKey(): String {
         val provider = apiKeyProvider
-        if (provider != null) {
+        if (this.apiKey == null && provider != null) {
             val fresh = provider.invoke()
             validateKey(fresh)
             current = fresh
