@@ -65,6 +65,38 @@ func TestMetadata_DeserializeFromJSON(t *testing.T) {
 	}
 }
 
+// Keys the schema does not declare are captured into AdditionalProperties.
+func TestBhvModels001_Metadata_CapturesUndeclaredKeysIntoAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-15T10:30:00.000+00:00","customField":"customValue"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	if got := metadata.AdditionalProperties["customField"]; got != "customValue" {
+		t.Errorf("expected customField in AdditionalProperties, got %v", got)
+	}
+	if _, ok := metadata.AdditionalProperties["createdAt"]; ok {
+		t.Error("expected the declared createdAt not to be captured as an extra")
+	}
+}
+
+// Two models that differ only in AdditionalProperties are not equal.
+func TestBhvModels005_Metadata_EqualIncludesAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	var a models.Metadata
+	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-15T10:30:00.000+00:00"}`), &a); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	b := a
+	if !a.Equal(b) {
+		t.Fatal("expected a model to equal its copy")
+	}
+	b.AdditionalProperties = map[string]any{"other": "y"}
+	if a.Equal(b) {
+		t.Error("expected models with different AdditionalProperties to be unequal")
+	}
+}
+
 func TestBhvModels003_Metadata_DeserializeEmptyObject(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{}`)

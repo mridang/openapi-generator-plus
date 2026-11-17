@@ -456,7 +456,7 @@ func TestBhvAuthoauthtwoauthcode024_OAuth2AuthorizationCodeAuthenticator_SendsTh
 }
 
 // The per-scheme wrapper declares its own authorize, token and refresh URLs.
-func TestOAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_RoutesToTheDeclaredUrls(t *testing.T) {
+func TestBhvAuthoauthtwoauthcode020_OAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_SendsTheSpecScopesAndUrls(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
@@ -471,6 +471,9 @@ func TestOAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_RoutesToTheDeclare
 
 	if got := authObj.BuildAuthorizationURL(""); !strings.HasPrefix(got, "https://auth.example.com/authorize?") {
 		t.Errorf("expected the declared authorize URL, got %q", got)
+	}
+	if !strings.Contains(authObj.BuildAuthorizationURL(""), "scope=pets%3Aread%20pets%3Awrite") {
+		t.Errorf("expected the declared scopes in the authorize URL")
 	}
 	if err := authObj.ExchangeCode("the-code"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -634,6 +637,80 @@ func TestBhvAuthoauthtwoauthcode026_OAuth2AuthorizationCodeAuthenticator_Refresh
 	want := "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
 	if got := client.requests[1].body; got != want {
 		t.Errorf("expected refresh body %q, got %q", want, got)
+	}
+}
+
+// Without an authorization URL there is no PKCE verifier, so the exchange sends none.
+func TestBhvAuthoauthtwoauthcode001_OAuth2AuthorizationCodeAuthenticator_ExchangeWithoutAuthorizeUrlSendsNoVerifier(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(client.requests[0].body, "code_verifier") {
+		t.Errorf("expected no verifier without an authorization URL, got %q", client.requests[0].body)
+	}
+}
+
+// A rejected refresh is one POST and surfaces as *OAuth2ServerError.
+func TestBhvAuthoauthtwoauthcode002_OAuth2AuthorizationCodeAuthenticator_RejectedRefreshSurfacesOAuth2ServerExceptionAfterOnePost(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_, err := authObj.AuthHeadersOrError()
+
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected *OAuth2ServerError, got %T: %v", err, err)
+	}
+	if got := client.requestCount(); got != 2 {
+		t.Errorf("expected the exchange and exactly one refresh POST, got %d requests", got)
+	}
+}
+
+// The code exchange proves the challenge that the authorization URL carried.
+func TestBhvAuthoauthtwoauthcode008_OAuth2AuthorizationCodeAuthenticator_CodeExchangeProvesTheChallengeOfTheAuthorizationUrl(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	challenge, _ := pkceParams(t, authObj.BuildAuthorizationURL(""))
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	form, err := neturl.ParseQuery(client.requests[0].body)
+	if err != nil {
+		t.Fatalf("exchange body does not parse: %v", err)
+	}
+	digest := sha256.Sum256([]byte(form.Get("code_verifier")))
+	if want := base64.RawURLEncoding.EncodeToString(digest[:]); challenge != want {
+		t.Errorf("expected the exchange to prove challenge %q, the S256 of its verifier is %q", challenge, want)
+	}
+}
+
+// An empty state is left out of the authorization URL.
+func TestBhvAuthoauthtwoauthcode018_OAuth2AuthorizationCodeAuthenticator_OmitsAnEmptyStateFromTheAuthorizationUrl(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+
+	if got := authObj.BuildAuthorizationURL(""); strings.Contains(got, "state=") {
+		t.Errorf("expected no state parameter for an empty state, got %q", got)
 	}
 }
 
