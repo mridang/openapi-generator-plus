@@ -409,6 +409,31 @@ public class OpenIdConnectAuthenticatorTest
     /// and the masked placeholder present.
     /// </summary>
     [Fact]
+    public async Task BhvAuthoidc029ConcurrentCallersOnAColdAuthenticatorShareOneDiscoveryRequest()
+    {
+        var client = new CountingApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var calls = new List<Task<Uri>>();
+        for (int i = 0; i < 5; i++)
+        {
+            calls.Add(Task.Run(() => auth.BuildAuthorizationUrlAsync()));
+        }
+        Uri[] urls = await Task.WhenAll(calls);
+
+        Assert.Equal(1, client.GetRequestCount);
+        foreach (Uri url in urls)
+        {
+            Assert.StartsWith("https://auth.example.com/authorize?", url.OriginalString, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void BhvAuthoidc019RedactsSecret()
     {
         var auth = CreateAuthenticator();

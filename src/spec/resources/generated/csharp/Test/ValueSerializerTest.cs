@@ -59,6 +59,15 @@ public class ValueSerializerTest
     }
 
     [Fact]
+    public void BhvSerializationparam105SerializeStyledFormScalar()
+    {
+        Assert.Equal(
+            "blue",
+            ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "form", true)
+        );
+    }
+
+    [Fact]
     public void BhvSerializationparam083QuerySetExpandsLikeListExploded()
     {
         var two = new SortedSet<string> { "blue", "red" };
@@ -79,6 +88,15 @@ public class ValueSerializerTest
     }
 
     // -- path location --
+
+    [Fact]
+    public void BhvSerializationparam106PathWithNullStyleBehavesLikeSimple()
+    {
+        Assert.Equal(
+            "5",
+            ValueSerializer.SerializeStyled("id", "5", "path", "string", null, null, false)
+        );
+    }
 
     [Fact]
     public void BhvSerializationparam062PathNullReturnsEmptyString()

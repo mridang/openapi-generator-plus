@@ -1341,7 +1341,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterRejectsIso8601()
+        public void BhvSerializationobject184DurationConverterRejectsIso8601()
         {
             // ISO-8601 durations are rejected by protobuf/gRPC-gateway backends.
             Assert.Throws<System.Text.Json.JsonException>(() =>
@@ -2077,7 +2077,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void PaddedStandardBase64IsAccepted()
+        public void BhvSerializationobject185PaddedStandardBase64IsAccepted()
         {
             PetPassport? passport = _serializer.Deserialize<PetPassport>(
                 "{\"thumbnail\":\"dGVzdA==\"}"
@@ -2379,7 +2379,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void RequestJsonEscapesOnlyTheQuoteTheBackslashAndControls()
+        public void BhvSerializationobject186RequestJsonEscapesOnlyTheQuoteTheBackslashAndControls()
         {
             string json = _serializer.Serialize(new EdgeCases { PermissionsNote = "q\"b\\t\tn\n" });
 

@@ -765,7 +765,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public void OAuth2ErrorsDeriveFromBrandedRoot()
+    public void BhvErrors045OAuth2ErrorsDeriveFromBrandedRoot()
     {
         var tokenError = new OAuth2TokenException("missing access_token");
         Assert.IsAssignableFrom<OpenAPIException>(tokenError);
@@ -894,7 +894,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public void OAuth2ServerErrorMessageHasThreeForms()
+    public void BhvErrors046OAuth2ServerErrorMessageHasThreeForms()
     {
         Assert.Equal(
             "Token request failed with status 400: invalid_grant -- refresh token expired",

@@ -490,7 +490,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedClientConflictsWithTlsSettings()
+    public void BhvLifecycle024SuppliedClientConflictsWithTlsSettings()
     {
         using var client = new HttpClient();
         Assert.Throws<ArgumentException>(() =>

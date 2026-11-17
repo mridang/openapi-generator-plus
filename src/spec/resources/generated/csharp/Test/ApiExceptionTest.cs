@@ -45,6 +45,15 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void BhvErrors047NameIsTheTypeNameApiException()
+    {
+        var ex = new ApiException(500, "boom");
+
+        Assert.Equal("ApiException", ex.GetType().Name);
+        Assert.IsAssignableFrom<Exception>(ex);
+    }
+
+    [Fact]
     public void BhvErrors019IsAnExceptionWithStatusInItsStringForm()
     {
         // Message stays the detail message the exception was constructed with;

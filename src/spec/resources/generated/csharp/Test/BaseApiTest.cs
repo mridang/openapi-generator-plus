@@ -449,6 +449,24 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvErrors048Status418ThrowsClientException()
+    {
+        var ex = await Assert.ThrowsAsync<ClientException>(() =>
+            Api()
+                .CallAsync<object>(
+                    "GET",
+                    "/test/status/418",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                )
+        );
+        Assert.Equal(418, ex.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvErrors034ParsesJsonErrorBody()
     {
         var ex = await Assert.ThrowsAsync<BadRequestException>(() =>
@@ -1763,7 +1781,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ProxyThatRequiresCredentialsAnswers407WhenNoneAreSent()
+    public async Task BhvTransport059AuthenticatingProxyRefusesARequestWithoutCredentials()
     {
         var transport = TransportOptions.Builder().Proxy(_fixture.AuthProxyUrl).Build();
 
