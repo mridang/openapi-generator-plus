@@ -97,7 +97,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator do
     end
   end
 
-  it 'shows the host, client id, authorization URL and scopes but not the token in inspect' do
+  it 'bhv_authoauthtwoimplicit_010 bhv_authoauthtwoimplicit_011 shows the host, client id, authorization URL and scopes but not the token in inspect' do
     auth.access_token = 'leaky_token'
     _(auth.inspect).must_equal(
       "#<#{auth.class.name} host=\"https://api.example.com\" client_id=\"my_client_id\" " \

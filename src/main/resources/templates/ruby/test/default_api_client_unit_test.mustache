@@ -602,7 +602,7 @@ describe 'DefaultApiClientUnit' do
 
   # ── Per-part MIME sniffing (Gap J) ──
 
-  it 'bhv_serializationwire_039 sets image/png Content-Type for .png upload' do
+  it 'bhv_serializationwire_039 bhv_serializationwire_047 sets image/png Content-Type for .png upload' do
     captured_body = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/upload') do |env|
@@ -711,7 +711,94 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  # ── Multipart filename directive and part type (ruby-03) ──
+
+  it 'bhv_serializationwire_028 turns a non-BMP character in a multipart filename into one underscore' do
+    client = {{moduleName}}::DefaultApiClient.new
+    directive = client.send(:build_content_disposition, 'file', "\u{1F600}.png")
+    _(directive).must_include 'filename="_.png"'
+  end
+
+  it 'bhv_serializationwire_041 omits filename* when the multipart filename is pure ASCII' do
+    client = {{moduleName}}::DefaultApiClient.new
+    directive = client.send(:build_content_disposition, 'file', 'plain.txt')
+    _(directive).must_equal 'Content-Disposition: form-data; name="file"; filename="plain.txt"'
+    _(directive).wont_include 'filename*'
+  end
+
+  it 'bhv_serializationwire_036 derives the part type from the extension in any letter case' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new("\x89PNG\r\n".b)
+    io.define_singleton_method(:path) { 'PHOTO.PNG' }
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include 'Content-Type: image/png'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serializationwire_037 sets the file part type from the filename extension' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new('bytes')
+    io.define_singleton_method(:path) { 'anim.gif' }
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include 'Content-Type: image/gif'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serializationwire_018 hands an octet-stream response over as base64 of its bytes' do
+    bytes = "\x00\xFF\x42".b
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/bin') { [200, { 'content-type' => 'application/octet-stream' }, bytes] }
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/bin', {}, nil)
+      _(response.body).must_equal Base64.strict_encode64(bytes)
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_errors_040 raises ArgumentError for a request URL that does not parse' do
+    client = {{moduleName}}::DefaultApiClient.new
+    err = assert_raises(ArgumentError) { client.send_request('GET', 'http://[::1/x', {}, nil) }
+    _(err.message).must_include 'Invalid request URL'
+  end
+
   # ── Response charset decoding (Gap H) ──
+
+  it 'bhv_serializationwire_033 decodes a body in the charset its Content-Type declares' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/shift-jis') do
+        [200, { 'content-type' => 'text/plain; charset=Shift_JIS' }, "\x82\xA0".b]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/shift-jis', {}, nil)
+      _(response.body).must_equal "\u3042"
+    end
+    stubs.verify_stubbed_calls
+  end
+
 
   it 'bhv_serializationwire_032 decodes ISO-8859-1 response body to UTF-8' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -1767,7 +1854,7 @@ describe 'DefaultApiClientUnit' do
     [port, thread]
   end
 
-  it 'raises NetworkError, not a response, when the connection closes mid-body' do
+  it 'bhv_errors_038 raises NetworkError, not a response, when the connection closes mid-body' do
     port, thread = serve_once do |socket|
       socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
                    "Transfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\n{\"a\":\r\n")

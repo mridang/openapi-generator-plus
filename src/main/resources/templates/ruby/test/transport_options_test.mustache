@@ -112,7 +112,7 @@ describe {{moduleName}}::TransportOptions do
     _(opts.max_redirects).must_be_nil
   end
 
-  it 'a negative timeout raises ArgumentError' do
+  it 'bhv_options_033 rejects a non-positive timeout with the canonical message' do
     assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(-1) }
     err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(-5) }
     _(err.message).must_equal 'Invalid timeout: must be a positive number of milliseconds (got -5)'
@@ -284,7 +284,7 @@ describe {{moduleName}}::TransportOptions do
     '' => 'Invalid proxy URL (must use http or https scheme): ',
     'http://' => 'Invalid proxy URL (missing host): http://'
   }.each do |proxy, message|
-    it "rejects the proxy #{proxy.inspect} through the builder" do
+    it "bhv_options_031 rejects the proxy #{proxy.inspect} with its canonical message" do
       error = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.proxy(proxy) }
       _(error.message).must_equal message
     end
@@ -294,7 +294,7 @@ describe {{moduleName}}::TransportOptions do
     'socks5://user:secret@proxy.example.com:1080' =>
       'Invalid proxy URL (must use http or https scheme): socks5://***@proxy.example.com:1080'
   }.each do |proxy, message|
-    it "masks the userinfo of the proxy #{proxy.inspect} in the error" do
+    it "bhv_options_008 masks the userinfo of the proxy #{proxy.inspect} in the error" do
       error = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.proxy(proxy) }
       _(error.message).must_equal message
       _(error.message).wont_include 'secret'

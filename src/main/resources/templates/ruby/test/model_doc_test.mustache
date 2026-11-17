@@ -26,7 +26,7 @@ describe 'generated model doc comments' do
     _(Dir.glob(MODELS_GLOB)).wont_be_empty
   end
 
-  it 'never documents the synthesized "null" example on any property' do
+  it 'bhv_models_007 never documents the synthesized "null" example on any property' do
     offenders = Dir.glob(MODELS_GLOB).select do |path|
       source = File.read(path)
       source.include?('# @example null') || source.include?('@example null')
