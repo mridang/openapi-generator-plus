@@ -11,6 +11,20 @@ module Petstore::Client
   module Auth
     # Scheme-specific authenticator for the adminBasic security scheme.
     class AdminBasicAuthenticator < BasicAuthenticator
+      # A credential not given here is read, once, from the environment variable
+      # of this scheme (an empty variable counts as unset), then from the token
+      # provider where the scheme has one; one still missing fails here with an
+      # ArgumentError.
+      def initialize(host, username = nil, password = nil, env: ENV)
+        super(
+          host,
+          username,
+          password,
+          env: env,
+          username_env: 'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME',
+          password_env: 'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD'
+        )
+      end
     end
   end
 end

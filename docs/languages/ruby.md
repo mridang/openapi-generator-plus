@@ -53,7 +53,7 @@ Pass options with `--additional-properties` or a config file. Options that apply
 
 | Option | Meaning |
 |---|---|
-| `gemName` | The gem name. Defaults to the snake_case form of `moduleName`. It also sets the product token in the default `User-Agent` and the prefix of the environment variables the authenticators read. |
+| `gemName` | The gem name. Defaults to the snake_case form of `moduleName`. It also sets the product token in the default `User-Agent`. |
 | `moduleName` | The top-level module that namespaces the generated code, for example `Petstore::Client`. |
 | `gemVersion` | The version written to the gemspec. Defaults to `1.0.0`. |
 | `authors` | Comma-separated authors for the gemspec. Defaults to the API title. |
@@ -69,7 +69,9 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - The server list is the constant `Servers::ALL`.
 - There is no per-call cancellation handle. A timeout is the only bound on a call.
 - The gem ships RBS signatures in `sig/` and a `Steepfile`, and the type check must pass over `lib`.
-- When no credential is passed, the authenticators read environment variables whose prefix comes from the gem name: `<PREFIX>_TOKEN`, `<PREFIX>_USERNAME`, `<PREFIX>_PASSWORD` and `<PREFIX>_API_KEY`.
+- A credential that is not passed comes from an environment variable. Each security scheme reads its own variables, named `<PREFIX>_<FIELD>` (`PETSTORE_TOKEN`, `PETSTORE_API_KEY`, `PETSTORE_CLIENT_ID`), or `<PREFIX>_<SCHEME>_<FIELD>` for every scheme that shares a field name with another, so no scheme reads another's secret. The prefix is the shared `envVarPrefix` option, else the API title without a trailing `SDK`. The order is the value you pass, then the variable, then (for a Bearer token) the `token_provider:` callback. The variable is read once, when the authenticator is built, and an empty variable counts as unset. A credential that is still missing raises `ArgumentError` before the client is built. An authenticator built without a scheme (`Client.with_token`, or `BearerAuthenticator`, `BasicAuthenticator` and `ApiKeyAuthenticator` on their own) reads `<PREFIX>_TOKEN`, `<PREFIX>_USERNAME`, `<PREFIX>_PASSWORD` or `<PREFIX>_API_KEY`. Every authenticator takes an `env:` keyword (default `ENV`) naming where the variables are read from, so a test passes a hash instead of changing the process environment.
+- Every operation takes an optional Options object, even one with no query, header, form or cookie parameter and no security. It carries the per-call `timeout` (milliseconds), `headers` and `max_retries`, and a `auth` member only when the operation has security. A member left `nil` keeps the client's value.
+- A property that is a `$ref` with a `default` written beside it (an OpenAPI 3.1 sibling keyword) starts at that default: a referenced enum becomes the matching constant, so `StockItem.new(priority: 1).availability` is `Availability::ON_HOLD`, and a decoded body that leaves the property out gets it too.
 
 ## Known limits
 

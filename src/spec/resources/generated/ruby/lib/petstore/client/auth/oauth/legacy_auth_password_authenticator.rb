@@ -12,7 +12,15 @@ module Petstore::Client
     module OAuth
       # Scheme-specific authenticator for the legacyAuth security scheme.
       class LegacyAuthPasswordAuthenticator < OAuth2PasswordAuthenticator
-        def initialize(host, client_id, client_secret, username, password)
+        # Every credential not given here is read, once, from the environment
+        # variable of this scheme; an empty variable counts as unset, and a
+        # credential still missing fails here with an ArgumentError.
+        def initialize(host, client_id = nil, client_secret = nil, username = nil, password = nil, env: ENV)
+          client_id = require_credential(client_id, 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID', 'client_id', env)
+          client_secret = require_credential(client_secret, 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET', 'client_secret', env)
+          username = require_credential(username, 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME', 'username', env)
+          password = require_credential(password, 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD', 'password', env)
+
           super(
             host,
             client_id,

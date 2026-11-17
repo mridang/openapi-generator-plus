@@ -140,6 +140,42 @@ describe {{moduleName}}::Api::StoreApi do
     end
   end
 
+  describe 'per-call options on an operation with no parameter and no security' do
+    it 'has an Options object that carries only the per-call settings' do
+      options = {{moduleName}}::Api::Options::GetInventoryOptions.new(timeout: 2500, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
+
+      _(options.timeout).must_equal 2500
+      _(options.headers).must_equal({ 'X-Tenant' => 'a' })
+      _(options.max_retries).must_equal 0
+      _(options).wont_respond_to :auth
+    end
+
+    it 'sends the headers of the call' do
+      api, server, thread, captured = capture_wire_request('{}')
+      begin
+        api.get_inventory({{moduleName}}::Api::Options::GetInventoryOptions.new(headers: { 'X-Tenant' => 'a' }))
+        _(captured.pop[:headers]['x-tenant']).must_equal('a')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'rejects a per-call timeout that is not positive' do
+      _(-> { @api.get_inventory({{moduleName}}::Api::Options::GetInventoryOptions.new(timeout: 0)) }).must_raise ArgumentError
+    end
+
+    it 'rejects a per-call retry count that is negative on the variant that returns the result' do
+      options = {{moduleName}}::Api::Options::GetInventoryOptions.new(max_retries: -1)
+
+      _(-> { @api.get_inventory_with_http_info(options) }).must_raise ArgumentError
+    end
+
+    it 'still takes no argument at all' do
+      _(@api.get_inventory).must_be_kind_of(Hash)
+    end
+  end
+
   describe '#place_order' do
     it 'places an order' do
       order = {{moduleName}}::Models::Order.new(

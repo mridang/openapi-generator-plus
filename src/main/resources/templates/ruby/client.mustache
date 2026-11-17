@@ -70,10 +70,10 @@ module {{moduleName}}
     end
 
     # Creates a client authenticated with a static Bearer token.
-    # The token is the +access_token+ given here, else the result of
-    # +token_provider+ (called for every request), else the environment variable
-    # +<PREFIX>_TOKEN+ (read once, here). A client with none of them cannot be
-    # built: this raises an ArgumentError.
+    # The token is the +access_token+ given here, else the environment variable
+    # +{{envVarPrefix}}_TOKEN+ (read once, here; an empty value counts as unset),
+    # else the result of +token_provider+ (called for every request). A client
+    # with none of them cannot be built: this raises an ArgumentError.
     #
     # @param host [String] API base URL.
     # @param access_token [String, nil] Bearer token.

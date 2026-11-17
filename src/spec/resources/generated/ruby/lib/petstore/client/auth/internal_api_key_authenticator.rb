@@ -11,12 +11,18 @@ module Petstore::Client
   module Auth
     # Scheme-specific authenticator for the internalApiKey security scheme.
     class InternalApiKeyAuthenticator < ApiKeyAuthenticator
-      def initialize(host, api_key)
+      # A credential not given here is read, once, from the environment variable
+      # of this scheme (an empty variable counts as unset), then from the token
+      # provider where the scheme has one; one still missing fails here with an
+      # ArgumentError.
+      def initialize(host, api_key = nil, env: ENV)
         super(
           host,
           'X-Internal-Key',
           api_key,
-          ApiKeyLocation::HEADER
+          ApiKeyLocation::HEADER,
+          env: env,
+          api_key_env: 'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY'
         )
       end
     end

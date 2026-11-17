@@ -1276,11 +1276,13 @@ describe {{moduleName}}::Api::PetApi do
 
     # unsecured-op-has-no-auth-member: an unsecured operation
     # (get_pet_by_id has no security requirement) must NOT mint an `auth`
-    # member on its Options object — indeed it has no Options object at all,
-    # so there is no AddPetOptions-style class for it. Guard the contract by
-    # asserting the GetPetByIdOptions constant is absent.
+    # member on its Options object. It still has an Options object, for the
+    # per-call timeout, headers and max_retries, so guard the contract by
+    # asserting that object carries no `auth` reader.
     it 'does not expose an auth member on an unsecured operation' do
-      _({{moduleName}}::Api::Options.const_defined?(:GetPetByIdOptions)).must_equal false
+      options = {{moduleName}}::Api::Options::GetPetByIdOptions.new
+      _(options).wont_respond_to :auth
+      _(options).must_respond_to :timeout
     end
   end
 
@@ -1429,7 +1431,8 @@ describe {{moduleName}}::Api::PetApi do
       block = doc_block('find_pets_by_status')
       _(block.first).must_equal '# Finds Pets by status'
       _(block).must_include '# @param options [FindPetsByStatusOptions] ' \
-                            'options for query, header, form, and cookie parameters'
+                            'per-call options: the optional timeout, headers and max_retries, ' \
+                            'plus the query, header, form and cookie parameters'
       _(block).must_include '# @raise [ApiError] if fails to make API call'
     end
 
@@ -1460,9 +1463,12 @@ describe {{moduleName}}::Api::PetApi do
 
     it 'documents the authenticator only on options that carry one' do
       _(doc_block('add_pet')).must_include '# @param options [AddPetOptions] ' \
-                                           'options carrying an optional per-call authenticator'
-      _(doc_block('delete_pet')).must_include '# @param options [DeletePetOptions] options for query, header, ' \
-                                              'form, and cookie parameters, plus an optional per-call authenticator'
+                                           'per-call options: the optional timeout, headers and max_retries, ' \
+                                           'plus an optional per-call authenticator'
+      _(doc_block('delete_pet')).must_include '# @param options [DeletePetOptions] ' \
+                                              'per-call options: the optional timeout, headers and max_retries, ' \
+                                              'plus the query, header, form and cookie parameters, ' \
+                                              'plus an optional per-call authenticator'
     end
 
     # Binary downloads are returned as the in-memory StringIO that BaseApi
@@ -1476,8 +1482,9 @@ describe {{moduleName}}::Api::PetApi do
     it 'declares the StringIO a binary download returns in RBS' do
       root = File.expand_path('../..', File.dirname(__FILE__))
       rbs = File.read(File.join(root, 'sig', '{{modulePath}}', 'api', 'pet_api.rbs'))
-      _(rbs).must_include 'def get_pet_avatar: (Integer pet_id) -> ::StringIO'
-      _(rbs).must_include 'def get_pet_avatar_with_http_info: (Integer pet_id) -> ::{{moduleName}}::ApiResult[::StringIO]'
+      _(rbs).must_include 'def get_pet_avatar: (Integer pet_id, ?Options::GetPetAvatarOptions? options) -> ::StringIO'
+      _(rbs).must_include 'def get_pet_avatar_with_http_info: (Integer pet_id, ?Options::GetPetAvatarOptions? options) ' \
+                          '-> ::{{moduleName}}::ApiResult[::StringIO]'
       _(rbs).wont_include '-> File'
       _(rbs).wont_include 'ApiResult[File]'
     end

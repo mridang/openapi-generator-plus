@@ -177,7 +177,7 @@ module Petstore::Client
 
       # Add a new pet to the store
       # @param pet [Pet] Create a new pet in the store
-      # @param options [AddPetOptions] options carrying an optional per-call authenticator
+      # @param options [AddPetOptions] per-call options: the optional timeout, headers and max_retries, plus an optional per-call authenticator
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def add_pet(pet, options = nil)
@@ -232,7 +232,7 @@ module Petstore::Client
       # Add photos to the pet's gallery
       # Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
       # @param pet_id [Integer]
-      # @param options [AddPetPhotosOptions] options for query, header, form, and cookie parameters
+      # @param options [AddPetPhotosOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [Array<Photo>]
       # @raise [ApiError] if fails to make API call
       def add_pet_photos(pet_id, options)
@@ -295,7 +295,7 @@ module Petstore::Client
       # Record a treatment for a pet
       # @param pet_id [Integer]
       # @param pet_treatment [PetTreatment]
-      # @param options [AddPetTreatmentOptions] options carrying an optional per-call authenticator
+      # @param options [AddPetTreatmentOptions] per-call options: the optional timeout, headers and max_retries, plus an optional per-call authenticator
       # @return [PetTreatment]
       # @raise [ApiError] if fails to make API call
       def add_pet_treatment(pet_id, pet_treatment, options = nil)
@@ -355,7 +355,7 @@ module Petstore::Client
 
       # Deletes a pet
       # @param pet_id [Integer] Pet id to delete
-      # @param options [DeletePetOptions] options for query, header, form, and cookie parameters, plus an optional per-call authenticator
+      # @param options [DeletePetOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters, plus an optional per-call authenticator
       # @return [nil]
       # @raise [ApiError] if fails to make API call
       def delete_pet(pet_id, options = nil)
@@ -405,10 +405,11 @@ module Petstore::Client
       # Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
       # @param pet_id [Integer]
       # @param document_id [Integer]
+      # @param options [DownloadPetDocumentOptions] per-call options: the optional timeout, headers and max_retries
       # @return [StringIO]
       # @raise [ApiError] if fails to make API call
-      def download_pet_document(pet_id, document_id)
-        result = download_pet_document_with_http_info(pet_id, document_id)
+      def download_pet_document(pet_id, document_id, options = nil)
+        result = download_pet_document_with_http_info(pet_id, document_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -427,7 +428,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def download_pet_document_with_http_info(pet_id, document_id)
+      def download_pet_document_with_http_info(pet_id, document_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
@@ -452,16 +453,18 @@ module Petstore::Client
           'application/json',
           'File',
           nil,
-          operation_id: 'PetApi.download_pet_document'
+          operation_id: 'PetApi.download_pet_document',
+          request_options: options
         )
       end
 
       # List pets born on a given date
       # @param born_on [Date] Date of birth to match
+      # @param options [FindPetsBornOnOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Array<Pet>]
       # @raise [ApiError] if fails to make API call
-      def find_pets_born_on(born_on)
-        result = find_pets_born_on_with_http_info(born_on)
+      def find_pets_born_on(born_on, options = nil)
+        result = find_pets_born_on_with_http_info(born_on, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -480,7 +483,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def find_pets_born_on_with_http_info(born_on)
+      def find_pets_born_on_with_http_info(born_on, options = nil)
         if born_on.nil?
           raise ArgumentError,
                 "Missing the required parameter 'born_on' when calling PetApi.find_pets_born_on"
@@ -499,12 +502,13 @@ module Petstore::Client
           'application/json',
           'Array<Pet>',
           nil,
-          operation_id: 'PetApi.find_pets_born_on'
+          operation_id: 'PetApi.find_pets_born_on',
+          request_options: options
         )
       end
 
       # Finds Pets by status
-      # @param options [FindPetsByStatusOptions] options for query, header, form, and cookie parameters
+      # @param options [FindPetsByStatusOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [Array<Pet>]
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
@@ -576,10 +580,11 @@ module Petstore::Client
 
       # Get external pet info
       # @param pet_id [Integer]
+      # @param options [GetExternalPetInfoOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
-      def get_external_pet_info(pet_id, server: nil)
-        result = get_external_pet_info_with_http_info(pet_id, server: server)
+      def get_external_pet_info(pet_id, options = nil, server: nil)
+        result = get_external_pet_info_with_http_info(pet_id, options, server: server)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -598,7 +603,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_external_pet_info_with_http_info(pet_id, server: nil)
+      def get_external_pet_info_with_http_info(pet_id, options = nil, server: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
@@ -621,16 +626,18 @@ module Petstore::Client
           'application/json',
           'Pet',
           nil,
-          operation_id: 'PetApi.get_external_pet_info'
+          operation_id: 'PetApi.get_external_pet_info',
+          request_options: options
         )
       end
 
       # Get multi-server pet info
       # @param pet_id [Integer]
+      # @param options [GetMultiServerPetInfoOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
-      def get_multi_server_pet_info(pet_id, server: nil)
-        result = get_multi_server_pet_info_with_http_info(pet_id, server: server)
+      def get_multi_server_pet_info(pet_id, options = nil, server: nil)
+        result = get_multi_server_pet_info_with_http_info(pet_id, options, server: server)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -649,7 +656,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_multi_server_pet_info_with_http_info(pet_id, server: nil)
+      def get_multi_server_pet_info_with_http_info(pet_id, options = nil, server: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
@@ -672,17 +679,19 @@ module Petstore::Client
           'application/json',
           'Pet',
           nil,
-          operation_id: 'PetApi.get_multi_server_pet_info'
+          operation_id: 'PetApi.get_multi_server_pet_info',
+          request_options: options
         )
       end
 
       # Get the pet's profile photo
       # Returns the raw image bytes of the pet's current avatar.
       # @param pet_id [Integer]
+      # @param options [GetPetAvatarOptions] per-call options: the optional timeout, headers and max_retries
       # @return [StringIO]
       # @raise [ApiError] if fails to make API call
-      def get_pet_avatar(pet_id)
-        result = get_pet_avatar_with_http_info(pet_id)
+      def get_pet_avatar(pet_id, options = nil)
+        result = get_pet_avatar_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -701,7 +710,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_pet_avatar_with_http_info(pet_id)
+      def get_pet_avatar_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
@@ -720,17 +729,19 @@ module Petstore::Client
           'application/json',
           'File',
           nil,
-          operation_id: 'PetApi.get_pet_avatar'
+          operation_id: 'PetApi.get_pet_avatar',
+          request_options: options
         )
       end
 
       # Get the pet's avatar thumbnail as base64
       # Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
       # @param pet_id [Integer]
+      # @param options [GetPetAvatarThumbnailOptions] per-call options: the optional timeout, headers and max_retries
       # @return [String]
       # @raise [ApiError] if fails to make API call
-      def get_pet_avatar_thumbnail(pet_id)
-        result = get_pet_avatar_thumbnail_with_http_info(pet_id)
+      def get_pet_avatar_thumbnail(pet_id, options = nil)
+        result = get_pet_avatar_thumbnail_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -749,7 +760,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_pet_avatar_thumbnail_with_http_info(pet_id)
+      def get_pet_avatar_thumbnail_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
@@ -768,7 +779,8 @@ module Petstore::Client
           'application/json',
           'ByteArray',
           nil,
-          operation_id: 'PetApi.get_pet_avatar_thumbnail'
+          operation_id: 'PetApi.get_pet_avatar_thumbnail',
+          request_options: options
         )
       end
 
@@ -777,11 +789,12 @@ module Petstore::Client
       # @param pet_id [Integer] ID of pet to return
       # Example for +pet_id+ — Small breed ID: 1
       # Example for +pet_id+ — Large breed ID: 42
+      # @param options [GetPetByIdOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
-      def get_pet_by_id(pet_id, server: nil)
-        result = get_pet_by_id_with_http_info(pet_id, server: server)
+      def get_pet_by_id(pet_id, options = nil, server: nil)
+        result = get_pet_by_id_with_http_info(pet_id, options, server: server)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -801,7 +814,7 @@ module Petstore::Client
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
-      def get_pet_by_id_with_http_info(pet_id, server: nil)
+      def get_pet_by_id_with_http_info(pet_id, options = nil, server: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
@@ -824,13 +837,14 @@ module Petstore::Client
           'application/json',
           'Pet',
           nil,
-          operation_id: 'PetApi.get_pet_by_id'
+          operation_id: 'PetApi.get_pet_by_id',
+          request_options: options
         )
       end
 
       # Look up a pet by name (simple string path param + required query)
       # @param name [String]
-      # @param options [GetPetByNameOptions] options for query, header, form, and cookie parameters
+      # @param options [GetPetByNameOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def get_pet_by_name(name, options)
@@ -914,10 +928,11 @@ module Petstore::Client
       # Get the pet's passport
       # Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
       # @param pet_id [Integer]
+      # @param options [GetPetPassportOptions] per-call options: the optional timeout, headers and max_retries
       # @return [PetPassport]
       # @raise [ApiError] if fails to make API call
-      def get_pet_passport(pet_id)
-        result = get_pet_passport_with_http_info(pet_id)
+      def get_pet_passport(pet_id, options = nil)
+        result = get_pet_passport_with_http_info(pet_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -936,7 +951,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_pet_passport_with_http_info(pet_id)
+      def get_pet_passport_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
@@ -955,7 +970,8 @@ module Petstore::Client
           'application/json',
           'PetPassport',
           nil,
-          operation_id: 'PetApi.get_pet_passport'
+          operation_id: 'PetApi.get_pet_passport',
+          request_options: options
         )
       end
 
@@ -963,10 +979,11 @@ module Petstore::Client
       # Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
       # @param pet_id [Integer]
       # @param photo_id [Integer]
+      # @param options [GetPetPhotoOptions] per-call options: the optional timeout, headers and max_retries
       # @return [StringIO]
       # @raise [ApiError] if fails to make API call
-      def get_pet_photo(pet_id, photo_id)
-        result = get_pet_photo_with_http_info(pet_id, photo_id)
+      def get_pet_photo(pet_id, photo_id, options = nil)
+        result = get_pet_photo_with_http_info(pet_id, photo_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -985,7 +1002,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_pet_photo_with_http_info(pet_id, photo_id)
+      def get_pet_photo_with_http_info(pet_id, photo_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
@@ -1010,7 +1027,8 @@ module Petstore::Client
           'application/json',
           'File',
           nil,
-          operation_id: 'PetApi.get_pet_photo'
+          operation_id: 'PetApi.get_pet_photo',
+          request_options: options
         )
       end
 
@@ -1018,7 +1036,7 @@ module Petstore::Client
       # Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done
       # @param pet_id [Integer]
       # @param as_of [Date] Summary date, sent as a matrix-style path segment
-      # @param options [GetPetSummaryOptions] options for query, header, form, and cookie parameters
+      # @param options [GetPetSummaryOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [String]
       # @raise [ApiError] if fails to make API call
       def get_pet_summary(pet_id, as_of, options)
@@ -1105,7 +1123,7 @@ module Petstore::Client
       # Get a tag for a pet
       # @param pet_id [Integer]
       # @param tag_name [String]
-      # @param options [GetPetTagOptions] options for query, header, form, and cookie parameters
+      # @param options [GetPetTagOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def get_pet_tag(pet_id, tag_name, options = nil)
@@ -1224,10 +1242,11 @@ module Petstore::Client
 
       # Get staging pet info
       # @param pet_id [Integer]
+      # @param options [GetStagingPetInfoOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
-      def get_staging_pet_info(pet_id, server: nil)
-        result = get_staging_pet_info_with_http_info(pet_id, server: server)
+      def get_staging_pet_info(pet_id, options = nil, server: nil)
+        result = get_staging_pet_info_with_http_info(pet_id, options, server: server)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -1246,7 +1265,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_staging_pet_info_with_http_info(pet_id, server: nil)
+      def get_staging_pet_info_with_http_info(pet_id, options = nil, server: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
@@ -1269,7 +1288,8 @@ module Petstore::Client
           'application/json',
           'Pet',
           nil,
-          operation_id: 'PetApi.get_staging_pet_info'
+          operation_id: 'PetApi.get_staging_pet_info',
+          request_options: options
         )
       end
 
@@ -1277,16 +1297,17 @@ module Petstore::Client
       # Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
       # @param pet_id [Integer]
       # @param body [File]
+      # @param options [SetPetAvatarOptions] per-call options: the optional timeout, headers and max_retries
       # @param request_content_type [String, nil] selects the request Content-Type among the declared types (image/jpeg, image/png, application/json); defaults to 'image/jpeg' when nil
       # @return [nil]
       # @raise [ApiError] if fails to make API call
-      def set_pet_avatar(pet_id, body, request_content_type: nil)
-        set_pet_avatar_with_http_info(pet_id, body, request_content_type: request_content_type).data
+      def set_pet_avatar(pet_id, body, options = nil, request_content_type: nil)
+        set_pet_avatar_with_http_info(pet_id, body, options, request_content_type: request_content_type).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def set_pet_avatar_with_http_info(pet_id, body, request_content_type: nil)
+      def set_pet_avatar_with_http_info(pet_id, body, options = nil, request_content_type: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
@@ -1337,7 +1358,8 @@ module Petstore::Client
           nil,
           nil,
           raw_body: true,
-          operation_id: 'PetApi.set_pet_avatar'
+          operation_id: 'PetApi.set_pet_avatar',
+          request_options: options
         )
       end
 
@@ -1345,15 +1367,16 @@ module Petstore::Client
       # Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
       # @param pet_id [Integer]
       # @param set_pet_avatar_thumbnail_request [SetPetAvatarThumbnailRequest]
+      # @param options [SetPetAvatarThumbnailOptions] per-call options: the optional timeout, headers and max_retries
       # @return [nil]
       # @raise [ApiError] if fails to make API call
-      def set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request)
-        set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request).data
+      def set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request, options = nil)
+        set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request)
+      def set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
@@ -1383,14 +1406,15 @@ module Petstore::Client
           'application/json',
           nil,
           nil,
-          operation_id: 'PetApi.set_pet_avatar_thumbnail'
+          operation_id: 'PetApi.set_pet_avatar_thumbnail',
+          request_options: options
         )
       end
 
       # Update a pet's notification preferences
       # Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
       # @param pet_id [Integer]
-      # @param options [SetPetPreferencesOptions] options for query, header, form, and cookie parameters
+      # @param options [SetPetPreferencesOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
       def set_pet_preferences(pet_id, options)
@@ -1456,10 +1480,11 @@ module Petstore::Client
       # Update an existing pet
       # @param pet_id [Integer] ID of pet to update
       # @param pet [Pet] Pet object that needs to be updated
+      # @param options [UpdatePetOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
-      def update_pet(pet_id, pet)
-        result = update_pet_with_http_info(pet_id, pet)
+      def update_pet(pet_id, pet, options = nil)
+        result = update_pet_with_http_info(pet_id, pet, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -1478,7 +1503,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def update_pet_with_http_info(pet_id, pet)
+      def update_pet_with_http_info(pet_id, pet, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
@@ -1508,14 +1533,15 @@ module Petstore::Client
           'application/json',
           'Pet',
           nil,
-          operation_id: 'PetApi.update_pet'
+          operation_id: 'PetApi.update_pet',
+          request_options: options
         )
       end
 
       # Upload the pet's adoption certificate
       # Attaches a single adoption certificate document. No metadata fields are required alongside the file.
       # @param pet_id [Integer]
-      # @param options [UploadPetCertificateOptions] options for query, header, form, and cookie parameters
+      # @param options [UploadPetCertificateOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
       def upload_pet_certificate(pet_id, options)
@@ -1572,7 +1598,7 @@ module Petstore::Client
       # Attach a vet document or health record
       # Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
       # @param pet_id [Integer]
-      # @param options [UploadPetDocumentOptions] options for query, header, form, and cookie parameters
+      # @param options [UploadPetDocumentOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @param request_content_type [String, nil] selects the request Content-Type among the declared types (multipart/form-data, application/octet-stream); defaults to 'multipart/form-data' when nil
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call

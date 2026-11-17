@@ -19,10 +19,11 @@ module Petstore::Client
 
       # Create an account
       # @param account [Account]
+      # @param options [CreateAccountOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Account]
       # @raise [ApiError] if fails to make API call
-      def create_account(account)
-        result = create_account_with_http_info(account)
+      def create_account(account, options = nil)
+        result = create_account_with_http_info(account, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -41,7 +42,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def create_account_with_http_info(account)
+      def create_account_with_http_info(account, options = nil)
         if account.nil?
           raise ArgumentError,
                 "Missing the required parameter 'account' when calling StoreApi.create_account"
@@ -65,21 +66,23 @@ module Petstore::Client
           'application/json',
           'Account',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.create_account'
+          operation_id: 'StoreApi.create_account',
+          request_options: options
         )
       end
 
       # Delete purchase order by ID
       # @param order_id [Integer] ID of the order to delete
+      # @param options [DeleteOrderOptions] per-call options: the optional timeout, headers and max_retries
       # @return [nil]
       # @raise [ApiError] if fails to make API call
-      def delete_order(order_id)
-        delete_order_with_http_info(order_id).data
+      def delete_order(order_id, options = nil)
+        delete_order_with_http_info(order_id, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def delete_order_with_http_info(order_id)
+      def delete_order_with_http_info(order_id, options = nil)
         if order_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
@@ -98,13 +101,14 @@ module Petstore::Client
           'application/json',
           nil,
           nil,
-          operation_id: 'StoreApi.delete_order'
+          operation_id: 'StoreApi.delete_order',
+          request_options: options
         )
       end
 
       # Echoes a swatch supplied via path, query and header parameters.
       # @param path_swatch [Swatch]
-      # @param options [GetBySwatchOptions] options for query, header, form, and cookie parameters
+      # @param options [GetBySwatchOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [Category]
       # @raise [ApiError] if fails to make API call
       def get_by_swatch(path_swatch, options = nil)
@@ -161,10 +165,11 @@ module Petstore::Client
       end
 
       # Returns a model exercising schema defaults on deserialize.
+      # @param options [GetDefaultsOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Defaults]
       # @raise [ApiError] if fails to make API call
-      def get_defaults
-        result = get_defaults_with_http_info
+      def get_defaults(options = nil)
+        result = get_defaults_with_http_info(options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -183,7 +188,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_defaults_with_http_info
+      def get_defaults_with_http_info(options = nil)
         path = '/store/defaults'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -196,15 +201,17 @@ module Petstore::Client
           'application/json',
           'Defaults',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_defaults'
+          operation_id: 'StoreApi.get_defaults',
+          request_options: options
         )
       end
 
       # Returns a department (mutual-recursion codegen fixture).
+      # @param options [GetDepartmentOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Department]
       # @raise [ApiError] if fails to make API call
-      def get_department
-        result = get_department_with_http_info
+      def get_department(options = nil)
+        result = get_department_with_http_info(options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -223,7 +230,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_department_with_http_info
+      def get_department_with_http_info(options = nil)
         path = '/store/department'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -236,15 +243,17 @@ module Petstore::Client
           'application/json',
           'Department',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_department'
+          operation_id: 'StoreApi.get_department',
+          request_options: options
         )
       end
 
       # Returns categories grouped into an array of string-keyed maps.
+      # @param options [GetGroupedCategoriesOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Array<Hash<String, Category>>]
       # @raise [ApiError] if fails to make API call
-      def get_grouped_categories
-        result = get_grouped_categories_with_http_info
+      def get_grouped_categories(options = nil)
+        result = get_grouped_categories_with_http_info(options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -263,7 +272,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_grouped_categories_with_http_info
+      def get_grouped_categories_with_http_info(options = nil)
         path = '/store/grouped-categories'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -276,15 +285,17 @@ module Petstore::Client
           'application/json',
           'Array<Hash<String, Category>>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_grouped_categories'
+          operation_id: 'StoreApi.get_grouped_categories',
+          request_options: options
         )
       end
 
       # Returns pet inventories by status
+      # @param options [GetInventoryOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Hash<String, Integer>]
       # @raise [ApiError] if fails to make API call
-      def get_inventory
-        result = get_inventory_with_http_info
+      def get_inventory(options = nil)
+        result = get_inventory_with_http_info(options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -303,7 +314,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_inventory_with_http_info
+      def get_inventory_with_http_info(options = nil)
         path = '/store/inventory'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -316,15 +327,17 @@ module Petstore::Client
           'application/json',
           'Hash<String, Integer>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_inventory'
+          operation_id: 'StoreApi.get_inventory',
+          request_options: options
         )
       end
 
       # Returns a matrix as an array of integer arrays.
+      # @param options [GetMatrixOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Array<Array<Integer>>]
       # @raise [ApiError] if fails to make API call
-      def get_matrix
-        result = get_matrix_with_http_info
+      def get_matrix(options = nil)
+        result = get_matrix_with_http_info(options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -343,7 +356,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_matrix_with_http_info
+      def get_matrix_with_http_info(options = nil)
         path = '/store/matrix'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -356,16 +369,18 @@ module Petstore::Client
           'application/json',
           'Array<Array<Integer>>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_matrix'
+          operation_id: 'StoreApi.get_matrix',
+          request_options: options
         )
       end
 
       # Find purchase order by ID
       # @param order_id [Integer] ID of order to return
+      # @param options [GetOrderByIdOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Order]
       # @raise [ApiError] if fails to make API call
-      def get_order_by_id(order_id)
-        result = get_order_by_id_with_http_info(order_id)
+      def get_order_by_id(order_id, options = nil)
+        result = get_order_by_id_with_http_info(order_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -384,7 +399,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_order_by_id_with_http_info(order_id)
+      def get_order_by_id_with_http_info(order_id, options = nil)
         if order_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
@@ -403,16 +418,18 @@ module Petstore::Client
           'application/json',
           'Order',
           nil,
-          operation_id: 'StoreApi.get_order_by_id'
+          operation_id: 'StoreApi.get_order_by_id',
+          request_options: options
         )
       end
 
       # Find purchase order by tracking id
       # @param tracking_id [String]
+      # @param options [GetOrderByTrackingIdOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Order]
       # @raise [ApiError] if fails to make API call
-      def get_order_by_tracking_id(tracking_id)
-        result = get_order_by_tracking_id_with_http_info(tracking_id)
+      def get_order_by_tracking_id(tracking_id, options = nil)
+        result = get_order_by_tracking_id_with_http_info(tracking_id, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -431,7 +448,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_order_by_tracking_id_with_http_info(tracking_id)
+      def get_order_by_tracking_id_with_http_info(tracking_id, options = nil)
         if tracking_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'tracking_id' when calling StoreApi.get_order_by_tracking_id"
@@ -455,12 +472,13 @@ module Petstore::Client
           'application/json',
           'Order',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_order_by_tracking_id'
+          operation_id: 'StoreApi.get_order_by_tracking_id',
+          request_options: options
         )
       end
 
       # Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
-      # @param options [GetStockItemOptions] options for query, header, form, and cookie parameters
+      # @param options [GetStockItemOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [StockItem]
       # @raise [ApiError] if fails to make API call
       def get_stock_item(options = nil)
@@ -510,10 +528,11 @@ module Petstore::Client
       end
 
       # Returns a bare enum (value-type response codegen fixture).
+      # @param options [GetSwatchOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Swatch]
       # @raise [ApiError] if fails to make API call
-      def get_swatch
-        result = get_swatch_with_http_info
+      def get_swatch(options = nil)
+        result = get_swatch_with_http_info(options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -532,7 +551,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_swatch_with_http_info
+      def get_swatch_with_http_info(options = nil)
         path = '/store/swatch'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -545,15 +564,17 @@ module Petstore::Client
           'application/json',
           'Swatch',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_swatch'
+          operation_id: 'StoreApi.get_swatch',
+          request_options: options
         )
       end
 
       # Returns swatches grouped as an array of string-keyed enum maps.
+      # @param options [GetSwatchGroupsOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Array<Hash<String, Swatch>>]
       # @raise [ApiError] if fails to make API call
-      def get_swatch_groups
-        result = get_swatch_groups_with_http_info
+      def get_swatch_groups(options = nil)
+        result = get_swatch_groups_with_http_info(options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -572,7 +593,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_swatch_groups_with_http_info
+      def get_swatch_groups_with_http_info(options = nil)
         path = '/store/swatch-groups'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -585,15 +606,17 @@ module Petstore::Client
           'application/json',
           'Array<Hash<String, Swatch>>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_swatch_groups'
+          operation_id: 'StoreApi.get_swatch_groups',
+          request_options: options
         )
       end
 
       # Returns timestamps grouped as an array of string-keyed maps.
+      # @param options [GetTimestampGroupsOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Array<Hash<String, Time>>]
       # @raise [ApiError] if fails to make API call
-      def get_timestamp_groups
-        result = get_timestamp_groups_with_http_info
+      def get_timestamp_groups(options = nil)
+        result = get_timestamp_groups_with_http_info(options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -612,7 +635,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_timestamp_groups_with_http_info
+      def get_timestamp_groups_with_http_info(options = nil)
         path = '/store/timestamp-groups'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -625,15 +648,17 @@ module Petstore::Client
           'application/json',
           'Array<Hash<String, Time>>',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_timestamp_groups'
+          operation_id: 'StoreApi.get_timestamp_groups',
+          request_options: options
         )
       end
 
       # Returns a self-referential tree (recursive-type codegen fixture)
+      # @param options [GetTreeOptions] per-call options: the optional timeout, headers and max_retries
       # @return [TreeNode]
       # @raise [ApiError] if fails to make API call
-      def get_tree
-        result = get_tree_with_http_info
+      def get_tree(options = nil)
+        result = get_tree_with_http_info(options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -652,7 +677,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_tree_with_http_info
+      def get_tree_with_http_info(options = nil)
         path = '/store/tree'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -665,16 +690,18 @@ module Petstore::Client
           'application/json',
           'TreeNode',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.get_tree'
+          operation_id: 'StoreApi.get_tree',
+          request_options: options
         )
       end
 
       # Place an order for a pet
       # @param order [Order]
+      # @param options [PlaceOrderOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Order]
       # @raise [ApiError] if fails to make API call
-      def place_order(order = nil)
-        result = place_order_with_http_info(order)
+      def place_order(order = nil, options = nil)
+        result = place_order_with_http_info(order, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -693,7 +720,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def place_order_with_http_info(order = nil)
+      def place_order_with_http_info(order = nil, options = nil)
         path = '/store/order'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -712,16 +739,18 @@ module Petstore::Client
           'application/json',
           'Order',
           nil,
-          operation_id: 'StoreApi.place_order'
+          operation_id: 'StoreApi.place_order',
+          request_options: options
         )
       end
 
       # Reserve stock, answering with the existing or a new reservation
       # Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+      # @param options [ReserveStockOptions] per-call options: the optional timeout, headers and max_retries
       # @return [ReserveStockResponse]
       # @raise [ApiError] if fails to make API call
-      def reserve_stock
-        result = reserve_stock_with_http_info
+      def reserve_stock(options = nil)
+        result = reserve_stock_with_http_info(options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -740,7 +769,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def reserve_stock_with_http_info
+      def reserve_stock_with_http_info(options = nil)
         path = '/store/reservation'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -753,12 +782,13 @@ module Petstore::Client
           'application/json',
           { 200 => 'Reservation', 201 => 'ReservationReceipt' },
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
-          operation_id: 'StoreApi.reserve_stock'
+          operation_id: 'StoreApi.reserve_stock',
+          request_options: options
         )
       end
 
       # Searches the store; exercises content-encoded, Set and time-of-day parameters.
-      # @param options [SearchStoreOptions] options for query, header, form, and cookie parameters
+      # @param options [SearchStoreOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [Array<Order>]
       # @raise [ApiError] if fails to make API call
       def search_store(options = nil)

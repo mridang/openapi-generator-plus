@@ -2,6 +2,7 @@
 
 {{>api_info}}
 
+require 'base64'
 require 'minitest/autorun'
 require '{{gemName}}'
 
@@ -78,6 +79,98 @@ describe 'scheme authenticators' do
       auth = klass.new('https://api.example.com', 'alice', 's3cret')
       _(auth.auth_headers).must_equal({ 'Authorization' => 'Basic YWxpY2U6czNjcmV0' }, klass.name)
       _(auth.inspect).wont_include 's3cret'
+    end
+  end
+
+  # One row per scheme: the wrapper, its generic base and the environment
+  # variable of each credential, as the generator named them.
+  def environment_schemes
+    [
+{{#schemeEnvironmentEntries}}
+      ['{{className}}', '{{baseClass}}', { {{#credentials}}'{{name}}' => '{{envName}}'{{^-last}}, {{/-last}}{{/credentials}} }]{{^-last}},{{/-last}}
+{{/schemeEnvironmentEntries}}
+    ]
+  end
+
+  def scheme_class(name)
+    authenticator_classes.find { |klass| klass.name.to_s.end_with?("::#{name}") }
+  end
+
+  def every_variable
+    environment_schemes.flat_map { |_name, _base, credentials| credentials.values }
+  end
+
+  it 'finds a wrapper for every scheme the spec declares' do
+    environment_schemes.each { |name, _base, _credentials| _(scheme_class(name)).wont_be_nil }
+  end
+
+  it 'gives every credential of every scheme a variable of its own' do
+    _(every_variable.uniq).must_equal every_variable
+  end
+
+  it 'builds each wrapper from its own variables alone' do
+    environment_schemes.each do |name, _base, credentials|
+      env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }
+      _(scheme_class(name).new('https://api.example.com', env: env)).wont_be_nil
+    end
+  end
+
+  it 'fails when a credential is missing, whatever the other schemes have set' do
+    environment_schemes.each do |name, _base, credentials|
+      credentials.each_value do |missing|
+        env = every_variable.reject { |variable| variable == missing }.to_h { |variable| [variable, "value-#{variable}"] }
+        _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise ArgumentError, "#{name} #{missing}"
+      end
+    end
+  end
+
+  it 'counts an empty variable as unset' do
+    environment_schemes.each do |name, _base, credentials|
+      credentials.each_value do |empty|
+        env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
+        _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise ArgumentError, "#{name} #{empty}"
+      end
+    end
+  end
+
+  it 'prefers the value given to the constructor to the variable' do
+    environment_schemes.each do |name, base, credentials|
+      env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }
+      klass = scheme_class(name)
+      case base
+      when 'BearerAuthenticator'
+        _(klass.new('https://api.example.com', 'given', env: env).auth_headers).must_equal({ 'Authorization' => 'Bearer given' }, name)
+      when 'ApiKeyAuthenticator'
+        auth = klass.new('https://api.example.com', 'given', env: env)
+        _([auth.auth_headers, auth.query_params, auth.cookie_params].flat_map(&:values)).must_equal ['given'], name
+      when 'BasicAuthenticator'
+        auth = klass.new('https://api.example.com', 'given', 'pw', env: env)
+        _(auth.auth_headers['Authorization']).must_equal "Basic #{Base64.strict_encode64('given:pw')}", name
+      end
+    end
+  end
+
+  it 'reads the environment once, when the wrapper is built' do
+    environment_schemes.each do |name, base, credentials|
+      next unless base == 'BearerAuthenticator'
+
+      variable = credentials.values.first
+      env = { variable => 'first' }
+      auth = scheme_class(name).new('https://api.example.com', env: env)
+      env[variable] = 'second'
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer first' }, name)
+    end
+  end
+
+  it 'takes the token provider of a Bearer wrapper after the variable' do
+    environment_schemes.each do |name, base, credentials|
+      next unless base == 'BearerAuthenticator'
+
+      variable = credentials.values.first
+      auth = scheme_class(name).new('https://api.example.com', token_provider: -> { 'from-provider' }, env: {})
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer from-provider' }, name)
+      auth = scheme_class(name).new('https://api.example.com', token_provider: -> { 'from-provider' }, env: { variable => 'from-env' })
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer from-env' }, name)
     end
   end
 end

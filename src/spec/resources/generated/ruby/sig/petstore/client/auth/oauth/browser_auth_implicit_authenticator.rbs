@@ -2,7 +2,7 @@ module Petstore::Client
   module Auth
     module OAuth
       class BrowserAuthImplicitAuthenticator < OAuth2ImplicitAuthenticator
-        def initialize: (String host, String client_id) -> void
+        def initialize: (String host, ?String? client_id, ?env: untyped) -> void
       end
     end
   end
