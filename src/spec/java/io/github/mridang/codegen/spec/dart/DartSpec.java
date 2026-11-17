@@ -34,7 +34,15 @@ interface DartSpec extends LanguageSpec, DockerImageSpec {
      * DartLintingSpec check the rewritten tree instead of the committed
      * golden. The generator already runs its fixes and `dart format` at
      * generation time. */
-    return List.of("dart pub get");
+    return List.of(
+        /* The dart image is Debian and ships without make, which the SDK's own
+         * docs target needs. Installed once with the shared container, with
+         * retries because the package mirror is flaky on CI runners. */
+        "for i in 1 2 3 4 5; do (apt-get update -qq && apt-get install -y -qq make)"
+            + " > /dev/null 2>&1 && break;"
+            + " echo \"apt attempt $i failed; retrying\" >&2; sleep 3; done;"
+            + " command -v make > /dev/null || { echo \"make missing after retries\" >&2; exit 1; }",
+        "dart pub get");
   }
 
   @Override

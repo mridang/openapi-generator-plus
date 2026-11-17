@@ -53,7 +53,7 @@ final client = Client.withToken(
 Close the client with `client.close()` to release its connections. Errors derive
 from `OpenAPIException`; `NetworkException` and `NetworkTimeoutException` mean no
 HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See
-[SKILLS.md](SKILLS.md) for authentication, servers and error handling.
+`SKILLS.md` for authentication, servers and error handling.
 
 ### Raw responses
 

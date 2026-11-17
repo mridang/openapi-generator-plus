@@ -67,7 +67,7 @@ abstract class AbstractApiClient implements RetryingApiClient {
 
   /// Creates the base from the resolved transport settings, the platform
   /// [http.Client] built by the subclass, and the proxy-auth header derived
-  /// from the proxy URL's userinfo. [ownsClient] is false when the client was
+  /// from the proxy URL's userinfo. `ownsClient` is false when the client was
   /// supplied by the caller, in which case [close] leaves it open.
   AbstractApiClient(
     this._transportOptions,
