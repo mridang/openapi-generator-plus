@@ -192,6 +192,9 @@ class PetApi : BaseApi {
         options: AddPetOptions? = null,
     ): ApiResult<Pet> {
         val auth: Authenticator? = options?.auth
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(pet) {
             "Missing the required parameter 'pet' when calling PetApi.addPet"
         }
@@ -209,6 +212,9 @@ class PetApi : BaseApi {
             "application/json",
             auth,
             "PetApi.addPet",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -239,6 +245,9 @@ class PetApi : BaseApi {
         petId: Long,
         options: AddPetPhotosOptions,
     ): ApiResult<List<Photo>> {
+        val callTimeout: Long? = options.timeout
+        val callHeaders: Map<String, String>? = options.headers
+        val callMaxRetries: Int? = options.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.addPetPhotos"
         }
@@ -270,6 +279,9 @@ class PetApi : BaseApi {
             "multipart/form-data",
             null,
             "PetApi.addPetPhotos",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -303,6 +315,9 @@ class PetApi : BaseApi {
         options: AddPetTreatmentOptions? = null,
     ): ApiResult<PetTreatment> {
         val auth: Authenticator? = options?.auth
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.addPetTreatment"
         }
@@ -328,6 +343,9 @@ class PetApi : BaseApi {
             "application/json",
             auth,
             "PetApi.addPetTreatment",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -351,6 +369,9 @@ class PetApi : BaseApi {
         options: DeletePetOptions? = null,
     ): ApiResult<Unit> {
         val auth: Authenticator? = options?.auth
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.deletePet"
         }
@@ -393,6 +414,9 @@ class PetApi : BaseApi {
             "application/json",
             auth,
             "PetApi.deletePet",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -522,6 +546,9 @@ class PetApi : BaseApi {
     /** Same as [findPetsByStatus] but returns the full [ApiResult] (status code, headers and body). */
     @Deprecated("This operation is deprecated.")
     suspend fun findPetsByStatusWithHttpInfo(options: FindPetsByStatusOptions? = null): ApiResult<List<Pet>> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         var path = "/pet/findByStatus"
         val queryParams = mutableMapOf<String, Any?>()
         if (options != null) {
@@ -563,6 +590,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.findPetsByStatus",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -880,6 +910,9 @@ class PetApi : BaseApi {
         name: String,
         options: GetPetByNameOptions,
     ): ApiResult<Pet> {
+        val callTimeout: Long? = options.timeout
+        val callHeaders: Map<String, String>? = options.headers
+        val callMaxRetries: Int? = options.maxRetries
         requireNotNull(name) {
             "Missing the required parameter 'name' when calling PetApi.getPetByName"
         }
@@ -933,6 +966,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getPetByName",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1069,6 +1105,9 @@ class PetApi : BaseApi {
         asOf: LocalDate,
         options: GetPetSummaryOptions,
     ): ApiResult<String> {
+        val callTimeout: Long? = options.timeout
+        val callHeaders: Map<String, String>? = options.headers
+        val callMaxRetries: Int? = options.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetSummary"
         }
@@ -1131,6 +1170,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getPetSummary",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1163,6 +1205,9 @@ class PetApi : BaseApi {
         tagName: String,
         options: GetPetTagOptions? = null,
     ): ApiResult<Pet> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetTag"
         }
@@ -1265,6 +1310,9 @@ class PetApi : BaseApi {
             "application/json",
             null,
             "PetApi.getPetTag",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1471,6 +1519,9 @@ class PetApi : BaseApi {
         petId: Long,
         options: SetPetPreferencesOptions,
     ): ApiResult<ApiResponse> {
+        val callTimeout: Long? = options.timeout
+        val callHeaders: Map<String, String>? = options.headers
+        val callMaxRetries: Int? = options.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.setPetPreferences"
         }
@@ -1513,6 +1564,9 @@ class PetApi : BaseApi {
             "application/x-www-form-urlencoded",
             null,
             "PetApi.setPetPreferences",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1597,6 +1651,9 @@ class PetApi : BaseApi {
         petId: Long,
         options: UploadPetCertificateOptions,
     ): ApiResult<ApiResponse> {
+        val callTimeout: Long? = options.timeout
+        val callHeaders: Map<String, String>? = options.headers
+        val callMaxRetries: Int? = options.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.uploadPetCertificate"
         }
@@ -1624,6 +1681,9 @@ class PetApi : BaseApi {
             "multipart/form-data",
             null,
             "PetApi.uploadPetCertificate",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 
@@ -1658,6 +1718,9 @@ class PetApi : BaseApi {
         options: UploadPetDocumentOptions,
         requestContentType: String? = null,
     ): ApiResult<ApiResponse> {
+        val callTimeout: Long? = options.timeout
+        val callHeaders: Map<String, String>? = options.headers
+        val callMaxRetries: Int? = options.maxRetries
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.uploadPetDocument"
         }
@@ -1716,6 +1779,9 @@ class PetApi : BaseApi {
             effectiveRequestContentType,
             null,
             "PetApi.uploadPetDocument",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
         )
     }
 }

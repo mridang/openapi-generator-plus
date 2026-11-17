@@ -27,6 +27,14 @@ open class ApiException : OpenAPIException {
     /** The deserialized error body, or null if not available. */
     val errorBody: Any?
 
+    /** The HTTP method of the request that failed (for example `GET`), or null when it is not known. */
+    var requestMethod: String?
+        internal set
+
+    /** The path of the request that failed, without its query string, or null when it is not known. */
+    var requestPath: String?
+        internal set
+
     /**
      * Construct an exception with a detail message and no response context.
      *
@@ -37,6 +45,8 @@ open class ApiException : OpenAPIException {
         this.responseHeaders = null
         this.responseBody = null
         this.errorBody = null
+        this.requestMethod = null
+        this.requestPath = null
     }
 
     /**
@@ -49,12 +59,21 @@ open class ApiException : OpenAPIException {
      *
      * @param message the detail message
      * @param cause the underlying transport exception
+     * @param requestMethod the HTTP method of the request that failed, if known
+     * @param requestPath the path of the request that failed, without its query string, if known
      */
-    constructor(message: String, cause: Throwable) : super(message, cause) {
+    constructor(
+        message: String,
+        cause: Throwable,
+        requestMethod: String? = null,
+        requestPath: String? = null,
+    ) : super(message, cause) {
         this.statusCode = 0
         this.responseHeaders = null
         this.responseBody = null
         this.errorBody = null
+        this.requestMethod = requestMethod
+        this.requestPath = requestPath
     }
 
     /**
@@ -73,6 +92,8 @@ open class ApiException : OpenAPIException {
         this.responseHeaders = null
         this.responseBody = null
         this.errorBody = null
+        this.requestMethod = null
+        this.requestPath = null
     }
 
     /**
@@ -94,6 +115,8 @@ open class ApiException : OpenAPIException {
         this.responseHeaders = responseHeaders?.toMap()
         this.responseBody = null
         this.errorBody = null
+        this.requestMethod = null
+        this.requestPath = null
     }
 
     /**
@@ -105,6 +128,8 @@ open class ApiException : OpenAPIException {
      * @param responseBody the raw HTTP response body, if available
      * @param errorBody the deserialized error body, if available
      * @param cause the underlying failure, if any
+     * @param requestMethod the HTTP method of the request that failed, if known
+     * @param requestPath the path of the request that failed, without its query string, if known
      */
     constructor(
         statusCode: Int,
@@ -113,6 +138,8 @@ open class ApiException : OpenAPIException {
         responseBody: String?,
         errorBody: Any? = null,
         cause: Throwable? = null,
+        requestMethod: String? = null,
+        requestPath: String? = null,
     ) : super(message, cause) {
         this.statusCode = statusCode
         // Defensive immutable copy so the stored headers cannot be mutated by
@@ -120,6 +147,8 @@ open class ApiException : OpenAPIException {
         this.responseHeaders = responseHeaders?.toMap()
         this.responseBody = responseBody
         this.errorBody = errorBody
+        this.requestMethod = requestMethod
+        this.requestPath = requestPath
     }
 
     companion object {
@@ -136,13 +165,18 @@ open class ApiException : OpenAPIException {
          * @param statusCode the HTTP status code of the response
          * @param responseHeaders the HTTP response headers, if available
          * @param responseBody the raw HTTP response body, if available
+         * @param requestMethod the HTTP method of the request that failed, if known
+         * @param requestPath the path of the request that failed, without its query string, if known
          * @return the exception for the status; the caller throws it
          */
         @JvmStatic
+        @JvmOverloads
         fun fromResponse(
             statusCode: Int,
             responseHeaders: Map<String, String>?,
             responseBody: String?,
+            requestMethod: String? = null,
+            requestPath: String? = null,
         ): ApiException {
             val message = "API returned status code $statusCode"
             val errorBody: Any? =
@@ -159,17 +193,37 @@ open class ApiException : OpenAPIException {
                     }
                 }
             return when (statusCode) {
-                400 -> BadRequestException(message, responseHeaders, responseBody, errorBody)
-                401 -> UnauthorizedException(message, responseHeaders, responseBody, errorBody)
-                403 -> ForbiddenException(message, responseHeaders, responseBody, errorBody)
-                404 -> NotFoundException(message, responseHeaders, responseBody, errorBody)
-                409 -> ConflictException(message, responseHeaders, responseBody, errorBody)
-                422 -> UnprocessableEntityException(message, responseHeaders, responseBody, errorBody)
-                429 -> TooManyRequestsException(message, responseHeaders, responseBody, errorBody)
-                in 400..499 -> ClientException(statusCode, message, responseHeaders, responseBody, errorBody)
-                500 -> InternalServerErrorException(message, responseHeaders, responseBody, errorBody)
-                in 500..599 -> ServerException(statusCode, message, responseHeaders, responseBody, errorBody)
-                else -> ApiException(statusCode, message, responseHeaders, responseBody, errorBody)
+                400 -> BadRequestException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                401 -> UnauthorizedException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                403 -> ForbiddenException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                404 -> NotFoundException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                409 -> ConflictException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                422 -> UnprocessableEntityException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                429 -> TooManyRequestsException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                in 400..499 ->
+                    ClientException(
+                        statusCode,
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath,
+                    )
+                500 -> InternalServerErrorException(message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
+                in 500..599 ->
+                    ServerException(
+                        statusCode,
+                        message,
+                        responseHeaders,
+                        responseBody,
+                        errorBody,
+                        null,
+                        requestMethod,
+                        requestPath,
+                    )
+                else -> ApiException(statusCode, message, responseHeaders, responseBody, errorBody, null, requestMethod, requestPath)
             }
         }
     }
@@ -208,6 +262,10 @@ open class ApiException : OpenAPIException {
             )
         if (statusCode != 0) {
             rendered.append("\nHTTP status code: ").append(statusCode)
+        }
+        val request = listOfNotNull(requestMethod, requestPath)
+        if (request.isNotEmpty()) {
+            rendered.append("\nRequest: ").append(request.joinToString(" "))
         }
         val headers = responseHeaders
         if (!headers.isNullOrEmpty()) {

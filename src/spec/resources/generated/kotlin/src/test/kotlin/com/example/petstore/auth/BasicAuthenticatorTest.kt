@@ -9,6 +9,7 @@ package com.example.petstore.auth
 
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class BasicAuthenticatorTest {
@@ -81,4 +82,38 @@ class BasicAuthenticatorTest {
                 AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
             }
         }
+
+    private fun <T> withEnvironment(
+        values: Map<String, String>,
+        body: () -> T,
+    ): T {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> values[name] }
+        try {
+            return body()
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("F862: credentials not passed come from OPEN_API_USERNAME and OPEN_API_PASSWORD")
+    fun credentialsComeFromTheEnvironment() =
+        runBlocking {
+            val env = mapOf("OPEN_API_USERNAME" to "alice", "OPEN_API_PASSWORD" to "s3" + "cret")
+            val auth = withEnvironment(env) { BasicAuthenticator("https://api.example.com") }
+            assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
+            val mixed = withEnvironment(env) { BasicAuthenticator("https://api.example.com", "bob") }
+            assertTrue(mixed.getAuthHeaders()["Authorization"]!!.startsWith("Basic "))
+        }
+
+    @Test
+    @DisplayName("F862: a missing credential fails at construction and names its environment variable")
+    fun missingCredentialFailsAtConstruction() {
+        val ex =
+            withEnvironment(mapOf("OPEN_API_USERNAME" to "alice", "OPEN_API_PASSWORD" to "")) {
+                assertThrows(IllegalArgumentException::class.java) { BasicAuthenticator("https://api.example.com") }
+            }
+        assertTrue(ex.message!!.contains("OPEN_API_PASSWORD"), ex.message)
+    }
 }

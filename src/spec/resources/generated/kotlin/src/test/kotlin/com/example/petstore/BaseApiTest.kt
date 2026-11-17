@@ -12,6 +12,12 @@ import com.example.petstore.api.StoreApi
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.errors.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.HttpTimeoutCapability
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -348,6 +354,148 @@ class BaseApiTest {
         val testApi = TestableApiWithClient(client, "http://localhost")
         val result = runBlocking { testApi.callForResult<ByteArray>("GET", "/test/echo") }
         assertEquals("{}", String(result.data!!, Charsets.UTF_8))
+    }
+
+    // A BaseApi that forwards the per-call settings an operation's options carry.
+    class PerCallApi(
+        client: ApiClient,
+    ) : com.example.petstore.api.BaseApi(
+            client,
+            Configuration
+                .builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("X-Layer", "config")
+                .build(),
+        ) {
+        suspend fun call(
+            method: String = "GET",
+            path: String = "/items/3",
+            headerParams: MutableMap<String, String> = mutableMapOf(),
+            callTimeout: Long? = null,
+            callHeaders: Map<String, String>? = null,
+            callMaxRetries: Int? = null,
+        ): ApiHttpResponse =
+            invokeApi(
+                method,
+                path,
+                mutableMapOf("page" to "2"),
+                headerParams,
+                null,
+                arrayOf("application/json"),
+                "application/json",
+                null,
+                callTimeout,
+                callHeaders,
+                callMaxRetries,
+            )
+    }
+
+    private fun statusClient(vararg statuses: Int): Pair<DefaultApiClient, MutableList<io.ktor.client.request.HttpRequestData>> {
+        val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+        val engine =
+            MockEngine { request ->
+                seen.add(request)
+                val status = statuses[minOf(seen.size - 1, statuses.size - 1)]
+                respond("{}", HttpStatusCode.fromValue(status), headersOf("Content-Type", "application/json"))
+            }
+        val client = DefaultApiClient(HttpClient(engine))
+        client.sleeper = { }
+        return Pair(client, seen)
+    }
+
+    @Nested
+    @DisplayName("request context on errors and per-call settings")
+    inner class RequestContextAndPerCallSettings {
+        @Test
+        @DisplayName("F830: an error response carries the method and the path without the query string")
+        fun errorResponseCarriesTheRequest() {
+            val (client, _) = statusClient(404)
+            val ex =
+                assertThrows(NotFoundException::class.java) {
+                    runBlocking { PerCallApi(client).call(method = "GET", path = "/items/3") }
+                }
+            assertEquals("GET", ex.requestMethod)
+            assertEquals("/items/3", ex.requestPath)
+            assertTrue(ex.toString().contains("\nRequest: GET /items/3"), ex.toString())
+            assertFalse(ex.toString().contains("page=2"), ex.toString())
+        }
+
+        @Test
+        @DisplayName("F830: a failure with no response carries the request too")
+        fun transportFailureCarriesTheRequest() {
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiHttpResponse = throw NetworkTimeoutException("timed out", java.io.IOException("slow"))
+                }
+            val ex =
+                assertThrows(NetworkTimeoutException::class.java) {
+                    runBlocking { PerCallApi(client).call(method = "POST", path = "/items") }
+                }
+            assertEquals("POST", ex.requestMethod)
+            assertEquals("/items", ex.requestPath)
+            assertEquals(0, ex.statusCode)
+        }
+
+        @Test
+        @DisplayName("F827: per-call headers replace a header of the same name, whatever its case")
+        fun callHeadersReplaceAnyLayer() {
+            val client = CapturingApiClient()
+            runBlocking {
+                PerCallApi(client).call(
+                    headerParams = mutableMapOf("x-param" to "param"),
+                    callHeaders = mapOf("x-layer" to "call", "X-PARAM" to "call", "X-Extra" to "1"),
+                )
+            }
+            assertEquals("call", client.capturedHeaders["x-layer"])
+            assertEquals("call", client.capturedHeaders["X-PARAM"])
+            assertEquals("1", client.capturedHeaders["X-Extra"])
+            assertNull(client.capturedHeaders["X-Layer"])
+            assertNull(client.capturedHeaders["x-param"])
+        }
+
+        @Test
+        @DisplayName("F827: a per-call timeout arms the request with what is left of it")
+        fun callTimeoutArmsTheRequest() {
+            val (client, seen) = statusClient(200)
+            runBlocking { PerCallApi(client).call(callTimeout = 2000L) }
+            val armed = seen.single().getCapabilityOrNull(HttpTimeoutCapability)
+            assertNotNull(armed)
+            assertTrue(armed!!.requestTimeoutMillis!! in 1L..2000L, armed.requestTimeoutMillis.toString())
+        }
+
+        @Test
+        @DisplayName("F827: a per-call maxRetries replaces the client's own, and 0 disables the retries")
+        fun callMaxRetriesReplacesTheClientsOwn() {
+            val (client, seen) = statusClient(503, 503, 200)
+            val ok = runBlocking { PerCallApi(client).call(callMaxRetries = 2) }
+            assertEquals(200, ok.statusCode)
+            assertEquals(3, seen.size)
+
+            val (single, seenOnce) = statusClient(503, 200)
+            assertThrows(ServerException::class.java) {
+                runBlocking { PerCallApi(single).call(callMaxRetries = 0) }
+            }
+            assertEquals(1, seenOnce.size)
+        }
+
+        @Test
+        @DisplayName("F827: an invalid per-call timeout or maxRetries is refused before anything is sent")
+        fun invalidCallSettingsAreRefused() {
+            val (client, seen) = statusClient(200)
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { PerCallApi(client).call(callTimeout = 0L) }
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { PerCallApi(client).call(callMaxRetries = -1) }
+            }
+            assertTrue(seen.isEmpty())
+        }
     }
 
     @Nested
@@ -785,6 +933,10 @@ class BaseApiTest {
                     testApi.callForResult<String>("GET", "/test/echo", accepts = arrayOf("text/plain"))
                 }
             transportHeaders["x-a"] = "changed"
+            assertEquals("1", result.headers["x-a"])
+            @Suppress("UNCHECKED_CAST")
+            val mutable = result.headers as MutableMap<String, String>
+            assertThrows(UnsupportedOperationException::class.java) { mutable["x-a"] = "again" }
             assertEquals("1", result.headers["x-a"])
         }
 

@@ -2262,6 +2262,87 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": [
+    "*options.timeout",
+    "*options.headers",
+    "*options.maxretries"
+   ],
+   "aspect": "member",
+   "languages": [
+    "kotlin"
+   ],
+   "reason": "F827 owner decision (per-call timeout, headers and maxRetries on every operation Options object): lands per language in wave 2; kotlin carries it first. Drop this row once the majority has the three members."
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath",
+    "apierror.fromresponse"
+   ],
+   "aspect": "member",
+   "languages": [
+    "kotlin"
+   ],
+   "reason": "F830 owner decision (requestMethod and requestPath on ApiException, set where BaseApi builds the error): lands per language in wave 2; kotlin carries it first. Drop this row once the majority has them."
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath",
+    "apierror.fromresponse"
+   ],
+   "aspect": "params",
+   "languages": [
+    "kotlin"
+   ],
+   "reason": "F830 owner decision (requestMethod and requestPath on ApiException, set where BaseApi builds the error): lands per language in wave 2; kotlin carries it first. Drop this row once the majority has them."
+  },
+  {
+   "element": [
+    "*error.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "kotlin"
+   ],
+   "value": "*requestmethod, requestpath)",
+   "reason": "F830 owner decision: every ApiException subclass constructor takes the optional requestMethod and requestPath last; drop this row once the majority has them."
+  },
+  {
+   "element": [
+    "apikeyauthenticator.<ctor>",
+    "bearerauthenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "kotlin"
+   ],
+   "value": "*provider)",
+   "reason": "F862 owner decision (a token-provider callback beside the static credential): kotlin takes it as a trailing suspend lambda; drop this row once the majority has a provider."
+  },
+  {
+   "element": [
+    "basicauthenticator.<ctor>",
+    "client.withtoken"
+   ],
+   "aspect": "ctor-optional",
+   "languages": [
+    "kotlin"
+   ],
+   "reason": "F862 owner decision (an explicit credential wins, then the {PREFIX}_{FIELD} environment variable): the credential arguments are optional so the variable can supply them; a missing one fails at construction. Drop this row once the majority has it."
+  },
+  {
+   "element": [
+    "basicauthenticator.<ctor>",
+    "client.withtoken"
+   ],
+   "aspect": "optional",
+   "languages": [
+    "kotlin"
+   ],
+   "reason": "F862 owner decision (an explicit credential wins, then the {PREFIX}_{FIELD} environment variable): the credential arguments are optional so the variable can supply them; a missing one fails at construction. Drop this row once the majority has it."
   }
  ]
 }

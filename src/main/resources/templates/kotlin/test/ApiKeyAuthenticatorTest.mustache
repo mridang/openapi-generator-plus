@@ -216,4 +216,53 @@ class ApiKeyAuthenticatorTest {
             SessionCookieAuthenticator("https://api.example.com", "k4").toString(),
         )
     }
+
+    private fun <T> withEnvironment(values: Map<String, String>, body: () -> T): T {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> values[name] }
+        try {
+            return body()
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("F862: with no key passed, {{credentialEnvPrefix}}_API_KEY is read once at construction")
+    fun keyComesFromTheEnvironment() = runBlocking {
+        val auth = withEnvironment(mapOf("{{credentialEnvPrefix}}_API_KEY" to "from-env")) {
+            ApiKeyAuthenticator("https://api.example.com", "X-API-Key", location = ApiKeyLocation.HEADER)
+        }
+        assertEquals("from-env", auth.getAuthHeaders()["X-API-Key"])
+    }
+
+    @Test
+    @DisplayName("F862: an explicit key wins over the environment, and a missing key fails at construction")
+    fun explicitKeyWinsAndAMissingKeyFails() {
+        val auth = withEnvironment(mapOf("{{credentialEnvPrefix}}_API_KEY" to "from-env")) {
+            ApiKeyAuthenticator("https://api.example.com", "api_key", "explicit", ApiKeyLocation.QUERY)
+        }
+        assertEquals("explicit", auth.getQueryParams()["api_key"])
+        val ex = withEnvironment(emptyMap()) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ApiKeyAuthenticator("https://api.example.com", "api_key", location = ApiKeyLocation.QUERY)
+            }
+        }
+        assertTrue(ex.message!!.contains("{{credentialEnvPrefix}}_API_KEY"), ex.message)
+    }
+
+    @Test
+    @DisplayName("F862: a key provider feeds the header, query and cookie locations on every request")
+    fun keyProviderFeedsEveryLocation() = runBlocking {
+        var calls = 0
+        for (location in ApiKeyLocation.values()) {
+            val auth = ApiKeyAuthenticator(
+                "https://api.example.com", "k", location = location, apiKeyProvider = { "key-" + (++calls) },
+            )
+            val headers = auth.getAuthHeaders()
+            val seen = headers["k"] ?: auth.getQueryParams()["k"] ?: auth.getCookieParams()["k"]
+            assertEquals("key-$calls", seen)
+        }
+        assertEquals(ApiKeyLocation.values().size, calls)
+    }
 }

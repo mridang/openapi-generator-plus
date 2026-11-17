@@ -20,3 +20,19 @@ abstract class BaseAuthenticator : Authenticator {
 
     override fun getCookieParams(): Map<String, String> = emptyMap()
 }
+
+/**
+ * Where a credential is read from when the caller does not pass it: the environment variable
+ * `OPEN_API_<FIELD>`. The value is read once, when the authenticator is built, and an
+ * empty value counts as not set.
+ */
+internal object CredentialEnvironment {
+    /** The environment lookup; an internal seam so a test needs no real environment variable. */
+    internal var lookup: (String) -> String? = { name -> System.getenv(name) }
+
+    /** The name of the environment variable that carries [field]. */
+    fun variable(field: String): String = "OPEN_API_$field"
+
+    /** The value of the variable for [field], or null when it is unset or empty. */
+    fun read(field: String): String? = lookup(variable(field))?.takeIf { it.isNotEmpty() }
+}

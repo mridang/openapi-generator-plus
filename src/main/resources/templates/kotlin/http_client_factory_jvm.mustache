@@ -107,8 +107,10 @@ internal actual fun buildPlatformHttpClient(options: TransportOptions): HttpClie
         // Content-Encoding body (a response arrived, ApiException with its
         // status) from an I/O failure while reading it (NetworkException).
 
-        if (options.timeout != null) {
-            install(HttpTimeout) {
+        // Always installed: the timeout one call asks for is armed per request, and
+        // without the plugin it would be ignored. With no `timeout` option it sets no limit.
+        install(HttpTimeout) {
+            if (options.timeout != null) {
                 requestTimeoutMillis = options.timeout.toLong()
                 connectTimeoutMillis = options.timeout.toLong()
                 socketTimeoutMillis = options.timeout.toLong()

@@ -98,14 +98,15 @@ class Client : AutoCloseable {
          * Creates a client authenticated with a static Bearer token.
          *
          * @param host API base URL
-         * @param accessToken Bearer token
+         * @param accessToken Bearer token; when null the environment variable
+         *   `OPEN_API_TOKEN` is used, and a missing token fails here
          * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
          * @return configured client instance
-         * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+         * @throws IllegalArgumentException if no token is given or set, or a configured custom CA certificate cannot be read or parsed
          */
         fun withToken(
             host: String,
-            accessToken: String,
+            accessToken: String? = null,
             transportOptions: TransportOptions? = null,
         ): Client =
             if (transportOptions != null) {

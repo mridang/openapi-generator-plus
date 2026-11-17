@@ -1810,6 +1810,105 @@ class DefaultApiClientUnitTest {
     }
 
     @Nested
+    @DisplayName("ambient proxy selector and per-call timeout against a real socket")
+    inner class RealSocket {
+        private fun withServer(
+            handler: (com.sun.net.httpserver.HttpExchange) -> Unit,
+            body: (Int) -> Unit,
+        ) {
+            val server =
+                com.sun.net.httpserver.HttpServer.create(
+                    java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0),
+                    0,
+                )
+            server.createContext("/") { exchange ->
+                handler(exchange)
+                exchange.close()
+            }
+            server.start()
+            try {
+                body(server.address.port)
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        @Test
+        @DisplayName("D74 (forced limit): with no TransportOptions.proxy the JVM default ProxySelector is consulted")
+        fun ambientProxySelectorIsConsultedWhenNoProxyIsConfigured() {
+            val savedSelector = java.net.ProxySelector.getDefault()
+            var selectorConsulted = false
+            withServer({ exchange ->
+                val bytes = "direct".toByteArray()
+                exchange.sendResponseHeaders(200, bytes.size.toLong())
+                exchange.responseBody.write(bytes)
+            }) { port ->
+                try {
+                    java.net.ProxySelector.setDefault(
+                        object : java.net.ProxySelector() {
+                            override fun select(uri: java.net.URI?): List<java.net.Proxy> {
+                                selectorConsulted = true
+                                return listOf(
+                                    java.net.Proxy(java.net.Proxy.Type.HTTP, java.net.InetSocketAddress("127.0.0.1", 1)),
+                                )
+                            }
+
+                            override fun connectFailed(
+                                uri: java.net.URI?,
+                                sa: java.net.SocketAddress?,
+                                ioe: java.io.IOException?,
+                            ) {
+                                selectorConsulted = true
+                            }
+                        },
+                    )
+                    val apiClient = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
+                    // The Ktor CIO engine asks the JVM default ProxySelector when no proxy is configured and
+                    // has no way to say "direct" (it rejects Proxy.NO_PROXY), so the other SDKs' rule that
+                    // ambient proxy settings are ignored cannot hold here. This pins the behaviour so a Ktor
+                    // change that lifts the limit is noticed.
+                    assertThrows(
+                        com.example.petstore.errors.NetworkException::class.java,
+                        { runBlocking { apiClient.sendRequest("GET", "http://127.0.0.1:$port/direct", emptyMap(), null) } },
+                    )
+                    apiClient.close()
+                    assertTrue(selectorConsulted, "the JVM default ProxySelector is expected to be consulted")
+                } finally {
+                    java.net.ProxySelector.setDefault(savedSelector)
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("F827: a per-call timeout applies even when the client has no timeout of its own")
+        fun perCallTimeoutAppliesWithoutAClientTimeout() {
+            withServer({ _ -> Thread.sleep(1500) }) { port ->
+                val apiClient =
+                    DefaultApiClient(
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(0)
+                            .build(),
+                    )
+                val started = System.nanoTime()
+                assertThrows(
+                    com.example.petstore.errors.NetworkTimeoutException::class.java,
+                    {
+                        runBlocking {
+                            kotlinx.coroutines.withContext(CallSettings(200L, null)) {
+                                apiClient.sendRequest("GET", "http://127.0.0.1:$port/slow", emptyMap(), null)
+                            }
+                        }
+                    },
+                )
+                apiClient.close()
+                assertTrue((System.nanoTime() - started) / 1_000_000L < 1400, "the call must give up near its own timeout")
+            }
+        }
+    }
+
+    @Nested
     @DisplayName("close lifecycle")
     inner class CloseLifecycle {
         @Test

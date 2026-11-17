@@ -25,6 +25,28 @@ publishing {
                         url.set("{{licenseUrl}}")
                     }
                 }
+{{#homepageUrl}}
+                url.set("{{#lambda.kotlinString}}{{{homepageUrl}}}{{/lambda.kotlinString}}")
+{{/homepageUrl}}
+{{#hasAuthors}}
+                developers {
+{{#authorList}}
+                    developer {
+                        name.set("{{#lambda.kotlinString}}{{{name}}}{{/lambda.kotlinString}}")
+                    }
+{{/authorList}}
+                }
+{{/hasAuthors}}
+{{#repositoryUrl}}
+                scm {
+                    url.set("{{#lambda.kotlinString}}{{{repositoryUrl}}}{{/lambda.kotlinString}}")
+                }
+{{/repositoryUrl}}
+{{#issueTrackerUrl}}
+                issueManagement {
+                    url.set("{{#lambda.kotlinString}}{{{issueTrackerUrl}}}{{/lambda.kotlinString}}")
+                }
+{{/issueTrackerUrl}}
             }
         }
     }

@@ -16,6 +16,8 @@ package com.example.petstore.errors
  * @param responseBody the raw HTTP response body, if available
  * @param errorBody the deserialized error body, if available
  * @param cause the underlying failure, if any
+ * @param requestMethod the HTTP method of the request that failed, if known
+ * @param requestPath the path of the request that failed, without its query string, if known
  */
 open class ClientException(
     statusCode: Int,
@@ -24,4 +26,6 @@ open class ClientException(
     responseBody: String? = null,
     errorBody: Any? = null,
     cause: Throwable? = null,
-) : ApiException(statusCode, message, responseHeaders, responseBody, errorBody, cause)
+    requestMethod: String? = null,
+    requestPath: String? = null,
+) : ApiException(statusCode, message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath)

@@ -10,6 +10,7 @@ package com.example.petstore.api
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
 import com.example.petstore.ApiResult
+import com.example.petstore.CallSettings
 import com.example.petstore.Configuration
 import com.example.petstore.DefaultApiClient
 import com.example.petstore.HeaderSelector
@@ -21,6 +22,7 @@ import com.example.petstore.auth.HttpAwareAuthenticator
 import com.example.petstore.auth.NoAuth
 import com.example.petstore.errors.ApiException
 import io.ktor.http.encodeURLParameter
+import kotlinx.coroutines.withContext
 
 /**
  * Base class for all API classes. Provides the [invokeApi] method that
@@ -108,6 +110,9 @@ abstract class BaseApi {
      * @param accepts     acceptable response content types
      * @param contentType request content type
      * @param auth        optional authenticator for operation-specific auth
+     * @param callTimeout optional end-to-end timeout in milliseconds for this call only
+     * @param callHeaders optional headers for this call only; they replace a header of the same name
+     * @param callMaxRetries optional number of retries for this call only; `0` disables them
      * @return ApiHttpResponse containing status code, body, and headers
      * @throws ApiException if the API call fails
      */
@@ -120,7 +125,16 @@ abstract class BaseApi {
         accepts: Array<String>,
         contentType: String,
         auth: Authenticator?,
+        callTimeout: Long? = null,
+        callHeaders: Map<String, String>? = null,
+        callMaxRetries: Int? = null,
     ): ApiHttpResponse {
+        require(callTimeout == null || callTimeout > 0) {
+            "Invalid timeout: must be a positive number of milliseconds (got $callTimeout)"
+        }
+        require(callMaxRetries == null || callMaxRetries >= 0) {
+            "Invalid maxRetries: must not be negative (got $callMaxRetries)"
+        }
         var url =
             if (path.startsWith("http://") || path.startsWith("https://")) {
                 path
@@ -155,6 +169,9 @@ abstract class BaseApi {
         if (auth != null && auth !== NoAuth && effectiveAuth is HttpAwareAuthenticator) {
             effectiveAuth.setApiClient(apiClient)
         }
+        /* The auth headers are fetched first: an authenticator whose credential comes from a
+         * provider refreshes it here, and its query and cookie values follow that refresh. */
+        val authHeaders = effectiveAuth?.getAuthHeaders()
         if (effectiveAuth != null) {
             for ((key, value) in effectiveAuth.getQueryParams()) {
                 queryParams[key] = value
@@ -171,7 +188,7 @@ abstract class BaseApi {
         headers.putAll(config.defaultHeaders)
         headers.putAll(headerParams)
         if (effectiveAuth != null) {
-            headers.putAll(effectiveAuth.getAuthHeaders())
+            headers.putAll(authHeaders.orEmpty())
             val cookies = effectiveAuth.getCookieParams()
             if (cookies.isNotEmpty()) {
                 // RFC 6265 — don't URL-encode cookie name/value; most cookie
@@ -197,6 +214,13 @@ abstract class BaseApi {
             }
         }
         TraceContextUtil.injectTraceContext(headers)
+        if (callHeaders != null) {
+            for ((name, value) in callHeaders) {
+                // Header names are case-insensitive: the per-call header replaces any layer before it.
+                headers.keys.removeAll { it.equals(name, ignoreCase = true) }
+                headers[name] = value
+            }
+        }
 
         val requestBody: Any? =
             if (body != null) {
@@ -254,7 +278,27 @@ abstract class BaseApi {
             headers.remove("Content-Type")
         }
 
-        var response = apiClient.sendRequest(method, url, headers, requestBody)
+        val requestPath = requestPathOf(url)
+        val callSettings =
+            if (callTimeout != null || callMaxRetries != null) CallSettings(callTimeout, callMaxRetries) else null
+
+        suspend fun send(sentHeaders: Map<String, String>): ApiHttpResponse =
+            try {
+                if (callSettings != null) {
+                    withContext(callSettings) { apiClient.sendRequest(method, url, sentHeaders, requestBody) }
+                } else {
+                    apiClient.sendRequest(method, url, sentHeaders, requestBody)
+                }
+            } catch (e: ApiException) {
+                // A failure the transport raised carries the request it belongs to.
+                if (e.requestMethod == null) {
+                    e.requestMethod = method
+                    e.requestPath = requestPath
+                }
+                throw e
+            }
+
+        var response = send(headers)
 
         if (response.statusCode == 401 && effectiveAuth is HttpAwareAuthenticator) {
             // A cached OAuth2 token the API no longer accepts must not outlive this answer.
@@ -277,15 +321,36 @@ abstract class BaseApi {
                         replayHeaders.keys.removeAll { it.equals(name, ignoreCase = true) }
                     }
                     replayHeaders.putAll(freshAuthHeaders)
-                    response = apiClient.sendRequest(method, url, replayHeaders, requestBody)
+                    response = send(replayHeaders)
                 }
             }
         }
         if (response.statusCode < 200 || response.statusCode >= 300) {
-            throw ApiException.fromResponse(response.statusCode, response.headers, response.body)
+            throw ApiException.fromResponse(
+                response.statusCode,
+                response.headers,
+                response.body,
+                method,
+                requestPath,
+            )
         }
 
         return response
+    }
+
+    /**
+     * The path of [url] without its query string or fragment, the path the failed request
+     * is reported with.
+     */
+    private fun requestPathOf(url: String): String {
+        val stripped = url.substringBefore('#').substringBefore('?')
+        val path =
+            try {
+                java.net.URI(stripped).rawPath
+            } catch (_: java.net.URISyntaxException) {
+                null
+            }
+        return if (path.isNullOrEmpty()) "/" else path
     }
 
     /**
@@ -305,6 +370,11 @@ abstract class BaseApi {
      * @param contentType request content type
      * @param auth       optional authenticator for operation-specific auth
      * @param operation  the operation name (Class.operationId) used in error text
+     * @param callTimeout optional end-to-end timeout in milliseconds for this call only
+     * @param callHeaders optional headers for this call only; they replace a header of the same name
+     * @param callMaxRetries optional number of retries for this call only; `0` disables them
+     * @param decodeSuccess decodes a success body by the actual status code, for an operation
+     *   whose 2xx responses carry different schemas; when null the body is decoded as [T]
      * @return ApiResult containing deserialized data, status code, raw body, and headers
      * @throws ApiException if the API call fails
      */
@@ -318,8 +388,25 @@ abstract class BaseApi {
         contentType: String,
         auth: Authenticator?,
         operation: String,
+        callTimeout: Long? = null,
+        callHeaders: Map<String, String>? = null,
+        callMaxRetries: Int? = null,
+        noinline decodeSuccess: ((Int, String) -> T?)? = null,
     ): ApiResult<T> {
-        val response = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
+        val response =
+            invokeApi(
+                method,
+                path,
+                queryParams,
+                headerParams,
+                body,
+                accepts,
+                contentType,
+                auth,
+                callTimeout,
+                callHeaders,
+                callMaxRetries,
+            )
         val responseContentType =
             response.headers.entries
                 .firstOrNull { it.key.equals("content-type", ignoreCase = true) }
@@ -327,7 +414,11 @@ abstract class BaseApi {
         // A void operation (T is Unit) never decodes its body: any success body,
         // JSON or not, is ignored rather than cast or deserialized into Unit.
         val data: T? =
-            if (response.body.isNotEmpty() && T::class != Unit::class) {
+            if (response.body.isNotEmpty() && decodeSuccess != null) {
+                // Several 2xx responses with different schemas: the status code, not the
+                // shape of the body, says which variant this body is.
+                decodeSuccess(response.statusCode, response.body)
+            } else if (response.body.isNotEmpty() && T::class != Unit::class) {
                 if (T::class == ByteArray::class) {
                     // Binary return types must never be JSON-deserialized, even
                     // when the negotiated response Content-Type is JSON (an
@@ -392,9 +483,14 @@ abstract class BaseApi {
             } else {
                 null
             }
-        // The result owns a copy: mutating the map the transport handed over
-        // must never change what the caller already holds, and vice versa.
-        return ApiResult(response.statusCode, data, response.body, response.headers.toMap())
+        // The result owns a read-only copy: mutating the map the transport handed over
+        // must never change what the caller already holds, and the caller cannot change it.
+        return ApiResult(
+            response.statusCode,
+            data,
+            response.body,
+            java.util.Collections.unmodifiableMap(LinkedHashMap(response.headers)),
+        )
     }
 
     /**

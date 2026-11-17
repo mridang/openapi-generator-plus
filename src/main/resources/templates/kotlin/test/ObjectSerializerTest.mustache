@@ -1460,6 +1460,25 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("F390: a double literal that overflows is refused rather than decoded as Infinity")
+        fun overflowingDoubleLiteralIsRefused() {
+            for (literal in listOf("1e400", "-1e400")) {
+                assertThrows(SerializationException::class.java, {
+                    serializer.deserialize<{{modelPackage}}.PhotoMetadataLocation>("{\"lat\":$literal,\"lng\":1}")
+                }, literal)
+            }
+        }
+
+        @Test
+        @DisplayName("F390: a float literal that overflows is refused rather than decoded as Infinity")
+        fun overflowingFloatLiteralIsRefused() {
+            assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                kotlinx.serialization.json.Json.decodeFromString(StrictFloatSerializer, "1e40")
+            }
+            assertEquals(1.5f, kotlinx.serialization.json.Json.decodeFromString(StrictFloatSerializer, "1.5"))
+        }
+
+        @Test
         @DisplayName("additionalProperties round-trips at the TOP level, not nested under a key")
         fun additionalPropertiesRoundTripAtTopLevel() {
             // Metadata declares `additionalProperties: true` and carries the

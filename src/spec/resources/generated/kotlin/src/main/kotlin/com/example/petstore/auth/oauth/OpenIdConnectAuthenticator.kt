@@ -116,13 +116,22 @@ open class OpenIdConnectAuthenticator(
         /* Discovery is an HTTP call like any other: a transport failure
          * propagates unchanged as NetworkException / NetworkTimeoutException. */
         val headers = mapOf("Accept" to "application/json")
-        val response = client.sendRequest("GET", openIdConnectUrl, headers, null)
+        /* The discovery document lives on the identity provider's host: sent as a no-redirect
+         * request, it neither carries the transport's default headers (an API Authorization or
+         * key header) nor follows a redirect to some other host (F860). */
+        val response = client.sendRequest("GET", openIdConnectUrl, headers, null, noRedirect = true)
         /* Guard the HTTP status before parsing: a 5xx/4xx discovery
          * response is typically an HTML/text error page, which would
          * otherwise surface as a confusing "invalid JSON" error instead
          * of the real "discovery failed" condition. */
         if (response.statusCode < 200 || response.statusCode >= 300) {
-            throw ApiException.fromResponse(response.statusCode, response.headers, response.body)
+            throw ApiException.fromResponse(
+                response.statusCode,
+                response.headers,
+                response.body,
+                "GET",
+                discoveryPath(),
+            )
         }
 
         val discovery =
@@ -181,6 +190,17 @@ open class OpenIdConnectAuthenticator(
         this.discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers))
         return resolved
     }
+
+    /** The path of the discovery URL, the path a failed discovery request is reported with. */
+    private fun discoveryPath(): String =
+        try {
+            java.net
+                .URI(openIdConnectUrl)
+                .rawPath
+                ?.takeIf { it.isNotEmpty() } ?: "/"
+        } catch (_: java.net.URISyntaxException) {
+            "/"
+        }
 
     /**
      * Extract a required endpoint URL from the discovery document, validating

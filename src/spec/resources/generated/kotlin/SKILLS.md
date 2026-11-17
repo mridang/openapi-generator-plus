@@ -40,6 +40,8 @@ val authenticator = BearerAuthenticator("https://api.example.com", "your-token")
 val client = Client(authenticator)
 ```
 
+A credential you pass wins; when you pass none, the authenticator reads `OPEN_API_TOKEN` (Basic auth: `OPEN_API_USERNAME` and `OPEN_API_PASSWORD`, API key: `OPEN_API_API_KEY`) once, when it is built, and an empty value counts as unset. A missing credential fails right there with an `IllegalArgumentException` naming the variable. A token that rotates takes `BearerAuthenticator(host, tokenProvider = { currentToken() })`, called on every request (`ApiKeyAuthenticator` has `apiKeyProvider`).
+
 ### Basic Auth
 
 ```kotlin
@@ -230,7 +232,27 @@ suspend fun addPetOrReport(client: Client, pet: Pet) {
 }
 ```
 
+### Request context on errors
+
+`ApiException` has `requestMethod` and `requestPath` (the path without its query string), shown on a `Request:` line of its string form; both are null on an exception you built yourself. When an operation declares several `2xx` responses with different schemas its result is a union decoded by the status code the server sent.
+
 ## Configuration
+
+### Per-call options
+
+The options object of an operation takes `timeout` (milliseconds, one end-to-end budget), `headers` (replace a header of the same name) and `maxRetries` (`0` disables) for that call only, in place of the client-wide setting:
+
+```kotlin
+client.someApi.someOperation(options = SomeOperationOptions(timeout = 2_000, maxRetries = 0))
+```
+
+### Response compression
+
+The SDK sends `Accept-Encoding: gzip, deflate` (`br` and `zstd` too when `org.brotli:dec` and `com.github.luben:zstd-jni` are on the classpath), decodes the body itself and drops `Content-Encoding` and `Content-Length` from the returned headers.
+
+### Logging
+
+The SDK writes no logs; inject a Ktor `HttpClient` with the `Logging` plugin through `TransportOptions.builder().httpClient(...)`.
 
 ### Custom Transport Options
 
