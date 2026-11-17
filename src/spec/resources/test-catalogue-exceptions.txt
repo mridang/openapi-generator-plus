@@ -24,3 +24,5 @@ dart | transport004 | Dart has no stdlib brotli decoder; a br response is refuse
 dart | transport006 | Dart has no stdlib zstd decoder; a zstd response is refused as an unsupported Content-Encoding, not decompressed
 node | transport006 | The Fetch layer owns Content-Encoding and the SDK adds no zstd decoder, so a zstd body is whatever fetch hands back; the SDK never decodes zstd itself (forced by fetch)
 node | errors042 | FORCED D-FORCED-1: the fetch layer owns Content-Encoding and node passes an unrecognised coding through untouched rather than raising ApiError (see the node AGENTS.md forced divergences)
+python | serializationobject015 | Python has no set order to keep: a uniqueItems array decodes to a set, which the SDK writes sorted (TestSetSanitization), so no insertion order exists to pin
+python | serializationobject032 | python enforces the declared minLength, maxLength, pattern and numeric bounds on decode (pydantic, shared rule S3), so an out-of-bounds slug, nickname or quantity is rejected; the nickname case is bhv serializationobject 030
