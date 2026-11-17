@@ -560,3 +560,59 @@ describe('ApiError', () => {
     });
   });
 });
+
+describe('ApiError typed errors', () => {
+  test.each([408, 409, 429, 500, 502, 503, 504, 599])(
+    'bhv errors 201 status %i is retryable because the client retries it',
+    (status) => {
+      expect(ApiError.fromResponse(status, {}, null).isRetryable).toBe(true);
+    }
+  );
+
+  test.each([302, 400, 401, 403, 404, 422, 501])(
+    'bhv errors 201 status %i is not retryable because the client does not retry it',
+    (status) => {
+      expect(ApiError.fromResponse(status, {}, null).isRetryable).toBe(false);
+    }
+  );
+
+  test('bhv errors 202 exposes the x-request-id response header as the request id', () => {
+    expect(ApiError.fromResponse(500, { 'X-Request-ID': 'abc' }, null).requestId).toBe('abc');
+    expect(ApiError.fromResponse(500, { 'x-request-id': 'abc' }, null).requestId).toBe('abc');
+    expect(ApiError.fromResponse(500, { other: 'abc' }, null).requestId).toBeNull();
+    expect(new ApiError(0, 'no response').requestId).toBeNull();
+  });
+
+  test('bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default', () => {
+    const factory =
+      (message: string): errors.ErrorSchemaFactory =>
+      (status, headers, body) =>
+        new ApiError(status, message, headers, body);
+    const schemas: errors.ErrorSchemas = {
+      '404': factory('exact'),
+      '4XX': factory('range'),
+      default: factory('default')
+    };
+    expect(ApiError.fromResponse(404, {}, '{}', undefined, schemas).message).toBe('exact');
+    expect(ApiError.fromResponse(418, {}, '{}', undefined, schemas).message).toBe('range');
+    expect(ApiError.fromResponse(502, {}, '{}', undefined, schemas).message).toBe('default');
+    expect(ApiError.fromResponse(502, {}, '{}', undefined, {}).constructor).toBe(BadGatewayError);
+    expect(ApiError.fromResponse(404, {}, '{}', undefined, undefined).constructor).toBe(NotFoundError);
+  });
+{{#hasErrorSchemas}}
+{{#errorSchemas}}
+{{#-first}}
+
+  test('bhv errors 204 a body that does not match its declared error schema leaves the status error with the raw body and a cause', () => {
+    const request = { method: 'GET', path: '/x' };
+    const error = errors.{{{className}}}.fromErrorResponse({{sampleStatus}}, {}, '[1, 2', request);
+
+    expect(error.constructor).toBe(ApiError.fromResponse({{sampleStatus}}, {}, '[1, 2', request).constructor);
+    expect(error.responseBody).toBe('[1, 2');
+    expect(error.statusCode).toBe({{sampleStatus}});
+    expect(error.cause).toBeDefined();
+  });
+{{/-first}}
+{{/errorSchemas}}
+{{/hasErrorSchemas}}
+});

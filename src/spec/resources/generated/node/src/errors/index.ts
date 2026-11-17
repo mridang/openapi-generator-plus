@@ -7,7 +7,12 @@
 
 export { OpenAPIError } from "./open-api-error.js";
 export { ApiError } from "./api-error.js";
-export type { ApiErrorOptions, StatusErrorFactory } from "./api-error.js";
+export type {
+  ApiErrorOptions,
+  ErrorSchemaFactory,
+  ErrorSchemas,
+  StatusErrorFactory,
+} from "./api-error.js";
 export { ClientError } from "./client-error.js";
 export { ServerError } from "./server-error.js";
 export { BadRequestError } from "./bad-request-error.js";
@@ -32,5 +37,12 @@ export { InternalServerError } from "./internal-server-error.js";
 export { NetworkError } from "./network-error.js";
 export { NetworkTimeoutError } from "./network-timeout-error.js";
 export { SerializationError } from "./serialization-error.js";
+export type { SerializationErrorResponse } from "./serialization-error.js";
 export { OAuth2ServerError } from "./oauth2-server-error.js";
 export { OAuth2TokenError } from "./oauth2-token-error.js";
+export { UnexpectedFailureError } from "./unexpected-failure-error.js";
+export { MemberNotFoundError } from "./member-not-found-error.js";
+export { ProjectNotFoundError } from "./project-not-found-error.js";
+export { RejectedRequestError } from "./rejected-request-error.js";
+export { UpstreamFailureError } from "./upstream-failure-error.js";
+export { StateConflictError } from "./state-conflict-error.js";

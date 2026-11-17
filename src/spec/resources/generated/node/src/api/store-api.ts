@@ -116,6 +116,8 @@ export class StoreApi extends BaseApi {
    * @param orderId ID of the order to delete (required)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
+   * @throws NotFoundError on HTTP 404
    */
   async deleteOrder(
     orderId: number,
@@ -128,6 +130,8 @@ export class StoreApi extends BaseApi {
    * Delete purchase order by ID (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
+   * @throws NotFoundError on HTTP 404
    */
   async deleteOrderWithHttpInfo(
     orderId: number,
@@ -563,6 +567,8 @@ export class StoreApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Order
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
+   * @throws NotFoundError on HTTP 404
    */
   async getOrderById(
     orderId: number,
@@ -591,6 +597,8 @@ export class StoreApi extends BaseApi {
    * Find purchase order by ID (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
+   * @throws NotFoundError on HTTP 404
    */
   async getOrderByIdWithHttpInfo(
     orderId: number,
@@ -1016,6 +1024,7 @@ export class StoreApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Order
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
    */
   async placeOrder(
     order?: DeepInput<Order>,
@@ -1044,6 +1053,7 @@ export class StoreApi extends BaseApi {
    * Place an order for a pet (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
    */
   async placeOrderWithHttpInfo(
     order?: DeepInput<Order>,
@@ -1075,6 +1085,7 @@ export class StoreApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ReserveStockResponse
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
    */
   async reserveStock(
     requestOptions?: RequestOptions,
@@ -1100,6 +1111,7 @@ export class StoreApi extends BaseApi {
    * Reserve stock, answering with the existing or a new reservation (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
    */
   async reserveStockWithHttpInfo(
     requestOptions?: RequestOptions,

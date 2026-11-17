@@ -51,6 +51,30 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterNodeCodegen.class);
 
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema-error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(outputFolder, "src", "errors", NamingConvention.KEBAB_CASE.apply(className) + ".ts")
+                .toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void decorateErrorSchema(Map<String, Object> schema) {
+        schema.put(
+                "classFileName",
+                NamingConvention.KEBAB_CASE.apply(Objects.requireNonNull((String) schema.get("className"))));
+        schema.put(
+                "parentFileName",
+                NamingConvention.KEBAB_CASE.apply(Objects.requireNonNull((String) schema.get("parentClassName"))));
+    }
+
     /**
      * Initializes all TypeScript-specific type mappings, language
      * primitives, template paths, and reserved words. Maps OpenAPI

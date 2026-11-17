@@ -52,6 +52,7 @@ class CapturingApiClient implements ApiClient {
   capturedHeaders: Record<string, string> = {};
   capturedBody: string | Buffer | Record<string, unknown> | null = null;
   responseBody = "{}";
+  responseStatus = 200;
   responseHeaders: Record<string, string> = {
     "content-type": "application/json",
   };
@@ -65,7 +66,7 @@ class CapturingApiClient implements ApiClient {
     this.capturedHeaders = headers;
     this.capturedBody = body;
     return {
-      statusCode: 200,
+      statusCode: this.responseStatus,
       body: this.responseBody,
       headers: this.responseHeaders,
     };
@@ -1551,6 +1552,45 @@ describe("BaseApi content-type deserialization guard", () => {
       new SerializationError(
         "Unexpected response Content-Type 'text/plain' for TestableApi.testOperation: expected a JSON body",
       ),
+    );
+  });
+
+  test("bhv errors 205 a response body that cannot be decoded raises an error carrying the status, headers, raw body and request", async () => {
+    const client = new CapturingApiClient();
+    client.responseStatus = 203;
+    client.responseBody = "hello";
+    client.responseHeaders = {
+      "content-type": "text/plain",
+      "x-request-id": "req-1",
+    };
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const testApi = new TestableApi(client, config);
+    const error = await testApi
+      .call(
+        "GET",
+        "/test/echo",
+        { page: "2" },
+        {},
+        null,
+        ["application/json"],
+        "application/json",
+        (json) => json as { id: number },
+        undefined,
+        "model",
+      )
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(SerializationError);
+    const decode = error as SerializationError;
+    expect(decode.statusCode).toBe(203);
+    expect(decode.responseHeaders).toEqual({
+      "content-type": "text/plain",
+      "x-request-id": "req-1",
+    });
+    expect(decode.responseBody).toBe("hello");
+    expect(decode.requestMethod).toBe("GET");
+    expect(decode.requestPath).toBe("/test/echo");
+    expect(decode.message).toContain(
+      "Unexpected response Content-Type 'text/plain'",
     );
   });
 

@@ -2,7 +2,7 @@
 
 export { {{errorPrefix}}Error } from './{{errorPrefixKebab}}-error{{importFileExtension}}';
 export { ApiError } from './api-error{{importFileExtension}}';
-export type { ApiErrorOptions, StatusErrorFactory } from './api-error{{importFileExtension}}';
+export type { ApiErrorOptions, ErrorSchemaFactory, ErrorSchemas, StatusErrorFactory } from './api-error{{importFileExtension}}';
 export { ClientError } from './client-error{{importFileExtension}}';
 export { ServerError } from './server-error{{importFileExtension}}';
 export { BadRequestError } from './bad-request-error{{importFileExtension}}';
@@ -27,5 +27,9 @@ export { InternalServerError } from './internal-server-error{{importFileExtensio
 export { NetworkError } from './network-error{{importFileExtension}}';
 export { NetworkTimeoutError } from './network-timeout-error{{importFileExtension}}';
 export { SerializationError } from './serialization-error{{importFileExtension}}';
+export type { SerializationErrorResponse } from './serialization-error{{importFileExtension}}';
 export { OAuth2ServerError } from './oauth2-server-error{{importFileExtension}}';
 export { OAuth2TokenError } from './oauth2-token-error{{importFileExtension}}';
+{{#errorSchemas}}
+export { {{className}} } from './{{classFileName}}{{importFileExtension}}';
+{{/errorSchemas}}

@@ -15,6 +15,14 @@ import { Configuration } from "../configuration.js";
 import { ObjectSerializer } from "../object-serializer.js";
 import { ValueSerializer } from "../value-serializer.js";
 import { ModelResult } from "../models/index.js";
+import {
+  UnexpectedFailureError,
+  MemberNotFoundError,
+  ProjectNotFoundError,
+  RejectedRequestError,
+  UpstreamFailureError,
+  StateConflictError,
+} from "../errors/index.js";
 
 /**
  * ProblemsApi provides methods for the Problems API group.
@@ -36,6 +44,7 @@ export class ProblemsApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ModelResult
    * @throws {ApiError} if fails to make API call
+   * @throws UnexpectedFailureError on HTTP default with a UnexpectedFailure body
    */
   async getFallback(
     fallbackId: string,
@@ -64,6 +73,7 @@ export class ProblemsApi extends BaseApi {
    * Read a fallback, declaring a default response (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws UnexpectedFailureError on HTTP default with a UnexpectedFailure body
    */
   async getFallbackWithHttpInfo(
     fallbackId: string,
@@ -104,6 +114,15 @@ export class ProblemsApi extends BaseApi {
       "model",
       "getFallback",
       requestOptions,
+      {
+        default: (statusCode, responseHeaders, responseBody, request) =>
+          UnexpectedFailureError.fromErrorResponse(
+            statusCode,
+            responseHeaders,
+            responseBody,
+            request,
+          ),
+      },
     );
   }
 
@@ -113,6 +132,7 @@ export class ProblemsApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ModelResult
    * @throws {ApiError} if fails to make API call
+   * @throws MemberNotFoundError on HTTP 404 with a MemberNotFound body
    */
   async getMember(
     memberId: string,
@@ -141,6 +161,7 @@ export class ProblemsApi extends BaseApi {
    * Read a member, declaring a 404 with a different schema (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws MemberNotFoundError on HTTP 404 with a MemberNotFound body
    */
   async getMemberWithHttpInfo(
     memberId: string,
@@ -181,6 +202,15 @@ export class ProblemsApi extends BaseApi {
       "model",
       "getMember",
       requestOptions,
+      {
+        "404": (statusCode, responseHeaders, responseBody, request) =>
+          MemberNotFoundError.fromErrorResponse(
+            statusCode,
+            responseHeaders,
+            responseBody,
+            request,
+          ),
+      },
     );
   }
 
@@ -190,6 +220,7 @@ export class ProblemsApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ModelResult
    * @throws {ApiError} if fails to make API call
+   * @throws ProjectNotFoundError on HTTP 404 with a ProjectNotFound body
    */
   async getProject(
     projectId: string,
@@ -218,6 +249,7 @@ export class ProblemsApi extends BaseApi {
    * Read a project, declaring a 404 with its own schema (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws ProjectNotFoundError on HTTP 404 with a ProjectNotFound body
    */
   async getProjectWithHttpInfo(
     projectId: string,
@@ -258,6 +290,15 @@ export class ProblemsApi extends BaseApi {
       "model",
       "getProject",
       requestOptions,
+      {
+        "404": (statusCode, responseHeaders, responseBody, request) =>
+          ProjectNotFoundError.fromErrorResponse(
+            statusCode,
+            responseHeaders,
+            responseBody,
+            request,
+          ),
+      },
     );
   }
 
@@ -267,6 +308,7 @@ export class ProblemsApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ModelResult
    * @throws {ApiError} if fails to make API call
+   * @throws RejectedRequestError on HTTP 4XX with a RejectedRequest body
    */
   async getRange(
     rangeId: string,
@@ -295,6 +337,7 @@ export class ProblemsApi extends BaseApi {
    * Read a range, declaring one schema for every 4XX status (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws RejectedRequestError on HTTP 4XX with a RejectedRequest body
    */
   async getRangeWithHttpInfo(
     rangeId: string,
@@ -335,6 +378,15 @@ export class ProblemsApi extends BaseApi {
       "model",
       "getRange",
       requestOptions,
+      {
+        "4XX": (statusCode, responseHeaders, responseBody, request) =>
+          RejectedRequestError.fromErrorResponse(
+            statusCode,
+            responseHeaders,
+            responseBody,
+            request,
+          ),
+      },
     );
   }
 
@@ -344,6 +396,7 @@ export class ProblemsApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ModelResult
    * @throws {ApiError} if fails to make API call
+   * @throws UpstreamFailureError on HTTP 5XX with a UpstreamFailure body
    */
   async getUpstream(
     upstreamId: string,
@@ -372,6 +425,7 @@ export class ProblemsApi extends BaseApi {
    * Read an upstream, declaring one schema for every 5XX status (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws UpstreamFailureError on HTTP 5XX with a UpstreamFailure body
    */
   async getUpstreamWithHttpInfo(
     upstreamId: string,
@@ -412,6 +466,15 @@ export class ProblemsApi extends BaseApi {
       "model",
       "getUpstream",
       requestOptions,
+      {
+        "5XX": (statusCode, responseHeaders, responseBody, request) =>
+          UpstreamFailureError.fromErrorResponse(
+            statusCode,
+            responseHeaders,
+            responseBody,
+            request,
+          ),
+      },
     );
   }
 
@@ -421,6 +484,8 @@ export class ProblemsApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ModelResult
    * @throws {ApiError} if fails to make API call
+   * @throws StateConflictError on HTTP 409 with a StateConflict body
+   * @throws StateConflictError on HTTP 423 with a StateConflict body
    */
   async takeLock(
     lockId: string,
@@ -449,6 +514,8 @@ export class ProblemsApi extends BaseApi {
    * Take a lock, declaring one schema under two statuses (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws StateConflictError on HTTP 409 with a StateConflict body
+   * @throws StateConflictError on HTTP 423 with a StateConflict body
    */
   async takeLockWithHttpInfo(
     lockId: string,
@@ -489,6 +556,22 @@ export class ProblemsApi extends BaseApi {
       "model",
       "takeLock",
       requestOptions,
+      {
+        "409": (statusCode, responseHeaders, responseBody, request) =>
+          StateConflictError.fromErrorResponse(
+            statusCode,
+            responseHeaders,
+            responseBody,
+            request,
+          ),
+        "423": (statusCode, responseHeaders, responseBody, request) =>
+          StateConflictError.fromErrorResponse(
+            statusCode,
+            responseHeaders,
+            responseBody,
+            request,
+          ),
+      },
     );
   }
 }

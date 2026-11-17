@@ -3477,6 +3477,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return null;
     }
 
+    /**
+     * Adds language-specific keys, such as a file name, to one entry of {@code errorSchemas}
+     * before the templates see it. The default adds nothing.
+     *
+     * @param schema the entry, with {@code className} among its keys
+     */
+    protected void decorateErrorSchema(Map<String, Object> schema) {
+        // no language-specific keys by default
+    }
+
     /** Names of the error schema classes already written, so each is written once. */
     private final java.util.Set<String> writtenErrorSchemas = new java.util.HashSet<>();
 
@@ -3545,9 +3555,43 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final List<Map<String, Object>> schemas =
                 ErrorResponses.distinctSchemas(
                         new ArrayList<>(declaredErrorsByOperation.values()), suffix, this::statusClassName);
+        for (final Map<String, Object> schema : schemas) {
+            decorateErrorSchema(schema);
+        }
         additionalProperties.put("errorSchemas", schemas);
         additionalProperties.put("hasErrorSchemas", !schemas.isEmpty());
         writeErrorSchemaFiles(schemas);
+    }
+
+    /**
+     * Exposes {@code errorSchemaImports} on the operations object: the distinct error schema
+     * classes the operations of this API group pass to the transport, so a template imports
+     * exactly the ones it uses. Runs after the operation decorators are populated.
+     */
+    private void putErrorSchemaImports(Map<String, Object> objs, @Nullable List<CodegenOperation> ops) {
+        final java.util.Set<String> usedErrorSchemas = new java.util.LinkedHashSet<>();
+        if (ops != null) {
+            for (final CodegenOperation op : ops) {
+                if (op.vendorExtensions == null) {
+                    continue;
+                }
+                final Object rows =
+                        decoratorMap(op.vendorExtensions, OP_DECORATOR_NS).get("errorSchemaResponses");
+                if (rows instanceof List) {
+                    for (final Object row : (List<?>) rows) {
+                        final Object className = ((Map<?, ?>) row).get("schemaClassName");
+                        if (className != null) {
+                            usedErrorSchemas.add((String) className);
+                        }
+                    }
+                }
+            }
+        }
+        final List<Map<String, Object>> errorSchemaImports = new ArrayList<>();
+        for (final String className : usedErrorSchemas) {
+            errorSchemaImports.add(new HashMap<>(Map.of("className", className)));
+        }
+        objs.put("errorSchemaImports", errorSchemaImports);
     }
 
     /**
@@ -4872,6 +4916,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     }
                 }
             }
+            putErrorSchemaImports(objs, ops);
         }
         cleanupBadImports(objs);
 

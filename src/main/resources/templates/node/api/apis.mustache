@@ -22,6 +22,9 @@ import type { {{#brandImports}}{{.}}{{^-last}}, {{/-last}}{{/brandImports}} } fr
 {{#imports.0}}
 import { {{#imports}}{{className}}{{^-last}}, {{/-last}}{{/imports}} } from '../models/index{{importFileExtension}}';
 {{/imports.0}}
+{{#errorSchemaImports.0}}
+import { {{#errorSchemaImports}}{{className}}{{^-last}}, {{/-last}}{{/errorSchemaImports}} } from '../errors/index{{importFileExtension}}';
+{{/errorSchemaImports.0}}
 {{#optionsImports}}
 import type { {{optionsClassName}} } from './options/{{optionsFileName}}{{importFileExtension}}';
 {{/optionsImports}}
@@ -155,6 +158,9 @@ export class {{classname}} extends BaseApi {
    * @return {{{returnType}}}
 {{/returnType}}
    * @throws {ApiError} if fails to make API call
+{{#vendorExtensions.op.errorResponses}}
+   * @throws {{#hasSchema}}{{{schemaClassName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}} on HTTP {{status}}{{#hasSchema}} with a {{{schemaName}}} body{{/hasSchema}}
+{{/vendorExtensions.op.errorResponses}}
 {{#isDeprecated}}
    * @deprecated This operation is deprecated.
 {{/isDeprecated}}
@@ -188,6 +194,9 @@ export class {{classname}} extends BaseApi {
    * {{&summary}} (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+{{#vendorExtensions.op.errorResponses}}
+   * @throws {{#hasSchema}}{{{schemaClassName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}} on HTTP {{status}}{{#hasSchema}} with a {{{schemaName}}} body{{/hasSchema}}
+{{/vendorExtensions.op.errorResponses}}
 {{#isDeprecated}}
    * @deprecated This operation is deprecated.
 {{/isDeprecated}}
@@ -376,7 +385,13 @@ export class {{classname}} extends BaseApi {
       {{#bodyParam}}{{#isBinary}}true{{/isBinary}}{{^isBinary}}false{{/isBinary}}{{/bodyParam}}{{^bodyParam}}false{{/bodyParam}},
       {{#returnType}}'{{#returnProperty}}{{#isBinary}}binary{{/isBinary}}{{^isBinary}}{{#isFile}}binary{{/isFile}}{{^isFile}}{{#isByteArray}}model{{/isByteArray}}{{^isByteArray}}{{#isString}}{{^isEnumRef}}string{{/isEnumRef}}{{#isEnumRef}}model{{/isEnumRef}}{{/isString}}{{^isString}}model{{/isString}}{{/isByteArray}}{{/isFile}}{{/isBinary}}{{/returnProperty}}{{^returnProperty}}model{{/returnProperty}}'{{/returnType}}{{^returnType}}undefined{{/returnType}},
       '{{nickname}}',
-      requestOptions
+      requestOptions{{#vendorExtensions.op.hasErrorSchemaResponses}},
+      {
+{{#vendorExtensions.op.errorSchemaResponses}}
+        '{{{status}}}': (statusCode, responseHeaders, responseBody, request) =>
+          {{{schemaClassName}}}.fromErrorResponse(statusCode, responseHeaders, responseBody, request){{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+      }{{/vendorExtensions.op.hasErrorSchemaResponses}}
     );
   }
   {{/operation}}
