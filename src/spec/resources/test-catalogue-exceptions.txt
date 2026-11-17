@@ -17,6 +17,9 @@ go | lifecycle015 | Go has no keyword arguments, so one credential per security 
 rust | authintegration011 | Rust operations take no per-call authenticator and the Options structs are plain data with no authenticator field, a shape the type system enforces at compile time, so no run-time test can observe its absence
 rust | options007 | max_retries takes a u32, so a negative count cannot be passed and the compiler rejects it before the builder runs
 rust | models009 | additional properties are a HashMap<String, JsonValue> that keeps any JSON value (models001 covers the round trip), so a string-only type is not the rust contract
+rust | headers002 | selectHeaders takes a &str content type, so a nil Content-Type cannot be passed; the empty-string default is covered by bhv headers 001
+rust | headers005 | selectHeaders takes a slice of accept values, so a null accept cannot be passed; an empty slice is covered by bhv headers 004
+rust | headers015 | isJsonMime takes a &str, so nil cannot be passed; the empty string is covered by bhv headers 014
 dart | serializationobject164 | Dart has no time-of-day type: a format: time property is a String that the SDK passes through unchanged (serializationobject114), so there is no HH:mm:ss or .SSS formatter to test
 dart | headers002 | selectHeaders takes a non-nullable String contentType, so a nil Content-Type cannot be passed; the empty-string default is covered by bhv headers 001
 dart | headers005 | selectHeaders takes a non-nullable List of accept values, so a null accept cannot be passed; the empty list is covered by bhv headers 004
