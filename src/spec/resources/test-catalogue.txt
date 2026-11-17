@@ -1031,6 +1031,7 @@ errors047 | An internal server error is an ApiError, a ServerError and the brand
 lifecycle024 | A supplied psr18 client conflicts with sdk proxy and tls settings
 errors047 | A typed API error is an ApiError and also the branded OpenAPIException root
 errors047 | A 500 typed error is an OpenAPI error and chains through ServerError to ApiError
+errors047 | An ApiError is an Error and conforms to the branded OpenAPIError root
 serializationobject187 | An explicit key wins over the environment
 errors048 | 418 throws ClientException
 authbasic013 | Explicit credentials win over the environment | multi

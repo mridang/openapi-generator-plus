@@ -198,6 +198,27 @@ import Testing
     #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
   }
 
+  @Test func testBhvAuthbearer018PetStoreBearerAuthenticatorAnExplicitTokenWinsOverTheEnvironment()
+    async throws
+  {
+    let auth = try PetStoreBearerAuthenticator(
+      host: "https://api.example.com", token: "explicit-token",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "from-environment"])
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+  }
+
+  /* The variable is read once, when the authenticator is built: a later change to
+     the environment does not reach a token that is already held. */
+  @Test func testBhvLifecycle025PetStoreBearerAuthenticatorReadsTheEnvironmentOnceWhenBuilt()
+    async throws
+  {
+    var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "first"]
+    let auth = try PetStoreBearerAuthenticator(
+      host: "https://api.example.com", token: nil, environment: environment)
+    environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "second"]
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
+  }
+
   @Test
   func
     testBhvAuthbearer010ServiceTokenAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
@@ -211,6 +232,27 @@ import Testing
       host: "https://api.example.com", token: "explicit-token",
       environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
     #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
+  }
+
+  @Test func testBhvAuthbearer018ServiceTokenAuthenticatorAnExplicitTokenWinsOverTheEnvironment()
+    async throws
+  {
+    let auth = try ServiceTokenAuthenticator(
+      host: "https://api.example.com", token: "explicit-token",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "from-environment"])
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+  }
+
+  /* The variable is read once, when the authenticator is built: a later change to
+     the environment does not reach a token that is already held. */
+  @Test func testBhvLifecycle025ServiceTokenAuthenticatorReadsTheEnvironmentOnceWhenBuilt()
+    async throws
+  {
+    var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "first"]
+    let auth = try ServiceTokenAuthenticator(
+      host: "https://api.example.com", token: nil, environment: environment)
+    environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "second"]
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
   }
 
   private static func schemeWrapper(_ scheme: String, token: String) throws -> BearerAuthenticator {

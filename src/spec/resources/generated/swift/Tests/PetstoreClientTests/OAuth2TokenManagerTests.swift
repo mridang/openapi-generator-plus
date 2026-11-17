@@ -607,7 +607,7 @@ import Testing
   }
 
   /* The three forms of the token-endpoint failure message. */
-  @Test func testTokenEndpointFailureMessageHasThreeForms() async {
+  @Test func testBhvErrors046TokenEndpointFailureMessageHasThreeForms() async {
     let cases: [(body: String, message: String)] = [
       ("upstream down", "Token request failed with status 400: upstream down"),
       (

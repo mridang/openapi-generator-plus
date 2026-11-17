@@ -397,7 +397,7 @@ import Testing
 
   // MARK: - SerializeStyled: form
 
-  @Test func testSerializeStyledFormScalar() {
+  @Test func testBhvSerializationparam105SerializeStyledFormScalar() {
     let result = ValueSerializer.serializeStyled(
       "color", value: "blue", location: "query", schemaType: "string", collectionFormat: "",
       style: "form", explode: true)

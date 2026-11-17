@@ -28,6 +28,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
   private var delegate: OAuth2AuthorizationCodeAuthenticator?
   private var discoveredEndpoints: String?
   private var discoveryExpiry: TimeInterval = -.infinity
+  private var discoveryInFlight: Task<OAuth2AuthorizationCodeAuthenticator, Error>?
   private let lock = NSLock()
 
   /// Creates a new OpenID Connect authenticator.
@@ -95,16 +96,44 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
   /// header from the discovery response; falls back to the RFC 8414
   /// recommended default of 86400 seconds when absent.
   private func resolveDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
-    let existing: OAuth2AuthorizationCodeAuthenticator? = lock.withLock {
+    /* Concurrent callers on a cold authenticator share one discovery request: the
+     * first caller starts it, and every caller that arrives while it runs waits for
+     * the same task. A failed discovery is not kept, so the next call tries again. */
+    let step: DiscoveryStep = lock.withLock {
       if let d = delegate, MonotonicClock.now() < discoveryExpiry {
-        return d
+        return .ready(d)
       }
-      return nil
+      if let pending = discoveryInFlight {
+        return .pending(pending)
+      }
+      let task = Task { () -> OAuth2AuthorizationCodeAuthenticator in
+        let outcome: Result<OAuth2AuthorizationCodeAuthenticator, Error>
+        do {
+          outcome = .success(try await self.discoverDelegate())
+        } catch {
+          outcome = .failure(error)
+        }
+        self.lock.withLock { self.discoveryInFlight = nil }
+        return try outcome.get()
+      }
+      discoveryInFlight = task
+      return .pending(task)
     }
-    if let existing = existing {
-      return existing
+    switch step {
+    case .ready(let d):
+      return d
+    case .pending(let task):
+      return try await task.value
     }
+  }
 
+  private enum DiscoveryStep {
+    case ready(OAuth2AuthorizationCodeAuthenticator)
+    case pending(Task<OAuth2AuthorizationCodeAuthenticator, Error>)
+  }
+
+  /// Fetches and validates the discovery document and caches the delegate it names.
+  private func discoverDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
     let client: ApiClient = try lock.withLock {
       guard let client = apiClient else {
         throw ConfigurationError.invalidState(

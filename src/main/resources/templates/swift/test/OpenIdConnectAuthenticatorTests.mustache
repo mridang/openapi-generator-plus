@@ -54,6 +54,7 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
         var lastHeaders: [String: String] = [:]
         var lastBody: Data? = nil
         var getCount: Int = 0
+        var delayNanoseconds: UInt64 = 0
 
         /// Satisfies the ApiClient requirement that carries no request options.
         func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
@@ -70,6 +71,9 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
             lastBody = body as? Data
             if method == "GET" {
                 getCount += 1
+            }
+            if delayNanoseconds > 0 {
+                try await Task.sleep(nanoseconds: delayNanoseconds)
             }
             return try responses.removeFirst().get()
         }
@@ -335,6 +339,29 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
         await #expect(throws: SerializationError.self) {
             _ = try await auth.buildAuthorizationURL()
         }
+    }
+
+    /* The delay keeps the first discovery in flight while the other callers arrive. */
+    @Test func testBhvAuthoidc029ConcurrentCallersOnAColdAuthenticatorShareOneDiscovery() async throws {
+        let client = MockApiClient()
+        client.delayNanoseconds = 100_000_000
+        client.responses = Array(repeating: .success(makeResponse(body: Self.discoveryJSON)), count: 8)
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        try await withThrowingTaskGroup(of: String.self) { group in
+            for _ in 0..<8 {
+                group.addTask { try await auth.buildAuthorizationURL() }
+            }
+            var built = 0
+            for try await url in group {
+                #expect(url.hasPrefix("https://auth.example.com/authorize"))
+                built += 1
+            }
+            #expect(built == 8)
+        }
+        #expect(client.getCount == 1)
     }
 
     @Test func testBhvAuthoidc011FetchesDiscoveryDocumentOnlyOnce() async throws {

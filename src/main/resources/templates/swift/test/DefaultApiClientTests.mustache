@@ -61,6 +61,17 @@ import FoundationNetworking
         #expect(resp.statusCode == 200)
     }
 
+    /* The authenticating proxy answers 407 to a request that carries no
+       credentials, so the SDK returns that status rather than a network error. */
+    @Test func testBhvTransport059AuthenticatingProxyRefusesARequestWithoutCredentials() async throws {
+        try await setUpContainers()
+        let transport = try TransportOptionsBuilder().proxy("http://\(proxyAuthHostPort)").build()
+        let client = try DefaultApiClient(transportOptions: transport)
+        let response = try await client.sendRequest(
+            method: "GET", url: chasmInternalHttpUrl + "/test/echo", headers: [:], body: nil)
+        #expect(response.statusCode == 407)
+    }
+
     @Test func testBhvTransport015MakesHttpRequestThroughProxy() async throws {
         let transport = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
         let client = makeClient(transport: transport) { _ in

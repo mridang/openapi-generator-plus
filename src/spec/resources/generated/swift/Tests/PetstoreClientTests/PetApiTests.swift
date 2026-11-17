@@ -958,7 +958,7 @@ final class PetApiTests {
 
   // form-space-encoding-plus: a space in an x-www-form-urlencoded value must be
   // encoded as `+`, not `%20`, per the WHATWG form-encoding standard.
-  @Test func testFormSpaceEncodedAsPlus() async throws {
+  @Test func testBhvSerializationwire055FormSpaceEncodedAsPlus() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
