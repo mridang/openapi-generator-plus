@@ -669,6 +669,17 @@ test('bhv operations 016 sends no body when null', function (): void {
     expect(true)->toBeTrue();
 });
 
+test('bhv options 002 null options omits allow empty value param from the query', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->findPetsByStatus();
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->not->toContain('status=');
+});
+
 test('bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query', function (): void {
     // findPetsByStatus has an optional `status` query param declared
     // allowEmptyValue:true. allowEmptyValue means the server tolerates an empty
@@ -1044,6 +1055,18 @@ test('bhv operations 002 all headers from selector flow through', function (): v
 // fix; GREEN in PHP (base_api array_merge puts the config defaults last).
 
 test('bhv operations 008 config default Accept wins over operation-negotiated Accept', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('Accept', 'application/xml')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
+});
+
+test('bhv options 001 config default header overrides operation negotiated accept', function (): void {
     $client = new CapturingApiClient();
     $config = Configuration::builder()
         ->baseUrl('http://localhost')
