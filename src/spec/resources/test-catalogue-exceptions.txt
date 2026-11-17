@@ -60,3 +60,7 @@ go | *unnumbered | tests beyond the shared catalogue: language-specific behaviou
 rust | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 swift | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
 elixir | *unnumbered | tests beyond the shared catalogue: language-specific behaviour, internal helpers and regression cases that are deliberately not part of the cross-language contract
+elixir | config002 | Elixir has no builder: Configuration.new/1 takes the headers once as a keyword list, so there is no accumulating setter to call repeatedly
+elixir | config003 | Elixir has no builder and no chained setters: Configuration is an immutable struct built once by Configuration.new/1, so there is no fluent call chain to test
+elixir | config004 | Elixir has no builder and no separate single-header and bulk-header setters: headers are one keyword list given to Configuration.new/1, so there is no merge step
+elixir | config007 | Elixir has no builder: Configuration.new/1 returns the configuration struct directly, so there is no builder instance to return

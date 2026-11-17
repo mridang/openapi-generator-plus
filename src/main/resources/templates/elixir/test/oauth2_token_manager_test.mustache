@@ -256,7 +256,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
     end
 
-    test "bhv authoauthtwotokenmgr 027 10 concurrent get_access_token calls hit token endpoint exactly once" do
+    test "bhv authoauthtwotokenmgr 027 ten concurrent get_access_token calls hit token endpoint exactly once" do
       counting_client = CountingApiClient.new()
 
       {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
