@@ -39,6 +39,9 @@ class OperationDecoratorTest {
             "apiClassName",
             "optionsParamRequired",
             "hasOptionsParam",
+            "optionsCallSettingsOnly",
+            "optionsMinted",
+            "optionsForEveryOperation",
             "hasPerOperationServer",
             "requestBodyKind",
             "returnKind",
@@ -112,6 +115,84 @@ class OperationDecoratorTest {
         assertEquals("none", deco.get("requestBodyKind"));
         assertEquals("model", deco.get("returnKind"));
         assertEquals(true, deco.get("hasReturnType"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> decorator(CodegenOperation op) {
+        return Objects.requireNonNull((Map<String, Object>) op.vendorExtensions.get("op"));
+    }
+
+    private static CodegenOperation bareOperation() {
+        final CodegenOperation op = new CodegenOperation();
+        op.operationId = "listItems";
+        op.allParams = new ArrayList<>();
+        op.queryParams = new ArrayList<>();
+        op.headerParams = new ArrayList<>();
+        op.formParams = new ArrayList<>();
+        op.cookieParams = new ArrayList<>();
+        op.pathParams = new ArrayList<>();
+        op.bodyParams = new ArrayList<>();
+        op.optionalParams = new ArrayList<>();
+        op.requiredParams = new ArrayList<>();
+        return op;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean hasOptionsSignatureEntry(CodegenOperation op) {
+        final Map<String, Object> deco = decorator(op);
+        for (final Map<String, Object> a :
+                Objects.requireNonNull((List<Map<String, Object>>) deco.get("signatureArgs"))) {
+            if (Boolean.TRUE.equals(a.get("isOptions"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void operationWithoutOptionsFieldsGetsNoOptionsObjectByDefault() {
+        final CodegenOperation op = bareOperation();
+        ((AbstractBetterCodegen) new BetterJavaCodegen()).populateOperationDecorators(op);
+
+        final Map<String, Object> deco = decorator(op);
+        assertEquals(true, deco.get("optionsCallSettingsOnly"));
+        assertEquals(false, deco.get("optionsMinted"));
+        assertEquals(false, deco.get("optionsForEveryOperation"));
+        assertEquals(false, hasOptionsSignatureEntry(op));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void optedInLanguageMintsAnOptionsObjectForEveryOperation() {
+        final AbstractBetterCodegen codegen =
+                new BetterJavaCodegen() {
+                    @Override
+                    protected boolean mintsOptionsForEveryOperation() {
+                        return true;
+                    }
+                };
+        final CodegenOperation op = bareOperation();
+        codegen.populateOperationDecorators(op);
+
+        final Map<String, Object> deco = decorator(op);
+        assertEquals(true, deco.get("optionsCallSettingsOnly"));
+        assertEquals(true, deco.get("optionsMinted"));
+        assertEquals(true, deco.get("optionsForEveryOperation"));
+        assertEquals(true, hasOptionsSignatureEntry(op));
+        assertEquals(false, deco.get("optionsParamRequired"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void operationWithAuthIsNotCallSettingsOnly() {
+        final CodegenOperation op = bareOperation();
+        op.hasAuthMethods = true;
+        ((AbstractBetterCodegen) new BetterJavaCodegen()).populateOperationDecorators(op);
+
+        final Map<String, Object> deco = decorator(op);
+        assertEquals(false, deco.get("optionsCallSettingsOnly"));
+        assertEquals(true, hasOptionsSignatureEntry(op));
     }
 
     @Test

@@ -3383,6 +3383,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         d.put("optionsParamRequired", anyRequired);
         d.put("hasOptionsParam", !optionsParams.isEmpty());
+        // F827 - an operation with no query/header/form/cookie parameter and no security has
+        // no Options fields of its own. optionsCallSettingsOnly says so, and optionsMinted
+        // says the generator emits an Options object for it anyway (the language opted in
+        // through mintsOptionsForEveryOperation) so it has a slot for per-call settings.
+        final boolean callSettingsOnly = optionsParams.isEmpty() && !op.hasAuthMethods;
+        d.put("optionsCallSettingsOnly", callSettingsOnly);
+        d.put("optionsMinted", callSettingsOnly && mintsOptionsForEveryOperation());
+        d.put("optionsForEveryOperation", mintsOptionsForEveryOperation());
 
         // O7 — Per-operation server presence
         d.put("hasPerOperationServer", op.servers != null && !op.servers.isEmpty());
@@ -3423,9 +3431,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // since its type varies per auth method (resolved from the outer
         // {{#authMethods}} scope at render time).
         final List<Map<String, Object>> sigArgs =
-                computeSignatureArgs(op, true, optionsClassName, serverClassName);
+                computeSignatureArgs(
+                        op, true, optionsClassName, serverClassName, mintsOptionsForEveryOperation());
         final List<Map<String, Object>> sigArgsNoServer =
-                computeSignatureArgs(op, false, optionsClassName, serverClassName);
+                computeSignatureArgs(
+                        op, false, optionsClassName, serverClassName, mintsOptionsForEveryOperation());
         d.put("signatureArgs", sigArgs);
         d.put("signatureArgsNoServer", sigArgsNoServer);
 
@@ -3819,7 +3829,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             CodegenOperation op,
             boolean includeServer,
             String optionsClassName,
-            String serverClassName) {
+            String serverClassName,
+            boolean optionsForEveryOperation) {
         final List<Map<String, Object>> args = new ArrayList<>();
         if (op.pathParams != null) {
             for (final CodegenParameter p : op.pathParams) {
@@ -3842,7 +3853,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // The Options object now also carries the optional per-operation auth
         // field (the generic Authenticator), so authed operations that have no
         // query/header/form/cookie params still need a (minted) Options arg.
-        if (hasQuery || hasHeader || hasForm || hasCookie || op.hasAuthMethods) {
+        if (hasQuery
+                || hasHeader
+                || hasForm
+                || hasCookie
+                || op.hasAuthMethods
+                || optionsForEveryOperation) {
             // The Options arg is REQUIRED (non-nullable) iff the Options object
             // has at least one required field; otherwise it is optional. The
             // optional `auth` field never forces the arg to be required.
@@ -4777,7 +4793,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             // Authed operations always get an Options class minted (even with
             // no query/header/form/cookie params) because the class carries
             // the optional per-operation `auth` field.
-            if (optionsParams.isEmpty() && !op.hasAuthMethods) {
+            if (optionsParams.isEmpty()
+                    && !op.hasAuthMethods
+                    && !mintsOptionsForEveryOperation()) {
                 continue;
             }
             // Whether any Options-class field is required is exposed to
@@ -5405,6 +5423,20 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     protected String generateOptionsFileContent(
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
         return null;
+    }
+
+    /**
+     * Opt-in flag (F827): when {@code true}, every operation gets an Options object
+     * and an {@code options} signature entry, even one with no query, header, form
+     * or cookie parameter and no security, so each call has a slot for the per-call
+     * timeout, headers and retry budget. The operation decorator exposes
+     * {@code optionsMinted} (this operation got the object only because of this
+     * flag), {@code optionsCallSettingsOnly} (it has no fields of its own) and
+     * {@code optionsForEveryOperation}. Default {@code false}, so a language keeps
+     * its output until its templates can render the minted object.
+     */
+    protected boolean mintsOptionsForEveryOperation() {
+        return false;
     }
 
     /**
