@@ -30,7 +30,7 @@ function makeOAuth2TokenManagerResponse(
     return new ApiHttpResponse(200, (string) json_encode($body), ['Content-Type' => 'application/json']);
 }
 
-test('stores refresh token', function (): void {
+test('bhv authoauthtwotokenmgr 028 stores refresh token', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('access1', 3600, 'refresh1'));
 
@@ -42,7 +42,7 @@ test('stores refresh token', function (): void {
     expect($manager->getRefreshToken())->toBe('refresh1');
 });
 
-test('extracts access token from response', function (): void {
+test('bhv authoauthtwotokenmgr 014 extracts access token from response', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('my-access-token', 3600));
 
@@ -54,7 +54,7 @@ test('extracts access token from response', function (): void {
     expect($token)->toBe('my-access-token');
 });
 
-test('returns cached token when not expired', function (): void {
+test('bhv authoauthtwotokenmgr 025 returns cached token when not expired', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('cached-token', 3600));
 
@@ -69,7 +69,7 @@ test('returns cached token when not expired', function (): void {
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
-test('refetches token when expired', function (): void {
+test('bhv authoauthtwotokenmgr 021 refetches token when expired', function (): void {
     $client = new MockTokenApiClient();
     // First token expires immediately (expires_in = 0 means it will be in the past after the 30s buffer)
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('expired-token', 0));
@@ -86,7 +86,7 @@ test('refetches token when expired', function (): void {
     expect($client->capturedRequests)->toHaveCount(2);
 });
 
-test('set access token bypasses endpoint', function (): void {
+test('bhv authoauthtwotokenmgr 026 set access token bypasses endpoint', function (): void {
     $client = new MockTokenApiClient();
 
     $manager = new OAuth2TokenManager();
@@ -99,7 +99,7 @@ test('set access token bypasses endpoint', function (): void {
     expect($client->capturedRequests)->toHaveCount(0);
 });
 
-test('invalidate access token forces refetch', function (): void {
+test('bhv authoauthtwotokenmgr 018 invalidate access token forces refetch', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('tok1', 3600));
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('tok2', 3600));
@@ -116,7 +116,7 @@ test('invalidate access token forces refetch', function (): void {
     expect($client->capturedRequests)->toHaveCount(2);
 });
 
-test('throws when no api client injected', function (): void {
+test('bhv authoauthtwotokenmgr 030 throws when no api client injected', function (): void {
     $manager = new OAuth2TokenManager();
 
     expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
@@ -125,7 +125,7 @@ test('throws when no api client injected', function (): void {
         });
 });
 
-test('expires in short lived token does not storm', function (): void {
+test('bhv authoauthtwotokenmgr 013 expires in short lived token does not storm', function (): void {
     // Gap CM: short-lived token (expires_in < buffer) must produce exactly
     // ONE network call from a single getAccessToken invocation.
     $client = new MockTokenApiClient();
@@ -140,7 +140,7 @@ test('expires in short lived token does not storm', function (): void {
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
-test('expires in long lived token applies full buffer', function (): void {
+test('bhv authoauthtwotokenmgr 010 expires in long lived token applies full buffer', function (): void {
     // Gap CM: long-lived token gets full 30s buffer; second call serves
     // from cache.
     $client = new MockTokenApiClient();
@@ -157,7 +157,7 @@ test('expires in long lived token applies full buffer', function (): void {
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
-test('expires in of thirty is reused for half its lifetime', function (): void {
+test('bhv authoauthtwotokenmgr 007 expires in of thirty is reused for half its lifetime', function (): void {
     // One margin of min(60 s, expires_in / 2): a 30 s token is cached.
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('edge1', 30));
@@ -173,7 +173,7 @@ test('expires in of thirty is reused for half its lifetime', function (): void {
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
-test('expires in of zero is stale at once', function (): void {
+test('bhv authoauthtwotokenmgr 012 expires in of zero is stale at once', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('zero1', 0));
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('zero2', 0));
@@ -189,7 +189,7 @@ test('expires in of zero is stale at once', function (): void {
     expect($client->capturedRequests)->toHaveCount(2);
 });
 
-test('an expires_in beyond one year is clamped to one year', function (mixed $expiresIn): void {
+test('bhv authoauthtwotokenmgr 005 an expires_in beyond one year is clamped to one year', function (mixed $expiresIn): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(
         200,
@@ -227,7 +227,7 @@ test('a string expires_in outside the decimal grammar is stale', function (strin
     expect($client->capturedRequests)->toHaveCount(2);
 })->with(['1e3', '0x10', '3_600', '5.', '+5', '-5', 'abc', '']);
 
-test('the token request is a form post that accepts json', function (): void {
+test('bhv authoauthtwotokenmgr 035 the token request is a form post that accepts json', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('hdr', 3600));
 
@@ -241,7 +241,7 @@ test('the token request is a form post that accepts json', function (): void {
     expect($request['headers']['Accept'])->toBe('application/json');
 });
 
-test('refresh token empty string preserves existing', function (): void {
+test('bhv authoauthtwotokenmgr 024 refresh token empty string preserves existing', function (): void {
     // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
     // MUST NOT clobber the cached refresh_token.
     $client = new MockTokenApiClient();
@@ -265,7 +265,7 @@ test('refresh token empty string preserves existing', function (): void {
     expect($manager->getRefreshToken())->toBe('old_refresh');
 });
 
-test('expires in as json string is accepted', function (): void {
+test('bhv authoauthtwotokenmgr 009 expires in as json string is accepted', function (): void {
     // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
     // quoted string. The manager must accept it and cache the token; a
     // second call within the buffer window must serve from cache.
@@ -287,7 +287,7 @@ test('expires in as json string is accepted', function (): void {
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
-test('expires in as float is floored', function (): void {
+test('bhv authoauthtwotokenmgr 008 expires in as float is floored', function (): void {
     // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
     // The manager must floor it and cache the token.
     $client = new MockTokenApiClient();
@@ -308,7 +308,7 @@ test('expires in as float is floored', function (): void {
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
-test('expires in negative skips caching', function (): void {
+test('bhv authoauthtwotokenmgr 011 expires in negative skips caching', function (): void {
     // D1: a negative expires_in (e.g. -1) must mark the token as
     // immediately stale so the very next call refetches.
     $client = new MockTokenApiClient();
@@ -330,7 +330,7 @@ test('expires in negative skips caching', function (): void {
     expect($client->capturedRequests)->toHaveCount(2);
 });
 
-test('throws when token request fails', function (): void {
+test('bhv authoauthtwotokenmgr 031 throws when token request fails', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(
         401,
@@ -348,7 +348,7 @@ test('throws when token request fails', function (): void {
         });
 });
 
-test('malformed 2xx token response throws OAuth2TokenException', function (): void {
+test('bhv authoauthtwotokenmgr 001 malformed 2xx token response throws OAuth2TokenException', function (): void {
     // A 2xx answer whose body is not JSON is unusable: OAuth2TokenException.
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, '<html>not json</html>', ['Content-Type' => 'text/html']));
@@ -362,7 +362,7 @@ test('malformed 2xx token response throws OAuth2TokenException', function (): vo
         });
 });
 
-test('token transport failure propagates NetworkException', function (): void {
+test('bhv authoauthtwotokenmgr 037 token transport failure propagates NetworkException', function (): void {
     // A transport failure on the token POST reaches the caller unchanged.
     $failure = new \PetstoreClient\Errors\NetworkException('connection refused', new \RuntimeException('refused'));
     $client = new MockTokenApiClient();
@@ -377,7 +377,7 @@ test('token transport failure propagates NetworkException', function (): void {
         });
 });
 
-test('rejected refresh token falls back to the original grant', function (): void {
+test('bhv authoauthtwotokenmgr 016 rejected refresh token falls back to the original grant', function (): void {
     // OAuth2ServerException extends the SDK root: the refresh fallback must
     // catch it and re-run the original grant instead of letting it escape.
     $client = new MockTokenApiClient();
@@ -401,7 +401,7 @@ test('rejected refresh token falls back to the original grant', function (): voi
     expect($client->capturedRequests[2]['body'] ?? '')->toContain('grant_type=client_credentials');
 });
 
-test('missing access_token in 2xx response throws typed OAuth2TokenException', function (): void {
+test('bhv authoauthtwotokenmgr 036 missing access_token in 2xx response throws typed OAuth2TokenException', function (): void {
     // A 2xx response whose body omits access_token must surface as the typed
     // OAuth2TokenException, not silently cache an empty token.
     $client = new MockTokenApiClient();
@@ -420,7 +420,7 @@ test('missing access_token in 2xx response throws typed OAuth2TokenException', f
         });
 });
 
-test('server error response parsed to typed OAuth2ServerException', function (): void {
+test('bhv authoauthtwotokenmgr 032 server error response parsed to typed OAuth2ServerException', function (): void {
     // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
     // typed OAuth2ServerException carrying code/description/uri.
     $client = new MockTokenApiClient();
@@ -450,7 +450,7 @@ test('server error response parsed to typed OAuth2ServerException', function ():
 
 // -- 3.2: token POSTs refuse ALL 3xx redirects --
 
-test('token post requests no redirect from transport', function (): void {
+test('bhv authoauthtwotokenmgr 034 token post requests no redirect from transport', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('tok', 3600));
 
@@ -468,7 +468,7 @@ test('token post requests no redirect from transport', function (): void {
 // refuse the whole 300-399 range (302 and 307 both covered here, plus
 // 301/303/308) rather than only the body-preserving 307/308. A 3xx is a
 // non-2xx answer, so it is an OAuth2ServerException carrying the status.
-test('token post refuses 3xx redirect', function (int $status): void {
+test('bhv authoauthtwotokenmgr 033 token post refuses 3xx redirect', function (int $status): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse($status, '', ['Location' => 'https://attacker.example.com/token']));
 
@@ -485,7 +485,7 @@ test('token post refuses 3xx redirect', function (int $status): void {
     });
 })->with([301, 302, 303, 307, 308]);
 
-test('token response without expires_in is cached indefinitely', function (): void {
+test('bhv authoauthtwotokenmgr 039 token response without expires_in is cached indefinitely', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(
         200,
@@ -504,7 +504,7 @@ test('token response without expires_in is cached indefinitely', function (): vo
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
-test('a token with expires_in of 60 is reused once and not refetched on every call', function (int $expiresIn): void {
+test('bhv authoauthtwotokenmgr 004 a token with expires_in of 60 is reused once and not refetched on every call', function (int $expiresIn): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('short-lived', $expiresIn));
 
@@ -519,7 +519,7 @@ test('a token with expires_in of 60 is reused once and not refetched on every ca
     expect($client->capturedRequests)->toHaveCount(1);
 })->with([31, 60, 90, 120]);
 
-test('a refresh response without expires_in clears the previous expiry', function (): void {
+test('bhv authoauthtwotokenmgr 003 a refresh response without expires_in clears the previous expiry', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('old', 0, 'refresh-token'));
     $client->enqueueResponse(new ApiHttpResponse(
@@ -560,7 +560,7 @@ test('token response that is not JSON or not an object gets the canonical messag
     'scalar' => ['"tok"', 'Token response is not a JSON object'],
 ]);
 
-test('token response without a usable access_token gets the canonical message', function (string $body): void {
+test('bhv authoauthtwotokenmgr 040 token response without a usable access_token gets the canonical message', function (string $body): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, $body, ['Content-Type' => 'application/json']));
 
@@ -582,7 +582,7 @@ test('token response without a usable access_token gets the canonical message', 
     'number' => ['{"access_token":123}'],
 ]);
 
-test('an unsupported token_type is refused without echoing it', function (mixed $tokenType): void {
+test('bhv authoauthtwotokenmgr 038 an unsupported token_type is refused without echoing it', function (mixed $tokenType): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(
         200,
@@ -607,7 +607,7 @@ test('an unsupported token_type is refused without echoing it', function (mixed 
     'number' => [5],
 ]);
 
-test('a bearer or absent token_type is accepted', function (array $extra): void {
+test('bhv authoauthtwotokenmgr 002 a bearer or absent token_type is accepted', function (array $extra): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(
         200,
@@ -628,7 +628,7 @@ test('a bearer or absent token_type is accepted', function (array $extra): void 
     'upper case' => [['token_type' => 'BEARER']],
 ]);
 
-test('non string refresh token is ignored', function (mixed $refreshToken): void {
+test('bhv authoauthtwotokenmgr 020 non string refresh token is ignored', function (mixed $refreshToken): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(
         200,
@@ -680,7 +680,7 @@ test('token error response message follows the status, code and description', fu
     ],
 ]);
 
-test('internal refresh goes to the refresh url with the client credentials', function (): void {
+test('bhv authoauthtwotokenmgr 029 internal refresh goes to the refresh url with the client credentials', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 0, 'old_refresh'));
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('fresh_access', 3600));
@@ -700,7 +700,7 @@ test('internal refresh goes to the refresh url with the client credentials', fun
         ->toBe('grant_type=refresh_token&refresh_token=old_refresh&client_id=cid&client_secret=sec');
 });
 
-test('a refresh grant is posted once and its failure propagates', function (): void {
+test('bhv authoauthtwotokenmgr 023 a refresh grant is posted once and its failure propagates', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 0, 'old_refresh'));
     $client->enqueueResponse(new ApiHttpResponse(
@@ -720,7 +720,7 @@ test('a refresh grant is posted once and its failure propagates', function (): v
     expect($client->capturedRequests[1]['url'])->toBe('https://auth.example.com/refresh');
 });
 
-test('exchange bypasses the cached token and the refresh token', function (): void {
+test('bhv authoauthtwotokenmgr 006 exchange bypasses the cached token and the refresh token', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('first', 3600, 'first_refresh'));
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('second', 3600));
@@ -737,7 +737,7 @@ test('exchange bypasses the cached token and the refresh token', function (): vo
     expect($client->capturedRequests[1]['body'])->toBe('grant_type=authorization_code&code=b');
 });
 
-test('failed exchange restores the previous session', function (): void {
+test('bhv authoauthtwotokenmgr 015 failed exchange restores the previous session', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('first', 3600, 'first_refresh'));
     $client->enqueueResponse(new ApiHttpResponse(

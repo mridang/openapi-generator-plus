@@ -9,7 +9,7 @@ use {{invokerPackage}}\TransportOptions;
 
 // -- TLS verification disabled --
 
-test('makes https request with verify ssl false', function (): void {
+test('bhv transport 018 makes https request with verify ssl false', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -27,7 +27,7 @@ test('makes https request with verify ssl false', function (): void {
 
 // -- Custom CA bundle --
 
-test('makes https request with custom ca cert', function (): void {
+test('bhv transport 017 makes https request with custom ca cert', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
     $caCertPath = getenv('CA_CERT_PATH') ?: null;
 
@@ -47,7 +47,7 @@ test('makes https request with custom ca cert', function (): void {
 
 // -- HTTP proxy --
 
-test('makes http request through proxy', function (): void {
+test('bhv transport 015 makes http request through proxy', function (): void {
     $chasmUrl = getenv('CHASM_INTERNAL_HTTP_URL') ?: '';
     $proxyUrl = getenv('PROXY_URL') ?: null;
 
@@ -69,7 +69,7 @@ test('makes http request through proxy', function (): void {
 // the tunnel — otherwise the proxy 407s. Guzzle's `proxy` option
 // reads userinfo natively from the URL; we assert TransportOptions
 // preserves the userinfo end-to-end.
-test('proxy with credentials injects basic authorization', function (): void {
+test('bhv transport 021 proxy with credentials injects basic authorization', function (): void {
     $transport = TransportOptions::builder()
         ->proxy('http://alice:s3cret@127.0.0.1:3128')
         ->build();
@@ -94,7 +94,7 @@ test('proxy with credentials injects basic authorization', function (): void {
 // preserves it (GREEN here); the same test is added to all 12 SDKs to lock the
 // behaviour (red in java, which drops proxy userinfo). The proxy-auth header
 // the credentials would produce is the RFC 7617 base64 of "user:pass".
-test('AK: proxy url with userinfo carries credentials', function (): void {
+test('bhv transport 020 AK: proxy url with userinfo carries credentials', function (): void {
     $transport = TransportOptions::builder()
         ->proxy('http://user:pass@127.0.0.1:3128')
         ->build();
@@ -114,7 +114,7 @@ test('AK: proxy url with userinfo carries credentials', function (): void {
 
 // -- HTTP proxy with TLS --
 
-test('ignores ambient proxy environment variables when no proxy is configured', function (): void {
+test('bhv transport 009 ignores ambient proxy environment variables when no proxy is configured', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
     $names = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'];
     $saved = [];
@@ -139,7 +139,7 @@ test('ignores ambient proxy environment variables when no proxy is configured', 
     expect($response->statusCode)->toBe(200);
 });
 
-test('makes https request through proxy with verify ssl false', function (): void {
+test('bhv transport 016 makes https request through proxy with verify ssl false', function (): void {
     $chasmUrl = getenv('CHASM_INTERNAL_HTTPS_URL') ?: '';
     $proxyUrl = getenv('PROXY_URL') ?: null;
 
@@ -159,7 +159,7 @@ test('makes https request through proxy with verify ssl false', function (): voi
 
 // -- Request timeout --
 
-test('the timeout is one budget for every redirect hop', function (): void {
+test('bhv redirects 009 the timeout is one budget for every redirect hop', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
     $client = new DefaultApiClient(TransportOptions::builder()->timeout(1200)->followRedirects(true)->build());
 
@@ -167,7 +167,7 @@ test('the timeout is one budget for every redirect hop', function (): void {
         ->toThrow(\{{invokerPackage}}\Errors\NetworkTimeoutException::class);
 });
 
-test('a redirect chain inside the budget completes', function (): void {
+test('bhv redirects 002 a redirect chain inside the budget completes', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
     $client = new DefaultApiClient(TransportOptions::builder()->timeout(5000)->followRedirects(true)->build());
 
@@ -176,7 +176,7 @@ test('a redirect chain inside the budget completes', function (): void {
     expect($response->statusCode)->toBe(200);
 });
 
-test('times out on slow endpoint', function (): void {
+test('bhv transport 024 times out on slow endpoint', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -194,7 +194,7 @@ test('times out on slow endpoint', function (): void {
 
 // -- User-Agent header --
 
-test('injects custom user agent header', function (): void {
+test('bhv transport 012 injects custom user agent header', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -210,7 +210,7 @@ test('injects custom user agent header', function (): void {
     expect($json['headers']['user-agent'])->toBe('MyApp/1.0');
 });
 
-test('caller headers in any casing win over injected user agent and request id', function (): void {
+test('bhv transport 003 caller headers in any casing win over injected user agent and request id', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -231,7 +231,7 @@ test('caller headers in any casing win over injected user agent and request id',
 
 // -- X-Request-ID injection --
 
-test('integration injects request id header', function (): void {
+test('bhv transport 013 integration injects request id header', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -249,7 +249,7 @@ test('integration injects request id header', function (): void {
     expect($json['headers']['x-request-id'])->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/');
 });
 
-test('integration generates unique request ids', function (): void {
+test('bhv transport 007 integration generates unique request ids', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -273,7 +273,7 @@ test('integration generates unique request ids', function (): void {
 
 // -- Default headers --
 
-test('integration includes transport default headers', function (): void {
+test('bhv transport 010 integration includes transport default headers', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -289,7 +289,7 @@ test('integration includes transport default headers', function (): void {
     expect($json['headers']['x-custom'])->toBe('custom-value');
 });
 
-test('repeated response headers are joined in the order they arrive', function (): void {
+test('bhv transport 022 repeated response headers are joined in the order they arrive', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $response = (new DefaultApiClient())->sendRequest('GET', $chasmUrl . '/test/response-headers', [], null);
@@ -304,7 +304,7 @@ test('repeated response headers are joined in the order they arrive', function (
     expect(strpos($cookies, 'a=1'))->toBeLessThan((int) strpos($cookies, 'b=2'));
 });
 
-test('caller headers override transport defaults', function (): void {
+test('bhv options 004 caller headers override transport defaults', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -327,7 +327,7 @@ test('caller headers override transport defaults', function (): void {
 
 // -- Redirect handling --
 
-test('follows redirects when enabled', function (): void {
+test('bhv redirects 004 follows redirects when enabled', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -340,7 +340,7 @@ test('follows redirects when enabled', function (): void {
     expect($response->statusCode)->toBe(200);
 });
 
-test('returns redirect when disabled', function (): void {
+test('bhv redirects 008 returns redirect when disabled', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -353,7 +353,7 @@ test('returns redirect when disabled', function (): void {
     expect($response->statusCode)->toBe(302);
 });
 
-test('redirect 303 switches to get and drops body', function (): void {
+test('bhv redirects 005 redirect 303 switches to get and drops body', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $transport = TransportOptions::builder()
@@ -381,7 +381,7 @@ test('redirect 303 switches to get and drops body', function (): void {
  * RFC 7231 §6.4.7 / RFC 7538. The client follows redirects itself and
  * rebuilds the multipart body for every hop.
  */
-test('multipart body replayed on 307 redirect', function (): void {
+test('bhv retries 012 multipart body replayed on 307 redirect', function (): void {
     $chasmUrl = (string) getenv('CHASM_HTTP_URL');
     $client = new DefaultApiClient();
     $response = $client->sendRequest(
@@ -400,7 +400,7 @@ test('multipart body replayed on 307 redirect', function (): void {
 
 // -- Max redirects --
 
-test('respects max redirects limit', function (): void {
+test('bhv redirects 006 respects max redirects limit', function (): void {
     $transport = TransportOptions::builder()
         ->followRedirects(true)
         ->maxRedirects(5)
@@ -433,7 +433,7 @@ test('respects max redirects limit', function (): void {
  * redirect state would break. Mirrors the Go SDK's
  * TestWaveE_ConcurrentRedirectCountIsPerRequest.
  */
-test('redirect count and limit are scoped per request not shared per client', function (): void {
+test('bhv redirects 003 redirect count and limit are scoped per request not shared per client', function (): void {
     // Router script for `php -S`: 302 -> /chain/{n-1} until /chain/0 -> 200.
     $router = <<<'PHP'
         <?php
@@ -567,7 +567,7 @@ test('redirect count and limit are scoped per request not shared per client', fu
 
 // -- Multipart body --
 
-test('sends multipart form data', function (): void {
+test('bhv serializationwire 027 sends multipart form data', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $client = new DefaultApiClient();
@@ -582,7 +582,7 @@ test('sends multipart form data', function (): void {
  * just binary). Confirm that even for a plain String value, a CR/LF in
  * the field name is rejected, preventing Content-Disposition smuggling.
  */
-test('multipart field name with crlf rejected on string value', function (): void {
+test('bhv serializationwire 026 multipart field name with crlf rejected on string value', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
     $client = new DefaultApiClient();
@@ -594,7 +594,7 @@ test('multipart field name with crlf rejected on string value', function (): voi
 
 // -- HTTP compression --
 
-test('decompresses gzip response', function (): void {
+test('bhv transport 005 decompresses gzip response', function (): void {
     $client = new DefaultApiClient();
     $response = $client->sendRequest(
         'GET',
@@ -607,7 +607,7 @@ test('decompresses gzip response', function (): void {
     expect($response->body)->toContain('userId');
 });
 
-test('decompresses brotli response', function (): void {
+test('bhv transport 004 decompresses brotli response', function (): void {
     if (!function_exists('brotli_uncompress')) {
         test()->markTestSkipped('ext-brotli not available');
     }
@@ -624,7 +624,7 @@ test('decompresses brotli response', function (): void {
     expect($response->body)->toContain('userId');
 });
 
-test('decompresses zstd response', function (): void {
+test('bhv transport 006 decompresses zstd response', function (): void {
     if (!function_exists('zstd_uncompress')) {
         test()->markTestSkipped('ext-zstd not available');
     }
@@ -648,7 +648,7 @@ test('decompresses zstd response', function (): void {
  * client sends an empty body and Content-Length: 0 explicitly on
  * body-bearing verbs.
  */
-test('post with null body sends content length zero', function (): void {
+test('bhv transport 019 post with null body sends content length zero', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
     $client = new DefaultApiClient();
     $response = $client->sendRequest(
@@ -669,7 +669,7 @@ test('post with null body sends content length zero', function (): void {
 // Gap T6: close() releases the underlying HTTP client and is idempotent.
 // Once closed, any subsequent sendRequest() is a wrong call order and must
 // raise \LogicException (closed-flag guard), not an SDK error.
-test('close releases underlying client', function (): void {
+test('bhv lifecycle 018 close releases underlying client', function (): void {
     $client = new DefaultApiClient();
     $client->close();
     $client->close();
@@ -704,7 +704,7 @@ test('proxy that requires credentials answers 407 when none are sent', function 
 
 // -- TLS verification enabled --
 
-test('verify ssl true rejects a server certificate the system trust store does not know', function (): void {
+test('bhv transport 025 verify ssl true rejects a server certificate the system trust store does not know', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
 
     $transport = TransportOptions::builder()

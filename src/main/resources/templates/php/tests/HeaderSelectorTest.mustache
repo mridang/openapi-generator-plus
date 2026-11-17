@@ -10,43 +10,43 @@ beforeEach(function (): void {
 
 // isJsonMime tests
 
-test('should return true for application json', function (): void {
+test('bhv headers 019 should return true for application json', function (): void {
     expect($this->headerSelector->isJsonMime('application/json'))->toBeTrue();
 });
 
-test('should return true for application json with charset', function (): void {
+test('bhv headers 020 should return true for application json with charset', function (): void {
     expect($this->headerSelector->isJsonMime('application/json; charset=UTF-8'))->toBeTrue();
 });
 
-test('should return true for uppercase application json', function (): void {
+test('bhv headers 021 should return true for uppercase application json', function (): void {
     expect($this->headerSelector->isJsonMime('APPLICATION/JSON'))->toBeTrue();
 });
 
-test('should return true for vendor json types', function (): void {
+test('bhv headers 022 should return true for vendor json types', function (): void {
     expect($this->headerSelector->isJsonMime('application/vnd.api+json'))->toBeTrue();
     expect($this->headerSelector->isJsonMime('application/vnd.company+json'))->toBeTrue();
     expect($this->headerSelector->isJsonMime('application/hal+json'))->toBeTrue();
 });
 
-test('should return false for text html', function (): void {
+test('bhv headers 016 should return false for text html', function (): void {
     expect($this->headerSelector->isJsonMime('text/html'))->toBeFalse();
 });
 
-test('should return false for application xml', function (): void {
+test('bhv headers 013 should return false for application xml', function (): void {
     expect($this->headerSelector->isJsonMime('application/xml'))->toBeFalse();
 });
 
-test('should return false for application octet stream', function (): void {
+test('bhv headers 012 should return false for application octet stream', function (): void {
     expect($this->headerSelector->isJsonMime('application/octet-stream'))->toBeFalse();
 });
 
-test('should return false for empty string', function (): void {
+test('bhv headers 014 should return false for empty string', function (): void {
     expect($this->headerSelector->isJsonMime(''))->toBeFalse();
 });
 
 // selectHeaders tests
 
-test('should set accept header when accepts provided', function (): void {
+test('bhv headers 024 should set accept header when accepts provided', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['application/json'],
         'application/json',
@@ -55,7 +55,7 @@ test('should set accept header when accepts provided', function (): void {
     expect($headers['Accept'])->toEqual('application/json');
 });
 
-test('should not set accept header when accepts empty', function (): void {
+test('bhv headers 004 should not set accept header when accepts empty', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         [],
         'application/json',
@@ -64,7 +64,7 @@ test('should not set accept header when accepts empty', function (): void {
     expect($headers)->not->toHaveKey('Accept');
 });
 
-test('should set content type header when not multipart', function (): void {
+test('bhv headers 025 should set content type header when not multipart', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['application/json'],
         'application/json',
@@ -73,7 +73,7 @@ test('should set content type header when not multipart', function (): void {
     expect($headers['Content-Type'])->toEqual('application/json');
 });
 
-test('should not set content type header when multipart', function (): void {
+test('bhv headers 007 should not set content type header when multipart', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['application/json'],
         'application/json',
@@ -82,7 +82,7 @@ test('should not set content type header when multipart', function (): void {
     expect($headers)->not->toHaveKey('Content-Type');
 });
 
-test('should default content type to application json when empty', function (): void {
+test('bhv headers 001 should default content type to application json when empty', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['application/json'],
         '',
@@ -93,7 +93,7 @@ test('should default content type to application json when empty', function (): 
 
 // selectAcceptHeader tests (via selectHeaders)
 
-test('should return single accept as is', function (): void {
+test('bhv headers 017 should return single accept as is', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['application/json'],
         'application/json',
@@ -102,7 +102,7 @@ test('should return single accept as is', function (): void {
     expect($headers['Accept'])->toEqual('application/json');
 });
 
-test('should return single non json accept as is', function (): void {
+test('bhv headers 018 should return single non json accept as is', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['text/html'],
         'application/json',
@@ -111,7 +111,7 @@ test('should return single non json accept as is', function (): void {
     expect($headers['Accept'])->toEqual('text/html');
 });
 
-test('should join multiple types in declaration order', function (): void {
+test('bhv headers 011 should join multiple types in declaration order', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['image/jpeg', 'image/png', 'application/json'],
         'application/json',
@@ -120,7 +120,7 @@ test('should join multiple types in declaration order', function (): void {
     expect($headers['Accept'])->toEqual('image/jpeg, image/png, application/json');
 });
 
-test('should not reorder json types ahead of others', function (): void {
+test('bhv headers 003 should not reorder json types ahead of others', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['text/html', 'application/vnd.api+json', 'application/json'],
         'application/json',
@@ -139,7 +139,7 @@ test('should not add quality weights', function (): void {
     expect($headers['Accept'])->not->toContain(';q=');
 });
 
-test('should join two non json types in order', function (): void {
+test('bhv headers 026 should join two non json types in order', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['text/html', 'text/plain'],
         'application/json',
@@ -148,7 +148,7 @@ test('should join two non json types in order', function (): void {
     expect($headers['Accept'])->toEqual('text/html, text/plain');
 });
 
-test('should filter out empty entries and join the rest', function (): void {
+test('bhv headers 010 should filter out empty entries and join the rest', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['', 'image/jpeg', '', 'image/png'],
         'application/json',
@@ -157,7 +157,7 @@ test('should filter out empty entries and join the rest', function (): void {
     expect($headers['Accept'])->toEqual('image/jpeg, image/png');
 });
 
-test('should filter to a single entry', function (): void {
+test('bhv headers 009 should filter to a single entry', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['', 'application/json'],
         'application/json',
@@ -166,7 +166,7 @@ test('should filter to a single entry', function (): void {
     expect($headers['Accept'])->toEqual('application/json');
 });
 
-test('should drop whitespace-only entries', function (): void {
+test('bhv headers 008 should drop whitespace-only entries', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['   ', 'application/json'],
         'application/json',

@@ -16,23 +16,23 @@ namespace PetstoreClient\Test;
 use PetstoreClient\Auth\BasicAuthenticator;
 use PetstoreClient\Auth\PetStoreBasicAuthenticator;
 
-test('valid credentials produce basic header', function (): void {
+test('bhv authbasic 011 valid credentials produce basic header', function (): void {
     $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
     $headers = $auth->getAuthHeaders();
     expect($headers['Authorization'])->toBe('Basic YWxpY2U6czNjcmV0');
 });
 
-test('rejects username with crlf at construction', function (): void {
+test('bhv authbasic 009 rejects username with crlf at construction', function (): void {
     expect(fn () => new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret'))
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('rejects password with nul at construction', function (): void {
+test('bhv authbasic 007 rejects password with nul at construction', function (): void {
     expect(fn () => new BasicAuthenticator('https://api.example.com', 'alice', "s3c\0ret"))
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('rejects username with colon at construction', function (): void {
+test('bhv authbasic 008 rejects username with colon at construction', function (): void {
     expect(fn () => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret'))
         ->toThrow(\InvalidArgumentException::class);
 });
@@ -62,7 +62,7 @@ test('password is masked in var_dump and print_r output', function (): void {
  * __debugInfo(): the literal secret is absent and the masked '***'
  * placeholder is present.
  */
-test('redacts secret', function (): void {
+test('bhv authbasic 006 redacts secret', function (): void {
     $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
 
     $printR = print_r($auth, true);
@@ -81,13 +81,13 @@ test('secret constructor parameters are marked sensitive', function (): void {
     expect($sensitive)->toBe(['password']);
 });
 
-test('non ascii credentials are encoded as utf 8 bytes', function (): void {
+test('bhv authbasic 004 non ascii credentials are encoded as utf 8 bytes', function (): void {
     $auth = new BasicAuthenticator('https://api.example.com', 'ünïcødé', 'pässwörd');
 
     expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==');
 });
 
-test('debug output keeps the host and username and masks only the password', function (): void {
+test('bhv authbasic 010 debug output keeps the host and username and masks only the password', function (): void {
     $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
 
     $printR = print_r($auth, true);
@@ -97,7 +97,7 @@ test('debug output keeps the host and username and masks only the password', fun
     expect($printR)->toContain('[password] => ***');
 });
 
-test('every generated basic wrapper sends the basic header and masks the password', function (): void {
+test('bhv authbasic 002 every generated basic wrapper sends the basic header and masks the password', function (): void {
     $wrappers = 0;
     foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
@@ -137,7 +137,7 @@ function withBasicEnvironment(?string $user, ?string $secret, callable $body): v
     }
 }
 
-test('basic credentials are read from the environment when none are passed', function (): void {
+test('bhv authbasic 001 basic credentials are read from the environment when none are passed', function (): void {
     withBasicEnvironment('alice', 'env-secret', function (): void {
         $auth = new PetStoreBasicAuthenticator('https://api.example.com');
         expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic ' . base64_encode('alice:env-secret'));
@@ -158,7 +158,7 @@ test('an explicit user name is used with the password from the environment', fun
     });
 });
 
-test('a missing or empty basic credential fails when the authenticator is built', function (
+test('bhv authbasic 003 a missing or empty basic credential fails when the authenticator is built', function (
     ?string $user,
     ?string $secret
 ): void {

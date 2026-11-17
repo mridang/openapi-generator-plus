@@ -89,7 +89,7 @@ function newHeaderCapturingStoreApi(): array
     return [new StoreApi(apiClient: $client, config: $config), $captured];
 }
 
-test('an operation without parameters or security takes per call headers', function (): void {
+test('bhv operations 096 an operation without parameters or security takes per call headers', function (): void {
     [$api, $captured] = newHeaderCapturingStoreApi();
 
     $api->getInventory(new GetInventoryOptions(headers: ['X-Tenant' => 't1']));
@@ -123,7 +123,7 @@ test('a per call timeout and retry count of an operation without parameters must
 
 // -- Integration tests via Chasm --
 
-test('get inventory', function (): void {
+test('bhv operations 102 get inventory', function (): void {
     $result = $this->api->getInventory();
 
     // Phase 2 PHP type-surface: OAS `map` now maps to `\Ds\Map` (was
@@ -133,7 +133,7 @@ test('get inventory', function (): void {
     expect($result)->toBeInstanceOf(\Ds\Map::class);
 });
 
-test('get inventory with http info', function (): void {
+test('bhv operations 103 get inventory with http info', function (): void {
     $result = $this->api->getInventoryWithHttpInfo();
 
     expect($result)->toBeInstanceOf(ApiResult::class);
@@ -142,14 +142,14 @@ test('get inventory with http info', function (): void {
     expect($result->data)->not->toBeNull();
 });
 
-test('get order by id', function (): void {
+test('bhv operations 104 get order by id', function (): void {
     $result = $this->api->getOrderById(1);
 
     expect($result)->toBeInstanceOf(Order::class);
     expect($result->id)->not->toBeNull();
 });
 
-test('get order by id with http info', function (): void {
+test('bhv operations 105 get order by id with http info', function (): void {
     $result = $this->api->getOrderByIdWithHttpInfo(1);
 
     expect($result)->toBeInstanceOf(ApiResult::class);
@@ -158,7 +158,7 @@ test('get order by id with http info', function (): void {
     expect($result->data)->toBeInstanceOf(Order::class);
 });
 
-test('place order with http info', function (): void {
+test('bhv operations 119 place order with http info', function (): void {
     $order = new Order(
         id: 1,
         petId: 12345,
@@ -176,7 +176,7 @@ test('place order with http info', function (): void {
     expect($result->data)->toBeInstanceOf(Order::class);
 });
 
-test('place order', function (): void {
+test('bhv operations 117 place order', function (): void {
     $order = new Order(
         id: 1,
         petId: 12345,
@@ -192,7 +192,7 @@ test('place order', function (): void {
     expect($result->id)->not->toBeNull();
 });
 
-test('delete order', function (): void {
+test('bhv operations 099 delete order', function (): void {
     $this->api->deleteOrder(1);
 
     expect(true)->toBeTrue();
@@ -206,7 +206,7 @@ test('delete order', function (): void {
 // Category instances, not left as raw maps. Driven against a mock server that
 // returns the canonical nested body.
 
-test('get grouped categories deserializes nested leaves to typed models', function (): void {
+test('bhv operations 101 get grouped categories deserializes nested leaves to typed models', function (): void {
     $body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]';
     $api = newStoreApiForMock(200, 'application/json', $body);
 
@@ -232,13 +232,13 @@ test('get grouped categories deserializes nested leaves to typed models', functi
 
 // -- Mock-based error handling tests --
 
-test('get order not found', function (): void {
+test('bhv operations 106 get order not found', function (): void {
     $api = newStoreApiForMock(404, 'application/json', '{"message":"Order not found"}');
 
     expect(fn () => $api->getOrderById(99999))->toThrow(NotFoundException::class);
 });
 
-test('place order server error', function (): void {
+test('bhv operations 118 place order server error', function (): void {
     $order = new Order(
         id: 1,
         petId: 12345,
@@ -253,7 +253,7 @@ test('place order server error', function (): void {
     expect(fn () => $api->placeOrder($order))->toThrow(ServerException::class);
 });
 
-test('get order by id picks the status specific error class', function (int $status, string $expectedClass): void {
+test('bhv operations 110 get order by id picks the status specific error class', function (int $status, string $expectedClass): void {
     /* The typed mock routes answer getOrderById with each status and a JSON
      * body, so the error is decoded through the real operation. */
     $config = Configuration::builder()
@@ -278,7 +278,7 @@ test('get order by id picks the status specific error class', function (int $sta
     [502, ServerException::class],
 ]);
 
-test('an operation with several 2xx responses decodes the body as the schema of the actual status', function (
+test('bhv operations 120 an operation with several 2xx responses decodes the body as the schema of the actual status', function (
     int $status,
     string $expected
 ): void {
@@ -306,7 +306,7 @@ test('a multi 2xx result has a typed factory, test and accessor per variant', fu
     expect($union->asReservationReceipt())->toBeNull();
 });
 
-test('delete order not found', function (): void {
+test('bhv operations 100 delete order not found', function (): void {
     $api = newStoreApiForMock(404, 'application/json', '{"message":"Order not found"}');
 
     expect(fn () => $api->deleteOrder(99999))->toThrow(NotFoundException::class);
@@ -356,7 +356,7 @@ function newCapturingStoreApi(): array
     return [new StoreApi(apiClient: $client, config: $config), $captured];
 }
 
-test('content json query param is the object serializer output', function (): void {
+test('bhv operations 097 content json query param is the object serializer output', function (): void {
     [$api, $captured] = newCapturingStoreApi();
 
     try {
@@ -370,7 +370,7 @@ test('content json query param is the object serializer output', function (): vo
     expect($captured->url)->toContain('q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22%7D');
 });
 
-test('content json header param is the object serializer output', function (): void {
+test('bhv operations 121 content json header param is the object serializer output', function (): void {
     [$api, $captured] = newCapturingStoreApi();
 
     try {
@@ -395,7 +395,7 @@ test('content json query param that cannot be serialized sends no request', func
     expect($captured->url)->toBe('');
 });
 
-test('named enum path, query and header params travel as their wire values', function (): void {
+test('bhv operations 122 named enum path, query and header params travel as their wire values', function (): void {
     [$api, $captured] = newCapturingStoreApi();
 
     $api->getBySwatch(
@@ -410,7 +410,7 @@ test('named enum path, query and header params travel as their wire values', fun
     expect($captured->headers['Preferred-Swatch'] ?? null)->toBe('blue');
 });
 
-test('named enum query and header params are omitted when absent', function (): void {
+test('bhv operations 107 named enum query and header params are omitted when absent', function (): void {
     [$api, $captured] = newCapturingStoreApi();
 
     $api->getBySwatch(\{{invokerPackage}}\Models\Swatch::BLUE);
@@ -419,7 +419,7 @@ test('named enum query and header params are omitted when absent', function (): 
     expect($captured->headers)->not->toHaveKey('Preferred-Swatch');
 });
 
-test('a uuid path parameter puts the canonical lowercase uuid in the path', function (): void {
+test('bhv operations 124 a uuid path parameter puts the canonical lowercase uuid in the path', function (): void {
     [$api, $captured] = newCapturingStoreApi();
 
     $api->getOrderByTrackingId(\Symfony\Component\Uid\Uuid::fromString('123E4567-E89B-12D3-A456-426614174000'));
@@ -427,7 +427,7 @@ test('a uuid path parameter puts the canonical lowercase uuid in the path', func
     expect($captured->url)->toBe('http://localhost:9999/store/order/by-tracking/123e4567-e89b-12d3-a456-426614174000');
 });
 
-test('a malformed uuid is refused before any request is sent', function (): void {
+test('bhv operations 111 a malformed uuid is refused before any request is sent', function (): void {
     [$api, $captured] = newCapturingStoreApi();
 
     expect(fn () => $api->getOrderByTrackingId(\Symfony\Component\Uid\Uuid::fromString('not-a-uuid')))
@@ -435,7 +435,7 @@ test('a malformed uuid is refused before any request is sent', function (): void
     expect($captured->url)->toBe('');
 });
 
-test('create account sends the writeOnly password as an unauthenticated json body', function (): void {
+test('bhv operations 098 create account sends the writeOnly password as an unauthenticated json body', function (): void {
     [$api, $captured] = newCapturingStoreApi();
 
     try {
@@ -453,13 +453,13 @@ test('create account sends the writeOnly password as an unauthenticated json bod
 
 // -- response-shape operations: the generated method picks the return type --
 
-test('get swatch decodes a bare enum', function (): void {
+test('bhv operations 113 get swatch decodes a bare enum', function (): void {
     $api = newStoreApiForMock(200, 'application/json', '"red"');
 
     expect($api->getSwatch())->toBe(\{{invokerPackage}}\Models\Swatch::RED);
 });
 
-test('get swatch groups decodes a list of string keyed enum maps', function (): void {
+test('bhv operations 114 get swatch groups decodes a list of string keyed enum maps', function (): void {
     $api = newStoreApiForMock(200, 'application/json', '[{"a":"red","b":"blue"},{"c":"green"}]');
 
     $groups = $api->getSwatchGroups();
@@ -474,7 +474,7 @@ test('get swatch groups decodes a list of string keyed enum maps', function (): 
     expect($second->get('c'))->toBe(\{{invokerPackage}}\Models\Swatch::GREEN);
 });
 
-test('get timestamp groups decodes a list of string keyed date-time maps', function (): void {
+test('bhv operations 115 get timestamp groups decodes a list of string keyed date-time maps', function (): void {
     $api = newStoreApiForMock(200, 'application/json', '[{"at":"2024-01-15T10:00:00Z"}]');
 
     $groups = $api->getTimestampGroups();
@@ -488,7 +488,7 @@ test('get timestamp groups decodes a list of string keyed date-time maps', funct
     expect($at->getTimestamp())->toBe(1705312800);
 });
 
-test('get department decodes the mutually recursive pair', function (): void {
+test('bhv operations 108 get department decodes the mutually recursive pair', function (): void {
     $api = newStoreApiForMock(
         200,
         'application/json',
@@ -504,7 +504,7 @@ test('get department decodes the mutually recursive pair', function (): void {
     expect($department->lead?->department?->name)->toBe('Inner');
 });
 
-test('get tree decodes the self recursive node', function (): void {
+test('bhv operations 116 get tree decodes the self recursive node', function (): void {
     $api = newStoreApiForMock(200, 'application/json', '{"value":"root","child":{"value":"leaf"}}');
 
     $tree = $api->getTree();
@@ -514,7 +514,7 @@ test('get tree decodes the self recursive node', function (): void {
     expect($tree->child?->child)->toBeNull();
 });
 
-test('get defaults keeps the schema defaults for absent fields', function (): void {
+test('bhv operations 123 get defaults keeps the schema defaults for absent fields', function (): void {
     $api = newStoreApiForMock(200, 'application/json', '{"retries":9}');
 
     $defaults = $api->getDefaults();
@@ -525,7 +525,7 @@ test('get defaults keeps the schema defaults for absent fields', function (): vo
     expect($defaults->label)->toBe('untitled');
 });
 
-test('get stock item decodes the integer backed enum and the nested arrays', function (): void {
+test('bhv operations 112 get stock item decodes the integer backed enum and the nested arrays', function (): void {
     $api = newStoreApiForMock(
         200,
         'application/json',

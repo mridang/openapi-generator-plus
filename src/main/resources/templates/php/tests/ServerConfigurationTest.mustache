@@ -5,13 +5,13 @@ declare(strict_types=1);
 use {{invokerPackage}}\ServerConfiguration;
 use {{invokerPackage}}\ServerVariable;
 
-test('plain url template resolves unchanged', function (): void {
+test('bhv servers 011 plain url template resolves unchanged', function (): void {
     $server = new ServerConfiguration(urlTemplate: 'https://api.example.com');
 
     expect($server->getUrl())->toBe('https://api.example.com');
 });
 
-test('variables resolve to their default values', function (): void {
+test('bhv servers 010 variables resolve to their default values', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com/api/{version}',
         variables: [
@@ -36,7 +36,7 @@ test('overrides substitute matching variables', function (): void {
         ->toBe('https://staging.example.com/api/v2');
 });
 
-test('partial override keeps remaining defaults', function (): void {
+test('bhv servers 001 partial override keeps remaining defaults', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com/api/{version}',
         variables: [
@@ -49,7 +49,7 @@ test('partial override keeps remaining defaults', function (): void {
         ->toBe('https://staging.example.com/api/v3');
 });
 
-test('override not in enum is rejected', function (): void {
+test('bhv servers 008 override not in enum is rejected', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com',
         variables: [
@@ -65,7 +65,7 @@ test('override not in enum is rejected', function (): void {
         });
 });
 
-test('unconstrained variable accepts any override', function (): void {
+test('bhv servers 003 unconstrained variable accepts any override', function (): void {
     // An empty enum array means any value is accepted.
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com',
@@ -77,7 +77,7 @@ test('unconstrained variable accepts any override', function (): void {
     expect($server->getUrl(['env' => 'anything']))->toBe('https://anything.example.com');
 });
 
-test('exposes constructor fields', function (): void {
+test('bhv servers 006 exposes constructor fields', function (): void {
     $variables = ['env' => new ServerVariable(defaultValue: 'api')];
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com',
@@ -90,7 +90,7 @@ test('exposes constructor fields', function (): void {
     expect($server->variables)->toBe($variables);
 });
 
-test('rejected override message names the value, the variable and the allowed values', function (): void {
+test('bhv servers 012 rejected override message names the value, the variable and the allowed values', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com',
         variables: [
@@ -105,7 +105,7 @@ test('rejected override message names the value, the variable and the allowed va
         );
 });
 
-test('default value outside the enum is rejected', function (): void {
+test('bhv servers 004 default value outside the enum is rejected', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com',
         variables: [
@@ -120,7 +120,7 @@ test('default value outside the enum is rejected', function (): void {
         );
 });
 
-test('a variable repeated in the template is replaced everywhere', function (): void {
+test('bhv servers 002 a variable repeated in the template is replaced everywhere', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{region}.example.com/{region}/v1',
         variables: [
@@ -132,7 +132,7 @@ test('a variable repeated in the template is replaced everywhere', function (): 
     expect($server->getUrl(['region' => 'eu']))->toBe('https://eu.example.com/eu/v1');
 });
 
-test('a placeholder introduced by a substituted value is not expanded again', function (): void {
+test('bhv servers 005 a placeholder introduced by a substituted value is not expanded again', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com/{version}',
         variables: [

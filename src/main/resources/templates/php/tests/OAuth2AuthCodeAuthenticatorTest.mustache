@@ -23,7 +23,7 @@ function makeOAuth2AuthCodeMockClient(
     return $client;
 }
 
-test('builds authorization url with required params', function (): void {
+test('bhv authoauthtwoauthcode 006 builds authorization url with required params', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -44,7 +44,7 @@ test('builds authorization url with required params', function (): void {
     expect($url)->toContain('state=csrf-state');
 });
 
-test('exchanges code with correct grant type', function (): void {
+test('bhv authoauthtwoauthcode 012 exchanges code with correct grant type', function (): void {
     $client = makeOAuth2AuthCodeMockClient();
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
@@ -69,7 +69,7 @@ test('exchanges code with correct grant type', function (): void {
     expect($request['body'] ?? '')->toContain('client_secret=my-client-secret');
 });
 
-test('exchange code rejects empty code', function (): void {
+test('bhv authoauthtwoauthcode 010 exchange code rejects empty code', function (): void {
     /* exchangeCode must reject an empty / whitespace-only authorization
      * code before issuing the token POST, surfacing the caller bug as a
      * catchable InvalidArgumentException rather than a server-side
@@ -97,7 +97,7 @@ test('exchange code rejects empty code', function (): void {
     expect($client->capturedRequests)->toHaveCount(0);
 });
 
-test('exchange code rejects whitespace only code', function (): void {
+test('bhv authoauthtwoauthcode 011 exchange code rejects whitespace only code', function (): void {
     /* oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
      * distinct from the empty-string case and must also be rejected before
      * issuing the token POST (trim($code) === '' guard). */
@@ -120,7 +120,7 @@ test('exchange code rejects whitespace only code', function (): void {
     expect($client->capturedRequests)->toHaveCount(0);
 });
 
-test('includes refresh token on refresh', function (): void {
+test('bhv authoauthtwoauthcode 015 includes refresh token on refresh', function (): void {
     $client = new MockTokenApiClient();
     // First call (exchangeCode) returns a refresh token with an expired access token
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
@@ -155,7 +155,7 @@ test('includes refresh token on refresh', function (): void {
     expect($headers['Authorization'])->toBe('Bearer access2');
 });
 
-test('throws before exchange code called', function (): void {
+test('bhv authoauthtwoauthcode 027 throws before exchange code called', function (): void {
     $client = makeOAuth2AuthCodeMockClient();
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
@@ -176,7 +176,7 @@ test('throws before exchange code called', function (): void {
         });
 });
 
-test('get host returns configured host', function (): void {
+test('bhv authoauthtwoauthcode 014 get host returns configured host', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -190,7 +190,7 @@ test('get host returns configured host', function (): void {
     expect($authenticator->getHost())->toBe('https://api.example.com');
 });
 
-test('builds authorization url with state', function (): void {
+test('bhv authoauthtwoauthcode 007 builds authorization url with state', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -206,7 +206,7 @@ test('builds authorization url with state', function (): void {
     expect($url)->toContain('state=csrf-state-123');
 });
 
-test('empty state is omitted', function (): void {
+test('bhv authoauthtwoauthcode 018 empty state is omitted', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -225,7 +225,7 @@ test('empty state is omitted', function (): void {
     expect($withoutChallenge($url))->toBe($withoutChallenge($authenticator->buildAuthorizationUrl()));
 });
 
-test('auth headers before exchange returns recoverable error', function (): void {
+test('bhv authoauthtwoauthcode 003 auth headers before exchange returns recoverable error', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -251,7 +251,7 @@ test('auth headers before exchange returns recoverable error', function (): void
     expect($authenticator->getHost())->toBe('https://api.example.com');
 });
 
-test('authorize url with existing query string uses amp separator', function (): void {
+test('bhv authoauthtwoauthcode 005 authorize url with existing query string uses amp separator', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -274,7 +274,7 @@ test('authorize url with existing query string uses amp separator', function ():
  * __debugInfo(): the literal secret is absent and the masked '***'
  * placeholder is present.
  */
-test('redacts secret', function (): void {
+test('bhv authoauthtwoauthcode 019 redacts secret', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -301,7 +301,7 @@ test('secret constructor parameters are marked sensitive', function (): void {
     expect($sensitive)->toBe(['clientSecret']);
 });
 
-test('auth code sends the code grant to the token url and the refresh grant to the refresh url', function (?string $refreshUrl, string $expectedRefreshTarget): void {
+test('bhv authoauthtwoauthcode 024 auth code sends the code grant to the token url and the refresh grant to the refresh url', function (?string $refreshUrl, string $expectedRefreshTarget): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access1',
@@ -337,7 +337,7 @@ test('auth code sends the code grant to the token url and the refresh grant to t
     'no refresh url' => [null, 'https://auth.example.com/token'],
 ]);
 
-test('authorization url keeps only the unreserved characters literal', function (): void {
+test('bhv authoauthtwoauthcode 004 authorization url keeps only the unreserved characters literal', function (): void {
     /* R8-10: exactly '-._~' stay literal; '*', '!', the quote and the
      * parentheses are percent-encoded in the authorize URL. */
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
@@ -364,7 +364,7 @@ test('authorization url keeps only the unreserved characters literal', function 
     );
 });
 
-test('the authorization url carries a PKCE S256 challenge that the code exchange proves', function (): void {
+test('bhv authoauthtwoauthcode 023 the authorization url carries a PKCE S256 challenge that the code exchange proves', function (): void {
     $client = makeOAuth2AuthCodeMockClient();
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
@@ -394,7 +394,7 @@ test('the authorization url carries a PKCE S256 challenge that the code exchange
     expect($challenge)->toBe($expected);
 });
 
-test('a code exchange without a built authorization url sends no code verifier', function (): void {
+test('bhv authoauthtwoauthcode 001 a code exchange without a built authorization url sends no code verifier', function (): void {
     $client = makeOAuth2AuthCodeMockClient();
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
@@ -411,7 +411,7 @@ test('a code exchange without a built authorization url sends no code verifier',
     expect($client->capturedRequests[0]['body'] ?? '')->not->toContain('code_verifier');
 });
 
-test('code exchange body keeps only the unreserved characters literal', function (): void {
+test('bhv authoauthtwoauthcode 017 code exchange body keeps only the unreserved characters literal', function (): void {
     $client = makeOAuth2AuthCodeMockClient();
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
@@ -432,7 +432,7 @@ test('code exchange body keeps only the unreserved characters literal', function
     expect($body)->toContain('client_secret=sec-._~%2A%21%27%28%29');
 });
 
-test('debug output keeps the non secret fields and masks the secret', function (): void {
+test('bhv authoauthtwoauthcode 025 debug output keeps the non secret fields and masks the secret', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -455,7 +455,7 @@ test('debug output keeps the non secret fields and masks the secret', function (
     expect($printR)->toContain('[redirectUri] => https://app.example.com/callback');
 });
 
-test('auth code refresh carries the client credentials', function (): void {
+test('bhv authoauthtwoauthcode 026 auth code refresh carries the client credentials', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access1',
@@ -488,7 +488,7 @@ test('auth code refresh carries the client credentials', function (): void {
     );
 });
 
-test('auth code rejected refresh surfaces the server error after one refresh request', function (): void {
+test('bhv authoauthtwoauthcode 002 auth code rejected refresh surfaces the server error after one refresh request', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'access1',
@@ -518,7 +518,7 @@ test('auth code rejected refresh surfaces the server error after one refresh req
     expect($client->capturedRequests)->toHaveCount(2);
 });
 
-test('second exchange code sends the new code', function (): void {
+test('bhv authoauthtwoauthcode 021 second exchange code sends the new code', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'token1',
@@ -550,7 +550,7 @@ test('second exchange code sends the new code', function (): void {
     expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer token2']);
 });
 
-test('second exchange without a refresh token drops the old refresh token', function (): void {
+test('bhv authoauthtwoauthcode 022 second exchange without a refresh token drops the old refresh token', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'token1',
@@ -585,7 +585,7 @@ test('second exchange without a refresh token drops the old refresh token', func
     expect($client->capturedRequests[2]['body'] ?? '')->not->toContain('refresh1');
 });
 
-test('failed exchange keeps the previous session', function (): void {
+test('bhv authoauthtwoauthcode 013 failed exchange keeps the previous session', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'token1',

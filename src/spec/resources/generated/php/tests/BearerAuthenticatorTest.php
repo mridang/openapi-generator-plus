@@ -16,13 +16,13 @@ namespace PetstoreClient\Test;
 use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Auth\PetStoreBearerAuthenticator;
 
-test('raw token is prefixed with bearer', function (): void {
+test('bhv authbearer 009 raw token is prefixed with bearer', function (): void {
     $auth = new BearerAuthenticator('https://api.example.com', 'xyz');
     $headers = $auth->getAuthHeaders();
     expect($headers['Authorization'])->toBe('Bearer xyz');
 });
 
-test('already prefixed token is not doubled', function (): void {
+test('bhv authbearer 003 already prefixed token is not doubled', function (): void {
     // Tokens read from env files are commonly stored already-prefixed;
     // emitting "Bearer Bearer xyz" would otherwise silently break auth.
     $auth = new BearerAuthenticator('https://api.example.com', 'Bearer xyz');
@@ -30,19 +30,19 @@ test('already prefixed token is not doubled', function (): void {
     expect($headers['Authorization'])->toBe('Bearer xyz');
 });
 
-test('lowercase bearer prefix is stripped', function (): void {
+test('bhv authbearer 007 lowercase bearer prefix is stripped', function (): void {
     $auth = new BearerAuthenticator('https://api.example.com', 'bearer xyz');
     $headers = $auth->getAuthHeaders();
     expect($headers['Authorization'])->toBe('Bearer xyz');
 });
 
-test('mixed case bearer prefix is stripped', function (): void {
+test('bhv authbearer 008 mixed case bearer prefix is stripped', function (): void {
     $auth = new BearerAuthenticator('https://api.example.com', 'BeArEr xyz');
     $headers = $auth->getAuthHeaders();
     expect($headers['Authorization'])->toBe('Bearer xyz');
 });
 
-test('bearer rejects crlf at construction', function (): void {
+test('bhv authbearer 012 bearer rejects crlf at construction', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com', "tok\r\nInjected: yes"))
         ->toThrow(\InvalidArgumentException::class);
 });
@@ -52,7 +52,7 @@ test('bearer rejects non ascii at construction', function (): void {
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('bearer rejects empty token at construction', function (): void {
+test('bhv authbearer 005 bearer rejects empty token at construction', function (): void {
     // An empty / whitespace-only token would emit "Authorization: Bearer "
     // (no credential), so it must be rejected at construction.
     expect(fn () => new BearerAuthenticator('https://api.example.com', ''))
@@ -73,7 +73,7 @@ test('bearer rejects ascii whitespace only token as empty', function (string $to
     'vertical tab' => ["\v"],
 ]);
 
-test('bearer rejects unicode space only token as non printable ascii', function (string $token): void {
+test('bhv authbearer 016 bearer rejects unicode space only token as non printable ascii', function (string $token): void {
     /* A Unicode space is not blank by the ASCII rule, so it reaches the
      * printable-ASCII rule and is rejected there, not as an empty token. */
     expect(fn () => new BearerAuthenticator('https://api.example.com', $token))
@@ -131,7 +131,7 @@ test('rejected token is not recorded in the exception stack trace', function ():
     expect($trace)->not->toContain('SECRET');
 });
 
-test('debug output keeps the host and masks only the token', function (): void {
+test('bhv authbearer 013 debug output keeps the host and masks only the token', function (): void {
     $auth = new BearerAuthenticator('https://api.example.com', 'xyz');
 
     $printR = print_r($auth, true);
@@ -140,7 +140,7 @@ test('debug output keeps the host and masks only the token', function (): void {
     expect($printR)->toContain('[token] => ***');
 });
 
-test('every generated bearer wrapper sends the bearer header and masks the token', function (): void {
+test('bhv authbearer 006 every generated bearer wrapper sends the bearer header and masks the token', function (): void {
     $wrappers = 0;
     foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
@@ -181,7 +181,7 @@ test('an explicit token wins over the environment', function (): void {
     });
 });
 
-test('the token is read from the environment when none is passed', function (): void {
+test('bhv authbearer 010 the token is read from the environment when none is passed', function (): void {
     withBearerTokenEnvironment('from-environment', function (): void {
         $auth = new PetStoreBearerAuthenticator('https://api.example.com');
         expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer from-environment');
@@ -225,7 +225,7 @@ test('the base class reads no environment variable', function (): void {
     });
 });
 
-test('a token provider is asked for the token on every request', function (): void {
+test('bhv authbearer 014 a token provider is asked for the token on every request', function (): void {
     $calls = 0;
     $auth = new BearerAuthenticator('https://api.example.com', null, function () use (&$calls): string {
         $calls++;
@@ -242,7 +242,7 @@ test('a token and a token provider cannot both be passed', function (): void {
         ->toThrow(\InvalidArgumentException::class, 'not both');
 });
 
-test('a token from the provider is validated like a passed one', function (): void {
+test('bhv authbearer 002 a token from the provider is validated like a passed one', function (): void {
     $auth = new BearerAuthenticator('https://api.example.com', null, fn (): string => " ");
 
     expect(fn () => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class, 'must not be empty');
