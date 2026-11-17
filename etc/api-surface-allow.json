@@ -2401,7 +2401,6 @@
    "element": "apierror.fromresponse",
    "aspect": "params",
    "languages": [
-    "java",
     "kotlin",
     "php",
     "node"
@@ -2412,7 +2411,6 @@
    "element": "apierror.fromresponse",
    "aspect": "optional",
    "languages": [
-    "java",
     "kotlin",
     "php",
     "node"
@@ -3208,6 +3206,35 @@
    ],
    "value": "*options, requestcontenttype)",
    "reason": "owner decision F827 (2026-11-17): the trailing optional Options argument that carries the per-call settings, ahead of the content-type selector (S8 keeps the selector last in python). Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "*options.headers",
+   "aspect": "prop-optional",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust has no null for a map: the per-call headers field is a HashMap whose empty value means no extra headers, where the other SDKs make the property optional"
+  },
+  {
+   "element": [
+    "reservestockresponse.reservation",
+    "reservestockresponse.asreservation",
+    "reservestockresponse.reservationreceipt",
+    "reservestockresponse.asreservationreceipt"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust oneOf is a sum type: the enum variant constructor is the typed factory and match or if let is the typed accessor, so no separate from/as_ functions exist"
+  },
+  {
+   "element": "bearerauthenticator.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust has no default arguments or overloads: the token-provider callback is set by BearerAuthenticator::with_token_provider instead of a third constructor argument"
   }
  ]
 }
