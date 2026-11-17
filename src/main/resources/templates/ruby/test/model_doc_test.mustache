@@ -16,18 +16,18 @@ require 'test_helper'
 describe 'generated model doc comments' do
   parallelize_me!
 
-  MODELS_GLOB = File.join(
-    File.expand_path('..', File.dirname(__FILE__)), 'lib', '{{gemName}}', 'models', '*.rb'
-  )
+  def models_glob
+    File.join(File.expand_path('..', File.dirname(__FILE__)), 'lib', '{{modulePath}}', 'models', '*.rb')
+  end
 
   it 'finds the generated model sources on disk' do
     # Sanity check: the glob must resolve to real files, otherwise the
     # pollution assertions below would pass vacuously.
-    _(Dir.glob(MODELS_GLOB)).wont_be_empty
+    _(Dir.glob(models_glob)).wont_be_empty
   end
 
   it 'bhv_models_007 never documents the synthesized "null" example on any property' do
-    offenders = Dir.glob(MODELS_GLOB).select do |path|
+    offenders = Dir.glob(models_glob).select do |path|
       source = File.read(path)
       source.include?('# @example null') || source.include?('@example null')
     end
@@ -42,7 +42,7 @@ describe 'generated model doc comments' do
     # examples in the spec, so the guard must keep their "# @example" lines.
     # This proves the null filter does not over-suppress legitimate docs.
     category = File.read(
-      File.join(File.expand_path('..', File.dirname(__FILE__)), 'lib', '{{gemName}}', 'models', 'category.rb')
+      File.join(File.expand_path('..', File.dirname(__FILE__)), 'lib', '{{modulePath}}', 'models', 'category.rb')
     )
 
     _(category).must_include('# @example 1')

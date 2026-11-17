@@ -113,8 +113,17 @@ describe 'Client' do
     }).must_raise ArgumentError
   end
 
-  it 'bhv_lifecycle_002 bhv_lifecycle_004 ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII' do
-    # RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+  it 'bhv_lifecycle_002 ApiKeyAuthenticator HEADER rejects a CR/LF injected key' do
+    # RFC 7230 section 3.2.6: a header value must not carry CR or LF, or the
+    # key would inject a second header.
+    _(-> {
+      {{moduleName}}::Auth::ApiKeyAuthenticator.new('{{{basePath}}}', 'X-Api-Key', "abc\r\nInjected: yes",
+                                                    {{moduleName}}::Auth::ApiKeyLocation::HEADER)
+    }).must_raise ArgumentError
+  end
+
+  it 'bhv_lifecycle_004 ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 3.2.6)' do
+    # RFC 7230 section 3.2.6: header field-value is HTAB / SP / VCHAR.
     # The HEADER location must reject anything outside printable ASCII
     # + TAB to prevent header injection (CR/LF) and silent UTF-8
     # mangling that varies per HTTP lib.

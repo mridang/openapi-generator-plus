@@ -643,6 +643,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "metadata_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/model_doc_test.mustache",
+                            "test",
+                            "model_doc_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/composed_schema_test.mustache",
                             "test",
                             "composed_schema_test.rb"));
