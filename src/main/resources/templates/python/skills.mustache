@@ -152,6 +152,22 @@ authenticator = OAuth2ClientCredentialsAuthenticator(
 
 {{/hasAnyOAuth2}}
 
+{{#hasSecuritySchemeEnvVars}}
+### Credentials from the environment
+
+The authenticator written for each security scheme takes every credential as an optional argument. The argument you pass wins, then the environment variable named below, read once when the authenticator is built (an empty variable counts as unset). A credential found in neither place raises `ValueError` there, before the client exists. A bearer scheme also takes `token_provider=`, a callable returning the current token that runs for every request; it wins over the environment variable and cannot be combined with `token`.
+
+| Scheme | Field | Environment variable |
+|---|---|---|
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{field}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+
+{{/hasSecuritySchemeEnvVars}}
+## Per-call options
+
+Every operation takes an optional trailing `options` argument, an Options object that carries three settings for that one call: `timeout` (milliseconds, at least 1), `headers` (they replace a default header of the same name) and `max_retries` (at least 0; `0` turns retrying off). `None` keeps the client's setting. This holds for an operation with no parameters too, so any call can be given a timeout or its own headers.
+
 {{#hasServers}}
 ## Servers
 

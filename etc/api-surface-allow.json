@@ -3008,7 +3008,7 @@
    "languages": [
     "python"
    ],
-   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options object carrying timeout, headers and max_retries; python mints one for each operation first, the shared pass still mints it only for operations with parameters or security. Remove the rule when the other eleven SDKs land the same decision."
+   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options object carrying timeout, headers and max_retries; python opts in through mintsOptionsForEveryOperation() and the shared pass mints one for each operation. Remove the rule when the other eleven SDKs land the same decision."
   },
   {
    "element": "*api.*",
@@ -3270,6 +3270,27 @@
     "swift"
    ],
    "reason": "F830: swift declares the request context as `public internal(set) var`, and the extractor's modifier pattern does not read `internal(set)` (as for `private(set)` above), so the public get-only property is reported missing; delete this rule when the extractor reads it"
+  },
+  {
+   "element": [
+    "*authenticator.<ctor>"
+   ],
+   "aspect": "ctor-optional",
+   "languages": [
+    "python"
+   ],
+   "reason": "F862 owner decision (an explicit credential wins, then the {PREFIX}_{FIELD} environment variable): the per-scheme authenticator takes every credential as a defaulted argument so the variable can supply it, because python has default arguments where the languages without them take an overload; a missing credential raises ValueError at construction"
+  },
+  {
+   "element": [
+    "*authenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "python"
+   ],
+   "value": "*tokenprovider)",
+   "reason": "F862 owner decision (a token-provider callback beside the static credential): python has no overloads, so a bearer scheme authenticator takes token_provider as a defaulted keyword argument beside token; giving both raises ValueError"
   }
  ]
 }

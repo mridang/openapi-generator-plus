@@ -29,11 +29,9 @@ from .base_api import NO_AUTH
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
 from ..errors import ApiException
-from .options.get_by_swatch_options import GetBySwatchOptions
-from .options.get_stock_item_options import GetStockItemOptions
-from .options.search_store_options import SearchStoreOptions
 from .options.create_account_options import CreateAccountOptions
 from .options.delete_order_options import DeleteOrderOptions
+from .options.get_by_swatch_options import GetBySwatchOptions
 from .options.get_defaults_options import GetDefaultsOptions
 from .options.get_department_options import GetDepartmentOptions
 from .options.get_grouped_categories_options import GetGroupedCategoriesOptions
@@ -41,12 +39,14 @@ from .options.get_inventory_options import GetInventoryOptions
 from .options.get_matrix_options import GetMatrixOptions
 from .options.get_order_by_id_options import GetOrderByIdOptions
 from .options.get_order_by_tracking_id_options import GetOrderByTrackingIdOptions
+from .options.get_stock_item_options import GetStockItemOptions
 from .options.get_swatch_options import GetSwatchOptions
 from .options.get_swatch_groups_options import GetSwatchGroupsOptions
 from .options.get_timestamp_groups_options import GetTimestampGroupsOptions
 from .options.get_tree_options import GetTreeOptions
 from .options.place_order_options import PlaceOrderOptions
 from .options.reserve_stock_options import ReserveStockOptions
+from .options.search_store_options import SearchStoreOptions
 
 
 class StoreApi(BaseApi):

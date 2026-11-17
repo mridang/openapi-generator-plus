@@ -1705,6 +1705,29 @@ class TestReferencedEnumFieldRejection:
         assert item.availability == Availability('on-hold')
 
 
+class TestReferencedEnumDefault:
+    """F866 — a property that is a `$ref` carrying a sibling `default` starts as that
+    default. StockItem.availability is a `$ref` to the Availability enum with the
+    sibling default `on-hold`."""
+
+    def test_a_constructed_model_starts_with_the_default(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        from {{packageName}}.models.priority import Priority
+        from {{packageName}}.models.stock_item import StockItem
+
+        assert StockItem(priority=Priority(1)).availability == Availability('on-hold')
+
+    def test_a_decoded_model_without_the_property_gets_the_default(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        item = ObjectSerializer().deserialize('{"priority":1}', 'StockItem')
+        assert item.availability == Availability('on-hold')
+
+    def test_a_decoded_value_replaces_the_default(self) -> None:
+        from {{packageName}}.models.availability import Availability
+        item = ObjectSerializer().deserialize('{"priority":1,"availability":"Sold"}', 'StockItem')
+        assert item.availability == Availability('Sold')
+
+
 class TestSubMilliDurationNoScientificNotation:
     """Scenario 9 (residual) — a sub-0.0001s duration magnitude must serialize
     as a plain decimal with an `s` suffix, never in scientific notation
