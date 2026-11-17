@@ -2093,13 +2093,19 @@ void main() {
      * unit and never throws on non-UTF-8 bytes (e.g. the 0x89 PNG signature),
      * which lets the test inspect the ASCII Content-Disposition / Content-Type
      * header lines while the binary part content passes through intact. */
-    Future<String> readBodyAsLatin1(HttpRequest request) async {
+    Future<String> readBodyAsLatin1Raw(HttpRequest request) async {
       final bytes = <int>[];
       await for (final chunk in request) {
         bytes.addAll(chunk);
       }
-      return latin1.decode(bytes).toLowerCase();
+      return latin1.decode(bytes);
     }
+
+    /* Lower-cased, so header names and values match whatever case the client
+     * wrote them in. A test that checks case-sensitive body text (a date-time's
+     * `T`) reads [readBodyAsLatin1Raw] instead. */
+    Future<String> readBodyAsLatin1(HttpRequest request) async =>
+        (await readBodyAsLatin1Raw(request)).toLowerCase();
 
     test('bhv serializationwire 039 multipart .png field sets image/png Content-Type', () async {
       String body = '';
@@ -2202,7 +2208,7 @@ void main() {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
-        body = await readBodyAsLatin1(request);
+        body = await readBodyAsLatin1Raw(request);
         request.response
           ..statusCode = 200
           ..close();
