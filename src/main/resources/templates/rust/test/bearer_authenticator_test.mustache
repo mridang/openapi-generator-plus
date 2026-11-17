@@ -44,28 +44,52 @@ async fn test_bhv_authbearer_008_mixed_case_bearer_prefix_is_stripped() {
     );
 }
 
-/// Gap AC — Bearer tokens with CR/LF would CRLF-inject the Authorization
-/// header, non-ASCII bytes are mangled, and an empty or whitespace-only token
-/// would emit a bare `Authorization: Bearer ` header
-/// (bearer-no-empty-token-guard). All fail closed with
-/// `ConfigurationError::InvalidArgument`, never a panic.
+/// An empty bearer token fails closed with `ConfigurationError::InvalidArgument`
+/// at construction, never a panic, so no bare `Authorization: Bearer ` header
+/// is emitted (bearer-no-empty-token-guard).
 #[test]
-fn test_bhv_authbearer_005_bhv_authbearer_012_bhv_authbearer_017_bearer_rejects_invalid_tokens() {
-    for (token, expected) in [
-        ("tok\r\nInjected: yes", "printable ASCII"),
-        ("ñoño", "printable ASCII"),
-        ("", "Bearer token must not be empty"),
-        ("   ", "Bearer token must not be empty"),
-    ] {
+fn test_bhv_authbearer_005_empty_token_is_rejected_at_construction() {
+    match BearerAuthenticator::new("https://api.example.com", "") {
+        Err(ConfigurationError::InvalidArgument(reason)) => {
+            assert!(reason.contains("Bearer token must not be empty"), "{}", reason)
+        }
+        other => panic!(
+            "expected ConfigurationError::InvalidArgument for an empty token, got {:?}",
+            other
+        ),
+    }
+}
+
+/// Bearer tokens with CR/LF would CRLF-inject the Authorization header and
+/// non-ASCII bytes are mangled, so both fail closed with
+/// `ConfigurationError::InvalidArgument` (RFC 7230 section 3.2.6).
+#[test]
+fn test_bhv_authbearer_012_rejects_crlf_and_non_ascii_tokens() {
+    for token in ["tok\r\nInjected: yes", "ñoño"] {
         match BearerAuthenticator::new("https://api.example.com", token) {
             Err(ConfigurationError::InvalidArgument(reason)) => {
-                assert!(reason.contains(expected), "{}", reason)
+                assert!(reason.contains("printable ASCII"), "{}", reason)
             }
             other => panic!(
                 "expected ConfigurationError::InvalidArgument for {:?}, got {:?}",
                 token, other
             ),
         }
+    }
+}
+
+/// A whitespace-only token is rejected at construction, the same way as an
+/// empty one, so it never produces a bare `Authorization: Bearer ` header.
+#[test]
+fn test_bhv_authbearer_017_whitespace_only_token_is_rejected_at_construction() {
+    match BearerAuthenticator::new("https://api.example.com", "   ") {
+        Err(ConfigurationError::InvalidArgument(reason)) => {
+            assert!(reason.contains("Bearer token must not be empty"), "{}", reason)
+        }
+        other => panic!(
+            "expected ConfigurationError::InvalidArgument for a whitespace token, got {:?}",
+            other
+        ),
     }
 }
 
@@ -87,15 +111,20 @@ fn test_bhv_authbearer_016_unicode_space_only_token_is_rejected_by_the_printable
     }
 }
 
-/// The `Bearer ` prefix is removed once and only as a whole word: a token that
-/// merely starts with the letters is kept whole.
+/// The `Bearer ` prefix is removed once, not repeatedly.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_bhv_authbearer_004_bhv_authbearer_015_prefix_is_stripped_once_and_only_as_a_whole_word() {
+async fn test_bhv_authbearer_004_prefix_is_stripped_once() {
     let twice = BearerAuthenticator::new("https://api.example.com", "Bearer Bearer xyz").unwrap();
     assert_eq!(
         twice.auth_headers().await.get("Authorization").map(|s| s.as_str()),
         Some("Bearer Bearer xyz")
     );
+}
+
+/// A token that merely starts with the letters `bearer` is kept whole: the
+/// prefix is only removed as a whole word.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authbearer_015_a_token_that_merely_begins_with_bearer_is_kept_whole() {
     let lookalike = BearerAuthenticator::new("https://api.example.com", "bearerxyz").unwrap();
     assert_eq!(
         lookalike.auth_headers().await.get("Authorization").map(|s| s.as_str()),

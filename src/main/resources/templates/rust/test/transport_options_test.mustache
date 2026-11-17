@@ -124,7 +124,7 @@ fn test_bhv_options_021_transport_options_follow_redirects_defaults_to_true_with
 /* D79: the proxy messages are the canonical ones, and the userinfo of the
  * rejected URL is shown as `***@`, so a proxy credential never reaches a log. */
 #[test]
-fn test_bhv_options_024_bhv_options_008_bhv_options_011_bhv_options_013_bhv_options_031_transport_options_invalid_proxy_url_throws_exception() {
+fn test_bhv_options_024_transport_options_invalid_proxy_url_throws_exception() {
     for (proxy, message) in [
         ("not-a-valid-url", "Invalid proxy URL: not-a-valid-url"),
         (
@@ -162,9 +162,9 @@ fn test_bhv_options_024_bhv_options_008_bhv_options_011_bhv_options_013_bhv_opti
 }
 
 /// F1065: an IPv6 literal host is a valid proxy host (brackets kept, userinfo
-/// allowed); an unterminated literal is rejected with the userinfo masked.
+/// allowed) and is kept verbatim.
 #[test]
-fn test_bhv_options_009_bhv_options_010_transport_options_proxy_with_an_ipv6_literal_host() {
+fn test_bhv_options_009_transport_options_proxy_with_an_ipv6_literal_host() {
     for proxy in ["http://[::1]:3128", "http://user@[::1]:3128", "https://[2001:db8::1]"] {
         let opts = TransportOptionsBuilder::new()
             .proxy(proxy)
@@ -172,6 +172,12 @@ fn test_bhv_options_009_bhv_options_010_transport_options_proxy_with_an_ipv6_lit
             .expect("an IPv6 literal proxy host is valid");
         assert_eq!(opts.proxy(), Some(proxy));
     }
+}
+
+/// F1065: an unterminated IPv6 literal is rejected, with the userinfo of the
+/// rejected URL masked as `***@`.
+#[test]
+fn test_bhv_options_010_a_proxy_url_with_an_unterminated_ipv6_literal_is_rejected() {
     for (proxy, message) in [
         ("http://[::1:3128", "Invalid proxy URL: http://[::1:3128"),
         ("http://user@[::1:3128", "Invalid proxy URL: http://***@[::1:3128"),
@@ -183,6 +189,75 @@ fn test_bhv_options_009_bhv_options_010_transport_options_proxy_with_an_ipv6_lit
             "unexpected result for {:?}",
             proxy
         );
+    }
+}
+
+/// A proxy URL error never carries the userinfo of the rejected URL: the
+/// password is replaced by the `***` mask.
+#[test]
+fn test_bhv_options_008_a_proxy_url_error_never_carries_the_user_info() {
+    let secret = ["s3", "cr3t"].concat();
+    for proxy in [
+        format!("ftp://user:{}@proxy.example.com:21", secret),
+        format!("http://user:{}@", secret),
+    ] {
+        let text = TransportOptionsBuilder::new()
+            .proxy(&proxy)
+            .build()
+            .err()
+            .expect("the proxy URL is rejected")
+            .to_string();
+        assert!(!text.contains(&secret), "{}", text);
+        assert!(text.contains("***@"), "{}", text);
+    }
+}
+
+/// A proxy URL with no host is rejected with the missing-host message.
+#[test]
+fn test_bhv_options_011_a_proxy_url_with_no_host_is_rejected() {
+    let secret = ["s3", "cr3t"].concat();
+    for (proxy, message) in [
+        ("http://".to_string(), "Invalid proxy URL (missing host): http://".to_string()),
+        (
+            format!("http://user:{}@", secret),
+            "Invalid proxy URL (missing host): http://***@".to_string(),
+        ),
+    ] {
+        assert_eq!(
+            TransportOptionsBuilder::new().proxy(&proxy).build().err(),
+            Some(ConfigurationError::InvalidProxy(message)),
+            "unexpected result for {:?}",
+            proxy
+        );
+    }
+}
+
+/// The proxy setter does not validate: an invalid proxy URL is only rejected
+/// when the options are built.
+#[test]
+fn test_bhv_options_013_an_invalid_proxy_url_is_rejected_at_build_not_in_the_setter() {
+    let builder = TransportOptionsBuilder::new().proxy("not-a-valid-url");
+
+    assert!(builder.build().is_err());
+}
+
+/// A rejected proxy URL displays the canonical message verbatim.
+#[test]
+fn test_bhv_options_031_a_rejected_proxy_url_displays_the_canonical_message() {
+    for (proxy, message) in [
+        ("not-a-valid-url", "Invalid proxy URL: not-a-valid-url"),
+        (
+            "ftp://proxy.example.com:21",
+            "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
+        ),
+    ] {
+        let text = TransportOptionsBuilder::new()
+            .proxy(proxy)
+            .build()
+            .err()
+            .expect("the proxy URL is rejected")
+            .to_string();
+        assert_eq!(text, message);
     }
 }
 

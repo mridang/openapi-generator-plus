@@ -256,7 +256,7 @@ async fn test_bhv_authoidc_010_fetches_discovery_document() {
  * transport's default headers (an API credential) away from the identity
  * provider. */
 #[tokio::test(flavor = "multi_thread")]
-async fn test_discovery_is_sent_without_following_redirects() {
+async fn test_bhv_authoidc_008_discovery_is_sent_without_the_transport_default_headers() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
