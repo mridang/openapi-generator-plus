@@ -648,7 +648,7 @@ module {{moduleName}}
       attribute :{{name}}, Types::String.enum(*{{enumName}}::VALUES){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
       {{/isEnum}}
       {{^isEnum}}
-      attribute :{{name}}, {{#isNullable}}Types::Any{{/isNullable}}{{^isNullable}}Types::Required{{/isNullable}}{{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      attribute :{{name}}, {{#isNullable}}Types::Any{{/isNullable}}{{^isNullable}}Types::Required{{/isNullable}}{{#defaultValue}}.default({{{.}}}){{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}}.default({{vendorExtensions.siblingDefaultEnumType}}::{{vendorExtensions.siblingDefaultEnumVar}}){{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}
       {{/isEnum}}
       {{/required}}
       {{^required}}
@@ -656,7 +656,7 @@ module {{moduleName}}
       attribute :{{name}}, Types::String.enum(*{{enumName}}::VALUES).optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
       {{/isEnum}}
       {{^isEnum}}
-      attribute :{{name}}, Types::Any.optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      attribute :{{name}}, Types::Any.optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}}.default({{vendorExtensions.siblingDefaultEnumType}}::{{vendorExtensions.siblingDefaultEnumVar}}){{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}
       {{/isEnum}}
       {{/required}}
       {{/vars}}

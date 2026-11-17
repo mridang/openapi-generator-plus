@@ -48,4 +48,12 @@ describe 'README' do
       _(readme).must_include text
     end
   end
+
+  it 'names the environment variable of every credential and says every operation has Options' do
+{{#securitySchemeEnvVars}}
+    _(readme).must_include '| `{{schemeId}}` | `{{fieldSnake}}` | `{{envName}}` |'
+{{/securitySchemeEnvVars}}
+    _(readme).must_include 'an empty variable counts as unset'
+    _(readme).must_include 'Every operation takes an optional Options object'
+  end
 end

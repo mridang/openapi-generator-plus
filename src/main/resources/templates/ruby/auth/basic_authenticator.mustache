@@ -10,18 +10,21 @@ module {{moduleName}}
     class BasicAuthenticator < BaseAuthenticator
       attr_reader :host
 
-      # A credential left out comes from the environment variable
-      # +<PREFIX>_USERNAME+ or +<PREFIX>_PASSWORD+, read once, here (an empty
-      # value counts as unset); one that is still missing fails here.
+      # A credential left out comes from its environment variable, read once,
+      # here (an empty value counts as unset); one that is still missing fails
+      # here.
       #
       # @param host [String] API base URL
       # @param username [String, nil]
       # @param password [String, nil]
       # @param env [#[]] where the variables are read from
-      def initialize(host, username = nil, password = nil, env: ENV)
+      # @param username_env [String] the name of the environment variable of the username
+      # @param password_env [String] the name of the environment variable of the password
+      def initialize(host, username = nil, password = nil, env: ENV,
+                     username_env: "#{ENV_PREFIX}_USERNAME", password_env: "#{ENV_PREFIX}_PASSWORD")
         super()
-        username = credential_from(username, 'USERNAME', env)
-        password = credential_from(password, 'PASSWORD', env)
+        username = credential_from(username, username_env, env)
+        password = credential_from(password, password_env, env)
         raise ArgumentError, 'Basic auth username must not be empty' if username.nil?
         raise ArgumentError, 'Basic auth password must not be empty' if password.nil?
 

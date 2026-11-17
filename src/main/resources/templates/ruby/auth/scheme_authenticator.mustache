@@ -12,30 +12,39 @@ module {{moduleName}}
     module OAuth
       # Scheme-specific authenticator for the {{schemeName}} security scheme.
       class {{className}} < {{baseClass}}
-{{#hasCustomConstructor}}
-        def initialize({{#constructorParams}}{{name}}{{^-last}}, {{/-last}}{{/constructorParams}})
+        # Every credential not given here is read, once, from the environment
+        # variable of this scheme; an empty variable counts as unset, and a
+        # credential still missing fails here with an ArgumentError.
+        def initialize({{{constructorSignature}}})
+{{#resolutions}}
+          {{{.}}}
+{{/resolutions}}
+{{#hasResolutions}}
+
+{{/hasResolutions}}
           super(
             {{#superArgs}}
-            {{.}}{{^-last}},{{/-last}}
+            {{{.}}}{{^-last}},{{/-last}}
             {{/superArgs}}
           )
         end
-{{/hasCustomConstructor}}
       end
     end
 {{/isOAuth}}
 {{^isOAuth}}
     # Scheme-specific authenticator for the {{schemeName}} security scheme.
     class {{className}} < {{baseClass}}
-{{#hasCustomConstructor}}
-      def initialize({{#constructorParams}}{{name}}{{^-last}}, {{/-last}}{{/constructorParams}})
+      # A credential not given here is read, once, from the environment variable
+      # of this scheme (an empty variable counts as unset), then from the token
+      # provider where the scheme has one; one still missing fails here with an
+      # ArgumentError.
+      def initialize({{{constructorSignature}}})
         super(
           {{#superArgs}}
-          {{.}}{{^-last}},{{/-last}}
+          {{{.}}}{{^-last}},{{/-last}}
           {{/superArgs}}
         )
       end
-{{/hasCustomConstructor}}
     end
 {{/isOAuth}}
   end

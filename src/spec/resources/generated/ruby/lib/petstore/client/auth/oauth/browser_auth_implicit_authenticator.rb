@@ -12,7 +12,12 @@ module Petstore::Client
     module OAuth
       # Scheme-specific authenticator for the browserAuth security scheme.
       class BrowserAuthImplicitAuthenticator < OAuth2ImplicitAuthenticator
-        def initialize(host, client_id)
+        # Every credential not given here is read, once, from the environment
+        # variable of this scheme; an empty variable counts as unset, and a
+        # credential still missing fails here with an ArgumentError.
+        def initialize(host, client_id = nil, env: ENV)
+          client_id = require_credential(client_id, 'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID', 'client_id', env)
+
           super(
             host,
             client_id,

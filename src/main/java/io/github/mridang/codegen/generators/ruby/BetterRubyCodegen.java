@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +61,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
 
     @Nullable protected String gemName;
     protected String moduleName = "Opigen::Client";
+
+    /** The environment variables of every generated scheme authenticator, for its test. */
+    private final List<Map<String, Object>> schemeEnvironmentEntries = new ArrayList<>();
 
     /**
      * Initializes type mappings, template paths, and reserved
@@ -391,9 +395,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         additionalProperties.put("gemVersion", gemVersion);
         additionalProperties.put("userAgentDefault", gemName + "/" + gemVersion + " (ruby)");
         putManifestMetadata();
-        // The prefix of the environment variables a credential falls back to
-        // (<PREFIX>_TOKEN, <PREFIX>_USERNAME, <PREFIX>_PASSWORD, <PREFIX>_API_KEY).
-        additionalProperties.put("envPrefix", NamingConvention.UPPER_SNAKE_CASE.apply(gemName));
+        // One row per generated scheme authenticator: its constant and the
+        // environment variable each of its credentials falls back to. The
+        // generated authenticator test reads it; it is filled while the
+        // authenticators are rendered, after the options are processed.
+        additionalProperties.put("schemeEnvironmentEntries", schemeEnvironmentEntries);
 
         // SDK-wide error base. ApiError (and through it the whole HTTP/OAuth
         // error tree) and the serializer errors all subclass this, so a single
@@ -1159,42 +1165,145 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     /**
      * Renders a per-scheme authenticator Ruby source file using
      * the scheme_authenticator.mustache template.
+     *
+     * <p>Every scheme reads its own credentials from the environment (F862): a
+     * value given to the constructor wins, then the scheme's own variable
+     * ({@code envVars}, one per credential), read once when the authenticator is
+     * built, an empty variable counting as unset. The wrapper hands the variable
+     * names to its base for a bearer, basic or API-key scheme, and resolves them
+     * itself for an OAuth one, which fails with {@code ArgumentError} when a
+     * credential is missing.
      */
     @Override
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
         final Map<String, Object> ctx = baseSchemeContext(spec);
         ctx.put("isOAuth", spec.isOAuth());
         ctx.put("imports", List.of());
-        final List<Map<String, String>> constructorParams = new ArrayList<>();
-        for (final String name : spec.paramNames()) {
-            final Map<String, String> param = new HashMap<>();
-            param.put("name", NamingConvention.SNAKE_CASE.apply(name));
-            param.put("type", "String");
-            constructorParams.add(param);
+        final Map<String, String> envByParam = environmentByParameter(ctx);
+        final SchemeConstructor ctor = schemeConstructor(spec, envByParam);
+        ctx.put("constructorSignature", ctor.signature);
+        ctx.put("superArgs", ctor.superArgs);
+        ctx.put("resolutions", ctor.resolutions);
+        ctx.put("hasResolutions", !ctor.resolutions.isEmpty());
+        ctx.put("rbsSignature", ctor.rbsSignature);
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", ctx.get("className"));
+        entry.put("namespace", spec.isOAuth() ? "Auth::OAuth" : "Auth");
+        entry.put("isOAuth", spec.isOAuth());
+        entry.put("baseClass", spec.baseClass());
+        final List<Map<String, String>> credentials = new ArrayList<>();
+        for (final Map.Entry<String, String> e : envByParam.entrySet()) {
+            credentials.add(Map.of("name", e.getKey(), "envName", e.getValue()));
         }
-        final List<String> superArgs = buildRubySuperArgs(spec);
-        ctx.put("constructorParams", constructorParams);
-        ctx.put("superArgs", superArgs);
-        ctx.put("hasCustomConstructor", !isPassthroughConstructor(constructorParams, superArgs));
+        entry.put("credentials", credentials);
+        entry.put("firstEnvName", credentials.isEmpty() ? "" : credentials.get(0).get("envName"));
+        schemeEnvironmentEntries.add(entry);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
     /**
-     * Whether the wrapper's constructor would only forward its own
-     * parameters, in order, to the base class. Ruby inherits such a
-     * constructor, and RuboCop rejects the redundant definition.
+     * The environment variable of each credential of one scheme, keyed by the
+     * constructor parameter's snake_case name, from the {@code envVars} the
+     * shared generator puts in the scheme's context.
      */
-    private static boolean isPassthroughConstructor(
-            List<Map<String, String>> constructorParams, List<String> superArgs) {
-        if (constructorParams.size() != superArgs.size()) {
-            return false;
+    private static Map<String, String> environmentByParameter(Map<String, Object> ctx) {
+        final Map<String, String> byParam = new LinkedHashMap<>();
+        final Object envVars = ctx.get("envVars");
+        if (!(envVars instanceof List<?>)) {
+            return byParam;
         }
-        for (int i = 0; i < constructorParams.size(); i++) {
-            if (!superArgs.get(i).equals(constructorParams.get(i).get("name"))) {
-                return false;
+        for (final Object entry : (List<?>) envVars) {
+            final Map<?, ?> row = (Map<?, ?>) entry;
+            byParam.put(
+                    NamingConvention.SNAKE_CASE.apply(String.valueOf(row.get("field"))),
+                    String.valueOf(row.get("envName")));
+        }
+        return byParam;
+    }
+
+    /** The constructor of one scheme authenticator, as the templates print it. */
+    private static final class SchemeConstructor {
+        private final String signature;
+        private final String rbsSignature;
+        private final List<String> superArgs;
+        private final List<String> resolutions;
+
+        private SchemeConstructor(
+                String signature,
+                String rbsSignature,
+                List<String> superArgs,
+                List<String> resolutions) {
+            this.signature = signature;
+            this.rbsSignature = rbsSignature;
+            this.superArgs = superArgs;
+            this.resolutions = resolutions;
+        }
+    }
+
+    private SchemeConstructor schemeConstructor(
+            SchemeAuthSpec spec, Map<String, String> envByParam) {
+        final List<String> superArgs = new ArrayList<>(buildRubySuperArgs(spec));
+        final List<String> resolutions = new ArrayList<>();
+        final StringBuilder signature = new StringBuilder("host");
+        final StringBuilder rbs = new StringBuilder("String host");
+        final String base = spec.baseClass();
+        if ("BearerAuthenticator".equals(base)) {
+            signature.append(", token = nil, token_provider: nil, env: ENV");
+            rbs.append(", ?String? token, ?token_provider: (^() -> String)?, ?env: untyped");
+            superArgs.add("token_provider: token_provider");
+            superArgs.add("env: env");
+            superArgs.add("token_env: " + rubyLiteral(envByParam.get("token")));
+        } else if ("BasicAuthenticator".equals(base)) {
+            signature.append(", username = nil, password = nil, env: ENV");
+            rbs.append(", ?String? username, ?String? password, ?env: untyped");
+            superArgs.add("env: env");
+            superArgs.add("username_env: " + rubyLiteral(envByParam.get("username")));
+            superArgs.add("password_env: " + rubyLiteral(envByParam.get("password")));
+        } else if ("ApiKeyAuthenticator".equals(base)) {
+            signature.append(", api_key = nil, env: ENV");
+            rbs.append(", ?String? api_key, ?env: untyped");
+            superArgs.add("env: env");
+            superArgs.add("api_key_env: " + rubyLiteral(envByParam.get("api_key")));
+        } else {
+            for (final Map.Entry<String, String> param : envByParam.entrySet()) {
+                signature.append(", ").append(param.getKey()).append(" = nil");
+                rbs.append(", ?String? ").append(param.getKey());
+                resolutions.add(
+                        param.getKey()
+                                + " = require_credential("
+                                + param.getKey()
+                                + ", "
+                                + rubyLiteral(param.getValue())
+                                + ", "
+                                + rubyLiteral(param.getKey())
+                                + ", env)");
             }
+            signature.append(", env: ENV");
+            rbs.append(", ?env: untyped");
         }
-        return true;
+        return new SchemeConstructor(signature.toString(), rbs.toString(), superArgs, resolutions);
+    }
+
+    private static String rubyLiteral(@Nullable String text) {
+        return "'" + Objects.toString(text, "") + "'";
+    }
+
+    /**
+     * Writes the RBS signature of a scheme authenticator, whose constructor
+     * takes the optional credentials and the {@code env} seam.
+     */
+    @Override
+    protected void postWriteSchemeAuthenticator(SchemeAuthSpec spec, String writtenPath) {
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("isOAuth", spec.isOAuth());
+        final Map<String, String> envByParam = environmentByParameter(ctx);
+        ctx.put("rbsSignature", schemeConstructor(spec, envByParam).rbsSignature);
+        final int lastDot = writtenPath.lastIndexOf('.');
+        final String companionPath =
+                (lastDot >= 0 ? writtenPath.substring(0, lastDot) : writtenPath)
+                        + getSignatureFileExtension();
+        writeFile(companionPath, renderOptionsTemplate(getAuthenticatorSignatureTemplate(), ctx));
+        postProcessFile(Path.of(companionPath).toFile(), "source");
     }
 
     private static String formatRubyScopes(@Nullable Map<String, String> scopes) {
@@ -1577,6 +1686,16 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                         .toString();
         writeFile(rbsPath, content);
         postProcessFile(Path.of(rbsPath).toFile(), "source");
+    }
+
+    /**
+     * Every operation gets an Options object (F827), so each call has a slot for
+     * the optional per-call {@code timeout}, {@code headers} and
+     * {@code max_retries} even when it has no parameter of its own.
+     */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
     }
 
     /** {@inheritDoc} */

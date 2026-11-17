@@ -1533,6 +1533,28 @@ describe {{moduleName}}::ObjectSerializer do
     end
   end
 
+  # ── a $ref property with a sibling default starts at that default (F866) ──
+  #
+  # StockItem.availability is a $ref to the Availability enum with
+  # `default: on-hold` written next to the $ref. Both a built model and a
+  # decoded one that leaves the property out must start at that member.
+  describe 'referenced enum field with a sibling default' do
+    it 'starts at the default when the model is built without it' do
+      item = {{moduleName}}::Models::StockItem.new(priority: 1)
+      _(item.availability).must_equal({{moduleName}}::Models::Availability::ON_HOLD)
+    end
+
+    it 'decodes to the default when the wire leaves the field out' do
+      item = {{moduleName}}::ObjectSerializer.deserialize('{"priority":1}', 'StockItem')
+      _(item.availability).must_equal({{moduleName}}::Models::Availability::ON_HOLD)
+    end
+
+    it 'keeps a value that is given' do
+      item = {{moduleName}}::ObjectSerializer.deserialize('{"priority":1,"availability":"Sold"}', 'StockItem')
+      _(item.availability).must_equal({{moduleName}}::Models::Availability::SOLD)
+    end
+  end
+
   # ── double field deserializes from an INTEGRAL JSON value (canonical 4) ──
   #
   # PhotoMetadataLocation.lat/lng are `type: number, format: double` (Ruby

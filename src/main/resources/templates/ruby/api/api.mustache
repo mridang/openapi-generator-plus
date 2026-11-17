@@ -104,7 +104,7 @@ module {{moduleName}}
 {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
-      # @param options [{{{dataType}}}] options{{#vendorExtensions.op.hasOptionsParam}} for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}} carrying an optional per-call authenticator{{/vendorExtensions.op.hasOptionsParam}}
+      # @param options [{{{dataType}}}] per-call options: the optional timeout, headers and max_retries{{#vendorExtensions.op.hasOptionsParam}}, plus the query, header, form and cookie parameters{{/vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
 {{#vendorExtensions.hasMultipleConsumes}}
@@ -382,9 +382,8 @@ module {{moduleName}}
 {{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
 {{/vendorExtensions.op.hasMultiple2xx}}          {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
           raw_body: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
-          operation_id: '{{classname}}.{{operationId}}'{{#hasAuthMethods}},
-          request_options: options{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.hasOptionsParam}},
-          request_options: options{{/vendorExtensions.op.hasOptionsParam}}{{/hasAuthMethods}}
+          operation_id: '{{classname}}.{{operationId}}',
+          request_options: options
         )
       end
     {{/operation}}

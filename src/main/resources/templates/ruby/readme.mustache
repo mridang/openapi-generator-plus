@@ -29,7 +29,17 @@ client.close
 
 ### Credentials
 
-A credential comes from the first of: the value you pass to the constructor, a token provider (`token_provider:`, called for every request), and the environment variable `{{envPrefix}}_TOKEN`, `{{envPrefix}}_USERNAME`, `{{envPrefix}}_PASSWORD` or `{{envPrefix}}_API_KEY`, read once when the authenticator is built (an empty variable counts as unset). A client whose required credential is missing is not built: the constructor raises `ArgumentError`.
+A credential comes from the first of: the value you pass to the constructor, the environment variable of its security scheme, and, for a Bearer token, a token provider (`token_provider:`, called for every request). The variable is read once, when the authenticator is built, and an empty variable counts as unset. A client whose required credential is missing is not built: the constructor raises `ArgumentError`.
+{{#hasSecuritySchemeEnvVars}}
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{fieldSnake}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+
+An authenticator you build without a scheme (`Client.with_token`, or `BearerAuthenticator`, `BasicAuthenticator` and `ApiKeyAuthenticator` on their own) reads `{{envVarPrefix}}_TOKEN`, `{{envVarPrefix}}_USERNAME`, `{{envVarPrefix}}_PASSWORD` or `{{envVarPrefix}}_API_KEY`.
+{{/hasSecuritySchemeEnvVars}}
 
 See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
 
@@ -47,7 +57,7 @@ See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a w
 
 ### Per-call options
 
-An operation that takes an Options object accepts three members that apply to that call alone: `timeout` (milliseconds, replacing the client's end-to-end timeout), `headers` (sent in addition to the default headers, and replacing a default of the same name) and `max_retries` (replacing the client's retry count). A member left `nil` keeps the client's value. A client built with your own `ApiClient` receives the headers only. An operation that has no query, header, form or cookie parameter and no security takes no Options object, so these three cannot be set for it.
+Every operation takes an optional Options object, which accepts three members that apply to that call alone: `timeout` (milliseconds, replacing the client's end-to-end timeout), `headers` (sent in addition to the default headers, and replacing a default of the same name) and `max_retries` (replacing the client's retry count). A member left `nil` keeps the client's value. A client built with your own `ApiClient` receives the headers only. An operation that has no query, header, form or cookie parameter and no security has an Options object that carries only these three members.
 
 ```ruby
 options = {{moduleName}}::Api::Options::<Operation>Options.new(timeout: 2_000, headers: { 'X-Tenant' => 'a' }, max_retries: 0)

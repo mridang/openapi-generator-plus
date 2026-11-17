@@ -12,7 +12,14 @@ module Petstore::Client
     module OAuth
       # Scheme-specific authenticator for the ssoAuth security scheme.
       class SsoAuthAuthenticator < OpenIdConnectAuthenticator
-        def initialize(host, client_id, client_secret, redirect_uri)
+        # Every credential not given here is read, once, from the environment
+        # variable of this scheme; an empty variable counts as unset, and a
+        # credential still missing fails here with an ArgumentError.
+        def initialize(host, client_id = nil, client_secret = nil, redirect_uri = nil, env: ENV)
+          client_id = require_credential(client_id, 'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID', 'client_id', env)
+          client_secret = require_credential(client_secret, 'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET', 'client_secret', env)
+          redirect_uri = require_credential(redirect_uri, 'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI', 'redirect_uri', env)
+
           super(
             host,
             'https://auth.example.com/.well-known/openid-configuration',

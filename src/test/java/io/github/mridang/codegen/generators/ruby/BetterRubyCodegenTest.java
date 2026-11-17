@@ -2,10 +2,17 @@ package io.github.mridang.codegen.generators.ruby;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Validates the literal and constant-name rendering that the Ruby templates and
@@ -98,5 +105,95 @@ class BetterRubyCodegenTest {
         assertEquals("https://example.test/o\\'r", props.get("repositoryUrlLiteral"));
         assertFalse(props.containsKey("homepageUrl"));
         assertFalse(props.containsKey("documentationUrl"));
+    }
+
+    @Test
+    void everyOperationGetsAnOptionsObject() {
+        assertTrue(new BetterRubyCodegen().mintsOptionsForEveryOperation());
+    }
+
+    private static String renderScheme(SchemeAuthSpec spec, OpenAPI openApi, Path outputDir) {
+        final BetterRubyCodegen codegen = new BetterRubyCodegen();
+        codegen.setOutputDir(outputDir.toString());
+        codegen.processOpts();
+        codegen.processOpenAPI(openApi);
+        return codegen.renderSchemeAuthenticator(spec);
+    }
+
+    private static OpenAPI apiWith(Map<String, SecurityScheme> schemes) {
+        final OpenAPI openApi = new OpenAPI();
+        openApi.setInfo(new io.swagger.v3.oas.models.info.Info().title("Acme SDK").version("1"));
+        openApi.setComponents(new Components().securitySchemes(schemes));
+        return openApi;
+    }
+
+    @Test
+    void aBearerSchemeNamesItsOwnVariableAndTakesAProviderAfterIt(@TempDir Path outputDir) {
+        final SecurityScheme bearer = new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer");
+        final SchemeAuthSpec spec =
+                new SchemeAuthSpec(
+                        "serviceToken", "ServiceToken", "", "BearerAuthenticator", false,
+                        List.of("host", "token"), null, null, null, null, null, null, null);
+        final String source = renderScheme(spec, apiWith(Map.of("serviceToken", bearer)), outputDir);
+        assertTrue(source.contains("def initialize(host, token = nil, token_provider: nil, env: ENV)"), source);
+        assertTrue(source.contains("token_env: 'ACME_TOKEN'"), source);
+        assertTrue(source.contains("env: env"), source);
+    }
+
+    @Test
+    void twoSchemesWithTheSameFieldReadVariablesNamedAfterTheirScheme(@TempDir Path outputDir) {
+        final SecurityScheme basic = new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("basic");
+        final OpenAPI openApi = apiWith(Map.of("shopBasic", basic, "adminBasic", basic));
+        final SchemeAuthSpec spec =
+                new SchemeAuthSpec(
+                        "adminBasic", "AdminBasic", "", "BasicAuthenticator", false,
+                        List.of("host", "username", "password"), null, null, null, null, null, null, null);
+        final String source = renderScheme(spec, openApi, outputDir);
+        assertTrue(source.contains("def initialize(host, username = nil, password = nil, env: ENV)"), source);
+        assertTrue(source.contains("username_env: 'ACME_ADMIN_BASIC_USERNAME'"), source);
+        assertTrue(source.contains("password_env: 'ACME_ADMIN_BASIC_PASSWORD'"), source);
+    }
+
+    @Test
+    void anApiKeySchemeNamesItsOwnVariable(@TempDir Path outputDir) {
+        final SecurityScheme key =
+                new SecurityScheme()
+                        .type(SecurityScheme.Type.APIKEY)
+                        .in(SecurityScheme.In.HEADER)
+                        .name("X-Api-Key");
+        final SchemeAuthSpec spec =
+                new SchemeAuthSpec(
+                        "apiKeyHeader", "ApiKeyHeader", "", "ApiKeyAuthenticator", false,
+                        List.of("host", "apiKey"), "X-Api-Key", "HEADER", null, null, null, null, null);
+        final String source = renderScheme(spec, apiWith(Map.of("apiKeyHeader", key)), outputDir);
+        assertTrue(source.contains("def initialize(host, api_key = nil, env: ENV)"), source);
+        assertTrue(source.contains("api_key_env: 'ACME_API_KEY'"), source);
+    }
+
+    @Test
+    void anOAuthSchemeResolvesEachCredentialBeforeItCallsTheBase(@TempDir Path outputDir) {
+        final SecurityScheme oauth =
+                new SecurityScheme()
+                        .type(SecurityScheme.Type.OAUTH2)
+                        .flows(
+                                new io.swagger.v3.oas.models.security.OAuthFlows()
+                                        .clientCredentials(
+                                                new io.swagger.v3.oas.models.security.OAuthFlow()
+                                                        .tokenUrl("https://auth.example.test/token")));
+        final SchemeAuthSpec spec =
+                new SchemeAuthSpec(
+                        "machineAuth", "MachineAuth", "ClientCredentials",
+                        "OAuth2ClientCredentialsAuthenticator", true,
+                        List.of("host", "clientId", "clientSecret"), null, null,
+                        "https://auth.example.test/token", null, null, null, null);
+        final String source = renderScheme(spec, apiWith(Map.of("machineAuth", oauth)), outputDir);
+        assertTrue(source.contains("def initialize(host, client_id = nil, client_secret = nil, env: ENV)"), source);
+        assertTrue(
+                source.contains("client_id = require_credential(client_id, 'ACME_CLIENT_ID', 'client_id', env)"),
+                source);
+        assertTrue(
+                source.contains(
+                        "client_secret = require_credential(client_secret, 'ACME_CLIENT_SECRET', 'client_secret', env)"),
+                source);
     }
 }

@@ -204,4 +204,25 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
 
     _(error.message).must_equal "API key value for 'X-Api-Key' must not be empty"
   end
+
+  it 'reads the variable it is told to read, and no other' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', nil, Petstore::Client::Auth::ApiKeyLocation::HEADER,
+      env: { "#{prefix}_API_KEY" => 'generic', 'OTHER_KEY' => 'from-other' }, api_key_env: 'OTHER_KEY'
+    )
+
+    _(auth.auth_headers).must_equal('X-Api-Key' => 'from-other')
+  end
+
+  it 'reads the environment once, at construction' do
+    env = { 'OTHER_KEY' => 'first' }
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', nil, Petstore::Client::Auth::ApiKeyLocation::HEADER,
+      env: env, api_key_env: 'OTHER_KEY'
+    )
+    env['OTHER_KEY'] = 'second'
+
+    _(auth.auth_headers).must_equal('X-Api-Key' => 'first')
+  end
 end

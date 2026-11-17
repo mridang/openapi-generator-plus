@@ -11,12 +11,18 @@ module Petstore::Client
   module Auth
     # Scheme-specific authenticator for the sessionCookie security scheme.
     class SessionCookieAuthenticator < ApiKeyAuthenticator
-      def initialize(host, api_key)
+      # A credential not given here is read, once, from the environment variable
+      # of this scheme (an empty variable counts as unset), then from the token
+      # provider where the scheme has one; one still missing fails here with an
+      # ArgumentError.
+      def initialize(host, api_key = nil, env: ENV)
         super(
           host,
           'SESSION_ID',
           api_key,
-          ApiKeyLocation::COOKIE
+          ApiKeyLocation::COOKIE,
+          env: env,
+          api_key_env: 'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY'
         )
       end
     end

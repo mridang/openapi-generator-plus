@@ -29,7 +29,35 @@ client.close
 
 ### Credentials
 
-A credential comes from the first of: the value you pass to the constructor, a token provider (`token_provider:`, called for every request), and the environment variable `PETSTORE_CLIENT_TOKEN`, `PETSTORE_CLIENT_USERNAME`, `PETSTORE_CLIENT_PASSWORD` or `PETSTORE_CLIENT_API_KEY`, read once when the authenticator is built (an empty variable counts as unset). A client whose required credential is missing is not built: the constructor raises `ArgumentError`.
+A credential comes from the first of: the value you pass to the constructor, the environment variable of its security scheme, and, for a Bearer token, a token provider (`token_provider:`, called for every request). The variable is read once, when the authenticator is built, and an empty variable counts as unset. A client whose required credential is missing is not built: the constructor raises `ArgumentError`.
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+| `adminBasic` | `USERNAME` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |
+| `adminBasic` | `PASSWORD` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
+| `apiKeyHeader` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
+| `apiKeyQuery` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `browserAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `internalApiKey` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
+| `legacyAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
+| `legacyAuth` | `CLIENT_SECRET` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
+| `legacyAuth` | `USERNAME` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` |
+| `legacyAuth` | `PASSWORD` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` |
+| `machineAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` |
+| `machineAuth` | `CLIENT_SECRET` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` |
+| `petStoreBasic` | `USERNAME` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` |
+| `petStoreBasic` | `PASSWORD` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` |
+| `petStoreBearer` | `TOKEN` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` |
+| `serviceToken` | `TOKEN` | `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` |
+| `sessionCookie` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` |
+| `ssoAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` |
+| `ssoAuth` | `CLIENT_SECRET` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` |
+| `ssoAuth` | `REDIRECT_URI` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` |
+| `userAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` |
+| `userAuth` | `CLIENT_SECRET` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` |
+| `userAuth` | `REDIRECT_URI` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` |
+
+An authenticator you build without a scheme (`Client.with_token`, or `BearerAuthenticator`, `BasicAuthenticator` and `ApiKeyAuthenticator` on their own) reads `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` or `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY`.
 
 See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
 
@@ -47,7 +75,7 @@ See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a w
 
 ### Per-call options
 
-An operation that takes an Options object accepts three members that apply to that call alone: `timeout` (milliseconds, replacing the client's end-to-end timeout), `headers` (sent in addition to the default headers, and replacing a default of the same name) and `max_retries` (replacing the client's retry count). A member left `nil` keeps the client's value. A client built with your own `ApiClient` receives the headers only. An operation that has no query, header, form or cookie parameter and no security takes no Options object, so these three cannot be set for it.
+Every operation takes an optional Options object, which accepts three members that apply to that call alone: `timeout` (milliseconds, replacing the client's end-to-end timeout), `headers` (sent in addition to the default headers, and replacing a default of the same name) and `max_retries` (replacing the client's retry count). A member left `nil` keeps the client's value. A client built with your own `ApiClient` receives the headers only. An operation that has no query, header, form or cookie parameter and no security has an Options object that carries only these three members.
 
 ```ruby
 options = Petstore::Client::Api::Options::<Operation>Options.new(timeout: 2_000, headers: { 'X-Tenant' => 'a' }, max_retries: 0)

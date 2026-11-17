@@ -13,19 +13,20 @@ module Petstore::Client
     class BearerAuthenticator < BaseAuthenticator
       attr_reader :host
 
-      # The token comes from the first of: the +token+ given here, the result of
-      # +token_provider+ (called for every request, so a short-lived token can be
-      # renewed), and the environment variable +<PREFIX>_TOKEN+ (read once, here;
-      # an empty value counts as unset). It fails here when there is none.
+      # The token comes from the first of: the +token+ given here, the
+      # environment variable +token_env+ (read once, here; an empty value counts
+      # as unset) and the result of +token_provider+ (called for every request,
+      # so a short-lived token can be renewed). It fails here when there is none.
       #
       # @param host [String] API base URL
       # @param token [String, nil] Bearer token
       # @param token_provider [#call, nil] returns the token for one request
-      # @param env [#[]] where +<PREFIX>_TOKEN+ is read from
-      def initialize(host, token = nil, token_provider: nil, env: ENV)
+      # @param env [#[]] where +token_env+ is read from
+      # @param token_env [String] the name of the environment variable of the token
+      def initialize(host, token = nil, token_provider: nil, env: ENV, token_env: "#{ENV_PREFIX}_TOKEN")
         super()
         @token_provider = token_provider
-        token = credential_from(token, 'TOKEN', env) if token_provider.nil?
+        token = credential_from(token, token_env, env)
         validate_token!(token) unless token.nil? && token_provider
         @host = host
         @token = token

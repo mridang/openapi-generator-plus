@@ -99,7 +99,7 @@ module Petstore::Client
       end
 
       attribute :priority, Types::Required
-      attribute :availability, Types::Any.optional.meta(omittable: true)
+      attribute :availability, Types::Any.optional.meta(omittable: true).default(Availability::ON_HOLD)
       # Quantity grid as an array of integer arrays
       attribute :matrix, Types::Any.optional.meta(omittable: true)
     end

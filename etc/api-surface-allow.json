@@ -2457,13 +2457,26 @@
    "element": [
     "bearerauthenticator.<ctor>",
     "basicauthenticator.<ctor>",
-    "apikeyauthenticator.<ctor>"
+    "apikeyauthenticator.<ctor>",
+    "adminbasicauthenticator.<ctor>",
+    "apikeyheaderauthenticator.<ctor>",
+    "apikeyqueryauthenticator.<ctor>",
+    "internalapikeyauthenticator.<ctor>",
+    "petstorebasicauthenticator.<ctor>",
+    "petstorebearerauthenticator.<ctor>",
+    "servicetokenauthenticator.<ctor>",
+    "sessioncookieauthenticator.<ctor>",
+    "browserauthimplicitauthenticator.<ctor>",
+    "legacyauthpasswordauthenticator.<ctor>",
+    "machineauthclientcredentialsauthenticator.<ctor>",
+    "ssoauthauthenticator.<ctor>",
+    "userauthauthorizationcodeauthenticator.<ctor>"
    ],
    "aspect": "ctor",
    "languages": [
     "ruby"
    ],
-   "reason": "F862: the constructor reads <PREFIX>_TOKEN, _USERNAME, _PASSWORD or _API_KEY once; the `env:` keyword is the Ruby seam for the environment to read (default ENV) so a test or a caller need not mutate the process environment, which parallel Minitest cannot do safely; `token_provider:` is the token callback of the owner decision and is temporary here until the other languages' wave branches are merged"
+   "reason": "F862: the constructor reads its credential environment variables once; the `env:` keyword is the Ruby seam for the environment to read (default ENV) so a test or a caller need not mutate the process environment, which parallel Minitest cannot do safely, and the base classes also take `token_env:`, `username_env:`, `password_env:` and `api_key_env:` to name the variable of their scheme; the scheme wrappers take the same optional credentials and `env:`, and a Bearer wrapper the `token_provider:` of its base"
   },
   {
    "element": "baseauthenticator.envprefix",
@@ -3266,6 +3279,55 @@
     "swift"
    ],
    "reason": "F830: swift declares the request context as `public internal(set) var`, and the extractor's modifier pattern does not read `internal(set)` (as for `private(set)` above), so the public get-only property is reported missing; delete this rule when the extractor reads it"
+  },
+  {
+   "element": [
+    "createaccountoptions",
+    "deleteorderoptions",
+    "downloadpetdocumentoptions",
+    "findpetsbornonoptions",
+    "getdefaultsoptions",
+    "getdepartmentoptions",
+    "getexternalpetinfooptions",
+    "getgroupedcategoriesoptions",
+    "getinventoryoptions",
+    "getmatrixoptions",
+    "getmultiserverpetinfooptions",
+    "getorderbyidoptions",
+    "getorderbytrackingidoptions",
+    "getpetavataroptions",
+    "getpetavatarthumbnailoptions",
+    "getpetbyidoptions",
+    "getpetpassportoptions",
+    "getpetphotooptions",
+    "getstagingpetinfooptions",
+    "getswatchgroupsoptions",
+    "getswatchoptions",
+    "gettimestampgroupsoptions",
+    "gettreeoptions",
+    "placeorderoptions",
+    "reservestockoptions",
+    "setpetavataroptions",
+    "setpetavatarthumbnailoptions",
+    "updatepetoptions"
+   ],
+   "aspect": "type",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F827 adoption: every operation gets an Options object carrying the per-call timeout, headers and max_retries, so an operation with no parameter and no security has one; ruby lands first and the other languages mint theirs in their own adoption branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "petapi.*",
+    "storeapi.*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "ruby"
+   ],
+   "value": "*options*",
+   "reason": "F827 adoption: every operation takes the optional Options argument, so an operation with no parameter of its own takes (options); ruby lands first and the other languages add it in their own adoption branches, after which this rule is deleted"
   }
  ]
 }

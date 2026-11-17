@@ -367,6 +367,7 @@ module Petstore::Client
       private
 
       def credential_from: (String?, String, untyped) -> String?
+      def require_credential: (String?, String, String, untyped) -> String
     end
 
     module HttpAwareAuthenticator
@@ -380,13 +381,13 @@ module Petstore::Client
     end
 
     class BasicAuthenticator < BaseAuthenticator
-      def initialize: (String, ?String?, ?String?, ?env: untyped) -> void
+      def initialize: (String, ?String?, ?String?, ?env: untyped, ?username_env: String, ?password_env: String) -> void
       def inspect: () -> String
       def to_s: () -> String
     end
 
     class BearerAuthenticator < BaseAuthenticator
-      def initialize: (String, ?String?, ?token_provider: (^() -> String)?, ?env: untyped) -> void
+      def initialize: (String, ?String?, ?token_provider: (^() -> String)?, ?env: untyped, ?token_env: String) -> void
       def inspect: () -> String
       def to_s: () -> String
       def auth_headers: () -> Hash[String, String]
@@ -398,7 +399,7 @@ module Petstore::Client
     end
 
     class ApiKeyAuthenticator < BaseAuthenticator
-      def initialize: (String, String, String?, Symbol, ?env: untyped) -> void
+      def initialize: (String, String, String?, Symbol, ?env: untyped, ?api_key_env: String) -> void
       def inspect: () -> String
       def to_s: () -> String
       private

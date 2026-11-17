@@ -12,7 +12,13 @@ module Petstore::Client
     module OAuth
       # Scheme-specific authenticator for the machineAuth security scheme.
       class MachineAuthClientCredentialsAuthenticator < OAuth2ClientCredentialsAuthenticator
-        def initialize(host, client_id, client_secret)
+        # Every credential not given here is read, once, from the environment
+        # variable of this scheme; an empty variable counts as unset, and a
+        # credential still missing fails here with an ArgumentError.
+        def initialize(host, client_id = nil, client_secret = nil, env: ENV)
+          client_id = require_credential(client_id, 'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID', 'client_id', env)
+          client_secret = require_credential(client_secret, 'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET', 'client_secret', env)
+
           super(
             host,
             client_id,

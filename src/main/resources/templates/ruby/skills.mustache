@@ -33,6 +33,23 @@ authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.examp
 client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ```
 
+### Credentials from the environment
+
+A credential you leave out is read, once, when the authenticator is built, from the environment variable of its security scheme; an empty variable counts as unset. The value you pass wins, and a Bearer token falls back to `token_provider:` (called for every request) when neither is set. A credential still missing raises `ArgumentError` before the client is built.
+{{#hasSecuritySchemeEnvVars}}
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{fieldSnake}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+{{/hasSecuritySchemeEnvVars}}
+
+```ruby
+authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com')
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
 {{#hasBasicAuth}}
 ### Basic Auth
 
@@ -243,6 +260,14 @@ client = {{moduleName}}::{{clientClassName}}.new(authenticator, transport)
 
 ```ruby
 transport = {{moduleName}}::TransportOptions.builder.max_retries(0).build
+```
+
+### Per-call options
+
+Every operation takes an optional Options object whose `timeout` (milliseconds), `headers` and `max_retries` apply to that call alone; a member left `nil` keeps the client's value. An operation with no query, header, form or cookie parameter and no security still has one, carrying only these three members.
+
+```ruby
+options = {{moduleName}}::Api::Options::<Operation>Options.new(timeout: 2_000, max_retries: 0)
 ```
 
 ### Cancellation
