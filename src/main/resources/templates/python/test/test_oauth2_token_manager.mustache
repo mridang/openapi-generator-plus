@@ -287,6 +287,58 @@ class TestOAuth2TokenManager:
         assert (first, cached, second) == ('edge1', 'edge1', 'edge2')
         assert mock_client.send_request.call_count == 2
 
+    def test_bhv_authoauthtwotokenmgr_004_a_sixty_second_token_is_reused_and_not_refetched_on_every_call(self) -> None:
+        from unittest.mock import patch
+
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({'access_token': 'short', 'expires_in': 60}),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        params = {'grant_type': 'client_credentials'}
+        with patch('{{packageName}}.auth.oauth.oauth2_token_manager.time') as clock:
+            clock.time.return_value = 1000.0
+            first = manager.get_access_token('https://auth.example.com/token', params)
+            clock.time.return_value = 1010.0
+            second = manager.get_access_token('https://auth.example.com/token', params)
+            clock.time.return_value = 1020.0
+            third = manager.get_access_token('https://auth.example.com/token', params)
+
+        assert (first, second, third) == ('short', 'short', 'short')
+        assert mock_client.send_request.call_count == 1
+
+    def test_bhv_authoauthtwotokenmgr_012_an_expires_in_of_zero_is_stale_at_once(self) -> None:
+        from unittest.mock import patch
+
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'zero1', 'expires_in': 0}),
+                headers={'content-type': 'application/json'},
+            ),
+            ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'zero2', 'expires_in': 0}),
+                headers={'content-type': 'application/json'},
+            ),
+        ]
+        manager.set_api_client(mock_client)
+
+        params = {'grant_type': 'client_credentials'}
+        with patch('{{packageName}}.auth.oauth.oauth2_token_manager.time') as clock:
+            clock.time.return_value = 1000.0
+            first = manager.get_access_token('https://auth.example.com/token', params)
+            second = manager.get_access_token('https://auth.example.com/token', params)
+
+        assert (first, second) == ('zero1', 'zero2')
+        assert mock_client.send_request.call_count == 2
+
     def test_bhv_authoauthtwotokenmgr_024_refresh_token_empty_string_preserves_existing(self) -> None:
         # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
         # MUST NOT clobber the cached refresh_token.
@@ -478,6 +530,25 @@ class TestOAuth2TokenManager:
                 {'grant_type': 'client_credentials'},
             )
         assert str(exc_info.value) == message
+
+    def test_bhv_authoauthtwotokenmgr_038_a_token_type_other_than_bearer_is_refused_without_echoing_it(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({'access_token': 'tok', 'token_type': 'SuperMacToken', 'expires_in': 3600}),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        with pytest.raises(OAuth2TokenException) as exc_info:
+            manager.get_access_token(
+                'https://auth.example.com/token',
+                {'grant_type': 'client_credentials'},
+            )
+        assert type(exc_info.value) is OAuth2TokenException
+        assert str(exc_info.value) == 'Unsupported token_type in token response'
+        assert 'SuperMacToken' not in str(exc_info.value)
 
     @pytest.mark.parametrize('token_type', ['bearer', 'Bearer', 'BEARER', None])
     def test_bhv_authoauthtwotokenmgr_002_a_bearer_or_absent_token_type_is_accepted(self, token_type: Any) -> None:

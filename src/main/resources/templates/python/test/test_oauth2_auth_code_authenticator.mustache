@@ -239,6 +239,11 @@ class TestAuthorizationUrlEncoding:
             "&scope=a%2Ab%20c%21d&state=s%20t~%281%29"
         )
 
+    def test_bhv_authoauthtwoauthcode_018_an_empty_state_is_omitted_from_the_authorization_url(self) -> None:
+        url = _create_authenticator().build_authorization_url(state='')
+
+        assert 'state' not in parse_qs(urlparse(url).query)
+
     def test_bhv_authoauthtwoauthcode_017_code_exchange_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
         self,
     ) -> None:
