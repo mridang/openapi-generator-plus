@@ -11,6 +11,7 @@ import io.ktor.client.engine.mock.toByteArray
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.DisplayName
@@ -1773,6 +1774,36 @@ class DefaultApiClientUnitTest {
             }
             assertFalse({{errorPrefix}}Exception::class.java.isInstance(ex), "use-after-close must not be an SDK error")
             assertEquals("ApiClient has been closed and can no longer send requests", ex.message)
+        }
+
+        @Test
+        @DisplayName("F1078: close is idempotent and lets a request already in flight finish")
+        fun closeIsGracefulAndIdempotent() {
+            val engine =
+                io.ktor.client.engine.mock.MockEngine { _ ->
+                    kotlinx.coroutines.delay(300)
+                    io.ktor.client.engine.mock.respond(
+                        content = "{}",
+                        status = io.ktor.http.HttpStatusCode.OK,
+                        headers = io.ktor.http.headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val apiClient = DefaultApiClient(io.ktor.client.HttpClient(engine))
+            val result =
+                runBlocking {
+                    val pending =
+                        async(kotlinx.coroutines.Dispatchers.Default) {
+                            apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                        }
+                    kotlinx.coroutines.delay(100)
+                    apiClient.close()
+                    apiClient.close()
+                    assertThrowsExactly(IllegalStateException::class.java) {
+                        runBlocking { apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+                    }
+                    pending.await()
+                }
+            assertEquals(200, result.statusCode)
         }
     }
 

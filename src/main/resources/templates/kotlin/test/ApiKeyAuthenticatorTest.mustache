@@ -262,7 +262,8 @@ class ApiKeyAuthenticatorTest {
                 )
             }
             val headers = auth.getAuthHeaders()
-            val seen = headers["k"] ?: auth.getQueryParams()["k"] ?: auth.getCookieParams()["k"]
+            val seen =
+                headers["k"] ?: auth.getQueryParams()["k"] ?: auth.getCookieParams()["k"]
             assertEquals("key-$calls", seen)
         }
         assertEquals(ApiKeyLocation.values().size, calls)
@@ -291,9 +292,11 @@ class ApiKeyAuthenticatorTest {
     @DisplayName("F862: a security scheme's authenticator reads the variable of its own scheme")
     fun schemeWrapperReadsItsOwnVariable() = runBlocking {
         val env = mapOf("{{envVarPrefix}}_API_KEY_HEADER_API_KEY" to "from-env")
-        val auth = withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com") }
+        val auth =
+            withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com") }
         assertEquals("from-env", auth.getAuthHeaders()["X-API-Key"])
-        val explicit = withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com", "explicit") }
+        val explicit =
+            withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com", "explicit") }
         assertEquals("explicit", explicit.getAuthHeaders()["X-API-Key"])
         val other = withEnvironment(env) {
             assertThrows(IllegalArgumentException::class.java) { InternalApiKeyAuthenticator("https://api.example.com") }
