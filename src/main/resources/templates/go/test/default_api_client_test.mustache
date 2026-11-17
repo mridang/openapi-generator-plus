@@ -2,6 +2,8 @@
 package {{packageName}}_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -687,7 +689,7 @@ func TestBhvTransport006_DefaultApiClient_DecompressesZstdResponse(t *testing.T)
 // The Squid fixture's second port demands Basic proxy credentials: a request
 // without them is answered 407, and the same request with credentials in the
 // proxy URL's userinfo is forwarded to the mock server.
-func TestDefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
+func TestBhvTransport020_DefaultApiClient_MakesRequestThroughProxyWithBasicAuth(t *testing.T) {
 	t.Parallel()
 	send := func(proxy string) *ApiHttpResponse {
 		t.Helper()
@@ -1202,7 +1204,7 @@ type closeTrackingTransport struct {
 
 func (c *closeTrackingTransport) CloseIdleConnections() { c.closed = true }
 
-func TestDefaultApiClient_CustomRoundTripperReceivesTheRequestWithSdkDefaults(t *testing.T) {
+func TestBhvTransport040_DefaultApiClient_CustomRoundTripperReceivesTheRequestWithSdkDefaults(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) }))
 	defer server.Close()
@@ -1307,5 +1309,271 @@ func TestDefaultApiClient_TransportOptionsBuilder_SuppliedTransportConflictsWith
 		if _, err := builder.Build(); !errors.Is(err, ErrTransportConflict) {
 			t.Errorf("%s: expected ErrTransportConflict, got %v", name, err)
 		}
+	}
+}
+
+// gzipPayloadForTest returns payload gzip-compressed, for a server that sends
+// Content-Encoding: gzip. Writing to a bytes.Buffer cannot fail, so the errors
+// are not checked.
+func gzipPayloadForTest(payload string) []byte {
+	var buf bytes.Buffer
+	writer := gzip.NewWriter(&buf)
+	_, _ = writer.Write([]byte(payload))
+	_ = writer.Close()
+	return buf.Bytes()
+}
+
+// The SDK's request id is a new UUID on every request, so two requests never
+// share one.
+func TestBhvTransport008_DefaultApiClient_GeneratesUniqueXRequestIdPerRequest(t *testing.T) {
+	t.Parallel()
+	const requests = 20
+	seen := make(chan string, requests)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Get("X-Request-ID")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().InjectRequestID(true).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	ids := make(map[string]bool, requests)
+	for i := 0; i < requests; i++ {
+		if _, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		id := <-seen
+		if id == "" {
+			t.Fatal("expected an X-Request-ID on every request")
+		}
+		if ids[id] {
+			t.Fatalf("expected a unique X-Request-ID per request, got %q twice", id)
+		}
+		ids[id] = true
+	}
+}
+
+// The X-Request-ID the SDK injects is a UUID in its canonical lower-case form.
+func TestBhvTransport014_DefaultApiClient_InjectsXRequestIdHeaderWithUuidFormat(t *testing.T) {
+	t.Parallel()
+	seen := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Get("X-Request-ID")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().InjectRequestID(true).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	id := <-seen
+	uuidPattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	if !uuidPattern.MatchString(id) {
+		t.Errorf("expected an X-Request-ID in UUID format, got %q", id)
+	}
+}
+
+// A transport-level default header goes out on every request, without the
+// caller repeating it.
+func TestBhvTransport011_DefaultApiClient_IncludesTransportLevelDefaultHeaders(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		DefaultHeader("X-Transport-Level", "transport").
+		DefaultHeader("X-Tenant", "tenant-1").
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/items", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	received := <-seen
+	for name, want := range map[string]string{"X-Transport-Level": "transport", "X-Tenant": "tenant-1"} {
+		if got := received.Get(name); got != want {
+			t.Errorf("expected %s %q, got %q", name, want, got)
+		}
+	}
+}
+
+// A lower-case accept-encoding from the caller replaces the SDK's own, so the
+// request carries exactly one Accept-Encoding header, the caller's.
+func TestBhvTransport026_DefaultApiClient_LowerCaseAcceptEncodingSuppressesTheSdkOwn(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	if _, err := client.SendRequest("GET", server.URL+"/test", map[string]string{"accept-encoding": "identity"}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	received := <-seen
+	values := received.Values("Accept-Encoding")
+	if len(values) != 1 || values[0] != "identity" {
+		t.Errorf("expected the single caller Accept-Encoding identity, got %q", values)
+	}
+}
+
+// A caller-supplied Accept-Encoding is sent as the caller wrote it, not
+// replaced by the SDK's default list.
+func TestBhvTransport045_DefaultApiClient_KeepsACallerSuppliedAcceptEncoding(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	if _, err := client.SendRequest("GET", server.URL+"/test", map[string]string{"Accept-Encoding": "deflate"}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := (<-seen).Get("Accept-Encoding"); got != "deflate" {
+		t.Errorf("expected the caller's Accept-Encoding deflate, got %q", got)
+	}
+}
+
+// Without a configured proxy, no Proxy-Authorization header is sent.
+func TestBhvTransport046_DefaultApiClient_LeavesProxyAuthHeaderNullWhenNoProxyConfigured(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	if _, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, ok := (<-seen)["Proxy-Authorization"]; ok {
+		t.Errorf("expected no Proxy-Authorization header, got %q", got)
+	}
+}
+
+// An empty User-Agent option sends no SDK user agent: the server receives none,
+// not the branded default and not the Go default.
+func TestBhvTransport052_DefaultApiClient_SendsAnEmptyUserAgentWhenTheOptionIsEmpty(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	empty := ""
+	transport, buildErr := NewTransportOptionsBuilder().UserAgent(&empty).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := (<-seen).Get("User-Agent"); got != "" {
+		t.Errorf("expected no User-Agent, got %q", got)
+	}
+}
+
+// A valid gzip-encoded response body is inflated by the SDK.
+func TestBhvTransport034_DefaultApiClient_DecompressesAValidGzipResponseBody(t *testing.T) {
+	t.Parallel()
+	const payload = `{"ok":true}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(200)
+		_, _ = w.Write(gzipPayloadForTest(payload))
+	}))
+	defer server.Close()
+
+	resp, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Body != payload {
+		t.Errorf("expected the inflated body %q, got %q", payload, resp.Body)
+	}
+}
+
+// A decoded body no longer describes the wire encoding, so Content-Encoding and
+// Content-Length are dropped from the response headers.
+func TestBhvTransport027_DefaultApiClient_DecodedBodyDropsContentEncodingAndContentLength(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(200)
+		_, _ = w.Write(gzipPayloadForTest(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	resp, err := NewDefaultApiClient(nil).SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, ok := resp.Headers["content-encoding"]; ok {
+		t.Errorf("expected the decoded response to drop Content-Encoding, got %q", got)
+	}
+	if got, ok := resp.Headers["content-length"]; ok {
+		t.Errorf("expected the decoded response to drop Content-Length, got %q", got)
+	}
+}
+
+// A per-call timeout replaces the transport timeout for that call only: a
+// transport budget too short for the server fails, and the same server answers
+// under a per-call budget that is long enough.
+func TestBhvTransport028_DefaultApiClient_APerCallTimeoutReplacesTheTransportTimeout(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(300 * time.Millisecond):
+			w.WriteHeader(200)
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+
+	shortMs := 100
+	transport, buildErr := NewTransportOptionsBuilder().Timeout(&shortMs).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	budget := 2 * time.Second
+	resp, err := client.SendRequestWithOptions("GET", server.URL+"/slow", map[string]string{}, nil, &RequestOptions{Timeout: &budget})
+	if err != nil {
+		t.Fatalf("expected the per-call budget to replace the transport timeout, got %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+// An unreadable CA file is refused even when verification is off: the path is
+// read at Build, before any verification choice matters.
+func TestBhvTransport048_DefaultApiClient_NonexistentCaCertPathFailsEvenWhenVerifySslIsFalse(t *testing.T) {
+	t.Parallel()
+	_, err := NewTransportOptionsBuilder().VerifySsl(false).CACertPath("/nonexistent/ca.pem").Build()
+	if !errors.Is(err, ErrInvalidCACertificate) {
+		t.Fatalf("expected ErrInvalidCACertificate, got %v", err)
 	}
 }
