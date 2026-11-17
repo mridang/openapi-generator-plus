@@ -542,7 +542,7 @@ func TestBhvOptions034_TransportOptions_SettingProxyIsSupportedOnAllPlatforms(t 
 // A CA file that exists and is readable but holds no PEM certificate is a caller
 // mistake just like a missing one: Build reports it, naming the file, instead of
 // the first request failing or silently falling back to the system trust store.
-func TestTransportOptions_GarbagePemCaCertFileIsRejected(t *testing.T) {
+func TestBhvErrors039_TransportOptions_GarbagePemCaCertFileIsRejected(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "ca.pem")
 	if err := os.WriteFile(path, []byte("this is not a certificate"), 0o600); err != nil {
