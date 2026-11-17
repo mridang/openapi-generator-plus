@@ -899,8 +899,8 @@ public class PetApiTest
         };
         await api.AddPetAsync(pet);
 
-        Assert.Equal("key-1", client.CapturedHeaders["X-API-Key"]);
-        Assert.False(client.CapturedHeaders.ContainsKey("Authorization"));
+        Assert.Equal("Bearer scheme-token", client.CapturedHeaders["Authorization"]);
+        Assert.False(client.CapturedHeaders.ContainsKey("X-API-Key"));
     }
 
     [Fact]

@@ -120,24 +120,25 @@ public sealed class ClientTest : IDisposable
         Assert.Null(parameters["browserAuth"].DefaultValue);
         Assert.True(parameters["ssoAuth"].IsOptional);
         Assert.Null(parameters["ssoAuth"].DefaultValue);
+        var expected = new List<string>
+        {
+            "petStoreBasic",
+            "adminBasic",
+            "petStoreBearer",
+            "serviceToken",
+            "apiKeyHeader",
+            "internalApiKey",
+            "apiKeyQuery",
+            "sessionCookie",
+            "machineAuth",
+            "legacyAuth",
+            "userAuth",
+            "browserAuth",
+            "ssoAuth",
+            "transportOptions",
+        };
         Assert.Equal(
-            new[]
-            {
-                "petStoreBasic",
-                "adminBasic",
-                "petStoreBearer",
-                "serviceToken",
-                "apiKeyHeader",
-                "internalApiKey",
-                "apiKeyQuery",
-                "sessionCookie",
-                "machineAuth",
-                "legacyAuth",
-                "userAuth",
-                "browserAuth",
-                "ssoAuth",
-                "transportOptions",
-            }.OrderBy(n => n, StringComparer.Ordinal),
+            expected.OrderBy(n => n, StringComparer.Ordinal),
             parameters.Keys.Where(n => n != "host").OrderBy(n => n, StringComparer.Ordinal)
         );
     }

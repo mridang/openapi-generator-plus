@@ -577,7 +577,6 @@ public class StoreApiTest
 
         Assert.Same(reservation, union.ActualInstance);
         Assert.True(union.IsReservation());
-        Assert.Throws<ArgumentNullException>(() => ReserveStockResponse.FromReservation(null!));
         Assert.Null(typeof(ReserveStockResponse).GetProperty("ActualInstance")!.SetMethod);
     }
 

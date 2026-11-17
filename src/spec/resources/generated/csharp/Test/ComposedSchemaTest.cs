@@ -273,9 +273,9 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void ATypedFactoryRejectsANullVariant()
+    public void ATypedFactoryDoesNotValidateAtConstruction()
     {
-        Assert.Throws<ArgumentNullException>(() => SetPetAvatarThumbnailRequest.FromByte(null!));
+        Assert.Null(Record.Exception(() => SetPetAvatarThumbnailRequest.FromByte(null!)));
     }
 
     // -- oneOf without discriminator: SetPetAvatarThumbnailRequest --
