@@ -76,6 +76,24 @@ public sealed class SchemeAuthenticatorTest
             }
         }
     }
+
+    private sealed class CapturingTokenClient : {{packageName}}.IApiClient
+    {
+        public Uri? LastUrl { get; private set; }
+
+        public string? LastBody { get; private set; }
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            LastUrl = url;
+            LastBody = body?.ToString();
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(
+                200,
+                "{\"access_token\":\"tok1\",\"expires_in\":3600}",
+                new Dictionary<string, string>()));
+        }
+    }
 {{#schemeAuthTests}}
 
     private static readonly string[] {{className}}Variables = [{{#envVars}}"{{envName}}"{{^-last}}, {{/-last}}{{/envVars}}];
@@ -83,7 +101,7 @@ public sealed class SchemeAuthenticatorTest
     private static readonly string[] {{className}}Fields = [{{#envVars}}"{{field}}"{{^-last}}, {{/-last}}{{/envVars}}];
 
     [Fact]
-    public void BhvAuthscheme001{{className}}ReadsEveryCredentialFromItsVariable()
+    public void {{#isBasic}}BhvAuthbasic001{{/isBasic}}{{^isBasic}}BhvAuthscheme001{{/isBasic}}{{className}}ReadsEveryCredentialFromItsVariable()
     {
         WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
         {
@@ -172,6 +190,129 @@ public sealed class SchemeAuthenticatorTest
             Assert.NotNull(auth);
         });
     }
+
+    [Fact]
+    public void BhvAuthbearer001{{className}}PrintsItsOwnNameWithTheTokenMasked()
+    {
+        string token = "tok-" + "marker";
+        var auth = new {{packageName}}.Auth.{{className}}(Host, token: token);
+
+        Assert.StartsWith("{{className}}(", auth.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthbearer006{{className}}EmitsABearerHeaderAndMasksTheToken()
+    {
+        string token = "tok-" + "marker";
+        var auth = new {{packageName}}.Auth.{{className}}(Host, token: token);
+
+        Assert.Equal("Bearer " + token, auth.GetAuthHeaders()["Authorization"]);
+        Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
+    }
 {{/isBearer}}
+{{#isBasic}}
+
+    [Fact]
+    public void BhvAuthbasic002{{className}}EmitsABasicHeaderAndMasksThePassword()
+    {
+        string password = "pw-" + "marker";
+        var auth = new {{packageName}}.Auth.{{className}}(Host, username: ExplicitValue("username"), password: password);
+
+        Assert.Equal(BasicHeader(ExplicitValue("username"), password), auth.GetAuthHeaders()["Authorization"]);
+        Assert.DoesNotContain(password, auth.ToString(), StringComparison.Ordinal);
+    }
+{{/isBasic}}
+{{#isApiKey}}
+
+    [Fact]
+    public void BhvAuthapikey007{{className}}EmitsItsKeyAtItsSpecLocation()
+    {
+        var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host{{#envVars}}, {{field}}: ExplicitValue("{{field}}"){{/envVars}});
+
+        Assert.Single(Carried(auth));
+{{#isHeaderKey}}
+        Assert.Equal(ExplicitValue("apiKey"), auth.GetAuthHeaders()["{{apiKeyName}}"]);
+{{/isHeaderKey}}
+{{#isQueryKey}}
+        Assert.Equal(ExplicitValue("apiKey"), auth.GetQueryParams()["{{apiKeyName}}"]);
+{{/isQueryKey}}
+{{#isCookieKey}}
+        Assert.Equal(ExplicitValue("apiKey"), auth.GetCookieParams()["{{apiKeyName}}"]);
+{{/isCookieKey}}
+    }
+{{/isApiKey}}
+{{#isPasswordFlow}}
+
+    [Fact]
+    public async Task BhvAuthoauthtwopassword012{{className}}SendsItsSpecScopesAndUrls()
+    {
+        var client = new CapturingTokenClient();
+        var auth = new {{packageName}}.Auth.OAuth.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+
+        string[] scopes = {{{scopesLiteral}}};
+        Assert.Equal(new Uri("{{{tokenUrl}}}"), client.LastUrl);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(Uri.EscapeDataString(scope), client.LastBody!, StringComparison.Ordinal);
+        }
+    }
+{{/isPasswordFlow}}
+{{#isClientCredentialsFlow}}
+
+    [Fact]
+    public async Task BhvAuthoauthtwoclientcred009{{className}}SendsItsSpecScopesToItsTokenUrl()
+    {
+        var client = new CapturingTokenClient();
+        var auth = new {{packageName}}.Auth.OAuth.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+
+        string[] scopes = {{{scopesLiteral}}};
+        Assert.Equal(new Uri("{{{tokenUrl}}}"), client.LastUrl);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(Uri.EscapeDataString(scope), client.LastBody!, StringComparison.Ordinal);
+        }
+    }
+{{/isClientCredentialsFlow}}
+{{#isAuthorizationCodeFlow}}
+
+    [Fact]
+    public void BhvAuthoauthtwoauthcode020{{className}}SendsItsSpecScopesAndUrls()
+    {
+        var auth = new {{packageName}}.Auth.OAuth.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+
+        string url = auth.BuildAuthorizationUrl().OriginalString;
+
+        string[] scopes = {{{scopesLiteral}}};
+        Assert.StartsWith("{{{authorizationUrl}}}", url, StringComparison.Ordinal);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(Uri.EscapeDataString(scope), url, StringComparison.Ordinal);
+        }
+    }
+{{/isAuthorizationCodeFlow}}
+{{#isImplicitFlow}}
+
+    [Fact]
+    public void BhvAuthoauthtwoimplicit006{{className}}UsesItsSpecUrlAndScopes()
+    {
+        var auth = new {{packageName}}.Auth.OAuth.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+
+        string url = auth.BuildAuthorizationUrl().OriginalString;
+
+        string[] scopes = {{{scopesLiteral}}};
+        Assert.StartsWith("{{{authorizationUrl}}}", url, StringComparison.Ordinal);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(Uri.EscapeDataString(scope), url, StringComparison.Ordinal);
+        }
+    }
+{{/isImplicitFlow}}
 {{/schemeAuthTests}}
 }

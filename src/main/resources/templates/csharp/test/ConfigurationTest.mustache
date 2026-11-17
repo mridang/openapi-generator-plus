@@ -88,6 +88,35 @@ public class ConfigurationTest
     }
 
     [Fact]
+    public void BhvConfig004BuilderMergesSingleAndBulkHeaders()
+    {
+        var config = Configuration.Builder()
+            .DefaultHeader("X-Single", "one")
+            .DefaultHeaders(new Dictionary<string, string> { { "X-Bulk", "two" } })
+            .Build();
+
+        Assert.Equal(2, config.DefaultHeaders.Count);
+        Assert.Equal("one", config.DefaultHeaders["X-Single"]);
+        Assert.Equal("two", config.DefaultHeaders["X-Bulk"]);
+    }
+
+    [Fact]
+    public void BhvConfig015InspectMasksSensitiveDefaultHeaders()
+    {
+        string bearer = "tok-" + "marker";
+        var config = Configuration.Builder()
+            .DefaultHeader("Authorization", "Bearer " + bearer)
+            .DefaultHeader("X-Custom", "value")
+            .Build();
+
+        string text = config.ToString();
+
+        Assert.DoesNotContain(bearer, text, StringComparison.Ordinal);
+        Assert.Contains("Authorization=***", text, StringComparison.Ordinal);
+        Assert.Contains("X-Custom=value", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BhvConfig010BuilderSetsAllFields()
     {
         var config = Configuration.Builder()

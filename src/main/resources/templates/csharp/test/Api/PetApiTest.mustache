@@ -98,6 +98,19 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvOptions002TestFindPetsByStatusWithNullOptionsSendsNoStatusKey()
+    {
+        var client = new QueryCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.FindPetsByStatusAsync(null);
+
+        string url = client.CapturedUrl!.AbsoluteUri;
+        Assert.DoesNotContain("status=", url, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BhvOperations040TestFindPetsByStatusExplicitEmptyStatusSendsStatusKey()
     {
         // The flip side of allowEmptyValue: when the caller EXPLICITLY supplies

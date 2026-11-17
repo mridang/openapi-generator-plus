@@ -173,6 +173,51 @@ public sealed class TransportOptions
     {
         return new TransportOptionsBuilder();
     }
+
+    /// <summary>
+    /// Returns a string representation with the proxy password and every credential-bearing
+    /// default header value replaced by <c>***</c>, so no secret reaches logs or debugger output.
+    /// </summary>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(VerifySsl={VerifySsl}, Proxy={RedactProxy(Proxy)}, DefaultHeaders={RedactHeaders(DefaultHeaders)})";
+    }
+
+    /// <summary>
+    /// Returns the proxy URL with the password of any <c>user:password@</c> userinfo masked.
+    /// </summary>
+    internal static string? RedactProxy(string? proxy)
+    {
+        if (proxy is null || !Uri.TryCreate(proxy, UriKind.Absolute, out Uri? uri))
+        {
+            return proxy;
+        }
+        int colon = uri.UserInfo.IndexOf(':', StringComparison.Ordinal);
+        if (colon < 0)
+        {
+            return proxy;
+        }
+        string masked = uri.UserInfo.Substring(0, colon) + ":***";
+        return proxy.Replace(uri.UserInfo, masked, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Renders default headers as <c>{name=value, ...}</c>, masking the value of every header
+    /// that carries a credential.
+    /// </summary>
+    internal static string RedactHeaders(IEnumerable<KeyValuePair<string, string>> headers)
+    {
+        return "{" + string.Join(", ", headers.Select(h => h.Key + "=" + (IsSensitiveHeader(h.Key) ? "***" : h.Value))) + "}";
+    }
+
+    private static bool IsSensitiveHeader(string name)
+    {
+        string lowered = name.ToLowerInvariant();
+        return lowered is "authorization" or "proxy-authorization" or "cookie"
+            || lowered.Contains("key", StringComparison.Ordinal)
+            || lowered.Contains("token", StringComparison.Ordinal)
+            || lowered.Contains("secret", StringComparison.Ordinal);
+    }
 }
 
 /// <summary>
