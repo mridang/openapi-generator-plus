@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -92,6 +93,9 @@ public final class ErrorResponses {
         return "default".equals(s) || s.matches("[45]\\d\\d|[45]XX");
     }
 
+    @SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "status keys are ASCII-only OpenAPI response codes (200, 4XX, default)")
     static String normaliseStatus(String status) {
         final String s = status.trim().toUpperCase(Locale.ROOT);
         if ("DEFAULT".equals(s) || "0".equals(s)) {
