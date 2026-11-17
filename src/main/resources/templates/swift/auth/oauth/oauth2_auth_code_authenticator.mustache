@@ -131,7 +131,16 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
         pkceLock.withLock { pkceVerifier = verifier }
         items.append(URLQueryItem(name: "code_challenge", value: PKCE.challenge(for: verifier)))
         items.append(URLQueryItem(name: "code_challenge_method", value: "S256"))
-        components.queryItems = items
+        /* Every name and value is percent-encoded with the RFC 3986 unreserved set,
+         * so `* ! ' ( )` and `+` are sent encoded, as in the other SDKs. */
+        let unreserved = CharacterSet(
+            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        components.percentEncodedQuery = items.map { item -> String in
+            let name = item.name.addingPercentEncoding(withAllowedCharacters: unreserved) ?? item.name
+            guard let value = item.value else { return name }
+            let encoded = value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? value
+            return "\(name)=\(encoded)"
+        }.joined(separator: "&")
         guard let url = components.url else {
             throw ConfigurationError.invalidArgument("malformed authorization URL: \(authorizationURL)")
         }

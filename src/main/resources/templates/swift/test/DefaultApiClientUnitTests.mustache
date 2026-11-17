@@ -282,7 +282,7 @@ import FoundationNetworking
         }
     }
 
-    @Test func testMultipartFilenameWithNullThrows() {
+    @Test func testBhvSerializationwire050MultipartFilenameWithNullThrows() {
         let formParts: [String: Any] = ["foo\u{0000}bar": Data([0x01])]
         #expect(throws: ConfigurationError.self) {
             _ = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
@@ -306,7 +306,7 @@ import FoundationNetworking
             "expected backslash-escaped backslash in body, got: \(bodyStr)")
     }
 
-    @Test func testBhvSerializationwire041MultipartNonAsciiFilenameUsesRFC5987() throws {
+    @Test func testBhvSerializationwire044MultipartNonAsciiFilenameUsesRFC5987() throws {
         let formParts: [String: Any] = ["日本.pdf": Data([0x01])]
         let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
         let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -866,6 +866,24 @@ import FoundationNetworking
         #expect(calls == 3)
     }
 
+    /* The per-call limit applies to that call only: the next call without one
+     * gets the transport's limit back. */
+    @Test func testBhvRetries004PerCallMaxRetriesDoesNotChangeTheNextCall() async throws {
+        var calls = 0
+        let client = try retryClient(maxRetries: 0) { _ in
+            calls += 1
+            return (Data(), 503, ["Retry-After": "0"])
+        }
+        _ = try await client.sendRequest(
+            method: "GET", url: "http://localhost/per-call", headers: [:], body: nil,
+            noRedirect: false, refreshHeaders: nil, maxRetries: 2)
+        #expect(calls == 3)
+
+        _ = try await client.sendRequest(
+            method: "GET", url: "http://localhost/transport", headers: [:], body: nil)
+        #expect(calls == 4)
+    }
+
     @Test func testBhvRetries014PerCallMaxRetriesZeroTurnsRetriesOff() async throws {
         var calls = 0
         let client = try retryClient(maxRetries: 3) { _ in
@@ -1006,7 +1024,7 @@ import FoundationNetworking
     }
 
     @Test(arguments: [400, 401, 403, 404, 422, 501])
-    func testStatusesThatAreNotTransientAreNotRetried(status: Int) async throws {
+    func testBhvRetries007StatusesThatAreNotTransientAreNotRetried(status: Int) async throws {
         var calls = 0
         let client = try retryClient { _ in
             calls += 1
@@ -1096,7 +1114,7 @@ import FoundationNetworking
         #expect(calls == 1)
     }
 
-    @Test func testEachRetryAppliesTheAuthenticationHeadersAgain() async throws {
+    @Test func testBhvRetries005EachRetryAppliesTheAuthenticationHeadersAgain() async throws {
         final class Counter: @unchecked Sendable { var value = 0 }
         let issued = Counter()
         var seen: [String?] = []
@@ -1309,6 +1327,15 @@ import FoundationNetworking
         #expect(config.requestCachePolicy == .reloadIgnoringLocalCacheData)
     }
 
+    @Test func testBhvRetries015SessionIsStatelessSoASetCookieIsNeverReplayed() throws {
+        let (session, _) = try DefaultApiClient.buildSession(TransportOptionsBuilder().build())
+        let config = session.configuration
+        #expect(config.httpCookieStorage == nil)
+        #expect(config.httpShouldSetCookies == false)
+        #expect(config.urlCache == nil)
+        #expect(config.requestCachePolicy == .reloadIgnoringLocalCacheData)
+    }
+
 #if !os(Linux)
     /* With no proxy configured the session must not pick up the system proxy
        settings: an empty dictionary switches them off. */
@@ -1410,6 +1437,25 @@ import FoundationNetworking
 
     /* URLSession may hand the redirect a body STREAM; an original empty body
        still means there is nothing to replay. */
+    /* A 307 keeps the method and the body, so a streamed body that would be
+       replayed across an HTTPS -> HTTP hop is refused. */
+    @Test func testBhvRetries017StreamedBodyIsRefusedAcrossHttpsToHttpOn307() throws {
+        var streamed = URLRequest(url: try #require(URL(string: "http://other.example/x")))
+        streamed.httpBodyStream = InputStream(data: Data("payload".utf8))
+        #expect(DefaultApiClient.refusesBodyReplay(
+            currentScheme: "https", nextScheme: "http", request: streamed,
+            originalBody: Data("payload".utf8)))
+    }
+
+    /* A POST body is refused when the redirect downgrades HTTPS to HTTP. */
+    @Test func testBhvRetries020PostBodyIsRefusedAcrossHttpsToHttp() throws {
+        var post = URLRequest(url: try #require(URL(string: "http://other.example/x")))
+        post.httpMethod = "POST"
+        post.httpBody = Data("{}".utf8)
+        #expect(DefaultApiClient.refusesBodyReplay(
+            currentScheme: "https", nextScheme: "http", request: post, originalBody: nil))
+    }
+
     @Test func testBodyReplayGuardTreatsStreamOfEmptyOriginalAsEmpty() throws {
         var streamed = URLRequest(url: try #require(URL(string: "http://other.example/x")))
         streamed.httpBodyStream = InputStream(data: Data())

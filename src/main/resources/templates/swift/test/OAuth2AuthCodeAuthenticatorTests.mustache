@@ -313,6 +313,84 @@ import Testing
         #expect(Mirror(reflecting: auth).children.isEmpty)
     }
 
+    @Test func testBhvAuthoauthtwoauthcode004AuthorizationUrlEncodesReservedPunctuationAndKeepsTilde() throws {
+        let auth = OAuth2AuthorizationCodeAuthenticator(
+            host: "https://api.example.com",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            authorizationURL: "https://auth.example.com/authorize",
+            tokenURL: "https://auth.example.com/token",
+            redirectURI: "https://app.example.com/callback",
+            scopes: ["a*b!c'd(e)f~g"]
+        )
+
+        let url = try auth.buildAuthorizationURL()
+
+        #expect(url.contains("scope=a%2Ab%21c%27d%28e%29f~g"), "got: \(url)")
+    }
+
+    /* Each authorization URL carries its own verifier, so the challenges differ. */
+    @Test func testBhvAuthoauthtwoauthcode009EveryAuthorizationUrlStartsANewVerifier() throws {
+        let auth = createAuthenticator()
+
+        let first = try auth.buildAuthorizationURL()
+        let second = try auth.buildAuthorizationURL()
+
+        let firstChallenge = try #require(
+            URLComponents(string: first)?.queryItems?.first { $0.name == "code_challenge" }?.value)
+        let secondChallenge = try #require(
+            URLComponents(string: second)?.queryItems?.first { $0.name == "code_challenge" }?.value)
+        #expect(firstChallenge != secondChallenge)
+    }
+
+    @Test func testBhvAuthoauthtwoauthcode016InvalidateAccessTokenKeepsTheRefreshToken() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        try await auth.exchangeCode("auth-code-xyz")
+        auth.invalidateAccessToken()
+        let headers = try await auth.authHeaders()
+
+        let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+        #expect(headers["Authorization"] == "Bearer tok2")
+        #expect(body.contains("grant_type=refresh_token"))
+        #expect(body.contains("refresh_token=ref1"))
+    }
+
+    @Test func testBhvAuthoauthtwoauthcode018EmptyStateIsOmittedFromTheAuthorizationUrl() throws {
+        let url = try createAuthenticator().buildAuthorizationURL(state: "")
+
+        #expect(!url.contains("state="))
+        #expect(url.contains("response_type=code"))
+    }
+
+    /* The S256 challenge is the unpadded base64url form of a SHA-256 digest:
+     * 43 characters drawn from the URL-safe alphabet. */
+    @Test func testBhvAuthoauthtwoauthcode023ChallengeIsAnUnpaddedBase64UrlS256Digest() throws {
+        let url = try createAuthenticator().buildAuthorizationURL()
+        let items = URLComponents(string: url)?.queryItems ?? []
+
+        #expect(items.first { $0.name == "code_challenge_method" }?.value == "S256")
+        let challenge = try #require(items.first { $0.name == "code_challenge" }?.value)
+        #expect(challenge.count == 43)
+        #expect(challenge.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") })
+    }
+
+    @Test func testBhvAuthoauthtwoauthcode025ReprShowsTheNonSecretFields() {
+        let repr = String(reflecting: createAuthenticator())
+
+        #expect(repr.contains("host: https://api.example.com"))
+        #expect(repr.contains("clientID: my-client-id"))
+        #expect(repr.contains("authorizationURL: https://auth.example.com/authorize"))
+        #expect(repr.contains("tokenURL: https://auth.example.com/token"))
+        #expect(repr.contains("redirectURI: https://app.example.com/callback"))
+        #expect(repr.contains("tokenExchanged: false"))
+    }
+
     /* The authorize URL parameters are emitted in the fixed cross-SDK order. */
     @Test func testAuthorizationUrlUsesFixedParameterOrder() throws {
         let auth = createAuthenticator()
@@ -324,7 +402,7 @@ import Testing
             options: .regularExpression)
         #expect(
             withoutPkce
-                == "https://auth.example.com/authorize?response_type=code&client_id=my-client-id&redirect_uri=https://app.example.com/callback&scope=read%20write&state=s"
+                == "https://auth.example.com/authorize?response_type=code&client_id=my-client-id&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=s"
         )
     }
 
