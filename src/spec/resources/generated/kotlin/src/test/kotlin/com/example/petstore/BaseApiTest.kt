@@ -360,6 +360,20 @@ class BaseApiTest {
         assertEquals("application/xml", client.capturedHeaders["Accept"])
     }
 
+    @Test
+    @DisplayName("null body POST does not send Content-Type")
+    fun nullBodyPostDoesNotSendContentType() {
+        val client = CapturingApiClient()
+        val testApi = TestableApiWithClient(client, "http://localhost")
+
+        runBlocking { testApi.call("POST", "/test/echo", body = null) }
+
+        assertFalse(
+            client.capturedHeaders.keys.any { it.equals("Content-Type", ignoreCase = true) },
+            "Content-Type must not be sent when the body is null",
+        )
+    }
+
     private fun api() = TestableApi(ChasmContainer.getBaseUrl())
 
     @Test

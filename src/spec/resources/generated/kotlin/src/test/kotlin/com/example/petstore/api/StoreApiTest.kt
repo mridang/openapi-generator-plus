@@ -52,7 +52,7 @@ class StoreApiTest {
         private val api: StoreApi get() = sharedApi
 
         @Test
-        @DisplayName("placeOrder creates a new order")
+        @DisplayName("placeOrder")
         fun testPlaceOrder() {
             val order =
                 Order(
@@ -71,7 +71,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("placeOrder with HttpInfo returns status and headers")
+        @DisplayName("placeOrder with HttpInfo")
         fun testPlaceOrderWithHttpInfo() {
             val order =
                 Order(
@@ -91,7 +91,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getOrderById returns an order")
+        @DisplayName("getOrderById")
         fun testGetOrderById() {
             val result = runBlocking { api.getOrderById(1L) }
 
@@ -100,7 +100,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getOrderById with HttpInfo returns status and headers")
+        @DisplayName("getOrderById with HttpInfo")
         fun testGetOrderByIdWithHttpInfo() {
             val result = runBlocking { api.getOrderByIdWithHttpInfo(1L) }
 
@@ -110,7 +110,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("deleteOrder deletes an order")
+        @DisplayName("deleteOrder")
         fun testDeleteOrder() {
             assertDoesNotThrow { runBlocking { api.deleteOrder(1L) } }
         }
@@ -138,7 +138,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getInventory returns inventory map")
+        @DisplayName("getInventory")
         fun testGetInventory() {
             val result = runBlocking { api.getInventory() }
 
@@ -146,7 +146,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("getInventory with HttpInfo returns status and headers")
+        @DisplayName("getInventory with HttpInfo")
         fun testGetInventoryWithHttpInfo() {
             val result = runBlocking { api.getInventoryWithHttpInfo() }
 
@@ -160,7 +160,7 @@ class StoreApiTest {
     @DisplayName("Mock tests")
     inner class MockTests {
         @Test
-        @DisplayName("getOrderById 404 throws NotFoundException")
+        @DisplayName("getOrderNotFound")
         fun testGetOrderNotFound() {
             val engine =
                 MockEngine { _ ->
@@ -185,7 +185,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("placeOrder 500 throws InternalServerErrorException")
+        @DisplayName("placeOrderServerError")
         fun testPlaceOrderServerError() {
             val engine =
                 MockEngine { _ ->
@@ -219,7 +219,7 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("deleteOrder 404 throws NotFoundException")
+        @DisplayName("deleteOrderNotFound")
         fun testDeleteOrderNotFound() {
             val engine =
                 MockEngine { _ ->

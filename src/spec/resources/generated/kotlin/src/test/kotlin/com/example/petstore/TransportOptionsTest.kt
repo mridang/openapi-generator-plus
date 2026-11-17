@@ -151,7 +151,7 @@ class TransportOptionsTest {
     @DisplayName("proxy validation")
     inner class ProxyValidation {
         @Test
-        @DisplayName("invalid proxy URL throws IllegalArgumentException")
+        @DisplayName("invalid proxy URL throws exception")
         fun invalidProxyUrlThrowsException() {
             val ex =
                 assertThrowsExactly(IllegalArgumentException::class.java) {

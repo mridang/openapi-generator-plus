@@ -47,7 +47,7 @@ class ConfigurationTest {
     @DisplayName("baseUrl")
     inner class BaseUrl {
         @Test
-        @DisplayName("builder sets custom base URL")
+        @DisplayName("builder sets base URL")
         fun builderSetsCustomBaseUrl() {
             val config =
                 Configuration
@@ -109,7 +109,7 @@ class ConfigurationTest {
     @DisplayName("defaultHeaders")
     inner class DefaultHeaders {
         @Test
-        @DisplayName("builder sets multiple headers from map")
+        @DisplayName("builder sets multiple default headers")
         fun builderSetsMultipleHeadersFromMap() {
             val config =
                 Configuration
@@ -248,7 +248,7 @@ class ConfigurationTest {
     @DisplayName("copy isolation")
     inner class CopyIsolation {
         @Test
-        @DisplayName("builder returns a new Configuration each time")
+        @DisplayName("builder produces independent instances")
         fun builderReturnsNewConfiguration() {
             val builder = Configuration.builder().baseUrl("https://example.com")
             val first = builder.build()
