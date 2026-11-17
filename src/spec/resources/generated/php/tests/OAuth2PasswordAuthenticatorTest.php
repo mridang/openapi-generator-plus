@@ -17,7 +17,7 @@ use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\ClientAuthMethod;
 use PetstoreClient\Auth\OAuth\OAuth2PasswordAuthenticator;
 
-test('sends password grant type', function (): void {
+test('bhv authoauthtwopassword 014 sends password grant type', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token',
@@ -41,7 +41,7 @@ test('sends password grant type', function (): void {
     expect($request['body'] ?? '')->toContain('grant_type=password');
 });
 
-test('sends username and password', function (): void {
+test('bhv authoauthtwopassword 016 sends username and password', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token',
@@ -66,7 +66,7 @@ test('sends username and password', function (): void {
     expect($request['body'] ?? '')->toContain('password=testpass');
 });
 
-test('sends client id and secret', function (): void {
+test('bhv authoauthtwopassword 013 sends client id and secret', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token',
@@ -91,7 +91,7 @@ test('sends client id and secret', function (): void {
     expect($request['body'] ?? '')->toContain('client_secret=my-client-secret');
 });
 
-test('returns authorization bearer header', function (): void {
+test('bhv authoauthtwopassword 011 returns authorization bearer header', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token',
@@ -114,7 +114,7 @@ test('returns authorization bearer header', function (): void {
     expect($headers['Authorization'])->toBe('Bearer pw-token');
 });
 
-test('uses refresh token on subsequent calls', function (): void {
+test('bhv authoauthtwopassword 019 uses refresh token on subsequent calls', function (): void {
     $client = new MockTokenApiClient();
     // First call returns refresh token with expired access token
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
@@ -148,7 +148,7 @@ test('uses refresh token on subsequent calls', function (): void {
     expect($request['body'] ?? '')->toContain('refresh_token=refresh-1');
 });
 
-test('get host returns configured host', function (): void {
+test('bhv authoauthtwopassword 003 get host returns configured host', function (): void {
     $authenticator = new OAuth2PasswordAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -162,7 +162,7 @@ test('get host returns configured host', function (): void {
     expect($authenticator->getHost())->toBe('https://api.example.com');
 });
 
-test('basic auth url encodes client id and secret', function (): void {
+test('bhv authoauthtwopassword 002 basic auth url encodes client id and secret', function (): void {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     // client_id and client_secret MUST be application/x-www-form-
     // urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -201,7 +201,7 @@ test('basic auth url encodes client id and secret', function (): void {
  * leaks through print_r()'s use of __debugInfo(): both literal secrets are
  * absent and the masked '***' placeholder is present.
  */
-test('redacts secret', function (): void {
+test('bhv authoauthtwopassword 007 redacts secret', function (): void {
     $authenticator = new OAuth2PasswordAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -229,7 +229,7 @@ test('secret constructor parameters are marked sensitive', function (): void {
     expect($sensitive)->toBe(['clientSecret', 'password']);
 });
 
-test('password sends the refresh grant to the refresh url and falls back to the token url', function (?string $refreshUrl, string $expectedRefreshTarget): void {
+test('bhv authoauthtwopassword 006 password sends the refresh grant to the refresh url and falls back to the token url', function (?string $refreshUrl, string $expectedRefreshTarget): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-1',
@@ -266,7 +266,7 @@ test('password sends the refresh grant to the refresh url and falls back to the 
     'no refresh url' => [null, 'https://auth.example.com/token'],
 ]);
 
-test('password basic auth keeps only the unreserved characters literal', function (): void {
+test('bhv authoauthtwopassword 001 password basic auth keeps only the unreserved characters literal', function (): void {
     /* R8-10: exactly '-._~' stay literal; '*', '!', the quote and the
      * parentheses are percent-encoded in the Basic client credentials. */
     $client = new MockTokenApiClient();
@@ -296,7 +296,7 @@ test('password basic auth keeps only the unreserved characters literal', functio
         ->toBe('id-._~%2A%21%27%28%29:sec-._~%2A%21%27%28%29');
 });
 
-test('password token request body keeps only the unreserved characters literal', function (): void {
+test('bhv authoauthtwopassword 005 password token request body keeps only the unreserved characters literal', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'at',
@@ -322,7 +322,7 @@ test('password token request body keeps only the unreserved characters literal',
     expect($body)->toContain('scope=a%2Ab+c~d');
 });
 
-test('debug output keeps the non secret fields and masks both secrets', function (): void {
+test('bhv authoauthtwopassword 018 debug output keeps the non secret fields and masks both secrets', function (): void {
     $authenticator = new OAuth2PasswordAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -347,7 +347,7 @@ test('debug output keeps the non secret fields and masks both secrets', function
     expect($printR)->toContain('[clientAuthMethod] => Basic');
 });
 
-test('password refresh in body mode carries the client credentials to the refresh url', function (): void {
+test('bhv authoauthtwopassword 009 password refresh in body mode carries the client credentials to the refresh url', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-1',
@@ -382,7 +382,7 @@ test('password refresh in body mode carries the client credentials to the refres
     );
 });
 
-test('password refresh in basic mode sends the basic header and no client id in the body', function (): void {
+test('bhv authoauthtwopassword 008 password refresh in basic mode sends the basic header and no client id in the body', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-1',
@@ -417,7 +417,7 @@ test('password refresh in basic mode sends the basic header and no client id in 
     expect($refresh['body'])->toBe('grant_type=refresh_token&refresh_token=refresh-1');
 });
 
-test('password rejected refresh re-runs the password grant at the token url', function (): void {
+test('bhv authoauthtwopassword 010 password rejected refresh re-runs the password grant at the token url', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'pw-token-1',

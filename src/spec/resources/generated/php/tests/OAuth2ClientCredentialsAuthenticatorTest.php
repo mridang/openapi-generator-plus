@@ -17,7 +17,7 @@ use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\ClientAuthMethod;
 use PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
-test('sends client credentials grant type', function (): void {
+test('bhv authoauthtwoclientcred 010 sends client credentials grant type', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cc-token',
@@ -41,7 +41,7 @@ test('sends client credentials grant type', function (): void {
     expect($request['body'] ?? '')->toContain('grant_type=client_credentials');
 });
 
-test('sends client id and secret', function (): void {
+test('bhv authoauthtwoclientcred 011 sends client id and secret', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cc-token',
@@ -64,7 +64,7 @@ test('sends client id and secret', function (): void {
     expect($request['body'] ?? '')->toContain('client_secret=my-client-secret');
 });
 
-test('sends scopes', function (): void {
+test('bhv authoauthtwoclientcred 013 sends scopes', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cc-token',
@@ -86,7 +86,7 @@ test('sends scopes', function (): void {
     expect($request['body'] ?? '')->toContain('scope=read+write');
 });
 
-test('get host returns configured host', function (): void {
+test('bhv authoauthtwoclientcred 004 get host returns configured host', function (): void {
     $authenticator = new OAuth2ClientCredentialsAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -98,7 +98,7 @@ test('get host returns configured host', function (): void {
     expect($authenticator->getHost())->toBe('https://api.example.com');
 });
 
-test('returns authorization bearer header', function (): void {
+test('bhv authoauthtwoclientcred 008 returns authorization bearer header', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cc-token',
@@ -117,7 +117,7 @@ test('returns authorization bearer header', function (): void {
     expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer cc-token']);
 });
 
-test('caches token across calls', function (): void {
+test('bhv authoauthtwoclientcred 003 caches token across calls', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cached-cc-token',
@@ -141,7 +141,7 @@ test('caches token across calls', function (): void {
     expect($client->capturedRequests)->toHaveCount(1);
 });
 
-test('basic auth url encodes client id and secret', function (): void {
+test('bhv authoauthtwoclientcred 002 basic auth url encodes client id and secret', function (): void {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     // client_id and client_secret MUST be application/x-www-form-
     // urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -173,7 +173,7 @@ test('basic auth url encodes client id and secret', function (): void {
     expect($decoded)->toBe('id%2Bwith%2Fspecial:secret%26with%3Dstuff');
 });
 
-test('sends request to token url', function (): void {
+test('bhv authoauthtwoclientcred 012 sends request to token url', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'cc-token',
@@ -195,7 +195,7 @@ test('sends request to token url', function (): void {
     expect($request['url'])->toBe('https://auth.example.com/token');
 });
 
-test('token fetch error is surfaced not swallowed', function (): void {
+test('bhv authoauthtwoclientcred 015 token fetch error is surfaced not swallowed', function (): void {
     /* oauth-cc-authheaders-error-swallow: a failed client-credentials token
      * exchange must surface to the caller as a thrown error — NOT be
      * swallowed into an empty header map that would send the API request
@@ -223,7 +223,7 @@ test('token fetch error is surfaced not swallowed', function (): void {
  * __debugInfo(): the literal secret is absent and the masked '***'
  * placeholder is present.
  */
-test('redacts secret', function (): void {
+test('bhv authoauthtwoclientcred 007 redacts secret', function (): void {
     $authenticator = new OAuth2ClientCredentialsAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -248,7 +248,7 @@ test('secret constructor parameters are marked sensitive', function (): void {
     expect($sensitive)->toBe(['clientSecret']);
 });
 
-test('client credentials basic auth keeps only the unreserved characters literal', function (): void {
+test('bhv authoauthtwoclientcred 001 client credentials basic auth keeps only the unreserved characters literal', function (): void {
     /* R8-10: exactly '-._~' stay literal; '*', '!', the quote and the
      * parentheses are percent-encoded in the Basic client credentials. */
     $client = new MockTokenApiClient();
@@ -275,7 +275,7 @@ test('client credentials basic auth keeps only the unreserved characters literal
         ->toBe('id-._~%2A%21%27%28%29:sec-._~%2A%21%27%28%29');
 });
 
-test('client credentials token request body keeps only the unreserved characters literal', function (): void {
+test('bhv authoauthtwoclientcred 006 client credentials token request body keeps only the unreserved characters literal', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
         'access_token' => 'at',
@@ -299,7 +299,7 @@ test('client credentials token request body keeps only the unreserved characters
     expect($body)->toContain('scope=a%2Ab+c~d');
 });
 
-test('debug output keeps the non secret fields and masks the secret', function (): void {
+test('bhv authoauthtwoclientcred 014 debug output keeps the non secret fields and masks the secret', function (): void {
     $authenticator = new OAuth2ClientCredentialsAuthenticator(
         'https://api.example.com',
         'my-client-id',

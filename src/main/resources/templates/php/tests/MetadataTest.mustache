@@ -5,7 +5,7 @@ declare(strict_types=1);
 use {{invokerPackage}}\ObjectSerializer;
 use {{modelPackage}}\Metadata;
 
-test('serializes empty metadata', function (): void {
+test('bhv models 008 serializes empty metadata', function (): void {
     $metadata = new Metadata();
 
     $json = ObjectSerializer::serialize($metadata);
@@ -29,21 +29,21 @@ test('undeclared wire keys land in the map and are written back flat', function 
     expect(ObjectSerializer::serialize($metadata))->toBe($json);
 });
 
-test('a metadata without undeclared keys keeps an empty map after deserializing', function (): void {
+test('bhv models 001 a metadata without undeclared keys keeps an empty map after deserializing', function (): void {
     /** @var Metadata $metadata */
     $metadata = ObjectSerializer::deserialize('{}', Metadata::class);
 
     expect($metadata->additionalProperties)->toHaveCount(0);
 });
 
-test('deserializes empty object', function (): void {
+test('bhv models 003 deserializes empty object', function (): void {
     /** @var Metadata $metadata */
     $metadata = ObjectSerializer::deserialize('{}', Metadata::class);
 
     expect($metadata)->toBeInstanceOf(Metadata::class);
 });
 
-test('deserializes additional string properties', function (): void {
+test('bhv models 004 deserializes additional string properties', function (): void {
     $json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello"}';
     /** @var Metadata $metadata */
     $metadata = ObjectSerializer::deserialize($json, Metadata::class);
@@ -53,7 +53,7 @@ test('deserializes additional string properties', function (): void {
     expect($metadata->additionalProperties->get('customField'))->toBe('hello');
 });
 
-test('round trip preserves additional properties', function (): void {
+test('bhv models 011 round trip preserves additional properties', function (): void {
     /** @var \Ds\Map<string, mixed> $additionalProperties */
     $additionalProperties = new \Ds\Map(['customField' => 'hello', 'anotherField' => 'world']);
     $metadata = (new Metadata(new \DateTime('2024-01-01T00:00:00+00:00')))
@@ -65,7 +65,7 @@ test('round trip preserves additional properties', function (): void {
     expect($deserialized)->toBeInstanceOf(Metadata::class);
 });
 
-test('additional properties field is Ds\\Map typed', function (): void {
+test('bhv models 009 additional properties field is Ds\\Map typed', function (): void {
     /** @var \Ds\Map<string, mixed> $additionalProperties */
     $additionalProperties = new \Ds\Map(['key' => 'value']);
     $metadata = (new Metadata())->withAdditionalProperties($additionalProperties);
@@ -88,7 +88,7 @@ test('composer manifest has a valid name', function (): void {
     );
 });
 
-test('composer manifest has a description', function (): void {
+test('bhv models 002 composer manifest has a description', function (): void {
     /* D2-docs: the app description must be wired into composer.json so the
      * package does not publish with an empty description. */
     $raw = file_get_contents(__DIR__ . '/../composer.json');
@@ -98,7 +98,7 @@ test('composer manifest has a description', function (): void {
     expect($composer['description'])->toBeString();
 });
 
-test('generated models never claim a null example', function (): void {
+test('bhv models 007 generated models never claim a null example', function (): void {
     /* L1 regression: when a property declares no example the base codegen
      * supplies the literal string "null" as the example value, which is truthy
      * in Mustache. A bare example doc section would therefore stamp a false
@@ -118,7 +118,7 @@ test('generated models never claim a null example', function (): void {
     }
 });
 
-test('a declared property wins over a colliding additional property', function (): void {
+test('bhv models 010 a declared property wins over a colliding additional property', function (): void {
     /** @var \Ds\Map<string, mixed> $additionalProperties */
     $additionalProperties = new \Ds\Map(['createdAt' => 'x', 'other' => 'y']);
     $metadata = (new Metadata(new \DateTime('2024-01-15T10:30:00+00:00')))

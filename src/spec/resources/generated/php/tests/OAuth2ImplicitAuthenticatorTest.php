@@ -25,7 +25,7 @@ function makeOAuth2ImplicitAuthenticator(): OAuth2ImplicitAuthenticator
     );
 }
 
-test('builds authorization url with response type token', function (): void {
+test('bhv authoauthtwoimplicit 003 builds authorization url with response type token', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
     $url = $authenticator->buildAuthorizationUrl();
@@ -34,7 +34,7 @@ test('builds authorization url with response type token', function (): void {
     expect($url)->toContain('response_type=token');
 });
 
-test('builds authorization url with client id', function (): void {
+test('bhv authoauthtwoimplicit 002 builds authorization url with client id', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
     $url = $authenticator->buildAuthorizationUrl();
@@ -42,7 +42,7 @@ test('builds authorization url with client id', function (): void {
     expect($url)->toContain('client_id=my-client-id');
 });
 
-test('builds authorization url with scopes', function (): void {
+test('bhv authoauthtwoimplicit 004 builds authorization url with scopes', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
     $url = $authenticator->buildAuthorizationUrl();
@@ -50,7 +50,7 @@ test('builds authorization url with scopes', function (): void {
     expect($url)->toContain('scope=read%20write');
 });
 
-test('builds authorization url with state', function (): void {
+test('bhv authoauthtwoimplicit 005 builds authorization url with state', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
     $url = $authenticator->buildAuthorizationUrl('my-state');
@@ -58,7 +58,7 @@ test('builds authorization url with state', function (): void {
     expect($url)->toContain('state=my-state');
 });
 
-test('empty state is omitted', function (): void {
+test('bhv authoauthtwoimplicit 009 empty state is omitted', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
     $url = $authenticator->buildAuthorizationUrl('');
@@ -67,7 +67,7 @@ test('empty state is omitted', function (): void {
     expect($url)->toBe($authenticator->buildAuthorizationUrl());
 });
 
-test('get auth headers returns bearer after set access token', function (): void {
+test('bhv authoauthtwoimplicit 007 get auth headers returns bearer after set access token', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
     $authenticator->setAccessToken('my-access-token');
@@ -76,14 +76,14 @@ test('get auth headers returns bearer after set access token', function (): void
     expect($headers['Authorization'])->toBe('Bearer my-access-token');
 });
 
-test('throws when access token not set', function (): void {
+test('bhv authoauthtwoimplicit 012 throws when access token not set', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
     expect(fn () => $authenticator->getAuthHeaders())
         ->toThrow(\LogicException::class, 'Must set the access token before making API requests');
 });
 
-test('throws when access token set to empty string', function (): void {
+test('bhv authoauthtwoimplicit 013 throws when access token set to empty string', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
     $authenticator->setAccessToken('');
 
@@ -91,7 +91,7 @@ test('throws when access token set to empty string', function (): void {
         ->toThrow(\LogicException::class, 'Must set the access token before making API requests');
 });
 
-test('get host returns configured host', function (): void {
+test('bhv authoauthtwoimplicit 008 get host returns configured host', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
     expect($authenticator->getHost())->toBe('https://api.example.com');
@@ -102,7 +102,7 @@ test('get host returns configured host', function (): void {
  * __debugInfo(): once set, the literal token is absent and the masked
  * '***' placeholder is present.
  */
-test('redacts secret', function (): void {
+test('bhv authoauthtwoimplicit 010 redacts secret', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
     $authenticator->setAccessToken('my-access-token');
 
@@ -129,7 +129,7 @@ test('set access token rejects a token outside printable ascii', function (strin
     'non ascii' => ['tökén'],
 ]);
 
-test('authorization url keeps only the unreserved characters literal', function (): void {
+test('bhv authoauthtwoimplicit 001 authorization url keeps only the unreserved characters literal', function (): void {
     /* R8-10: exactly '-._~' stay literal; '*', '!', the quote and the
      * parentheses are percent-encoded in the authorize URL. */
     $authenticator = new OAuth2ImplicitAuthenticator(
@@ -147,7 +147,7 @@ test('authorization url keeps only the unreserved characters literal', function 
     );
 });
 
-test('debug output keeps the non secret fields and masks the access token', function (): void {
+test('bhv authoauthtwoimplicit 011 debug output keeps the non secret fields and masks the access token', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
     $authenticator->setAccessToken('my-access-token');
 

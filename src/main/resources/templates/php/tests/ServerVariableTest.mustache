@@ -10,19 +10,19 @@ test('default value is exposed', function (): void {
     expect($variable->defaultValue)->toBe('v3');
 });
 
-test('description defaults to null', function (): void {
+test('bhv servers 015 description defaults to null', function (): void {
     $variable = new ServerVariable(defaultValue: 'v3');
 
     expect($variable->description)->toBeNull();
 });
 
-test('enum values default to empty array', function (): void {
+test('bhv servers 016 enum values default to empty array', function (): void {
     $variable = new ServerVariable(defaultValue: 'v3');
 
     expect($variable->enumValues)->toBe([]);
 });
 
-test('all fields are exposed', function (): void {
+test('bhv servers 017 exposes the default value, description and enum values', function (): void {
     $variable = new ServerVariable(
         defaultValue: 'v3',
         description: 'API version',

@@ -15,13 +15,13 @@ use OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter;
 use OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 
-test('no op without tracer', function (): void {
+test('bhv tracing 007 no op without tracer', function (): void {
     $headers = [];
     TraceContextUtil::injectTraceContext($headers);
     expect($headers)->toBeEmpty();
 });
 
-test('empty headers do not cause exception', function (): void {
+test('bhv tracing 003 empty headers do not cause exception', function (): void {
     $headers = [];
     TraceContextUtil::injectTraceContext($headers);
     expect($headers)->toBeEmpty();
@@ -30,37 +30,37 @@ test('empty headers do not cause exception', function (): void {
 /**
  * Test that injectTraceContext does not inject traceparent when OTel is not installed.
  */
-test('does not inject traceparent without o tel', function (): void {
+test('bhv tracing 001 does not inject traceparent without o tel', function (): void {
     $headers = [];
     TraceContextUtil::injectTraceContext($headers);
     expect($headers)->not->toHaveKey('traceparent');
 });
 
-test('does not inject tracestate without o tel', function (): void {
+test('bhv tracing 002 does not inject tracestate without o tel', function (): void {
     $headers = [];
     TraceContextUtil::injectTraceContext($headers);
     expect($headers)->not->toHaveKey('tracestate');
 });
 
-test('preserves authorization header', function (): void {
+test('bhv tracing 010 preserves authorization header', function (): void {
     $headers = ['Authorization' => 'Bearer token123'];
     TraceContextUtil::injectTraceContext($headers);
     expect($headers['Authorization'])->toEqual('Bearer token123');
 });
 
-test('preserves content type header', function (): void {
+test('bhv tracing 011 preserves content type header', function (): void {
     $headers = ['Content-Type' => 'application/json'];
     TraceContextUtil::injectTraceContext($headers);
     expect($headers['Content-Type'])->toEqual('application/json');
 });
 
-test('preserves x request id header', function (): void {
+test('bhv tracing 012 preserves x request id header', function (): void {
     $headers = ['X-Request-ID' => 'req-12345'];
     TraceContextUtil::injectTraceContext($headers);
     expect($headers['X-Request-ID'])->toEqual('req-12345');
 });
 
-test('preserves all existing headers', function (): void {
+test('bhv tracing 009 preserves all existing headers', function (): void {
     $headers = [
         'Authorization' => 'Bearer token',
         'Content-Type' => 'application/json',
@@ -137,7 +137,7 @@ function remoteTraceParent(int $flags, ?TraceState $state): ContextInterface
     ))->storeInContext(Context::getRoot());
 }
 
-test('injects traceparent when a span is active', function (): void {
+test('bhv tracing 006 injects traceparent when a span is active', function (): void {
     withTestTracing(function (InMemoryExporter $exporter, TracerProvider $tracerProvider): void {
         $headers = injectTraceUnder($tracerProvider, Context::getRoot());
         expect($headers['traceparent'] ?? null)->toBe(
@@ -147,7 +147,7 @@ test('injects traceparent when a span is active', function (): void {
     });
 });
 
-test('includes tracestate when present on the active span', function (): void {
+test('bhv tracing 005 includes tracestate when present on the active span', function (): void {
     withTestTracing(function (InMemoryExporter $exporter, TracerProvider $tracerProvider): void {
         $headers = injectTraceUnder(
             $tracerProvider,
@@ -158,7 +158,7 @@ test('includes tracestate when present on the active span', function (): void {
     });
 });
 
-test('omits tracestate when empty on the active span', function (): void {
+test('bhv tracing 008 omits tracestate when empty on the active span', function (): void {
     withTestTracing(function (InMemoryExporter $exporter, TracerProvider $tracerProvider): void {
         $headers = injectTraceUnder($tracerProvider, remoteTraceParent(TraceFlags::SAMPLED, null));
         expect($headers)->toHaveKey('traceparent');
@@ -166,7 +166,7 @@ test('omits tracestate when empty on the active span', function (): void {
     });
 });
 
-test('formats trace flags correctly on the active span', function (): void {
+test('bhv tracing 004 formats trace flags correctly on the active span', function (): void {
     withTestTracing(function (InMemoryExporter $exporter, TracerProvider $tracerProvider): void {
         $sampled = injectTraceUnder($tracerProvider, remoteTraceParent(TraceFlags::SAMPLED, null));
         $unsampled = injectTraceUnder($tracerProvider, remoteTraceParent(TraceFlags::DEFAULT, null));

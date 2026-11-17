@@ -17,13 +17,13 @@ beforeEach(function (): void {
     $this->authenticator = new BearerAuthenticator('/api/v3', 'test-token');
 });
 
-test('construct with authenticator only', function (): void {
+test('bhv lifecycle 012 construct with authenticator only', function (): void {
     $client = new Client($this->authenticator);
 
     expect($client)->toBeInstanceOf(Client::class);
 });
 
-test('construct with authenticator and null transport options', function (): void {
+test('bhv lifecycle 010 construct with authenticator and null transport options', function (): void {
     // A null transport must fall back to the default builder output, so
     // constructing with an explicit null is equivalent to omitting it.
     $client = new Client($this->authenticator);
@@ -31,7 +31,7 @@ test('construct with authenticator and null transport options', function (): voi
     expect($client)->toBeInstanceOf(Client::class);
 });
 
-test('construct with authenticator and transport options', function (): void {
+test('bhv lifecycle 011 construct with authenticator and transport options', function (): void {
     $transport = TransportOptions::builder()->build();
 
     $client = new Client($this->authenticator, $transport);
@@ -44,12 +44,12 @@ test('bearer rejects crlf', function (): void {
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('bearer rejects non ascii', function (): void {
+test('bhv lifecycle 006 bearer rejects non ascii', function (): void {
     expect(fn () => new BearerAuthenticator('/api/v3', 'ñoño'))
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('bearer rejects empty token', function (): void {
+test('bhv lifecycle 005 bearer rejects empty token', function (): void {
     // An empty / whitespace-only token would emit "Authorization: Bearer "
     // (no credential), so it must be rejected at construction.
     expect(fn () => new BearerAuthenticator('/api/v3', ''))
@@ -58,7 +58,7 @@ test('bearer rejects empty token', function (): void {
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('api key header rejects crlf and non ascii', function (): void {
+test('bhv lifecycle 002 api key header rejects crlf and non ascii', function (): void {
     // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
     // ApiKeyAuthenticator's HEADER location must reject anything
     // outside printable ASCII + TAB to prevent header injection
@@ -67,18 +67,18 @@ test('api key header rejects crlf and non ascii', function (): void {
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('api key header rejects non ascii', function (): void {
+test('bhv lifecycle 004 api key header rejects non ascii', function (): void {
     expect(fn () => new ApiKeyAuthenticator('/api/v3', 'X-Api-Key', 'kéy', ApiKeyLocation::HEADER))
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('api key query allows non ascii', function (): void {
+test('bhv lifecycle 003 api key query allows non ascii', function (): void {
     // Non-header locations accept arbitrary chars.
     $auth = new ApiKeyAuthenticator('/api/v3', 'api_key', 'kéy', ApiKeyLocation::QUERY);
     expect($auth->getQueryParams())->toBe(['api_key' => 'kéy']);
 });
 
-test('api groups are accessible', function (): void {
+test('bhv lifecycle 001 api groups are accessible', function (): void {
     $client = new Client($this->authenticator);
 
     expect($client->pet)->toBeInstanceOf(\PetstoreClient\Api\PetApi::class);
@@ -114,7 +114,7 @@ test('injected api client is wired into every api group', function (): void {
     expect($property->getValue($client->store))->toBe($stub);
 });
 
-test('close on a client with a supplied transport leaves that transport usable', function (): void {
+test('bhv lifecycle 007 close on a client with a supplied transport leaves that transport usable', function (): void {
     $stub = new class implements ApiClient {
         public int $sent = 0;
 
@@ -148,7 +148,7 @@ test('close on a client with a supplied transport leaves that transport usable',
     expect($stub->sent)->toBe(1);
 });
 
-test('close on a client that built its own transport rejects later requests and is idempotent', function (): void {
+test('bhv lifecycle 013 close on a client that built its own transport rejects later requests and is idempotent', function (): void {
     $client = new Client($this->authenticator);
     $client->close();
     $client->close();
@@ -214,7 +214,7 @@ test('a closed client fails new requests with one canonical error even on a supp
     expect($counts->sent)->toBe(0);
 });
 
-test('closing a client never closes a transport the caller supplied', function (): void {
+test('bhv lifecycle 009 closing a client never closes a transport the caller supplied', function (): void {
     [$transport, $counts] = newRecordingTransport();
     $client = new Client($this->authenticator, null, $transport);
     $client->close();
@@ -238,7 +238,7 @@ test('a client needs an authenticator or a scheme credential', function (): void
         ->toThrow(\InvalidArgumentException::class, 'at least one security scheme');
 });
 
-test('a client can be built from the credential of one security scheme alone', function (): void {
+test('bhv lifecycle 015 a client can be built from the credential of one security scheme alone', function (): void {
     $credential = new BearerAuthenticator('/api/v3', 'scheme-token');
     $client = new Client(petStoreBasic: $credential);
 
@@ -284,3 +284,8 @@ test('a supplied psr18 client conflicts with sdk proxy and tls settings', functi
     'ca bundle' => [fn () => TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build()],
     'tls verification off' => [fn () => TransportOptions::builder()->verifySsl(false)->build()],
 ]);
+
+test('bhv lifecycle 016 with token fails when the token is empty', function (): void {
+    expect(fn () => Client::withToken('/api/v3', ''))
+        ->toThrow(\InvalidArgumentException::class);
+});

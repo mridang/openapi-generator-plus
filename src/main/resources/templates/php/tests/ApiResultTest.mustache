@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use {{invokerPackage}}\ApiResult;
 
-test('exposes status code', function (): void {
+test('bhv results 003 exposes status code', function (): void {
     $result = new ApiResult(statusCode: 200, data: null, rawBody: '', headers: []);
 
     expect($result->statusCode)->toBe(200);
@@ -17,7 +17,7 @@ test('exposes deserialized data', function (): void {
     expect($result->data)->toBe($data);
 });
 
-test('data may be null', function (): void {
+test('bhv results 001 data may be null', function (): void {
     $result = new ApiResult(statusCode: 204, data: null, rawBody: '', headers: []);
 
     expect($result->data)->toBeNull();
@@ -29,7 +29,7 @@ test('exposes raw body', function (): void {
     expect($result->rawBody)->toBe('{"id":1}');
 });
 
-test('exposes headers', function (): void {
+test('bhv results 002 exposes headers', function (): void {
     $headers = ['Content-Type' => 'application/json', 'X-Request-Id' => 'abc'];
     $result = new ApiResult(statusCode: 200, data: null, rawBody: '', headers: $headers);
 

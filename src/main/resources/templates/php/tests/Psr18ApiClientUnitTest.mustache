@@ -101,7 +101,7 @@ test('psr18 joins multi value response headers', function (): void {
     expect($result->headers['x-custom-value'])->toContain('val2');
 });
 
-test('psr18 injects custom user agent', function (): void {
+test('bhv transport 052 psr18 injects custom user agent', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $transport = (new TransportOptionsBuilder())->userAgent('MyApp/1.0')->build();
     $client = newPsr18Client($stub, $transport);
@@ -152,7 +152,7 @@ test('psr18 includes transport default headers', function (): void {
     expect($stub->requests[0]->getHeaderLine('X-Custom'))->toBe('custom-value');
 });
 
-test('psr18 caller headers override defaults', function (): void {
+test('bhv transport 047 psr18 caller headers override defaults', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $transport = (new TransportOptionsBuilder())->defaultHeader('Accept', 'text/plain')->build();
     $client = newPsr18Client($stub, $transport);
@@ -162,7 +162,7 @@ test('psr18 caller headers override defaults', function (): void {
     expect($stub->requests[0]->getHeaderLine('Accept'))->toBe('application/json');
 });
 
-test('psr18 decodes iso 8859 1 body to utf 8 when charset declared', function (): void {
+test('bhv serializationwire 034 psr18 decodes iso 8859 1 body to utf 8 when charset declared', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(200, "\xE9", ['Content-Type' => 'text/plain; charset=ISO-8859-1'])
     );
@@ -173,7 +173,7 @@ test('psr18 decodes iso 8859 1 body to utf 8 when charset declared', function ()
     expect($response->body)->toBe("\xC3\xA9"); // UTF-8 'é'
 });
 
-test('psr18 cross origin redirect strips authorization and cookie', function (): void {
+test('bhv redirects 013 psr18 cross origin redirect strips authorization and cookie', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(302, '', ['Location' => 'https://other.example.com/final']),
         psr18Response(200, 'ok')
@@ -192,7 +192,7 @@ test('psr18 cross origin redirect strips authorization and cookie', function ():
     expect($stub->requests[1]->hasHeader('X-Trace'))->toBeTrue();
 });
 
-test('psr18 no redirect arg surfaces 302 to caller', function (): void {
+test('bhv redirects 021 psr18 no redirect arg surfaces 302 to caller', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(302, '', ['Location' => 'https://attacker.example.com/token'])
     );
@@ -204,7 +204,7 @@ test('psr18 no redirect arg surfaces 302 to caller', function (): void {
     expect($response->statusCode)->toBe(302);
 });
 
-test('psr18 follows redirect when not suppressed', function (): void {
+test('bhv redirects 017 psr18 follows redirect when not suppressed', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(302, '', ['Location' => 'https://auth.example.com/final']),
         psr18Response(200, 'ok')
@@ -236,7 +236,7 @@ test('psr18 resolves a relative Location per RFC 3986', function (string $locati
     'absolute path' => ['/z', 'https://h/z'],
 ]);
 
-test('psr18 https to http downgrade refuses body replay on 307', function (): void {
+test('bhv retries 016 psr18 https to http downgrade refuses body replay on 307', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(307, '', ['Location' => 'http://insecure.example.com/sink'])
     );
@@ -318,7 +318,7 @@ test('psr18 301 put https to http downgrade refuses body replay', function (): v
         ->toThrow(ApiException::class);
 });
 
-test('psr18 exceeding max redirects throws', function (): void {
+test('bhv redirects 026 psr18 exceeding max redirects throws', function (): void {
     $loop = [];
     for ($i = 0; $i < 10; $i++) {
         $loop[] = psr18Response(302, '', ['Location' => 'https://api.example.com/next/' . $i]);
@@ -356,7 +356,7 @@ test('psr18 timeout is one budget across all redirect hops', function (): void {
     expect($slow->sent)->toBe(2);
 });
 
-test('psr18 timeout budget starts afresh for every call', function (): void {
+test('bhv retries 019 psr18 timeout budget starts afresh for every call', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'), psr18Response(200, '{}'));
     $client = newPsr18Client($stub, TransportOptions::builder()->timeout(400)->build());
 
@@ -405,7 +405,7 @@ test('psr18 transport failure raises NetworkException', function (): void {
     }
 });
 
-test('psr18 timeout wrapped by the client raises NetworkTimeoutException', function (): void {
+test('bhv transport 031 psr18 timeout wrapped by the client raises NetworkTimeoutException', function (): void {
     // Symfony's Psr18Client wraps its TimeoutException in a PSR-18
     // NetworkExceptionInterface; the SDK finds it in the chain.
     $stub = new class () implements ClientInterface {
@@ -457,7 +457,7 @@ test('psr18 AL content-encoding gzip lie with plaintext body surfaces ApiExcepti
         });
 });
 
-test('psr18 multipart png file gets image png content type', function (): void {
+test('bhv serializationwire 039 psr18 multipart png file gets image png content type', function (): void {
     $tmp = tempnam(sys_get_temp_dir(), 'mp_');
     expect($tmp)->toBeString();
     $pngPath = $tmp . '.png';
@@ -537,7 +537,7 @@ test('psr18 multipart raw bytes part reuses field name as filename with octet st
     expect($sent)->toContain('Content-Type: application/octet-stream');
 });
 
-test('psr18 multipart leaves a caller supplied stream open', function (): void {
+test('bhv lifecycle 020 psr18 multipart leaves a caller supplied stream open', function (): void {
     $stream = fopen('php://temp', 'w+');
     expect($stream)->toBeResource();
     fwrite($stream, 'raw bytes');
@@ -564,7 +564,7 @@ test('psr18 multipart non ascii field name preserved as utf 8', function (): voi
     expect($sent)->toContain('name="' . $fieldName . '"');
 });
 
-test('psr18 multipart escapes a quote and a backslash in the field name', function (): void {
+test('bhv serializationwire 042 psr18 multipart escapes a quote and a backslash in the field name', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $client = newPsr18Client($stub);
 
@@ -602,7 +602,7 @@ test('psr18 multipart scalar parts use the canonical text form', function (): vo
  * mapping and the date-time wire format (sub-second precision preserved, e.g.
  * ...05.123+00:00).
  */
-test('psr18 multipart model part uses configured serializer wire names', function (): void {
+test('bhv serializationwire 045 psr18 multipart model part uses configured serializer wire names', function (): void {
     $metadata = new MultipartModelPart(
         isEnabled: true,
         recordedAt: new \DateTime('2020-01-02T03:04:05.123Z'),
