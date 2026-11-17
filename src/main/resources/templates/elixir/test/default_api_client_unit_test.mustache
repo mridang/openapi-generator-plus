@@ -149,6 +149,19 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
   # follow-up requests it makes, a token fetch or a retry, still go out); one
   # that starts after close raises the canonical error; the release of what the
   # SDK started is claimed by exactly one caller, once nothing is in flight.
+  test "bhv lifecycle 020 close never closes a caller-supplied transport" do
+    adapter = fn request -> {request, Req.Response.new(status: 200, body: "")} end
+    transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter])
+    first = {{moduleName}}.DefaultApiClient.new(transport)
+
+    assert {{moduleName}}.DefaultApiClient.close(first) == :ok
+
+    second = {{moduleName}}.DefaultApiClient.new(transport)
+    response = {{moduleName}}.DefaultApiClient.send_request(second, :get, "http://closing.invalid/supplied", %{}, nil)
+
+    assert response.status_code == 200
+  end
+
   test "bhv lifecycle 019 close lets an admitted request finish, refuses a new one and lets one caller claim the release" do
     adapter = fn request -> {request, Req.Response.new(status: 200, body: "")} end
     transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter])
@@ -733,6 +746,98 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
            ) ==
              "Refusing to replay request body across HTTPS->HTTP redirect: " <>
                "https://api.example.com/a -> http://api.example.com/b"
+  end
+
+  test "bhv redirects 007 returns the redirect response when following is disabled" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(follow_redirects: false))
+
+    assert {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code == 302
+    refute_receive {:captured_headers, _}, 200
+  end
+
+  test "bhv redirects 017 a redirect is followed when it is not suppressed" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    assert {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code == 200
+    assert_receive {:captured_headers, _}, 5000
+  end
+
+  test "bhv redirects 021 send_request/6 with no_redirect: true returns the raw 307 response" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(307, "#{target_url}/echo")
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :post, source_url, %{}, "body", no_redirect: true)
+
+    assert response.status_code == 307
+    refute_receive {:captured_headers, _}, 200
+  end
+
+  test "bhv redirects 023 returns the last 3xx without a Location when the redirect budget is used up" do
+    last_hop = start_server(302, "text/plain", "")
+    {source_url, _} = start_redirect_server(302, last_hop)
+
+    transport = {{moduleName}}.TransportOptions.new(follow_redirects: true, max_redirects: 1)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    assert {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{}, nil).status_code == 302
+  end
+
+  test "bhv redirects 024 a same origin redirect keeps the proxy and authorization headers" do
+    base_url = start_same_origin_redirect_server()
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    response =
+      {{moduleName}}.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{base_url}/first",
+        %{"Authorization" => "Bearer secret", "Proxy-Authorization" => "Basic Zm9v"},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert_receive {:second_headers, headers}, 5000
+    assert headers["authorization"] == "Bearer secret"
+    assert headers["proxy-authorization"] == "Basic Zm9v"
+  end
+
+  test "bhv redirects 025 strips default headers and credential-named headers on a cross-origin redirect" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    transport = {{moduleName}}.TransportOptions.new(default_headers: %{"X-Default-Token" => "d"})
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{"X-Trace" => "keep"}, nil)
+
+    assert_receive {:source_headers, source_headers}, 5000
+    assert source_headers["x-default-token"] == "d"
+    assert_receive {:captured_headers, target_headers}, 5000
+    refute Map.has_key?(target_headers, "x-default-token")
+    assert target_headers["x-trace"] == "keep"
+  end
+
+  test "bhv redirects 026 throws ApiError when maxRedirects is exceeded" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    transport = {{moduleName}}.TransportOptions.new(follow_redirects: true, max_redirects: 0)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+
+    err =
+      assert_raise {{moduleName}}.Errors.ApiError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(client, :get, source_url, %{}, nil)
+      end
+
+    assert err.status_code == 302
   end
 
   test "bhv redirects 010 a 3xx whose Location is absent or unparseable comes back as the response, never an exception" do
