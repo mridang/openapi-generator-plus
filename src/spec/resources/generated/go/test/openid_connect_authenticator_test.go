@@ -79,7 +79,7 @@ func createOpenIdConnectAuthenticator() *oauth.OpenIdConnectAuthenticator {
 	)
 }
 
-func TestOpenIdConnectAuthenticator_BuildsAuthorizationUrlFromDiscovery(t *testing.T) {
+func TestBhvAuthoidc002_OpenIdConnectAuthenticator_BuildsAuthorizationUrlFromDiscovery(t *testing.T) {
 	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
@@ -111,7 +111,7 @@ func TestOpenIdConnectAuthenticator_BuildsAuthorizationUrlFromDiscovery(t *testi
 
 // D05: the authorization request always asks for openid, first and once,
 // whatever scopes the caller passes.
-func TestOpenIdConnectAuthenticator_AuthorizationUrlAlwaysRequestsTheOpenidScope(t *testing.T) {
+func TestBhvAuthoidc022_OpenIdConnectAuthenticator_AuthorizationUrlAlwaysRequestsTheOpenidScope(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name   string
@@ -147,7 +147,7 @@ func TestOpenIdConnectAuthenticator_AuthorizationUrlAlwaysRequestsTheOpenidScope
 	}
 }
 
-func TestOpenIdConnectAuthenticator_FetchesDiscoveryDocument(t *testing.T) {
+func TestBhvAuthoidc010_OpenIdConnectAuthenticator_FetchesDiscoveryDocument(t *testing.T) {
 	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
@@ -171,7 +171,7 @@ func TestOpenIdConnectAuthenticator_FetchesDiscoveryDocument(t *testing.T) {
 	}
 }
 
-func TestOpenIdConnectAuthenticator_ObtainsTokenAfterCodeExchange(t *testing.T) {
+func TestBhvAuthoidc017_OpenIdConnectAuthenticator_ObtainsTokenAfterCodeExchange(t *testing.T) {
 	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
@@ -198,7 +198,7 @@ func TestOpenIdConnectAuthenticator_ObtainsTokenAfterCodeExchange(t *testing.T) 
 	}
 }
 
-func TestOpenIdConnectAuthenticator_GetAuthHeadersReturnsBearerAfterExchange(t *testing.T) {
+func TestBhvAuthoidc013_OpenIdConnectAuthenticator_GetAuthHeadersReturnsBearerAfterExchange(t *testing.T) {
 	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
@@ -226,7 +226,7 @@ func TestOpenIdConnectAuthenticator_GetAuthHeadersReturnsBearerAfterExchange(t *
 	}
 }
 
-func TestOpenIdConnectAuthenticator_ThrowsWhenNoApiClientInjected(t *testing.T) {
+func TestBhvAuthoidc028_OpenIdConnectAuthenticator_ThrowsWhenNoApiClientInjected(t *testing.T) {
 	t.Parallel()
 	authObj := createOpenIdConnectAuthenticator()
 
@@ -244,7 +244,7 @@ func TestOpenIdConnectAuthenticator_ThrowsWhenNoApiClientInjected(t *testing.T) 
 // *SerializationError, a transport failure is returned unchanged as the
 // *NetworkError / *NetworkTimeoutError it already is, and AuthHeadersOrError
 // surfaces the same error instead of sending the request unauthenticated.
-func TestOpenIdConnectAuthenticator_MalformedDiscoveryDocumentRaisesSerializationError(t *testing.T) {
+func TestBhvAuthoidc016_OpenIdConnectAuthenticator_MalformedDiscoveryDocumentRaisesSerializationError(t *testing.T) {
 	t.Parallel()
 	malformed := &fakeOIDCClient{responses: []fakeOIDCResponse{
 		{body: `{not json`, statusCode: 200},
@@ -258,7 +258,7 @@ func TestOpenIdConnectAuthenticator_MalformedDiscoveryDocumentRaisesSerializatio
 	}
 }
 
-func TestOpenIdConnectAuthenticator_DiscoveryTransportFailurePropagatesNetworkError(t *testing.T) {
+func TestBhvAuthoidc006_OpenIdConnectAuthenticator_DiscoveryTransportFailurePropagatesNetworkError(t *testing.T) {
 	t.Parallel()
 	timeout := apierrors.NewNetworkTimeoutError("request timed out", errors.New("deadline exceeded"))
 	unreachable := &fakeOIDCClient{responses: []fakeOIDCResponse{
@@ -288,7 +288,7 @@ func TestOpenIdConnectAuthenticator_DiscoveryTransportFailurePropagatesNetworkEr
 // oauth-oidc-missing-endpoint-guard: a discovery document missing
 // authorization_endpoint or token_endpoint must produce an error rather than a
 // delegate built with empty endpoint URLs.
-func TestOpenIdConnectAuthenticator_ThrowsWhenDiscoveryMissingAuthorizationEndpoint(t *testing.T) {
+func TestBhvAuthoidc025_OpenIdConnectAuthenticator_ThrowsWhenDiscoveryMissingAuthorizationEndpoint(t *testing.T) {
 	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
@@ -311,7 +311,7 @@ func TestOpenIdConnectAuthenticator_ThrowsWhenDiscoveryMissingAuthorizationEndpo
 	}
 }
 
-func TestOpenIdConnectAuthenticator_ThrowsWhenDiscoveryMissingTokenEndpoint(t *testing.T) {
+func TestBhvAuthoidc026_OpenIdConnectAuthenticator_ThrowsWhenDiscoveryMissingTokenEndpoint(t *testing.T) {
 	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
@@ -337,7 +337,7 @@ func TestOpenIdConnectAuthenticator_ThrowsWhenDiscoveryMissingTokenEndpoint(t *t
 // OIDC Discovery 1.0 section 4.3: a document whose issuer is not the URL it was
 // fetched from is refused; one without an issuer, or with a matching one
 // (trailing slash aside), is accepted.
-func TestOpenIdConnectAuthenticator_DiscoveryIssuerMustMatchTheDiscoveryUrl(t *testing.T) {
+func TestBhvAuthoidc024_OpenIdConnectAuthenticator_DiscoveryIssuerMustMatchTheDiscoveryUrl(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		issuer   string
@@ -374,7 +374,7 @@ func TestOpenIdConnectAuthenticator_DiscoveryIssuerMustMatchTheDiscoveryUrl(t *t
 
 // The code and the client secret travel to the discovered endpoints: clear text
 // is refused unless the host is loopback.
-func TestOpenIdConnectAuthenticator_DiscoveryRefusesClearTextEndpointsExceptLoopback(t *testing.T) {
+func TestBhvAuthoidc005_OpenIdConnectAuthenticator_DiscoveryRefusesClearTextEndpointsExceptLoopback(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		endpoint string
@@ -413,7 +413,7 @@ func TestOpenIdConnectAuthenticator_DiscoveryRefusesClearTextEndpointsExceptLoop
 
 // oauth-oidc-discovery-no-status-check: a non-2xx discovery response must
 // surface as a status error, not a misleading JSON-parse failure.
-func TestOpenIdConnectAuthenticator_ThrowsWhenDiscoveryReturnsNon2xxStatus(t *testing.T) {
+func TestBhvAuthoidc027_OpenIdConnectAuthenticator_ThrowsWhenDiscoveryReturnsNon2xxStatus(t *testing.T) {
 	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
@@ -436,7 +436,7 @@ func TestOpenIdConnectAuthenticator_ThrowsWhenDiscoveryReturnsNon2xxStatus(t *te
 	}
 }
 
-func TestOpenIdConnectAuthenticator_Discovery404RaisesNotFoundError(t *testing.T) {
+func TestBhvAuthoidc007_OpenIdConnectAuthenticator_Discovery404RaisesNotFoundError(t *testing.T) {
 	t.Parallel()
 	notFound := &fakeOIDCClient{responses: []fakeOIDCResponse{
 		{body: `missing`, statusCode: 404},
@@ -450,7 +450,7 @@ func TestOpenIdConnectAuthenticator_Discovery404RaisesNotFoundError(t *testing.T
 	}
 }
 
-func TestOpenIdConnectAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
+func TestBhvAuthoidc014_OpenIdConnectAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
 	t.Parallel()
 	authObj := createOpenIdConnectAuthenticator()
 
@@ -459,7 +459,7 @@ func TestOpenIdConnectAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
 	}
 }
 
-func TestOpenIdConnectAuthenticator_RedactsSecret(t *testing.T) {
+func TestBhvAuthoidc019_OpenIdConnectAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	authObj := createOpenIdConnectAuthenticator()
 	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj)} {
@@ -472,7 +472,7 @@ func TestOpenIdConnectAuthenticator_RedactsSecret(t *testing.T) {
 	}
 }
 
-func TestOpenIdConnectAuthenticator_FetchesDiscoveryDocumentOnlyOnce(t *testing.T) {
+func TestBhvAuthoidc011_OpenIdConnectAuthenticator_FetchesDiscoveryDocumentOnlyOnce(t *testing.T) {
 	t.Parallel()
 	client := &fakeOIDCClient{
 		responses: []fakeOIDCResponse{
@@ -511,7 +511,7 @@ func oidcDiscoveryResponse(cacheControl string) fakeResponse {
 
 // Cache-Control: max-age bounds how long the discovery document is reused, and
 // without the header the document is kept for the RFC 8414 default of a day.
-func TestOpenIdConnectAuthenticator_DiscoveryIsReusedForTheCacheControlMaxAge(t *testing.T) {
+func TestBhvAuthoidc003_OpenIdConnectAuthenticator_DiscoveryIsReusedForTheCacheControlMaxAge(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name         string
@@ -546,7 +546,7 @@ func TestOpenIdConnectAuthenticator_DiscoveryIsReusedForTheCacheControlMaxAge(t 
 // Rediscovery refreshes the endpoints only: a token already obtained keeps being
 // used after the cached document expires, instead of the authenticator
 // forgetting the exchange and sending requests without credentials.
-func TestOpenIdConnectAuthenticator_ExchangedTokenSurvivesRediscovery(t *testing.T) {
+func TestBhvAuthoidc020_OpenIdConnectAuthenticator_ExchangedTokenSurvivesRediscovery(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		oidcDiscoveryResponse("max-age=0"),
@@ -577,7 +577,7 @@ func TestOpenIdConnectAuthenticator_ExchangedTokenSurvivesRediscovery(t *testing
 // F858: rediscovery rebuilds the delegate between the authorize URL and the code
 // exchange; the PKCE verifier of the pending login must survive it, and no
 // nonce is sent.
-func TestOpenIdConnectAuthenticator_PkceVerifierSurvivesRediscovery(t *testing.T) {
+func TestBhvAuthoidc021_OpenIdConnectAuthenticator_PkceVerifierSurvivesRediscovery(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		oidcDiscoveryResponse("max-age=0"),
@@ -620,7 +620,7 @@ func TestOpenIdConnectAuthenticator_PkceVerifierSurvivesRediscovery(t *testing.T
 // A failed rediscovery keeps the previous delegate: the cached endpoints and the
 // exchanged token still work, so the call succeeds instead of failing with the
 // discovery error. The first discovery has no fallback and fails.
-func TestOpenIdConnectAuthenticator_FailedRediscoveryKeepsUsingThePreviousDelegate(t *testing.T) {
+func TestBhvAuthoidc009_OpenIdConnectAuthenticator_FailedRediscoveryKeepsUsingThePreviousDelegate(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		oidcDiscoveryResponse("max-age=0"),
@@ -655,7 +655,7 @@ func TestOpenIdConnectAuthenticator_FailedRediscoveryKeepsUsingThePreviousDelega
 
 // The per-scheme wrapper discovers from the OpenID Connect URL its security
 // scheme declares.
-func TestOpenIdConnectAuthenticator_SsoAuthWrapper_DiscoversFromTheDeclaredUrl(t *testing.T) {
+func TestBhvAuthoidc012_OpenIdConnectAuthenticator_SsoAuthWrapper_DiscoversFromTheDeclaredUrl(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{oidcDiscoveryResponse("")}}
 	authObj, err := oauth.NewSsoAuthAuthenticator(
@@ -675,7 +675,7 @@ func TestOpenIdConnectAuthenticator_SsoAuthWrapper_DiscoversFromTheDeclaredUrl(t
 }
 
 // The printed form shows the non-secret fields and masks only the secret.
-func TestOpenIdConnectAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+func TestBhvAuthoidc023_OpenIdConnectAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
 	t.Parallel()
 	repr := createOpenIdConnectAuthenticator().String()
 	for _, want := range []string{
@@ -693,7 +693,7 @@ func TestOpenIdConnectAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
 
 // F855: InvalidateAccessToken reaches the delegate that holds the session, keeps
 // its refresh token, and makes no discovery request of its own.
-func TestOpenIdConnectAuthenticator_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
+func TestBhvAuthoidc015_OpenIdConnectAuthenticator_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		oidcDiscoveryResponse(""),

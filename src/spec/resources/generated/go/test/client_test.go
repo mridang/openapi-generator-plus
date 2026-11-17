@@ -22,7 +22,7 @@ import (
 	"petstore/pkg/auth"
 )
 
-func TestClient_ConstructWithAuthenticatorOnly(t *testing.T) {
+func TestBhvLifecycle012_Client_ConstructWithAuthenticatorOnly(t *testing.T) {
 	t.Parallel()
 	authenticator := mustBearer(t, "/api/v3", "test-token")
 
@@ -33,7 +33,7 @@ func TestClient_ConstructWithAuthenticatorOnly(t *testing.T) {
 	}
 }
 
-func TestClient_ConstructWithAuthenticatorAndNilTransportOptions(t *testing.T) {
+func TestBhvLifecycle010_Client_ConstructWithAuthenticatorAndNilTransportOptions(t *testing.T) {
 	t.Parallel()
 	// A nil transport must fall back to the default builder output, so the
 	// constructor stays usable when callers do not customise transport.
@@ -46,7 +46,7 @@ func TestClient_ConstructWithAuthenticatorAndNilTransportOptions(t *testing.T) {
 	}
 }
 
-func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
+func TestBhvLifecycle011_Client_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
 	t.Parallel()
 	authenticator := mustBearer(t, "/api/v3", "test-token")
 	transport, buildErr := petstore.NewTransportOptionsBuilder().Build()
@@ -64,7 +64,7 @@ func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
 // RFC 7230 §3.2.6 and bearer-no-empty-token-guard: NewClientWithToken
 // forwards the Bearer constructor's ErrInvalidBearerToken for an empty,
 // whitespace-only, CRLF-bearing or non-ASCII token instead of panicking.
-func TestClient_WithTokenRejectsInvalidToken(t *testing.T) {
+func TestBhvLifecycle017_Client_WithTokenRejectsInvalidToken(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{"", "   ", "\t", "tok\r\nInjected: yes", "ñoño"} {
 		client, err := petstore.NewClientWithToken("/api/v3", bad, nil)
@@ -111,7 +111,7 @@ func TestClient_ApiKeyStringRedactsKey(t *testing.T) {
 	}
 }
 
-func TestClient_ApiKeyHeaderRejectsCrlfAndNonAscii(t *testing.T) {
+func TestBhvLifecycle002_Client_ApiKeyHeaderRejectsCrlfAndNonAscii(t *testing.T) {
 	t.Parallel()
 	// RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must
 	// reject anything outside printable ASCII + TAB to prevent header
@@ -130,7 +130,7 @@ func TestClient_ApiKeyHeaderRejectsCrlfAndNonAscii(t *testing.T) {
 	}
 }
 
-func TestClient_ApiGroupsAreAccessible(t *testing.T) {
+func TestBhvLifecycle001_Client_ApiGroupsAreAccessible(t *testing.T) {
 	t.Parallel()
 	authenticator := mustBearer(t, "/api/v3", "test-token")
 
@@ -164,7 +164,7 @@ func TestClient_SubApiAccessorsUseShortGroupNames(t *testing.T) {
 
 // ── Credentials: the argument wins, then the environment, read once ──
 
-func TestClient_WithTokenReadsTheEnvironmentWhenTheArgumentsAreEmpty(t *testing.T) {
+func TestBhvLifecycle014_Client_WithTokenReadsTheEnvironmentWhenTheArgumentsAreEmpty(t *testing.T) {
 	var seen string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen = r.Header.Get("Authorization")
@@ -261,7 +261,7 @@ func TestClient_WithTokenProviderAsksTheProviderForEveryRequestWithTheCallContex
 	}
 }
 
-func TestClient_WithTokenProviderReportsAProviderFailureWithoutSendingARequest(t *testing.T) {
+func TestBhvLifecycle016_Client_WithTokenProviderReportsAProviderFailureWithoutSendingARequest(t *testing.T) {
 	t.Parallel()
 	hit := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hit = true }))
@@ -283,7 +283,7 @@ func TestClient_WithTokenProviderReportsAProviderFailureWithoutSendingARequest(t
 	}
 }
 
-func TestClient_WithTokenProviderRejectsANilProviderAndAMissingHost(t *testing.T) {
+func TestBhvLifecycle013_Client_WithTokenProviderRejectsANilProviderAndAMissingHost(t *testing.T) {
 	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
 
 	if _, err := petstore.NewClientWithTokenProvider("/api/v3", nil, nil); !errors.Is(err, auth.ErrInvalidBearerToken) {

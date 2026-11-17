@@ -19,7 +19,7 @@ import (
 	"petstore/pkg/models"
 )
 
-func TestMetadata_SerializeDeserialize(t *testing.T) {
+func TestBhvModels008_Metadata_SerializeDeserialize(t *testing.T) {
 	t.Parallel()
 	original := models.NewMetadata()
 
@@ -37,7 +37,7 @@ func TestMetadata_SerializeDeserialize(t *testing.T) {
 	}
 }
 
-func TestMetadata_DeclaredPropertyWinsOverCollidingExtra(t *testing.T) {
+func TestBhvModels010_Metadata_DeclaredPropertyWinsOverCollidingExtra(t *testing.T) {
 	t.Parallel()
 	var metadata models.Metadata
 	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-15T10:30:00.000+00:00"}`), &metadata); err != nil {
@@ -73,7 +73,7 @@ func TestMetadata_DeserializeFromJSON(t *testing.T) {
 	}
 }
 
-func TestMetadata_DeserializeEmptyObject(t *testing.T) {
+func TestBhvModels003_Metadata_DeserializeEmptyObject(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{}`)
 
@@ -84,7 +84,7 @@ func TestMetadata_DeserializeEmptyObject(t *testing.T) {
 	}
 }
 
-func TestMetadata_DeserializeWithAdditionalProperties(t *testing.T) {
+func TestBhvModels004_Metadata_DeserializeWithAdditionalProperties(t *testing.T) {
 	t.Parallel()
 	// Metadata may contain additional properties beyond the defined schema fields.
 	// This test verifies that unknown fields are handled gracefully during
@@ -98,7 +98,7 @@ func TestMetadata_DeserializeWithAdditionalProperties(t *testing.T) {
 	}
 }
 
-func TestMetadata_MiscasedKeyIsAnAdditionalPropertyNotTheDeclaredField(t *testing.T) {
+func TestBhvModels009_Metadata_MiscasedKeyIsAnAdditionalPropertyNotTheDeclaredField(t *testing.T) {
 	t.Parallel()
 	var metadata models.Metadata
 	if err := json.Unmarshal([]byte(`{"CreatedAt":"2024-01-01T00:00:00.000+00:00"}`), &metadata); err != nil {
@@ -136,7 +136,7 @@ func TestMetadata_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
 // `@example null`. Such a line carries no information and pollutes the model.
 // The Go model template never emits example doc lines in that form, so this is
 // a parity assertion that should already pass and stay passing.
-func TestMetadata_NoExampleNullDocLine(t *testing.T) {
+func TestBhvModels007_Metadata_NoExampleNullDocLine(t *testing.T) {
 	t.Parallel()
 	modelPath := filepath.Join("..", "pkg", "models", "metadata.go")
 	source, err := os.ReadFile(modelPath)
@@ -153,7 +153,7 @@ func TestMetadata_NoExampleNullDocLine(t *testing.T) {
 
 // F1156: the file header prints the info description as prose, so the
 // backslash-escaped quotes of the string-literal form must not reach it.
-func TestMetadata_FileHeaderCarriesNoBackslashEscapedQuotes(t *testing.T) {
+func TestBhvModels006_Metadata_FileHeaderCarriesNoBackslashEscapedQuotes(t *testing.T) {
 	t.Parallel()
 	modelPath := filepath.Join("..", "pkg", "models", "metadata.go")
 	source, err := os.ReadFile(modelPath)
@@ -166,7 +166,7 @@ func TestMetadata_FileHeaderCarriesNoBackslashEscapedQuotes(t *testing.T) {
 	}
 }
 
-func TestMetadata_RoundTrip(t *testing.T) {
+func TestBhvModels011_Metadata_RoundTrip(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00"}`)
 

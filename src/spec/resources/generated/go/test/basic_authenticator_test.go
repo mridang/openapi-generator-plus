@@ -30,7 +30,7 @@ func mustBasic(t *testing.T, host, username, password string) *auth.BasicAuthent
 	return a
 }
 
-func TestBasicAuthenticator_ValidCredentialsProduceBasicHeader(t *testing.T) {
+func TestBhvAuthbasic011_BasicAuthenticator_ValidCredentialsProduceBasicHeader(t *testing.T) {
 	t.Parallel()
 	a := mustBasic(t, "https://api.example.com", "alice", "s3cret")
 	headers := a.AuthHeaders()
@@ -56,22 +56,22 @@ func requireBasicRejected(t *testing.T, username, password string, want error) {
 	}
 }
 
-func TestBasicAuthenticator_RejectsUsernameWithCrlfAtConstruction(t *testing.T) {
+func TestBhvAuthbasic009_BasicAuthenticator_RejectsUsernameWithCrlfAtConstruction(t *testing.T) {
 	t.Parallel()
 	requireBasicRejected(t, "alice\r\n", "s3cret", auth.ErrBasicAuthUsernameControlChar)
 }
 
-func TestBasicAuthenticator_RejectsPasswordWithNulAtConstruction(t *testing.T) {
+func TestBhvAuthbasic007_BasicAuthenticator_RejectsPasswordWithNulAtConstruction(t *testing.T) {
 	t.Parallel()
 	requireBasicRejected(t, "alice", "s3c\x00ret", auth.ErrBasicAuthPasswordControlChar)
 }
 
-func TestBasicAuthenticator_RejectsUsernameWithColonAtConstruction(t *testing.T) {
+func TestBhvAuthbasic008_BasicAuthenticator_RejectsUsernameWithColonAtConstruction(t *testing.T) {
 	t.Parallel()
 	requireBasicRejected(t, "ali:ce", "s3cret", auth.ErrBasicAuthUsernameColon)
 }
 
-func TestBasicAuthenticator_RedactsSecret(t *testing.T) {
+func TestBhvAuthbasic006_BasicAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	a := mustBasic(t, "https://api.example.com", "alice", "s3cret")
 	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a), fmt.Sprintf("%v", *a), fmt.Sprintf("%+v", *a), fmt.Sprintf("%#v", *a)} {
@@ -86,7 +86,7 @@ func TestBasicAuthenticator_RedactsSecret(t *testing.T) {
 
 // Credentials are encoded as UTF-8 before the base64 step (RFC 7617 §2.1), so a
 // non-ASCII pair yields the same header in every SDK.
-func TestBasicAuthenticator_NonAsciiCredentialsAreEncodedAsUtf8(t *testing.T) {
+func TestBhvAuthbasic004_BasicAuthenticator_NonAsciiCredentialsAreEncodedAsUtf8(t *testing.T) {
 	t.Parallel()
 	a := mustBasic(t, "https://api.example.com", "ünïcødé", "pässwörd")
 	headers := a.AuthHeaders()
@@ -97,7 +97,7 @@ func TestBasicAuthenticator_NonAsciiCredentialsAreEncodedAsUtf8(t *testing.T) {
 
 // The printed form shows the non-secret fields, host and username, and masks
 // only the password.
-func TestBasicAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+func TestBhvAuthbasic010_BasicAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
 	t.Parallel()
 	a := mustBasic(t, "https://api.example.com", "alice", "s3cret")
 	want := `BasicAuthenticator{host: "https://api.example.com", username: "alice", password: ***}`
@@ -109,7 +109,7 @@ func TestBasicAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
 // Each per-scheme wrapper is a Basic authenticator under its own name: it emits
 // the same Authorization header, refuses the same malformed credentials, and
 // prints its own name with the password masked.
-func TestBasicAuthenticator_BasicWrappers_EmitTheBasicHeaderUnderTheirOwnName(t *testing.T) {
+func TestBhvAuthbasic002_BasicAuthenticator_BasicWrappers_EmitTheBasicHeaderUnderTheirOwnName(t *testing.T) {
 	t.Parallel()
 	const host = "https://api.example.com"
 	type wrapper interface {

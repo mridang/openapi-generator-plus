@@ -97,7 +97,7 @@ func newTempFile(t *testing.T, contents string) *os.File {
 	return f
 }
 
-func TestPetApi_AddPet(t *testing.T) {
+func TestBhvOperations022_PetApi_AddPet(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -112,7 +112,7 @@ func TestPetApi_AddPet(t *testing.T) {
 	}
 }
 
-func TestPetApi_AddPetWithHTTPInfo(t *testing.T) {
+func TestBhvOperations025_PetApi_AddPetWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -136,7 +136,7 @@ func TestPetApi_AddPetWithHTTPInfo(t *testing.T) {
 	}
 }
 
-func TestPetApi_GetPetById(t *testing.T) {
+func TestBhvOperations047_PetApi_GetPetById(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -149,7 +149,7 @@ func TestPetApi_GetPetById(t *testing.T) {
 	}
 }
 
-func TestPetApi_GetPetByIdWithHTTPInfo(t *testing.T) {
+func TestBhvOperations048_PetApi_GetPetByIdWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -171,7 +171,7 @@ func TestPetApi_GetPetByIdWithHTTPInfo(t *testing.T) {
 	}
 }
 
-func TestPetApi_UpdatePet(t *testing.T) {
+func TestBhvOperations087_PetApi_UpdatePet(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -186,7 +186,7 @@ func TestPetApi_UpdatePet(t *testing.T) {
 	}
 }
 
-func TestPetApi_UpdatePetWithHTTPInfo(t *testing.T) {
+func TestBhvOperations088_PetApi_UpdatePetWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -204,7 +204,7 @@ func TestPetApi_UpdatePetWithHTTPInfo(t *testing.T) {
 	}
 }
 
-func TestPetApi_DeletePet(t *testing.T) {
+func TestBhvOperations027_PetApi_DeletePet(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -214,7 +214,7 @@ func TestPetApi_DeletePet(t *testing.T) {
 	}
 }
 
-func TestPetApi_DeletePetWithHTTPInfo(t *testing.T) {
+func TestBhvOperations031_PetApi_DeletePetWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -231,7 +231,7 @@ func TestPetApi_DeletePetWithHTTPInfo(t *testing.T) {
 }
 
 // F1158: a map-typed deepObject option goes out as bracketed keys.
-func TestPetApi_FindPetsByStatusSendsTheFilterAsDeepObject(t *testing.T) {
+func TestBhvOperations044_PetApi_FindPetsByStatusSendsTheFilterAsDeepObject(t *testing.T) {
 	t.Parallel()
 	var query string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -250,7 +250,7 @@ func TestPetApi_FindPetsByStatusSendsTheFilterAsDeepObject(t *testing.T) {
 	}
 }
 
-func TestPetApi_FindPetsByStatus(t *testing.T) {
+func TestBhvOperations039_PetApi_FindPetsByStatus(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -264,7 +264,7 @@ func TestPetApi_FindPetsByStatus(t *testing.T) {
 	}
 }
 
-func TestPetApi_FindPetsByStatusWithHTTPInfo(t *testing.T) {
+func TestBhvOperations042_PetApi_FindPetsByStatusWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -287,7 +287,7 @@ func TestPetApi_FindPetsByStatusWithHTTPInfo(t *testing.T) {
 // always send the key. When the caller omits status (nil), the request URL must
 // carry no "status=" at all. When the caller supplies an explicit empty string,
 // the bare "status=" must appear. Both halves are asserted against the wire query.
-func TestPetApi_FindPetsByStatusOmitsKeyWhenUnset(t *testing.T) {
+func TestBhvOperations040_PetApi_FindPetsByStatusOmitsKeyWhenUnset(t *testing.T) {
 	t.Parallel()
 	var capturedQuery string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -321,7 +321,7 @@ func TestPetApi_FindPetsByStatusOmitsKeyWhenUnset(t *testing.T) {
 
 // The digit-leading query param 2ndPage is carried by the Options field
 // N2ndPage, and the method reads that same field when it builds the query.
-func TestPetApi_FindPetsByStatusSendsTheDigitLeadingParam(t *testing.T) {
+func TestBhvOperations021_PetApi_FindPetsByStatusSendsTheDigitLeadingParam(t *testing.T) {
 	t.Parallel()
 	var capturedQuery string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -363,7 +363,7 @@ func TestPetApi_GetPetSummaryReturnsTheTextPlainBodyVerbatim(t *testing.T) {
 	}
 }
 
-func TestPetApi_GetPetPassport(t *testing.T) {
+func TestBhvOperations053_PetApi_GetPetPassport(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -376,7 +376,7 @@ func TestPetApi_GetPetPassport(t *testing.T) {
 	}
 }
 
-func TestPetApi_GetPetPassportWithHTTPInfo(t *testing.T) {
+func TestBhvOperations054_PetApi_GetPetPassportWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -392,7 +392,7 @@ func TestPetApi_GetPetPassportWithHTTPInfo(t *testing.T) {
 	}
 }
 
-func TestPetApi_SetPetAvatar(t *testing.T) {
+func TestBhvOperations070_PetApi_SetPetAvatar(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
@@ -406,7 +406,7 @@ func TestPetApi_SetPetAvatar(t *testing.T) {
 // typo never rides the wire as an undeclared Content-Type (it must not be
 // silently dropped in favour of the first declared type). The error is raised
 // before any HTTP call, so no reachable server is needed.
-func TestPetApi_SetPetAvatarRejectsUnknownContentType(t *testing.T) {
+func TestBhvOperations076_PetApi_SetPetAvatarRejectsUnknownContentType(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
@@ -423,7 +423,7 @@ func TestPetApi_SetPetAvatarRejectsUnknownContentType(t *testing.T) {
 
 // The other multi-consumes operation rejects an undeclared selector the same
 // way, naming the types it does declare.
-func TestPetApi_UploadPetDocumentRejectsUnknownContentType(t *testing.T) {
+func TestBhvOperations093_PetApi_UploadPetDocumentRejectsUnknownContentType(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-document-data")
@@ -457,7 +457,7 @@ func TestPetApi_SetPetAvatarRejectsAnInvalidCallOption(t *testing.T) {
 // Content-Type — never json.Marshal'd to the literal "{}", never base64-encoded,
 // never a JSON int-array, and never with the Content-Type overridden to
 // application/octet-stream or application/json.
-func TestPetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentType(t *testing.T) {
+func TestBhvOperations073_PetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentType(t *testing.T) {
 	t.Parallel()
 	// A non-trivial payload: the JPEG SOI marker (0xFF 0xD8 0xFF 0xE0).
 	payload := []byte{0xFF, 0xD8, 0xFF, 0xE0}
@@ -511,7 +511,7 @@ func TestPetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentType(t *testing.T)
 //	    content-type (image/jpeg) — backward compatible with prior call sites.
 //	(2) Calling SetPetAvatar with the option set to "image/png" and the same
 //	    raw bytes sends Content-Type: image/png (NOT image/jpeg).
-func TestPetApi_SetPetAvatarHonoursSelectedRequestContentType(t *testing.T) {
+func TestBhvOperations071_PetApi_SetPetAvatarHonoursSelectedRequestContentType(t *testing.T) {
 	t.Parallel()
 	// The same raw bytes are sent in both cases; only the header changes.
 	payload := []byte{0xFF, 0xD8, 0xFF, 0xE0}
@@ -566,7 +566,7 @@ func TestPetApi_SetPetAvatarHonoursSelectedRequestContentType(t *testing.T) {
 // A format:binary body sent with the application/json selector still goes on
 // the wire as the caller's exact bytes: the selector changes only the
 // Content-Type header, never routes the bytes through the JSON serializer.
-func TestPetApi_SetPetAvatarSendsBinaryBytesVerbatimUnderTheJsonSelector(t *testing.T) {
+func TestBhvOperations072_PetApi_SetPetAvatarSendsBinaryBytesVerbatimUnderTheJsonSelector(t *testing.T) {
 	t.Parallel()
 	payload := []byte{0xFF, 0xD8, 0xFF, 0xE0}
 
@@ -595,7 +595,7 @@ func TestPetApi_SetPetAvatarSendsBinaryBytesVerbatimUnderTheJsonSelector(t *test
 
 // A format:byte JSON body is still serialized: its bytes travel as a base64
 // JSON string, so the verbatim rule for binary bodies cannot leak into it.
-func TestPetApi_SetPetAvatarThumbnailStillSendsBase64Json(t *testing.T) {
+func TestBhvOperations077_PetApi_SetPetAvatarThumbnailStillSendsBase64Json(t *testing.T) {
 	t.Parallel()
 	var capturedBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -614,7 +614,7 @@ func TestPetApi_SetPetAvatarThumbnailStillSendsBase64Json(t *testing.T) {
 	}
 }
 
-func TestPetApi_GetPetAvatar(t *testing.T) {
+func TestBhvOperations045_PetApi_GetPetAvatar(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -624,7 +624,7 @@ func TestPetApi_GetPetAvatar(t *testing.T) {
 	}
 }
 
-func TestPetApi_GetPetAvatarThumbnail(t *testing.T) {
+func TestBhvOperations046_PetApi_GetPetAvatarThumbnail(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -637,7 +637,7 @@ func TestPetApi_GetPetAvatarThumbnail(t *testing.T) {
 	}
 }
 
-func TestPetApi_SetPetAvatarThumbnail(t *testing.T) {
+func TestBhvOperations074_PetApi_SetPetAvatarThumbnail(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -647,7 +647,7 @@ func TestPetApi_SetPetAvatarThumbnail(t *testing.T) {
 	}
 }
 
-func TestPetApi_UploadPetCertificate(t *testing.T) {
+func TestBhvOperations090_PetApi_UploadPetCertificate(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "certificate-content")
@@ -661,7 +661,7 @@ func TestPetApi_UploadPetCertificate(t *testing.T) {
 	}
 }
 
-func TestPetApi_UploadPetDocument(t *testing.T) {
+func TestBhvOperations091_PetApi_UploadPetDocument(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "document-content")
@@ -684,7 +684,7 @@ func TestPetApi_UploadPetDocument(t *testing.T) {
 // The typed multipart scalars of uploadPetDocument are text parts carrying the
 // stringify form, with no part Content-Type: true, 3, the canonical date-time
 // and the enum's wire value.
-func TestPetApi_UploadPetDocumentSendsTypedScalarsAsTextParts(t *testing.T) {
+func TestBhvOperations095_PetApi_UploadPetDocumentSendsTypedScalarsAsTextParts(t *testing.T) {
 	t.Parallel()
 	parts := map[string]string{}
 	partTypes := map[string]string{}
@@ -747,7 +747,7 @@ func TestPetApi_UploadPetDocumentSendsTypedScalarsAsTextParts(t *testing.T) {
 //	    form map ("{\"file\":{}}").
 //	(2) The default (no selector) must still send a multipart/form-data body,
 //	    guarding against over-correcting the octet-stream fix.
-func TestPetApi_UploadPetDocumentOctetStreamSendsRawBytes(t *testing.T) {
+func TestBhvOperations092_PetApi_UploadPetDocumentOctetStreamSendsRawBytes(t *testing.T) {
 	t.Parallel()
 	// A non-trivial binary payload including a NUL and a non-ASCII byte so a
 	// stray JSON/base64/multipart re-encoding would be detected.
@@ -788,7 +788,7 @@ func TestPetApi_UploadPetDocumentOctetStreamSendsRawBytes(t *testing.T) {
 // TestPetApi_UploadPetDocumentDefaultSendsMultipart confirms the multipart case
 // still works after the octet-stream fix: omitting the selector (or selecting
 // multipart/form-data) must send a multipart/form-data body.
-func TestPetApi_UploadPetDocumentDefaultSendsMultipart(t *testing.T) {
+func TestBhvOperations094_PetApi_UploadPetDocumentDefaultSendsMultipart(t *testing.T) {
 	t.Parallel()
 
 	var capturedContentType string
@@ -814,7 +814,7 @@ func TestPetApi_UploadPetDocumentDefaultSendsMultipart(t *testing.T) {
 	}
 }
 
-func TestPetApi_AddPetPhotos(t *testing.T) {
+func TestBhvOperations023_PetApi_AddPetPhotos(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "photo1")
@@ -837,7 +837,7 @@ func TestPetApi_AddPetPhotos(t *testing.T) {
 	}
 }
 
-func TestPetApi_DownloadPetDocument(t *testing.T) {
+func TestBhvOperations035_PetApi_DownloadPetDocument(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -847,7 +847,7 @@ func TestPetApi_DownloadPetDocument(t *testing.T) {
 	}
 }
 
-func TestPetApi_GetPetPhoto(t *testing.T) {
+func TestBhvOperations055_PetApi_GetPetPhoto(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -862,7 +862,7 @@ func TestPetApi_GetPetPhoto(t *testing.T) {
 
 // A format:byte query and header parameter is base64 (standard alphabet, with
 // padding) before the normal query and header encoding.
-func TestPetApi_GetPetTagSendsByteParametersAsBase64(t *testing.T) {
+func TestBhvOperations059_PetApi_GetPetTagSendsByteParametersAsBase64(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name       string
@@ -901,7 +901,7 @@ func TestPetApi_GetPetTagSendsByteParametersAsBase64(t *testing.T) {
 // D47/F1143, F1158: the PetCriteria parameters go out as exploded form, comma
 // form, deepObject and a simple header, and the path parameters keep their
 // matrix and label styles.
-func TestPetApi_GetPetTagSendsObjectValuedAndStyledParameters(t *testing.T) {
+func TestBhvOperations067_PetApi_GetPetTagSendsObjectValuedAndStyledParameters(t *testing.T) {
 	t.Parallel()
 	var rawPath, query, header string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -939,7 +939,7 @@ func TestPetApi_GetPetTagSendsObjectValuedAndStyledParameters(t *testing.T) {
 	}
 }
 
-func TestPetApi_GetPetTag(t *testing.T) {
+func TestBhvOperations058_PetApi_GetPetTag(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -963,7 +963,7 @@ type mockExternalPetInfoServer struct{}
 
 func (mockExternalPetInfoServer) GetUrl() string { return chasmURL }
 
-func TestPetApi_GetExternalPetInfo(t *testing.T) {
+func TestBhvOperations061_PetApi_GetExternalPetInfo(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
@@ -976,7 +976,7 @@ func TestPetApi_GetExternalPetInfo(t *testing.T) {
 	}
 }
 
-func TestPetApi_DownloadBinaryMock(t *testing.T) {
+func TestBhvOperations034_PetApi_DownloadBinaryMock(t *testing.T) {
 	t.Parallel()
 	binaryData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -991,7 +991,7 @@ func TestPetApi_DownloadBinaryMock(t *testing.T) {
 	_, _ = api.GetPetAvatarWithHTTPInfo(context.Background(), int64(1))
 }
 
-func TestPetApi_UploadMultipartMock(t *testing.T) {
+func TestBhvOperations089_PetApi_UploadMultipartMock(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1269,7 +1269,7 @@ func TestPetApi_CallerSuppliedFileHandleIsNeverClosedByTheSdk(t *testing.T) {
 
 // F1127: a required header and a required cookie are refused before dispatch
 // when they are empty, naming the caller-facing parameter.
-func TestPetApi_RequiredHeaderAndCookieAreRefusedBeforeAnyRequest(t *testing.T) {
+func TestBhvOperations050_PetApi_RequiredHeaderAndCookieAreRefusedBeforeAnyRequest(t *testing.T) {
 	t.Parallel()
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1334,7 +1334,7 @@ func TestPetApi_UploadFieldAcceptsAnIoReader(t *testing.T) {
 	}
 }
 
-func TestPetApi_ErrorHandling_NotFound(t *testing.T) {
+func TestBhvOperations037_PetApi_ErrorHandling_NotFound(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1362,7 +1362,7 @@ func TestPetApi_ErrorHandling_NotFound(t *testing.T) {
 // body-returning operation must surface a typed ApiError from the convenience
 // method (not a silent nil / zero-valued struct), while WithHTTPInfo reports
 // nil Data.
-func TestPetApi_EmptyBodyConvenienceReturnsApiError(t *testing.T) {
+func TestBhvOperations036_PetApi_EmptyBodyConvenienceReturnsApiError(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1396,7 +1396,7 @@ func TestPetApi_EmptyBodyConvenienceReturnsApiError(t *testing.T) {
 
 // F857: a client built with one authenticator applies it to a secured
 // operation, and an operation has no per-call override of the scheme.
-func TestPetApi_AddPetAppliesTheClientAuthenticator(t *testing.T) {
+func TestBhvOperations026_PetApi_AddPetAppliesTheClientAuthenticator(t *testing.T) {
 	t.Parallel()
 	var capturedAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1422,7 +1422,7 @@ func TestPetApi_AddPetAppliesTheClientAuthenticator(t *testing.T) {
 // F857: a client takes one optional credential per security scheme. AddPet
 // accepts the api key header and the bearer scheme, so a credential of a scheme
 // it does not accept (the api key query parameter) never reaches the wire.
-func TestPetApi_AddPetUsesOnlyTheCredentialOfTheSchemeItRequires(t *testing.T) {
+func TestBhvOperations079_PetApi_AddPetUsesOnlyTheCredentialOfTheSchemeItRequires(t *testing.T) {
 	t.Parallel()
 	var gotAuth, gotQuery string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1488,7 +1488,7 @@ func TestPetApi_NewPetApiTakesTheCredentialsOfEachScheme(t *testing.T) {
 
 // F857: of the schemes an operation accepts, the first in spec order that has a
 // credential wins.
-func TestPetApi_AddPetPrefersTheFirstAcceptedSchemeInSpecOrder(t *testing.T) {
+func TestBhvOperations080_PetApi_AddPetPrefersTheFirstAcceptedSchemeInSpecOrder(t *testing.T) {
 	t.Parallel()
 	var gotKey, gotAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1552,7 +1552,7 @@ func TestPetApi_CredentialsClientNeedsAHost(t *testing.T) {
 // auth-in-options-go (2/3): omitting the Authenticator (nil Options, or Options
 // with a nil Auth) must fall back to the client's Configuration credentials. A
 // nil options pointer must not panic.
-func TestPetApi_AddPetNilOptionsUsesConfiguredCredentials(t *testing.T) {
+func TestBhvOperations081_PetApi_AddPetNilOptionsUsesConfiguredCredentials(t *testing.T) {
 	t.Parallel()
 	var capturedAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1595,7 +1595,7 @@ func TestPetApi_AddPetNilOptionsUsesConfiguredCredentials(t *testing.T) {
 // GetPetByIdOptions type at all, and the operation takes no Options arg. This is
 // a compile-time assertion: GetPetById's signature is (petId, server) with no
 // authenticator anywhere.
-func TestPetApi_GetPetByIdUnsecuredHasNoAuthField(t *testing.T) {
+func TestBhvOperations086_PetApi_GetPetByIdUnsecuredHasNoAuthField(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "" {
@@ -1627,7 +1627,7 @@ func TestPetApi_GetPetByIdUnsecuredHasNoAuthField(t *testing.T) {
 // A value containing a CR/LF or other control character must be rejected with the
 // RFC-6265 error BEFORE any request is sent, so it cannot be smuggled into the
 // Cookie header — mirroring the auth-cookie validation assertions.
-func TestPetApi_CookieParamWithCRLFFailsClosed(t *testing.T) {
+func TestBhvOperations029_PetApi_CookieParamWithCRLFFailsClosed(t *testing.T) {
 	t.Parallel()
 	var called bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1660,7 +1660,7 @@ func TestPetApi_CookieParamWithCRLFFailsClosed(t *testing.T) {
 // F840: a cookie value is sent raw when every character is a legal RFC 6265
 // cookie-octet (a value the caller percent-encoded stays as written), and the
 // call fails before sending when one is not.
-func TestPetApi_CookieParamIsSentRawOrRefusedBeforeSending(t *testing.T) {
+func TestBhvOperations030_PetApi_CookieParamIsSentRawOrRefusedBeforeSending(t *testing.T) {
 	t.Parallel()
 	var sawCookie string
 	var hits int
@@ -1696,7 +1696,7 @@ func TestPetApi_CookieParamIsSentRawOrRefusedBeforeSending(t *testing.T) {
 }
 
 // A well-formed api_key cookie value passes validation and the call proceeds.
-func TestPetApi_CookieParamValidValuePasses(t *testing.T) {
+func TestBhvOperations028_PetApi_CookieParamValidValuePasses(t *testing.T) {
 	t.Parallel()
 	var sawCookie string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1838,7 +1838,7 @@ func TestPetApi_OperationDocEndsWithTheMethodAndPath(t *testing.T) {
 
 // Every operation documents its options argument; one with no parameters of its
 // own says to pass nil.
-func TestPetApi_OperationsDocumentTheirOptionsArgument(t *testing.T) {
+func TestBhvOperations082_PetApi_OperationsDocumentTheirOptionsArgument(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
 		"AddPet":        "param options: Options for this operation; it has no parameters of its own, so pass nil.",
@@ -1853,7 +1853,7 @@ func TestPetApi_OperationsDocumentTheirOptionsArgument(t *testing.T) {
 	}
 }
 
-func TestPetApi_DeprecatedOperationsCarryADeprecatedParagraph(t *testing.T) {
+func TestBhvOperations033_PetApi_DeprecatedOperationsCarryADeprecatedParagraph(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"GetPetById", "GetPetByIdWithHTTPInfo", "FindPetsByStatus", "FindPetsByStatusWithHTTPInfo"} {
 		doc := declDoc(t, "../pkg/pet_api.go", name)
@@ -1866,7 +1866,7 @@ func TestPetApi_DeprecatedOperationsCarryADeprecatedParagraph(t *testing.T) {
 	}
 }
 
-func TestPetApi_DeprecatedOptionsFieldCarriesADeprecatedParagraph(t *testing.T) {
+func TestBhvOperations032_PetApi_DeprecatedOptionsFieldCarriesADeprecatedParagraph(t *testing.T) {
 	t.Parallel()
 	path := "../pkg/options/find_pets_by_status_options.go"
 	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ParseComments)
@@ -1896,7 +1896,7 @@ func TestPetApi_DeprecatedOptionsFieldCarriesADeprecatedParagraph(t *testing.T) 
 
 // A oneOf request body goes on the wire as the variant that was decoded, with
 // its own fields and no wrapper around them.
-func TestPetApi_AddPetTreatmentSendsTheChosenVariantAsTheBody(t *testing.T) {
+func TestBhvOperations024_PetApi_AddPetTreatmentSendsTheChosenVariantAsTheBody(t *testing.T) {
 	t.Parallel()
 	var body string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

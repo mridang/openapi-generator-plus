@@ -39,7 +39,7 @@ import (
 	"time"
 )
 
-func TestDefaultApiClientUnit_InjectsCustomUserAgent(t *testing.T) {
+func TestBhvTransport041_DefaultApiClientUnit_InjectsCustomUserAgent(t *testing.T) {
 	t.Parallel()
 	var receivedUA string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +66,7 @@ func TestDefaultApiClientUnit_InjectsCustomUserAgent(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_InjectsDefaultUserAgentWhenNotExplicitlySet(t *testing.T) {
+func TestBhvTransport042_DefaultApiClientUnit_InjectsDefaultUserAgentWhenNotExplicitlySet(t *testing.T) {
 	t.Parallel()
 	var receivedUA string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +96,7 @@ func TestDefaultApiClientUnit_InjectsDefaultUserAgentWhenNotExplicitlySet(t *tes
 	}
 }
 
-func TestDefaultApiClientUnit_InjectsRequestId(t *testing.T) {
+func TestBhvTransport043_DefaultApiClientUnit_InjectsRequestId(t *testing.T) {
 	t.Parallel()
 	var receivedRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -122,7 +122,7 @@ func TestDefaultApiClientUnit_InjectsRequestId(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_DoesNotInjectRequestIdWhenDisabled(t *testing.T) {
+func TestBhvTransport036_DefaultApiClientUnit_DoesNotInjectRequestIdWhenDisabled(t *testing.T) {
 	t.Parallel()
 	var receivedRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +148,7 @@ func TestDefaultApiClientUnit_DoesNotInjectRequestIdWhenDisabled(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_DoesNotOverrideCallerRequestId(t *testing.T) {
+func TestBhvOptions006_DefaultApiClientUnit_DoesNotOverrideCallerRequestId(t *testing.T) {
 	t.Parallel()
 	var receivedRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +175,7 @@ func TestDefaultApiClientUnit_DoesNotOverrideCallerRequestId(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_IncludesTransportDefaultHeaders(t *testing.T) {
+func TestBhvTransport039_DefaultApiClientUnit_IncludesTransportDefaultHeaders(t *testing.T) {
 	t.Parallel()
 	var receivedCustom string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +201,7 @@ func TestDefaultApiClientUnit_IncludesTransportDefaultHeaders(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_CallerHeadersOverrideDefaults(t *testing.T) {
+func TestBhvOptions005_DefaultApiClientUnit_CallerHeadersOverrideDefaults(t *testing.T) {
 	t.Parallel()
 	var receivedCustom string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -259,7 +259,7 @@ func TestDefaultApiClientUnit_HeaderSpellingsAreMergedCaseInsensitively(t *testi
 	}
 }
 
-func TestDefaultApiClientUnit_MergeHeaders_LaterLayerReplacesAnyCaseVariantAndKeepsItsSpelling(t *testing.T) {
+func TestBhvSerializationwire036_DefaultApiClientUnit_MergeHeaders_LaterLayerReplacesAnyCaseVariantAndKeepsItsSpelling(t *testing.T) {
 	t.Parallel()
 	dst := map[string]string{"content-type": "a", "X-Other": "keep"}
 	mergeHeaders(dst, map[string]string{"Content-Type": "b"})
@@ -272,7 +272,7 @@ func TestDefaultApiClientUnit_MergeHeaders_LaterLayerReplacesAnyCaseVariantAndKe
 	}
 }
 
-func TestDefaultApiClientUnit_GeneratesUniqueRequestIds(t *testing.T) {
+func TestBhvTransport038_DefaultApiClientUnit_GeneratesUniqueRequestIds(t *testing.T) {
 	t.Parallel()
 	var ids []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -303,7 +303,7 @@ func TestDefaultApiClientUnit_GeneratesUniqueRequestIds(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_SendsGetRequestAndReturnsResponse(t *testing.T) {
+func TestBhvTransport054_DefaultApiClientUnit_SendsGetRequestAndReturnsResponse(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -325,7 +325,7 @@ func TestDefaultApiClientUnit_SendsGetRequestAndReturnsResponse(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_SendsPostWithJsonBody(t *testing.T) {
+func TestBhvSerializationwire052_DefaultApiClientUnit_SendsPostWithJsonBody(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -353,7 +353,7 @@ func TestDefaultApiClientUnit_SendsPostWithJsonBody(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_ReturnsResponseHeaders(t *testing.T) {
+func TestBhvTransport051_DefaultApiClientUnit_ReturnsResponseHeaders(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Test-Header", "test-value")
@@ -382,7 +382,7 @@ func TestDefaultApiClientUnit_ReturnsResponseHeaders(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_ReturnsNon2xxStatusCode(t *testing.T) {
+func TestBhvTransport050_DefaultApiClientUnit_ReturnsNon2xxStatusCode(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
@@ -403,7 +403,7 @@ func TestDefaultApiClientUnit_ReturnsNon2xxStatusCode(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_SendsPutRequest(t *testing.T) {
+func TestBhvTransport055_DefaultApiClientUnit_SendsPutRequest(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -425,7 +425,7 @@ func TestDefaultApiClientUnit_SendsPutRequest(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_SendsDeleteRequest(t *testing.T) {
+func TestBhvTransport053_DefaultApiClientUnit_SendsDeleteRequest(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -447,7 +447,7 @@ func TestDefaultApiClientUnit_SendsDeleteRequest(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_ReturnsJsonBodyForVendorJsonContentType(t *testing.T) {
+func TestBhvSerializationwire051_DefaultApiClientUnit_ReturnsJsonBodyForVendorJsonContentType(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
@@ -469,7 +469,7 @@ func TestDefaultApiClientUnit_ReturnsJsonBodyForVendorJsonContentType(t *testing
 	}
 }
 
-func TestDefaultApiClientUnit_JoinsMultiValueResponseHeaders(t *testing.T) {
+func TestBhvTransport044_DefaultApiClientUnit_JoinsMultiValueResponseHeaders(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Custom-Value", "val1")
@@ -504,7 +504,7 @@ func TestDefaultApiClientUnit_JoinsMultiValueResponseHeaders(t *testing.T) {
 
 // ── Charset decoding ──
 
-func TestDefaultApiClientUnit_DecodesIso88591ResponseBody(t *testing.T) {
+func TestBhvSerializationwire033_DefaultApiClientUnit_DecodesIso88591ResponseBody(t *testing.T) {
 	t.Parallel()
 	/* 0xE9 is "é" in ISO-8859-1; under naive UTF-8 string conversion it
 	 * would be lost or replaced. The client must honour the charset
@@ -554,7 +554,7 @@ func TestDefaultApiClientUnit_DecodesBomlessUtf16AsBigEndian(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_DefaultsToUtf8WhenCharsetMissing(t *testing.T) {
+func TestBhvSerializationwire034_DefaultApiClientUnit_DefaultsToUtf8WhenCharsetMissing(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
@@ -573,7 +573,7 @@ func TestDefaultApiClientUnit_DefaultsToUtf8WhenCharsetMissing(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_FallsBackToUtf8ForUnknownCharset(t *testing.T) {
+func TestBhvSerializationwire035_DefaultApiClientUnit_FallsBackToUtf8ForUnknownCharset(t *testing.T) {
 	t.Parallel()
 	/* Unknown charset must not panic and must fall back to UTF-8. */
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -596,7 +596,7 @@ func TestDefaultApiClientUnit_FallsBackToUtf8ForUnknownCharset(t *testing.T) {
 // Gap 3.2: NoRedirect on the per-request RequestOptions must short-circuit
 // every 3xx response, even when the transport itself follows redirects.
 // Pins the protection used by OAuth2TokenManager on token endpoint POSTs.
-func TestDefaultApiClientUnit_NoRedirectOptionShortCircuits307(t *testing.T) {
+func TestBhvRedirects015_DefaultApiClientUnit_NoRedirectOptionShortCircuits307(t *testing.T) {
 	t.Parallel()
 	var followUpHit bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -665,7 +665,7 @@ func TestDefaultApiClientUnit_NoRedirectOptionShortCircuits308(t *testing.T) {
 // Gap J: per-part Content-Type is derived from the (field-name) filename
 // extension. POST a multipart body and inspect the echoed wire form to
 // confirm each part advertises the sniffed media type.
-func TestDefaultApiClientUnit_MultipartPngFieldSetsImagePng(t *testing.T) {
+func TestBhvSerializationwire039_DefaultApiClientUnit_MultipartPngFieldSetsImagePng(t *testing.T) {
 	t.Parallel()
 	var wireBody string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -686,7 +686,7 @@ func TestDefaultApiClientUnit_MultipartPngFieldSetsImagePng(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClientUnit_MultipartPdfFieldSetsApplicationPdf(t *testing.T) {
+func TestBhvSerializationwire038_DefaultApiClientUnit_MultipartPdfFieldSetsApplicationPdf(t *testing.T) {
 	t.Parallel()
 	var wireBody string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -707,7 +707,7 @@ func TestDefaultApiClientUnit_MultipartPdfFieldSetsApplicationPdf(t *testing.T) 
 	}
 }
 
-func TestDefaultApiClientUnit_MultipartFieldWithoutExtensionDefaultsToOctetStream(t *testing.T) {
+func TestBhvSerializationwire040_DefaultApiClientUnit_MultipartFieldWithoutExtensionDefaultsToOctetStream(t *testing.T) {
 	t.Parallel()
 	var wireBody string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -732,7 +732,7 @@ func TestDefaultApiClientUnit_MultipartFieldWithoutExtensionDefaultsToOctetStrea
 // filename reuses the field name as the filename and, because that name has no
 // known extension, falls back to Content-Type: application/octet-stream
 // (the cross-language contract shared with the node and java SDKs).
-func TestDefaultApiClientUnit_MultipartRawBytesReusesFieldNameAndDefaultsToOctetStream(t *testing.T) {
+func TestBhvSerializationwire049_DefaultApiClientUnit_MultipartRawBytesReusesFieldNameAndDefaultsToOctetStream(t *testing.T) {
 	t.Parallel()
 	var wireBody string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -760,7 +760,7 @@ func TestDefaultApiClientUnit_MultipartRawBytesReusesFieldNameAndDefaultsToOctet
 
 // A character outside the BMP is one rune: one underscore in the ASCII
 // fallback and its four UTF-8 bytes percent-encoded in filename*.
-func TestDefaultApiClientUnit_BuildFilenameDirectiveNonBmpCharacterIsOneUnderscore(t *testing.T) {
+func TestBhvSerializationwire028_DefaultApiClientUnit_BuildFilenameDirectiveNonBmpCharacterIsOneUnderscore(t *testing.T) {
 	t.Parallel()
 	directive := buildFilenameDirective("a\U0001F600.png")
 	want := `filename="a_.png"; filename*=UTF-8''a%F0%9F%98%80.png`
@@ -771,7 +771,7 @@ func TestDefaultApiClientUnit_BuildFilenameDirectiveNonBmpCharacterIsOneUndersco
 
 // Content-Encoding: identity is not a compression: the body is passed through
 // as it is and the header is left alone.
-func TestDefaultApiClientUnit_IdentityContentEncodingIsPassedThroughUndecoded(t *testing.T) {
+func TestBhvTransport033_DefaultApiClientUnit_IdentityContentEncodingIsPassedThroughUndecoded(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Encoding", "identity")
@@ -793,7 +793,7 @@ func TestDefaultApiClientUnit_IdentityContentEncodingIsPassedThroughUndecoded(t 
 	}
 }
 
-func TestDefaultApiClientUnit_BuildFilenameDirectiveNonAsciiEmitsRFC5987(t *testing.T) {
+func TestBhvSerializationwire044_DefaultApiClientUnit_BuildFilenameDirectiveNonAsciiEmitsRFC5987(t *testing.T) {
 	t.Parallel()
 	directive := buildFilenameDirective("日本.pdf")
 	if !strings.Contains(directive, "filename*=UTF-8''") {
@@ -807,7 +807,7 @@ func TestDefaultApiClientUnit_BuildFilenameDirectiveNonAsciiEmitsRFC5987(t *test
 	}
 }
 
-func TestDefaultApiClientUnit_BuildFilenameDirectiveAsciiOnlyOmitsFilenameStar(t *testing.T) {
+func TestBhvSerializationwire041_DefaultApiClientUnit_BuildFilenameDirectiveAsciiOnlyOmitsFilenameStar(t *testing.T) {
 	t.Parallel()
 	directive := buildFilenameDirective("file.png")
 	if directive != `filename="file.png"` {
@@ -818,7 +818,7 @@ func TestDefaultApiClientUnit_BuildFilenameDirectiveAsciiOnlyOmitsFilenameStar(t
 	}
 }
 
-func TestDefaultApiClientUnit_BuildFilenameDirectiveBackslashEscapesQuotes(t *testing.T) {
+func TestBhvSerializationwire042_DefaultApiClientUnit_BuildFilenameDirectiveBackslashEscapesQuotes(t *testing.T) {
 	t.Parallel()
 	directive := buildFilenameDirective(`a"b.txt`)
 	if !strings.Contains(directive, `a\"b.txt`) {
@@ -826,7 +826,7 @@ func TestDefaultApiClientUnit_BuildFilenameDirectiveBackslashEscapesQuotes(t *te
 	}
 }
 
-func TestDefaultApiClientUnit_ValidateMultipartFilenameRejectsCRLF(t *testing.T) {
+func TestBhvSerializationwire043_DefaultApiClientUnit_ValidateMultipartFilenameRejectsCRLF(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{"a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf"} {
 		if err := validateMultipartFilename(bad); err == nil {
@@ -838,7 +838,7 @@ func TestDefaultApiClientUnit_ValidateMultipartFilenameRejectsCRLF(t *testing.T)
 	}
 }
 
-func TestDefaultApiClientUnit_ValidateMultipartFilenameRejectsNUL(t *testing.T) {
+func TestBhvSerializationwire050_DefaultApiClientUnit_ValidateMultipartFilenameRejectsNUL(t *testing.T) {
 	t.Parallel()
 	if err := validateMultipartFilename("a\x00b.pdf"); err == nil {
 		t.Error("expected error for filename containing NUL")
@@ -859,7 +859,7 @@ func TestDefaultApiClientUnit_ValidateMultipartFieldNameRejectsCRLF(t *testing.T
 // Gap 3.3: refuse to replay a request body across an HTTPS → HTTP
 // downgrade. A malicious 307 from an HTTPS endpoint to its HTTP twin
 // would otherwise leak the form-encoded body in plaintext on the wire.
-func TestDefaultApiClientUnit_RefusesBodyReplayOnHttpsToHttpDowngrade(t *testing.T) {
+func TestBhvRetries017_DefaultApiClientUnit_RefusesBodyReplayOnHttpsToHttpDowngrade(t *testing.T) {
 	t.Parallel()
 	plainServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -995,7 +995,7 @@ func TestDefaultApiClientUnit_DemotedGetDropsEntityHeaders(t *testing.T) {
 // declares no API-key headers the dynamic portion of the allowlist is
 // empty and only the static names are present; the static names are
 // always stripped regardless of spec content.
-func TestDefaultApiClientUnit_StripsAuthorizationAcrossCrossOriginRedirect(t *testing.T) {
+func TestBhvRedirects012_DefaultApiClientUnit_StripsAuthorizationAcrossCrossOriginRedirect(t *testing.T) {
 	t.Parallel()
 	var receivedAuth string
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1076,7 +1076,7 @@ func TestDefaultApiClientUnit_StripsSecretNamedHeadersAcrossCrossOriginRedirect(
 // Gap 3.1: the spec-declared API-key header names harvested from the OpenAPI
 // securitySchemes (apiKey, in: header) must be present in the cross-origin
 // sensitive-header allowlist alongside the static trio.
-func TestDefaultApiClientUnit_SpecDeclaredApiKeyHeaderNamesAreSensitive(t *testing.T) {
+func TestBhvTransport056_DefaultApiClientUnit_SpecDeclaredApiKeyHeaderNamesAreSensitive(t *testing.T) {
 	t.Parallel()
 	contains := func(name string) bool {
 		for _, h := range sensitiveHeaderAllowlist {
@@ -1099,7 +1099,7 @@ func TestDefaultApiClientUnit_SpecDeclaredApiKeyHeaderNamesAreSensitive(t *testi
 // Gap 3.1: a caller-provided, spec-declared API-key header must be stripped
 // from a cross-origin 3xx redirect, exactly like the static credential trio,
 // so the key is never leaked to a different origin.
-func TestDefaultApiClientUnit_ApiKeyHeaderStrippedOnCrossOriginRedirect(t *testing.T) {
+func TestBhvRedirects011_DefaultApiClientUnit_ApiKeyHeaderStrippedOnCrossOriginRedirect(t *testing.T) {
 	t.Parallel()
 	// Use the first spec-declared API-key header for the assertion.
 	apiKeyHeader := []string{
@@ -1167,7 +1167,7 @@ func TestDefaultApiClientUnit_UseAfterCloseReturnsErrClientClosed(t *testing.T) 
 
 // A malformed request URL is a caller mistake: ErrInvalidRequest, not an SDK
 // error.
-func TestDefaultApiClientUnit_MalformedUrlReturnsErrInvalidRequest(t *testing.T) {
+func TestBhvErrors040_DefaultApiClientUnit_MalformedUrlReturnsErrInvalidRequest(t *testing.T) {
 	t.Parallel()
 	client := NewDefaultApiClient(nil)
 	_, err := client.SendRequest("GET", "http://[::1", map[string]string{}, nil)
@@ -1216,7 +1216,7 @@ func TestDefaultApiClientUnit_CorruptCompressedBodyIsApiErrorWithStatus(t *testi
 // decompressor's default branch ("unsupported Content-Encoding %q") and must
 // surface an *ApiError carrying the real status code, never a *NetworkError and
 // never the body handed back still encoded.
-func TestDefaultApiClientUnit_UnsupportedContentEncodingIsApiErrorWithStatus(t *testing.T) {
+func TestBhvErrors042_DefaultApiClientUnit_UnsupportedContentEncodingIsApiErrorWithStatus(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Encoding", "made-up-codec")
@@ -1246,7 +1246,7 @@ func TestDefaultApiClientUnit_UnsupportedContentEncodingIsApiErrorWithStatus(t *
 // A zero-byte body that still advertises Content-Encoding: gzip has nothing to
 // inflate. The decompressor must return the empty body unchanged, never raise
 // on the absent gzip stream.
-func TestDefaultApiClientUnit_EmptyGzipBodyPassesThroughAsEmpty(t *testing.T) {
+func TestBhvTransport037_DefaultApiClientUnit_EmptyGzipBodyPassesThroughAsEmpty(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Encoding", "gzip")
@@ -1407,7 +1407,7 @@ func (r *redirectingTripper) assertEveryRedirectResponseWasClosed(t *testing.T) 
 	}
 }
 
-func TestDefaultApiClientUnit_AFollowedRedirectHopIsReleased(t *testing.T) {
+func TestBhvRedirects017_DefaultApiClientUnit_AFollowedRedirectHopIsReleased(t *testing.T) {
 	t.Parallel()
 	tripper := &redirectingTripper{location: "https://example.test/next", redirects: 1}
 	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
@@ -1439,7 +1439,7 @@ func TestDefaultApiClientUnit_ARefusedRedirectResponseIsReleased(t *testing.T) {
 	tripper.assertEveryRedirectResponseWasClosed(t)
 }
 
-func TestDefaultApiClientUnit_EveryHopOfAnExhaustedRedirectBudgetIsReleased(t *testing.T) {
+func TestBhvRetries019_DefaultApiClientUnit_EveryHopOfAnExhaustedRedirectBudgetIsReleased(t *testing.T) {
 	t.Parallel()
 	tripper := &redirectingTripper{location: "https://example.test/again", redirects: -1}
 	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).MaxRedirects(2).RoundTripper(tripper).Build()
@@ -1462,7 +1462,7 @@ func TestDefaultApiClientUnit_EveryHopOfAnExhaustedRedirectBudgetIsReleased(t *t
 // be read or parsed must fail fast at construction rather than silently
 // falling back to the system trust store (security theater). Build returns
 // ErrInvalidCACertificate: a configuration mistake, not an API failure.
-func TestDefaultApiClientUnit_NonexistentCaCertPathFailsFast(t *testing.T) {
+func TestBhvErrors041_DefaultApiClientUnit_NonexistentCaCertPathFailsFast(t *testing.T) {
 	t.Parallel()
 	transport, err := NewTransportOptionsBuilder().
 		CACertPath("/nonexistent/ca.pem").
@@ -1482,7 +1482,7 @@ func TestDefaultApiClientUnit_NonexistentCaCertPathFailsFast(t *testing.T) {
 // network-error: a request that gets no HTTP response (connection refused)
 // surfaces as *NetworkError with status 0, keeping the transport error as the
 // cause so errors.As still reaches the *url.Error.
-func TestDefaultApiClientUnit_ConnectionRefusedReturnsNetworkError(t *testing.T) {
+func TestBhvTransport032_DefaultApiClientUnit_ConnectionRefusedReturnsNetworkError(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	addr := server.URL
@@ -1513,7 +1513,7 @@ func TestDefaultApiClientUnit_ConnectionRefusedReturnsNetworkError(t *testing.T)
 
 // network-timeout-error: a request that exceeds the configured timeout
 // surfaces as *NetworkTimeoutError with status 0, keeping the cause.
-func TestDefaultApiClientUnit_TimeoutReturnsNetworkTimeoutError(t *testing.T) {
+func TestBhvTransport058_DefaultApiClientUnit_TimeoutReturnsNetworkTimeoutError(t *testing.T) {
 	t.Parallel()
 	release := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1550,7 +1550,7 @@ func TestDefaultApiClientUnit_TimeoutReturnsNetworkTimeoutError(t *testing.T) {
 // arrive inside the budget and whose body then stalls past it fails in
 // io.ReadAll, a different call site from the one above, and it must classify
 // as the same *NetworkTimeoutError rather than a bare *NetworkError.
-func TestDefaultApiClientUnit_BodyReadTimeoutReturnsNetworkTimeoutError(t *testing.T) {
+func TestBhvTransport031_DefaultApiClientUnit_BodyReadTimeoutReturnsNetworkTimeoutError(t *testing.T) {
 	t.Parallel()
 	release := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1590,7 +1590,7 @@ func TestDefaultApiClientUnit_BodyReadTimeoutReturnsNetworkTimeoutError(t *testi
 // or stripped — matching the other SDKs. buildMultipartBody is exercised
 // directly (it is package-private) and the emitted body is parsed back to read
 // the field name the receiver would see.
-func TestDefaultApiClientUnit_BuildMultipartBody_PreservesNonASCIIFieldName(t *testing.T) {
+func TestBhvSerializationwire046_DefaultApiClientUnit_BuildMultipartBody_PreservesNonASCIIFieldName(t *testing.T) {
 	t.Parallel()
 	const fieldName = "café"
 	boundary := "test-boundary-nonascii"
@@ -1625,7 +1625,7 @@ type multipartSampleObject struct {
 // Every primitive multipart value is a text part carrying its stringify form
 // and no part Content-Type; only an object is a JSON part, with exactly
 // Content-Type: application/json.
-func TestDefaultApiClientUnit_BuildMultipartBody_PrimitivesAreTextPartsAndObjectsAreJsonParts(t *testing.T) {
+func TestBhvSerializationwire048_DefaultApiClientUnit_BuildMultipartBody_PrimitivesAreTextPartsAndObjectsAreJsonParts(t *testing.T) {
 	t.Parallel()
 	boundary := "test-boundary-scalars"
 	moment := models.DateTime(time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC))
@@ -1680,7 +1680,7 @@ func TestDefaultApiClientUnit_BuildMultipartBody_PrimitivesAreTextPartsAndObject
 // multipart-file-part-contenttype: a file part's Content-Type is derived from
 // the filename extension, falling back to application/octet-stream for unknown
 // or absent extensions.
-func TestDefaultApiClientUnit_MimeTypeForFilename_ExtensionMappingAndFallback(t *testing.T) {
+func TestBhvSerializationwire037_DefaultApiClientUnit_MimeTypeForFilename_ExtensionMappingAndFallback(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
 		"avatar.png":  "image/png",
@@ -1744,7 +1744,7 @@ func TestDefaultApiClientUnit_BuildHTTPClient_TransportHasStandardTimeoutsAndNoI
 // through. The origins are two local servers, so this is a real net/http
 // redirect through the client. net/http never strips Proxy-Authorization on a
 // redirect, so that row can only pass through the client's own filter.
-func TestDefaultApiClientUnit_CrossOriginRedirectDropsEveryCredentialHeader(t *testing.T) {
+func TestBhvRedirects025_DefaultApiClientUnit_CrossOriginRedirectDropsEveryCredentialHeader(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"Authorization", "Cookie", "Proxy-Authorization"} {
 		t.Run(name, func(t *testing.T) {
@@ -1786,7 +1786,7 @@ func TestDefaultApiClientUnit_CrossOriginRedirectDropsEveryCredentialHeader(t *t
 
 // A redirect that stays on the same origin keeps the credentials: dropping them
 // would turn a valid redirect into an unauthenticated request.
-func TestDefaultApiClientUnit_SameOriginRedirectKeepsCredentialHeaders(t *testing.T) {
+func TestBhvRedirects024_DefaultApiClientUnit_SameOriginRedirectKeepsCredentialHeaders(t *testing.T) {
 	t.Parallel()
 	var received http.Header
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1873,7 +1873,7 @@ func zlibCompress(t *testing.T, payload string) []byte {
 
 // F1063: the client keeps no cookie jar, so a Set-Cookie from one response is
 // never replayed as a Cookie header on the next request.
-func TestDefaultApiClientUnit_SetCookieResponseIsNotReplayedOnTheNextRequest(t *testing.T) {
+func TestBhvRetries015_DefaultApiClientUnit_SetCookieResponseIsNotReplayedOnTheNextRequest(t *testing.T) {
 	t.Parallel()
 	var cookies []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1940,7 +1940,7 @@ func TestDefaultApiClientUnit_AuthRequestsOmitTheCallersDefaultHeaders(t *testin
 }
 
 // HTTP "deflate" is the zlib format (RFC 1950), not a bare DEFLATE stream.
-func TestDefaultApiClientUnit_DecodesZlibWrappedDeflateResponse(t *testing.T) {
+func TestBhvTransport035_DefaultApiClientUnit_DecodesZlibWrappedDeflateResponse(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1968,7 +1968,7 @@ func TestDefaultApiClientUnit_DecodesZlibWrappedDeflateResponse(t *testing.T) {
 
 // A headerless DEFLATE stream is not what the server promised when it said
 // "deflate", so it is a corrupt body: an *ApiError with the real status.
-func TestDefaultApiClientUnit_RawDeflateBodyIsApiErrorWithStatus(t *testing.T) {
+func TestBhvTransport049_DefaultApiClientUnit_RawDeflateBodyIsApiErrorWithStatus(t *testing.T) {
 	t.Parallel()
 	var raw bytes.Buffer
 	writer, err := flate.NewWriter(&raw, flate.DefaultCompression)
@@ -2002,7 +2002,7 @@ func TestDefaultApiClientUnit_RawDeflateBodyIsApiErrorWithStatus(t *testing.T) {
 
 // The Accept-Encoding the client sends on its own, with no caller header, is the
 // set of codecs decompressBody can decode.
-func TestDefaultApiClientUnit_AdvertisesTheSupportedEncodingsByDefault(t *testing.T) {
+func TestBhvSerializationwire029_DefaultApiClientUnit_AdvertisesTheSupportedEncodingsByDefault(t *testing.T) {
 	t.Parallel()
 	var accept string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2059,7 +2059,7 @@ func unrelatedCaDER(t *testing.T) []byte {
 
 // Verification is on by default: a server whose certificate no trusted
 // authority signed is refused as a *NetworkError with status 0, not answered.
-func TestDefaultApiClientUnit_VerifySslTrueRejectsUntrustedCertificate(t *testing.T) {
+func TestBhvTransport048_DefaultApiClientUnit_VerifySslTrueRejectsUntrustedCertificate(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -2143,7 +2143,7 @@ func TestDefaultApiClientUnit_CaCertPathDecidesWhichServersAreTrusted(t *testing
 // A connection that dies after the headers, mid-body, is a transport failure:
 // *NetworkError with status 0 and the read error kept as the cause, and not a
 // timeout, an *ApiError(200) or a body handed back truncated.
-func TestDefaultApiClientUnit_BodyTruncatedAfterHeadersReturnsNetworkError(t *testing.T) {
+func TestBhvErrors038_DefaultApiClientUnit_BodyTruncatedAfterHeadersReturnsNetworkError(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", "1024")
@@ -2176,7 +2176,7 @@ func TestDefaultApiClientUnit_BodyTruncatedAfterHeadersReturnsNetworkError(t *te
 }
 
 // F823: the retry rules of base_api. Only these statuses are transient.
-func TestDefaultApiClientUnit_IsRetryableStatus_IsTheTransientSet(t *testing.T) {
+func TestBhvRetries024_DefaultApiClientUnit_IsRetryableStatus_IsTheTransientSet(t *testing.T) {
 	t.Parallel()
 	for status, want := range map[int]bool{
 		200: false, 301: false, 400: false, 401: false, 404: false, 422: false,
@@ -2191,7 +2191,7 @@ func TestDefaultApiClientUnit_IsRetryableStatus_IsTheTransientSet(t *testing.T) 
 
 // A Retry-After in seconds or as an HTTP date is honoured, capped at 60 seconds,
 // and an unusable one is ignored.
-func TestDefaultApiClientUnit_RetryAfterDelay_ReadsSecondsAndDatesAndCapsAtAMinute(t *testing.T) {
+func TestBhvRetries023_DefaultApiClientUnit_RetryAfterDelay_ReadsSecondsAndDatesAndCapsAtAMinute(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
 	cases := []struct {
@@ -2249,7 +2249,7 @@ func TestDefaultApiClientUnit_RetryDelay_DoublesFromHalfASecondToEightWithJitter
 
 // Only a network error is retried: not a cancellation, not a closed client and
 // not an error that is not a network error.
-func TestDefaultApiClientUnit_IsRetryableTransportError_IsTheNetworkErrors(t *testing.T) {
+func TestBhvRetries013_DefaultApiClientUnit_IsRetryableTransportError_IsTheNetworkErrors(t *testing.T) {
 	t.Parallel()
 	cause := errors.New("connection reset")
 	cases := []struct {

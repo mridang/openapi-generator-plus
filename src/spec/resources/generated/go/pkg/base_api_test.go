@@ -19,7 +19,7 @@ import (
 
 // A form-urlencoded body has no defined encoding for a nested object, so the
 // field is refused instead of being sent as a Go %v dump.
-func TestBaseApi_SerializeBodyOrdered_FormUrlencodedRefusesANestedObjectField(t *testing.T) {
+func TestBhvSerializationwire014_BaseApi_SerializeBodyOrdered_FormUrlencodedRefusesANestedObjectField(t *testing.T) {
 	t.Parallel()
 	body := map[string]any{"filter": map[string]any{"colour": "red"}}
 
@@ -34,7 +34,7 @@ func TestBaseApi_SerializeBodyOrdered_FormUrlencodedRefusesANestedObjectField(t 
 	}
 }
 
-func TestBaseApi_SerializeBodyOrdered_FormUrlencodedRefusesAnArrayOfObjects(t *testing.T) {
+func TestBhvSerializationwire013_BaseApi_SerializeBodyOrdered_FormUrlencodedRefusesAnArrayOfObjects(t *testing.T) {
 	t.Parallel()
 	body := map[string]any{"rows": []map[string]any{{"a": "b"}}}
 
@@ -45,7 +45,7 @@ func TestBaseApi_SerializeBodyOrdered_FormUrlencodedRefusesAnArrayOfObjects(t *t
 	}
 }
 
-func TestBaseApi_RequestPathOf_CutsTheQueryAndTakesThePathOfAnAbsoluteUrl(t *testing.T) {
+func TestBhvErrors027_BaseApi_RequestPathOf_CutsTheQueryAndTakesThePathOfAnAbsoluteUrl(t *testing.T) {
 	t.Parallel()
 	for path, want := range map[string]string{
 		"/items/7":                              "/items/7",
@@ -93,7 +93,7 @@ func (c *acceptCapturingClient) Close() error { return nil }
 // Accept has three layers: the one negotiated from the operation's responses,
 // the client's default, and a header parameter the caller passes for the call.
 // The parameter beats both of the others, and the default beats the negotiated.
-func TestBaseApi_InvokeApi_AnExplicitAcceptHeaderParameterBeatsTheDefaultAndTheNegotiatedOne(t *testing.T) {
+func TestBhvOperations004_BaseApi_InvokeApi_AnExplicitAcceptHeaderParameterBeatsTheDefaultAndTheNegotiatedOne(t *testing.T) {
 	t.Parallel()
 	for name, tc := range map[string]struct {
 		params map[string]string

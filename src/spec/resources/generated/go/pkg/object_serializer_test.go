@@ -49,7 +49,7 @@ func TestObjectSerializer_EncodeContentCookieValue_UsesTheUnreservedSetOnly(t *t
 	}
 }
 
-func TestObjectSerializer_Serialize_MapToJSON(t *testing.T) {
+func TestBhvSerializationobject147_ObjectSerializer_Serialize_MapToJSON(t *testing.T) {
 	t.Parallel()
 	input := map[string]any{
 		"name": "Fido",
@@ -110,7 +110,7 @@ func TestObjectSerializer_Serialize_ModelFieldsAreNotHTMLEscaped(t *testing.T) {
 // encoding/json always escapes U+2028 and U+2029; serialize writes them
 // literally like the other SDKs, while an escaped backslash followed by the
 // text u2028 stays exactly as encoded.
-func TestObjectSerializer_Serialize_LineSeparatorsAreNotEscaped(t *testing.T) {
+func TestBhvSerializationobject124_ObjectSerializer_Serialize_LineSeparatorsAreNotEscaped(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		value string
@@ -188,7 +188,7 @@ func TestObjectSerializer_Serialize_SetItemsAreNotHTMLEscaped(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ReadOnlyAndWriteOnlyPropertiesHaveNoWireEffect(t *testing.T) {
+func TestBhvSerializationobject017_ObjectSerializer_ReadOnlyAndWriteOnlyPropertiesHaveNoWireEffect(t *testing.T) {
 	t.Parallel()
 	var decoded models.Account
 	if err := json.Unmarshal([]byte(`{"id":7,"username":"u","password":"p"}`), &decoded); err != nil {
@@ -247,7 +247,7 @@ func TestObjectSerializer_Deserialize_JSONToMap(t *testing.T) {
 // P2: a UTF-8 BOM (\ufeff, encoded as 0xEF 0xBB 0xBF) prefixing JSON text must be
 // stripped transparently so the payload deserializes cleanly into the model, for
 // parity with Java Jackson / C# System.Text.Json which tolerate a leading BOM.
-func TestObjectSerializer_Deserialize_StripsUTF8BOMBeforeModel(t *testing.T) {
+func TestBhvSerializationobject060_ObjectSerializer_Deserialize_StripsUTF8BOMBeforeModel(t *testing.T) {
 	t.Parallel()
 	input := []byte("\ufeff{\"id\":1,\"name\":\"Dogs\"}")
 
@@ -266,7 +266,7 @@ func TestObjectSerializer_Deserialize_StripsUTF8BOMBeforeModel(t *testing.T) {
 // A schema default applies only when the property is ABSENT from the payload.
 // An explicit JSON null is a provided value and must be preserved, not replaced
 // by the default. This mirrors the default-application contract of the other SDKs.
-func TestObjectSerializer_Deserialize_DefaultsAbsentVersusNull(t *testing.T) {
+func TestBhvSerializationobject025_ObjectSerializer_Deserialize_DefaultsAbsentVersusNull(t *testing.T) {
 	t.Parallel()
 
 	var fromEmpty models.Defaults
@@ -300,7 +300,7 @@ func TestObjectSerializer_Deserialize_DefaultsAbsentVersusNull(t *testing.T) {
 
 // F1115: the numeric schema defaults keep their exact typed values: a float32
 // that is exactly 0.25, an integral float64 and an int64 beyond int32.
-func TestObjectSerializer_Deserialize_NumericDefaultsKeepTheirExactTypedValues(t *testing.T) {
+func TestBhvSerializationobject111_ObjectSerializer_Deserialize_NumericDefaultsKeepTheirExactTypedValues(t *testing.T) {
 	t.Parallel()
 	var defaults models.Defaults
 	if err := deserialize([]byte("{}"), &defaults); err != nil {
@@ -322,7 +322,7 @@ func TestObjectSerializer_Deserialize_NumericDefaultsKeepTheirExactTypedValues(t
 
 // F1114: properties named after language keywords and literals keep their
 // wire keys through a decode and an encode.
-func TestObjectSerializer_EdgeCases_KeywordNamedPropertiesKeepTheirWireKeys(t *testing.T) {
+func TestBhvSerializationobject117_ObjectSerializer_EdgeCases_KeywordNamedPropertiesKeepTheirWireKeys(t *testing.T) {
 	t.Parallel()
 	wire := `{"and":true,"or":false,"not":true,"class":"c","return":"r","null":"n","true":true,"false":false}`
 	var decoded models.EdgeCases
@@ -383,7 +383,7 @@ func TestObjectSerializer_Order_TrackingIdIsWrittenLowercaseAndDecodesUppercase(
 
 // D57/F080: a date-time without an offset, or in a looser ISO shape, is
 // rejected whatever the host zone is.
-func TestObjectSerializer_Deserialize_DateTimeWithoutAnOffsetIsRejected(t *testing.T) {
+func TestBhvSerializationobject003_ObjectSerializer_Deserialize_DateTimeWithoutAnOffsetIsRejected(t *testing.T) {
 	t.Parallel()
 	for _, wire := range []string{
 		`"2024-01-01T10:00:00"`,
@@ -402,7 +402,7 @@ func TestObjectSerializer_Deserialize_DateTimeWithoutAnOffsetIsRejected(t *testi
 
 // F1124: a string pattern is not enforced by this SDK (S3), so a slug that
 // matches and one that does not both round-trip unchanged.
-func TestObjectSerializer_EdgeCases_SlugRoundTripsWithoutPatternEnforcement(t *testing.T) {
+func TestBhvSerializationobject074_ObjectSerializer_EdgeCases_SlugRoundTripsWithoutPatternEnforcement(t *testing.T) {
 	t.Parallel()
 	for _, slug := range []string{"12/ab", "ab/12"} {
 		var decoded models.EdgeCases
@@ -417,7 +417,7 @@ func TestObjectSerializer_EdgeCases_SlugRoundTripsWithoutPatternEnforcement(t *t
 
 // F1116: the OAS 3.1 contentEncoding property is a byte field, base64 on the
 // wire and raw bytes in the model.
-func TestObjectSerializer_PetPassport_BiometricChipRoundTripsThroughBase64(t *testing.T) {
+func TestBhvSerializationobject115_ObjectSerializer_PetPassport_BiometricChipRoundTripsThroughBase64(t *testing.T) {
 	t.Parallel()
 	raw := []byte{0x01, 0x02, 0x03}
 	data, err := serialize(models.PetPassport{BiometricChip: &raw})
@@ -439,7 +439,7 @@ func TestObjectSerializer_PetPassport_BiometricChipRoundTripsThroughBase64(t *te
 // F1175: the prefixItems tuple of Pet.location degrades to an open list. A
 // number decodes as float64 (so 2 and 2.0 are the same value), the string keeps
 // its position, a null element survives, and the elements re-encode in order.
-func TestObjectSerializer_Pet_PrefixItemsLocationRoundTripsAsAnOpenList(t *testing.T) {
+func TestBhvSerializationobject012_ObjectSerializer_Pet_PrefixItemsLocationRoundTripsAsAnOpenList(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
 		"mixed":        `[1.5,2,"hq"]`,
@@ -471,7 +471,7 @@ func TestObjectSerializer_Pet_PrefixItemsLocationRoundTripsAsAnOpenList(t *testi
 
 // Required AND nullable: the key must be present, an explicit null is a legal
 // value and is kept, and encoding always writes the key (null when nil).
-func TestObjectSerializer_Deserialize_RequiredNullableKeyMustBePresentAndNullIsKept(t *testing.T) {
+func TestBhvSerializationobject049_ObjectSerializer_Deserialize_RequiredNullableKeyMustBePresentAndNullIsKept(t *testing.T) {
 	t.Parallel()
 
 	var withValue models.RequiredNullable
@@ -497,7 +497,7 @@ func TestObjectSerializer_Deserialize_RequiredNullableKeyMustBePresentAndNullIsK
 	}
 }
 
-func TestObjectSerializer_Serialize_RequiredNullableWritesTheKeyAsNullWhenNil(t *testing.T) {
+func TestBhvSerializationobject125_ObjectSerializer_Serialize_RequiredNullableWritesTheKeyAsNullWhenNil(t *testing.T) {
 	t.Parallel()
 
 	encoded, err := serialize(models.NewRequiredNullable(nil))
@@ -509,7 +509,7 @@ func TestObjectSerializer_Serialize_RequiredNullableWritesTheKeyAsNullWhenNil(t 
 	}
 }
 
-func TestObjectSerializer_Deserialize_EmptyData(t *testing.T) {
+func TestBhvSerializationobject130_ObjectSerializer_Deserialize_EmptyData(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
 	err := deserialize([]byte{}, &result)
@@ -518,7 +518,7 @@ func TestObjectSerializer_Deserialize_EmptyData(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Deserialize_InvalidJSON(t *testing.T) {
+func TestBhvSerializationobject066_ObjectSerializer_Deserialize_InvalidJSON(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
 	err := deserialize([]byte("not json"), &result)
@@ -537,7 +537,7 @@ func TestObjectSerializer_Serialize_InvalidType(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToPathValue_String(t *testing.T) {
+func TestBhvSerializationobject141_ObjectSerializer_ToPathValue_String(t *testing.T) {
 	t.Parallel()
 	result := toPathValue("hello")
 	if result != "hello" {
@@ -545,7 +545,7 @@ func TestObjectSerializer_ToPathValue_String(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToPathValue_Int(t *testing.T) {
+func TestBhvSerializationobject036_ObjectSerializer_ToPathValue_Int(t *testing.T) {
 	t.Parallel()
 	result := toPathValue(42)
 	if result != "42" {
@@ -553,7 +553,7 @@ func TestObjectSerializer_ToPathValue_Int(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToPathValue_Bool(t *testing.T) {
+func TestBhvSerializationobject166_ObjectSerializer_ToPathValue_Bool(t *testing.T) {
 	t.Parallel()
 	result := toPathValue(true)
 	if result != "true" {
@@ -574,7 +574,7 @@ func TestObjectSerializer_ToPathValue_Nil(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToQueryValue_String(t *testing.T) {
+func TestBhvSerializationobject167_ObjectSerializer_ToQueryValue_String(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue("hello", "")
 	if result != "hello" {
@@ -582,7 +582,7 @@ func TestObjectSerializer_ToQueryValue_String(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToQueryValue_StringSliceCSV(t *testing.T) {
+func TestBhvSerializationobject168_ObjectSerializer_ToQueryValue_StringSliceCSV(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue([]string{"a", "b", "c"}, "csv")
 	if result != "a,b,c" {
@@ -590,7 +590,7 @@ func TestObjectSerializer_ToQueryValue_StringSliceCSV(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToQueryValue_StringSliceSSV(t *testing.T) {
+func TestBhvSerializationobject169_ObjectSerializer_ToQueryValue_StringSliceSSV(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue([]string{"a", "b", "c"}, "ssv")
 	if result != "a b c" {
@@ -622,7 +622,7 @@ func TestObjectSerializer_ToQueryValue_StringSlicePipes(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToQueryValue_StringSliceMulti(t *testing.T) {
+func TestBhvSerializationobject135_ObjectSerializer_ToQueryValue_StringSliceMulti(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue([]string{"a", "b", "c"}, "multi")
 	slice, ok := result.([]string)
@@ -640,7 +640,7 @@ func TestObjectSerializer_ToQueryValue_StringSliceMulti(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToQueryValue_Int(t *testing.T) {
+func TestBhvSerializationobject037_ObjectSerializer_ToQueryValue_Int(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue(42, "")
 	if result != "42" {
@@ -648,7 +648,7 @@ func TestObjectSerializer_ToQueryValue_Int(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToQueryValue_BoolTrue(t *testing.T) {
+func TestBhvSerializationobject028_ObjectSerializer_ToQueryValue_BoolTrue(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue(true, "")
 	if result != "true" {
@@ -656,7 +656,7 @@ func TestObjectSerializer_ToQueryValue_BoolTrue(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToQueryValue_BoolFalse(t *testing.T) {
+func TestBhvSerializationobject027_ObjectSerializer_ToQueryValue_BoolFalse(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue(false, "")
 	if result != "false" {
@@ -664,7 +664,7 @@ func TestObjectSerializer_ToQueryValue_BoolFalse(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToQueryValue_Nil(t *testing.T) {
+func TestBhvSerializationobject137_ObjectSerializer_ToQueryValue_Nil(t *testing.T) {
 	t.Parallel()
 	result := toQueryValue(nil, "")
 	if result != nil {
@@ -672,7 +672,7 @@ func TestObjectSerializer_ToQueryValue_Nil(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToHeaderValue_String(t *testing.T) {
+func TestBhvSerializationobject142_ObjectSerializer_ToHeaderValue_String(t *testing.T) {
 	t.Parallel()
 	result := toHeaderValue("hello")
 	if result != "hello" {
@@ -688,7 +688,7 @@ func TestObjectSerializer_ToHeaderValue_StringSlice(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToHeaderValue_Int(t *testing.T) {
+func TestBhvSerializationobject038_ObjectSerializer_ToHeaderValue_Int(t *testing.T) {
 	t.Parallel()
 	result := toHeaderValue(42)
 	if result != "42" {
@@ -704,7 +704,7 @@ func TestObjectSerializer_ToHeaderValue_Nil(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToCookieValue_String(t *testing.T) {
+func TestBhvSerializationobject143_ObjectSerializer_ToCookieValue_String(t *testing.T) {
 	t.Parallel()
 	result := toCookieValue("hello")
 	if result != "hello" {
@@ -720,7 +720,7 @@ func TestObjectSerializer_ToCookieValue_Nil(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToCookieValue_Int(t *testing.T) {
+func TestBhvSerializationobject040_ObjectSerializer_ToCookieValue_Int(t *testing.T) {
 	t.Parallel()
 	result := toCookieValue(42)
 	if result != "42" {
@@ -728,7 +728,7 @@ func TestObjectSerializer_ToCookieValue_Int(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToFormValue_String(t *testing.T) {
+func TestBhvSerializationobject140_ObjectSerializer_ToFormValue_String(t *testing.T) {
 	t.Parallel()
 	result := toFormValue("hello")
 	if result != "hello" {
@@ -744,7 +744,7 @@ func TestObjectSerializer_ToFormValue_Int(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToFormValue_Nil(t *testing.T) {
+func TestBhvSerializationobject165_ObjectSerializer_ToFormValue_Nil(t *testing.T) {
 	t.Parallel()
 	result := toFormValue(nil)
 	if result != "" {
@@ -752,7 +752,7 @@ func TestObjectSerializer_ToFormValue_Nil(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToFormValue_BoolTrue(t *testing.T) {
+func TestBhvSerializationobject042_ObjectSerializer_ToFormValue_BoolTrue(t *testing.T) {
 	t.Parallel()
 	result := toFormValue(true)
 	if result != "true" {
@@ -760,7 +760,7 @@ func TestObjectSerializer_ToFormValue_BoolTrue(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ToFormValue_BoolFalse(t *testing.T) {
+func TestBhvSerializationobject035_ObjectSerializer_ToFormValue_BoolFalse(t *testing.T) {
 	t.Parallel()
 	result := toFormValue(false)
 	if result != "false" {
@@ -768,7 +768,7 @@ func TestObjectSerializer_ToFormValue_BoolFalse(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Stringify_String(t *testing.T) {
+func TestBhvSerializationobject159_ObjectSerializer_Stringify_String(t *testing.T) {
 	t.Parallel()
 	result := stringify("hello")
 	if result != "hello" {
@@ -800,7 +800,7 @@ func TestObjectSerializer_Stringify_Float64(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Stringify_Bool(t *testing.T) {
+func TestBhvSerializationobject155_ObjectSerializer_Stringify_Bool(t *testing.T) {
 	t.Parallel()
 	if stringify(true) != "true" {
 		t.Error("expected 'true'")
@@ -846,7 +846,7 @@ func TestObjectSerializer_Stringify_NilStringPointer(t *testing.T) {
 
 // An optional scalar parameter is held as a pointer; stringify must send the
 // pointed-to value, never the pointer address that %v prints.
-func TestObjectSerializer_Stringify_OptionalScalarPointers(t *testing.T) {
+func TestBhvSerializationobject118_ObjectSerializer_Stringify_OptionalScalarPointers(t *testing.T) {
 	t.Parallel()
 	i32, i64, n := int32(7), int64(-42), 5
 	f64, f32 := 1.5, float32(2.5)
@@ -875,7 +875,7 @@ func TestObjectSerializer_Stringify_OptionalScalarPointers(t *testing.T) {
 
 // A format:byte value stringifies to padded, standard-alphabet base64, also
 // behind a pointer, and is never a list of byte values.
-func TestObjectSerializer_Stringify_BytesAreStandardBase64(t *testing.T) {
+func TestBhvSerializationobject156_ObjectSerializer_Stringify_BytesAreStandardBase64(t *testing.T) {
 	t.Parallel()
 	hi := []byte("hi")
 	cases := []struct {
@@ -909,7 +909,7 @@ func TestObjectSerializer_Stringify_NilScalarPointers(t *testing.T) {
 
 // DateTimeOffsetPreservationTests
 
-func TestObjectSerializer_DateTimeOffset_UTCPreservesOffset(t *testing.T) {
+func TestBhvSerializationobject174_ObjectSerializer_DateTimeOffset_UTCPreservesOffset(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
 	if got := stringify(models.DateTime(ts)); got != "2024-01-01T12:30:45.000+00:00" {
@@ -917,7 +917,7 @@ func TestObjectSerializer_DateTimeOffset_UTCPreservesOffset(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_DateTimeOffset_UTCNeverRendersZ(t *testing.T) {
+func TestBhvSerializationobject150_ObjectSerializer_DateTimeOffset_UTCNeverRendersZ(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
 	got := stringify(models.DateTime(ts))
@@ -929,7 +929,7 @@ func TestObjectSerializer_DateTimeOffset_UTCNeverRendersZ(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_DateTimeOffset_PositiveOffsetPreserved(t *testing.T) {
+func TestBhvSerializationobject116_ObjectSerializer_DateTimeOffset_PositiveOffsetPreserved(t *testing.T) {
 	t.Parallel()
 	loc := time.FixedZone("IST", 5*60*60+30*60)
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
@@ -938,7 +938,7 @@ func TestObjectSerializer_DateTimeOffset_PositiveOffsetPreserved(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_DateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
+func TestBhvSerializationobject107_ObjectSerializer_DateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
 	t.Parallel()
 	loc := time.FixedZone("PST", -8*60*60)
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
@@ -947,7 +947,7 @@ func TestObjectSerializer_DateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_DateTimeOffset_MillisecondsPreserved(t *testing.T) {
+func TestBhvSerializationobject064_ObjectSerializer_DateTimeOffset_MillisecondsPreserved(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 123000000, time.UTC)
 	if got := stringify(models.DateTime(ts)); got != "2024-01-01T12:30:45.123+00:00" {
@@ -955,7 +955,7 @@ func TestObjectSerializer_DateTimeOffset_MillisecondsPreserved(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_DateTimeOffset_WholeSecondsRenderFixedThreeDigitFraction(t *testing.T) {
+func TestBhvSerializationobject179_ObjectSerializer_DateTimeOffset_WholeSecondsRenderFixedThreeDigitFraction(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
 	if got := stringify(models.DateTime(ts)); !strings.Contains(got, ":45.000+") {
@@ -971,7 +971,7 @@ func TestObjectSerializer_DateTimeOffset_SubMillisecondTruncatedToThreeDigits(t 
 	}
 }
 
-func TestObjectSerializer_DateTimeOffset_MidnightFormatted(t *testing.T) {
+func TestBhvSerializationobject134_ObjectSerializer_DateTimeOffset_MidnightFormatted(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	if got := stringify(models.DateTime(ts)); got != "2024-01-01T00:00:00.000+00:00" {
@@ -979,7 +979,7 @@ func TestObjectSerializer_DateTimeOffset_MidnightFormatted(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_RoundTripDateTimeYieldsEquivalentInstant(t *testing.T) {
+func TestBhvSerializationobject144_ObjectSerializer_RoundTripDateTimeYieldsEquivalentInstant(t *testing.T) {
 	t.Parallel()
 	loc := time.FixedZone("IST", 5*60*60+30*60)
 	original := time.Date(2024, 1, 1, 12, 30, 45, 123000000, loc)
@@ -995,7 +995,7 @@ func TestObjectSerializer_RoundTripDateTimeYieldsEquivalentInstant(t *testing.T)
 
 // A date-time serialises to the canonical wire form in every JSON position, not
 // only on the parameter path: a bare value, a pointer, a slice and a map.
-func TestObjectSerializer_DateTimeJSON_CanonicalInEveryPosition(t *testing.T) {
+func TestBhvSerializationobject151_ObjectSerializer_DateTimeJSON_CanonicalInEveryPosition(t *testing.T) {
 	t.Parallel()
 	ts := models.DateTime(time.Date(2024, 1, 1, 12, 30, 45, 123456789, time.UTC))
 	const want = "2024-01-01T12:30:45.123+00:00"
@@ -1044,7 +1044,7 @@ func TestObjectSerializer_DateTimeJSON_UnmarshalIsLenient(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Stringify_NilDateTimePointer(t *testing.T) {
+func TestBhvSerializationobject044_ObjectSerializer_Stringify_NilDateTimePointer(t *testing.T) {
 	t.Parallel()
 	var p *models.DateTime
 	if got := stringify(p); got != "" {
@@ -1054,7 +1054,7 @@ func TestObjectSerializer_Stringify_NilDateTimePointer(t *testing.T) {
 
 // NonAsciiSerializationTests
 
-func TestObjectSerializer_NonAscii_AccentedCharacterNotEscaped(t *testing.T) {
+func TestBhvSerializationobject019_ObjectSerializer_NonAscii_AccentedCharacterNotEscaped(t *testing.T) {
 	t.Parallel()
 	input := map[string]any{"key": "café"}
 	data, err := serialize(input)
@@ -1066,7 +1066,7 @@ func TestObjectSerializer_NonAscii_AccentedCharacterNotEscaped(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_NonAscii_CjkCharactersNotEscaped(t *testing.T) {
+func TestBhvSerializationobject031_ObjectSerializer_NonAscii_CjkCharactersNotEscaped(t *testing.T) {
 	t.Parallel()
 	input := map[string]any{"key": "日本"}
 	data, err := serialize(input)
@@ -1078,7 +1078,7 @@ func TestObjectSerializer_NonAscii_CjkCharactersNotEscaped(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_NonAscii_TabCharacterEscapedProperly(t *testing.T) {
+func TestBhvSerializationobject160_ObjectSerializer_NonAscii_TabCharacterEscapedProperly(t *testing.T) {
 	t.Parallel()
 	input := map[string]any{"key": "a\tb"}
 	data, err := serialize(input)
@@ -1092,7 +1092,7 @@ func TestObjectSerializer_NonAscii_TabCharacterEscapedProperly(t *testing.T) {
 
 // DeserializationErrorWrappingTests
 
-func TestObjectSerializer_DeserializationError_TruncatedJsonReturnsSerializationError(t *testing.T) {
+func TestBhvSerializationobject170_ObjectSerializer_DeserializationError_TruncatedJsonReturnsSerializationError(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
 	err := deserialize([]byte("{"), &result)
@@ -1104,7 +1104,7 @@ func TestObjectSerializer_DeserializationError_TruncatedJsonReturnsSerialization
 	}
 }
 
-func TestObjectSerializer_DeserializationError_InvalidJsonReturnsSerializationError(t *testing.T) {
+func TestBhvSerializationobject095_ObjectSerializer_DeserializationError_InvalidJsonReturnsSerializationError(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
 	err := deserialize([]byte(`"hello"`), &result)
@@ -1116,7 +1116,7 @@ func TestObjectSerializer_DeserializationError_InvalidJsonReturnsSerializationEr
 	}
 }
 
-func TestObjectSerializer_DeserializationError_ErrorHasCause(t *testing.T) {
+func TestBhvSerializationobject162_ObjectSerializer_DeserializationError_ErrorHasCause(t *testing.T) {
 	t.Parallel()
 	var result map[string]any
 	err := deserialize([]byte("{"), &result)
@@ -1176,7 +1176,7 @@ func TestObjectSerializer_SerializationError_SatisfiesOpenAPIError(t *testing.T)
 
 // format:duration fields are models.Duration, a time.Duration that travels on
 // the wire in the protobuf-JSON form, so a Go caller gets a native duration.
-func TestObjectSerializer_Deserialize_DurationFieldIsNativeDuration(t *testing.T) {
+func TestBhvSerializationobject113_ObjectSerializer_Deserialize_DurationFieldIsNativeDuration(t *testing.T) {
 	t.Parallel()
 	var result models.EdgeCases
 	if err := deserialize([]byte(`{"retryAfter":"3600.5s"}`), &result); err != nil {
@@ -1196,7 +1196,7 @@ func TestObjectSerializer_Deserialize_DurationFieldIsNativeDuration(t *testing.T
 
 // A malformed or out-of-range duration is a *SerializationError, like any
 // other wire-shape failure.
-func TestObjectSerializer_Deserialize_MalformedDurationIsSerializationError(t *testing.T) {
+func TestBhvSerializationobject080_ObjectSerializer_Deserialize_MalformedDurationIsSerializationError(t *testing.T) {
 	t.Parallel()
 	for _, wire := range []string{`"PT1H"`, `"3600"`, `3600`, `"9223372037s"`, `"-9223372037s"`} {
 		var result models.EdgeCases
@@ -1211,7 +1211,7 @@ func TestObjectSerializer_Deserialize_MalformedDurationIsSerializationError(t *t
 // Every wire-shape failure is a *SerializationError and satisfies the
 // OpenAPIError root: a wrong primitive type, an unknown enum value, a
 // missing or null required field and a malformed date-time.
-func TestObjectSerializer_Deserialize_WireShapeFailuresAreSerializationErrors(t *testing.T) {
+func TestBhvSerializationobject077_ObjectSerializer_Deserialize_WireShapeFailuresAreSerializationErrors(t *testing.T) {
 	t.Parallel()
 	cases := map[string]struct {
 		wire   string
@@ -1237,7 +1237,7 @@ func TestObjectSerializer_Deserialize_WireShapeFailuresAreSerializationErrors(t 
 	}
 }
 
-func TestObjectSerializer_Serialize_IncludesFieldsSetToDefaultValues(t *testing.T) {
+func TestBhvSerializationobject088_ObjectSerializer_Serialize_IncludesFieldsSetToDefaultValues(t *testing.T) {
 	t.Parallel()
 	id := int64(0)
 	name := ""
@@ -1254,7 +1254,7 @@ func TestObjectSerializer_Serialize_IncludesFieldsSetToDefaultValues(t *testing.
 	}
 }
 
-func TestObjectSerializer_Discriminator_DrySubtypeAutoInjectsFoodType(t *testing.T) {
+func TestBhvSerializationobject072_ObjectSerializer_Discriminator_DrySubtypeAutoInjectsFoodType(t *testing.T) {
 	t.Parallel()
 	dry := models.NewDryFood(2.5)
 	data, err := serialize(dry)
@@ -1277,7 +1277,7 @@ func TestObjectSerializer_Discriminator_DrySubtypeAutoInjectsFoodType(t *testing
 // parity and also proves it survives a serialize → deserialize round-trip as a
 // number. ──
 
-func TestObjectSerializer_Serialize_DecimalNumberFieldIsUnquoted(t *testing.T) {
+func TestBhvSerializationobject171_ObjectSerializer_Serialize_DecimalNumberFieldIsUnquoted(t *testing.T) {
 	t.Parallel()
 	weight := 1.5
 	pet := models.Pet{
@@ -1307,7 +1307,7 @@ func TestObjectSerializer_Serialize_DecimalNumberFieldIsUnquoted(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Discriminator_WetSubtypeAutoInjectsFoodType(t *testing.T) {
+func TestBhvSerializationobject178_ObjectSerializer_Discriminator_WetSubtypeAutoInjectsFoodType(t *testing.T) {
 	t.Parallel()
 	wet := models.NewWetFood(350)
 	data, err := serialize(wet)
@@ -1335,7 +1335,7 @@ func TestObjectSerializer_Discriminator_CallerCanOverrideDefault(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Discriminator_DeserializeReturnsSubtype(t *testing.T) {
+func TestBhvSerializationobject055_ObjectSerializer_Discriminator_DeserializeReturnsSubtype(t *testing.T) {
 	t.Parallel()
 	input := []byte(`{"foodType":"dry","weightKg":2.5}`)
 	var dry models.DryFood
@@ -1356,7 +1356,7 @@ func TestObjectSerializer_Discriminator_DeserializeReturnsSubtype(t *testing.T) 
 // discriminator UnmarshalJSON already errors on the empty discriminator, so
 // this asserts the canonical throw and locks the fleet-wide behaviour. ──
 
-func TestObjectSerializer_Discriminator_MissingDiscriminatorThrows(t *testing.T) {
+func TestBhvSerializationobject085_ObjectSerializer_Discriminator_MissingDiscriminatorThrows(t *testing.T) {
 	t.Parallel()
 	input := []byte(`{"weightKg":5.0}`)
 	var food models.PetFood
@@ -1371,7 +1371,7 @@ func TestObjectSerializer_Discriminator_MissingDiscriminatorThrows(t *testing.T)
 
 // ── #24 format:double whole numbers keep the trailing .0 ──
 
-func TestObjectSerializer_Stringify_WholeNumberFloatKeepsDotZero(t *testing.T) {
+func TestBhvSerializationobject181_ObjectSerializer_Stringify_WholeNumberFloatKeepsDotZero(t *testing.T) {
 	t.Parallel()
 	if got := stringify(float64(1.0)); got != "1.0" {
 		t.Errorf("expected '1.0' for float64(1.0), got %q", got)
@@ -1384,7 +1384,7 @@ func TestObjectSerializer_Stringify_WholeNumberFloatKeepsDotZero(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Stringify_FractionalFloatRendersAsDecimal(t *testing.T) {
+func TestBhvSerializationobject106_ObjectSerializer_Stringify_FractionalFloatRendersAsDecimal(t *testing.T) {
 	t.Parallel()
 	if got := stringify(float64(1.5)); got != "1.5" {
 		t.Errorf("expected '1.5' for 1.5, got %q", got)
@@ -1396,7 +1396,7 @@ func TestObjectSerializer_Stringify_FractionalFloatRendersAsDecimal(t *testing.T
 
 // ── #21 format:date path/query value uses date-only format ──
 
-func TestObjectSerializer_StringifyDate_TimeValueReturnsDateOnly(t *testing.T) {
+func TestBhvSerializationobject157_ObjectSerializer_StringifyDate_TimeValueReturnsDateOnly(t *testing.T) {
 	t.Parallel()
 	when := time.Date(2024, 1, 15, 13, 45, 22, 0, time.UTC)
 	if got := stringifyDate(when); got != "2024-01-15" {
@@ -1404,14 +1404,14 @@ func TestObjectSerializer_StringifyDate_TimeValueReturnsDateOnly(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_StringifyDate_StringPassesThrough(t *testing.T) {
+func TestBhvSerializationobject114_ObjectSerializer_StringifyDate_StringPassesThrough(t *testing.T) {
 	t.Parallel()
 	if got := stringifyDate("2024-12-31"); got != "2024-12-31" {
 		t.Errorf("expected '2024-12-31', got %q", got)
 	}
 }
 
-func TestObjectSerializer_StringifyDate_NilReturnsEmpty(t *testing.T) {
+func TestBhvSerializationobject136_ObjectSerializer_StringifyDate_NilReturnsEmpty(t *testing.T) {
 	t.Parallel()
 	if got := stringifyDate(nil); got != "" {
 		t.Errorf("expected empty string for nil, got %q", got)
@@ -1420,7 +1420,7 @@ func TestObjectSerializer_StringifyDate_NilReturnsEmpty(t *testing.T) {
 
 // ── #13 Serializer drops nil/null fields (omitempty) ──
 
-func TestObjectSerializer_Serialize_OmitsNilFields(t *testing.T) {
+func TestBhvSerializationobject023_ObjectSerializer_Serialize_OmitsNilFields(t *testing.T) {
 	t.Parallel()
 	pet := models.NewPet("OmitTest", []string{"http://example.com/a.png"})
 	data, err := serialize(pet)
@@ -1436,7 +1436,7 @@ func TestObjectSerializer_Serialize_OmitsNilFields(t *testing.T) {
 
 // ── Gap AJ: required non-nullable fields reject null/missing on deserialize ──
 
-func TestObjectSerializer_Deserialize_RequiredFieldNullThrows(t *testing.T) {
+func TestBhvSerializationobject062_ObjectSerializer_Deserialize_RequiredFieldNullThrows(t *testing.T) {
 	t.Parallel()
 	raw := []byte(`{"name":null,"photoUrls":["u"]}`)
 	var pet models.Pet
@@ -1450,7 +1450,7 @@ func TestObjectSerializer_Deserialize_RequiredFieldNullThrows(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Deserialize_RequiredFieldMissingThrows(t *testing.T) {
+func TestBhvSerializationobject063_ObjectSerializer_Deserialize_RequiredFieldMissingThrows(t *testing.T) {
 	t.Parallel()
 	raw := []byte(`{"photoUrls":["x"]}`)
 	var pet models.Pet
@@ -1466,7 +1466,7 @@ func TestObjectSerializer_Deserialize_RequiredFieldMissingThrows(t *testing.T) {
 
 // ── #14 Deserializer ignores unknown fields ──
 
-func TestObjectSerializer_Deserialize_IgnoresUnknownFields(t *testing.T) {
+func TestBhvSerializationobject082_ObjectSerializer_Deserialize_IgnoresUnknownFields(t *testing.T) {
 	t.Parallel()
 	// Use a Pet payload with a bogus extra field. encoding/json should
 	// silently drop it (no error, no mangled value).
@@ -1499,7 +1499,7 @@ func TestObjectSerializer_FormatFloat_WholeValuesKeepTheFractionMarker(t *testin
 // ── An enum value outside the declared members is rejected on the way out too,
 // not only on the way in. ──
 
-func TestObjectSerializer_Serialize_UndeclaredEnumValueIsRejected(t *testing.T) {
+func TestBhvSerializationobject172_ObjectSerializer_Serialize_UndeclaredEnumValueIsRejected(t *testing.T) {
 	t.Parallel()
 	bogus := models.OrderStatusEnum("bogus")
 	_, err := serialize(models.Order{Status: &bogus})
@@ -1528,7 +1528,7 @@ func TestObjectSerializer_Serialize_DeclaredEnumValueIsWritten(t *testing.T) {
 // ── Keys match the declared wire name exactly. encoding/json alone would bind
 // a key that differs only in letter case; every other SDK treats it as unknown. ──
 
-func TestObjectSerializer_Deserialize_MiscasedKeyDoesNotPopulateDeclaredField(t *testing.T) {
+func TestBhvSerializationobject052_ObjectSerializer_Deserialize_MiscasedKeyDoesNotPopulateDeclaredField(t *testing.T) {
 	t.Parallel()
 	var pet models.Pet
 	if err := deserialize([]byte(`{"name":"Rex","photoUrls":[],"ID":7}`), &pet); err != nil {
@@ -1539,7 +1539,7 @@ func TestObjectSerializer_Deserialize_MiscasedKeyDoesNotPopulateDeclaredField(t 
 	}
 }
 
-func TestObjectSerializer_Deserialize_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
+func TestBhvSerializationobject056_ObjectSerializer_Deserialize_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
 	t.Parallel()
 	var pet models.Pet
 	if err := deserialize([]byte(`{"name":"Rex","NAME":"Evil","photoUrls":[]}`), &pet); err != nil {
@@ -1552,7 +1552,7 @@ func TestObjectSerializer_Deserialize_ExactKeyWinsOverMiscasedDuplicate(t *testi
 
 // F1067: a JSON object that repeats a key resolves to the last value, as in the
 // other eleven SDKs, whatever the decoder's own default would be.
-func TestObjectSerializer_Deserialize_DuplicateKeyKeepsTheLastValue(t *testing.T) {
+func TestBhvSerializationobject006_ObjectSerializer_Deserialize_DuplicateKeyKeepsTheLastValue(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
 		"plain":            `{"id":1,"quantity":3,"id":2}`,
@@ -1575,7 +1575,7 @@ func TestObjectSerializer_Deserialize_DuplicateKeyKeepsTheLastValue(t *testing.T
 	}
 }
 
-func TestObjectSerializer_Deserialize_MiscasedRequiredKeyIsMissing(t *testing.T) {
+func TestBhvSerializationobject126_ObjectSerializer_Deserialize_MiscasedRequiredKeyIsMissing(t *testing.T) {
 	t.Parallel()
 	var pet models.Pet
 	err := deserialize([]byte(`{"NAME":"Rex","photoUrls":[]}`), &pet)
@@ -1589,7 +1589,7 @@ func TestObjectSerializer_Deserialize_MiscasedRequiredKeyIsMissing(t *testing.T)
 // Order.status declares `default: placed`; when the payload omits "status" the
 // deserialized model must report "placed", not a nil/zero value. ──
 
-func TestObjectSerializer_Deserialize_AppliesSchemaDefaultForAbsentField(t *testing.T) {
+func TestBhvSerializationobject053_ObjectSerializer_Deserialize_AppliesSchemaDefaultForAbsentField(t *testing.T) {
 	t.Parallel()
 	raw := []byte(`{"id":10,"petId":198772}`)
 	var order models.Order
@@ -1632,7 +1632,7 @@ func TestObjectSerializer_ModelEqual_Different(t *testing.T) {
 
 // A Pet carries slice/Set fields (PhotoUrls, Tags). The built-in `==` operator
 // panics at runtime on such values; Equal() must compare them without panicking.
-func TestObjectSerializer_ModelEqual_SliceBearingModel(t *testing.T) {
+func TestBhvSerializationobject090_ObjectSerializer_ModelEqual_SliceBearingModel(t *testing.T) {
 	t.Parallel()
 	a := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "b"}}
 	b := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "b"}}
@@ -1684,7 +1684,7 @@ func TestObjectSerializer_Deserialize_RecursiveModelDecodesNestedNode(t *testing
 	}
 }
 
-func TestObjectSerializer_ResolveOneOf_ReturnsFirstMatch(t *testing.T) {
+func TestBhvSerializationobject128_ObjectSerializer_ResolveOneOf_ReturnsFirstMatch(t *testing.T) {
 	t.Parallel()
 	candidates := []func(any) (any, error){
 		func(any) (any, error) { return nil, errors.New("variant A does not match") },
@@ -1701,7 +1701,7 @@ func TestObjectSerializer_ResolveOneOf_ReturnsFirstMatch(t *testing.T) {
 
 // A payload matching none of the declared variants is a contract violation and
 // must fail loudly with a non-nil error rather than be silently returned as nil.
-func TestObjectSerializer_ResolveOneOf_ThrowsOnNoMatch(t *testing.T) {
+func TestBhvSerializationobject129_ObjectSerializer_ResolveOneOf_ThrowsOnNoMatch(t *testing.T) {
 	t.Parallel()
 	candidates := []func(any) (any, error){
 		func(any) (any, error) { return nil, errors.New("variant A does not match") },
@@ -1713,7 +1713,7 @@ func TestObjectSerializer_ResolveOneOf_ThrowsOnNoMatch(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ResolveAnyOf_ThrowsOnNoMatch(t *testing.T) {
+func TestBhvSerializationobject127_ObjectSerializer_ResolveAnyOf_ThrowsOnNoMatch(t *testing.T) {
 	t.Parallel()
 	candidates := []func(any) (any, error){
 		func(any) (any, error) { return nil, errors.New("no match") },
@@ -1731,7 +1731,7 @@ func TestObjectSerializer_ResolveAnyOf_ThrowsOnNoMatch(t *testing.T) {
 // the bare number must resolve back to the typed member. A String-backed
 // template would have quoted the value on the wire and broken this contract.
 
-func TestObjectSerializer_PriorityEnum_SerializesAsJSONNumber(t *testing.T) {
+func TestBhvSerializationobject093_ObjectSerializer_PriorityEnum_SerializesAsJSONNumber(t *testing.T) {
 	t.Parallel()
 	data, err := serialize(models.PriorityNumber2)
 	if err != nil {
@@ -1745,7 +1745,7 @@ func TestObjectSerializer_PriorityEnum_SerializesAsJSONNumber(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_PriorityEnum_DeserializesFromJSONNumber(t *testing.T) {
+func TestBhvSerializationobject092_ObjectSerializer_PriorityEnum_DeserializesFromJSONNumber(t *testing.T) {
 	t.Parallel()
 	var p models.Priority
 	if err := deserialize([]byte("2"), &p); err != nil {
@@ -1771,7 +1771,7 @@ func TestObjectSerializer_PriorityEnum_RejectsUnknownNumber(t *testing.T) {
 // mangling leaking to the wire), a known value must resolve to its member, and
 // an undeclared value must be rejected on deserialize.
 
-func TestObjectSerializer_AvailabilityEnum_PreservesWireCasingRoundTrip(t *testing.T) {
+func TestBhvSerializationobject109_ObjectSerializer_AvailabilityEnum_PreservesWireCasingRoundTrip(t *testing.T) {
 	t.Parallel()
 	for _, v := range []models.Availability{
 		models.AvailabilityAvailable,
@@ -1799,7 +1799,7 @@ func TestObjectSerializer_AvailabilityEnum_PreservesWireCasingRoundTrip(t *testi
 // F1144: the members whose wire values hold a quote, a backslash, a dollar and
 // a brace sequence round-trip exactly, with the wire text JSON-escaped only
 // where JSON requires it.
-func TestObjectSerializer_AvailabilityEnum_HostileMembersRoundTripExactly(t *testing.T) {
+func TestBhvSerializationobject076_ObjectSerializer_AvailabilityEnum_HostileMembersRoundTripExactly(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		value models.Availability
@@ -1830,7 +1830,7 @@ func TestObjectSerializer_AvailabilityEnum_HostileMembersRoundTripExactly(t *tes
 
 // F1146: an inline enum keeps its declared wire spellings (In-Stock, on-hold,
 // OUT_OF_STOCK) through a model body and rejects anything else.
-func TestObjectSerializer_EdgeCases_InlinePhaseEnumRoundTripsItsWireValues(t *testing.T) {
+func TestBhvSerializationobject022_ObjectSerializer_EdgeCases_InlinePhaseEnumRoundTripsItsWireValues(t *testing.T) {
 	t.Parallel()
 	for _, phase := range []models.EdgeCasesPhaseEnum{
 		models.EdgeCasesPhaseEnumInStock,
@@ -1883,7 +1883,7 @@ func TestObjectSerializer_EdgeCases_CutoffTimeRoundTripsAsText(t *testing.T) {
 // F1111: unevaluatedProperties:false refuses an undeclared key as a
 // *SerializationError, still decodes the declared keys, and does not leak onto
 // a model that does not declare it.
-func TestObjectSerializer_StrictTag_UndeclaredKeyIsRejectedAndDeclaredKeysDecode(t *testing.T) {
+func TestBhvSerializationobject047_ObjectSerializer_StrictTag_UndeclaredKeyIsRejectedAndDeclaredKeysDecode(t *testing.T) {
 	t.Parallel()
 	var strict models.StrictTag
 	err := deserialize([]byte(`{"id":1,"name":"a","extra":2}`), &strict)
@@ -1909,7 +1909,7 @@ func TestObjectSerializer_StrictTag_UndeclaredKeyIsRejectedAndDeclaredKeysDecode
 	}
 }
 
-func TestObjectSerializer_AvailabilityEnum_DeserializesKnownValue(t *testing.T) {
+func TestBhvSerializationobject069_ObjectSerializer_AvailabilityEnum_DeserializesKnownValue(t *testing.T) {
 	t.Parallel()
 	var a models.Availability
 	if err := deserialize([]byte("\"Available\""), &a); err != nil {
@@ -1920,7 +1920,7 @@ func TestObjectSerializer_AvailabilityEnum_DeserializesKnownValue(t *testing.T) 
 	}
 }
 
-func TestObjectSerializer_AvailabilityEnum_RejectsUnknownValue(t *testing.T) {
+func TestBhvSerializationobject059_ObjectSerializer_AvailabilityEnum_RejectsUnknownValue(t *testing.T) {
 	t.Parallel()
 	var a models.Availability
 	if err := deserialize([]byte("\"available\""), &a); err == nil {
@@ -1935,7 +1935,7 @@ func TestObjectSerializer_AvailabilityEnum_RejectsUnknownValue(t *testing.T) {
 // Both must serialize to base64 JSON strings and decode back to the original
 // raw bytes, including bytes that are invalid UTF-8 (0x00, 0xFF).
 
-func TestObjectSerializer_ByteField_ScalarRoundTripsThroughBase64(t *testing.T) {
+func TestBhvSerializationobject079_ObjectSerializer_ByteField_ScalarRoundTripsThroughBase64(t *testing.T) {
 	t.Parallel()
 	raw := []byte{0x00, 0xFF, 0x10, 0x42}
 	passport := models.PetPassport{Thumbnail: &raw}
@@ -1958,7 +1958,7 @@ func TestObjectSerializer_ByteField_ScalarRoundTripsThroughBase64(t *testing.T) 
 	}
 }
 
-func TestObjectSerializer_ByteField_ArrayRoundTripsThroughBase64(t *testing.T) {
+func TestBhvSerializationobject026_ObjectSerializer_ByteField_ArrayRoundTripsThroughBase64(t *testing.T) {
 	t.Parallel()
 	scans := [][]byte{{0x01, 0x02}, {0xFE, 0xFF}}
 	passport := models.PetPassport{Scans: &scans}
@@ -1987,7 +1987,7 @@ func TestObjectSerializer_ByteField_ArrayRoundTripsThroughBase64(t *testing.T) {
 // ({"lat":5}) rather than {"lat":5.0} must deserialize cleanly into the float
 // field without a type-mismatch crash.
 
-func TestObjectSerializer_DoubleField_DeserializesFromIntegralJSON(t *testing.T) {
+func TestBhvSerializationobject071_ObjectSerializer_DoubleField_DeserializesFromIntegralJSON(t *testing.T) {
 	t.Parallel()
 	var loc models.PhotoMetadataLocation
 	if err := deserialize([]byte(`{"lat":5,"lng":-7}`), &loc); err != nil {
@@ -2007,7 +2007,7 @@ func TestObjectSerializer_DoubleField_DeserializesFromIntegralJSON(t *testing.T)
 // deserialize, then re-emits them at the TOP level of the object on serialize —
 // NOT nested under an "additionalProperties"/"additional_properties" key.
 
-func TestObjectSerializer_AdditionalProperties_CapturedAndReSerializedAtTopLevel(t *testing.T) {
+func TestBhvSerializationobject020_ObjectSerializer_AdditionalProperties_CapturedAndReSerializedAtTopLevel(t *testing.T) {
 	t.Parallel()
 	input := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42}`)
 
@@ -2039,7 +2039,7 @@ func TestObjectSerializer_AdditionalProperties_CapturedAndReSerializedAtTopLevel
 // array must produce real typed int32 leaves (not raw any/float64), and
 // re-serializing must reproduce the structure.
 
-func TestObjectSerializer_NestedContainer_ArrayOfArrayDeepRoundTrips(t *testing.T) {
+func TestBhvSerializationobject108_ObjectSerializer_NestedContainer_ArrayOfArrayDeepRoundTrips(t *testing.T) {
 	t.Parallel()
 	input := []byte(`{"priority":1,"matrix":[[1,2,3],[4,5]]}`)
 
@@ -2075,7 +2075,7 @@ func TestObjectSerializer_NestedContainer_ArrayOfArrayDeepRoundTrips(t *testing.
 // matching the other SDKs. encoding/json's Marshal returns an
 // UnsupportedValueError for a non-finite float, which serialize wraps (RFC 8259
 // §6 has no NaN/Infinity token).
-func TestObjectSerializer_Serialize_NonFiniteFloatIsSerializationError(t *testing.T) {
+func TestBhvSerializationobject153_ObjectSerializer_Serialize_NonFiniteFloatIsSerializationError(t *testing.T) {
 	t.Parallel()
 	for _, v := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
 		_, err := serialize(v)
@@ -2101,7 +2101,7 @@ func TestObjectSerializer_Serialize_NilEmitsNull(t *testing.T) {
 // A bare JSON null body deserializes without error, leaving the target at its
 // zero value. Go has no nullable-model concept, so this is the equivalent of the
 // null/None the dynamically-typed SDKs return for a null body.
-func TestObjectSerializer_Deserialize_LiteralNullBodyIsNoError(t *testing.T) {
+func TestBhvSerializationobject067_ObjectSerializer_Deserialize_LiteralNullBodyIsNoError(t *testing.T) {
 	t.Parallel()
 	var category models.Category
 	if err := deserialize([]byte("null"), &category); err != nil {
@@ -2168,7 +2168,7 @@ func TestObjectSerializer_Deserialize_StrictBase64ForByteFields(t *testing.T) {
 
 // A nickname longer than its declared maxLength is not enforced by the decoder:
 // the value decodes and goes back out unchanged.
-func TestObjectSerializer_Deserialize_NicknameBeyondItsMaxLengthRoundTrips(t *testing.T) {
+func TestBhvSerializationobject010_ObjectSerializer_Deserialize_NicknameBeyondItsMaxLengthRoundTrips(t *testing.T) {
 	t.Parallel()
 	var pet models.Pet
 	if err := deserialize([]byte(`{"name":"x","photoUrls":[],"nickname":"ZZZZZZZZZZ"}`), &pet); err != nil {
@@ -2189,7 +2189,7 @@ func TestObjectSerializer_Deserialize_NicknameBeyondItsMaxLengthRoundTrips(t *te
 // BinaryVault equality compares byte arrays by content, never by reference,
 // for a bare array, a list of arrays and a map of arrays, and tells a list from
 // a map.
-func TestObjectSerializer_BinaryVault_EqualityComparesByteArraysByContent(t *testing.T) {
+func TestBhvSerializationobject075_ObjectSerializer_BinaryVault_EqualityComparesByteArraysByContent(t *testing.T) {
 	t.Parallel()
 	vaultOf := func(seal string, shard string, label string) models.BinaryVault {
 		sealBytes := []byte(seal)
@@ -2221,7 +2221,7 @@ func TestObjectSerializer_BinaryVault_EqualityComparesByteArraysByContent(t *tes
 // A format:uri field accepts any absolute URI, whatever its scheme, and keeps
 // its text byte-for-byte; a relative reference, free text or an empty string
 // is a *SerializationError. A format:uri-reference field stays a plain string.
-func TestObjectSerializer_Deserialize_FormatUriAcceptsOnlyAbsoluteUris(t *testing.T) {
+func TestBhvSerializationobject021_ObjectSerializer_Deserialize_FormatUriAcceptsOnlyAbsoluteUris(t *testing.T) {
 	t.Parallel()
 	for _, value := range []string{
 		"urn:isbn:0451450523", "mailto:a@b.com", "ftp://x.org/f", "https://example.com/items/1",
@@ -2257,7 +2257,7 @@ func TestObjectSerializer_Deserialize_FormatUriAcceptsOnlyAbsoluteUris(t *testin
 
 // A payload within the 1000-deep nesting cap decodes; one past it is rejected as
 // a *SerializationError (the jsonMaxDepth pre-flight guard).
-func TestObjectSerializer_Deserialize_DeepJSONDepthCap(t *testing.T) {
+func TestBhvSerializationobject051_ObjectSerializer_Deserialize_DeepJSONDepthCap(t *testing.T) {
 	t.Parallel()
 	within := []byte(strings.Repeat("[", 600) + strings.Repeat("]", 600))
 	var shallow any
@@ -2340,7 +2340,7 @@ func TestObjectSerializer_Deserialize_IntegerFormatBoundaries(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Error_SchemaNamedErrorKeepsItsNameAndRoundTrips(t *testing.T) {
+func TestBhvSerializationobject104_ObjectSerializer_Error_SchemaNamedErrorKeepsItsNameAndRoundTrips(t *testing.T) {
 	t.Parallel()
 	wire := []byte(`{"lastError":{"code":1,"message":"m"}}`)
 
@@ -2376,7 +2376,7 @@ func TestObjectSerializer_LooksLikeJSONDocument(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ConvertsIntegerToString(t *testing.T) {
+func TestBhvSerializationobject039_ObjectSerializer_ConvertsIntegerToString(t *testing.T) {
 	t.Parallel()
 	for name, got := range map[string]any{
 		"path":   toPathValue(42),
@@ -2391,7 +2391,7 @@ func TestObjectSerializer_ConvertsIntegerToString(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ConvertsTrueToTrue(t *testing.T) {
+func TestBhvSerializationobject041_ObjectSerializer_ConvertsTrueToTrue(t *testing.T) {
 	t.Parallel()
 	for name, got := range map[string]any{
 		"path":   toPathValue(true),
@@ -2405,7 +2405,7 @@ func TestObjectSerializer_ConvertsTrueToTrue(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_ConvertsFalseToFalse(t *testing.T) {
+func TestBhvSerializationobject034_ObjectSerializer_ConvertsFalseToFalse(t *testing.T) {
 	t.Parallel()
 	for name, got := range map[string]any{
 		"path":   toPathValue(false),
@@ -2419,7 +2419,7 @@ func TestObjectSerializer_ConvertsFalseToFalse(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_IntegerReturnsStringRepresentation(t *testing.T) {
+func TestBhvSerializationobject091_ObjectSerializer_IntegerReturnsStringRepresentation(t *testing.T) {
 	t.Parallel()
 	if got := stringify(42); got != "42" {
 		t.Errorf("expected '42', got %q", got)
@@ -2433,28 +2433,28 @@ func TestObjectSerializer_LongReturnsStringRepresentation(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_DoubleReturnsStringRepresentation(t *testing.T) {
+func TestBhvSerializationobject078_ObjectSerializer_DoubleReturnsStringRepresentation(t *testing.T) {
 	t.Parallel()
 	if got := stringify(3.14); got != "3.14" {
 		t.Errorf("expected '3.14', got %q", got)
 	}
 }
 
-func TestObjectSerializer_ReturnsTheStringForAStringValue(t *testing.T) {
+func TestBhvSerializationobject139_ObjectSerializer_ReturnsTheStringForAStringValue(t *testing.T) {
 	t.Parallel()
 	if got := stringify("hello"); got != "hello" {
 		t.Errorf("expected 'hello', got %q", got)
 	}
 }
 
-func TestObjectSerializer_NullReturnsEmptyString(t *testing.T) {
+func TestBhvSerializationobject110_ObjectSerializer_NullReturnsEmptyString(t *testing.T) {
 	t.Parallel()
 	if got := stringify(nil); got != "" {
 		t.Errorf("expected empty string for nil, got %q", got)
 	}
 }
 
-func TestObjectSerializer_ReturnsEmptyStringForNull(t *testing.T) {
+func TestBhvSerializationobject132_ObjectSerializer_ReturnsEmptyStringForNull(t *testing.T) {
 	t.Parallel()
 	for name, got := range map[string]string{
 		"path":   toPathValue(nil),
@@ -2468,7 +2468,7 @@ func TestObjectSerializer_ReturnsEmptyStringForNull(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_HandlesNull(t *testing.T) {
+func TestBhvSerializationobject087_ObjectSerializer_HandlesNull(t *testing.T) {
 	t.Parallel()
 	if got := toQueryValue(nil, ""); got != nil {
 		t.Errorf("expected nil query value for nil, got %v", got)
@@ -2486,7 +2486,7 @@ func TestObjectSerializer_DateTimeReturnsIso8601String(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_DateTimeSerializationPreservesSubsecondPrecision(t *testing.T) {
+func TestBhvSerializationobject046_ObjectSerializer_DateTimeSerializationPreservesSubsecondPrecision(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 123000000, time.UTC)
 	if got := stringify(models.DateTime(ts)); got != "2024-01-01T12:30:45.123+00:00" {
@@ -2494,7 +2494,7 @@ func TestObjectSerializer_DateTimeSerializationPreservesSubsecondPrecision(t *te
 	}
 }
 
-func TestObjectSerializer_MalformedDateTimeThrowsSerializationError(t *testing.T) {
+func TestBhvSerializationobject102_ObjectSerializer_MalformedDateTimeThrowsSerializationError(t *testing.T) {
 	t.Parallel()
 	var model models.EdgeCases
 	err := deserialize([]byte(`{"expiresAt":"not-a-date"}`), &model)
@@ -2504,7 +2504,7 @@ func TestObjectSerializer_MalformedDateTimeThrowsSerializationError(t *testing.T
 	}
 }
 
-func TestObjectSerializer_DeserializesJsonToTypedModel(t *testing.T) {
+func TestBhvSerializationobject070_ObjectSerializer_DeserializesJsonToTypedModel(t *testing.T) {
 	t.Parallel()
 	var category models.Category
 	if err := deserialize([]byte(`{"id":1,"name":"Dogs"}`), &category); err != nil {
@@ -2518,7 +2518,7 @@ func TestObjectSerializer_DeserializesJsonToTypedModel(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_SerializesModelToValidJson(t *testing.T) {
+func TestBhvSerializationobject152_ObjectSerializer_SerializesModelToValidJson(t *testing.T) {
 	t.Parallel()
 	id, name := int64(1), "Dogs"
 	data, err := serialize(models.Category{Id: &id, Name: &name})
@@ -2533,42 +2533,42 @@ func TestObjectSerializer_SerializesModelToValidJson(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_JoinsArrayWithCommaByDefault(t *testing.T) {
+func TestBhvSerializationobject097_ObjectSerializer_JoinsArrayWithCommaByDefault(t *testing.T) {
 	t.Parallel()
 	if got := toQueryValue([]string{"a", "b", "c"}, ""); got != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %v", got)
 	}
 }
 
-func TestObjectSerializer_JoinsArrayWithComma(t *testing.T) {
+func TestBhvSerializationobject096_ObjectSerializer_JoinsArrayWithComma(t *testing.T) {
 	t.Parallel()
 	if got := toHeaderValue([]string{"a", "b", "c"}); got != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %q", got)
 	}
 }
 
-func TestObjectSerializer_JoinsArrayWithCommaForCsv(t *testing.T) {
+func TestBhvSerializationobject098_ObjectSerializer_JoinsArrayWithCommaForCsv(t *testing.T) {
 	t.Parallel()
 	if got := toQueryValue([]string{"a", "b", "c"}, "csv"); got != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %v", got)
 	}
 }
 
-func TestObjectSerializer_JoinsArrayWithPipeForPipes(t *testing.T) {
+func TestBhvSerializationobject099_ObjectSerializer_JoinsArrayWithPipeForPipes(t *testing.T) {
 	t.Parallel()
 	if got := toQueryValue([]string{"a", "b", "c"}, "pipes"); got != "a|b|c" {
 		t.Errorf("expected 'a|b|c', got %v", got)
 	}
 }
 
-func TestObjectSerializer_JoinsArrayWithSpaceForSsv(t *testing.T) {
+func TestBhvSerializationobject100_ObjectSerializer_JoinsArrayWithSpaceForSsv(t *testing.T) {
 	t.Parallel()
 	if got := toQueryValue([]string{"a", "b", "c"}, "ssv"); got != "a b c" {
 		t.Errorf("expected 'a b c', got %v", got)
 	}
 }
 
-func TestObjectSerializer_JoinsArrayWithTabForTsv(t *testing.T) {
+func TestBhvSerializationobject101_ObjectSerializer_JoinsArrayWithTabForTsv(t *testing.T) {
 	t.Parallel()
 	if got := toQueryValue([]string{"a", "b", "c"}, "tsv"); got != "a\tb\tc" {
 		t.Errorf("expected tab-joined 'a b c', got %q", got)

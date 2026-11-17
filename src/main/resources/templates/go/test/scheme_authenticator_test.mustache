@@ -130,7 +130,7 @@ func requireScheme{{className}}Credentials(t *testing.T, a *{{package}}.{{classN
 {{/isOAuth}}
 }
 
-func TestSchemeAuthenticator_{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
 
 	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
@@ -175,7 +175,7 @@ func TestSchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnse
 }
 {{#isBearer}}
 
-func TestSchemeAuthenticator_{{className}}_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
+func TestBhvAuthscheme002_SchemeAuthenticator_{{className}}_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
 	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
 
 	a, err := {{package}}.New{{className}}WithProvider(schemeHost, schemeTokenFrom("provider-token"))

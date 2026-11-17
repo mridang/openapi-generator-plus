@@ -46,7 +46,7 @@ func newStoreApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.
 
 // F1128: createAccount sends the write-only password, keeps the read-only id
 // of the response, and carries no credential of its own.
-func TestStoreApi_CreateAccountSendsPasswordAndDecodesReadOnlyId(t *testing.T) {
+func TestBhvOperations098_StoreApi_CreateAccountSendsPasswordAndDecodesReadOnlyId(t *testing.T) {
 	t.Parallel()
 	var gotBody, gotMethod, gotPath, gotAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +80,7 @@ func TestStoreApi_CreateAccountSendsPasswordAndDecodesReadOnlyId(t *testing.T) {
 
 // F1161: the typed status routes of the mock answer getOrderById with each
 // status, and the matching status-specific error class is chosen.
-func TestStoreApi_GetOrderByIdPicksTheStatusSpecificErrorClass(t *testing.T) {
+func TestBhvOperations110_StoreApi_GetOrderByIdPicksTheStatusSpecificErrorClass(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		status int
@@ -110,7 +110,7 @@ func TestStoreApi_GetOrderByIdPicksTheStatusSpecificErrorClass(t *testing.T) {
 }
 
 // F1069: a uuid path parameter reaches the path in its canonical lowercase form.
-func TestStoreApi_GetOrderByTrackingIdPutsTheLowercaseUuidInThePath(t *testing.T) {
+func TestBhvOperations124_StoreApi_GetOrderByTrackingIdPutsTheLowercaseUuidInThePath(t *testing.T) {
 	t.Parallel()
 	var gotPath string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -131,7 +131,7 @@ func TestStoreApi_GetOrderByTrackingIdPutsTheLowercaseUuidInThePath(t *testing.T
 	}
 }
 
-func TestStoreApi_PlaceOrder(t *testing.T) {
+func TestBhvOperations117_StoreApi_PlaceOrder(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
@@ -146,7 +146,7 @@ func TestStoreApi_PlaceOrder(t *testing.T) {
 	}
 }
 
-func TestStoreApi_PlaceOrderWithHTTPInfo(t *testing.T) {
+func TestBhvOperations119_StoreApi_PlaceOrderWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
@@ -170,7 +170,7 @@ func TestStoreApi_PlaceOrderWithHTTPInfo(t *testing.T) {
 	}
 }
 
-func TestStoreApi_GetOrderById(t *testing.T) {
+func TestBhvOperations104_StoreApi_GetOrderById(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
@@ -183,7 +183,7 @@ func TestStoreApi_GetOrderById(t *testing.T) {
 	}
 }
 
-func TestStoreApi_GetOrderByIdWithHTTPInfo(t *testing.T) {
+func TestBhvOperations105_StoreApi_GetOrderByIdWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
@@ -202,7 +202,7 @@ func TestStoreApi_GetOrderByIdWithHTTPInfo(t *testing.T) {
 	}
 }
 
-func TestStoreApi_DeleteOrder(t *testing.T) {
+func TestBhvOperations099_StoreApi_DeleteOrder(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
@@ -212,7 +212,7 @@ func TestStoreApi_DeleteOrder(t *testing.T) {
 	}
 }
 
-func TestStoreApi_GetInventory(t *testing.T) {
+func TestBhvOperations102_StoreApi_GetInventory(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
@@ -225,7 +225,7 @@ func TestStoreApi_GetInventory(t *testing.T) {
 	}
 }
 
-func TestStoreApi_GetInventoryWithHTTPInfo(t *testing.T) {
+func TestBhvOperations103_StoreApi_GetInventoryWithHTTPInfo(t *testing.T) {
 	t.Parallel()
 	api := newStoreApiForIntegration(t)
 
@@ -244,7 +244,7 @@ func TestStoreApi_GetInventoryWithHTTPInfo(t *testing.T) {
 	}
 }
 
-func TestStoreApi_GetOrderNotFound(t *testing.T) {
+func TestBhvOperations106_StoreApi_GetOrderNotFound(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -268,7 +268,7 @@ func TestStoreApi_GetOrderNotFound(t *testing.T) {
 	}
 }
 
-func TestStoreApi_PlaceOrderServerError(t *testing.T) {
+func TestBhvOperations118_StoreApi_PlaceOrderServerError(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -297,7 +297,7 @@ func TestStoreApi_PlaceOrderServerError(t *testing.T) {
 // leaves are typed Category instances, not raw maps. The static type of the
 // result already guarantees this in Go; this asserts the values decode and the
 // typed fields are populated end-to-end through the operation.
-func TestStoreApi_GetGroupedCategoriesDeserializesTypedLeaves(t *testing.T) {
+func TestBhvOperations101_StoreApi_GetGroupedCategoriesDeserializesTypedLeaves(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -338,7 +338,7 @@ func TestStoreApi_GetGroupedCategoriesDeserializesTypedLeaves(t *testing.T) {
 	}
 }
 
-func TestStoreApi_DeleteOrderNotFound(t *testing.T) {
+func TestBhvOperations100_StoreApi_DeleteOrderNotFound(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -373,7 +373,7 @@ func jsonStoreServer(body string, seen func(*http.Request)) *httptest.Server {
 // A named-enum ($ref) parameter reaches the wire as its declared value in the
 // path, in the query and in a header, never as a Go-specific rendering of the
 // type.
-func TestStoreApi_GetBySwatchSendsTheEnumWireValueInPathQueryAndHeader(t *testing.T) {
+func TestBhvOperations122_StoreApi_GetBySwatchSendsTheEnumWireValueInPathQueryAndHeader(t *testing.T) {
 	t.Parallel()
 	var path, query, header string
 	server := jsonStoreServer(`{"id":1,"name":"echo"}`, func(r *http.Request) {
@@ -408,7 +408,7 @@ func TestStoreApi_GetBySwatchSendsTheEnumWireValueInPathQueryAndHeader(t *testin
 }
 
 // The optional enum parameters are left off the wire when they are not set.
-func TestStoreApi_GetBySwatchOmitsUnsetOptionalEnumParameters(t *testing.T) {
+func TestBhvOperations107_StoreApi_GetBySwatchOmitsUnsetOptionalEnumParameters(t *testing.T) {
 	t.Parallel()
 	var query, header string
 	server := jsonStoreServer(`{"id":1}`, func(r *http.Request) {
@@ -508,7 +508,7 @@ func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 
 // A model that refers back to the one that contains it decodes through the
 // operation without recursing forever.
-func TestStoreApi_GetDepartmentDecodesTheMutualReference(t *testing.T) {
+func TestBhvOperations108_StoreApi_GetDepartmentDecodesTheMutualReference(t *testing.T) {
 	t.Parallel()
 	server := jsonStoreServer(`{"name":"eng","lead":{"name":"ada","department":{"name":"inner"}}}`, func(*http.Request) {})
 	defer server.Close()
@@ -528,7 +528,7 @@ func TestStoreApi_GetDepartmentDecodesTheMutualReference(t *testing.T) {
 // A model with schema defaults decodes through the operation: the values the
 // server sent win, an explicit null stays null, and an absent key takes its
 // declared default.
-func TestStoreApi_GetDefaultsDecodesTheServersValues(t *testing.T) {
+func TestBhvOperations123_StoreApi_GetDefaultsDecodesTheServersValues(t *testing.T) {
 	t.Parallel()
 	server := jsonStoreServer(`{"retries":5,"mode":"high","label":null,"swatch":"blue","ceiling":9000000001}`, func(*http.Request) {})
 	defer server.Close()
@@ -559,7 +559,7 @@ func TestStoreApi_GetDefaultsDecodesTheServersValues(t *testing.T) {
 
 // F827: an operation with no parameter and no security has no options struct,
 // and still takes the per-call options like every other operation.
-func TestStoreApi_AnOperationWithoutAnOptionsStructTakesPerCallHeaders(t *testing.T) {
+func TestBhvOperations096_StoreApi_AnOperationWithoutAnOptionsStructTakesPerCallHeaders(t *testing.T) {
 	t.Parallel()
 	var sent string
 	server := jsonStoreServer(`{}`, func(r *http.Request) { sent = r.Header.Get("X-Call") })
@@ -575,7 +575,7 @@ func TestStoreApi_AnOperationWithoutAnOptionsStructTakesPerCallHeaders(t *testin
 }
 
 // An optional date-time query parameter is sent in the canonical date-time form.
-func TestStoreApi_GetStockItemSendsTheAsOfInstantAsDateTime(t *testing.T) {
+func TestBhvOperations112_StoreApi_GetStockItemSendsTheAsOfInstantAsDateTime(t *testing.T) {
 	t.Parallel()
 	var query string
 	server := jsonStoreServer(`{"priority":1}`, func(r *http.Request) {
@@ -594,7 +594,7 @@ func TestStoreApi_GetStockItemSendsTheAsOfInstantAsDateTime(t *testing.T) {
 
 // A content-encoded query value goes through the body serializer: compact
 // JSON with '/', '<' and non-ASCII left unescaped, then percent-encoded.
-func TestStoreApi_SearchStoreSerializesTheContentQueryLikeABody(t *testing.T) {
+func TestBhvOperations097_StoreApi_SearchStoreSerializesTheContentQueryLikeABody(t *testing.T) {
 	t.Parallel()
 	var query string
 	server := jsonStoreServer(`[]`, func(r *http.Request) {
@@ -640,7 +640,7 @@ func TestStoreApi_SearchStoreRejectsAnUnserializableContentQuery(t *testing.T) {
 // An operation with several success responses decodes the body as the schema of
 // the status the server answered with, never by guessing from its shape: this
 // body fits both schemas, and the status alone says which one it is.
-func TestStoreApi_ReserveStockDecodesTheBodyByItsStatus(t *testing.T) {
+func TestBhvOperations120_StoreApi_ReserveStockDecodesTheBodyByItsStatus(t *testing.T) {
 	t.Parallel()
 	const both = `{"reservationId":31,"quantity":4,"receiptCode":"rcpt-77","expiresAt":"2030-01-01T00:00:00.000+00:00"}`
 	for _, tc := range []struct {

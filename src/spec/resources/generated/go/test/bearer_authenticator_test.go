@@ -29,7 +29,7 @@ func mustBearer(t *testing.T, host, token string) *auth.BearerAuthenticator {
 	return a
 }
 
-func TestBearerAuthenticator_RawTokenIsPrefixedWithBearer(t *testing.T) {
+func TestBhvAuthbearer009_BearerAuthenticator_RawTokenIsPrefixedWithBearer(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "https://api.example.com", "xyz")
 	headers := a.AuthHeaders()
@@ -38,7 +38,7 @@ func TestBearerAuthenticator_RawTokenIsPrefixedWithBearer(t *testing.T) {
 	}
 }
 
-func TestBearerAuthenticator_AlreadyPrefixedTokenIsNotDoubled(t *testing.T) {
+func TestBhvAuthbearer003_BearerAuthenticator_AlreadyPrefixedTokenIsNotDoubled(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "https://api.example.com", "Bearer xyz")
 	headers := a.AuthHeaders()
@@ -47,7 +47,7 @@ func TestBearerAuthenticator_AlreadyPrefixedTokenIsNotDoubled(t *testing.T) {
 	}
 }
 
-func TestBearerAuthenticator_LowercaseBearerPrefixIsStripped(t *testing.T) {
+func TestBhvAuthbearer007_BearerAuthenticator_LowercaseBearerPrefixIsStripped(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "https://api.example.com", "bearer xyz")
 	headers := a.AuthHeaders()
@@ -56,7 +56,7 @@ func TestBearerAuthenticator_LowercaseBearerPrefixIsStripped(t *testing.T) {
 	}
 }
 
-func TestBearerAuthenticator_MixedCaseBearerPrefixIsStripped(t *testing.T) {
+func TestBhvAuthbearer008_BearerAuthenticator_MixedCaseBearerPrefixIsStripped(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "https://api.example.com", "BeArEr xyz")
 	headers := a.AuthHeaders()
@@ -67,7 +67,7 @@ func TestBearerAuthenticator_MixedCaseBearerPrefixIsStripped(t *testing.T) {
 
 // A token that merely starts with the letters "bearer" is a different
 // credential, so only a whole-word "Bearer " prefix is removed.
-func TestBearerAuthenticator_ATokenThatMerelyBeginsWithTheWordBearerIsKeptWhole(t *testing.T) {
+func TestBhvAuthbearer015_BearerAuthenticator_ATokenThatMerelyBeginsWithTheWordBearerIsKeptWhole(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "https://api.example.com", "bearerxyz")
 	if got, want := a.AuthHeaders()["Authorization"], "Bearer bearerxyz"; got != want {
@@ -76,7 +76,7 @@ func TestBearerAuthenticator_ATokenThatMerelyBeginsWithTheWordBearerIsKeptWhole(
 }
 
 // The prefix is removed once: a doubled prefix keeps its second word.
-func TestBearerAuthenticator_ADoubledPrefixIsStrippedOnlyOnce(t *testing.T) {
+func TestBhvAuthbearer004_BearerAuthenticator_ADoubledPrefixIsStrippedOnlyOnce(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "https://api.example.com", "Bearer Bearer xyz")
 	if got, want := a.AuthHeaders()["Authorization"], "Bearer Bearer xyz"; got != want {
@@ -86,7 +86,7 @@ func TestBearerAuthenticator_ADoubledPrefixIsStrippedOnlyOnce(t *testing.T) {
 
 // A Unicode space is not blank: the printable-ASCII rule rejects it, not the
 // empty-token rule, as for the api-key authenticator.
-func TestBearerAuthenticator_AUnicodeSpaceIsNotBlankItFailsThePrintableAsciiRule(t *testing.T) {
+func TestBhvAuthbearer016_BearerAuthenticator_AUnicodeSpaceIsNotBlankItFailsThePrintableAsciiRule(t *testing.T) {
 	t.Parallel()
 	for _, token := range []string{"\u00a0", "\u2003"} {
 		_, err := auth.NewBearerAuthenticator("https://api.example.com", token)
@@ -103,7 +103,7 @@ func TestBearerAuthenticator_AUnicodeSpaceIsNotBlankItFailsThePrintableAsciiRule
 // trailing newlines from .env / file reads; CRLF would inject the
 // Authorization header, and non-ASCII bytes are silently mangled per HTTP lib.
 // The constructor returns ErrInvalidBearerToken for all of them, never panics.
-func TestBearerAuthenticator_RejectsInvalidToken(t *testing.T) {
+func TestBhvAuthbearer005_BearerAuthenticator_RejectsInvalidToken(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{"", "   ", "\t", "\f", "\v", "tok\r\nInjected: yes", "ñoño"} {
 		a, err := auth.NewBearerAuthenticator("https://api.example.com", bad)
@@ -132,7 +132,7 @@ func TestBearerAuthenticator_RejectsInvalidToken(t *testing.T) {
 
 // A per-scheme wrapper prints its own type name, not the base authenticator's,
 // and stays redacted when it is formatted as a value or through %#v.
-func TestBearerAuthenticator_SchemeWrapperPrintsItsOwnName(t *testing.T) {
+func TestBhvAuthbearer001_BearerAuthenticator_SchemeWrapperPrintsItsOwnName(t *testing.T) {
 	t.Parallel()
 	w, err := auth.NewPetStoreBearerAuthenticator("https://api.example.com", "super-secret-token")
 	if err != nil {
@@ -148,7 +148,7 @@ func TestBearerAuthenticator_SchemeWrapperPrintsItsOwnName(t *testing.T) {
 
 // authenticator-secret-in-default-string-repr: the bearer token must not leak
 // through the default string/format representation.
-func TestBearerAuthenticator_RedactsSecret(t *testing.T) {
+func TestBhvAuthbearer011_BearerAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "https://api.example.com", "super-secret-token")
 	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a), fmt.Sprintf("%v", *a), fmt.Sprintf("%+v", *a), fmt.Sprintf("%#v", *a)} {
@@ -162,7 +162,7 @@ func TestBearerAuthenticator_RedactsSecret(t *testing.T) {
 }
 
 // The printed form shows the non-secret host and masks only the token.
-func TestBearerAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+func TestBhvAuthbearer013_BearerAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "https://api.example.com", "super-secret-token")
 	want := `BearerAuthenticator{host: "https://api.example.com", token: ***}`

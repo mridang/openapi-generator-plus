@@ -104,7 +104,7 @@ func requireSchemePetStoreBasicAuthenticatorCredentials(t *testing.T, a *auth.Pe
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_PetStoreBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, "", "")
@@ -154,7 +154,7 @@ func requireSchemeAdminBasicAuthenticatorCredentials(t *testing.T, a *auth.Admin
 	}
 }
 
-func TestSchemeAuthenticator_AdminBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_AdminBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewAdminBasicAuthenticator(schemeHost, "", "")
@@ -204,7 +204,7 @@ func requireSchemePetStoreBearerAuthenticatorCredentials(t *testing.T, a *auth.P
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, "")
@@ -246,7 +246,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableTha
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
+func TestBhvAuthscheme002_SchemeAuthenticator_PetStoreBearerAuthenticator_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticatorWithProvider(schemeHost, schemeTokenFrom("provider-token"))
@@ -281,7 +281,7 @@ func requireSchemeServiceTokenAuthenticatorCredentials(t *testing.T, a *auth.Ser
 	}
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, "")
@@ -323,7 +323,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatI
 	}
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
+func TestBhvAuthscheme002_SchemeAuthenticator_ServiceTokenAuthenticator_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticatorWithProvider(schemeHost, schemeTokenFrom("provider-token"))
@@ -358,7 +358,7 @@ func requireSchemeApiKeyHeaderAuthenticatorCredentials(t *testing.T, a *auth.Api
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_ApiKeyHeaderAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
@@ -408,7 +408,7 @@ func requireSchemeInternalApiKeyAuthenticatorCredentials(t *testing.T, a *auth.I
 	}
 }
 
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_InternalApiKeyAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
 
 	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
@@ -458,7 +458,7 @@ func requireSchemeApiKeyQueryAuthenticatorCredentials(t *testing.T, a *auth.ApiK
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_ApiKeyQueryAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
@@ -508,7 +508,7 @@ func requireSchemeSessionCookieAuthenticatorCredentials(t *testing.T, a *auth.Se
 	}
 }
 
-func TestSchemeAuthenticator_SessionCookieAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_SessionCookieAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
 
 	a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
@@ -558,7 +558,7 @@ func requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t *testin
 	}
 }
 
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
 
 	a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
@@ -608,7 +608,7 @@ func requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t *testing.T, a *oa
 	}
 }
 
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
 
 	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
@@ -658,7 +658,7 @@ func requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t *testing.T
 	}
 }
 
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
 
 	a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
@@ -708,7 +708,7 @@ func requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t *testing.T, a *o
 	}
 }
 
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
 
 	a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
@@ -758,7 +758,7 @@ func requireSchemeSsoAuthAuthenticatorCredentials(t *testing.T, a *oauth.SsoAuth
 	}
 }
 
-func TestSchemeAuthenticator_SsoAuthAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestBhvAuthscheme001_SchemeAuthenticator_SsoAuthAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
 
 	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
