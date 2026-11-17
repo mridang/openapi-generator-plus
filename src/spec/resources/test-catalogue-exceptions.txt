@@ -35,3 +35,5 @@ swift | serializationobject164 | format: time maps to String in Swift (testTimeF
 swift | operations111 | the typed trackingId is a Foundation UUID, so a malformed value cannot be passed to getOrderByTrackingId; a malformed wire value is refused by the decoder (bhv serializationobject048)
 swift | redirects017 | PSR-18 is a PHP client interface with no Swift counterpart; the follow-by-default behaviour it checks is covered by bhv redirects004
 swift | retries019 | Psr18 is the PHP PSR-18 client interface and swift has no PSR-18 adapter; each sendRequest call starts its own end-to-end budget and the retries never extend it (bhv retries 025)
+swift | errors042 | URLSession owns Content-Encoding negotiation and has already decoded the body, so an unknown coding cannot be told apart from an encoded body; swift never raises on it (forced, see generators/swift AGENTS.md, Decompression and Content-Encoding)
+swift | models002 | a SwiftPM manifest (Package.swift) has no description field, so there is no package description to assert

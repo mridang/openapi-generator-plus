@@ -26,6 +26,15 @@ import Testing
         #expect(variable.enumValues == ["prod", "staging"])
     }
 
+    /* An explicitly empty enum list means any override is allowed, as an omitted one is. */
+    @Test func testBhvServers016EmptyEnumValuesMeansAnyValueAllowed() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com",
+            variables: ["env": ServerVariable(defaultValue: "prod", enumValues: [])]
+        )
+        #expect(try server.url(variables: ["env": "anything-goes"]) == "https://anything-goes.api.example.com")
+    }
+
     /* A variable with an enum constraint that includes its default resolves
      * cleanly through ServerConfiguration; a default outside the constraint
      * is rejected. These lock the enum-validation contract at the variable
