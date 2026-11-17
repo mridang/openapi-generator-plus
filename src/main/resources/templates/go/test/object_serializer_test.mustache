@@ -2558,6 +2558,23 @@ func TestObjectSerializer_Deserialize_UnroutableDiscriminatorIsSerializationErro
 	}
 }
 
+// An int64 above 2^53 keeps every digit when it is decoded.
+func TestBhvSerializationobject191_ObjectSerializer_Int64AboveTwoToThe53IsKeptExactly(t *testing.T) {
+	t.Parallel()
+	for wire, want := range map[string]int64{
+		`{"id":9007199254740993}`:   9007199254740993,
+		`{"id":9223372036854775807}`: math.MaxInt64,
+	} {
+		var order models.Order
+		if err := deserialize([]byte(wire), &order); err != nil {
+			t.Fatalf("%s: unexpected error: %v", wire, err)
+		}
+		if order.Id == nil || *order.Id != want {
+			t.Errorf("%s: expected id %d, got %v", wire, want, order.Id)
+		}
+	}
+}
+
 // Integer formats are enforced when decoding: a value outside int32 or a
 // fraction in an integer field is refused as a *SerializationError rather than
 // truncated, and an int64 beyond 2^53 survives exactly.
@@ -2589,6 +2606,17 @@ func TestBhvSerializationobject030_ObjectSerializer_Deserialize_IntegerFormatBou
 	}
 	if order.Id == nil || *order.Id != 9007199254740993 {
 		t.Errorf("expected id 9007199254740993 to survive exactly, got %v", order.Id)
+	}
+}
+
+// An enum string the spec does not declare fails when it is decoded.
+func TestBhvSerializationobject192_ObjectSerializer_UnknownEnumStringFailsAtDecode(t *testing.T) {
+	t.Parallel()
+	var a models.Availability
+	err := deserialize([]byte("\"teleported\""), &a)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
 	}
 }
 
@@ -2678,7 +2706,7 @@ func TestBhvSerializationobject091_ObjectSerializer_IntegerReturnsStringRepresen
 	}
 }
 
-func TestObjectSerializer_LongReturnsStringRepresentation(t *testing.T) {
+func TestBhvSerializationobject190_ObjectSerializer_LongReturnsStringRepresentation(t *testing.T) {
 	t.Parallel()
 	if got := stringify(int64(9007199254740993)); got != "9007199254740993" {
 		t.Errorf("expected '9007199254740993', got %q", got)
