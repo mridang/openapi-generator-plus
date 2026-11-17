@@ -10,13 +10,11 @@ class ClientTestHttpAwareCredential < {{moduleName}}::Auth::Authenticator
 
   attr_reader :injected
 
+  attr_reader :host
+
   def initialize(host)
     super()
     @host = host
-  end
-
-  def host
-    @host
   end
 
   def auth_headers
@@ -225,7 +223,7 @@ describe {{moduleName}}::{{clientClassName}} do
 
   it 'takes one optional keyword credential per security scheme, named after it' do
     keywords = {{moduleName}}::{{clientClassName}}.instance_method(:initialize).parameters
-                                                  .select { |kind, _| kind == :key }.map(&:last)
+                                                  .filter_map { |kind, name| name if kind == :key }
 
     _(keywords).must_equal %i[{{#clientSchemes}}{{argName}}{{^-last}} {{/-last}}{{/clientSchemes}}]
   end

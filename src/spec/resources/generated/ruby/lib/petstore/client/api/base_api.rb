@@ -67,7 +67,7 @@ module Petstore::Client
       #
       # @param names [Array<String>] security scheme names, in the operation's order
       # @return [Authenticator, nil]
-      def scheme_authenticator(names)
+      def scheme_authenticator(*names)
         names.each do |name|
           found = @scheme_authenticators[name]
           return found if found

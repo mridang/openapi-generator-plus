@@ -101,7 +101,7 @@ module Petstore::Client
           [],
           'application/json',
           nil,
-          scheme_authenticator(['petStoreBasic', 'petStoreBearer']),
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'StoreApi.delete_order',
           request_options: options
         )
@@ -418,7 +418,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Order',
-          scheme_authenticator(['petStoreBasic', 'petStoreBearer']),
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'StoreApi.get_order_by_id',
           request_options: options
         )
@@ -739,7 +739,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Order',
-          scheme_authenticator(['petStoreBasic', 'petStoreBearer']),
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'StoreApi.place_order',
           request_options: options
         )

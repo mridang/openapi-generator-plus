@@ -9,13 +9,11 @@ class ClientTestHttpAwareCredential < Petstore::Client::Auth::Authenticator
 
   attr_reader :injected
 
+  attr_reader :host
+
   def initialize(host)
     super()
     @host = host
-  end
-
-  def host
-    @host
   end
 
   def auth_headers
@@ -211,7 +209,7 @@ describe Petstore::Client::Petstore do
 
   it 'takes one optional keyword credential per security scheme, named after it' do
     keywords = Petstore::Client::Petstore.instance_method(:initialize).parameters
-                                                  .select { |kind, _| kind == :key }.map(&:last)
+                                                  .filter_map { |kind, name| name if kind == :key }
 
     _(keywords).must_equal %i[pet_store_basic admin_basic pet_store_bearer service_token api_key_header internal_api_key api_key_query session_cookie machine_auth legacy_auth user_auth browser_auth sso_auth]
   end

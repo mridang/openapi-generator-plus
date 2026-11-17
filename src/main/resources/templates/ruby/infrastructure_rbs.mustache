@@ -541,7 +541,7 @@
       NO_AUTH: Object
       attr_reader config: Configuration
       def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?, ?Hash[String, Auth::Authenticator]) -> void
-      def scheme_authenticator: (Array[String]) -> Auth::Authenticator?
+      def scheme_authenticator: (*String) -> Auth::Authenticator?
       def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped) -> ApiResult[untyped]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private
