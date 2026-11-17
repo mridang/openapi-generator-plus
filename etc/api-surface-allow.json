@@ -3254,6 +3254,57 @@
     "swift"
    ],
    "reason": "F830: swift declares the request context as `public internal(set) var`, and the extractor's modifier pattern does not read `internal(set)` (as for `private(set)` above), so the public get-only property is reported missing; delete this rule when the extractor reads it"
+  },
+  {
+   "element": [
+    "petapi.*",
+    "storeapi.*"
+   ],
+   "aspect": "params",
+   "value": "*options*",
+   "languages": [
+    "php"
+   ],
+   "reason": "F827: php takes the options object on every operation (mintsOptionsForEveryOperation); the other languages add it in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": "*options",
+   "aspect": "type",
+   "languages": [
+    "php"
+   ],
+   "reason": "F827: php mints an Options class for every operation, so the classes of operations without parameters or security exist only in php until the other languages adopt it, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "addpetoptions.auth",
+    "addpettreatmentoptions.auth",
+    "deletepetoptions.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "php"
+   ],
+   "reason": "F857: owner decision, no per-call scheme override; php dropped the Options auth field first and the other languages drop it in their own adopt branches, after which this rule is deleted"
+  },
+  {
+   "element": "baseapi.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "php"
+   ],
+   "reason": "F857/F1078: php's BaseApi is built by the client with the per-scheme credentials and the shared client lifecycle; it is internal to the SDK and its shape follows the client of each language, so it is not part of a cross-language contract"
+  },
+  {
+   "element": [
+    "clientlifecycle",
+    "compositeauthenticator"
+   ],
+   "aspect": "type",
+   "languages": [
+    "php"
+   ],
+   "reason": "F1078/F857: php needs a shared closed-state object (one instance shared by the client and every API group, which readonly typed properties cannot share by value) and a composite authenticator for a requirement that needs several schemes together; other languages realise both inside existing types"
   }
  ]
 }
