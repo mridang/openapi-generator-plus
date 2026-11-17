@@ -14,3 +14,4 @@ go | lifecycle015 | Go has no keyword arguments, so one credential per security 
 rust | authintegration011 | Rust operations take no per-call authenticator and the Options structs are plain data with no authenticator field, a shape the type system enforces at compile time, so no run-time test can observe its absence
 rust | options007 | max_retries takes a u32, so a negative count cannot be passed and the compiler rejects it before the builder runs
 rust | models009 | additional properties are a HashMap<String, JsonValue> that keeps any JSON value (models001 covers the round trip), so a string-only type is not the rust contract
+dart | serializationobject164 | Dart has no time-of-day type: a format: time property is a String that the SDK passes through unchanged (serializationobject114), so there is no HH:mm:ss or .SSS formatter to test

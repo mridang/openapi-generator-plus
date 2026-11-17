@@ -249,7 +249,7 @@ void main() {
       expect(toPathValue(false), equals('false'));
     });
 
-    test('toPathValue null', () {
+    test('bhv serializationobject 131 toPathValue null returns empty string', () {
       expect(toPathValue(null), equals(''));
     });
 
@@ -309,7 +309,7 @@ void main() {
       expect(toHeaderValue(42), equals('42'));
     });
 
-    test('toHeaderValue null', () {
+    test('bhv serializationobject 132 toHeaderValue null returns empty string', () {
       expect(toHeaderValue(null), equals(''));
     });
 
@@ -346,7 +346,7 @@ void main() {
       expect(toCookieValue('hello'), equals('hello'));
     });
 
-    test('toCookieValue null', () {
+    test('bhv serializationobject 133 toCookieValue null returns empty string', () {
       expect(toCookieValue(null), equals(''));
     });
 
@@ -413,7 +413,7 @@ void main() {
       expect(result, equals('2024-01-15T10:30:00.000+00:00'));
     });
 
-    test('stringify null', () {
+    test('bhv serializationobject 110 stringify null returns empty string', () {
       expect(stringify(null), equals(''));
     });
 
@@ -705,6 +705,113 @@ void main() {
       final category = deserialize(
           '{"id":1,"name":"x","unexpected":true}', Category.fromJson);
       expect(category!.name, equals('x'));
+    });
+
+    test('bhv serializationobject 118 a scalar where a nested model is expected raises SerializationException', () {
+      expect(
+        () => deserialize<Pet>('{"name":"Fido","photoUrls":[],"category":"scalar"}', Pet.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 121 a null element in an array of models raises SerializationException', () {
+      expect(
+        () => deserialize<Pet>('{"name":"Fido","photoUrls":[],"tags":[null]}', Pet.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 122 a null element of a map of int32 raises SerializationException', () {
+      expect(
+        () => deserializeMap<int>(<String, Object?>{'a': null}, readInt32),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('a null element of a nested array of int32 raises SerializationException', () {
+      expect(
+        () => deserializeArray<List<int>>(
+          <Object?>[<Object?>[1, null]],
+          (e) => deserializeArray<int>(e, readInt32),
+        ),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 123 a null value in a map of models raises SerializationException', () {
+      expect(
+        () => deserializeMap<Tag>(<String, Object?>{'a': null},
+            (e) => Tag.fromJson(e as Map<String, dynamic>)),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 138 deserialize returns null for empty input', () {
+      expect(deserialize<Category>('', Category.fromJson), isNull);
+    });
+
+    test('bhv serializationobject 139 a string value is returned as the same string', () {
+      expect(toQueryValue('hello', 'csv'), equals('hello'));
+    });
+
+    test('bhv serializationobject 148 serialize writes a uuid field in lowercase', () {
+      final order = deserialize<Order>(
+          '{"trackingId":"3F2504E0-4F89-11D3-9A0C-0305E82C3301"}', Order.fromJson)!;
+      final written = jsonDecode(serialize(order)) as Map<String, dynamic>;
+      expect(written['trackingId'], equals('3f2504e0-4f89-11d3-9a0c-0305e82c3301'));
+    });
+
+    test('bhv serializationobject 149 a serialized datetime string contains an offset', () {
+      expect(stringify(DateTime(2024, 1, 1, 12, 30, 45)),
+          matches(RegExp(r'[+-]\d{2}:\d{2}$')));
+    });
+
+    test('bhv serializationobject 151 a DateTime serializes in the canonical date-time form', () {
+      expect(stringify(DateTime.utc(2024, 1, 1, 12, 30, 45, 678)),
+          matches(RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+00:00$')));
+    });
+
+    test('bhv serializationobject 152 a model serializes to valid JSON', () {
+      final decoded = jsonDecode(serialize(Category(id: 1, name: 'x')));
+      expect(decoded, isA<Map<String, dynamic>>());
+    });
+
+    test('bhv serializationobject 154 a strict model rejects an undeclared key through deserialize', () {
+      expect(
+        () => deserialize<StrictTag>('{"id":1,"unexpected":true}', StrictTag.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 172 an unknown enum value raises SerializationException', () {
+      expect(
+        () => deserialize<StockItem>(
+            '{"priority":1,"availability":"NotAStatus"}', StockItem.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 177 weightKg survives a serialize then deserialize round trip as a number', () {
+      const pet = Pet(name: 'Fido', photoUrls: {'http://x/y.jpg'}, weightKg: 2.25);
+      final restored = deserialize<Pet>(serialize(pet), Pet.fromJson)!;
+      expect(restored.weightKg, equals(2.25));
+    });
+
+    test('bhv serializationobject 178 a wet subtype serialize auto-emits the discriminator', () {
+      final parsed = jsonDecode(serialize(WetFood(volumeMl: 120))) as Map<String, dynamic>;
+      expect(parsed['foodType'], equals('wet'));
+    });
+
+    test('bhv serializationobject 179 a whole-second datetime keeps a fixed three-digit fraction', () {
+      expect(stringify(DateTime.utc(2020, 5, 6, 7, 8, 9)),
+          equals('2020-05-06T07:08:09.000+00:00'));
+    });
+
+    test('bhv serializationobject 180 a wrong primitive type throws SerializationException', () {
+      expect(
+        () => deserialize<Category>('{"id":"one","name":"x"}', Category.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
     });
 
     test('bhv serializationobject 170 truncated JSON throws SerializationException not raw parse error', () {
@@ -1051,7 +1158,7 @@ void main() {
     // than a raw `String`, so the public API is typed and construction
     // validates the wire shape. These tests cover the stringify/serialize
     // path the generated `model.toJson()` calls into.
-    test('UuidValue stringifies via toString to canonical 36-char form', () {
+    test('bhv serializationobject 175 UUID returns its canonical string representation', () {
       final u = UuidValue.fromString('12345678-1234-1234-1234-1234567890ab');
       expect(stringify(u), equals('12345678-1234-1234-1234-1234567890ab'));
     });
