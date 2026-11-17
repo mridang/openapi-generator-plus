@@ -211,12 +211,20 @@ defmodule PetstoreClient.Api.PetApiTest do
   end
 
   test "docs name the auth field only on operations whose options carry it" do
-    options_auth = "* `options` - Optional per-operation authenticator in `auth`."
+    settings = "Optional per-call settings (`timeout`, `headers`, `max_retries`)"
+
+    options_auth =
+      "* `options` - " <> settings <> " and an optional per-operation authenticator in `auth`."
 
     options_both =
-      "* `options` - Optional parameters (query, header, form, cookie), plus an optional per-operation authenticator in `auth`."
+      "* `options` - " <>
+        settings <>
+        ", the optional parameters (query, header, form, cookie) and an optional per-operation authenticator in `auth`."
 
-    options_plain = "* `options` - Optional parameters (query, header, form, cookie)."
+    options_plain =
+      "* `options` - " <> settings <> ", the optional parameters (query, header, form, cookie)."
+
+    options_settings_only = "* `options` - " <> settings <> "."
 
     opts_auth =
       "* `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here."
@@ -234,10 +242,10 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert by_name =~ "* `opts` - Keyword list.\n"
     refute by_name =~ "`auth`"
 
-    [no_options] = function_docs(:get_pet_avatar)
-    assert no_options =~ "* `opts` - Keyword list.\n"
-    refute no_options =~ "`auth`"
-    refute no_options =~ "`options`"
+    [settings_only] = function_docs(:get_pet_avatar)
+    assert settings_only =~ options_settings_only
+    assert settings_only =~ "* `opts` - Keyword list.\n"
+    refute settings_only =~ "`auth`"
   end
 
   test "operation and parameter prose reaches the docs verbatim, never interpolated or entity-escaped" do
