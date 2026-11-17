@@ -144,6 +144,41 @@ describe 'scheme authenticators' do
     end
   end
 
+  # An empty variable is unset: the wrapper refuses to build and the error
+  # names the variable it was missing.
+  def assert_empty_variable_fails_naming_it(name)
+    credentials = environment_schemes.find { |scheme, _base, _credentials| scheme == name }.last
+    credentials.each_value do |empty|
+      env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
+      error = _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise ArgumentError
+      _(error.message).must_include empty
+    end
+  end
+
+  it 'bhv_authscheme_011 an empty service token variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('ServiceTokenAuthenticator')
+  end
+
+  it 'bhv_authscheme_012 an empty api key variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('InternalApiKeyAuthenticator')
+  end
+
+  it 'bhv_authscheme_013 an empty client credentials variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('MachineAuthClientCredentialsAuthenticator')
+  end
+
+  it 'bhv_authscheme_014 an empty password variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('LegacyAuthPasswordAuthenticator')
+  end
+
+  it 'bhv_authscheme_015 an empty authorization code variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('UserAuthAuthorizationCodeAuthenticator')
+  end
+
+  it 'bhv_authscheme_016 an empty implicit variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('BrowserAuthImplicitAuthenticator')
+  end
+
   it 'counts an empty variable as unset' do
     environment_schemes.each do |name, _base, credentials|
       credentials.each_value do |empty|

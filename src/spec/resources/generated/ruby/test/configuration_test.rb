@@ -156,7 +156,7 @@ describe Petstore::Client::Configuration do
     _(config.base_url).must_equal('/api/v3')
   end
 
-  it 'default_configuration returns a fresh instance' do
+  it 'bhv_config_023 default_configuration returns a fresh instance' do
     # There is no settable process-wide default: every call builds a new
     # Configuration, so nothing one caller does can change what another gets.
     first = Petstore::Client::Configuration.default_configuration
@@ -166,9 +166,61 @@ describe Petstore::Client::Configuration do
     _(first.base_url).must_equal(second.base_url)
   end
 
-  it 'has no settable process-wide default' do
+  it 'bhv_config_024 has no settable process-wide default' do
     _(Petstore::Client::Configuration).wont_respond_to(:default)
     _(Petstore::Client::Configuration).wont_respond_to(:default=)
+  end
+
+  it 'bhv_config_018 a default and a built configuration use the base URL from the spec' do
+    _(Petstore::Client::Configuration.default_configuration.base_url).must_equal('/api/v3')
+    _(Petstore::Client::Configuration.builder.build.base_url).must_equal('/api/v3')
+  end
+
+  it 'bhv_config_019 the default configuration factory returns the spec base URL and no default headers' do
+    config = Petstore::Client::Configuration.default_configuration
+
+    _(config.base_url).must_equal('/api/v3')
+    _(config.default_headers).must_equal({})
+  end
+
+  it 'bhv_config_020 a builder chain sets the base URL and default headers in one configuration' do
+    config = Petstore::Client::Configuration.builder
+      .base_url('https://example.com')
+      .default_header('X-Trace', 'trace-1')
+      .default_headers({ 'X-Region' => 'eu' })
+      .build
+
+    _(config.base_url).must_equal('https://example.com')
+    _(config.default_headers).must_equal({ 'X-Trace' => 'trace-1', 'X-Region' => 'eu' })
+  end
+
+  it 'bhv_config_021 a server URL template resolves its variables to their defaults' do
+    server = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com/api/{version}',
+      description: 'Test server',
+      variables: {
+        'env' => Petstore::Client::ServerVariable.new(
+          default_value: 'api',
+          enum_values: %w[api staging]
+        ),
+        'version' => Petstore::Client::ServerVariable.new(
+          default_value: 'v3',
+          enum_values: %w[v2 v3]
+        )
+      }
+    )
+
+    _(server.url({})).must_equal('https://api.example.com/api/v3')
+  end
+
+  it 'bhv_config_022 mutating the returned default headers does not change the configuration' do
+    config = Petstore::Client::Configuration.builder
+      .default_header('X-Trace', 'trace-1')
+      .build
+    headers = config.default_headers
+
+    _(-> { headers['X-New'] = 'x' }).must_raise FrozenError
+    _(config.default_headers).must_equal({ 'X-Trace' => 'trace-1' })
   end
 
   it 'bhv_config_006 builder produces independent instances' do
