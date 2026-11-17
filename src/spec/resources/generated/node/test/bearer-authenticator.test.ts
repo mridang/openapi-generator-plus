@@ -95,6 +95,26 @@ describe("BearerAuthenticator", () => {
     ).toThrow("Bearer token must not be empty");
   });
 
+  it("bhv authbearer 022 a non-ASCII token is rejected at construction with the exact message", () => {
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", "ñoño"),
+    ).toThrow(TypeError);
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", "ñoño"),
+    ).toThrow(
+      "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+    );
+  });
+
+  it("bhv authbearer 027 a whitespace-only token is rejected at construction", () => {
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", "   "),
+    ).toThrow(TypeError);
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", "   "),
+    ).toThrow("Bearer token must not be empty");
+  });
+
   it("bhv authbearer 005 an empty token is rejected at construction", () => {
     expect(
       () => new BearerAuthenticator("https://api.example.com", ""),
@@ -203,6 +223,15 @@ describe("BearerAuthenticator", () => {
         );
       },
     );
+
+    it("bhv authbearer 019 an empty environment value counts as unset and fails construction naming the variable", () => {
+      process.env[variable] = "";
+      expect(() => new BearerAuthenticator("https://api.example.com")).toThrow(
+        new TypeError(
+          `Bearer token is required: pass it explicitly or set ${variable}`,
+        ),
+      );
+    });
 
     it("bhv authbearer 002 validates a token read from the environment like an explicit one", () => {
       process.env[variable] = "tok\r\nInjected: yes";

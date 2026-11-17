@@ -196,18 +196,6 @@ describe("SchemeAuthenticators", () => {
       );
     });
 
-    it(`${name} treats an empty variable as unset`, () => {
-      withVariables(
-        variables,
-        variables.map(() => ""),
-        () => {
-          expect(() => new cls("https://api.example.com")).toThrow(
-            variables[0],
-          );
-        },
-      );
-    });
-
     it(`${name} prefers the explicit credential over the variables`, () => {
       const invalid = "bad\r\nvalue";
       withVariables(
@@ -325,6 +313,42 @@ describe("SchemeAuthenticators", () => {
         headers: { "content-type": "application/json" },
       };
     },
+  });
+
+  it.each([
+    [
+      "bhv authscheme 003 PetStoreBasicAuthenticator fails at construction naming the variable when its environment variable is empty",
+      "PetStoreBasicAuthenticator",
+    ],
+    [
+      "bhv authscheme 004 AdminBasicAuthenticator treats an empty environment variable as unset and names it",
+      "AdminBasicAuthenticator",
+    ],
+    [
+      "bhv authscheme 005 ApiKeyHeaderAuthenticator treats an empty environment variable as unset and names it",
+      "ApiKeyHeaderAuthenticator",
+    ],
+    [
+      "bhv authscheme 006 ApiKeyQueryAuthenticator treats an empty environment variable as unset and names it",
+      "ApiKeyQueryAuthenticator",
+    ],
+    [
+      "bhv authscheme 007 SessionCookieAuthenticator treats an empty environment variable as unset and names it",
+      "SessionCookieAuthenticator",
+    ],
+  ])("%s", (_title, className) => {
+    const entry = environmentSchemes.find(([name]) => name === className);
+    if (entry === undefined) {
+      throw new Error(`no environment scheme named ${className}`);
+    }
+    const [, cls, variables] = entry;
+    withVariables(
+      variables,
+      variables.map(() => ""),
+      () => {
+        expect(() => new cls("https://api.example.com")).toThrow(variables[0]);
+      },
+    );
   });
 
   for (const [name, cls] of schemeWrappers.filter(
