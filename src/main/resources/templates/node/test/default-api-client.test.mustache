@@ -784,7 +784,7 @@ describe('DefaultApiClient', () => {
       global.fetch = originalFetch;
     });
 
-    test('bhv redirects 001 302 https->http with a body PROCEEDS (body dropped, becomes GET)', async () => {
+    test('bhv redirects 001 an https->http 302 with a body PROCEEDS (body dropped, becomes GET)', async () => {
       let call = 0;
       global.fetch = (async (): Promise<Response> => {
         call++;
@@ -817,7 +817,7 @@ describe('DefaultApiClient', () => {
       expect(call).toBe(2);
     });
 
-    test('bhv retries 010 307 https->http with a body THROWS (body preserved across downgrade)', async () => {
+    test('bhv retries 010 a https->http 307 with a body THROWS (body preserved across downgrade)', async () => {
       let call = 0;
       global.fetch = (async (): Promise<Response> => {
         call++;
@@ -844,7 +844,7 @@ describe('DefaultApiClient', () => {
       expect(call).toBe(1);
     });
 
-    test('bhv retries 011 308 https->http with a body THROWS (body preserved across downgrade)', async () => {
+    test('bhv retries 011 a https->http 308 with a body THROWS (body preserved across downgrade)', async () => {
       let call = 0;
       global.fetch = (async (): Promise<Response> => {
         call++;
