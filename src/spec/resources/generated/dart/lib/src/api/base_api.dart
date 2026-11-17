@@ -843,7 +843,7 @@ class BaseApi {
         ),
       );
     } else if (value is Map) {
-      final json = jsonEncode(value);
+      final json = serialize(value);
       parts.add(
         utf8.encode(
           '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: application/json\r\n\r\n$json\r\n',

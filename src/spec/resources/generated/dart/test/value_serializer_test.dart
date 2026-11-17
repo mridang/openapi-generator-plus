@@ -138,13 +138,10 @@ void main() {
       expect(items, equals(['a', 'b']));
     });
 
-    test(
-      'bhv serializationparam 007 bhv serializationparam 032 serializeValue query array empty csv',
-      () {
-        final result = serializeValue([], 'query', 'array', 'csv');
-        expect(result, equals(''));
-      },
-    );
+    test('bhv serializationparam 007 serializeValue query array empty csv', () {
+      final result = serializeValue([], 'query', 'array', 'csv');
+      expect(result, equals(''));
+    });
 
     test(
       'bhv serializationparam 031 serializeValue query array empty multi',
@@ -871,7 +868,7 @@ void main() {
       });
 
       test(
-        'bhv serializationparam 066 bhv serializationparam 070 null returns empty string in path location',
+        'bhv serializationparam 066 null returns empty string in path location',
         () {
           final result = serializeValue(null, 'path', 'string', '');
           expect(result, equals(''));
@@ -1085,7 +1082,7 @@ void main() {
     // yield `%20`, never `+`.
     group('allowReserved query encoding', () {
       test(
-        'bhv serializationparam 080 bhv serializationparam 002 reserved characters left literal, other characters still encoded',
+        'bhv serializationparam 080 reserved characters left literal, other characters still encoded',
         () {
           expect(
             encodeQueryAllowingReserved('v1.0/beta:rc1'),
@@ -1189,7 +1186,7 @@ void main() {
     final withNull = <Object?>['1', null, '3'];
 
     test(
-      'bhv serializationparam 001 bhv serializationparam 011 a null array element becomes an empty slot in every collection format',
+      'bhv serializationparam 001 a null array element becomes an empty slot in every collection format',
       () {
         expect(
           serializeValue(withNull, 'query', 'array', 'csv'),
@@ -1236,7 +1233,7 @@ void main() {
     };
     preserved.forEach((char, name) {
       test(
-        'bhv serializationparam 071 bhv serializationparam 081 the $name is kept literal in a path segment',
+        'bhv serializationparam 071 the $name is kept literal in a path segment',
         () {
           expect(
             serializeValue('a${char}b', 'path', 'string', ''),
@@ -1247,7 +1244,7 @@ void main() {
     });
 
     test(
-      'bhv serializationparam 004 bhv serializationparam 073 an already percent-encoded value is encoded exactly once',
+      'bhv serializationparam 004 an already percent-encoded value is encoded exactly once',
       () {
         expect(
           serializeValue('a%20b', 'path', 'string', ''),

@@ -566,6 +566,16 @@ abstract class AbstractApiClient implements RetryingApiClient {
       });
     }
 
+    /* Once a non-identity encoding has been decoded, the returned headers
+     * describe the body the caller receives: the encoding and the length of
+     * the wire body are dropped. */
+    if (contentEncoding.isNotEmpty &&
+        contentEncoding != 'identity' &&
+        rawBytes.isNotEmpty) {
+      responseHeaders.remove('content-encoding');
+      responseHeaders.remove('content-length');
+    }
+
     return ApiHttpResponse(
       statusCode: streamedResponse.statusCode,
       body: responseBody,
@@ -745,7 +755,7 @@ abstract class AbstractApiClient implements RetryingApiClient {
         request.fields[name] = text;
       }
     } else {
-      final json = jsonEncode(value);
+      final json = serialize(value);
       /* fromString would add a charset parameter to the part's content type;
        * JSON is always UTF-8, so the bytes go out under the bare media type
        * like the other SDKs. */

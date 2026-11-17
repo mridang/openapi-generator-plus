@@ -138,15 +138,12 @@ void main() {
       expect(result, isNull);
     });
 
-    test(
-      'bhv serializationobject 066 bhv serializationobject 095 deserializeRaw invalid JSON',
-      () {
-        expect(
-          () => deserializeRaw('not json'),
-          throwsA(isA<SerializationException>()),
-        );
-      },
-    );
+    test('bhv serializationobject 066 deserializeRaw invalid JSON', () {
+      expect(
+        () => deserializeRaw('not json'),
+        throwsA(isA<SerializationException>()),
+      );
+    });
 
     // -- Gap P2 (canonical): BOM-prefixed JSON deserializes cleanly --
     //
@@ -173,7 +170,7 @@ void main() {
     // `deserialize<T>(json, T.fromJson)` entry point the other model
     // deserialize tests use.
     test(
-      'bhv serializationobject 053 bhv serializationobject 050 deserialize applies schema default for absent field',
+      'bhv serializationobject 053 deserialize applies schema default for absent field',
       () {
         const json = '{"id":10,"petId":198772}';
         final order = deserialize<Order>(json, Order.fromJson);
@@ -191,7 +188,7 @@ void main() {
     // must be PRESERVED as null, not replaced by the default (JSON-Schema
     // contract; parity with go/rust/python).
     test(
-      'bhv serializationobject 025 bhv serializationobject 056 deserialize applies defaults only for absent keys',
+      'bhv serializationobject 025 deserialize applies defaults only for absent keys',
       () {
         final fromEmpty = deserialize<Defaults>('{}', Defaults.fromJson);
         expect(fromEmpty, isNotNull);
@@ -344,19 +341,13 @@ void main() {
       expect(toQueryValue('hello', ''), equals('hello'));
     });
 
-    test(
-      'bhv serializationobject 168 bhv serializationobject 096 bhv serializationobject 098 toQueryValue string slice CSV',
-      () {
-        expect(toQueryValue(['a', 'b', 'c'], 'csv'), equals('a,b,c'));
-      },
-    );
+    test('bhv serializationobject 168 toQueryValue string slice CSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'csv'), equals('a,b,c'));
+    });
 
-    test(
-      'bhv serializationobject 169 bhv serializationobject 100 toQueryValue string slice SSV',
-      () {
-        expect(toQueryValue(['a', 'b', 'c'], 'ssv'), equals('a b c'));
-      },
-    );
+    test('bhv serializationobject 169 toQueryValue string slice SSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'ssv'), equals('a b c'));
+    });
 
     test('bhv serializationobject 101 toQueryValue string slice TSV', () {
       expect(toQueryValue(['a', 'b', 'c'], 'tsv'), equals('a\tb\tc'));
@@ -460,12 +451,9 @@ void main() {
       expect(stringify('hello'), equals('hello'));
     });
 
-    test(
-      'bhv serializationobject 039 bhv serializationobject 091 stringify int',
-      () {
-        expect(stringify(42), equals('42'));
-      },
-    );
+    test('bhv serializationobject 039 stringify int', () {
+      expect(stringify(42), equals('42'));
+    });
 
     test('stringify int64', () {
       expect(stringify(9999999999), equals('9999999999'));
@@ -518,13 +506,10 @@ void main() {
       },
     );
 
-    test(
-      'bhv serializationobject 155 bhv serializationobject 033 bhv serializationobject 034 bhv serializationobject 041 bhv serializationobject 043 stringify bool',
-      () {
-        expect(stringify(true), equals('true'));
-        expect(stringify(false), equals('false'));
-      },
-    );
+    test('bhv serializationobject 155 stringify bool', () {
+      expect(stringify(true), equals('true'));
+      expect(stringify(false), equals('false'));
+    });
 
     test('bhv serializationobject 157 stringify DateTime', () {
       final ts = DateTime.utc(2024, 1, 15, 10, 30, 0);
@@ -574,7 +559,7 @@ void main() {
     );
 
     test(
-      'bhv serializationobject 046 bhv serializationobject 045 date-time serialization preserves sub-second precision',
+      'bhv serializationobject 046 date-time serialization preserves sub-second precision',
       () {
         // Canonical cross-SDK regression: the decode path (DateTime.parse)
         // accepts fractional seconds, so the encode path must emit them too.
@@ -737,7 +722,7 @@ void main() {
     );
 
     test(
-      'bhv serializationobject 016 bhv serializationobject 065 bhv serializationobject 103 a uuid property is written lowercase, decoded from uppercase and refuses a malformed value',
+      'bhv serializationobject 016 a uuid property is written lowercase, decoded from uppercase and refuses a malformed value',
       () {
         final order = deserialize<Order>(
           '{"trackingId":"3F2504E0-4F89-11D3-9A0C-0305E82C3301"}',
@@ -779,7 +764,7 @@ void main() {
     );
 
     test(
-      'bhv serializationobject 024 bhv serializationobject 022 an inline enum keeps its mixed-case wire values and refuses an unknown one',
+      'bhv serializationobject 024 an inline enum keeps its mixed-case wire values and refuses an unknown one',
       () {
         for (final wire in ['In-Stock', 'on-hold', 'OUT_OF_STOCK']) {
           final decoded = deserialize<EdgeCases>(
@@ -839,7 +824,7 @@ void main() {
     });
 
     test(
-      'bhv serializationobject 114 bhv serializationobject 064 a format time property passes through as the string it was given',
+      'bhv serializationobject 114 a format time property passes through as the string it was given',
       () {
         for (final wire in ['10:30:00', '10:30:00.123']) {
           final decoded = deserialize<EdgeCases>(
@@ -982,7 +967,7 @@ void main() {
     });
 
     test(
-      'bhv serializationobject 047 bhv serializationobject 052 a model declaring unevaluatedProperties false decodes its declared keys',
+      'bhv serializationobject 047 a model declaring unevaluatedProperties false decodes its declared keys',
       () {
         final tag = deserialize('{"id":1,"name":"x"}', StrictTag.fromJson);
         expect(tag!.id, equals(1));
@@ -1563,7 +1548,7 @@ void main() {
     );
 
     test(
-      'bhv serializationobject 084 bhv serializationobject 086 fromJson throws when a required field is explicitly null',
+      'bhv serializationobject 084 fromJson throws when a required field is explicitly null',
       () {
         final input = <String, dynamic>{
           'id': 1,
@@ -1608,7 +1593,7 @@ void main() {
     );
 
     test(
-      'bhv serializationobject 061 bhv serializationobject 070 fromJson succeeds when all required fields are present',
+      'bhv serializationobject 061 fromJson succeeds when all required fields are present',
       () {
         final input = <String, dynamic>{
           'id': 1,
@@ -1938,7 +1923,7 @@ void main() {
     // SDKs hit). It also asserts the value survives serialize -> deserialize as
     // a number.
     test(
-      'bhv serializationobject 171 bhv serializationobject 002 type:number weightKg serializes as an unquoted JSON number',
+      'bhv serializationobject 171 type:number weightKg serializes as an unquoted JSON number',
       () {
         final pet = Pet(
           name: 'Fido',
@@ -2254,7 +2239,7 @@ void main() {
       '2024-01-01',
     ]) {
       test(
-        'bhv serializationobject 011 bhv serializationobject 003 a non RFC 3339 date-time "$text" is rejected',
+        'bhv serializationobject 011 a non RFC 3339 date-time "$text" is rejected',
         () {
           expect(
             () => deserialize<Order>(
