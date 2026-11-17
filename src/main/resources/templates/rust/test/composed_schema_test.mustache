@@ -425,7 +425,7 @@ fn test_bhv_unions_016_enum_unknown_value_on_deserialize_is_rejected() {
 }
 
 #[test]
-fn test_enum_known_value_on_deserialize_succeeds() {
+fn test_bhv_serializationobject_069_enum_known_value_on_deserialize_succeeds() {
     // Control: a declared enum value still deserializes cleanly, so the
     // strictness above does not break valid payloads.
     let payload = r#"{
@@ -496,7 +496,7 @@ fn test_order_deserialize_applies_schema_default_for_absent_status() {
 // payload must decode the child into a typed `TreeNode`, not leave it raw,
 // and a missing grandchild must be `None`.
 #[test]
-fn test_tree_node_deserialize_recursive() {
+fn test_bhv_serializationobject_068_tree_node_deserialize_recursive() {
     let json_data = r#"{"value":"root","child":{"value":"leaf"}}"#;
 
     let top: TreeNode =
@@ -611,7 +611,7 @@ fn test_defaults_explicit_null_is_preserved() {
 // matching member. `StockItem.priority` is a REQUIRED field of this type, so
 // the round-trip is exercised both bare and nested inside its owning model.
 #[test]
-fn test_priority_int_enum_serializes_as_json_number() {
+fn test_bhv_serializationobject_093_priority_int_enum_serializes_as_json_number() {
     let data = serde_json::to_string(&Priority::Number2).expect("failed to serialize Priority");
     assert_eq!(
         data, "2",
@@ -633,7 +633,7 @@ fn test_priority_int_enum_serializes_as_json_number() {
 }
 
 #[test]
-fn test_priority_int_enum_deserializes_from_json_number() {
+fn test_bhv_serializationobject_092_priority_int_enum_deserializes_from_json_number() {
     let priority: Priority =
         serde_json::from_str("2").expect("failed to deserialize Priority from number");
     assert_eq!(priority, Priority::Number2);
@@ -650,7 +650,7 @@ fn test_priority_int_enum_deserializes_from_json_number() {
 // casing, deserialization of a declared value must yield the right member,
 // and an unknown value must be rejected (no silent fallback).
 #[test]
-fn test_availability_string_enum_round_trips_with_wire_casing() {
+fn test_bhv_serializationobject_076_availability_string_enum_round_trips_with_wire_casing() {
     for (member, wire) in [
         (Availability::Available, "\"Available\""),
         (Availability::Sold, "\"Sold\""),
@@ -673,7 +673,7 @@ fn test_availability_string_enum_round_trips_with_wire_casing() {
 }
 
 #[test]
-fn test_availability_string_enum_rejects_unknown_value() {
+fn test_bhv_serializationobject_059_availability_string_enum_rejects_unknown_value() {
     let result: Result<Availability, _> = serde_json::from_str("\"available\"");
     assert!(
         result.is_err(),
@@ -857,7 +857,7 @@ fn test_photo_metadata_location_double_from_integral_json() {
 // payload must decode all the way down to typed `i32` leaves and re-serialize
 // to the same nested shape.
 #[test]
-fn test_stock_item_matrix_nested_array_round_trips_typed_leaves() {
+fn test_bhv_serializationobject_108_stock_item_matrix_nested_array_round_trips_typed_leaves() {
     let json_data = r#"{"priority":1,"matrix":[[1,2,3],[4,5]]}"#;
 
     let item: StockItem =
@@ -950,7 +950,7 @@ fn test_edge_cases_phase_round_trips_its_wire_values() {
 /* -- unevaluatedProperties: false rejects an extra key (F1111) -- */
 
 #[test]
-fn test_strict_tag_rejects_an_unexpected_key() {
+fn test_bhv_serializationobject_058_strict_tag_rejects_an_unexpected_key() {
     let err = serde_json::from_str::<StrictTag>(r#"{"id":1,"name":"x","unexpected":true}"#)
         .expect_err("a model with unevaluatedProperties:false must reject an extra key");
     assert!(err.to_string().contains("unexpected"), "got: {err}");
@@ -964,7 +964,7 @@ fn test_strict_tag_rejects_an_unexpected_key() {
  * `Result` would shadow the prelude type inside the models module, so it is
  * generated as `ModelResult`; `Error` shadows nothing and keeps its name. */
 #[test]
-fn test_edge_cases_error_and_result_models_round_trip() {
+fn test_bhv_serializationobject_104_edge_cases_error_and_result_models_round_trip() {
     let body = r#"{"lastError":{"code":7,"message":"m"},"outcome":{"ok":true}}"#;
     let decoded: EdgeCases = serde_json::from_str(body).expect("failed to decode EdgeCases");
     let error: Error = decoded.last_error.clone().expect("lastError must decode");
@@ -1022,7 +1022,7 @@ fn test_constraint_keywords_are_not_enforced_on_decode() {
 /* -- numeric schema defaults are exact typed values (F1115) -- */
 
 #[test]
-fn test_defaults_numeric_literals_keep_their_exact_typed_values() {
+fn test_bhv_serializationobject_111_defaults_numeric_literals_keep_their_exact_typed_values() {
     let defaults: Defaults = serde_json::from_str("{}").expect("failed to decode Defaults");
     assert_eq!(Some(1.5_f64), defaults.ratio);
     assert_eq!(Some(0.25_f32), defaults.scale);
