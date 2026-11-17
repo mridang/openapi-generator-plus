@@ -244,6 +244,10 @@ The client implements `IDisposable`. Use `using` statements or call `Dispose()` 
 
 `TransportOptions.Builder().MaxRetries(n)` sets the automatic retries (default 2, `0` disables). Retried: a network error before a response and the statuses 408, 409, 429 and 500-599 except 501, after a 0.5 s backoff doubling to 8 s with 25% jitter or the server's `Retry-After` (at most 60 s). The retries never extend the timeout, rebuild the headers on every attempt, and skip stream and multipart bodies. A 401 on an OAuth2 or OpenID Connect call drops the cached access token and replays the request once (`InvalidateAccessToken()` on those authenticators does the same by hand).
 
+### Per-call options
+
+The options object of an operation also carries `Timeout` (milliseconds), `MaxRetries` and `Headers` for that call only; null keeps the transport's setting. `Client.FromEnvironment()` builds a bearer client from `PETSTORE_CLIENT_HOST` and `PETSTORE_CLIENT_TOKEN` (explicit arguments win, a `tokenProvider` callback replaces the token).
+
 ### Cancellation
 
 Every operation takes a trailing `CancellationToken cancellationToken = default`. Cancelling it raises `OperationCanceledException` (not `NetworkTimeoutException`). `TransportOptions.Builder().CancellationToken(token)` adds a client-level token linked with each call's token.
@@ -260,7 +264,7 @@ All API methods are asynchronous; call them with `await`.
 
 ## Models
 
-Models are generated as C# classes under the `PetstoreClient.Models` namespace.
+Models are generated as immutable C# records under the `PetstoreClient.Models` namespace: properties are `init`-only, and `var next = model with { Property = value };` copies one.
 
 ```csharp
 using PetstoreClient.Models;

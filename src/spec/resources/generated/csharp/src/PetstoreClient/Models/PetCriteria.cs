@@ -10,16 +10,16 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class PetCriteria : IEquatable<PetCriteria>
+public record PetCriteria
 {
     [JsonPropertyName("breed")]
-    public string? Breed { get; set; }
+    public string? Breed { get; init; }
 
     [JsonPropertyName("min_age")]
-    public int? MinAge { get; set; }
+    public int? MinAge { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(PetCriteria? other)
+    public virtual bool Equals(PetCriteria? other)
     {
         return other is not null
             && (
@@ -27,11 +27,6 @@ public class PetCriteria : IEquatable<PetCriteria>
                 || EqualityComparer<string?>.Default.Equals(this.Breed, other.Breed)
                     && EqualityComparer<int?>.Default.Equals(this.MinAge, other.MinAge)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as PetCriteria);
     }
 
     public override int GetHashCode()

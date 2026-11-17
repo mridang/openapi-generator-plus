@@ -2526,6 +2526,57 @@ public class DefaultApiClientUnitTest
         Assert.Single(handler.Requests);
     }
 
+    private static Task<ApiHttpResponse> SendWithCallOptions(
+        DefaultApiClient client, int? timeout, int? maxRetries)
+    {
+        return client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/retry"),
+            new Dictionary<string, string>(),
+            null,
+            false,
+            null,
+            timeout,
+            maxRetries,
+            CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task APerCallMaxRetriesReplacesTheTransportsForThatCallOnly()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(
+            new HttpClient(handler), TransportOptions.Builder().MaxRetries(0).Build());
+
+        var response = await SendWithCallOptions(client, null, 1);
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task APerCallMaxRetriesOfZeroTurnsTheTransportsRetriesOff()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendWithCallOptions(client, null, 0);
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task APerCallTimeoutReplacesTheTransportsForThatCall()
+    {
+        var client = new DefaultApiClient(
+            new HttpClient(new HangingHandler()),
+            TransportOptions.Builder().Timeout(60000).MaxRetries(0).Build());
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkTimeoutException>(
+            () => SendWithCallOptions(client, 50, null));
+    }
+
     [Fact]
     public async Task ANetworkErrorBeforeAResponseIsRetried()
     {

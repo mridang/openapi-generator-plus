@@ -490,6 +490,30 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     }
 
     /// <inheritdoc/>
+    public Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        Func<Task<Dictionary<string, string>>>? refreshHeaders,
+        CancellationToken cancellationToken
+    )
+    {
+        return SendRequestAsync(
+            method,
+            url,
+            headers,
+            body,
+            noRedirect,
+            refreshHeaders,
+            null,
+            null,
+            cancellationToken
+        );
+    }
+
+    /// <inheritdoc/>
     public async Task<ApiHttpResponse> SendRequestAsync(
         string method,
         Uri url,
@@ -497,6 +521,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         object? body,
         bool noRedirect,
         Func<Task<Dictionary<string, string>>>? refreshHeaders,
+        int? timeout,
+        int? maxRetries,
         CancellationToken cancellationToken
     )
     {
@@ -521,10 +547,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         /* One budget for every attempt, hop and the body read: a single token
            created here is shared by each send, so neither a redirect chain nor
            a retry can reset it. */
-        using CancellationTokenSource? timeoutSource = _transportOptions.Timeout.HasValue
-            ? new CancellationTokenSource(
-                TimeSpan.FromMilliseconds(_transportOptions.Timeout.Value)
-            )
+        int? effectiveTimeout = timeout ?? _transportOptions.Timeout;
+        int effectiveMaxRetries = maxRetries ?? _transportOptions.MaxRetries;
+        using CancellationTokenSource? timeoutSource = effectiveTimeout.HasValue
+            ? new CancellationTokenSource(TimeSpan.FromMilliseconds(effectiveTimeout.Value))
             : null;
         /* The caller's per-call token and the client-level token from
            TransportOptions are linked with the timeout, so any of the three
@@ -541,7 +567,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
         System.Diagnostics.Stopwatch elapsed = System.Diagnostics.Stopwatch.StartNew();
         Dictionary<string, string> attemptHeaders = headers;
-        bool canRetry = _transportOptions.MaxRetries > 0 && IsReplayableBody(body);
+        bool canRetry = effectiveMaxRetries > 0 && IsReplayableBody(body);
         int attempt = 0;
         while (true)
         {
@@ -562,21 +588,21 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     .ConfigureAwait(false);
                 if (
                     !canRetry
-                    || attempt >= _transportOptions.MaxRetries
+                    || attempt >= effectiveMaxRetries
                     || !IsRetryableStatus(result.StatusCode)
                 )
                 {
                     return result;
                 }
                 delay = RetryDelay(attempt, result.Headers, DateTimeOffset.UtcNow, Jitter());
-                if (!FitsBudget(elapsed, delay))
+                if (!FitsBudget(elapsed, delay, effectiveTimeout))
                 {
                     return result;
                 }
             }
             catch (Errors.NetworkException ex)
                 when (canRetry
-                    && attempt < _transportOptions.MaxRetries
+                    && attempt < effectiveMaxRetries
                     && !state.ResponseReceived
                     && ex is not Errors.NetworkTimeoutException
                 )
@@ -587,7 +613,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     DateTimeOffset.UtcNow,
                     Jitter()
                 );
-                if (!FitsBudget(elapsed, delay))
+                if (!FitsBudget(elapsed, delay, effectiveTimeout))
                 {
                     throw;
                 }
@@ -613,10 +639,14 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     }
 
     /// <summary>Whether waiting <paramref name="delay"/> still leaves time inside the end-to-end timeout.</summary>
-    private bool FitsBudget(System.Diagnostics.Stopwatch elapsed, TimeSpan delay)
+    private static bool FitsBudget(
+        System.Diagnostics.Stopwatch elapsed,
+        TimeSpan delay,
+        int? effectiveTimeout
+    )
     {
-        return !_transportOptions.Timeout.HasValue
-            || elapsed.Elapsed + delay < TimeSpan.FromMilliseconds(_transportOptions.Timeout.Value);
+        return !effectiveTimeout.HasValue
+            || elapsed.Elapsed + delay < TimeSpan.FromMilliseconds(effectiveTimeout.Value);
     }
 
     private async Task<ApiHttpResponse> SendAttemptAsync(

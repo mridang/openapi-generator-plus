@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class StockItem : IEquatable<StockItem>
+public record StockItem
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -42,18 +42,18 @@ public class StockItem : IEquatable<StockItem>
     public required Priority Priority { get; init; }
 
     [JsonPropertyName("availability")]
-    public Availability? Availability { get; set; }
+    public Availability? Availability { get; init; }
 
     /// <summary>
     /// Quantity grid as an array of integer arrays
     /// </summary>
     [JsonPropertyName("matrix")]
-    public List<List<int>>? Matrix { get; set; }
+    public List<List<int>>? Matrix { get; init; }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
-    public bool Equals(StockItem? other)
+    public virtual bool Equals(StockItem? other)
     {
         return other is not null
             && (
@@ -68,11 +68,6 @@ public class StockItem : IEquatable<StockItem>
                         other.Matrix
                     )
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as StockItem);
     }
 
     public override int GetHashCode()

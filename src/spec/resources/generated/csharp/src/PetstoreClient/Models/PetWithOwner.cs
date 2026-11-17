@@ -13,7 +13,7 @@ namespace PetstoreClient.Models;
 /// <summary>
 /// A pet record extended with owner information
 /// </summary>
-public class PetWithOwner : IEquatable<PetWithOwner>
+public record PetWithOwner
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -106,7 +106,7 @@ public class PetWithOwner : IEquatable<PetWithOwner>
 
     /// <example>10</example>
     [JsonPropertyName("id")]
-    public long? Id { get; set; }
+    public long? Id { get; init; }
 
     /// <example>doggie</example>
     [JsonRequired]
@@ -125,7 +125,7 @@ public class PetWithOwner : IEquatable<PetWithOwner>
     private readonly string _name = null!;
 
     [JsonPropertyName("category")]
-    public Category? Category { get; set; }
+    public Category? Category { get; init; }
 
     [JsonRequired]
     [JsonPropertyName("photoUrls")]
@@ -143,7 +143,7 @@ public class PetWithOwner : IEquatable<PetWithOwner>
     private readonly HashSet<string> _photoUrls = null!;
 
     [JsonPropertyName("tags")]
-    public List<Tag>? Tags { get; set; }
+    public List<Tag>? Tags { get; init; }
 
     /// <summary>
     /// pet status in the store
@@ -151,45 +151,45 @@ public class PetWithOwner : IEquatable<PetWithOwner>
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
     [JsonPropertyName("status")]
-    public StatusEnum? Status { get; set; }
+    public StatusEnum? Status { get; init; }
 
     [JsonPropertyName("location")]
-    public List<object>? Location { get; set; }
+    public List<object>? Location { get; init; }
 
     /// <summary>
     /// Absolute URL to the pet's public profile page
     /// </summary>
     /// <example>https://example.com/pets/fido</example>
     [JsonPropertyName("homepageUrl")]
-    public Uri? HomepageUrl { get; set; }
+    public Uri? HomepageUrl { get; init; }
 
     /// <summary>
     /// Optionally-relative thumbnail location
     /// </summary>
     /// <example>/assets/thumb-fido.png</example>
     [JsonPropertyName("thumbnailRef")]
-    public string? ThumbnailRef { get; set; }
+    public string? ThumbnailRef { get; init; }
 
     /// <summary>
     /// RFC 6570 template for related-resource links
     /// </summary>
     /// <example>https://example.com/pets/{id}/photos{?size}</example>
     [JsonPropertyName("linkTemplate")]
-    public string? LinkTemplate { get; set; }
+    public string? LinkTemplate { get; init; }
 
     [JsonPropertyName("ownerEmail")]
-    public string? OwnerEmail { get; set; }
+    public string? OwnerEmail { get; init; }
 
     /// <summary>
     /// Pet weight in kilograms (decimal precision)
     /// </summary>
     /// <example>12.345</example>
     [JsonPropertyName("weightKg")]
-    public decimal? WeightKg { get; set; }
+    public decimal? WeightKg { get; init; }
 
     /// <example>rex</example>
     [JsonPropertyName("nickname")]
-    public string? Nickname { get; set; }
+    public string? Nickname { get; init; }
 
     [JsonRequired]
     [JsonPropertyName("ownerName")]
@@ -209,7 +209,7 @@ public class PetWithOwner : IEquatable<PetWithOwner>
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
-    public bool Equals(PetWithOwner? other)
+    public virtual bool Equals(PetWithOwner? other)
     {
         return other is not null
             && (
@@ -244,11 +244,6 @@ public class PetWithOwner : IEquatable<PetWithOwner>
                     && EqualityComparer<string?>.Default.Equals(this.Nickname, other.Nickname)
                     && EqualityComparer<string>.Default.Equals(this.OwnerName, other.OwnerName)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as PetWithOwner);
     }
 
     public override int GetHashCode()

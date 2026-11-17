@@ -59,6 +59,88 @@ the request timeout, cancelling stops them, every retry rebuilds the headers
 (so it carries current authentication), and a stream or multipart body is
 never retried.
 
+### Per-call options
+
+Every operation that takes an options object (`FindPetsByStatusOptions` and the
+like) accepts three per-call settings next to its parameters: `Timeout` (milliseconds,
+greater than zero) replaces the transport timeout for that call, `MaxRetries` replaces
+the retry limit (`0` turns retries off) and `Headers` adds request headers, sent after
+the default and authentication headers and replacing a header of the same name.
+Anything left null keeps the transport's setting. An operation with no parameters and
+no security requirement has no options object yet, so it cannot carry them.
+
+### Error details
+
+An `ApiException` and every subclass carry `RequestMethod` and `RequestPath` (the path
+without its query string) next to `StatusCode` and `ResponseBody`, and the message names
+them: `API returned status code 404 for GET /items/7`. The query string is left out so a
+key or token sent in it never reaches a log.
+
+### Immutable models
+
+Model properties are `init`-only and each model is a C# `record`, so a model is never
+changed after it is built: copy it with a `with` expression, `var next = item with { Name = "x" };`.
+The copy is shallow, so a list or dictionary property still refers to the same collection.
+A union (`oneOf`) wrapper is immutable too and is built with a typed factory, `Wrapper.FromVariant(value)`,
+and read back with `IsVariant()` and `AsVariant()`.
+
+### Several success responses
+
+An operation that declares more than one 2xx response with different schemas returns
+a union, and the body is decoded as the schema of the status that arrived: `200` as the
+first, `201` as the second. Ask the union which one it holds with its `Is...()` and
+`As...()` members.
+
+### Credentials from the environment
+
+`Client.FromEnvironment()` reads the host from `PETSTORE_CLIENT_HOST` and the bearer
+token from `PETSTORE_CLIENT_TOKEN`, once, when the client is built; an empty value counts as unset.
+The `host`, `token` and `tokenProvider` arguments win over the environment, and a
+`tokenProvider` callback is called before every request, so a token refreshed elsewhere is
+picked up. A missing host or credential fails the call that builds the client.
+
+### Response compression
+
+The client asks for `gzip, deflate, br` and decodes the response itself, so the body you read
+is always the decoded one. A `Content-Encoding` it cannot decode fails with an `ApiException`
+that carries the real status.
+
+### Logging
+
+The SDK writes no logs. To see requests and responses, wrap the transport: pass a
+`DelegatingHandler` through `TransportOptionsBuilder.HttpMessageHandler(...)`, or implement
+`IApiClient`.
+
+### Optional versus nullable
+
+A property that is optional is `T?` and null means it was absent. A property that is optional
+and also `nullable: true` collapses into the same `T?`: an absent key and an explicit `null`
+read the same, and neither is written back. A required nullable property keeps its key and is
+written as `null`.
+
+### Unknown enum values and discriminators
+
+An enum value, or a `oneOf` discriminator value, that the SDK does not know fails loudly with
+a `SerializationException` instead of being kept as a raw string. Regenerate the SDK when the
+API adds a value.
+
+### Response headers
+
+`ApiResult.Headers` and `ApiException.ResponseHeaders` are a plain map with lower-cased names.
+A header the server repeats (`Link`, `Set-Cookie`) is joined into one value with `, ` in the
+order it arrived, so a `Set-Cookie` value is not parsed for you.
+
+### Streaming
+
+Request and response bodies are read and sent whole; there is no streaming of a response body.
+Implement `IApiClient` and inject it when you need to stream.
+
+### Configuration and transport options
+
+`Configuration` holds what belongs to the API (the base URL and default headers) and
+`TransportOptions` holds how bytes travel (proxy, TLS, timeouts, retries). They stay separate:
+the transport is shared by every API group, the configuration is per group.
+
 ### Expired tokens
 
 When an OAuth2 or OpenID Connect call is answered with 401, the cached access
@@ -145,6 +227,14 @@ Fails when a direct or transitive NuGet package has a known vulnerability (`dotn
 
 - Name: `PetstoreClient`
 - Version: `1.0.0`
+- License: MIT
+
+The package follows semantic versioning: a patch release only fixes bugs, a minor
+release only adds members, and a major release may change the public API. The
+package targets .NET 8 or newer, and a runtime that reaches its end of support is
+dropped from the supported set in a major release. The XML documentation file and
+symbol package (`.snupkg`) ship with it, so IntelliSense and the debugger show the
+summaries and the sources.
 
 ## Caveats
 

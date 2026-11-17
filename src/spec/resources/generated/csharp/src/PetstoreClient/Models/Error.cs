@@ -10,16 +10,16 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Error : IEquatable<Error>
+public record Error
 {
     [JsonPropertyName("code")]
-    public int? Code { get; set; }
+    public int? Code { get; init; }
 
     [JsonPropertyName("message")]
-    public string? Message { get; set; }
+    public string? Message { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(Error? other)
+    public virtual bool Equals(Error? other)
     {
         return other is not null
             && (
@@ -27,11 +27,6 @@ public class Error : IEquatable<Error>
                 || EqualityComparer<int?>.Default.Equals(this.Code, other.Code)
                     && EqualityComparer<string?>.Default.Equals(this.Message, other.Message)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Error);
     }
 
     public override int GetHashCode()

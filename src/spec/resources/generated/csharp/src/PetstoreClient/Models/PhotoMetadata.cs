@@ -10,22 +10,22 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class PhotoMetadata : IEquatable<PhotoMetadata>
+public record PhotoMetadata
 {
     [JsonPropertyName("caption")]
-    public string? Caption { get; set; }
+    public string? Caption { get; init; }
 
     [JsonPropertyName("isPrimary")]
-    public bool? IsPrimary { get; set; }
+    public bool? IsPrimary { get; init; }
 
     [JsonPropertyName("takenAt")]
-    public DateTimeOffset? TakenAt { get; set; }
+    public DateTimeOffset? TakenAt { get; init; }
 
     [JsonPropertyName("location")]
-    public PhotoMetadataLocation? Location { get; set; }
+    public PhotoMetadataLocation? Location { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(PhotoMetadata? other)
+    public virtual bool Equals(PhotoMetadata? other)
     {
         return other is not null
             && (
@@ -38,11 +38,6 @@ public class PhotoMetadata : IEquatable<PhotoMetadata>
                         other.Location
                     )
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as PhotoMetadata);
     }
 
     public override int GetHashCode()

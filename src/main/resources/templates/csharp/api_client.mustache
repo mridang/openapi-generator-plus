@@ -117,6 +117,35 @@ public interface IApiClient : IDisposable
     ) => SendRequestAsync(method, url, headers, body, noRedirect, cancellationToken);
 
     /// <summary>
+    /// Send an HTTP request with per-call overrides of the transport's timeout
+    /// and retry limit. A null override keeps the transport's own setting. The
+    /// default implementation ignores both overrides and delegates to the
+    /// seven-argument overload; a transport that owns the timeout and the retry
+    /// loop should implement this method and honour them.
+    /// </summary>
+    /// <param name="method">HTTP method</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (may be null)</param>
+    /// <param name="noRedirect">When <c>true</c>, do not follow 3xx responses.</param>
+    /// <param name="refreshHeaders">Rebuilds the request headers for a retry, or null to reuse them.</param>
+    /// <param name="timeout">End-to-end timeout in milliseconds for this call, or null for the transport's.</param>
+    /// <param name="maxRetries">Maximum number of retries for this call, or null for the transport's.</param>
+    /// <param name="cancellationToken">Token that cancels the request.</param>
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        Func<Task<Dictionary<string, string>>>? refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        CancellationToken cancellationToken
+    ) => SendRequestAsync(method, url, headers, body, noRedirect, refreshHeaders, cancellationToken);
+
+    /// <summary>
     /// Releases any resources held by this client (connection pool, sockets).
     /// The default implementation is a no-op; implementations that own a
     /// pooled HTTP client should dispose of it.

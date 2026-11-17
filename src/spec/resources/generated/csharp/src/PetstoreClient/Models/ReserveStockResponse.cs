@@ -17,7 +17,54 @@ namespace PetstoreClient.Models;
 [JsonConverter(typeof(ReserveStockResponseConverter))]
 public class ReserveStockResponse(object value) : IEquatable<ReserveStockResponse>
 {
-    public object? ActualInstance { get; set; } = value;
+    /// <summary>The wrapped variant. The wrapper is immutable: to change it, build another one.</summary>
+    public object? ActualInstance { get; } = value;
+
+    /// <summary>Wraps a <c>Reservation</c> value as this union.</summary>
+    /// <param name="value">The variant value.</param>
+    /// <returns>A union holding <paramref name="value"/>.</returns>
+    public static ReserveStockResponse FromReservation(Reservation value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return new ReserveStockResponse(value);
+    }
+
+    /// <summary>Whether the wrapped variant is a <c>Reservation</c>.</summary>
+    /// <returns>True when it is.</returns>
+    public bool IsReservation()
+    {
+        return ActualInstance is Reservation;
+    }
+
+    /// <summary>The wrapped variant as a <c>Reservation</c>.</summary>
+    /// <returns>The variant, or null when another variant is wrapped.</returns>
+    public Reservation? AsReservation()
+    {
+        return ActualInstance is Reservation variant ? variant : null;
+    }
+
+    /// <summary>Wraps a <c>ReservationReceipt</c> value as this union.</summary>
+    /// <param name="value">The variant value.</param>
+    /// <returns>A union holding <paramref name="value"/>.</returns>
+    public static ReserveStockResponse FromReservationReceipt(ReservationReceipt value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return new ReserveStockResponse(value);
+    }
+
+    /// <summary>Whether the wrapped variant is a <c>ReservationReceipt</c>.</summary>
+    /// <returns>True when it is.</returns>
+    public bool IsReservationReceipt()
+    {
+        return ActualInstance is ReservationReceipt;
+    }
+
+    /// <summary>The wrapped variant as a <c>ReservationReceipt</c>.</summary>
+    /// <returns>The variant, or null when another variant is wrapped.</returns>
+    public ReservationReceipt? AsReservationReceipt()
+    {
+        return ActualInstance is ReservationReceipt variant ? variant : null;
+    }
 
     /// <summary>Value equality on the wrapped variant.</summary>
     public bool Equals(ReserveStockResponse? other)

@@ -15,16 +15,16 @@ namespace PetstoreClient.Models;
 /// </summary>
 /// <remarks>Deprecated.</remarks>
 [Obsolete("This schema is deprecated.")]
-public class Tag : IEquatable<Tag>
+public record Tag
 {
     [JsonPropertyName("id")]
-    public long? Id { get; set; }
+    public long? Id { get; init; }
 
     [JsonPropertyName("name")]
-    public string? Name { get; set; }
+    public string? Name { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(Tag? other)
+    public virtual bool Equals(Tag? other)
     {
         return other is not null
             && (
@@ -32,11 +32,6 @@ public class Tag : IEquatable<Tag>
                 || EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string?>.Default.Equals(this.Name, other.Name)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Tag);
     }
 
     public override int GetHashCode()

@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class WetFood : PetFood, IEquatable<WetFood>
+public record WetFood : PetFood
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -38,7 +38,7 @@ public class WetFood : PetFood, IEquatable<WetFood>
     }
 
     [JsonPropertyName("foodType")]
-    public string FoodType { get; set; } = "wet";
+    public string FoodType { get; init; } = "wet";
 
     [JsonRequired]
     [JsonPropertyName("volumeMl")]
@@ -47,7 +47,7 @@ public class WetFood : PetFood, IEquatable<WetFood>
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
-    public bool Equals(WetFood? other)
+    public virtual bool Equals(WetFood? other)
     {
         return other is not null
             && (
@@ -55,11 +55,6 @@ public class WetFood : PetFood, IEquatable<WetFood>
                 || EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
                     && EqualityComparer<int>.Default.Equals(this.VolumeMl, other.VolumeMl)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as WetFood);
     }
 
     public override int GetHashCode()

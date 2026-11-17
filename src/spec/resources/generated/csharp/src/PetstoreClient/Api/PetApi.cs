@@ -381,7 +381,10 @@ public class PetApi : BaseApi
                 typeof(Pet),
                 options?.Auth,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.AddPet"
+                operationName: "PetApi.AddPet",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -506,7 +509,10 @@ public class PetApi : BaseApi
                 typeof(List<Photo>),
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.AddPetPhotos"
+                operationName: "PetApi.AddPetPhotos",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -605,7 +611,10 @@ public class PetApi : BaseApi
                 typeof(PetTreatment),
                 options?.Auth,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.AddPetTreatment"
+                operationName: "PetApi.AddPetTreatment",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -715,7 +724,10 @@ public class PetApi : BaseApi
                 null,
                 options?.Auth,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.DeletePet"
+                operationName: "PetApi.DeletePet",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -1061,7 +1073,10 @@ public class PetApi : BaseApi
                 typeof(List<Pet>),
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.FindPetsByStatus"
+                operationName: "PetApi.FindPetsByStatus",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -1726,7 +1741,10 @@ public class PetApi : BaseApi
                 typeof(Pet),
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.GetPetByName"
+                operationName: "PetApi.GetPetByName",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -2121,7 +2139,10 @@ public class PetApi : BaseApi
                 typeof(string),
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.GetPetSummary"
+                operationName: "PetApi.GetPetSummary",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -2385,7 +2406,10 @@ public class PetApi : BaseApi
                 typeof(Pet),
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.GetPetTag"
+                operationName: "PetApi.GetPetTag",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -2796,7 +2820,10 @@ public class PetApi : BaseApi
                 typeof(ApiResponse),
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.SetPetPreferences"
+                operationName: "PetApi.SetPetPreferences",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -3000,7 +3027,10 @@ public class PetApi : BaseApi
                 typeof(ApiResponse),
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.UploadPetCertificate"
+                operationName: "PetApi.UploadPetCertificate",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -3160,7 +3190,10 @@ public class PetApi : BaseApi
                 typeof(ApiResponse),
                 null,
                 cancellationToken: cancellationToken,
-                operationName: "PetApi.UploadPetDocument"
+                operationName: "PetApi.UploadPetDocument",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }

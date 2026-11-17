@@ -650,9 +650,152 @@ public class StoreApiTest
 
         var item = await api.GetStockItemAsync();
 
-        Assert.Equal(Priority.NUMBER_2, item.Priority);
+        Assert.Equal(Priority.Number2, item.Priority);
         Assert.Equal(Availability.OnHold, item.Availability);
         Assert.Equal(2, item.Matrix!.Count);
         Assert.Equal(new List<int> { 1, 2 }, item.Matrix[0]);
+    }
+
+    [Fact]
+    public async Task ReserveStockDecodesA200AsTheExistingReservation()
+    {
+        var api = NewStoreApiForMock(
+            200,
+            "application/json",
+            "{\"reservationId\":31,\"quantity\":4}"
+        );
+
+        var result = await api.ReserveStockAsync();
+
+        Assert.True(result.IsReservation());
+        Assert.False(result.IsReservationReceipt());
+        Assert.Equal(31L, result.AsReservation()!.ReservationId);
+        Assert.Null(result.AsReservationReceipt());
+    }
+
+    [Fact]
+    public async Task ReserveStockDecodesA201AsTheNewReceipt()
+    {
+        var api = NewStoreApiForMock(
+            201,
+            "application/json",
+            "{\"receiptCode\":\"rcpt-77\",\"expiresAt\":\"2024-01-01T00:00:00Z\"}"
+        );
+
+        var result = await api.ReserveStockAsync();
+
+        Assert.True(result.IsReservationReceipt());
+        Assert.Equal("rcpt-77", result.AsReservationReceipt()!.ReceiptCode);
+    }
+
+    [Fact]
+    public async Task ReserveStockReadsA201BodyAsTheReceiptSchemaNotTheFirstThatFits()
+    {
+        var api = NewStoreApiForMock(
+            201,
+            "application/json",
+            "{\"reservationId\":31,\"quantity\":4}"
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            api.ReserveStockAsync()
+        );
+    }
+
+    [Fact]
+    public void AUnionIsBuiltFromAVariantAndNeverChanges()
+    {
+        var reservation = new Reservation(31L, 4);
+
+        var union = ReserveStockResponse.FromReservation(reservation);
+
+        Assert.Same(reservation, union.ActualInstance);
+        Assert.True(union.IsReservation());
+        Assert.Throws<ArgumentNullException>(() => ReserveStockResponse.FromReservation(null!));
+        Assert.Null(typeof(ReserveStockResponse).GetProperty("ActualInstance")!.SetMethod);
+    }
+
+    private sealed class CallOptionsApiClient : IApiClient
+    {
+        public int? Timeout { get; private set; }
+        public int? MaxRetries { get; private set; }
+        public Dictionary<string, string> Headers { get; private set; } = [];
+
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            Headers = new Dictionary<string, string>(headers);
+            return Task.FromResult(
+                new PetstoreClient.ApiHttpResponse(
+                    200,
+                    "[]",
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }
+                )
+            );
+        }
+
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            CancellationToken cancellationToken
+        )
+        {
+            Timeout = timeout;
+            MaxRetries = maxRetries;
+            return SendRequestAsync(method, url, headers, body);
+        }
+    }
+
+    [Fact]
+    public async Task AnOperationPassesItsPerCallOptionsToTheTransport()
+    {
+        var client = new CallOptionsApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync(
+            new SearchStoreOptions
+            {
+                Timeout = 2500,
+                MaxRetries = 0,
+                Headers = new Dictionary<string, string> { ["X-Trace"] = "t-1" },
+            }
+        );
+
+        Assert.Equal(2500, client.Timeout);
+        Assert.Equal(0, client.MaxRetries);
+        Assert.Equal("t-1", client.Headers["X-Trace"]);
+    }
+
+    [Fact]
+    public async Task AnOperationWithoutPerCallOptionsLeavesTheTransportSettingsAlone()
+    {
+        var client = new CallOptionsApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync();
+
+        Assert.Null(client.Timeout);
+        Assert.Null(client.MaxRetries);
+    }
+
+    [Fact]
+    public async Task APerCallTimeoutOfZeroIsRejected()
+    {
+        var client = new CallOptionsApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            api.SearchStoreAsync(new SearchStoreOptions { Timeout = 0 })
+        );
     }
 }

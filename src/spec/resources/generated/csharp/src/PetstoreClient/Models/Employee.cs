@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Employee : IEquatable<Employee>
+public record Employee
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -53,12 +53,12 @@ public class Employee : IEquatable<Employee>
     private readonly string _name = null!;
 
     [JsonPropertyName("department")]
-    public Department? Department { get; set; }
+    public Department? Department { get; init; }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
-    public bool Equals(Employee? other)
+    public virtual bool Equals(Employee? other)
     {
         return other is not null
             && (
@@ -69,11 +69,6 @@ public class Employee : IEquatable<Employee>
                         other.Department
                     )
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Employee);
     }
 
     public override int GetHashCode()

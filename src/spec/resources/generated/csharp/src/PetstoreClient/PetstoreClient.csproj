@@ -14,7 +14,19 @@
         <AnalysisMode>All</AnalysisMode>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Deterministic>true</Deterministic>
+        <ContinuousIntegrationBuild Condition="'$(CI)' == 'true' Or '$(GITHUB_ACTIONS)' == 'true'"
+            >true</ContinuousIntegrationBuild
+        >
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     </PropertyGroup>
+    <ItemGroup>
+        <!-- The package page shows the README, so it is packed at the package root. -->
+        <None Include="../../README.md" Pack="true" PackagePath="/" />
+    </ItemGroup>
     <ItemGroup>
         <!-- Trimmer keep-list. Embedded under the magic LogicalName
          `ILLink.Descriptors.xml` so the .NET trimmer applies it when a

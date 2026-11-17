@@ -112,4 +112,41 @@ public class BearerAuthenticatorTest
 
         Assert.Equal("BearerAuthenticator(Host=https://api.example.com, Token=***)", auth.ToString());
     }
+
+    [Fact]
+    public async Task ATokenProviderIsCalledForEveryRequest()
+    {
+        int calls = 0;
+        var auth = new BearerAuthenticator(
+            "https://api.example.com", _ => Task.FromResult("t" + (++calls)));
+
+        var first = await auth.GetAuthHeadersAsync();
+        var second = await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("Bearer t1", first["Authorization"]);
+        Assert.Equal("Bearer t2", second["Authorization"]);
+    }
+
+    [Fact]
+    public void ATokenProviderAlsoServesTheSynchronousHeaders()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("sync"));
+
+        Assert.Equal("Bearer sync", auth.GetAuthHeaders()["Authorization"]);
+    }
+
+    [Fact]
+    public async Task ATokenProviderResultIsValidatedLikeAStaticToken()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult(" "));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => auth.GetAuthHeadersAsync());
+    }
+
+    [Fact]
+    public void ANullTokenProviderIsRejected()
+    {
+        Assert.Throws<ArgumentNullException>(
+            () => new BearerAuthenticator("https://api.example.com", (Func<CancellationToken, Task<string>>)null!));
+    }
 }

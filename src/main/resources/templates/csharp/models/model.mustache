@@ -102,7 +102,7 @@ namespace {{packageName}}.Models;
 {{/isDeprecated}}
 {{#discriminator}}
 [JsonConverter(typeof({{classname}}Converter))]
-public abstract class {{classname}}
+public abstract record {{classname}}
 {
     private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
     {
@@ -141,7 +141,33 @@ public abstract class {{classname}}
 [JsonConverter(typeof({{classname}}Converter))]
 public class {{classname}}(object value) : IEquatable<{{classname}}>
 {
-    public object? ActualInstance { get; set; } = value;
+    /// <summary>The wrapped variant. The wrapper is immutable: to change it, build another one.</summary>
+    public object? ActualInstance { get; } = value;
+{{#composedSchemas.oneOf}}
+
+    /// <summary>Wraps a <c>{{#lambda.escapeXml}}{{{dataType}}}{{/lambda.escapeXml}}</c> value as this union.</summary>
+    /// <param name="value">The variant value.</param>
+    /// <returns>A union holding <paramref name="value"/>.</returns>
+    public static {{classname}} From{{vendorExtensions.variantName}}({{{dataType}}} value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return new {{classname}}(value);
+    }
+
+    /// <summary>Whether the wrapped variant is a <c>{{#lambda.escapeXml}}{{{dataType}}}{{/lambda.escapeXml}}</c>.</summary>
+    /// <returns>True when it is.</returns>
+    public bool Is{{vendorExtensions.variantName}}()
+    {
+        return ActualInstance is {{{dataType}}};
+    }
+
+    /// <summary>The wrapped variant as a <c>{{#lambda.escapeXml}}{{{dataType}}}{{/lambda.escapeXml}}</c>.</summary>
+    /// <returns>The variant, or null when another variant is wrapped.</returns>
+    public {{{dataType}}}? As{{vendorExtensions.variantName}}()
+    {
+        return ActualInstance is {{{dataType}}} variant ? variant : null;
+    }
+{{/composedSchemas.oneOf}}
 
     /// <summary>Value equality on the wrapped variant.</summary>
     public bool Equals({{classname}}? other)
@@ -367,7 +393,7 @@ namespace {{packageName}}.Models;
 {{#isUnevaluatedPropertiesFalse}}
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 {{/isUnevaluatedPropertiesFalse}}
-public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
+public record {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -493,7 +519,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     pre-trim behaviour. It is excluded from requiredVars, so it is also not a
     convenience-constructor parameter. }}
     [JsonPropertyName("{{baseName}}")]
-    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}} { get; set; } = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}} { get; init; } = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};
 {{/defaultValue}}
 {{^defaultValue}}
 {{#isNullable}}
@@ -548,7 +574,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{/required}}
 {{^required}}
     [JsonPropertyName("{{baseName}}")]
-    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}} { get; set; }{{#defaultValue}} = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};{{/defaultValue}}
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}} { get; init; }{{#defaultValue}} = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};{{/defaultValue}}
 {{/required}}
 {{^-last}}
 
@@ -557,25 +583,20 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{#isAdditionalPropertiesTrue}}
 
     [JsonExtensionData]
-    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}> AdditionalProperties { get; set; } = new();
+    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}> AdditionalProperties { get; init; } = new();
 {{/isAdditionalPropertiesTrue}}
 
     /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
     /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
-    public bool Equals({{classname}}? other)
+    public virtual bool Equals({{classname}}? other)
     {
         return other is not null
             && (ReferenceEquals(this, other)
                 || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
                     && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
                     && global::{{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as {{classname}});
     }
 
     public override int GetHashCode()
@@ -622,7 +643,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{#isUnevaluatedPropertiesFalse}}
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 {{/isUnevaluatedPropertiesFalse}}
-public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
+public record {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 {
     {{#vars}}
     {{#isEnum}}
@@ -704,7 +725,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     [Obsolete("This property is deprecated.")]
 {{/deprecated}}
     [JsonPropertyName("{{baseName}}")]
-    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#defaultValue}} = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};{{/defaultValue}}
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; init; }{{#defaultValue}} = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};{{/defaultValue}}
 {{^-last}}
 
 {{/-last}}
@@ -712,23 +733,18 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{#isAdditionalPropertiesTrue}}
 
     [JsonExtensionData]
-    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}> AdditionalProperties { get; set; } = new();
+    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}> AdditionalProperties { get; init; } = new();
 {{/isAdditionalPropertiesTrue}}
 
     /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
     /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}.</summary>
-    public bool Equals({{classname}}? other)
+    public virtual bool Equals({{classname}}? other)
     {
         return other is not null
             && (ReferenceEquals(this, other)
                 || {{^vars}}true{{/vars}}{{#vars}}{{#isContainer}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isByteArray}}global::{{packageName}}.ObjectSerializer.StructuralEquals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{/isContainer}}{{^-last}}
                     && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
                     && global::{{packageName}}.ObjectSerializer.StructuralEquals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}});
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as {{classname}});
     }
 
     public override int GetHashCode()

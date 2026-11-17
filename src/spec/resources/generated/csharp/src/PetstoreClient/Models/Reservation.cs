@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Reservation : IEquatable<Reservation>
+public record Reservation
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -51,7 +51,7 @@ public class Reservation : IEquatable<Reservation>
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
-    public bool Equals(Reservation? other)
+    public virtual bool Equals(Reservation? other)
     {
         return other is not null
             && (
@@ -59,11 +59,6 @@ public class Reservation : IEquatable<Reservation>
                 || EqualityComparer<long>.Default.Equals(this.ReservationId, other.ReservationId)
                     && EqualityComparer<int>.Default.Equals(this.Quantity, other.Quantity)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Reservation);
     }
 
     public override int GetHashCode()

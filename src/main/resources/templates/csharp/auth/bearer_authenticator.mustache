@@ -9,6 +9,7 @@ public class BearerAuthenticator : BaseAuthenticator
 {
     private readonly string _host;
     private readonly string _token;
+    private readonly Func<CancellationToken, Task<string>>? _tokenProvider;
 
     /// <summary>
     /// Create a Bearer authenticator. The token is validated eagerly at
@@ -20,6 +21,28 @@ public class BearerAuthenticator : BaseAuthenticator
     /// <param name="token">The bearer token.</param>
     public BearerAuthenticator(string host, string token)
     {
+        ValidateToken(token, nameof(token));
+        _host = host;
+        _token = token;
+    }
+
+    /// <summary>
+    /// Create a Bearer authenticator whose token comes from a callback. The
+    /// callback runs before every request, so it can hand out a token that was
+    /// refreshed elsewhere; each token it returns is validated like a static one.
+    /// </summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="tokenProvider">Returns the current bearer token.</param>
+    public BearerAuthenticator(string host, Func<CancellationToken, Task<string>> tokenProvider)
+    {
+        ArgumentNullException.ThrowIfNull(tokenProvider);
+        _host = host;
+        _token = "";
+        _tokenProvider = tokenProvider;
+    }
+
+    private static void ValidateToken(string token, string paramName)
+    {
         /* Reject an empty/whitespace token: it would otherwise emit a bare
          * "Authorization: Bearer " header, sending the request effectively
          * unauthenticated. Mirrors the api-key authenticator's own empty
@@ -28,7 +51,7 @@ public class BearerAuthenticator : BaseAuthenticator
         {
             throw new ArgumentException(
                 "Bearer token must not be empty",
-                nameof(token));
+                paramName);
         }
         /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
          * Reject anything outside printable ASCII + TAB so callers see a
@@ -38,10 +61,8 @@ public class BearerAuthenticator : BaseAuthenticator
         {
             throw new ArgumentException(
                 "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-                nameof(token));
+                paramName);
         }
-        _host = host;
-        _token = token;
     }
 
     /// <inheritdoc/>
@@ -53,10 +74,33 @@ public class BearerAuthenticator : BaseAuthenticator
     /// <inheritdoc/>
     public override Dictionary<string, string> GetAuthHeaders()
     {
+        if (_tokenProvider is not null)
+        {
+            /* The callback is asynchronous; run it off the caller's
+             * synchronization context so waiting for it cannot deadlock. */
+            return Task.Run(() => GetAuthHeadersAsync()).GetAwaiter().GetResult();
+        }
+        return HeadersFor(_token);
+    }
+
+    /// <inheritdoc/>
+    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    {
+        if (_tokenProvider is null)
+        {
+            return HeadersFor(_token);
+        }
+        string token = await _tokenProvider(CancellationToken.None).ConfigureAwait(false);
+        ValidateToken(token, nameof(token));
+        return HeadersFor(token);
+    }
+
+    private static Dictionary<string, string> HeadersFor(string token)
+    {
         /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
          * from env files are commonly stored already-prefixed; emitting
          * "Bearer Bearer xyz" would otherwise silently break auth. */
-        string value = _token;
+        string value = token;
         if (value.Length >= 7 && value[..7].Equals("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
             value = value[7..];

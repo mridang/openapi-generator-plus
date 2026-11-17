@@ -21,6 +21,13 @@ csharp_style_namespace_declarations = file_scoped:warning
 # generated code cannot satisfy; each is named with the reason. No generated
 # file carries a suppression, and no rule set is switched off wholesale.
 
+# The project writes its XML documentation file so a NuGet package ships the
+# summaries for IntelliSense. The summaries are written on every type and every
+# operation; the members of a model, an exception constructor or an enum value
+# are named by the OpenAPI document and the cross-SDK contract and carry no
+# prose of their own, so the missing-comment warning is named here.
+dotnet_diagnostic.CS1591.severity = none
+
 # Models are transport records: the serializer materialises their collections,
 # so those properties are concrete lists and they are settable.
 dotnet_diagnostic.CA1002.severity = none

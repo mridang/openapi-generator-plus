@@ -14,7 +14,54 @@ namespace PetstoreClient.Models;
 [JsonConverter(typeof(SetPetAvatarThumbnailRequestConverter))]
 public class SetPetAvatarThumbnailRequest(object value) : IEquatable<SetPetAvatarThumbnailRequest>
 {
-    public object? ActualInstance { get; set; } = value;
+    /// <summary>The wrapped variant. The wrapper is immutable: to change it, build another one.</summary>
+    public object? ActualInstance { get; } = value;
+
+    /// <summary>Wraps a <c>byte[]</c> value as this union.</summary>
+    /// <param name="value">The variant value.</param>
+    /// <returns>A union holding <paramref name="value"/>.</returns>
+    public static SetPetAvatarThumbnailRequest FromByte(byte[] value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return new SetPetAvatarThumbnailRequest(value);
+    }
+
+    /// <summary>Whether the wrapped variant is a <c>byte[]</c>.</summary>
+    /// <returns>True when it is.</returns>
+    public bool IsByte()
+    {
+        return ActualInstance is byte[];
+    }
+
+    /// <summary>The wrapped variant as a <c>byte[]</c>.</summary>
+    /// <returns>The variant, or null when another variant is wrapped.</returns>
+    public byte[]? AsByte()
+    {
+        return ActualInstance is byte[] variant ? variant : null;
+    }
+
+    /// <summary>Wraps a <c><![CDATA[List<byte[]>]]></c> value as this union.</summary>
+    /// <param name="value">The variant value.</param>
+    /// <returns>A union holding <paramref name="value"/>.</returns>
+    public static SetPetAvatarThumbnailRequest FromListByte(List<byte[]> value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return new SetPetAvatarThumbnailRequest(value);
+    }
+
+    /// <summary>Whether the wrapped variant is a <c><![CDATA[List<byte[]>]]></c>.</summary>
+    /// <returns>True when it is.</returns>
+    public bool IsListByte()
+    {
+        return ActualInstance is List<byte[]>;
+    }
+
+    /// <summary>The wrapped variant as a <c><![CDATA[List<byte[]>]]></c>.</summary>
+    /// <returns>The variant, or null when another variant is wrapped.</returns>
+    public List<byte[]>? AsListByte()
+    {
+        return ActualInstance is List<byte[]> variant ? variant : null;
+    }
 
     /// <summary>Value equality on the wrapped variant.</summary>
     public bool Equals(SetPetAvatarThumbnailRequest? other)

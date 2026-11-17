@@ -75,11 +75,13 @@ public class MetadataTest
     [Fact]
     public void RoundTripPreservesAdditionalProperties()
     {
-        var metadata = new Metadata();
-        metadata.AdditionalProperties = new Dictionary<string, object>
+        var metadata = new Metadata
         {
-            ["customField"] = "hello",
-            ["anotherField"] = "world",
+            AdditionalProperties = new Dictionary<string, object>
+            {
+                ["customField"] = "hello",
+                ["anotherField"] = "world",
+            },
         };
         var json = _serializer.Serialize(metadata);
         var deserialized = _serializer.Deserialize<Metadata>(json);
@@ -91,8 +93,10 @@ public class MetadataTest
     [Fact]
     public void AdditionalPropertiesContainStringValues()
     {
-        var metadata = new Metadata();
-        metadata.AdditionalProperties = new Dictionary<string, object> { ["key"] = "value" };
+        var metadata = new Metadata
+        {
+            AdditionalProperties = new Dictionary<string, object> { ["key"] = "value" },
+        };
         Assert.Equal("value", metadata.AdditionalProperties["key"]);
     }
 
@@ -206,6 +210,68 @@ public class MetadataTest
             StringComparison.Ordinal
         );
         Assert.DoesNotContain("`TransportOptions.Proxy(...)`", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProjectFileWritesTheDocumentationFileAndPacksTheReadmeAndSymbols()
+    {
+        var projectFolder = Path.Combine(ProjectRoot().FullName, "src", "PetstoreClient");
+        var manifest = File.ReadAllText(Path.Combine(projectFolder, "PetstoreClient.csproj"));
+
+        Assert.Contains(
+            "<GenerateDocumentationFile>true</GenerateDocumentationFile>",
+            manifest,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "<PackageReadmeFile>README.md</PackageReadmeFile>",
+            manifest,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("<Deterministic>true</Deterministic>", manifest, StringComparison.Ordinal);
+        Assert.Contains(
+            "<IncludeSymbols>true</IncludeSymbols>",
+            manifest,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "<SymbolPackageFormat>snupkg</SymbolPackageFormat>",
+            manifest,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("ContinuousIntegrationBuild", manifest, StringComparison.Ordinal);
+        Assert.True(
+            File.Exists(Path.GetFullPath(Path.Combine(projectFolder, "../../README.md"))),
+            "the packed README must exist at ../../README.md"
+        );
+    }
+
+    [Theory]
+    [InlineData("### Per-call options")]
+    [InlineData("### Error details")]
+    [InlineData("### Immutable models")]
+    [InlineData("### Several success responses")]
+    [InlineData("### Credentials from the environment")]
+    [InlineData("### Response compression")]
+    [InlineData("### Logging")]
+    [InlineData("### Optional versus nullable")]
+    [InlineData("### Unknown enum values and discriminators")]
+    [InlineData("### Response headers")]
+    [InlineData("### Streaming")]
+    [InlineData("### Configuration and transport options")]
+    public void ReadmeDocumentsTheBehaviourThatSurprisesCallers(string heading)
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+
+        Assert.Contains(heading, readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadmeNamesTheSemanticVersioningPolicy()
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+
+        Assert.Contains("follows semantic versioning", readme, StringComparison.Ordinal);
     }
 
     [Fact]

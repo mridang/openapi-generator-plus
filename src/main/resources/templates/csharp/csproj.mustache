@@ -17,7 +17,29 @@
     <AnalysisMode>All</AnalysisMode>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <PackageLicenseExpression>{{licenseId}}</PackageLicenseExpression>
+{{#authors}}
+    <Authors>{{#lambda.escapeXmlText}}{{{authors}}}{{/lambda.escapeXmlText}}</Authors>
+{{/authors}}
+{{#homepageUrl}}
+    <PackageProjectUrl>{{#lambda.escapeXmlText}}{{{homepageUrl}}}{{/lambda.escapeXmlText}}</PackageProjectUrl>
+{{/homepageUrl}}
+{{#repositoryUrl}}
+    <RepositoryUrl>{{#lambda.escapeXmlText}}{{{repositoryUrl}}}{{/lambda.escapeXmlText}}</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+{{/repositoryUrl}}
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true' Or '$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- The package page shows the README, so it is packed at the package root. -->
+    <None Include="{{readmeRelativePath}}" Pack="true" PackagePath="/" />
+  </ItemGroup>
   <ItemGroup>
     <!-- Trimmer keep-list. Embedded under the magic LogicalName
          `ILLink.Descriptors.xml` so the .NET trimmer applies it when a
@@ -46,6 +68,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+{{#repositoryIsGitHub}}
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+{{/repositoryIsGitHub}}
     <!-- StyleCop.Analyzers dropped: hundreds of style-only SA violations
          (SA1200 using outside namespace, SA1513 brace blank-line, SA1633
          missing XML file header) that don't reflect real bugs and would

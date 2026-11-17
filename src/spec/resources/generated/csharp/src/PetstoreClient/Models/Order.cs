@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Order : IEquatable<Order>
+public record Order
 {
     [JsonConverter(typeof(StatusEnumConverter))]
     public enum StatusEnum
@@ -76,34 +76,34 @@ public class Order : IEquatable<Order>
 
     /// <example>10</example>
     [JsonPropertyName("id")]
-    public long? Id { get; set; }
+    public long? Id { get; init; }
 
     /// <example>198772</example>
     [JsonPropertyName("petId")]
-    public long? PetId { get; set; }
+    public long? PetId { get; init; }
 
     /// <example>7</example>
     [JsonPropertyName("quantity")]
-    public int? Quantity { get; set; }
+    public int? Quantity { get; init; }
 
     [JsonPropertyName("trackingId")]
-    public Guid? TrackingId { get; set; }
+    public Guid? TrackingId { get; init; }
 
     [JsonPropertyName("shipDate")]
-    public DateTimeOffset? ShipDate { get; set; }
+    public DateTimeOffset? ShipDate { get; init; }
 
     /// <summary>
     /// Order Status
     /// </summary>
     /// <example>approved</example>
     [JsonPropertyName("status")]
-    public StatusEnum? Status { get; set; } = StatusEnum.Placed;
+    public StatusEnum? Status { get; init; } = StatusEnum.Placed;
 
     [JsonPropertyName("complete")]
-    public bool? Complete { get; set; }
+    public bool? Complete { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(Order? other)
+    public virtual bool Equals(Order? other)
     {
         return other is not null
             && (
@@ -119,11 +119,6 @@ public class Order : IEquatable<Order>
                     && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
                     && EqualityComparer<bool?>.Default.Equals(this.Complete, other.Complete)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Order);
     }
 
     public override int GetHashCode()

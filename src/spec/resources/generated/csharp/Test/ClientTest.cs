@@ -89,12 +89,15 @@ public sealed class ClientTest : IDisposable
 
         public bool Disposed { get; private set; }
 
+        public string? Authorization { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
         )
         {
             Requests++;
+            Authorization = request.Headers.Authorization?.ToString();
             return Task.FromResult(
                 new HttpResponseMessage(System.Net.HttpStatusCode.OK)
                 {
@@ -112,6 +115,116 @@ public sealed class ClientTest : IDisposable
             Disposed = true;
             base.Dispose(disposing);
         }
+    }
+
+    private const string HostVariable = "PETSTORE_CLIENT_HOST";
+    private const string TokenVariable = "PETSTORE_CLIENT_TOKEN";
+
+    private static void WithEnvironment(string? host, string? token, Action body)
+    {
+        string? savedHost = Environment.GetEnvironmentVariable(HostVariable);
+        string? savedToken = Environment.GetEnvironmentVariable(TokenVariable);
+        try
+        {
+            Environment.SetEnvironmentVariable(HostVariable, host);
+            Environment.SetEnvironmentVariable(TokenVariable, token);
+            body();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(HostVariable, savedHost);
+            Environment.SetEnvironmentVariable(TokenVariable, savedToken);
+        }
+    }
+
+    [Fact]
+    public async Task FromEnvironmentReadsTheHostAndTokenFromTheEnvironment()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () => client = Client.FromEnvironment(transportOptions: transport)
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer env-token", handler.Authorization);
+    }
+
+    [Fact]
+    public async Task FromEnvironmentPrefersTheExplicitOptionsOverTheEnvironment()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://env.invalid",
+            "env-token",
+            () =>
+                client = Client.FromEnvironment(
+                    host: "http://localhost",
+                    token: "explicit-token",
+                    transportOptions: transport
+                )
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer explicit-token", handler.Authorization);
+    }
+
+    [Fact]
+    public async Task FromEnvironmentCallsTheTokenProviderBeforeEveryRequest()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        int calls = 0;
+        using var client = Client.FromEnvironment(
+            host: "http://localhost",
+            tokenProvider: _ => Task.FromResult("provided-" + (++calls)),
+            transportOptions: transport
+        );
+
+        _ = await client.Store.GetOrderByIdAsync(1);
+        Assert.Equal("Bearer provided-1", handler.Authorization);
+        _ = await client.Store.GetOrderByIdAsync(1);
+
+        Assert.Equal("Bearer provided-2", handler.Authorization);
+    }
+
+    [Fact]
+    public void FromEnvironmentTreatsAnEmptyVariableAsUnset()
+    {
+        WithEnvironment(
+            "http://localhost",
+            "",
+            () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+                Assert.Contains(TokenVariable, ex.Message, StringComparison.Ordinal);
+            }
+        );
+    }
+
+    [Fact]
+    public void FromEnvironmentFailsWhenNoHostIsAvailable()
+    {
+        WithEnvironment(
+            null,
+            "env-token",
+            () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+                Assert.Contains(HostVariable, ex.Message, StringComparison.Ordinal);
+            }
+        );
     }
 
     [Fact]

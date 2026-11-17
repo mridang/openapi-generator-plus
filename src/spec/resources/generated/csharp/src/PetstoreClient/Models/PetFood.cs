@@ -15,7 +15,7 @@ namespace PetstoreClient.Models;
 /// Food for pets, discriminated by foodType
 /// </summary>
 [JsonConverter(typeof(PetFoodConverter))]
-public abstract class PetFood
+public abstract record PetFood
 {
     private sealed class PetFoodConverter : JsonConverter<PetFood>
     {

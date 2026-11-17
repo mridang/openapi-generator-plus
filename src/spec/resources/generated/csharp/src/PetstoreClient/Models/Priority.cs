@@ -17,11 +17,11 @@ namespace PetstoreClient.Models;
 [JsonConverter(typeof(PriorityConverter))]
 public enum Priority
 {
-    NUMBER_1 = 1,
+    Number1 = 1,
 
-    NUMBER_2 = 2,
+    Number2 = 2,
 
-    NUMBER_3 = 3,
+    Number3 = 3,
 }
 
 /// <summary>
@@ -47,9 +47,9 @@ internal sealed class PriorityConverter : JsonConverter<Priority>
         long value = reader.GetInt64();
         return value switch
         {
-            1 => Priority.NUMBER_1,
-            2 => Priority.NUMBER_2,
-            3 => Priority.NUMBER_3,
+            1 => Priority.Number1,
+            2 => Priority.Number2,
+            3 => Priority.Number3,
             _ => throw new JsonException($"Unknown value '{value}' for enum Priority."),
         };
     }
@@ -59,9 +59,9 @@ internal sealed class PriorityConverter : JsonConverter<Priority>
         writer.WriteNumberValue(
             value switch
             {
-                Priority.NUMBER_1 => 1,
-                Priority.NUMBER_2 => 2,
-                Priority.NUMBER_3 => 3,
+                Priority.Number1 => 1,
+                Priority.Number2 => 2,
+                Priority.Number3 => 3,
                 _ => throw new JsonException($"Unknown value '{value}' for enum Priority."),
             }
         );

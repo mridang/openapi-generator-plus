@@ -13,7 +13,7 @@ namespace PetstoreClient.Models;
 /// <summary>
 /// Edge-case property shapes mirrored from real protobuf-derived specs.
 /// </summary>
-public class EdgeCases : IEquatable<EdgeCases>
+public record EdgeCases
 {
     [JsonConverter(typeof(PhaseEnumConverter))]
     public enum PhaseEnum
@@ -78,76 +78,76 @@ public class EdgeCases : IEquatable<EdgeCases>
     }
 
     [JsonPropertyName("freeFormAny")]
-    public object? FreeFormAny { get; set; }
+    public object? FreeFormAny { get; init; }
 
     [JsonPropertyName("favoriteColor")]
-    public Color? FavoriteColor { get; set; }
+    public Color? FavoriteColor { get; init; }
 
     /// <summary>
     /// <![CDATA[Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)]]>
     /// </summary>
     [JsonPropertyName("permissionsNote")]
-    public string? PermissionsNote { get; set; }
+    public string? PermissionsNote { get; init; }
 
     [JsonPropertyName("and")]
-    public bool? And { get; set; }
+    public bool? And { get; init; }
 
     [JsonPropertyName("or")]
-    public bool? Or { get; set; }
+    public bool? Or { get; init; }
 
     [JsonPropertyName("not")]
-    public bool? Not { get; set; }
+    public bool? Not { get; init; }
 
     [JsonPropertyName("class")]
-    public string? Class { get; set; }
+    public string? Class { get; init; }
 
     [JsonPropertyName("return")]
-    public string? Return { get; set; }
+    public string? Return { get; init; }
 
     /// <summary>
     /// Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
     /// </summary>
     [JsonPropertyName("retryAfter")]
-    public TimeSpan? RetryAfter { get; set; }
+    public TimeSpan? RetryAfter { get; init; }
 
     /// <summary>
     /// Absolute expiry instant
     /// </summary>
     [JsonPropertyName("expiresAt")]
-    public DateTimeOffset? ExpiresAt { get; set; }
+    public DateTimeOffset? ExpiresAt { get; init; }
 
     [JsonPropertyName("2fa")]
-    public bool? N2fa { get; set; }
+    public bool? N2fa { get; init; }
 
     [JsonPropertyName("separator")]
-    public Separator? Separator { get; set; }
+    public Separator? Separator { get; init; }
 
     [JsonPropertyName("null")]
-    public string? Null { get; set; }
+    public string? Null { get; init; }
 
     [JsonPropertyName("true")]
-    public bool? True { get; set; }
+    public bool? True { get; init; }
 
     [JsonPropertyName("false")]
-    public bool? False { get; set; }
+    public bool? False { get; init; }
 
     [JsonPropertyName("lastError")]
-    public Error? LastError { get; set; }
+    public Error? LastError { get; init; }
 
     [JsonPropertyName("outcome")]
-    public Result? Outcome { get; set; }
+    public Result? Outcome { get; init; }
 
     [JsonPropertyName("cutoff")]
-    public TimeOnly? Cutoff { get; set; }
+    public TimeOnly? Cutoff { get; init; }
 
     [JsonPropertyName("phase")]
-    public PhaseEnum? Phase { get; set; }
+    public PhaseEnum? Phase { get; init; }
 
     [JsonPropertyName("slug")]
-    public string? Slug { get; set; }
+    public string? Slug { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(EdgeCases? other)
+    public virtual bool Equals(EdgeCases? other)
     {
         return other is not null
             && (
@@ -182,11 +182,6 @@ public class EdgeCases : IEquatable<EdgeCases>
                     && EqualityComparer<PhaseEnum?>.Default.Equals(this.Phase, other.Phase)
                     && EqualityComparer<string?>.Default.Equals(this.Slug, other.Slug)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as EdgeCases);
     }
 
     public override int GetHashCode()

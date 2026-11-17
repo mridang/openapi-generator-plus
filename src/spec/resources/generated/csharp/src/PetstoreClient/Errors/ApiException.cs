@@ -21,6 +21,19 @@ public class ApiException : OpenAPIException
     public Dictionary<string, string>? ResponseHeaders { get; private init; }
     public object? ErrorBody { get; }
 
+    /// <summary>
+    /// The HTTP method of the request that failed, for example <c>GET</c>, or
+    /// null when the error did not come from a request the SDK built.
+    /// </summary>
+    public string? RequestMethod { get; private set; }
+
+    /// <summary>
+    /// The path of the request that failed, without its query string, for
+    /// example <c>/items/7</c>, or null when the error did not come from a
+    /// request the SDK built.
+    /// </summary>
+    public string? RequestPath { get; private set; }
+
     public ApiException() { }
 
     public ApiException(string message)
@@ -87,14 +100,22 @@ public class ApiException : OpenAPIException
     /// <param name="statusCode">The HTTP status code of the response.</param>
     /// <param name="responseHeaders">The HTTP response headers, if available.</param>
     /// <param name="responseBody">The raw HTTP response body, if available.</param>
+    /// <param name="requestMethod">The HTTP method of the request, named in the message when given with the path.</param>
+    /// <param name="requestPath">The path of the request without its query string.</param>
     /// <returns>The exception for the status; the caller throws it.</returns>
     public static ApiException FromResponse(
         int statusCode,
         IReadOnlyDictionary<string, string>? responseHeaders,
-        string? responseBody
+        string? responseBody,
+        string? requestMethod = null,
+        string? requestPath = null
     )
     {
         string message = $"API returned status code {statusCode}";
+        if (!string.IsNullOrEmpty(requestMethod) && !string.IsNullOrEmpty(requestPath))
+        {
+            message += $" for {requestMethod} {StripQuery(requestPath)}";
+        }
         Dictionary<string, string>? headers = responseHeaders is null
             ? null
             : new Dictionary<string, string>(responseHeaders);
@@ -122,7 +143,7 @@ public class ApiException : OpenAPIException
             }
         }
 
-        return statusCode switch
+        ApiException built = statusCode switch
         {
             400 => new BadRequestException(message, headers, responseBody, errorBody),
             401 => new UnauthorizedException(message, headers, responseBody, errorBody),
@@ -148,6 +169,18 @@ public class ApiException : OpenAPIException
             ),
             _ => new ApiException(statusCode, message, headers, responseBody, errorBody),
         };
+        built.RequestMethod = string.IsNullOrEmpty(requestMethod) ? null : requestMethod;
+        built.RequestPath = string.IsNullOrEmpty(requestPath) ? null : StripQuery(requestPath);
+        return built;
+    }
+
+    private static readonly char[] QueryDelimiters = ['?', '#'];
+
+    /// <summary>The path without its query string or fragment.</summary>
+    private static string StripQuery(string path)
+    {
+        int cut = path.IndexOfAny(QueryDelimiters);
+        return cut < 0 ? path : path[..cut];
     }
 
     /// <summary>

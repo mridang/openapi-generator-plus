@@ -10,35 +10,35 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class PetPassport : IEquatable<PetPassport>
+public record PetPassport
 {
     [JsonPropertyName("pet")]
-    public Pet? Pet { get; set; }
+    public Pet? Pet { get; init; }
 
     /// <summary>
     /// Base64-encoded primary thumbnail
     /// </summary>
     /// <example>dGVzdC10aHVtYm5haWw=</example>
     [JsonPropertyName("thumbnail")]
-    public byte[]? Thumbnail { get; set; }
+    public byte[]? Thumbnail { get; init; }
 
     /// <summary>
     /// Base64-encoded scans of each passport page
     /// </summary>
     [JsonPropertyName("scans")]
-    public List<byte[]>? Scans { get; set; }
+    public List<byte[]>? Scans { get; init; }
 
     [JsonPropertyName("issuedAt")]
-    public DateTimeOffset? IssuedAt { get; set; }
+    public DateTimeOffset? IssuedAt { get; init; }
 
     /// <summary>
     /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
     /// </summary>
     [JsonPropertyName("biometricChip")]
-    public byte[]? BiometricChip { get; set; }
+    public byte[]? BiometricChip { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(PetPassport? other)
+    public virtual bool Equals(PetPassport? other)
     {
         return other is not null
             && (
@@ -61,11 +61,6 @@ public class PetPassport : IEquatable<PetPassport>
                         other.BiometricChip
                     )
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as PetPassport);
     }
 
     public override int GetHashCode()

@@ -10,20 +10,20 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Category : IEquatable<Category>
+public record Category
 {
     /// <example>1</example>
     [JsonPropertyName("id")]
-    public long? Id { get; set; }
+    public long? Id { get; init; }
 
     /// <example>Dogs</example>
     /// <example>Small breed: Chihuahua</example>
     /// <example>Large breed: GreatDane</example>
     [JsonPropertyName("name")]
-    public string? Name { get; set; }
+    public string? Name { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(Category? other)
+    public virtual bool Equals(Category? other)
     {
         return other is not null
             && (
@@ -31,11 +31,6 @@ public class Category : IEquatable<Category>
                 || EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string?>.Default.Equals(this.Name, other.Name)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Category);
     }
 
     public override int GetHashCode()

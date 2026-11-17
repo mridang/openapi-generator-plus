@@ -96,6 +96,62 @@ public sealed class Client : IDisposable
     }
 
     /// <summary>
+    /// Creates a client from explicit options first and the environment second.
+    /// The host is the <paramref name="host"/> argument, else the environment
+    /// variable <c>PETSTORE_CLIENT_HOST</c>; the credential is the
+    /// <paramref name="tokenProvider"/> callback, else the <paramref name="token"/>
+    /// argument, else <c>PETSTORE_CLIENT_TOKEN</c>. The environment is read once, here,
+    /// and an empty value counts as unset. A missing host or credential fails the
+    /// call that builds the client, not a later request.
+    /// </summary>
+    /// <param name="host">API base URL, or null to read it from the environment.</param>
+    /// <param name="token">Bearer token, or null to read it from the environment.</param>
+    /// <param name="tokenProvider">Callback that returns the current bearer token before each request.</param>
+    /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
+    /// <returns>Configured client instance.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when no host or no credential is available.</exception>
+    public static Client FromEnvironment(
+        string? host = null,
+        string? token = null,
+        Func<CancellationToken, Task<string>>? tokenProvider = null,
+        TransportOptions? transportOptions = null
+    )
+    {
+        string? resolvedHost = FirstSet(host, "PETSTORE_CLIENT_HOST");
+        if (resolvedHost is null)
+        {
+            throw new InvalidOperationException(
+                "No API host: pass host or set the PETSTORE_CLIENT_HOST environment variable"
+            );
+        }
+        if (tokenProvider is not null)
+        {
+            return new Client(
+                new BearerAuthenticator(resolvedHost, tokenProvider),
+                transportOptions
+            );
+        }
+        string? resolvedToken = FirstSet(token, "PETSTORE_CLIENT_TOKEN");
+        if (resolvedToken is null)
+        {
+            throw new InvalidOperationException(
+                "No credential: pass token or tokenProvider, or set the PETSTORE_CLIENT_TOKEN environment variable"
+            );
+        }
+        return new Client(new BearerAuthenticator(resolvedHost, resolvedToken), transportOptions);
+    }
+
+    private static string? FirstSet(string? explicitValue, string variable)
+    {
+        if (!string.IsNullOrEmpty(explicitValue))
+        {
+            return explicitValue;
+        }
+        string? fromEnvironment = Environment.GetEnvironmentVariable(variable);
+        return string.IsNullOrEmpty(fromEnvironment) ? null : fromEnvironment;
+    }
+
+    /// <summary>
     /// Creates a client from a ready-made <see cref="IAuthenticator"/>.
     ///
     /// This is the generic entry point for bespoke authentication strategies such as

@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Medication : IEquatable<Medication>
+public record Medication
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -53,15 +53,15 @@ public class Medication : IEquatable<Medication>
     private readonly string _drugName = null!;
 
     [JsonPropertyName("dosage")]
-    public string? Dosage { get; set; }
+    public string? Dosage { get; init; }
 
     [JsonPropertyName("notes")]
-    public string? Notes { get; set; }
+    public string? Notes { get; init; }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
-    public bool Equals(Medication? other)
+    public virtual bool Equals(Medication? other)
     {
         return other is not null
             && (
@@ -70,11 +70,6 @@ public class Medication : IEquatable<Medication>
                     && EqualityComparer<string?>.Default.Equals(this.Dosage, other.Dosage)
                     && EqualityComparer<string?>.Default.Equals(this.Notes, other.Notes)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Medication);
     }
 
     public override int GetHashCode()

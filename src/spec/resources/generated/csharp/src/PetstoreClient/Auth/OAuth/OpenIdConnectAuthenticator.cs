@@ -100,15 +100,24 @@ public partial class OpenIdConnectAuthenticator
         }
 
         /* Discovery is an HTTP call like any other: a transport failure
-           propagates unchanged as NetworkException / NetworkTimeoutException. */
+           propagates unchanged as NetworkException / NetworkTimeoutException.
+           The request goes to the identity provider, not to the API, so it is
+           sent as a no-redirect request: the transport default headers (an
+           API Authorization or key header) stay off it, like the token POST. */
         Dictionary<string, string> headers = new() { ["Accept"] = "application/json" };
         ApiHttpResponse response = await _apiClient
-            .SendRequestAsync("GET", _openIdConnectUrl, headers, null)
+            .SendRequestAsync("GET", _openIdConnectUrl, headers, null, true)
             .ConfigureAwait(false);
 
         if (response.StatusCode < 200 || response.StatusCode >= 300)
         {
-            throw ApiException.FromResponse(response.StatusCode, response.Headers, response.Body);
+            throw ApiException.FromResponse(
+                response.StatusCode,
+                response.Headers,
+                response.Body,
+                "GET",
+                _openIdConnectUrl.AbsolutePath
+            );
         }
 
         using JsonDocument doc = ParseDiscoveryDocument(response.Body);

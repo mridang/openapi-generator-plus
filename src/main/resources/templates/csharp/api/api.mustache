@@ -573,7 +573,29 @@ public class {{classname}} : BaseApi
                 {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
                 rawBody: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
                 cancellationToken: cancellationToken,
-                operationName: "{{classname}}.{{operationId}}"
+                operationName: "{{classname}}.{{operationId}}"{{#vendorExtensions.op.hasMultiple2xx}},
+                decodeByStatus: (status, body) =>
+                {
+{{#vendorExtensions.op.successResponses}}
+{{^isLast}}
+                    if ({{#isRange}}status is >= 200 and < 300{{/isRange}}{{^isRange}}status == {{statusCode}}{{/isRange}})
+                    {
+                        {{{returnType}}}? variant = Serializer.Deserialize<{{{returnType}}}>(body);
+                        return variant is null ? null : new {{{vendorExtensions.op.successUnionType}}}(variant);
+                    }
+{{/isLast}}
+{{#isLast}}
+                    {{{returnType}}}? lastVariant = Serializer.Deserialize<{{{returnType}}}>(body);
+                    return lastVariant is null ? null : new {{{vendorExtensions.op.successUnionType}}}(lastVariant);
+{{/isLast}}
+{{/vendorExtensions.op.successResponses}}
+                }{{/vendorExtensions.op.hasMultiple2xx}}{{#vendorExtensions.op.hasOptionsParam}},
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}},
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}
             )
             .ConfigureAwait(false);
     }

@@ -47,6 +47,34 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task RepeatedResponseHeadersArriveJoinedInOrderUnderTheirLowerCasedNames()
+    {
+        var client = new DefaultApiClient();
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/response-headers"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.True(response.Headers.ContainsKey("x-custom-header"));
+        string link = response.Headers["link"];
+        Assert.True(
+            link.IndexOf("next", StringComparison.Ordinal) is var next and >= 0
+                && link.IndexOf("prev", StringComparison.Ordinal) > next,
+            "both Link entries in order, got " + link
+        );
+        string cookie = response.Headers["set-cookie"];
+        Assert.True(
+            cookie.IndexOf("a=1", StringComparison.Ordinal) is var a and >= 0
+                && cookie.IndexOf("b=2", StringComparison.Ordinal) > a,
+            "both Set-Cookie entries in order, got " + cookie
+        );
+    }
+
+    [Fact]
     public async Task VerifySslTrueRejectsAnUntrustedCertificate()
     {
         /* The mock server's certificate is signed by a test CA that the system

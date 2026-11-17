@@ -10,28 +10,28 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class BinaryVault : IEquatable<BinaryVault>
+public record BinaryVault
 {
     /// <summary>
     /// A bare byte array; equality compares its contents.
     /// </summary>
     [JsonPropertyName("seal")]
-    public byte[]? Seal { get; set; }
+    public byte[]? Seal { get; init; }
 
     /// <summary>
     /// A list of byte arrays; equality compares element contents.
     /// </summary>
     [JsonPropertyName("shards")]
-    public List<byte[]>? Shards { get; set; }
+    public List<byte[]>? Shards { get; init; }
 
     /// <summary>
     /// A map of byte arrays; equality compares each value's contents.
     /// </summary>
     [JsonPropertyName("labels")]
-    public Dictionary<string, byte[]>? Labels { get; set; }
+    public Dictionary<string, byte[]>? Labels { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(BinaryVault? other)
+    public virtual bool Equals(BinaryVault? other)
     {
         return other is not null
             && (
@@ -46,11 +46,6 @@ public class BinaryVault : IEquatable<BinaryVault>
                         other.Labels
                     )
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as BinaryVault);
     }
 
     public override int GetHashCode()

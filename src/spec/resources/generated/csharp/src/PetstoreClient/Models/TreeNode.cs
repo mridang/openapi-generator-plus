@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class TreeNode : IEquatable<TreeNode>
+public record TreeNode
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -53,12 +53,12 @@ public class TreeNode : IEquatable<TreeNode>
     private readonly string _value = null!;
 
     [JsonPropertyName("child")]
-    public TreeNode? Child { get; set; }
+    public TreeNode? Child { get; init; }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
-    public bool Equals(TreeNode? other)
+    public virtual bool Equals(TreeNode? other)
     {
         return other is not null
             && (
@@ -66,11 +66,6 @@ public class TreeNode : IEquatable<TreeNode>
                 || EqualityComparer<string>.Default.Equals(this.Value, other.Value)
                     && EqualityComparer<TreeNode?>.Default.Equals(this.Child, other.Child)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as TreeNode);
     }
 
     public override int GetHashCode()

@@ -10,24 +10,19 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Result : IEquatable<Result>
+public record Result
 {
     [JsonPropertyName("ok")]
-    public bool? Ok { get; set; }
+    public bool? Ok { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(Result? other)
+    public virtual bool Equals(Result? other)
     {
         return other is not null
             && (
                 ReferenceEquals(this, other)
                 || EqualityComparer<bool?>.Default.Equals(this.Ok, other.Ok)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Result);
     }
 
     public override int GetHashCode()

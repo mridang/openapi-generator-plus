@@ -10,17 +10,17 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Metadata : IEquatable<Metadata>
+public record Metadata
 {
     [JsonPropertyName("createdAt")]
-    public DateTimeOffset? CreatedAt { get; set; }
+    public DateTimeOffset? CreatedAt { get; init; }
 
     [JsonExtensionData]
-    public Dictionary<string, object> AdditionalProperties { get; set; } = new();
+    public Dictionary<string, object> AdditionalProperties { get; init; } = new();
 
     /// <summary>Value-equality based on all declared fields
     /// (including the AdditionalProperties dictionary).</summary>
-    public bool Equals(Metadata? other)
+    public virtual bool Equals(Metadata? other)
     {
         return other is not null
             && (
@@ -31,11 +31,6 @@ public class Metadata : IEquatable<Metadata>
                         other.AdditionalProperties
                     )
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Metadata);
     }
 
     public override int GetHashCode()

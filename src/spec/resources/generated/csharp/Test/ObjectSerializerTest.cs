@@ -1415,7 +1415,7 @@ public static class ObjectSerializerTest
         [Fact]
         public void PrioritySerializesAsJsonNumberNotString()
         {
-            var item = new StockItem(Priority.NUMBER_2);
+            var item = new StockItem(Priority.Number2);
             var json = _serializer.Serialize(item);
             // The wire form is a bare number, never a quoted string.
             Assert.Contains("\"priority\":2", json, StringComparison.Ordinal);
@@ -1427,7 +1427,7 @@ public static class ObjectSerializerTest
         {
             var item = _serializer.Deserialize<StockItem>("{\"priority\":3}");
             Assert.NotNull(item);
-            Assert.Equal(Priority.NUMBER_3, item!.Priority);
+            Assert.Equal(Priority.Number3, item!.Priority);
         }
 
         [Fact]
@@ -1467,7 +1467,7 @@ public static class ObjectSerializerTest
         [Fact]
         public void AvailabilitySerializesPreservingWireCasing()
         {
-            var item = new StockItem(Priority.NUMBER_1) { Availability = Availability.Available };
+            var item = new StockItem(Priority.Number1) { Availability = Availability.Available };
             var json = _serializer.Serialize(item);
             Assert.Contains("\"availability\":\"Available\"", json, StringComparison.Ordinal);
         }
@@ -1475,7 +1475,7 @@ public static class ObjectSerializerTest
         [Fact]
         public void AvailabilitySerializesHyphenatedWireValue()
         {
-            var item = new StockItem(Priority.NUMBER_1) { Availability = Availability.OnHold };
+            var item = new StockItem(Priority.Number1) { Availability = Availability.OnHold };
             var json = _serializer.Serialize(item);
             Assert.Contains("\"availability\":\"on-hold\"", json, StringComparison.Ordinal);
         }
@@ -2315,6 +2315,62 @@ public static class ObjectSerializerTest
             );
 
             Assert.Equal("p", decoded!.Password);
+        }
+    }
+
+    public class ModelCopyTests
+    {
+        [Fact]
+        public void AWithExpressionCopiesTheModelAndChangesOnlyWhatItNames()
+        {
+            var original = new Reservation(31L, 4);
+
+            Reservation copy = original with { Quantity = 9 };
+
+            Assert.Equal(31L, copy.ReservationId);
+            Assert.Equal(9, copy.Quantity);
+            Assert.Equal(4, original.Quantity);
+            Assert.NotSame(original, copy);
+            Assert.Equal(original, original with { });
+        }
+
+        [Fact]
+        public void AModelCopyKeepsItsRuntimeTypeBehindABaseType()
+        {
+            PetFood food = new DryFood { FoodType = "dry", WeightKg = 2.5 };
+
+            PetFood copy = food with { };
+
+            Assert.IsType<DryFood>(copy);
+            Assert.Equal(food, copy);
+        }
+
+        [Fact]
+        public void EveryModelPropertyIsSetOnlyDuringConstruction()
+        {
+            Type[] models = typeof(Reservation)
+                .Assembly.GetTypes()
+                .Where(t => t.Namespace == "PetstoreClient.Models" && t.IsClass)
+                .ToArray();
+
+            Assert.NotEmpty(models);
+            foreach (Type model in models)
+            {
+                foreach (System.Reflection.PropertyInfo property in model.GetProperties())
+                {
+                    System.Reflection.MethodInfo? setter = property.SetMethod;
+                    if (setter is null || !setter.IsPublic)
+                    {
+                        continue;
+                    }
+                    Assert.True(
+                        setter
+                            .ReturnParameter.GetRequiredCustomModifiers()
+                            .Contains(typeof(System.Runtime.CompilerServices.IsExternalInit)),
+                        $"{model.Name}.{property.Name} has a public setter"
+                    );
+                }
+            }
         }
     }
 }

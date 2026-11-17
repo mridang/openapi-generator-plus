@@ -71,6 +71,15 @@ public abstract class BaseApi
     /// Invoke an API operation and return the full result including status code,
     /// headers, and raw body alongside the deserialized data.
     /// </summary>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="path">The request path, or a full URL for a per-operation server.</param>
+    /// <param name="queryParams">The query parameters; authentication parameters are added to it.</param>
+    /// <param name="headerParams">The operation's header parameters.</param>
+    /// <param name="body">The request body, or null.</param>
+    /// <param name="accepts">The response media types the operation declares.</param>
+    /// <param name="contentType">The request Content-Type.</param>
+    /// <param name="returnType">The type the success body is decoded into, or null for none.</param>
+    /// <param name="auth">The per-call authenticator, the no-auth sentinel, or null for the client's.</param>
     /// <param name="operationName">
     /// The calling operation as <c>Class.operationId</c>, named in a
     /// Content-Type serialization error; null falls back to a generic label.
@@ -81,6 +90,15 @@ public abstract class BaseApi
     /// Content-Type was selected (application/json included) and never go
     /// through the JSON serializer.
     /// </param>
+    /// <param name="decodeByStatus">
+    /// Decodes a success body from its status code and raw text. Set only for
+    /// an operation that declares several 2xx responses with different
+    /// schemas, so the body is read as the schema of the status that arrived.
+    /// </param>
+    /// <param name="timeout">Per-call end-to-end timeout in milliseconds, or null for the transport's.</param>
+    /// <param name="extraHeaders">Per-call headers, sent after every other header.</param>
+    /// <param name="maxRetries">Per-call maximum number of retries, or null for the transport's.</param>
+    /// <param name="cancellationToken">Token that cancels the request.</param>
     protected async Task<ApiResult<T>> InvokeApiForResultAsync<T>(
         string method,
         string path,
@@ -93,11 +111,29 @@ public abstract class BaseApi
         IAuthenticator? auth = null,
         bool rawBody = false,
         string? operationName = null,
+        Func<int, string, T?>? decodeByStatus = null,
+        int? timeout = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null,
+        int? maxRetries = null,
         CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(queryParams);
         ArgumentNullException.ThrowIfNull(headerParams);
+        if (timeout is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(timeout),
+                "Timeout must be greater than zero"
+            );
+        }
+        if (maxRetries is < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxRetries),
+                "MaxRetries must not be negative"
+            );
+        }
         /* Three-state auth resolution (the no-auth sentinel disambiguates the
            two meanings null used to carry):
              - auth is the NoAuth sentinel  -> the operation is explicitly
@@ -217,6 +253,23 @@ public abstract class BaseApi
 
             TraceContextUtil.InjectTraceContext(built);
 
+            /* Per-call headers are the caller's explicit choice for this one
+               request, so they replace any header of the same name. */
+            if (extraHeaders is not null)
+            {
+                foreach (KeyValuePair<string, string> header in extraHeaders)
+                {
+                    foreach (string existing in built.Keys.ToList())
+                    {
+                        if (string.Equals(existing, header.Key, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _ = built.Remove(existing);
+                        }
+                    }
+                    built[header.Key] = header.Value;
+                }
+            }
+
             if (body == null)
             {
                 _ = built.Remove("Content-Type");
@@ -331,14 +384,17 @@ public abstract class BaseApi
             }
         }
 
+        Uri requestUri = new(url);
         ApiHttpResponse response = await ApiClient
             .SendRequestAsync(
                 method,
-                new Uri(url),
+                requestUri,
                 headers,
                 requestBody,
                 false,
                 BuildHeadersAsync,
+                timeout,
+                maxRetries,
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -360,11 +416,13 @@ public abstract class BaseApi
             response = await ApiClient
                 .SendRequestAsync(
                     method,
-                    new Uri(url),
+                    requestUri,
                     headers,
                     requestBody,
                     false,
                     BuildHeadersAsync,
+                    timeout,
+                    maxRetries,
                     cancellationToken
                 )
                 .ConfigureAwait(false);
@@ -372,7 +430,13 @@ public abstract class BaseApi
 
         if (response.StatusCode is < 200 or >= 300)
         {
-            throw ApiException.FromResponse(response.StatusCode, response.Headers, response.Body);
+            throw ApiException.FromResponse(
+                response.StatusCode,
+                response.Headers,
+                response.Body,
+                method,
+                requestUri.AbsolutePath
+            );
         }
 
         T? data = default;
@@ -434,6 +498,10 @@ public abstract class BaseApi
                         $"Unexpected response Content-Type '{responseContentType.Split(';')[0].Trim()}' for {operationName ?? "the request"}: expected a JSON body"
                     );
                 }
+            }
+            else if (decodeByStatus is not null)
+            {
+                data = decodeByStatus(response.StatusCode, response.Body);
             }
             else
             {
@@ -551,13 +619,6 @@ public abstract class BaseApi
     }
 
     /// <summary>
-    /// Recovers the raw bytes of a binary response body. When <paramref name="base64Expected"/>
-    /// is true the body is decoded from base64 (how <see cref="DefaultApiClient"/> encodes
-    /// non-text payloads); if that fails, or when base64 is not expected, the literal
-    /// UTF-8 bytes of the body are returned so that custom transports returning raw text
-    /// still produce a usable stream.
-    /// </summary>
-    /// <summary>
     /// Flattens a model into its top-level wire fields for a deepObject query
     /// parameter: the model is serialized with the SDK serializer and each
     /// JSON property becomes one entry (strings unquoted, other values as their
@@ -599,6 +660,13 @@ public abstract class BaseApi
         );
     }
 
+    /// <summary>
+    /// Recovers the raw bytes of a binary response body. When <paramref name="base64Expected"/>
+    /// is true the body is decoded from base64 (how <see cref="DefaultApiClient"/> encodes
+    /// non-text payloads); if that fails, or when base64 is not expected, the literal
+    /// UTF-8 bytes of the body are returned so that custom transports returning raw text
+    /// still produce a usable stream.
+    /// </summary>
     private static byte[] DecodeBinaryBody(string body, bool base64Expected)
     {
         if (base64Expected)

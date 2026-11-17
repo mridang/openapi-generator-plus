@@ -100,4 +100,35 @@ class BetterCSharpCodegenTest {
     assertThat(codegen.toParamName("server")).isEqualTo("serverParam");
     assertThat(codegen.toParamName("pet_id")).isEqualTo("petId");
   }
+
+  @Test
+  void renamesAParameterNamedLikeAPerCallOption() {
+    final BetterCSharpCodegen codegen = new BetterCSharpCodegen();
+
+    assertThat(codegen.toParamName("timeout")).isEqualTo("timeoutParam");
+    assertThat(codegen.toParamName("headers")).isEqualTo("headersParam");
+    assertThat(codegen.toParamName("maxRetries")).isEqualTo("maxRetriesParam");
+  }
+
+  @Test
+  void namesAnIntegerEnumMemberInPascalCase() {
+    final BetterCSharpCodegen codegen = new BetterCSharpCodegen();
+
+    assertThat(codegen.toEnumVarName("1", "int")).isEqualTo("Number1");
+    assertThat(codegen.toEnumVarName("-2", "long")).isEqualTo("NumberMinus2");
+    assertThat(codegen.toEnumVarName("in-stock", "String")).isEqualTo("InStock");
+  }
+
+  @Test
+  void writesTheReadmePathRelativeToTheProjectFolder() {
+    assertThat(BetterCSharpCodegen.readmeRelativePath("src/Pkg")).isEqualTo("../../README.md");
+    assertThat(BetterCSharpCodegen.readmeRelativePath("Pkg")).isEqualTo("../README.md");
+  }
+
+  @Test
+  void derivesTheCredentialEnvironmentPrefixFromThePackageName() {
+    assertThat(BetterCSharpCodegen.environmentPrefix("PetstoreClient")).isEqualTo("PETSTORE_CLIENT");
+    assertThat(BetterCSharpCodegen.environmentPrefix("Acme.Api")).isEqualTo("ACME_API");
+    assertThat(BetterCSharpCodegen.environmentPrefix("HTTPClient")).isEqualTo("HTTPCLIENT");
+  }
 }

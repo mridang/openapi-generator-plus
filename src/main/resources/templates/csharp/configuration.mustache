@@ -116,7 +116,7 @@ public sealed class ConfigurationBuilder
     /// result as the base URL. Variables not present in the map use their default values.
     /// If the user also calls <see cref="BaseUrl"/> after this method, the explicit base
     /// URL wins (last-write-wins). Enum validation is performed by
-    /// <see cref="ServerConfiguration.GetUrl"/>.
+    /// <see cref="ServerConfiguration.GetUrl(Dictionary{string, string})"/>.
     /// </summary>
     /// <param name="serverConfig">The server configuration to resolve.</param>
     /// <param name="variables">Optional variable overrides. Defaults are used for unspecified variables.</param>

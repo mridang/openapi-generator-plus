@@ -10,19 +10,19 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class ApiResponse : IEquatable<ApiResponse>
+public record ApiResponse
 {
     [JsonPropertyName("code")]
-    public int? Code { get; set; }
+    public int? Code { get; init; }
 
     [JsonPropertyName("type")]
-    public string? Type { get; set; }
+    public string? Type { get; init; }
 
     [JsonPropertyName("message")]
-    public string? Message { get; set; }
+    public string? Message { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(ApiResponse? other)
+    public virtual bool Equals(ApiResponse? other)
     {
         return other is not null
             && (
@@ -31,11 +31,6 @@ public class ApiResponse : IEquatable<ApiResponse>
                     && EqualityComparer<string?>.Default.Equals(this.Type, other.Type)
                     && EqualityComparer<string?>.Default.Equals(this.Message, other.Message)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as ApiResponse);
     }
 
     public override int GetHashCode()

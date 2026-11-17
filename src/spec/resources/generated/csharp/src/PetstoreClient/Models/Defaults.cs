@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Defaults : IEquatable<Defaults>
+public record Defaults
 {
     [JsonConverter(typeof(ModeEnumConverter))]
     public enum ModeEnum
@@ -75,34 +75,34 @@ public class Defaults : IEquatable<Defaults>
     }
 
     [JsonPropertyName("retries")]
-    public int? Retries { get; set; } = 3;
+    public int? Retries { get; init; } = 3;
 
     [JsonPropertyName("mode")]
-    public ModeEnum? Mode { get; set; } = ModeEnum.Medium;
+    public ModeEnum? Mode { get; init; } = ModeEnum.Medium;
 
     [JsonPropertyName("label")]
-    public string? Label { get; set; } = "untitled";
+    public string? Label { get; init; } = "untitled";
 
     [JsonPropertyName("greeting")]
-    public string? Greeting { get; set; } = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b";
+    public string? Greeting { get; init; } = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b";
 
     [JsonPropertyName("swatch")]
-    public Swatch? Swatch { get; set; } = global::PetstoreClient.Models.Swatch.Green;
+    public Swatch? Swatch { get; init; } = global::PetstoreClient.Models.Swatch.Green;
 
     [JsonPropertyName("ratio")]
-    public decimal? Ratio { get; set; } = 1.5m;
+    public decimal? Ratio { get; init; } = 1.5m;
 
     [JsonPropertyName("scale")]
-    public float? Scale { get; set; } = 0.25f;
+    public float? Scale { get; init; } = 0.25f;
 
     [JsonPropertyName("weight")]
-    public double? Weight { get; set; } = 2;
+    public double? Weight { get; init; } = 2;
 
     [JsonPropertyName("ceiling")]
-    public long? Ceiling { get; set; } = 9000000000;
+    public long? Ceiling { get; init; } = 9000000000;
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(Defaults? other)
+    public virtual bool Equals(Defaults? other)
     {
         return other is not null
             && (
@@ -117,11 +117,6 @@ public class Defaults : IEquatable<Defaults>
                     && EqualityComparer<double?>.Default.Equals(this.Weight, other.Weight)
                     && EqualityComparer<long?>.Default.Equals(this.Ceiling, other.Ceiling)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Defaults);
     }
 
     public override int GetHashCode()

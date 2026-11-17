@@ -99,6 +99,60 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void FromResponseNamesTheRequestMethodAndPathInTheMessage()
+    {
+        var ex = ApiException.FromResponse(
+            404, new Dictionary<string, string>(), "{}", "GET", "/items/7");
+
+        Assert.IsType<NotFoundException>(ex);
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/items/7", ex.RequestPath);
+        Assert.Equal("API returned status code 404 for GET /items/7", ex.Message);
+        Assert.StartsWith("API returned status code 404 for GET /items/7", ex.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(400)]
+    [InlineData(401)]
+    [InlineData(403)]
+    [InlineData(409)]
+    [InlineData(418)]
+    [InlineData(422)]
+    [InlineData(429)]
+    [InlineData(500)]
+    [InlineData(503)]
+    [InlineData(302)]
+    public void EveryStatusTypeCarriesTheRequestContext(int status)
+    {
+        var ex = ApiException.FromResponse(
+            status, new Dictionary<string, string>(), null, "POST", "/orders");
+
+        Assert.Equal("POST", ex.RequestMethod);
+        Assert.Equal("/orders", ex.RequestPath);
+        Assert.Equal($"API returned status code {status} for POST /orders", ex.Message);
+    }
+
+    [Fact]
+    public void FromResponseStripsAQueryStringFromTheRequestPath()
+    {
+        var ex = ApiException.FromResponse(
+            400, new Dictionary<string, string>(), null, "GET", "/items?key=secret#frag");
+
+        Assert.Equal("/items", ex.RequestPath);
+        Assert.DoesNotContain("secret", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FromResponseWithoutARequestKeepsThePlainMessage()
+    {
+        var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), null);
+
+        Assert.Null(ex.RequestMethod);
+        Assert.Null(ex.RequestPath);
+        Assert.Equal("API returned status code 500", ex.Message);
+    }
+
+    [Fact]
     public void FromResponseRefusesAnOverDeepBodyButKeepsTheStatusType()
     {
         string deep = new string('[', 2000) + new string(']', 2000);

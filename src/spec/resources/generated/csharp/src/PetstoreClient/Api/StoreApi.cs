@@ -318,7 +318,10 @@ public class StoreApi : BaseApi
                 typeof(Category),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetBySwatch"
+                operationName: "StoreApi.GetBySwatch",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -911,7 +914,10 @@ public class StoreApi : BaseApi
                 typeof(StockItem),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.GetStockItem"
+                operationName: "StoreApi.GetStockItem",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }
@@ -1322,7 +1328,19 @@ public class StoreApi : BaseApi
                 typeof(ReserveStockResponse),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.ReserveStock"
+                operationName: "StoreApi.ReserveStock",
+                decodeByStatus: (status, body) =>
+                {
+                    if (status == 200)
+                    {
+                        Reservation? variant = Serializer.Deserialize<Reservation>(body);
+                        return variant is null ? null : new ReserveStockResponse(variant);
+                    }
+                    ReservationReceipt? lastVariant = Serializer.Deserialize<ReservationReceipt>(
+                        body
+                    );
+                    return lastVariant is null ? null : new ReserveStockResponse(lastVariant);
+                }
             )
             .ConfigureAwait(false);
     }
@@ -1437,7 +1455,10 @@ public class StoreApi : BaseApi
                 typeof(List<Order>),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
-                operationName: "StoreApi.SearchStore"
+                operationName: "StoreApi.SearchStore",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
     }

@@ -11,16 +11,16 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public class StrictTag : IEquatable<StrictTag>
+public record StrictTag
 {
     [JsonPropertyName("id")]
-    public long? Id { get; set; }
+    public long? Id { get; init; }
 
     [JsonPropertyName("name")]
-    public string? Name { get; set; }
+    public string? Name { get; init; }
 
     /// <summary>Value-equality based on all declared fields.</summary>
-    public bool Equals(StrictTag? other)
+    public virtual bool Equals(StrictTag? other)
     {
         return other is not null
             && (
@@ -28,11 +28,6 @@ public class StrictTag : IEquatable<StrictTag>
                 || EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<string?>.Default.Equals(this.Name, other.Name)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as StrictTag);
     }
 
     public override int GetHashCode()

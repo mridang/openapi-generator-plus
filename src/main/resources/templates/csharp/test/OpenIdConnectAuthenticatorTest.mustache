@@ -290,6 +290,62 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
+    public async Task DiscoveryFailureNamesTheRequestMethodAndPath()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("down", statusCode: 503);
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.ServerException>(
+            () => auth.BuildAuthorizationUrlAsync());
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/.well-known/openid-configuration", ex.RequestPath);
+    }
+
+    private sealed class HeaderRecordingHandler : HttpMessageHandler
+    {
+        public Dictionary<string, string> Headers { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            foreach (var header in request.Headers)
+            {
+                Headers[header.Key] = string.Join(",", header.Value);
+            }
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                        + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                    System.Text.Encoding.UTF8,
+                    "application/json"),
+            });
+        }
+    }
+
+    [Fact]
+    public async Task DiscoveryDoesNotSendTheTransportDefaultHeaders()
+    {
+        using var handler = new HeaderRecordingHandler();
+        var transport = TransportOptions.Builder()
+            .DefaultHeader("Authorization", "Bearer api-only")
+            .DefaultHeader("X-Api-Key", "api-key")
+            .Build();
+        using var client = new DefaultApiClient(new HttpClient(handler), transport);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        _ = await auth.BuildAuthorizationUrlAsync("my-state");
+
+        Assert.False(handler.Headers.ContainsKey("Authorization"));
+        Assert.False(handler.Headers.ContainsKey("X-Api-Key"));
+        Assert.True(handler.Headers.ContainsKey("Accept"));
+    }
+
+    [Fact]
     public async Task DiscoveryTransportFailurePropagatesNetworkException()
     {
         // Discovery is an HTTP call like any other: a transport failure from

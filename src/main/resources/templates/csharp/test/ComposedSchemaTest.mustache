@@ -239,6 +239,25 @@ public class ComposedSchemaTest
             () => _serializer.Deserialize<PetTreatment>(json));
     }
 
+    [Fact]
+    public void ATypedFactoryWrapsAVariantAndTheAccessorsReadItBack()
+    {
+        byte[] bytes = [1, 2, 3];
+
+        var union = SetPetAvatarThumbnailRequest.FromByte(bytes);
+
+        Assert.True(union.IsByte());
+        Assert.False(union.IsListByte());
+        Assert.Same(bytes, union.AsByte());
+        Assert.Null(union.AsListByte());
+    }
+
+    [Fact]
+    public void ATypedFactoryRejectsANullVariant()
+    {
+        Assert.Throws<ArgumentNullException>(() => SetPetAvatarThumbnailRequest.FromByte(null!));
+    }
+
     // -- oneOf without discriminator: SetPetAvatarThumbnailRequest --
 
     [Fact]

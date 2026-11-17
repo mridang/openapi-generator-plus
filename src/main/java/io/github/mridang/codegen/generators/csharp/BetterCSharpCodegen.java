@@ -114,6 +114,19 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 "Version of the generated NuGet package (default: 1.0.0).").defaultValue("1.0.0"));
         cliOptions.add(CliOption.newString(CodegenConstants.SOURCE_FOLDER,
                 CodegenConstants.SOURCE_FOLDER_DESC));
+        cliOptions.add(CliOption.newString("repositoryUrl",
+                "Source repository URL, written to the package manifest (RepositoryUrl)."));
+        cliOptions.add(CliOption.newString("homepageUrl",
+                "Project home page, written to the package manifest (PackageProjectUrl)."));
+        cliOptions.add(CliOption.newString("authors",
+                "Package authors, written to the package manifest (Authors)."));
+        cliOptions.add(CliOption.newString("documentationUrl",
+                "Documentation URL, linked from the README."));
+        cliOptions.add(CliOption.newString("issueTrackerUrl",
+                "Issue tracker URL, linked from the README."));
+        cliOptions.add(CliOption.newString("envPrefix",
+                "Prefix of the environment variables the client reads credentials from "
+                        + "(default: the upper-case snake form of the package name)."));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -222,10 +235,70 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return NamingConvention.CAMEL_CASE;
     }
 
+    /**
+     * The path from the project folder up to the README at the output root, written with forward
+     * slashes as MSBuild expects (for {@code src/Pkg} it is {@code ../../README.md}).
+     */
+    static String readmeRelativePath(final String projectFolder) {
+        final StringBuilder path = new StringBuilder();
+        for (final String ignored : projectFolder.replace('\\', '/').split("/", -1)) {
+            if (!ignored.isEmpty()) {
+                path.append("../");
+            }
+        }
+        return path + "README.md";
+    }
+
+    /**
+     * The default prefix of the credential environment variables: the package name in upper-case
+     * snake form, so {@code PetstoreClient} reads {@code PETSTORE_CLIENT_TOKEN}.
+     */
+    static String environmentPrefix(final String packageName) {
+        final StringBuilder prefix = new StringBuilder();
+        char previous = '_';
+        for (int i = 0; i < packageName.length(); i++) {
+            final char c = packageName.charAt(i);
+            if (!Character.isLetterOrDigit(c)) {
+                if (previous != '_') {
+                    prefix.append('_');
+                }
+                previous = '_';
+                continue;
+            }
+            if (Character.isUpperCase(c) && previous != '_' && !Character.isUpperCase(previous)) {
+                prefix.append('_');
+            }
+            prefix.append(Character.toUpperCase(c));
+            previous = c;
+        }
+        return prefix.toString();
+    }
+
+    /**
+     * Gives an integer-enum member the same PascalCase naming as a string
+     * enum member: {@code NUMBER_1} becomes {@code Number1} and
+     * {@code NUMBER_MINUS_1} becomes {@code NumberMinus1} (F308).
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String name = super.toEnumVarName(value, datatype);
+        if (!value.isEmpty() && isNumericEnumDatatype(datatype)) {
+            return getEnumCasing().apply(name.toLowerCase(Locale.ROOT));
+        }
+        return name;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected Set<String> getInjectedArgumentNames() {
-        return Set.of("options", "server", "cancellationToken", "requestContentType");
+        return Set.of(
+                "options",
+                "server",
+                "cancellationToken",
+                "requestContentType",
+                "timeout",
+                "headers",
+                "maxRetries");
     }
 
     /** {@inheritDoc} */
@@ -416,6 +489,15 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
         final String invokerFolder =
                 Path.of(sourceFolder, packageName.replace(".", "/")).toString();
+        additionalProperties.put("readmeRelativePath", readmeRelativePath(invokerFolder));
+        final Object repositoryUrl = additionalProperties.get("repositoryUrl");
+        additionalProperties.put(
+                "repositoryIsGitHub",
+                repositoryUrl != null
+                        && repositoryUrl.toString().toLowerCase(Locale.ROOT).contains("github.com"));
+        if (!additionalProperties.containsKey("envPrefix")) {
+            additionalProperties.put("envPrefix", environmentPrefix(packageName));
+        }
 
         final String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
@@ -1148,9 +1230,42 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 if (referencesDeprecatedMember(model, deprecatedModels)) {
                     modelMap.put("referencesDeprecated", true);
                 }
+                nameUnionVariants(model);
             }
         }
         return result;
+    }
+
+    /**
+     * Gives every oneOf variant a PascalCase name for the typed
+     * {@code From<Variant>}, {@code Is<Variant>} and {@code As<Variant>}
+     * members of the union wrapper: the variant type with every non-letter
+     * and non-digit dropped and each word capitalised, so {@code Reservation}
+     * stays {@code Reservation} and {@code List<string>} becomes
+     * {@code ListString}.
+     */
+    private static void nameUnionVariants(CodegenModel model) {
+        if (model.getComposedSchemas() == null || model.getComposedSchemas().getOneOf() == null) {
+            return;
+        }
+        for (final CodegenProperty variant : model.getComposedSchemas().getOneOf()) {
+            final StringBuilder name = new StringBuilder();
+            boolean startOfWord = true;
+            final String type = String.valueOf(variant.dataType);
+            for (int i = 0; i < type.length(); i++) {
+                final char c = type.charAt(i);
+                if (Character.isLetterOrDigit(c)) {
+                    name.append(startOfWord ? Character.toUpperCase(c) : c);
+                    startOfWord = false;
+                } else {
+                    startOfWord = true;
+                }
+            }
+            if (variant.vendorExtensions == null) {
+                variant.vendorExtensions = new HashMap<>();
+            }
+            variant.vendorExtensions.put("variantName", name.toString());
+        }
     }
 
     /**

@@ -2262,6 +2262,70 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": [
+    "*options.timeout",
+    "*options.headers",
+    "*options.maxretries"
+   ],
+   "aspect": "member",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F827 wave 2: every per-operation Options object gains optional timeout, headers and maxRetries; csharp lands first and the other languages add the same shape in their own wave branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath"
+   ],
+   "aspect": "member",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F830 wave 2: ApiException gains requestMethod and requestPath; csharp lands first and the other languages add the same members in their own wave branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "apierror.fromresponse"
+   ],
+   "aspect": "params",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F830 wave 2: fromResponse takes the request method and path as two trailing optional arguments; the other languages add the same parameters in their own wave branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "bearerauthenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F862 wave 2: a token-provider callback overload beside (host, token); csharp lands first and the other languages add the callback in their own wave branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "client.fromenvironment"
+   ],
+   "aspect": "member",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F862 wave 2: credentials are read from {PREFIX}_HOST and {PREFIX}_TOKEN when the client is built; csharp lands first and the other languages add the same entry point in their own wave branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "reservestockresponse.*",
+    "setpetavatarthumbnailrequest.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "F878 wave 2: a oneOf wrapper gains a typed From<Variant> factory and Is<Variant>/As<Variant> accessors per variant; csharp lands first and the other languages add typed accessors in their idiom in their own wave branches, after which this rule is deleted"
   }
  ]
 }

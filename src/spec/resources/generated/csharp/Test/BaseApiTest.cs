@@ -121,6 +121,197 @@ public class BaseApiTest
         {
             return SerializeContentParameter(value, location);
         }
+
+        public async Task<ApiResult<T>> CallWithCallOptionsAsync<T>(
+            string path,
+            Dictionary<string, object?> queryParams,
+            int? timeout,
+            IReadOnlyDictionary<string, string>? extraHeaders,
+            int? maxRetries,
+            Func<int, string, T?>? decodeByStatus = null
+        )
+        {
+            return await InvokeApiForResultAsync<T>(
+                "GET",
+                path,
+                queryParams,
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json",
+                typeof(T),
+                decodeByStatus: decodeByStatus,
+                timeout: timeout,
+                extraHeaders: extraHeaders,
+                maxRetries: maxRetries
+            );
+        }
+    }
+
+    private sealed class CallOptionsApiClient(int status, string body) : IApiClient
+    {
+        public int? Timeout { get; private set; }
+        public int? MaxRetries { get; private set; }
+        public Dictionary<string, string> Headers { get; private set; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? requestBody
+        )
+        {
+            Headers = new Dictionary<string, string>(headers);
+            return Task.FromResult(
+                new ApiHttpResponse(
+                    status,
+                    body,
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }
+                )
+            );
+        }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? requestBody,
+            bool noRedirect,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            CancellationToken cancellationToken
+        )
+        {
+            Timeout = timeout;
+            MaxRetries = maxRetries;
+            return SendRequestAsync(method, url, headers, requestBody);
+        }
+    }
+
+    [Fact]
+    public async Task AnApiErrorNamesTheRequestMethodAndPathWithoutTheQuery()
+    {
+        var client = new StatusSequenceApiClient(404);
+        var api = new TestableApi(client, "http://localhost");
+
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() =>
+            api.CallAsync<object>(
+                "GET",
+                "/items/7",
+                new Dictionary<string, object?> { ["q"] = "secret" },
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/items/7", ex.RequestPath);
+        Assert.Equal("API returned status code 404 for GET /items/7", ex.Message);
+        Assert.DoesNotContain("secret", ex.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AnApiErrorKeepsTheBasePathOfTheServer()
+    {
+        var api = new TestableApi(new StatusSequenceApiClient(500), "http://localhost/v2/");
+
+        var ex = await Assert.ThrowsAsync<InternalServerErrorException>(() =>
+            api.CallAsync<object>(
+                "DELETE",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+
+        Assert.Equal("DELETE", ex.RequestMethod);
+        Assert.Equal("/v2/items/7", ex.RequestPath);
+    }
+
+    [Fact]
+    public async Task PerCallOptionsReachTheTransportAndTheRequestHeaders()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        _ = await api.CallWithCallOptionsAsync<object>(
+            "/x",
+            [],
+            1500,
+            new Dictionary<string, string> { ["x-trace"] = "abc" },
+            4
+        );
+
+        Assert.Equal(1500, client.Timeout);
+        Assert.Equal(4, client.MaxRetries);
+        Assert.Equal("abc", client.Headers["x-trace"]);
+    }
+
+    [Fact]
+    public async Task PerCallHeadersReplaceAHeaderOfTheSameNameWhateverItsCasing()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        _ = await api.CallWithCallOptionsAsync<object>(
+            "/x",
+            [],
+            null,
+            new Dictionary<string, string> { ["accept"] = "text/csv" },
+            null
+        );
+
+        Assert.Equal(
+            "text/csv",
+            client
+                .Headers.Single(h => h.Key.Equals("Accept", StringComparison.OrdinalIgnoreCase))
+                .Value
+        );
+        Assert.Null(client.Timeout);
+        Assert.Null(client.MaxRetries);
+    }
+
+    [Theory]
+    [InlineData(0, null)]
+    [InlineData(-5, null)]
+    [InlineData(null, -1)]
+    public async Task InvalidPerCallOptionsAreRejectedBeforeSending(int? timeout, int? maxRetries)
+    {
+        var api = new TestableApi(new CallOptionsApiClient(200, "{}"), "http://localhost");
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            api.CallWithCallOptionsAsync<object>("/x", [], timeout, null, maxRetries)
+        );
+    }
+
+    [Fact]
+    public async Task ASuccessBodyIsDecodedByTheStatusThatArrived()
+    {
+        var decodedStatuses = new List<int>();
+        string? Decode(int status, string body)
+        {
+            decodedStatuses.Add(status);
+            return status == 201 ? "created:" + body : "ok:" + body;
+        }
+
+        var created = await new TestableApi(
+            new CallOptionsApiClient(201, "{}"),
+            "http://localhost"
+        ).CallWithCallOptionsAsync<string>("/x", [], null, null, null, Decode);
+        var existing = await new TestableApi(
+            new CallOptionsApiClient(200, "{}"),
+            "http://localhost"
+        ).CallWithCallOptionsAsync<string>("/x", [], null, null, null, Decode);
+
+        Assert.Equal("created:{}", created.Data);
+        Assert.Equal("ok:{}", existing.Data);
+        Assert.Equal([201, 200], decodedStatuses);
     }
 
     private sealed class CapturingApiClient : IApiClient

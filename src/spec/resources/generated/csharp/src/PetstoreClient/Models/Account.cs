@@ -11,7 +11,7 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 /// <seealso href="https://example.com/docs/account"><![CDATA[Account <docs> & "notes" it's here]]></seealso>
-public class Account : IEquatable<Account>
+public record Account
 {
     /// <summary>
     /// Parameterless constructor used by System.Text.Json. Required members are
@@ -40,7 +40,7 @@ public class Account : IEquatable<Account>
 
     /// <remarks>This property is read-only.</remarks>
     [JsonPropertyName("id")]
-    public long? Id { get; set; }
+    public long? Id { get; init; }
 
     [JsonRequired]
     [JsonPropertyName("username")]
@@ -59,12 +59,12 @@ public class Account : IEquatable<Account>
 
     /// <remarks>This property is write-only.</remarks>
     [JsonPropertyName("password")]
-    public string? Password { get; set; }
+    public string? Password { get; init; }
 
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
-    public bool Equals(Account? other)
+    public virtual bool Equals(Account? other)
     {
         return other is not null
             && (
@@ -73,11 +73,6 @@ public class Account : IEquatable<Account>
                     && EqualityComparer<string>.Default.Equals(this.Username, other.Username)
                     && EqualityComparer<string?>.Default.Equals(this.Password, other.Password)
             );
-    }
-
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as Account);
     }
 
     public override int GetHashCode()
