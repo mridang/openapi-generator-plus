@@ -10,6 +10,7 @@ from petstore_client.object_serializer import ObjectSerializer
 from petstore_client.models.category import Category
 from petstore_client.models.order import OrderStatusEnum
 from petstore_client.models.pet import Pet
+from petstore_client.models.tag import Tag
 
 
 class TestDateTimeOffsetPreservation:
@@ -1058,12 +1059,18 @@ class TestNanInfinityRejection:
         with pytest.raises(ValidationError, match="finite number"):
             PhotoMetadataLocation(lat=value, lng=0.0)
 
-    def test_model_double_field_rejects_a_non_finite_value_on_assignment(self) -> None:
+    def test_model_double_field_is_frozen_and_still_rejects_a_non_finite_value(
+        self,
+    ) -> None:
         from petstore_client.models.photo_metadata_location import PhotoMetadataLocation
 
         location = PhotoMetadataLocation(lat=1.0, lng=2.0)
-        with pytest.raises(ValidationError, match="finite number"):
+        with pytest.raises(ValidationError, match="frozen"):
             location.lat = float("nan")
+        with pytest.raises(ValidationError, match="finite number"):
+            PhotoMetadataLocation.model_validate(
+                {**location.model_dump(), "lat": float("nan")}
+            )
 
     def test_deserialize_double_field_overflowing_to_infinity_raises(self) -> None:
         with pytest.raises(SerializationException, match="finite number"):
@@ -1078,6 +1085,55 @@ class TestNanInfinityRejection:
     def test_serialize_decimal_number_beyond_double_range_is_exact(self) -> None:
         pet = Pet(name="Fido", photoUrls=set(), weightKg=Decimal("1e400"))
         assert '"weightKg":1E+400' in ObjectSerializer().serialize(pet)
+
+
+class TestModelsAreImmutable:
+    """F868 / F870: a model never changes after construction, is hashable and is copied with ``model_copy``."""
+
+    @staticmethod
+    def _pet() -> Pet:
+        return Pet(name="Fido", photoUrls={"a"}, tags=[Tag(name="t")])
+
+    def test_assigning_a_field_raises(self) -> None:
+        with pytest.raises(ValidationError, match="frozen"):
+            self._pet().name = "Rex"
+
+    def test_model_copy_update_returns_a_changed_copy_and_leaves_the_original(
+        self,
+    ) -> None:
+        pet = self._pet()
+        copy = pet.model_copy(update={"name": "Rex"})
+        assert copy.name == "Rex"
+        assert pet.name == "Fido"
+        assert copy.photo_urls == pet.photo_urls
+
+    def test_equal_models_hash_equal_even_with_set_and_list_fields(self) -> None:
+        assert hash(self._pet()) == hash(self._pet())
+        assert len({self._pet(), self._pet()}) == 1
+
+    def test_models_that_differ_are_distinct_set_members(self) -> None:
+        assert len({self._pet(), self._pet().model_copy(update={"name": "Rex"})}) == 2
+
+    def test_a_composed_wrapper_is_frozen_and_hashable(self) -> None:
+        from petstore_client.models.pet_food import PetFood
+
+        food = ObjectSerializer().deserialize(
+            '{"foodType":"dry","weightKg":2.5}', "PetFood"
+        )
+        assert isinstance(food, PetFood)
+        with pytest.raises(ValidationError, match="frozen"):
+            food.actual_instance = None
+        assert (
+            len(
+                {
+                    food,
+                    ObjectSerializer().deserialize(
+                        '{"foodType":"dry","weightKg":2.5}', "PetFood"
+                    ),
+                }
+            )
+            == 1
+        )
 
 
 class TestTimeFormat:
@@ -1460,7 +1516,7 @@ class TestByteFormatBase64RoundTrip:
 
 class TestByteModelFieldHoldsRawBytes:
     """A `format: byte` MODEL field holds RAW bytes in memory and is base64 only
-    on the wire, as in the other SDKs: constructing or assigning bytes never
+    on the wire, as in the other SDKs: constructing or copying with bytes never
     decodes them, and a malformed base64 wire string is rejected."""
 
     RAW = bytes([0x00, 0xFF, 0x10, 0x42])
@@ -1476,15 +1532,13 @@ class TestByteModelFieldHoldsRawBytes:
     def test_constructing_with_bytes_that_look_like_base64_keeps_them(self) -> None:
         assert self._vault()(seal=b"test").seal == b"test"
 
-    def test_assigning_raw_bytes_keeps_them(self) -> None:
-        vault = self._vault()()
-        vault.seal = b"hello world"
+    def test_copying_with_raw_bytes_keeps_them(self) -> None:
+        vault = self._vault()().model_copy(update={"seal": b"hello world"})
         assert vault.seal == b"hello world"
 
-    def test_reassigning_the_decoded_value_is_stable(self) -> None:
+    def test_copying_the_decoded_value_is_stable(self) -> None:
         vault = ObjectSerializer().deserialize('{"seal":"dGVzdA=="}', "BinaryVault")
-        vault.seal = vault.seal
-        assert vault.seal == b"test"
+        assert vault.model_copy(update={"seal": vault.seal}).seal == b"test"
 
     def test_serializing_base64_encodes_the_raw_bytes(self) -> None:
         assert (

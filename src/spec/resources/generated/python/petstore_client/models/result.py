@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic import StrictBool
+from petstore_client._types import hash_model
 from typing import Optional
 
 
@@ -25,9 +26,12 @@ class Result(BaseModel):
     # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
-        validate_assignment=True,
+        frozen=True,
         protected_namespaces=(),
     )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
 
 
 Result.model_rebuild(raise_errors=False)

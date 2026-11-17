@@ -4,7 +4,7 @@ Auto-generated Python SDK client for the {{appName}} API.
 
 ## Requirements
 
-- Python 3.13+
+- Python 3.10+
 - `pip`
 
 ## Installation
@@ -86,6 +86,22 @@ a call that exceeds it fails with `NetworkTimeoutException`.
 
 - Name: `{{projectName}}`
 - Version: `{{packageVersion}}`
+- License: {{licenseId}}
+{{#repositoryUrl}}
+- Repository: {{{.}}}
+{{/repositoryUrl}}
+{{#homepageUrl}}
+- Homepage: {{{.}}}
+{{/homepageUrl}}
+{{#documentationUrl}}
+- Documentation: {{{.}}}
+{{/documentationUrl}}
+{{#issueTrackerUrl}}
+- Issue tracker: {{{.}}}
+{{/issueTrackerUrl}}
+{{#hasAuthors}}
+- Authors: {{#authorsList}}{{{name}}}{{^-last}}, {{/-last}}{{/authorsList}}
+{{/hasAuthors}}
 
 ## OpenAPI type mapping
 

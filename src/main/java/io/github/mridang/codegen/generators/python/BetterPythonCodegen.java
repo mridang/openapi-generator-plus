@@ -4,6 +4,7 @@ package io.github.mridang.codegen.generators.python;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.NamingConvention;
+import com.google.common.base.Splitter;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
 import java.nio.file.Path;
@@ -13,6 +14,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -48,7 +50,13 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
 
 
     /** An identifier inside a Python type annotation (dotted names kept whole). */
-    private static final Pattern TYPE_NAME_TOKEN = Pattern.compile("[A-Za-z_][A-Za-z0-9_.]*");
+    private static final String OPTION_REPOSITORY_URL = "repositoryUrl";
+    private static final String OPTION_HOMEPAGE_URL = "homepageUrl";
+    private static final String OPTION_AUTHORS = "authors";
+    private static final String OPTION_DOCUMENTATION_URL = "documentationUrl";
+    private static final String OPTION_ISSUE_TRACKER_URL = "issueTrackerUrl";
+
+    private static final Pattern TYPE_NAME_TOKEN =Pattern.compile("[A-Za-z_][A-Za-z0-9_.]*");
 
     /** Generic names an options annotation may use, imported from typing. */
     private static final Set<String> TYPING_NAMES = Set.of("List", "Dict", "Set", "Optional", "Any", "Union");
@@ -222,6 +230,28 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 CodegenConstants.PACKAGE_NAME_DESC));
         cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
                 "Version of the generated package (default: 1.0.0).").defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString(OPTION_REPOSITORY_URL,
+                "Source repository URL, written to the manifest and README."));
+        cliOptions.add(CliOption.newString(OPTION_HOMEPAGE_URL,
+                "Project homepage URL, written to the manifest and README."));
+        cliOptions.add(CliOption.newString(OPTION_AUTHORS,
+                "Comma-separated author names, written to the manifest."));
+        cliOptions.add(CliOption.newString(OPTION_DOCUMENTATION_URL,
+                "Documentation URL, written to the manifest and README (optional)."));
+        cliOptions.add(CliOption.newString(OPTION_ISSUE_TRACKER_URL,
+                "Issue tracker URL, written to the manifest and README (optional)."));
+    }
+
+    /** The names the generated operations add to their own signature, which a path or body parameter must not reuse (F1055). */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of("self", "options", "server", "request_content_type");
+    }
+
+    /** A parameter named like an injected argument gets this suffix, snake-cased like the rest. */
+    @Override
+    protected String getInjectedArgumentSuffix() {
+        return "_param";
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -510,6 +540,36 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         final String distributionName = getPropertyOrDefault("projectName", packageName);
         additionalProperties.put(
                 "userAgentDefault", distributionName + "/" + packageVersion + " (python)");
+
+        /* The environment-variable prefix of the credentials the client reads
+         * once at construction ({PREFIX}_ACCESS_TOKEN, {PREFIX}_BASE_URL). */
+        additionalProperties.put(
+                "envPrefix", NamingConvention.SNAKE_CASE.apply(distributionName).toUpperCase(Locale.ROOT));
+
+        /* Package metadata options: the manifest and the README show only the
+         * ones that were given. */
+        final List<Map<String, String>> authorsList = new ArrayList<>();
+        final Object authorsOption = additionalProperties.get(OPTION_AUTHORS);
+        if (authorsOption != null) {
+            for (final String author : Splitter.on(',').split(String.valueOf(authorsOption))) {
+                if (!author.trim().isEmpty()) {
+                    authorsList.add(Map.of("name", author.trim().replace("\\", "\\\\").replace("\"", "\\\"")));
+                }
+            }
+        }
+        additionalProperties.put("authorsList", authorsList);
+        additionalProperties.put("hasAuthors", !authorsList.isEmpty());
+        boolean hasProjectUrls = false;
+        for (final String urlOption : new String[] {
+            OPTION_REPOSITORY_URL, OPTION_HOMEPAGE_URL, OPTION_DOCUMENTATION_URL, OPTION_ISSUE_TRACKER_URL}) {
+            final Object value = additionalProperties.get(urlOption);
+            if (value != null && !String.valueOf(value).trim().isEmpty()) {
+                hasProjectUrls = true;
+            } else {
+                additionalProperties.remove(urlOption);
+            }
+        }
+        additionalProperties.put("hasProjectUrls", hasProjectUrls);
 
         modelPackage = packageName + ".models";
         apiPackage = packageName + ".api";

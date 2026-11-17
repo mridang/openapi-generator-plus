@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic import StrictInt, StrictStr
+from petstore_client._types import hash_model
 from typing import Any, List, Optional, Set
 from enum import Enum
 
@@ -94,9 +95,12 @@ class PetWithOwner(BaseModel):
     # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
-        validate_assignment=True,
+        frozen=True,
         protected_namespaces=(),
     )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
 
 
 from petstore_client._types import JsonNumber

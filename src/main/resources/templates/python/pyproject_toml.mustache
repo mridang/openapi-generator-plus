@@ -3,13 +3,32 @@ name = "{{projectName}}"
 version = "{{packageVersion}}"
 description = {{#lambda.doubleQuoted}}{{#appDescription}}{{#lambda.unescapeDocComment}}{{{appDescription}}}{{/lambda.unescapeDocComment}}{{/appDescription}}{{^appDescription}}{{projectName}} - OpenAPI client{{/appDescription}}{{/lambda.doubleQuoted}}
 license = "{{licenseId}}"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
+{{#hasAuthors}}
+authors = [{{#authorsList}}{ name = "{{{name}}}" }{{^-last}}, {{/-last}}{{/authorsList}}]
+{{/hasAuthors}}
 dependencies = [
     "urllib3>=2.1.0,<3.0.0",
     "python_dateutil>=2.8.2",
     "pydantic>=2.11,<3",
 ]
 
+{{#hasProjectUrls}}
+[project.urls]
+{{#repositoryUrl}}
+Repository = "{{{.}}}"
+{{/repositoryUrl}}
+{{#homepageUrl}}
+Homepage = "{{{.}}}"
+{{/homepageUrl}}
+{{#documentationUrl}}
+Documentation = "{{{.}}}"
+{{/documentationUrl}}
+{{#issueTrackerUrl}}
+"Issue Tracker" = "{{{.}}}"
+{{/issueTrackerUrl}}
+
+{{/hasProjectUrls}}
 [project.optional-dependencies]
 # Response decompression for the br/zstd codecs is OPTIONAL: the client imports
 # brotli and zstandard behind try/except ImportError and advertises a codec in
@@ -40,6 +59,9 @@ dev = [
     "testcontainers>=4.0.0",
 {{/generateTests}}
     "pytest-cov>=4.0.0",
+    # tomllib joined the standard library in Python 3.11; the tests read the
+    # manifest on 3.10 through the backport.
+    "tomli>=2.0; python_version < '3.11'",
     "opentelemetry-sdk>=1.20.0",
     "sphinx>=7,<10",
     "furo>=2024.1.29",
@@ -68,6 +90,12 @@ include = ["{{packageName}}*"]
 # The typed subclasses import the root exception from this module, so their
 # re-export can only follow the class definition.
 "{{packageName}}/errors/__init__.py" = ["E402"]
+
+[tool.mypy]
+# The oldest supported runtime: the standard library calls the SDK makes are
+# checked against it, so a newer-only API fails here rather than on a user's
+# machine.
+python_version = "3.10"
 
 [[tool.mypy.overrides]]
 # brotli ships neither stubs nor a py.typed marker, and the SDK imports it

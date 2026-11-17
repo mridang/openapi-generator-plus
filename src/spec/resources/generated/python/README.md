@@ -4,7 +4,7 @@ Auto-generated Python SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- Python 3.13+
+- Python 3.10+
 - `pip`
 
 ## Installation
@@ -84,6 +84,7 @@ a call that exceeds it fails with `NetworkTimeoutException`.
 
 - Name: `petstore-client`
 - Version: `1.0.0`
+- License: MIT
 
 ## OpenAPI type mapping
 

@@ -3,9 +3,14 @@ import ast
 import dataclasses
 import json
 import os
-import tomllib
+import sys
 
 import pytest
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from petstore_client.object_serializer import ObjectSerializer
 

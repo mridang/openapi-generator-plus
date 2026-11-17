@@ -29,7 +29,8 @@ class {{classname}}({{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^i
 {{#-first}}
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, field_validator
+from {{packageName}}._types import hash_model
 from typing import Annotated, Any, ClassVar, Dict, List, Optional, Set, Tuple, Union
 
 
@@ -76,9 +77,12 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     # require per-field validators on int/bool/float specifically —
     # tracked in AGENT.md as a deferred sub-gap.
     model_config = ConfigDict(
-        validate_assignment=True,
+        frozen=True,
         protected_namespaces=(),
     )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
 {{#discriminator}}
 
     discriminator_value_class_map: ClassVar[Dict[str, str]] = {
@@ -149,7 +153,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         {{#composedSchemas.oneOf}}
         {{#isContainer}}
         try:
-            {{{classname}}}.model_construct().{{name}} = v
+            TypeAdapter({{{dataType}}}).validate_python(v)
             return v
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
@@ -157,7 +161,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         {{^isContainer}}
         {{#isPrimitiveType}}
         try:
-            {{{classname}}}.model_construct().{{name}} = v
+            TypeAdapter({{{dataType}}}).validate_python(v)
             return v
         except (ValidationError, ValueError) as e:
             error_messages.append(str(e))
@@ -184,6 +188,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Union
+
+from {{packageName}}._types import hash_model
 
 
 class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
@@ -223,9 +229,12 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     # require per-field validators on int/bool/float specifically —
     # tracked in AGENT.md as a deferred sub-gap.
     model_config = ConfigDict(
-        validate_assignment=True,
+        frozen=True,
         protected_namespaces=(),
     )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:
@@ -315,6 +324,7 @@ from pydantic import BaseModel, ConfigDict, Field, SerializationInfo, Validation
     aliases here is harmless when unused and keeps any nested-strict field
     resolvable; the footer may re-import a subset, which Python tolerates. }}
 from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
+from {{packageName}}._types import hash_model
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
 {{! A bare number default is built as a Decimal; ruff prunes it when unused. }}
 from decimal import Decimal
@@ -559,7 +569,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     # field-name kwargs working in constructors.
     model_config = ConfigDict(
         populate_by_name=True,
-        validate_assignment=True,
+        frozen=True,
         protected_namespaces=(),
 {{#isUnevaluatedPropertiesFalse}}
         # Item 9 — OAS 3.1 unevaluatedProperties:false → pydantic native
@@ -568,6 +578,9 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         extra='forbid',
 {{/isUnevaluatedPropertiesFalse}}
     )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
 
 {{#hasChildren}}
 {{#discriminator}}
