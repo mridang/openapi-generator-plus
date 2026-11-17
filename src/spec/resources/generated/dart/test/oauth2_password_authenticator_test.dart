@@ -201,7 +201,7 @@ void main() {
       },
     );
 
-    test('redacts the secret in toString', () {
+    test('redacts secret', () {
       final auth = OAuth2PasswordAuthenticator(
         host: 'https://api.example.com',
         clientId: 'my-client-id',

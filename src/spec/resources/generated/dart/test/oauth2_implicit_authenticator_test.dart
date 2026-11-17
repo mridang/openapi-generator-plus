@@ -102,7 +102,7 @@ void main() {
       expect(auth.host(), equals('https://api.example.com'));
     });
 
-    test('redacts the secret in toString', () {
+    test('redacts secret', () {
       final auth = _createAuthenticator();
       auth.setAccessToken('implicit-tok');
 

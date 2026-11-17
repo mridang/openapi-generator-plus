@@ -258,7 +258,7 @@ void main() {
       },
     );
 
-    test('redacts the secret in toString', () {
+    test('redacts secret', () {
       final auth = _createAuthenticator();
 
       expect(auth.toString(), isNot(contains('my-client-secret')));

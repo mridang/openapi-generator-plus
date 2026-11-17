@@ -361,7 +361,7 @@ void main() {
       expect(client.lastBody, contains('refresh_token=ref1'));
     });
 
-    test('redacts the secret in toString', () {
+    test('redacts secret', () {
       final auth = _createAuthenticator();
 
       expect(auth.toString(), isNot(contains('my-client-secret')));

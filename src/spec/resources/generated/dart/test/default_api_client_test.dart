@@ -373,7 +373,7 @@ Future<void> main(List<String> args) async {
       }
     });
 
-    test('303 switches to GET and drops body (Gap T3)', () async {
+    test('redirect 303 switches to GET and drops body', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
           .maxRedirects(5)

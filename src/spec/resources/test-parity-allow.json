@@ -12,6 +12,17 @@
   }
  ],
  "languages": {
+  "dart": {
+   "missingTests": [
+    {
+     "reason": "Dart has no brotli or zstd decoder in the standard library and the SDK takes no native or third-party dependency for one, so DefaultApiClient advertises only gzip and deflate and refuses a br or zstd body with a typed ApiException ('refuses a br response it cannot decode' and 'refuses a zstd response it cannot decode'); a decoded br or zstd body cannot be read",
+     "keys": [
+      "defaultapiclient::decompressesbrotliresponse",
+      "defaultapiclient::decompresseszstdresponse"
+     ]
+    }
+   ]
+  },
   "go": {
    "extraGroups": [
     {
