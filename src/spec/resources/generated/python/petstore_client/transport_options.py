@@ -87,6 +87,25 @@ def _assert_valid_max_retries(max_retries: int) -> None:
         )
 
 
+def _validated_call_headers(
+    timeout: Optional[int],
+    headers: Optional[Mapping[str, str]],
+    max_retries: Optional[int],
+) -> Optional[Mapping[str, str]]:
+    """Validate the per-call settings of an Options object and freeze its headers.
+
+    The rules are the transport's own: the timeout is ``None`` or at least one
+    millisecond, the retry budget a whole number of at least zero.
+
+    Raises:
+        ValueError: If the timeout or the retry budget is out of range.
+    """
+    _assert_valid_timeout(timeout)
+    if max_retries is not None:
+        _assert_valid_max_retries(max_retries)
+    return None if headers is None else MappingProxyType(dict(headers))
+
+
 _REDACTED = "***"
 _SENSITIVE_HEADER_NAMES = ("authorization", "proxy-authorization", "cookie")
 _SENSITIVE_HEADER_FRAGMENTS = ("key", "token", "secret")

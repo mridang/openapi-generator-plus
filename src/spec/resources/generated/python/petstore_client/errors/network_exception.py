@@ -17,6 +17,16 @@ class NetworkException(ApiException):
     """
 
     def __init__(
-        self, message: Optional[str] = None, cause: Optional[BaseException] = None
+        self,
+        message: Optional[str] = None,
+        cause: Optional[BaseException] = None,
+        request_method: Optional[str] = None,
+        request_path: Optional[str] = None,
     ) -> None:
-        super().__init__(status_code=0, message=message, cause=cause)
+        super().__init__(
+            status_code=0,
+            message=message,
+            cause=cause,
+            request_method=request_method,
+            request_path=request_path,
+        )

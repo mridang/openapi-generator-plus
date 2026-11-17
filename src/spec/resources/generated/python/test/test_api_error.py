@@ -396,6 +396,92 @@ class TestApiErrorRendering:
         assert err.response_headers["Authorization"] == "Bearer abc"
 
 
+class TestRequestContext:
+    """F830: every API error names the request it answers."""
+
+    @pytest.mark.parametrize(
+        "status,expected",
+        [
+            (400, BadRequestException),
+            (401, UnauthorizedException),
+            (403, ForbiddenException),
+            (404, NotFoundException),
+            (409, ConflictException),
+            (422, UnprocessableEntityException),
+            (429, TooManyRequestsException),
+            (418, ClientException),
+            (500, InternalServerErrorException),
+            (503, ServerException),
+            (302, ApiException),
+        ],
+    )
+    def test_from_response_records_the_request(
+        self, status: int, expected: type
+    ) -> None:
+        err = ApiException.from_response(status, {}, None, "GET", "/items/7")
+
+        assert type(err) is expected
+        assert err.request_method == "GET"
+        assert err.request_path == "/items/7"
+
+    @pytest.mark.parametrize(
+        "make",
+        [
+            lambda: ApiException(
+                status_code=500, request_method="PUT", request_path="/a"
+            ),
+            lambda: ClientException(
+                status_code=400, request_method="PUT", request_path="/a"
+            ),
+            lambda: ServerException(
+                status_code=500, request_method="PUT", request_path="/a"
+            ),
+            lambda: BadRequestException(request_method="PUT", request_path="/a"),
+            lambda: UnauthorizedException(request_method="PUT", request_path="/a"),
+            lambda: ForbiddenException(request_method="PUT", request_path="/a"),
+            lambda: NotFoundException(request_method="PUT", request_path="/a"),
+            lambda: ConflictException(request_method="PUT", request_path="/a"),
+            lambda: UnprocessableEntityException(
+                request_method="PUT", request_path="/a"
+            ),
+            lambda: TooManyRequestsException(request_method="PUT", request_path="/a"),
+            lambda: InternalServerErrorException(
+                request_method="PUT", request_path="/a"
+            ),
+            lambda: NetworkException(request_method="PUT", request_path="/a"),
+            lambda: NetworkTimeoutException(request_method="PUT", request_path="/a"),
+        ],
+    )
+    def test_every_constructor_takes_the_request_context(self, make: Any) -> None:
+        err = make()
+
+        assert err.request_method == "PUT"
+        assert err.request_path == "/a"
+
+    def test_the_request_is_unknown_by_default(self) -> None:
+        err = ApiException(status_code=500, message="boom")
+
+        assert err.request_method is None
+        assert err.request_path is None
+        assert str(err) == "boom\nHTTP status code: 500"
+
+    def test_the_message_names_the_request_before_the_status(self) -> None:
+        err = ApiException.from_response(502, {}, "down", "POST", "/items")
+
+        assert str(err) == (
+            "API returned status code 502\nRequest: POST /items"
+            "\nHTTP status code: 502\nResponse body: down"
+        )
+
+    def test_a_query_string_is_stripped_from_the_recorded_path(self) -> None:
+        err = NetworkException(message="boom")._with_request(
+            "GET", "/items?token=secret"
+        )
+
+        assert err.request_path == "/items"
+        assert "secret" not in str(err)
+
+
 class TestFromResponseBodyShapes:
     def test_a_scalar_json_body_becomes_the_error_body(self) -> None:
         err = ApiException.from_response(400, {}, '"just a string"')

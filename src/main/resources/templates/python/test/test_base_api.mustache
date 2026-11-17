@@ -15,6 +15,9 @@ from {{packageName}}.api.pet_api import PetApi
 from {{packageName}}.api.store_api import StoreApi
 from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
 from {{packageName}}.api.options.set_pet_preferences_options import SetPetPreferencesOptions
+from {{packageName}}.api.options.reserve_stock_options import ReserveStockOptions
+from {{packageName}}.models.reservation import Reservation
+from {{packageName}}.models.reservation_receipt import ReservationReceipt
 from {{packageName}}.models.pet import Pet
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.default_api_client import DefaultApiClient
@@ -69,10 +72,11 @@ class StubApi(BaseApi):
     async def call_result(self, method: str, path: str, query_params: dict[str, Any],
                           header_params: dict[str, str], body: Any,
                           accepts: list[str], content_type: str,
-                          return_type: Optional[str], auth: Union[Authenticator, _NoAuth, None] = None) -> Any:
+                          return_type: Optional[str], auth: Union[Authenticator, _NoAuth, None] = None,
+                          request_options: Any = None) -> Any:
         return await self._invoke_api_for_result(
             method, path, query_params, header_params, body,
-            accepts, content_type, return_type, auth)
+            accepts, content_type, return_type, auth, request_options=request_options)
 
 
 class StubAuthenticator(Authenticator):
@@ -163,6 +167,175 @@ class TestErrorHeaders:
         with pytest.raises(BadRequestException) as exc_info:
             BaseApi._throw_api_exception(resp)
         assert exc_info.value.response_headers == {'content-type': 'application/json'}
+
+
+class _FailingApiClient(ApiClient):
+    """An ApiClient that answers every request with one outcome."""
+
+    def __init__(self, status: int = 0, error: Optional[NetworkException] = None) -> None:
+        self._status = status
+        self._error = error
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        if self._error is not None:
+            raise self._error
+        return ApiHttpResponse(status_code=self._status, body='{}', headers={})
+
+    def close(self) -> None:
+        return None
+
+
+class TestErrorRequestContext:
+    """F830: the error BaseApi builds names the method and the path, never the query."""
+
+    async def test_an_http_error_records_the_method_and_the_path_without_the_query(self) -> None:
+        api = StubApi(
+            api_client=_FailingApiClient(status=404),
+            config=Configuration(base_url='https://example.test/v1'),
+        )
+        with pytest.raises(NotFoundException) as exc_info:
+            await api.call('DELETE', '/items/7', {'token': 'secret'}, {}, None, ['application/json'], 'application/json', None)
+
+        assert exc_info.value.request_method == 'DELETE'
+        assert exc_info.value.request_path == '/v1/items/7'
+        assert 'secret' not in str(exc_info.value)
+        assert 'Request: DELETE /v1/items/7' in str(exc_info.value)
+
+    async def test_a_network_error_records_the_method_and_the_path(self) -> None:
+        api = StubApi(
+            api_client=_FailingApiClient(error=NetworkException('refused')),
+            config=Configuration(base_url='https://example.test'),
+        )
+        with pytest.raises(NetworkException) as exc_info:
+            await api.call('GET', '/items', {}, {}, None, ['application/json'], 'application/json', None)
+
+        assert exc_info.value.request_method == 'GET'
+        assert exc_info.value.request_path == '/items'
+
+
+class _ScriptedApiClient(ApiClient):
+    """An ApiClient that plays back the given responses and records what it was sent."""
+
+    def __init__(self, *responses: ApiHttpResponse) -> None:
+        self._responses = list(responses)
+        self.sent: list[dict[str, str]] = []
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        self.sent.append(dict(headers))
+        return self._responses.pop(0) if len(self._responses) > 1 else self._responses[0]
+
+    def close(self) -> None:
+        return None
+
+
+class _DeadlineCapturingClient(DefaultApiClient):
+    """A transport that records the end-to-end deadline the call was given."""
+
+    def __init__(self) -> None:
+        super().__init__(TransportOptions.builder().timeout(10000).max_retries(0).build())
+        self.deadline: Optional[float] = None
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False, handle: Any = None, deadline: Optional[float] = None) -> ApiHttpResponse:
+        self.deadline = deadline
+        return ApiHttpResponse(status_code=200, body='{}', headers={'content-type': 'application/json'})
+
+
+def _json(status: int, body: str, **headers: str) -> ApiHttpResponse:
+    return ApiHttpResponse(status_code=status, body=body, headers={'content-type': 'application/json', **headers})
+
+
+class TestPerCallOptions:
+    """F827: the Options object of one call overrides the timeout, the headers and the retry budget."""
+
+    async def test_per_call_headers_replace_a_configured_default_header_of_the_same_name(self) -> None:
+        client = _ScriptedApiClient(_json(200, '{}'))
+        config = Configuration(base_url='https://example.test', default_headers={'X-Tenant': 'config', 'X-Keep': 'yes'})
+        api = StubApi(api_client=client, config=config)
+
+        await api.call_result(
+            'GET', '/items', {}, {}, None, ['application/json'], 'application/json', None,
+            request_options=FindPetsByStatusOptions(headers={'x-tenant': 'call'}),
+        )
+
+        assert client.sent[0]['x-tenant'] == 'call'
+        assert 'X-Tenant' not in client.sent[0]
+        assert client.sent[0]['X-Keep'] == 'yes'
+
+    async def test_per_call_max_retries_overrides_the_transport_budget(self) -> None:
+        client = _ScriptedApiClient(_json(503, '{}', **{'retry-after': '0'}), _json(200, '{}'))
+        api = StubApi(api_client=client, config=Configuration(base_url='https://example.test'))
+
+        result = await api.call_result(
+            'GET', '/items', {}, {}, None, ['application/json'], 'application/json', None,
+            request_options=FindPetsByStatusOptions(max_retries=1),
+        )
+
+        assert result.status_code == 200
+        assert len(client.sent) == 2
+
+    async def test_per_call_max_retries_zero_turns_retrying_off(self) -> None:
+        client = _ScriptedApiClient(_json(503, '{}', **{'retry-after': '0'}), _json(200, '{}'))
+        api = StubApi(api_client=client, config=Configuration(base_url='https://example.test'))
+
+        with pytest.raises(ServerException):
+            await api.call_result(
+                'GET', '/items', {}, {}, None, ['application/json'], 'application/json', None,
+                request_options=FindPetsByStatusOptions(max_retries=0),
+            )
+
+        assert len(client.sent) == 1
+
+    async def test_per_call_timeout_replaces_the_transport_timeout_for_one_call(self) -> None:
+        client = _DeadlineCapturingClient()
+        api = StubApi(api_client=client, config=Configuration(base_url='https://example.test'))
+
+        await api.call_result(
+            'GET', '/items', {}, {}, None, ['application/json'], 'application/json', None,
+            request_options=FindPetsByStatusOptions(timeout=1500),
+        )
+        short = client.deadline
+        await api.call_result('GET', '/items', {}, {}, None, ['application/json'], 'application/json', None)
+
+        assert short is not None and client.deadline is not None
+        assert short - time.monotonic() <= 1.5
+        assert client.deadline - time.monotonic() > 5
+
+    async def test_an_operation_without_parameters_takes_per_call_options(self) -> None:
+        client = _ScriptedApiClient(_json(200, '{"reservationId":1,"quantity":2}'))
+        api = StoreApi(api_client=client, config=Configuration(base_url='https://example.test'))
+
+        await api.reserve_stock(options=ReserveStockOptions(headers={'X-Trace': 'abc'}))
+
+        assert client.sent[0]['X-Trace'] == 'abc'
+
+
+class TestMultipleSuccessResponses:
+    """F1062: an operation with several 2xx schemas decodes the body by the status code it came with."""
+
+    BOTH = '{"reservationId":1,"quantity":2,"receiptCode":"rcpt","expiresAt":"2030-01-01T00:00:00Z"}'
+
+    async def test_status_200_decodes_the_first_schema_even_when_the_body_fits_both(self) -> None:
+        api = StoreApi(api_client=_ScriptedApiClient(_json(200, self.BOTH)), config=Configuration(base_url='https://example.test'))
+
+        result = await api.reserve_stock()
+
+        assert isinstance(result.actual_instance, Reservation)
+
+    async def test_status_201_decodes_the_second_schema_even_when_the_body_fits_both(self) -> None:
+        api = StoreApi(api_client=_ScriptedApiClient(_json(201, self.BOTH)), config=Configuration(base_url='https://example.test'))
+
+        result = await api.reserve_stock()
+
+        assert isinstance(result.actual_instance, ReservationReceipt)
+
+    async def test_with_http_info_keeps_the_status_and_the_decoded_union(self) -> None:
+        api = StoreApi(api_client=_ScriptedApiClient(_json(201, self.BOTH)), config=Configuration(base_url='https://example.test'))
+
+        result = await api.reserve_stock_with_http_info()
+
+        assert result.status_code == 201
+        assert result.data is not None
+        assert isinstance(result.data.actual_instance, ReservationReceipt)
 
 
 class TestExceptionHierarchy:

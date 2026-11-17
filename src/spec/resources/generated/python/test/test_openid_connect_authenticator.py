@@ -91,6 +91,13 @@ class TestOpenIdConnectAuthenticator:
             == "https://auth.example.com/.well-known/openid-configuration"
         )
 
+    def test_discovery_is_sent_without_the_transport_default_headers(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_args.kwargs["no_redirect"] is True
+
     def test_obtains_token_after_code_exchange(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 

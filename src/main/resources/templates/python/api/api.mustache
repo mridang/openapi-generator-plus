@@ -143,12 +143,7 @@ class {{classname}}(BaseApi):
         # >>> {{{value}}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
-{{#vendorExtensions.op.hasOptionsParam}}
-        :param options: options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
-{{/vendorExtensions.op.hasOptionsParam}}
-{{^vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}}
-        :param options: options carrying an optional per-call authenticator
-{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}
+        :param options: per-call options: the query, header, form and cookie parameters{{#hasAuthMethods}}, an optional per-call authenticator{{/hasAuthMethods}}, and an optional timeout, extra headers and retry budget for this call
 {{#vendorExtensions.hasMultipleConsumes}}
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to the first declared type when omitted.
 {{/vendorExtensions.hasMultipleConsumes}}
@@ -247,12 +242,7 @@ class {{classname}}(BaseApi):
 {{#bodyParam}}
         :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}
 {{/bodyParam}}
-{{#vendorExtensions.op.hasOptionsParam}}
-        :param options: options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
-{{/vendorExtensions.op.hasOptionsParam}}
-{{^vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}}
-        :param options: options carrying an optional per-call authenticator
-{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}
+        :param options: per-call options: the query, header, form and cookie parameters{{#hasAuthMethods}}, an optional per-call authenticator{{/hasAuthMethods}}, and an optional timeout, extra headers and retry budget for this call
 {{#vendorExtensions.hasMultipleConsumes}}
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to the first declared type when omitted.
 {{/vendorExtensions.hasMultipleConsumes}}
@@ -413,6 +403,16 @@ class {{classname}}(BaseApi):
             )
 {{/vendorExtensions.hasMultipleConsumes}}
 
+{{#vendorExtensions.op.hasMultiple2xx}}
+        def decode_success(status_code: int, body: str) -> Any:
+            """Decode the body by the status code the server answered with."""
+{{#vendorExtensions.op.successResponses}}
+            if {{#isRange}}200 <= status_code < 300{{/isRange}}{{^isRange}}status_code == {{statusCode}}{{/isRange}}:
+                return {{{vendorExtensions.op.successUnionType}}}(self._object_serializer.deserialize(body, '{{{returnType}}}'))
+{{/vendorExtensions.op.successResponses}}
+            return self._object_serializer.deserialize(body, '{{{vendorExtensions.op.successUnionType}}}')
+
+{{/vendorExtensions.op.hasMultiple2xx}}
         return await self._invoke_api_for_result(
             '{{httpMethod}}',
             path,
@@ -429,6 +429,10 @@ class {{classname}}(BaseApi):
 {{/isBinary}}
 {{/bodyParam}}
             operation_name='{{operationId}}',
+            request_options=options,
+{{#vendorExtensions.op.hasMultiple2xx}}
+            decode_success=decode_success,
+{{/vendorExtensions.op.hasMultiple2xx}}
         )
 {{/operation}}
 {{/operations}}

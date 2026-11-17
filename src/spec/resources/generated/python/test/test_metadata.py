@@ -270,6 +270,49 @@ class TestOptionsImmutability:
             cast(Any, options).status = "sold"
 
 
+class TestOptionsPerCallSettings:
+    @staticmethod
+    def _options() -> Any:
+        from petstore_client.api.options.find_pets_by_status_options import (
+            FindPetsByStatusOptions,
+        )
+
+        return FindPetsByStatusOptions
+
+    def test_the_per_call_settings_default_to_the_clients(self) -> None:
+        options = self._options()()
+
+        assert options.timeout is None
+        assert options.headers is None
+        assert options.max_retries is None
+
+    @pytest.mark.parametrize("timeout", [0, -5, True, "10"])
+    def test_a_timeout_below_one_millisecond_or_not_a_number_is_rejected(
+        self, timeout: Any
+    ) -> None:
+        with pytest.raises(ValueError, match="timeout"):
+            self._options()(timeout=timeout)
+
+    @pytest.mark.parametrize("max_retries", [-1, True, 1.5])
+    def test_a_retry_budget_below_zero_or_not_a_whole_number_is_rejected(
+        self, max_retries: Any
+    ) -> None:
+        with pytest.raises(ValueError, match="max_retries"):
+            self._options()(max_retries=max_retries)
+
+    def test_zero_retries_is_allowed(self) -> None:
+        assert self._options()(max_retries=0).max_retries == 0
+
+    def test_the_headers_are_a_read_only_copy(self) -> None:
+        source = {"X-A": "1"}
+        options = self._options()(headers=source)
+        source["X-A"] = "2"
+
+        assert options.headers["X-A"] == "1"
+        with pytest.raises(TypeError):
+            cast(Any, options.headers)["X-B"] = "3"
+
+
 class TestMetadataEquality:
     @staticmethod
     def _decode(raw: str) -> Any:
