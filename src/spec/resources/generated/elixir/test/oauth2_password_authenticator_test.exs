@@ -550,7 +550,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert second =~ "refresh_token=ref1"
     end
 
-    test "redacts the secret" do
+    test "redacts secret" do
       auth = create_authenticator()
 
       refute inspect(auth) =~ "my-client-secret"

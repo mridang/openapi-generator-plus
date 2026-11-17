@@ -729,7 +729,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert headers["Authorization"] == "Bearer tok1"
     end
 
-    test "rejects empty authorization code" do
+    test "exchange code rejects empty code" do
       auth = create_authenticator()
 
       err =
@@ -740,7 +740,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert err.message == "Authorization code must not be empty"
     end
 
-    test "rejects whitespace-only authorization code" do
+    test "exchange code rejects whitespace only code" do
       auth = create_authenticator()
 
       assert_raise ArgumentError, fn ->
@@ -855,7 +855,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert refresh =~ "refresh_token=ref1"
     end
 
-    test "redacts the secret" do
+    test "redacts secret" do
       auth = create_authenticator()
 
       refute inspect(auth) =~ "my-client-secret"

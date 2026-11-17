@@ -485,7 +485,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
                "Bearer tok2"
     end
 
-    test "redacts the secret" do
+    test "redacts secret" do
       auth = create_authenticator()
 
       refute inspect(auth) =~ "my-client-secret"

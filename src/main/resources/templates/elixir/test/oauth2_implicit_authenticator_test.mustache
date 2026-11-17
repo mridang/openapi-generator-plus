@@ -136,7 +136,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator.host(auth) == "https://api.example.com"
     end
 
-    test "redacts the secret" do
+    test "redacts secret" do
       auth = create_authenticator()
       auth = {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(auth, "implicit-tok")
 
