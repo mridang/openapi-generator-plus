@@ -356,75 +356,11 @@
    ]
   },
   "ruby": {
-   "missingGroups": [
-    {
-     "reason": "tracked in #118",
-     "keys": [
-      "client",
-      "defaultapiclientunit",
-      "metadata"
-     ]
-    }
-   ],
    "extraGroups": [
     {
      "reason": "the gemspec is a Ruby-only manifest, so only the Ruby SDK tests it",
      "keys": [
       "gemmanifest"
-     ]
-    },
-    {
-     "reason": "tracked in #118",
-     "keys": [
-      "models",
-      "petstore"
-     ]
-    }
-   ],
-   "missingTests": [
-    {
-     "reason": "tracked in #118",
-     "keys": [
-      "oauth2authorizationcodeauthenticator::authorizeurlwithexistingquerystringusesampseparator",
-      "petapi::addpet",
-      "petapi::addpetphotos",
-      "petapi::addpetwithhttpinfo",
-      "petapi::deletepet",
-      "petapi::deletepetwithhttpinfo",
-      "petapi::downloadbinarymock",
-      "petapi::downloadpetdocument",
-      "petapi::errorhandlingnotfound",
-      "petapi::findpetsbystatus",
-      "petapi::findpetsbystatuswithhttpinfo",
-      "petapi::getpetavatar",
-      "petapi::getpetavatarthumbnail",
-      "petapi::getpetbyid",
-      "petapi::getpetbyidwithhttpinfo",
-      "petapi::getpetpassport",
-      "petapi::getpetpassportwithhttpinfo",
-      "petapi::getpetphoto",
-      "petapi::setpetavatar",
-      "petapi::setpetavatarstreamsrawbyteswithdeclaredcontenttype",
-      "petapi::setpetavatarthumbnail",
-      "petapi::updatepet",
-      "petapi::updatepetwithhttpinfo",
-      "petapi::uploadmultipartmock",
-      "petapi::uploadpetcertificate",
-      "petapi::uploadpetdocument",
-      "storeapi::deleteorder",
-      "storeapi::deleteordernotfound",
-      "storeapi::getinventory",
-      "storeapi::getinventorywithhttpinfo",
-      "storeapi::getorderbyid",
-      "storeapi::getorderbyidwithhttpinfo",
-      "storeapi::getordernotfound",
-      "storeapi::placeorder",
-      "storeapi::placeorderservererror",
-      "storeapi::placeorderwithhttpinfo",
-      "transportoptions::cacertpathdefaultstonull",
-      "transportoptions::invalidproxyurlthrowserror",
-      "transportoptions::maxredirectsdefaultstonull",
-      "transportoptions::proxydefaultstonull"
      ]
     }
    ]

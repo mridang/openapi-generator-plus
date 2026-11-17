@@ -11,12 +11,12 @@ describe Petstore::Client::TransportOptions do
     _(opts.verify_ssl).must_equal true
   end
 
-  it 'ca_cert_path defaults to nil' do
+  it 'ca_cert_path defaults to null' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.ca_cert_path).must_be_nil
   end
 
-  it 'proxy defaults to nil' do
+  it 'proxy defaults to null' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.proxy).must_be_nil
   end
@@ -31,7 +31,7 @@ describe Petstore::Client::TransportOptions do
     _(opts.follow_redirects).must_equal true
   end
 
-  it 'max_redirects defaults to nil' do
+  it 'max_redirects defaults to null' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.max_redirects).must_be_nil
   end
@@ -120,7 +120,8 @@ describe Petstore::Client::TransportOptions do
     _(err.message).must_equal 'Invalid timeout: must be a positive number of milliseconds (got 0)'
   end
 
-  it 'invalid proxy URL raises ArgumentError, not an SDK error' do
+  # An invalid proxy URL is the caller's mistake, so it raises ArgumentError, never an SDK error.
+  it 'invalid proxy URL throws error' do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('not-a-url').build
     end

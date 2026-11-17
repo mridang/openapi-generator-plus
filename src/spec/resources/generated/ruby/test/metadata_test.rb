@@ -3,7 +3,7 @@
 require 'test_helper'
 require 'json'
 
-describe Petstore::Client::Models::Metadata do
+describe 'Metadata' do
   parallelize_me!
 
   it 'serializes empty metadata' do
@@ -53,7 +53,7 @@ describe Petstore::Client::Models::Metadata do
   end
 end
 
-describe Petstore::Client::Models::Metadata, 'with' do
+describe 'Metadata', 'with' do
   parallelize_me!
 
   it 'returns a copy with the changes applied and leaves the receiver as it was' do
@@ -76,7 +76,7 @@ describe Petstore::Client::Models::Metadata, 'with' do
   end
 end
 
-describe Petstore::Client::Models::Metadata, 'round-trip and constants' do
+describe 'Metadata', 'round-trip and constants' do
   parallelize_me!
 
   it 'round-trip preserves known properties' do
