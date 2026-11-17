@@ -1446,6 +1446,7 @@ class BaseApiTest {
                 "Expected no status= in URL when the option is null, got: ${client.capturedUrl}")
         }
 
+        @Test
         @DisplayName("bhvOptions002 null options omits the allowEmptyValue status param")
         fun nullOptionsOmitsAllowEmptyValueParam() {
             val client = CapturingApiClient()

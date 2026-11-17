@@ -2160,6 +2160,7 @@ class ObjectSerializerTest {
             assertTrue(wire.contains("\"retryAfter\":\"3600s\""), "got: $wire")
         }
 
+        @Test
         @DisplayName("bhvSerializationobject113 parses a negative protobuf-JSON duration of whole seconds")
         fun negativeWholeSecondProtobufDurationParses() {
             val edge = serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"retryAfter\":\"-90s\"}")

@@ -73,7 +73,7 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    fun bhvAuthbasic002GeneratedSchemeWrapperEmitsABasicHeaderAndMasksThePassword() =
+    fun bhvAuthbasic002GeneratedSchemeWrapperEmitsABasicHeaderAndMasksThePassword() {
         runBlocking {
             val auth = AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret")
             assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
@@ -82,6 +82,7 @@ class BasicAuthenticatorTest {
                 AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
             }
         }
+    }
 
     private fun <T> withEnvironment(
         values: Map<String, String>,
