@@ -153,8 +153,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("deprecated operations and schemas carry the Kotlin @Deprecated marker")
-    fun testDeprecationMarkers() {
+    @DisplayName("bhvOperations032 deprecated operations and schemas carry the Kotlin @Deprecated marker")
+    fun bhvOperations032DeprecationMarkersAreEmitted() {
         // F1155: reflection, so the test itself does not call a deprecated member.
         val api = Class.forName("{{apiPackage}}.PetApi")
         for (name in listOf("findPetsByStatus", "getPetById")) {
@@ -166,6 +166,21 @@ class MetadataTest {
             Class.forName("{{modelPackage}}.Tag").isAnnotationPresent(Deprecated::class.java),
             "the deprecated Tag schema must be @Deprecated",
         )
+    }
+
+    @Test
+    @DisplayName("bhvOperations033 deprecation markers sit on every variant of a deprecated operation")
+    fun bhvOperations033DeprecationMarkersSitOnEveryVariant() {
+        // F1155: reflection, so the test itself does not call a deprecated member.
+        val api = Class.forName("{{apiPackage}}.PetApi")
+        for (name in listOf("findPetsByStatus", "getPetById")) {
+            val variants = api.declaredMethods.filter { it.name.startsWith("${name}WithHttpInfo") }
+            assertTrue(variants.isNotEmpty(), "PetApi.${name}WithHttpInfo must exist")
+            assertTrue(
+                variants.all { it.isAnnotationPresent(Deprecated::class.java) },
+                "every variant of PetApi.$name must be @Deprecated",
+            )
+        }
     }
 
     @Test
