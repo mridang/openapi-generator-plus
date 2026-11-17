@@ -555,7 +555,7 @@ public class OpenIdConnectAuthenticatorTest
 
         string url = (await auth.BuildAuthorizationUrlAsync()).ToString();
 
-        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(url, "openid").Count);
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Count(url, "openid"));
     }
 
     [Fact]

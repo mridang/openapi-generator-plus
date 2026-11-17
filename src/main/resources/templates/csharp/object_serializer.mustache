@@ -500,6 +500,7 @@ internal partial class ObjectSerializer
         options.Converters.Add(new StrictBase64Converter());
         options.Converters.Add(new AbsoluteUriConverter());
         options.Converters.Add(new LiteralStringConverter());
+        options.Converters.Add(new FiniteDoubleConverter());
         return options;
     }
 
@@ -1102,6 +1103,32 @@ internal sealed partial class AbsoluteUriConverter : JsonConverter<Uri>
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteStringValue(value.OriginalString);
+    }
+}
+
+/// <summary>
+/// Reads a JSON number as a double and refuses a literal that overflows to infinity (for example
+/// <c>1e400</c>), which System.Text.Json would otherwise return as infinity without any error.
+/// </summary>
+internal sealed class FiniteDoubleConverter : JsonConverter<double>
+{
+    public override double Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.Number)
+        {
+            throw new JsonException($"Expected a number but got {reader.TokenType}.");
+        }
+        double value = reader.GetDouble();
+        if (!double.IsFinite(value))
+        {
+            throw new JsonException("A number literal overflows a double.");
+        }
+        return value;
+    }
+
+    public override void Write(Utf8JsonWriter writer, double value, JsonSerializerOptions options)
+    {
+        writer.WriteNumberValue(value);
     }
 }
 

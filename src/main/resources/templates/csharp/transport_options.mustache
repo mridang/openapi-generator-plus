@@ -197,7 +197,7 @@ public sealed class TransportOptions
         {
             return proxy;
         }
-        string masked = uri.UserInfo.Substring(0, colon) + ":***";
+        string masked = string.Concat(uri.UserInfo.AsSpan(0, colon), ":***");
         return proxy.Replace(uri.UserInfo, masked, StringComparison.Ordinal);
     }
 
@@ -212,11 +212,11 @@ public sealed class TransportOptions
 
     private static bool IsSensitiveHeader(string name)
     {
-        string lowered = name.ToLowerInvariant();
-        return lowered is "authorization" or "proxy-authorization" or "cookie"
-            || lowered.Contains("key", StringComparison.Ordinal)
-            || lowered.Contains("token", StringComparison.Ordinal)
-            || lowered.Contains("secret", StringComparison.Ordinal);
+        string upper = name.ToUpperInvariant();
+        return upper is "AUTHORIZATION" or "PROXY-AUTHORIZATION" or "COOKIE"
+            || upper.Contains("KEY", StringComparison.Ordinal)
+            || upper.Contains("TOKEN", StringComparison.Ordinal)
+            || upper.Contains("SECRET", StringComparison.Ordinal);
     }
 }
 
