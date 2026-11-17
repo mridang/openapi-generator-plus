@@ -1,0 +1,3 @@
+# Per-language exceptions to the behaviour catalogue: 'language | areaNNN | specific reason'.
+# 'language | *unnumbered | reason' allows that language tests without a behaviour id.
+# An exception for a behaviour the language does cover is stale and fails the check.

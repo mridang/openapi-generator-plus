@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -38,9 +39,10 @@ public final class ParityReportParser {
     SortedSet<String> keys = new TreeSet<>();
     List<String> errors = new ArrayList<>();
     int[] total = {0};
+    List<String> names = new ArrayList<>();
     if (!Files.isDirectory(reportsDir)) {
       errors.add("no reports directory at " + reportsDir);
-      return new ParitySummary(language, writtenAt, 0, keys, errors);
+      return new ParitySummary(language, writtenAt, 0, keys, errors, names);
     }
     List<Path> files;
     try (Stream<Path> stream = Files.list(reportsDir)) {
@@ -51,16 +53,17 @@ public final class ParityReportParser {
               .collect(Collectors.toList());
     } catch (IOException e) {
       errors.add("cannot list " + reportsDir + ": " + e.getMessage());
-      return new ParitySummary(language, writtenAt, 0, keys, errors);
+      return new ParitySummary(language, writtenAt, 0, keys, errors, names);
     }
     for (Path file : files) {
       try {
-        collect(language, document(file).getDocumentElement(), keys, total);
+        collect(language, document(file).getDocumentElement(), keys, names, total);
       } catch (Exception e) {
         errors.add("cannot read " + file.getFileName() + ": " + e.getMessage());
       }
     }
-    return new ParitySummary(language, writtenAt, total[0], keys, errors);
+    Collections.sort(names);
+    return new ParitySummary(language, writtenAt, total[0], keys, errors, names);
   }
 
   private static Document document(Path file) throws Exception {
@@ -72,7 +75,8 @@ public final class ParityReportParser {
     return builder.parse(file.toFile());
   }
 
-  private static void collect(String language, Element element, SortedSet<String> keys, int[] total) {
+  private static void collect(String language, Element element, SortedSet<String> keys,
+      List<String> names, int[] total) {
     NodeList children = element.getChildNodes();
     for (int i = 0; i < children.getLength(); i++) {
       Node child = children.item(i);
@@ -82,6 +86,7 @@ public final class ParityReportParser {
       Element childElement = (Element) child;
       if ("testcase".equals(childElement.getTagName()) && "testsuite".equals(element.getTagName())) {
         total[0]++;
+        names.add(childElement.getAttribute("name"));
         keys.add(
             TestNameNormaliser.normalise(
                     language,
@@ -90,7 +95,7 @@ public final class ParityReportParser {
                     childElement.getAttribute("name"))
                 .canonical());
       } else {
-        collect(language, childElement, keys, total);
+        collect(language, childElement, keys, names, total);
       }
     }
   }

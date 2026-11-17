@@ -1,0 +1,5 @@
+# The behaviour catalogue: one behaviour per line, 'areaNNN | plain-English promise'.
+# The id is lower-case letters (the area) then exactly three digits. Add '| multi' after the
+# promise when several tests intentionally cover one behaviour. Every generated test is named
+# from its id (see 'The test parity check' in docs/how-it-works.md). While this file holds no
+# behaviour the test parity check compares the old way, by group and test name.
