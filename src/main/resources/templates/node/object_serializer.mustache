@@ -357,7 +357,7 @@ function revalidateNestedValue(value: unknown): unknown {
  * Copies the free-form wire keys of `raw` onto `value` when `value` is a
  * generated model that declares `additionalProperties` (its class carries
  * `__additionalPropertiesDeclaredKeys`). plainToInstance with
- * excludeExtraneousValues keeps only @Expose keys, so without this the extras
+ * excludeExtraneousValues keeps only keys with an Expose decorator, so without this the extras
  * of the root model, of a nested model field and of every array element would
  * be lost. An array is matched element by element; any other value, or a model
  * without the marker, is returned untouched.
@@ -926,7 +926,7 @@ export class ObjectSerializer {
        * Gap L11: a model declaring `unevaluatedProperties:false` (OAS 3.1 /
        * JSON Schema 2020-12) is STRICT — an undeclared wire key is a contract
        * violation that must be REJECTED, not silently dropped. plainToInstance
-       * with excludeExtraneousValues discards every non-@Expose key, so without
+       * with excludeExtraneousValues discards every key without an Expose decorator, so without
        * this gate the strict contract would be unenforced on the real
        * deserialize path.
        * The static `__strictDeclaredKeys` set (present only on strict models)
@@ -960,7 +960,7 @@ export class ObjectSerializer {
         /**
          * H11: a model declaring `additionalProperties` carries free-form wire
          * keys on an index signature. plainToInstance(excludeExtraneousValues)
-         * drops every key without an @Expose decorator — the index signature is
+         * drops every key without an Expose decorator — the index signature is
          * not exposed — so those extras would be silently lost on a round-trip.
          * Re-attach any json key NOT in the model's declared-key set so free-form
          * data survives. Models without the marker intentionally discard extras.
