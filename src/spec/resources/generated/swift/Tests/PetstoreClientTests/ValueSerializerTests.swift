@@ -807,4 +807,26 @@ import Testing
       ValueSerializer.encodeCookieValue("{\"k\":\"a b~*\u{00E9}\"}")
         == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D")
   }
+
+  @Test func testBhvSerializationparam066NullInPathIsEmptyString() {
+    let result = ValueSerializer.serializeValue(
+      nil, location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "")
+  }
+
+  @Test func testBhvSerializationparam068PathSegmentEncodesCharactersOutsideTheLegalSet() {
+    #expect(ValueSerializer.encodePathSegment("a?b#c") == "a%3Fb%23c")
+  }
+
+  @Test func testBhvSerializationparam071PathSegmentIsEncodedOnce() {
+    #expect(ValueSerializer.encodePathSegment("a b/c") == "a%20b%2Fc")
+  }
+
+  @Test func testBhvSerializationparam004AlreadyPercentEncodedValueIsEncodedAgain() {
+    #expect(ValueSerializer.encodePathSegment("a%20b") == "a%2520b")
+  }
+
+  @Test func testBhvSerializationparam081SemicolonIsPreservedInPathSegment() {
+    #expect(ValueSerializer.encodePathSegment("a;b") == "a;b")
+  }
 }

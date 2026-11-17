@@ -49,4 +49,18 @@ import Testing
     #expect(result.headers["X-Request-Id"] == "abc")
     #expect(result.headers["X-RateLimit-Remaining"] == "99")
   }
+
+  @Test func testBhvResults002ExposesHeaders() {
+    let result = ApiResult(statusCode: 200, data: 1, rawBody: "1", headers: ["X-Trace": "abc"])
+    #expect(result.headers == ["X-Trace": "abc"])
+  }
+
+  @Test func testBhvResults003ExposesStatusCodeDataRawBodyAndHeaders() {
+    let result = ApiResult(
+      statusCode: 201, data: "payload", rawBody: "\"payload\"", headers: ["X-A": "1"])
+    #expect(result.statusCode == 201)
+    #expect(result.data == "payload")
+    #expect(result.rawBody == "\"payload\"")
+    #expect(result.headers == ["X-A": "1"])
+  }
 }

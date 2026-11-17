@@ -1,1 +1,4 @@
 # language | behaviour id | specific reason
+swift | headers002 | HeaderSelector.selectHeaders takes a non-optional contentType String, so a nil Content-Type cannot be passed; the empty-string default is covered by headers001
+swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept array, so a null accept cannot be passed; an empty array is covered by headers004
+swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed

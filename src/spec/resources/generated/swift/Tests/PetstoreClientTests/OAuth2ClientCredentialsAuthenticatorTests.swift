@@ -272,4 +272,13 @@ import Testing
         == "MachineAuthClientCredentialsAuthenticator(host: https://api.example.com, clientID: cid, clientSecret: ***, tokenURL: https://auth.example.com/oauth/token, scopes: [\"pets:read\", \"pets:write\"], clientAuthMethod: \(ClientAuthMethod.body))"
     )
   }
+
+  @Test func testBhvAuthoauthtwoclientcred014ReprShowsNonSecretFieldsAndMasksSecret() throws {
+    let auth = OAuth2ClientCredentialsAuthenticator(
+      host: "https://api.example.com", clientID: "client-1", clientSecret: "masked-client-secret",
+      tokenURL: "https://auth.example.com/token")
+    #expect(auth.description.contains("clientID: client-1"))
+    #expect(auth.description.contains("tokenURL: https://auth.example.com/token"))
+    #expect(!auth.description.contains("masked-client-secret"))
+  }
 }

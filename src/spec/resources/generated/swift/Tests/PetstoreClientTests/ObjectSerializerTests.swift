@@ -1838,4 +1838,83 @@ import Testing
       _ = try ObjectSerializer.deserialize(json, as: [[Int]].self)
     }
   }
+
+  @Test func testBhvSerializationobject033StringifyFalseIsFalse() {
+    #expect(ObjectSerializer.stringify(false) == "false")
+  }
+
+  @Test func testBhvSerializationobject034QueryValueFalseIsFalse() {
+    #expect(ObjectSerializer.toQueryValue(false) as? String == "false")
+  }
+
+  @Test func testBhvSerializationobject038StringifyIntegerIsDecimal() {
+    #expect(ObjectSerializer.stringify(7) == "7")
+  }
+
+  @Test func testBhvSerializationobject043StringifyTrueIsTrue() {
+    #expect(ObjectSerializer.stringify(true) == "true")
+  }
+
+  @Test func testBhvSerializationobject091StringifyNegativeIntegerIsDecimal() {
+    #expect(ObjectSerializer.stringify(-17) == "-17")
+  }
+
+  @Test func testBhvSerializationobject114StringifyPlainStringIsUnchanged() {
+    #expect(ObjectSerializer.toHeaderValue("plain text") == "plain text")
+  }
+
+  @Test func testBhvSerializationobject131StringifyNilIsEmptyString() {
+    #expect(ObjectSerializer.stringify(nil) == "")
+  }
+
+  @Test func testBhvSerializationobject132CookieValueNilIsEmptyString() {
+    #expect(ObjectSerializer.toCookieValue(nil) == "")
+  }
+
+  @Test func testBhvSerializationobject133HeaderValueNilIsEmptyString() {
+    #expect(ObjectSerializer.toHeaderValue(nil) == "")
+  }
+
+  @Test func testBhvSerializationobject138StringListNilIsNil() {
+    #expect(ObjectSerializer.toStringList(nil) == nil)
+  }
+
+  @Test func testBhvSerializationobject139StringifyStringIsUnchanged() {
+    #expect(ObjectSerializer.stringify("abc") == "abc")
+  }
+
+  @Test func testBhvSerializationobject065DeserializeUuidFromString() throws {
+    let uuid = try ObjectSerializer.deserialize(
+      "\"3f2504e0-4f89-11d3-9a0c-0305e82c3301\"", as: UUID.self)
+    #expect(uuid == UUID(uuidString: "3f2504e0-4f89-11d3-9a0c-0305e82c3301"))
+  }
+
+  @Test func testBhvSerializationobject067DeserializesLiteralNullBodyToNil() throws {
+    struct Holder: Codable { let name: String }
+    let result = try ObjectSerializer.deserialize("null", as: Holder.self)
+    #expect(result == nil)
+  }
+
+  @Test func testBhvSerializationobject078StringifyFloatIsDecimal() {
+    #expect(ObjectSerializer.stringify(2.5).hasPrefix("2.5"))
+  }
+
+  @Test func testBhvSerializationobject096QueryArrayJoinsWithComma() {
+    #expect(ObjectSerializer.toQueryValue(["a", "b", "c"]) as? String == "a,b,c")
+  }
+
+  @Test func testBhvSerializationobject097QueryArrayJoinsWithCommaByDefault() {
+    #expect(ObjectSerializer.toQueryValue(["a", "b"], collectionFormat: "") as? String == "a,b")
+  }
+
+  @Test func testBhvSerializationobject098QueryArrayJoinsWithCommaForCsv() {
+    #expect(
+      ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "csv") as? String == "a,b,c")
+  }
+
+  @Test func testBhvSerializationobject099QueryArrayJoinsWithPipeForPipes() {
+    #expect(
+      ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "pipes") as? String
+        == "a|b|c")
+  }
 }

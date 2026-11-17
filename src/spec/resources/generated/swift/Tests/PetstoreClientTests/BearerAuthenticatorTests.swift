@@ -183,7 +183,9 @@ import Testing
     #expect(!String(describing: auth).contains("provided-1"))
   }
 
-  @Test func testPetStoreBearerAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
+  @Test
+  func
+    testBhvAuthbearer010PetStoreBearerAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
     async throws
   {
     let fromEnvironment = try PetStoreBearerAuthenticator(
@@ -196,7 +198,9 @@ import Testing
     #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
   }
 
-  @Test func testServiceTokenAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
+  @Test
+  func
+    testBhvAuthbearer010ServiceTokenAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
     async throws
   {
     let fromEnvironment = try ServiceTokenAuthenticator(
@@ -214,6 +218,50 @@ import Testing
     switch scheme {
     case "PetStoreBearer": return try PetStoreBearerAuthenticator(host: host, token: token)
     default: return try ServiceTokenAuthenticator(host: host, token: token)
+    }
+  }
+
+  @Test func testBhvAuthbearer012RejectsCrLfAtConstruction() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
+    ) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: "tok\r\nInjected: yes")
+    }
+  }
+
+  @Test func testBhvAuthbearer013DescriptionShowsHostAndMasksToken() throws {
+    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "masked-token-value")
+    #expect(auth.description.contains("host: https://api.example.com"))
+    #expect(!auth.description.contains("masked-token-value"))
+  }
+
+  @Test func testBhvAuthbearer015TokenThatOnlyStartsWithBearerIsKeptWhole() async throws {
+    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer bearerxyz"])
+  }
+
+  @Test func testBhvAuthbearer016UnicodeSpaceOnlyTokenIsRejectedAsNonAscii() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
+    ) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: "\u{2003}")
+    }
+  }
+
+  @Test func testBhvAuthbearer017WhitespaceOnlyTokenIsRejectedAsEmpty() {
+    #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: "   ")
+    }
+  }
+
+  @Test func testBhvLifecycle006RejectsNonAsciiTokenAtConstruction() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
+    ) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: "ñoño")
     }
   }
 }

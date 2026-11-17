@@ -475,4 +475,30 @@ import Testing
     func testBhvErrors026PathOfRequestURLKeepsTheBasePathAndDropsHostAndQuery(url: String, path: String) {
         #expect(ApiError.pathOfRequestURL(url) == path)
     }
+
+    @Test func testBhvErrors005FromResponseLeavesErrorBodyNilWhenBodyIsNotJson() {
+        let error = ApiError.fromResponse(statusCode: 500, headers: nil, body: "not json")
+        #expect(error.errorBody == nil)
+    }
+
+    @Test func testBhvErrors024ErrorDescriptionRendersMessageStatusHeadersAndBody() {
+        let error = ApiError(statusCode: 418, message: "teapot", responseBody: "short-and-stout", responseHeaders: ["X-Brew": "tea"])
+        let description = error.errorDescription ?? ""
+        #expect(description.contains("teapot"))
+        #expect(description.contains("418"))
+        #expect(description.contains("X-Brew"))
+        #expect(description.contains("short-and-stout"))
+    }
+
+    @Test func testBhvErrors023RenderedFormMasksCredentialHeaders() {
+        let error = ApiError(statusCode: 401, message: "denied", responseHeaders: ["Authorization": "Bearer leaked-token-value"])
+        #expect(!(error.errorDescription ?? "").contains("leaked-token-value"))
+    }
+
+    @Test func testBhvErrors030GetTypedErrorBodyReturnsNilWhenThereIsNoResponseBody() throws {
+        struct Detail: Decodable { let code: String }
+        let error = ApiError(statusCode: 500, message: "no body")
+        let typed: Detail? = try error.getTypedErrorBody(Detail.self)
+        #expect(typed == nil)
+    }
 }

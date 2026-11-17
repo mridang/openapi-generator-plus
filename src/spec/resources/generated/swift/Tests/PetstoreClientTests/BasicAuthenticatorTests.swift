@@ -234,4 +234,12 @@ import Testing
       return try PetStoreBasicAuthenticator(host: host, username: username, password: password)
     }
   }
+
+  @Test func testBhvAuthbasic010DescriptionShowsHostAndUsernameAndMasksPassword() throws {
+    let auth = try BasicAuthenticator(
+      host: "https://api.example.com", username: "alice", password: "masked-password-value")
+    #expect(auth.description.contains("host: https://api.example.com"))
+    #expect(auth.description.contains("username: alice"))
+    #expect(!auth.description.contains("masked-password-value"))
+  }
 }

@@ -184,4 +184,12 @@ import Testing
     #expect(items.first { $0.name == "scope" }?.value == "read")
     #expect(items.first { $0.name == "client_id" }?.value == "cid")
   }
+
+  @Test func testBhvAuthoauthtwoimplicit011ReprShowsNonSecretFields() {
+    let auth = OAuth2ImplicitAuthenticator(
+      host: "https://api.example.com", clientID: "client-1",
+      authorizationURL: "https://auth.example.com/authorize")
+    #expect(auth.description.contains("clientID: client-1"))
+    #expect(auth.description.contains("authorizationURL: https://auth.example.com/authorize"))
+  }
 }

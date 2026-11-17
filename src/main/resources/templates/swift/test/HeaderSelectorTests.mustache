@@ -123,4 +123,60 @@ import Testing
 
         #expect(headers["Accept"] == nil)
     }
+
+    @Test func testBhvHeaders012IsJsonMimeIsFalseForOctetStream() {
+        #expect(!HeaderSelector().isJsonMime("application/octet-stream"))
+    }
+
+    @Test func testBhvHeaders013IsJsonMimeIsFalseForXml() {
+        #expect(!HeaderSelector().isJsonMime("application/xml"))
+    }
+
+    @Test func testBhvHeaders014IsJsonMimeIsFalseForEmptyString() {
+        #expect(!HeaderSelector().isJsonMime(""))
+    }
+
+    @Test func testBhvHeaders016IsJsonMimeIsFalseForTextHtml() {
+        #expect(!HeaderSelector().isJsonMime("text/html"))
+    }
+
+    @Test func testBhvHeaders019IsJsonMimeIsTrueForApplicationJson() {
+        #expect(HeaderSelector().isJsonMime("application/json"))
+    }
+
+    @Test func testBhvHeaders020IsJsonMimeIsTrueForApplicationJsonWithCharset() {
+        #expect(HeaderSelector().isJsonMime("application/json; charset=utf-8"))
+    }
+
+    @Test func testBhvHeaders022IsJsonMimeIsTrueForVendorJsonTypes() {
+        #expect(HeaderSelector().isJsonMime("application/vnd.api+json"))
+    }
+
+    @Test func testBhvHeaders024SelectHeadersSetsAcceptWhenAcceptsProvided() {
+        let headers = HeaderSelector().selectHeaders(
+            accept: ["text/html"], contentType: "application/json", isMultipart: false)
+
+        #expect(headers["Accept"] == "text/html")
+    }
+
+    @Test func testBhvHeaders025SelectHeadersSetsContentTypeWhenNotMultipart() {
+        let headers = HeaderSelector().selectHeaders(
+            accept: ["application/json"], contentType: "application/xml", isMultipart: false)
+
+        #expect(headers["Content-Type"] == "application/xml")
+    }
+
+    @Test func testBhvHeaders026SelectHeadersJoinsNonJsonTypesInDeclarationOrder() {
+        let headers = HeaderSelector().selectHeaders(
+            accept: ["text/html", "text/plain"], contentType: "application/json", isMultipart: false)
+
+        #expect(headers["Accept"] == "text/html, text/plain")
+    }
+
+    @Test func testBhvHeaders009SelectHeadersFiltersOutEmptyAndBlankEntries() {
+        let headers = HeaderSelector().selectHeaders(
+            accept: ["", "  ", "image/png"], contentType: "application/json", isMultipart: false)
+
+        #expect(headers["Accept"] == "image/png")
+    }
 }

@@ -181,4 +181,30 @@ import Testing
         #expect(!(first === second as AnyObject),
             "Build() should produce independent instances")
     }
+
+    @Test func testBhvConfig005BuilderProducesCorrectDefaults() {
+        let config = Configuration.builder().build()
+        #expect(config.defaultHeaders.isEmpty)
+        #expect(config.baseURL == Configuration.default().baseURL)
+    }
+
+    @Test func testBhvConfig009BuilderServerAppliesVariableOverrides() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.example.com",
+            description: "Test server",
+            variables: ["env": ServerVariable(defaultValue: "api", enumValues: ["api", "staging"])]
+        )
+        let config = try Configuration.builder().server(server, variables: ["env": "staging"]).build()
+        #expect(config.baseURL == "https://staging.example.com")
+    }
+
+    @Test func testBhvConfig010BuilderSetsAllFields() {
+        let config = Configuration.builder()
+            .baseURL("https://example.com")
+            .defaultHeader(name: "X-A", value: "1")
+            .defaultHeaders(["X-B": "2"])
+            .build()
+        #expect(config.baseURL == "https://example.com")
+        #expect(config.defaultHeaders == ["X-A": "1", "X-B": "2"])
+    }
 }
