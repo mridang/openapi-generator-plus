@@ -21,7 +21,9 @@ public struct StockItem: Codable, Sendable, Equatable, Hashable {
   }
 
   /// Creates a new StockItem instance.
-  public init(priority: Priority, availability: Availability? = nil, matrix: [[Int]]? = nil) {
+  public init(
+    priority: Priority, availability: Availability? = Availability.onHold, matrix: [[Int]]? = nil
+  ) {
     self.priority = priority
     self.availability = availability
     self.matrix = matrix
@@ -51,7 +53,12 @@ public struct StockItem: Codable, Sendable, Equatable, Hashable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.priority = try container.decode(Priority.self, forKey: .priority)
-    self.availability = try container.decodeIfPresent(Availability.self, forKey: .availability)
+    /* A default written next to the $ref of an enum applies when the key is
+       absent; an explicit null stays nil. */
+    self.availability =
+      container.contains(.availability)
+      ? try container.decodeIfPresent(Availability.self, forKey: .availability)
+      : Availability.onHold
     self.matrix = try container.decodeIfPresent([[Int]].self, forKey: .matrix)
   }
 

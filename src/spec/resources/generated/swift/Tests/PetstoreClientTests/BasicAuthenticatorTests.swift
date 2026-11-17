@@ -145,6 +145,49 @@ import Testing
     }
   }
 
+  @Test
+  func testPetStoreBasicAuthenticatorSendsTheCredentialsFromTheEnvironmentUnlessTheyArePassed()
+    async throws
+  {
+    let fromEnvironment = try PetStoreBasicAuthenticator(
+      host: "https://api.example.com", username: nil, password: nil,
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME": "env-username",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD": "env-password",
+      ])
+    let envEncoded = Data("env-username:env-password".utf8).base64EncodedString()
+    #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Basic \(envEncoded)"])
+    let explicit = try PetStoreBasicAuthenticator(
+      host: "https://api.example.com", username: "alice", password: "explicit-value",
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME": "env-username",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD": "env-password",
+      ])
+    let explicitEncoded = Data("alice:explicit-value".utf8).base64EncodedString()
+    #expect(try await explicit.authHeaders() == ["Authorization": "Basic \(explicitEncoded)"])
+  }
+
+  @Test func testAdminBasicAuthenticatorSendsTheCredentialsFromTheEnvironmentUnlessTheyArePassed()
+    async throws
+  {
+    let fromEnvironment = try AdminBasicAuthenticator(
+      host: "https://api.example.com", username: nil, password: nil,
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME": "env-username",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "env-password",
+      ])
+    let envEncoded = Data("env-username:env-password".utf8).base64EncodedString()
+    #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Basic \(envEncoded)"])
+    let explicit = try AdminBasicAuthenticator(
+      host: "https://api.example.com", username: "alice", password: "explicit-value",
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME": "env-username",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "env-password",
+      ])
+    let explicitEncoded = Data("alice:explicit-value".utf8).base64EncodedString()
+    #expect(try await explicit.authHeaders() == ["Authorization": "Basic \(explicitEncoded)"])
+  }
+
   private static func schemeWrapper(_ scheme: String, username: String, password: String) throws
     -> BasicAuthenticator
   {

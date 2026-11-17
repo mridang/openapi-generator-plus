@@ -63,10 +63,13 @@ Response bodies are decoded by `URLSession`, with a bundled inflater for gzip an
 | `authors` | none | Package authors, listed in the README Package section. |
 | `documentationUrl` | none | Documentation URL, listed in the README Package section. |
 | `issueTrackerUrl` | none | Issue tracker URL, listed in the README Package section. |
-| `envPrefix` | upper-case snake form of the package name | Prefix of the environment variables the client reads credentials from. |
+| `envVarPrefix` | the API title without a trailing `SDK`, in upper snake case | Prefix of the environment variables the client and the security scheme authenticators read credentials from. The same option and the same default in every language. |
 
 ## Idiom notes
 
+- Every operation takes an options struct (`<Operation>Options`) as its last argument, and the argument can be left out. An operation with no query, header, form or cookie parameter and no security requirement has one too, carrying only `timeout` (milliseconds), `headers` and `maxRetries`, so each call can set them.
+- Credentials come from an argument first and the environment second. Each security scheme authenticator takes its credentials as optional arguments and reads `{PREFIX}_{FIELD}` once, when it is built (`{PREFIX}` is `envVarPrefix`; where two schemes share a field the scheme id is part of the name, so `{PREFIX}_{SCHEME}_{FIELD}`); an empty variable counts as unset, and a credential found in neither place throws `ConfigurationError.invalidArgument` at that point. The generated README lists the exact names. A scheme authenticator initializer that cannot find a credential throws, so every one of them is called with `try`. `Client.fromEnvironment()` reads `{PREFIX}_HOST` and `{PREFIX}_TOKEN` for the bearer token, or takes a `tokenProvider` callback that runs before every request.
+- A property that is a `$ref` to a string enum with a `default` written beside the reference starts at that member in the initializer and takes it when the key is missing on decode; an explicit `null` stays `nil`.
 - Operations are `async throws`. Cancel the Swift `Task` and the in-flight request is cancelled with it; a cancelled call throws `CancellationError`, not a timeout error.
 - Error types end in `Error`. Caller mistakes throw `ConfigurationError` and `OAuth2AuthorizationCodeError`. The underlying cause is available as `underlyingError`.
 - The default configuration is `Configuration.default`.
@@ -87,6 +90,7 @@ Response bodies are decoded by `URLSession`, with a bundled inflater for gzip an
 - An unknown enum value throws when decoding.
 - An optional nullable property cannot tell an absent key from an explicit `null`.
 - `allOf` with a discriminator is not implemented yet.
+- A `default` written beside a `$ref` is applied only when the reference points at a string enum; for any other referenced type the property stays `nil` until it is set.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client.
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
 

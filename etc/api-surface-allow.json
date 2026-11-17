@@ -3270,6 +3270,38 @@
     "swift"
    ],
    "reason": "F830: swift declares the request context as `public internal(set) var`, and the extractor's modifier pattern does not read `internal(set)` (as for `private(set)` above), so the public get-only property is reported missing; delete this rule when the extractor reads it"
+  },
+  {
+   "element": [
+    "*api.*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "swift"
+   ],
+   "value": "*options*",
+   "reason": "F827 wave 3: every operation takes an options object as its last argument (before requestContentType where there is one); swift lands first and the other languages add the same slot in their own adoption branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "*options"
+   ],
+   "aspect": "type",
+   "languages": [
+    "swift"
+   ],
+   "reason": "F827 wave 3: every operation has an <Operation>Options type carrying timeout, headers and maxRetries, even one with no parameters and no security; swift lands first and the other languages mint the same types in their own adoption branches, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "*authenticator.<ctor>"
+   ],
+   "aspect": "ctor-optional",
+   "languages": [
+    "swift"
+   ],
+   "value": "*?*",
+   "reason": "F862 owner decision (an explicit credential wins, then the {PREFIX}_{FIELD} environment variable): the credential arguments of each scheme authenticator are optional so the variable can supply them; a missing one throws ConfigurationError at construction. Drop this row once the majority has it, as the kotlin rows above"
   }
  ]
 }

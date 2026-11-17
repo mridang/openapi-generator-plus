@@ -92,8 +92,8 @@ public final class {{clientClassName}}: Sendable {
     /// Creates a client from explicit arguments first and the environment second.
     ///
     /// The host is the `host` argument, else the environment variable
-    /// `{{envPrefix}}_HOST`; the credential is the `tokenProvider` callback, else the
-    /// `token` argument, else `{{envPrefix}}_TOKEN`. The environment is read once, here,
+    /// `{{envVarPrefix}}_HOST`; the credential is the `tokenProvider` callback, else the
+    /// `token` argument, else `{{envVarPrefix}}_TOKEN`. The environment is read once, here,
     /// and an empty value counts as unset. A missing host or credential fails the call
     /// that builds the client, not a later request. The callback runs before every
     /// request, so a token refreshed elsewhere is picked up.
@@ -134,18 +134,18 @@ public final class {{clientClassName}}: Sendable {
             }
             return nil
         }
-        guard let resolvedHost = firstSet(host, "{{envPrefix}}_HOST") else {
+        guard let resolvedHost = firstSet(host, "{{envVarPrefix}}_HOST") else {
             throw ConfigurationError.invalidArgument(
-                "No API host: pass host or set the {{envPrefix}}_HOST environment variable")
+                "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
         }
         if let tokenProvider = tokenProvider {
             return try {{clientClassName}}(
                 authenticator: BearerAuthenticator(host: resolvedHost, tokenProvider: tokenProvider),
                 transportOptions: transportOptions)
         }
-        guard let resolvedToken = firstSet(token, "{{envPrefix}}_TOKEN") else {
+        guard let resolvedToken = firstSet(token, "{{envVarPrefix}}_TOKEN") else {
             throw ConfigurationError.invalidArgument(
-                "No credential: pass token or tokenProvider, or set the {{envPrefix}}_TOKEN environment variable")
+                "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable")
         }
         return try {{clientClassName}}(
             authenticator: BearerAuthenticator(host: resolvedHost, token: resolvedToken),

@@ -145,14 +145,15 @@ are never retried, and a request that timed out is not retried.
 
 ## Per-call options
 
-Every operation that takes an options struct (`<Operation>Options` and the
-like) accepts three per-call settings next to its parameters: `timeout`
+Every operation takes an options struct (`<Operation>Options`) as its last
+argument, and the argument can be left out. Next to the operation's own query,
+header, form and cookie parameters it carries three per-call settings: `timeout`
 (milliseconds, greater than zero) replaces the transport timeout for that call,
 `maxRetries` replaces the retry limit (`0` turns retries off) and `headers` adds
 request headers, sent after the default and authentication headers and replacing
 a header of the same name. Anything left `nil` keeps the transport's setting. An
-operation with no parameters and no security requirement has no options struct
-yet, so it cannot carry them.
+operation with no parameters and no security requirement still has the struct,
+with only these three settings: `try await api.operation(options: OperationOptions(timeout: 2000))`.
 
 ## Error details
 
@@ -180,12 +181,44 @@ holds with its `is...` and `as...` members.
 
 ## Credentials from the environment
 
-`Client.fromEnvironment()` reads the host from `PETSTORE_CLIENT_HOST` and
-the bearer token from `PETSTORE_CLIENT_TOKEN`, once, when the client is built; an empty
+`Client.fromEnvironment()` reads the host from `SWAGGER_PETSTORE_OPEN_API_3_0_HOST` and
+the bearer token from `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, once, when the client is built; an empty
 value counts as unset. The `host`, `token` and `tokenProvider` arguments win over the
 environment, and a `tokenProvider` callback is called before every request, so a token
 refreshed elsewhere is picked up. A missing host or credential fails the call that
 builds the client with `ConfigurationError.invalidArgument`.
+
+Each security scheme's authenticator reads its own credentials the same way: the
+argument you pass wins, else the environment variable below, read once when the
+authenticator is built (an empty value counts as unset). A credential found in neither
+place throws `ConfigurationError.invalidArgument` there, before any request. The
+variable names start with `SWAGGER_PETSTORE_OPEN_API_3_0`; the `envVarPrefix` generator option changes it.
+
+| Scheme | Credential | Environment variable |
+|---|---|---|
+| `adminBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |
+| `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
+| `apiKeyHeader` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
+| `apiKeyQuery` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `browserAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `internalApiKey` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
+| `legacyAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
+| `legacyAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
+| `legacyAuth` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` |
+| `legacyAuth` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` |
+| `machineAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` |
+| `machineAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` |
+| `petStoreBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` |
+| `petStoreBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` |
+| `petStoreBearer` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` |
+| `serviceToken` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` |
+| `sessionCookie` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` |
+| `ssoAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` |
+| `ssoAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` |
+| `ssoAuth` | `redirectUri` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` |
+| `userAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` |
+| `userAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` |
+| `userAuth` | `redirectUri` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` |
 
 ## Response compression
 

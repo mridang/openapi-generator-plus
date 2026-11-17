@@ -37,3 +37,31 @@ extension BaseAuthenticator: CustomReflectable {
     Mirror(self, children: [Mirror.Child]())
   }
 }
+
+extension BaseAuthenticator {
+  /// Resolves one credential of a scheme authenticator: the explicit value when one
+  /// was passed (even an empty one, which the authenticator's own validation then
+  /// rejects), else the environment variable, where an empty value counts as unset.
+  ///
+  /// - Parameters:
+  ///   - explicit: The value the caller passed, or nil.
+  ///   - name: The credential's name, for the error message.
+  ///   - variable: The environment variable that supplies it when none was passed.
+  ///   - environment: The environment to read.
+  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when neither supplies it.
+  static func credential(
+    _ explicit: String?,
+    name: String,
+    variable: String,
+    environment: [String: String]
+  ) throws -> String {
+    if let explicit = explicit {
+      return explicit
+    }
+    if let value = environment[variable], !value.isEmpty {
+      return value
+    }
+    throw ConfigurationError.invalidArgument(
+      "Missing the credential '\(name)': pass it, or set the \(variable) environment variable")
+  }
+}

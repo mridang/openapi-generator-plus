@@ -388,8 +388,8 @@ import Testing
 
   /* The password securityScheme's wrapper carries the spec's token and
    * refresh URLs and scopes and masks both secrets. */
-  @Test func schemeWrapperCarriesTheSpecTokenAndRefreshUrls() {
-    let auth = LegacyAuthPasswordAuthenticator(
+  @Test func schemeWrapperCarriesTheSpecTokenAndRefreshUrls() throws {
+    let auth = try LegacyAuthPasswordAuthenticator(
       host: "https://api.example.com", clientId: "cid", clientSecret: "csecret",
       username: "alice", password: "pw")
     #expect(

@@ -160,14 +160,15 @@ are never retried, and a request that timed out is not retried.
 
 ## Per-call options
 
-Every operation that takes an options struct (`<Operation>Options` and the
-like) accepts three per-call settings next to its parameters: `timeout`
+Every operation takes an options struct (`<Operation>Options`) as its last
+argument, and the argument can be left out. Next to the operation's own query,
+header, form and cookie parameters it carries three per-call settings: `timeout`
 (milliseconds, greater than zero) replaces the transport timeout for that call,
 `maxRetries` replaces the retry limit (`0` turns retries off) and `headers` adds
 request headers, sent after the default and authentication headers and replacing
 a header of the same name. Anything left `nil` keeps the transport's setting. An
-operation with no parameters and no security requirement has no options struct
-yet, so it cannot carry them.
+operation with no parameters and no security requirement still has the struct,
+with only these three settings: `try await api.operation(options: OperationOptions(timeout: 2000))`.
 
 ## Error details
 
@@ -195,13 +196,27 @@ holds with its `is...` and `as...` members.
 
 ## Credentials from the environment
 
-`{{clientClassName}}.fromEnvironment()` reads the host from `{{envPrefix}}_HOST` and
-the bearer token from `{{envPrefix}}_TOKEN`, once, when the client is built; an empty
+`{{clientClassName}}.fromEnvironment()` reads the host from `{{envVarPrefix}}_HOST` and
+the bearer token from `{{envVarPrefix}}_TOKEN`, once, when the client is built; an empty
 value counts as unset. The `host`, `token` and `tokenProvider` arguments win over the
 environment, and a `tokenProvider` callback is called before every request, so a token
 refreshed elsewhere is picked up. A missing host or credential fails the call that
 builds the client with `ConfigurationError.invalidArgument`.
 
+{{#hasSecuritySchemeEnvVars}}
+Each security scheme's authenticator reads its own credentials the same way: the
+argument you pass wins, else the environment variable below, read once when the
+authenticator is built (an empty value counts as unset). A credential found in neither
+place throws `ConfigurationError.invalidArgument` there, before any request. The
+variable names start with `{{envVarPrefix}}`; the `envVarPrefix` generator option changes it.
+
+| Scheme | Credential | Environment variable |
+|---|---|---|
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{field}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+
+{{/hasSecuritySchemeEnvVars}}
 ## Response compression
 
 `URLSession` negotiates `gzip` and `deflate` and decodes the body itself, so the

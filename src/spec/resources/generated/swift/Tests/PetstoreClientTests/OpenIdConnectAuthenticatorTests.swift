@@ -436,8 +436,8 @@ import Testing
 
   /* The openIdConnect securityScheme's wrapper carries the spec's discovery
    * URL and masks the client secret. */
-  @Test func schemeWrapperCarriesTheSpecDiscoveryUrl() {
-    let auth = SsoAuthAuthenticator(
+  @Test func schemeWrapperCarriesTheSpecDiscoveryUrl() throws {
+    let auth = try SsoAuthAuthenticator(
       host: "https://api.example.com", clientId: "cid", clientSecret: "csecret",
       redirectUri: "https://app.example.com/cb")
     #expect(

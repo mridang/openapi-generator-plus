@@ -181,6 +181,32 @@ import Testing
     #expect(!String(describing: auth).contains("provided-1"))
   }
 
+  @Test func testPetStoreBearerAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
+    async throws
+  {
+    let fromEnvironment = try PetStoreBearerAuthenticator(
+      host: "https://api.example.com", token: nil,
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-token"])
+    #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Bearer env-token"])
+    let explicit = try PetStoreBearerAuthenticator(
+      host: "https://api.example.com", token: "explicit-token",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-token"])
+    #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
+  }
+
+  @Test func testServiceTokenAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
+    async throws
+  {
+    let fromEnvironment = try ServiceTokenAuthenticator(
+      host: "https://api.example.com", token: nil,
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
+    #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Bearer env-token"])
+    let explicit = try ServiceTokenAuthenticator(
+      host: "https://api.example.com", token: "explicit-token",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
+    #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
+  }
+
   private static func schemeWrapper(_ scheme: String, token: String) throws -> BearerAuthenticator {
     let host = "https://api.example.com"
     switch scheme {

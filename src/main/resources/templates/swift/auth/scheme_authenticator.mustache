@@ -4,8 +4,37 @@ import Foundation
 import {{{.}}}
 {{/imports}}
 
+{{#hasEnvVars}}
+/// The `{{schemeName}}` security scheme.
+///
+/// Each credential is the argument you pass, else the environment variable named
+/// below, read once when the authenticator is built (an empty variable counts as
+/// unset). A credential found in neither place throws
+/// ``ConfigurationError/invalidArgument(_:)`` there, before any request.
+///
+{{#envVars}}
+/// - `{{field}}`: `{{envName}}`
+{{/envVars}}
 public final class {{className}}: {{baseClass}}, @unchecked Sendable {
-    {{#needsOverride}}override {{/needsOverride}}public init({{{constructorSignature}}}){{#fallible}} throws{{/fallible}} {
+    /// Creates the authenticator from explicit credentials and the process environment.
+    {{#needsOverride}}override {{/needsOverride}}public convenience init({{{constructorSignature}}}) throws {
+        try self.init({{{forwardArguments}}}, environment: ProcessInfo.processInfo.environment)
+    }
+
+    /// The same over a given environment, so the lookup can be exercised without touching
+    /// the process's own.
+    init({{{environmentSignature}}}, environment: [String: String]) throws {
+{{#envVars}}
+        let {{field}} = try BaseAuthenticator.credential({{field}}, name: "{{field}}", variable: "{{envName}}", environment: environment)
+{{/envVars}}
         {{#fallible}}try {{/fallible}}super.init({{{superCall}}})
     }
 }
+{{/hasEnvVars}}
+{{^hasEnvVars}}
+public final class {{className}}: {{baseClass}}, @unchecked Sendable {
+    {{#needsOverride}}override {{/needsOverride}}public init({{{constructorSignature}}}){{#throwing}} throws{{/throwing}} {
+        {{#fallible}}try {{/fallible}}super.init({{{superCall}}})
+    }
+}
+{{/hasEnvVars}}

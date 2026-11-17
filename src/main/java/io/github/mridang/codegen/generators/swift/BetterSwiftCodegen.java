@@ -4,7 +4,10 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
+import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.servers.Server;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -133,35 +136,6 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 "Documentation URL, listed in the README Package section."));
         cliOptions.add(CliOption.newString("issueTrackerUrl",
                 "Issue tracker URL, listed in the README Package section."));
-        cliOptions.add(CliOption.newString("envPrefix",
-                "Prefix of the environment variables the client reads credentials from "
-                        + "(default: the upper-case snake form of the package name)."));
-    }
-
-    /**
-     * The default prefix of the credential environment variables: the package
-     * name in upper-case snake form, so {@code PetstoreClient} reads
-     * {@code PETSTORE_CLIENT_TOKEN}.
-     */
-    static String environmentPrefix(final String packageName) {
-        final StringBuilder prefix = new StringBuilder();
-        char previous = '_';
-        for (int i = 0; i < packageName.length(); i++) {
-            final char c = packageName.charAt(i);
-            if (!Character.isLetterOrDigit(c)) {
-                if (previous != '_') {
-                    prefix.append('_');
-                }
-                previous = '_';
-                continue;
-            }
-            if (Character.isUpperCase(c) && previous != '_' && !Character.isUpperCase(previous)) {
-                prefix.append('_');
-            }
-            prefix.append(Character.toUpperCase(c));
-            previous = c;
-        }
-        return prefix.toString();
     }
 
     /**
@@ -196,6 +170,67 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 "maxRetries");
     }
 
+    /**
+     * Every operation gets an options struct, even one with no query, header, form or cookie
+     * parameter and no security, so each call has a slot for the per-call timeout, headers and
+     * retry limit (F827).
+     */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
+    }
+
+    /**
+     * Records the security requirement alternatives of the operation as
+     * {@code vendorExtensions.swiftSecurity} (F857): one entry per alternative, each a list of
+     * the scheme names that must all be configured together. An operation without its own
+     * {@code security} inherits the document's.
+     */
+    @Override
+    public CodegenOperation fromOperation(
+            String path, String httpMethod, Operation operation, List<Server> servers) {
+        final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        if (op.vendorExtensions == null) {
+            op.vendorExtensions = new HashMap<>();
+        }
+        final List<SecurityRequirement> requirements =
+                operation.getSecurity() != null
+                        ? operation.getSecurity()
+                        : openAPI == null ? null : openAPI.getSecurity();
+        op.vendorExtensions.put("swiftSecurity", securityAlternatives(requirements));
+        return op;
+    }
+
+    /**
+     * Turns security requirements into the template's alternatives: a requirement that names
+     * no scheme (anonymous access) is dropped, the others keep their order.
+     *
+     * @param requirements the requirements in effect for an operation; may be null
+     * @return one map per alternative holding its scheme names as Swift string literals
+     */
+    static List<Map<String, Object>> securityAlternatives(
+            @Nullable List<SecurityRequirement> requirements) {
+        final List<Map<String, Object>> alternatives = new ArrayList<>();
+        if (requirements == null) {
+            return alternatives;
+        }
+        for (final SecurityRequirement requirement : requirements) {
+            if (requirement.isEmpty()) {
+                continue;
+            }
+            final List<Map<String, Object>> schemes = new ArrayList<>();
+            for (final String name : requirement.keySet()) {
+                final Map<String, Object> scheme = new HashMap<>();
+                scheme.put("literal", "\"" + escapeSwiftString(name) + "\"");
+                schemes.add(scheme);
+            }
+            final Map<String, Object> alternative = new HashMap<>();
+            alternative.put("schemes", schemes);
+            alternatives.add(alternative);
+        }
+        return alternatives;
+    }
+
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
@@ -219,6 +254,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         markContentParameters(op.pathParams);
         markContentParameters(op.headerParams);
         markContentParameters(op.cookieParams);
+        markRawCookieParameters(op.cookieParams);
         final Object decorator = op.vendorExtensions.get("op");
         if (!(decorator instanceof Map)) {
             return;
@@ -264,6 +300,25 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                     p.vendorExtensions.put("swiftContent", true);
                     break;
                 }
+            }
+        }
+    }
+
+    /**
+     * Flags every cookie parameter declared with {@code style: cookie} as
+     * {@code vendorExtensions.swiftCookieRaw} (F840): its value is sent as it is when every
+     * character is a legal RFC 6265 cookie-octet and refused otherwise, because the caller
+     * pre-encodes it. A cookie of the default {@code style: form} is percent-encoded.
+     *
+     * @param params the cookie parameters; may be null
+     */
+    private static void markRawCookieParameters(@Nullable List<CodegenParameter> params) {
+        if (params == null) {
+            return;
+        }
+        for (final CodegenParameter p : params) {
+            if ("cookie".equals(p.style)) {
+                p.vendorExtensions.put("swiftCookieRaw", true);
             }
         }
     }
@@ -573,9 +628,6 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         packageName = getPropertyOrDefault("packageName", packageName);
         packageVersion = getPropertyOrDefault("packageVersion", packageVersion);
         additionalProperties.put("packageName", packageName);
-        if (!additionalProperties.containsKey("envPrefix")) {
-            additionalProperties.put("envPrefix", environmentPrefix(packageName));
-        }
         additionalProperties.put(
                 "userAgentDefault", packageName + "/" + packageVersion + " (swift)");
 
@@ -851,28 +903,91 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                         OAuthTestCondition.OIDC));
     }
 
+    /**
+     * The per-scheme authenticators, one entry each (class name, base class, the scheme kind and
+     * the environment variable of every credential), for the generated tests. It is the live
+     * list behind the {@code perSchemeAuthEntries} additional property.
+     */
+    private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
+
     /** {@inheritDoc} */
     @Override
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
         final Map<String, Object> ctx = baseSchemeContext(spec);
         ctx.put("imports", List.of());
+        final boolean hasEnvVars = Boolean.TRUE.equals(ctx.get("hasEnvVars"));
+        /* Basic and Bearer take the same argument labels as their base class, so the
+           initializer of the scheme class overrides the base one. */
         final boolean needsOverride =
                 "BasicAuthenticator".equals(spec.baseClass())
                         || "BearerAuthenticator".equals(spec.baseClass());
         ctx.put("needsOverride", needsOverride);
-        ctx.put("constructorSignature", buildSwiftConstructorSignature(spec));
+        ctx.put("constructorSignature", buildSwiftConstructorSignature(spec, hasEnvVars, true));
+        ctx.put("environmentSignature", buildSwiftConstructorSignature(spec, hasEnvVars, false));
+        ctx.put("forwardArguments", buildSwiftForwardArguments(spec));
         ctx.put("superCall", buildSwiftSuperCall(spec));
         // Basic, Bearer and API-key initializers validate their credentials and
         // throw ConfigurationError; the scheme subclass rethrows.
-        ctx.put("fallible", java.util.Set.of(
+        final boolean superThrows = java.util.Set.of(
                 "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
-                .contains(spec.baseClass()));
+                .contains(spec.baseClass());
+        ctx.put("fallible", superThrows);
+        // A credential that can come from the environment can be missing, which throws.
+        ctx.put("throwing", superThrows || hasEnvVars);
+        recordSchemeAuthenticator(spec, ctx);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
-    private static String buildSwiftConstructorSignature(SchemeAuthSpec spec) {
+    /**
+     * Remembers a generated per-scheme authenticator so the generated tests can exercise the
+     * credentials it reads from the environment.
+     */
+    private void recordSchemeAuthenticator(SchemeAuthSpec spec, Map<String, Object> ctx) {
+        final String className = String.valueOf(ctx.get("className"));
+        if (className.equals(spec.baseClass()) || !Boolean.TRUE.equals(ctx.get("hasEnvVars"))) {
+            return;
+        }
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", className);
+        entry.put("baseClass", spec.baseClass());
+        entry.put("isBearerScheme", "BearerAuthenticator".equals(spec.baseClass()));
+        entry.put("isBasicScheme", "BasicAuthenticator".equals(spec.baseClass()));
+        entry.put("envVars", ctx.get("envVars"));
+        perSchemeAuthEntries.add(entry);
+        additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);
+        additionalProperties.put("hasPerSchemeAuthEntries", true);
+    }
+
+    /**
+     * The parameter list of a scheme authenticator's initializer. A credential that has an
+     * environment variable is optional, so the variable can supply it; the host never is.
+     *
+     * @param spec the scheme
+     * @param optionalCredentials whether every credential is an optional {@code String?}
+     * @param withDefaults whether an optional credential defaults to {@code nil}
+     * @return the parameter list, such as {@code host: String, token: String? = nil}
+     */
+    static String buildSwiftConstructorSignature(
+            SchemeAuthSpec spec, boolean optionalCredentials, boolean withDefaults) {
         return spec.paramNames().stream()
-                .map(name -> name + ": String")
+                .map(
+                        name ->
+                                optionalCredentials && !"host".equals(name)
+                                        ? name + ": String?" + (withDefaults ? " = nil" : "")
+                                        : name + ": String")
+                .collect(Collectors.joining(", "));
+    }
+
+    /**
+     * The argument list that forwards a scheme authenticator's own parameters to another
+     * initializer of the same class.
+     *
+     * @param spec the scheme
+     * @return the arguments, such as {@code host: host, token: token}
+     */
+    static String buildSwiftForwardArguments(SchemeAuthSpec spec) {
+        return spec.paramNames().stream()
+                .map(name -> name + ": " + name)
                 .collect(Collectors.joining(", "));
     }
 

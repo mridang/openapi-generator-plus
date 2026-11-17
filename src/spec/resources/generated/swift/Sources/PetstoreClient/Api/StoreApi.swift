@@ -20,8 +20,11 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Create an account
   ///
   /// - Parameters:
-  public func createAccount(account: Account) async throws -> Account {
-    let result = try await createAccountWithHTTPInfo(account: account)
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func createAccount(account: Account, options: CreateAccountOptions? = nil) async throws
+    -> Account
+  {
+    let result = try await createAccountWithHTTPInfo(account: account, options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -34,7 +37,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the createAccount operation and returns the full API result.
-  public func createAccountWithHTTPInfo(account: Account) async throws -> ApiResult<Account> {
+  public func createAccountWithHTTPInfo(account: Account, options: CreateAccountOptions? = nil)
+    async throws -> ApiResult<Account>
+  {
 
     let path = "/store/account"
 
@@ -53,7 +58,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Account",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.createAccount"
+      operation: "StoreApi.createAccount",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Account.self)
@@ -63,13 +71,16 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - orderId: ID of the order to delete
-  public func deleteOrder(orderId: Int64) async throws {
-    let result = try await deleteOrderWithHTTPInfo(orderId: orderId)
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func deleteOrder(orderId: Int64, options: DeleteOrderOptions? = nil) async throws {
+    let result = try await deleteOrderWithHTTPInfo(orderId: orderId, options: options)
     _ = result
   }
 
   /// Performs the deleteOrder operation and returns the full API result.
-  public func deleteOrderWithHTTPInfo(orderId: Int64) async throws -> ApiResult<Void> {
+  public func deleteOrderWithHTTPInfo(orderId: Int64, options: DeleteOrderOptions? = nil)
+    async throws -> ApiResult<Void>
+  {
 
     var path = "/store/order/{orderId}"
     path = path.replacingOccurrences(
@@ -93,7 +104,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "",
       auth: nil,
-      operation: "StoreApi.deleteOrder"
+      operation: "StoreApi.deleteOrder",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForEmptyResult(params)
@@ -102,7 +116,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Echoes a swatch supplied via path, query and header parameters.
   ///
   /// - Parameters:
-  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
   public func getBySwatch(pathSwatch: Swatch, options: GetBySwatchOptions? = nil) async throws
     -> Category
   {
@@ -167,8 +181,11 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns a model exercising schema defaults on deserialize.
-  public func getDefaults() async throws -> Defaults {
-    let result = try await getDefaultsWithHTTPInfo()
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getDefaults(options: GetDefaultsOptions? = nil) async throws -> Defaults {
+    let result = try await getDefaultsWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -181,7 +198,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getDefaults operation and returns the full API result.
-  public func getDefaultsWithHTTPInfo() async throws -> ApiResult<Defaults> {
+  public func getDefaultsWithHTTPInfo(options: GetDefaultsOptions? = nil) async throws -> ApiResult<
+    Defaults
+  > {
 
     let path = "/store/defaults"
 
@@ -200,15 +219,21 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Defaults",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getDefaults"
+      operation: "StoreApi.getDefaults",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Defaults.self)
   }
 
   /// Returns a department (mutual-recursion codegen fixture).
-  public func getDepartment() async throws -> Department {
-    let result = try await getDepartmentWithHTTPInfo()
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getDepartment(options: GetDepartmentOptions? = nil) async throws -> Department {
+    let result = try await getDepartmentWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -221,7 +246,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getDepartment operation and returns the full API result.
-  public func getDepartmentWithHTTPInfo() async throws -> ApiResult<Department> {
+  public func getDepartmentWithHTTPInfo(options: GetDepartmentOptions? = nil) async throws
+    -> ApiResult<Department>
+  {
 
     let path = "/store/department"
 
@@ -240,15 +267,23 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Department",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getDepartment"
+      operation: "StoreApi.getDepartment",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Department.self)
   }
 
   /// Returns categories grouped into an array of string-keyed maps.
-  public func getGroupedCategories() async throws -> [[String: Category]] {
-    let result = try await getGroupedCategoriesWithHTTPInfo()
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getGroupedCategories(options: GetGroupedCategoriesOptions? = nil) async throws
+    -> [[String: Category]]
+  {
+    let result = try await getGroupedCategoriesWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -261,7 +296,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getGroupedCategories operation and returns the full API result.
-  public func getGroupedCategoriesWithHTTPInfo() async throws -> ApiResult<[[String: Category]]> {
+  public func getGroupedCategoriesWithHTTPInfo(options: GetGroupedCategoriesOptions? = nil)
+    async throws -> ApiResult<[[String: Category]]>
+  {
 
     let path = "/store/grouped-categories"
 
@@ -280,15 +317,21 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "[[String: Category]]",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getGroupedCategories"
+      operation: "StoreApi.getGroupedCategories",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: [[String: Category]].self)
   }
 
   /// Returns pet inventories by status
-  public func getInventory() async throws -> [String: Int] {
-    let result = try await getInventoryWithHTTPInfo()
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getInventory(options: GetInventoryOptions? = nil) async throws -> [String: Int] {
+    let result = try await getInventoryWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -301,7 +344,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getInventory operation and returns the full API result.
-  public func getInventoryWithHTTPInfo() async throws -> ApiResult<[String: Int]> {
+  public func getInventoryWithHTTPInfo(options: GetInventoryOptions? = nil) async throws
+    -> ApiResult<[String: Int]>
+  {
 
     let path = "/store/inventory"
 
@@ -320,15 +365,21 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "[String: Int]",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getInventory"
+      operation: "StoreApi.getInventory",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: [String: Int].self)
   }
 
   /// Returns a matrix as an array of integer arrays.
-  public func getMatrix() async throws -> [[Int]] {
-    let result = try await getMatrixWithHTTPInfo()
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getMatrix(options: GetMatrixOptions? = nil) async throws -> [[Int]] {
+    let result = try await getMatrixWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -341,7 +392,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getMatrix operation and returns the full API result.
-  public func getMatrixWithHTTPInfo() async throws -> ApiResult<[[Int]]> {
+  public func getMatrixWithHTTPInfo(options: GetMatrixOptions? = nil) async throws -> ApiResult<
+    [[Int]]
+  > {
 
     let path = "/store/matrix"
 
@@ -360,7 +413,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "[[Int]]",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getMatrix"
+      operation: "StoreApi.getMatrix",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: [[Int]].self)
@@ -370,8 +426,11 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - orderId: ID of order to return
-  public func getOrderById(orderId: Int64) async throws -> Order {
-    let result = try await getOrderByIdWithHTTPInfo(orderId: orderId)
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getOrderById(orderId: Int64, options: GetOrderByIdOptions? = nil) async throws
+    -> Order
+  {
+    let result = try await getOrderByIdWithHTTPInfo(orderId: orderId, options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -384,7 +443,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getOrderById operation and returns the full API result.
-  public func getOrderByIdWithHTTPInfo(orderId: Int64) async throws -> ApiResult<Order> {
+  public func getOrderByIdWithHTTPInfo(orderId: Int64, options: GetOrderByIdOptions? = nil)
+    async throws -> ApiResult<Order>
+  {
 
     var path = "/store/order/{orderId}"
     path = path.replacingOccurrences(
@@ -408,7 +469,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Order",
       auth: nil,
-      operation: "StoreApi.getOrderById"
+      operation: "StoreApi.getOrderById",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Order.self)
@@ -417,8 +481,12 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Find purchase order by tracking id
   ///
   /// - Parameters:
-  public func getOrderByTrackingId(trackingId: UUID) async throws -> Order {
-    let result = try await getOrderByTrackingIdWithHTTPInfo(trackingId: trackingId)
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getOrderByTrackingId(trackingId: UUID, options: GetOrderByTrackingIdOptions? = nil)
+    async throws -> Order
+  {
+    let result = try await getOrderByTrackingIdWithHTTPInfo(
+      trackingId: trackingId, options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -431,7 +499,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getOrderByTrackingId operation and returns the full API result.
-  public func getOrderByTrackingIdWithHTTPInfo(trackingId: UUID) async throws -> ApiResult<Order> {
+  public func getOrderByTrackingIdWithHTTPInfo(
+    trackingId: UUID, options: GetOrderByTrackingIdOptions? = nil
+  ) async throws -> ApiResult<Order> {
     try ValueSerializer.requirePathParam(
       "trackingId", trackingId, style: "simple", operation: "StoreApi.getOrderByTrackingId")
 
@@ -457,7 +527,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Order",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getOrderByTrackingId"
+      operation: "StoreApi.getOrderByTrackingId",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Order.self)
@@ -467,7 +540,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - asOf: Only consider stock as of this instant
-  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
   public func getStockItem(options: GetStockItemOptions? = nil) async throws -> StockItem {
     let result = try await getStockItemWithHTTPInfo(options: options)
     guard let data = result.data else {
@@ -519,8 +592,11 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns a bare enum (value-type response codegen fixture).
-  public func getSwatch() async throws -> Swatch {
-    let result = try await getSwatchWithHTTPInfo()
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getSwatch(options: GetSwatchOptions? = nil) async throws -> Swatch {
+    let result = try await getSwatchWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -533,7 +609,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getSwatch operation and returns the full API result.
-  public func getSwatchWithHTTPInfo() async throws -> ApiResult<Swatch> {
+  public func getSwatchWithHTTPInfo(options: GetSwatchOptions? = nil) async throws -> ApiResult<
+    Swatch
+  > {
 
     let path = "/store/swatch"
 
@@ -552,15 +630,23 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Swatch",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getSwatch"
+      operation: "StoreApi.getSwatch",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Swatch.self)
   }
 
   /// Returns swatches grouped as an array of string-keyed enum maps.
-  public func getSwatchGroups() async throws -> [[String: Swatch]] {
-    let result = try await getSwatchGroupsWithHTTPInfo()
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getSwatchGroups(options: GetSwatchGroupsOptions? = nil) async throws -> [[String:
+    Swatch]]
+  {
+    let result = try await getSwatchGroupsWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -573,7 +659,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getSwatchGroups operation and returns the full API result.
-  public func getSwatchGroupsWithHTTPInfo() async throws -> ApiResult<[[String: Swatch]]> {
+  public func getSwatchGroupsWithHTTPInfo(options: GetSwatchGroupsOptions? = nil) async throws
+    -> ApiResult<[[String: Swatch]]>
+  {
 
     let path = "/store/swatch-groups"
 
@@ -592,15 +680,23 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "[[String: Swatch]]",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getSwatchGroups"
+      operation: "StoreApi.getSwatchGroups",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: [[String: Swatch]].self)
   }
 
   /// Returns timestamps grouped as an array of string-keyed maps.
-  public func getTimestampGroups() async throws -> [[String: Date]] {
-    let result = try await getTimestampGroupsWithHTTPInfo()
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getTimestampGroups(options: GetTimestampGroupsOptions? = nil) async throws
+    -> [[String: Date]]
+  {
+    let result = try await getTimestampGroupsWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -613,7 +709,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getTimestampGroups operation and returns the full API result.
-  public func getTimestampGroupsWithHTTPInfo() async throws -> ApiResult<[[String: Date]]> {
+  public func getTimestampGroupsWithHTTPInfo(options: GetTimestampGroupsOptions? = nil) async throws
+    -> ApiResult<[[String: Date]]>
+  {
 
     let path = "/store/timestamp-groups"
 
@@ -632,15 +730,21 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "[[String: Date]]",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getTimestampGroups"
+      operation: "StoreApi.getTimestampGroups",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: [[String: Date]].self)
   }
 
   /// Returns a self-referential tree (recursive-type codegen fixture)
-  public func getTree() async throws -> TreeNode {
-    let result = try await getTreeWithHTTPInfo()
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func getTree(options: GetTreeOptions? = nil) async throws -> TreeNode {
+    let result = try await getTreeWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -653,7 +757,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getTree operation and returns the full API result.
-  public func getTreeWithHTTPInfo() async throws -> ApiResult<TreeNode> {
+  public func getTreeWithHTTPInfo(options: GetTreeOptions? = nil) async throws -> ApiResult<
+    TreeNode
+  > {
 
     let path = "/store/tree"
 
@@ -672,7 +778,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "TreeNode",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getTree"
+      operation: "StoreApi.getTree",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: TreeNode.self)
@@ -681,8 +790,11 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Place an order for a pet
   ///
   /// - Parameters:
-  public func placeOrder(order: Order? = nil) async throws -> Order {
-    let result = try await placeOrderWithHTTPInfo(order: order)
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func placeOrder(order: Order? = nil, options: PlaceOrderOptions? = nil) async throws
+    -> Order
+  {
+    let result = try await placeOrderWithHTTPInfo(order: order, options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -695,7 +807,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the placeOrder operation and returns the full API result.
-  public func placeOrderWithHTTPInfo(order: Order? = nil) async throws -> ApiResult<Order> {
+  public func placeOrderWithHTTPInfo(order: Order? = nil, options: PlaceOrderOptions? = nil)
+    async throws -> ApiResult<Order>
+  {
 
     let path = "/store/order"
 
@@ -714,7 +828,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Order",
       auth: nil,
-      operation: "StoreApi.placeOrder"
+      operation: "StoreApi.placeOrder",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Order.self)
@@ -722,8 +839,12 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
   /// Reserve stock, answering with the existing or a new reservation
   /// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
-  public func reserveStock() async throws -> ReserveStockResponse {
-    let result = try await reserveStockWithHTTPInfo()
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
+  public func reserveStock(options: ReserveStockOptions? = nil) async throws -> ReserveStockResponse
+  {
+    let result = try await reserveStockWithHTTPInfo(options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -736,7 +857,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the reserveStock operation and returns the full API result.
-  public func reserveStockWithHTTPInfo() async throws -> ApiResult<ReserveStockResponse> {
+  public func reserveStockWithHTTPInfo(options: ReserveStockOptions? = nil) async throws
+    -> ApiResult<ReserveStockResponse>
+  {
 
     let path = "/store/reservation"
 
@@ -755,7 +878,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "ReserveStockResponse",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.reserveStock"
+      operation: "StoreApi.reserveStock",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     /* Several 2xx responses with different schemas: the body is read as the
@@ -777,7 +903,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - q: JSON-encoded query parameter (OAS `content`, not `schema`)
-  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters and an optional per-operation authenticator.
   public func searchStore(options: SearchStoreOptions? = nil) async throws -> [Order] {
     let result = try await searchStoreWithHTTPInfo(options: options)
     guard let data = result.data else {
