@@ -12,38 +12,109 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
 /** Department. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = Department.Builder.class)
 public class Department {
 
   /** The {@code name} property. */
   @JsonProperty("name")
-  public String name;
+  public final String name;
 
   /** The {@code lead} property. */
   @JsonProperty("lead")
   @Nullable
-  public Employee lead;
-
-  /* No-arg constructor required by deserialization/test tooling. It
-   * intentionally leaves the @NonNull required fields uninitialized — the
-   * @JsonCreator constructor below populates them on the deserialization path.
-   * NullAway.Init cannot be moved to a global config home without either
-   * excluding every @JsonProperty field from init-checking (which would hide
-   * genuinely-missing initializers across all models) or marking whole classes
-   * unannotated (disabling null-safety on the model entirely); both weaken a
-   * real correctness rule, so the suppression is kept here, scoped to this
-   * single framework-mandated constructor. */
-  /** Creates an empty instance for deserialization; required fields are populated later. */
-  @SuppressWarnings("NullAway.Init")
-  public Department() {}
+  public final Employee lead;
 
   /**
    * Creates an instance with all required properties.
    *
    * @param name the {@code name} property
    */
-  @com.fasterxml.jackson.annotation.JsonCreator
-  public Department(@JsonProperty(value = "name", required = true) String name) {
-    this.name = java.util.Objects.requireNonNull(name, "name is required");
+  public Department(String name) {
+    this(new Builder().name(name));
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private Department(Builder builder) {
+    builder.requireNullableProperties();
+    this.name = java.util.Objects.requireNonNull(builder.name, "name is required");
+    this.lead = builder.lead;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.name = this.name;
+    builder.lead = this.lead;
+    return builder;
+  }
+
+  /** Builds Department instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private String name;
+    @Nullable private Employee lead;
+
+    private Builder() {}
+
+    /**
+     * Sets the "name" property.
+     *
+     * @param name the new value
+     * @return this builder
+     */
+    @JsonProperty("name")
+    public Builder name(String name) {
+      this.name = name;
+      return this;
+    }
+
+    /**
+     * Sets the "lead" property.
+     *
+     * @param lead the new value
+     * @return this builder
+     */
+    @JsonProperty("lead")
+    public Builder lead(@Nullable Employee lead) {
+      this.lead = lead;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public Department build() {
+      return new Department(this);
+    }
   }
 
   /* Value-equality based on all declared fields. Generated so model

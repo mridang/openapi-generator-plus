@@ -13,43 +13,135 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /** StockItem. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = StockItem.Builder.class)
 public class StockItem {
 
   /** The {@code priority} property. */
   @JsonProperty("priority")
-  public Priority priority;
+  public final Priority priority;
 
   /** The {@code availability} property. */
   @JsonProperty("availability")
   @Nullable
-  public Availability availability;
+  public final Availability availability;
 
   /** Quantity grid as an array of integer arrays */
   @JsonProperty("matrix")
   @Nullable
-  public List<List<Integer>> matrix;
-
-  /* No-arg constructor required by deserialization/test tooling. It
-   * intentionally leaves the @NonNull required fields uninitialized — the
-   * @JsonCreator constructor below populates them on the deserialization path.
-   * NullAway.Init cannot be moved to a global config home without either
-   * excluding every @JsonProperty field from init-checking (which would hide
-   * genuinely-missing initializers across all models) or marking whole classes
-   * unannotated (disabling null-safety on the model entirely); both weaken a
-   * real correctness rule, so the suppression is kept here, scoped to this
-   * single framework-mandated constructor. */
-  /** Creates an empty instance for deserialization; required fields are populated later. */
-  @SuppressWarnings("NullAway.Init")
-  public StockItem() {}
+  public final List<List<Integer>> matrix;
 
   /**
    * Creates an instance with all required properties.
    *
    * @param priority the {@code priority} property
    */
-  @com.fasterxml.jackson.annotation.JsonCreator
-  public StockItem(@JsonProperty(value = "priority", required = true) Priority priority) {
-    this.priority = java.util.Objects.requireNonNull(priority, "priority is required");
+  public StockItem(Priority priority) {
+    this(new Builder().priority(priority));
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private StockItem(Builder builder) {
+    builder.requireNullableProperties();
+    this.priority = java.util.Objects.requireNonNull(builder.priority, "priority is required");
+    this.availability = builder.availability;
+    this.matrix =
+        builder.matrix == null
+            ? null
+            : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(builder.matrix));
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.priority = this.priority;
+    builder.availability = this.availability;
+    builder.matrix = this.matrix;
+    return builder;
+  }
+
+  /** Builds StockItem instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Priority priority;
+    @Nullable private Availability availability;
+    @Nullable private List<List<Integer>> matrix;
+
+    private Builder() {}
+
+    /**
+     * Sets the "priority" property.
+     *
+     * @param priority the new value
+     * @return this builder
+     */
+    @JsonProperty("priority")
+    public Builder priority(Priority priority) {
+      this.priority = priority;
+      return this;
+    }
+
+    /**
+     * Sets the "availability" property.
+     *
+     * @param availability the new value
+     * @return this builder
+     */
+    @JsonProperty("availability")
+    public Builder availability(@Nullable Availability availability) {
+      this.availability = availability;
+      return this;
+    }
+
+    /**
+     * Sets the "matrix" property.
+     *
+     * @param matrix the new value
+     * @return this builder
+     */
+    @JsonProperty("matrix")
+    public Builder matrix(@Nullable List<List<Integer>> matrix) {
+      this.matrix =
+          matrix == null
+              ? null
+              : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(matrix));
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public StockItem build() {
+      return new StockItem(this);
+    }
   }
 
   /* Value-equality based on all declared fields. Generated so model

@@ -840,7 +840,60 @@ public final class ObjectSerializer {
             gen.writeNumber(value.floatValue());
           }
         });
+    /* The decode side: a literal such as 1e400 parses to infinity, which is no
+    more a value than NaN is, so the decode fails with the same loudness. */
+    module.addDeserializer(
+        Double.class,
+        new FiniteNumberDeserializer<>(Double.class, Double.class, "java.lang.Double"));
+    module.addDeserializer(
+        Double.TYPE, new FiniteNumberDeserializer<>(Double.class, Double.TYPE, "double"));
+    module.addDeserializer(
+        Float.class, new FiniteNumberDeserializer<>(Float.class, Float.class, "java.lang.Float"));
+    module.addDeserializer(
+        Float.TYPE, new FiniteNumberDeserializer<>(Float.class, Float.TYPE, "float"));
     return module;
+  }
+
+  /**
+   * Decodes a {@code float} or {@code double} through Jackson's own deserializer, so every coercion
+   * rule of the mapper still applies, and rejects a number that overflowed to infinity.
+   *
+   * @param <T> the boxed number type
+   */
+  private static final class FiniteNumberDeserializer<T extends Number>
+      extends JsonDeserializer<T> {
+
+    private final JsonDeserializer<?> stock;
+
+    private final Class<T> boxed;
+
+    FiniteNumberDeserializer(Class<T> boxed, Class<?> raw, String name) {
+      this.boxed = boxed;
+      this.stock =
+          java.util.Objects.requireNonNull(
+              com.fasterxml.jackson.databind.deser.std.NumberDeserializers.find(raw, name));
+    }
+
+    @Override
+    @Nullable
+    public T deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+      Object value = stock.deserialize(parser, context);
+      if (value instanceof Number number && !Double.isFinite(number.doubleValue())) {
+        throw com.fasterxml.jackson.databind.exc.InvalidFormatException.from(
+            parser,
+            "Number is out of range for " + boxed.getSimpleName() + ": " + parser.getText(),
+            parser.getText(),
+            boxed);
+      }
+      return boxed.cast(value);
+    }
+
+    @Override
+    @Nullable
+    public T getNullValue(DeserializationContext context)
+        throws com.fasterxml.jackson.databind.JsonMappingException {
+      return boxed.cast(stock.getNullValue(context));
+    }
   }
 
   /**

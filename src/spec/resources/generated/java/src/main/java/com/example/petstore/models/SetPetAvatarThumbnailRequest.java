@@ -47,6 +47,26 @@ public class SetPetAvatarThumbnailRequest {
     return actualInstance;
   }
 
+  /**
+   * Wraps a {@code byte[]} as this union.
+   *
+   * @param value the {@code byte[]} variant
+   * @return the union holding {@code value}
+   */
+  public static SetPetAvatarThumbnailRequest ofByteArray(byte[] value) {
+    return new SetPetAvatarThumbnailRequest(value);
+  }
+
+  /**
+   * Wraps a {@code List<byte[]>} as this union.
+   *
+   * @param value the {@code List<byte[]>} variant
+   * @return the union holding {@code value}
+   */
+  public static SetPetAvatarThumbnailRequest ofListOfByteArray(List<byte[]> value) {
+    return new SetPetAvatarThumbnailRequest(value);
+  }
+
   /* Value equality on the wrapped variant, so two unions decoded from the
    * same JSON compare equal (byte[] and List variants by content). */
   @Override

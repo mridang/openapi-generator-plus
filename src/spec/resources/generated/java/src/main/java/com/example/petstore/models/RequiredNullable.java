@@ -12,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
 /** RequiredNullable. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = RequiredNullable.Builder.class)
 public class RequiredNullable {
 
   /** The {@code note} property. */
@@ -19,29 +20,91 @@ public class RequiredNullable {
   @Nullable
   @com.fasterxml.jackson.annotation.JsonInclude(
       com.fasterxml.jackson.annotation.JsonInclude.Include.ALWAYS)
-  public String note;
-
-  /* No-arg constructor required by deserialization/test tooling. It
-   * intentionally leaves the @NonNull required fields uninitialized — the
-   * @JsonCreator constructor below populates them on the deserialization path.
-   * NullAway.Init cannot be moved to a global config home without either
-   * excluding every @JsonProperty field from init-checking (which would hide
-   * genuinely-missing initializers across all models) or marking whole classes
-   * unannotated (disabling null-safety on the model entirely); both weaken a
-   * real correctness rule, so the suppression is kept here, scoped to this
-   * single framework-mandated constructor. */
-  /** Creates an empty instance for deserialization; required fields are populated later. */
-  @SuppressWarnings("NullAway.Init")
-  public RequiredNullable() {}
+  public final String note;
 
   /**
    * Creates an instance with all required properties.
    *
    * @param note the {@code note} property
    */
-  @com.fasterxml.jackson.annotation.JsonCreator
-  public RequiredNullable(@JsonProperty(value = "note", required = true) @Nullable String note) {
-    this.note = note;
+  public RequiredNullable(@Nullable String note) {
+    this(new Builder().note(note));
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private RequiredNullable(Builder builder) {
+    builder.requireNullableProperties();
+    this.note = builder.note;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.note = this.note;
+    builder.noteIsSet = true;
+    return builder;
+  }
+
+  /** Builds RequiredNullable instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private String note;
+    private boolean noteIsSet;
+
+    private Builder() {}
+
+    /**
+     * Sets the "note" property.
+     *
+     * @param note the new value
+     * @return this builder
+     */
+    @JsonProperty("note")
+    public Builder note(@Nullable String note) {
+      this.note = note;
+      this.noteIsSet = true;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {
+      if (!noteIsSet) {
+        throw new IllegalArgumentException("note is required");
+      }
+    }
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public RequiredNullable build() {
+      return new RequiredNullable(this);
+    }
   }
 
   /* Value-equality based on all declared fields. Generated so model

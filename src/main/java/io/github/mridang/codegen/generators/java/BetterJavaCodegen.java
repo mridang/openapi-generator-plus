@@ -143,6 +143,16 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 CodegenConstants.ARTIFACT_ID_DESC));
         cliOptions.add(CliOption.newString(CodegenConstants.ARTIFACT_VERSION,
                 CodegenConstants.ARTIFACT_VERSION_DESC));
+        cliOptions.add(CliOption.newString("repositoryUrl",
+                "Source repository URL, written to the pom scm and url elements and the README"));
+        cliOptions.add(CliOption.newString("homepageUrl",
+                "Project homepage URL (defaults to repositoryUrl)"));
+        cliOptions.add(CliOption.newString("authors",
+                "Comma-separated author names, written to the pom developers"));
+        cliOptions.add(CliOption.newString("documentationUrl",
+                "Documentation URL, written to the README"));
+        cliOptions.add(CliOption.newString("issueTrackerUrl",
+                "Issue tracker URL, written to the pom issueManagement and the README"));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -208,7 +218,41 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 }
             }
         }
-        return super.postProcessOperationsWithModels(objs, allModels);
+        final OperationsMap processed = super.postProcessOperationsWithModels(objs, allModels);
+        /* After the shared pass: it is the one that drops the inherited global security from an
+         * operation, and an operation whose only security is inherited takes no options object. */
+        if (operations != null) {
+            final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                for (final CodegenOperation op : ops) {
+                    op.vendorExtensions.put("hasOptionalBodyOnly", hasOptionalBodyOnly(op));
+                }
+            }
+        }
+        return processed;
+    }
+
+    /**
+     * Whether an operation takes nothing but an optional request body: no path, query, header,
+     * form or cookie parameter, no authentication, no per-operation server and one request
+     * content type. Only such an operation gets the no-argument overload (F324); with any other
+     * argument an overload that omits the body would make a literal {@code null} ambiguous.
+     */
+    static boolean hasOptionalBodyOnly(CodegenOperation op) {
+        return op.bodyParam != null
+                && !op.bodyParam.required
+                && isEmpty(op.pathParams)
+                && isEmpty(op.queryParams)
+                && isEmpty(op.headerParams)
+                && isEmpty(op.formParams)
+                && isEmpty(op.cookieParams)
+                && !op.hasAuthMethods
+                && isEmpty(op.servers)
+                && (op.consumes == null || op.consumes.size() <= 1);
+    }
+
+    private static boolean isEmpty(@Nullable List<?> list) {
+        return list == null || list.isEmpty();
     }
 
     /**
@@ -333,7 +377,16 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
      */
     @Override
     protected Set<String> getInjectedArgumentNames() {
-        return Set.of("options", "server", "requestContentType");
+        // auth, timeout, maxRetries and headers are the per-call settings every Options object
+        // carries, so a parameter named like one becomes authParam, timeoutParam and so on.
+        return Set.of(
+                "options",
+                "server",
+                "requestContentType",
+                "auth",
+                "timeout",
+                "maxRetries",
+                "headers");
     }
 
     /** {@inheritDoc} */
@@ -628,6 +681,24 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         final String artifactVersion =
                 getPropertyOrDefault(CodegenConstants.ARTIFACT_VERSION, "1.0.0");
         additionalProperties.put("artifactVersion", artifactVersion);
+        // The homepage defaults to the repository, and the comma-separated authors become a
+        // list the pom renders as one developer each (F894).
+        final Object repositoryUrl = additionalProperties.get("repositoryUrl");
+        if (repositoryUrl != null
+                && !String.valueOf(repositoryUrl).isBlank()
+                && additionalProperties.get("homepageUrl") == null) {
+            additionalProperties.put("homepageUrl", repositoryUrl);
+        }
+        final Object authors = additionalProperties.get("authors");
+        if (authors != null && !String.valueOf(authors).isBlank()) {
+            final List<Map<String, String>> authorList = new ArrayList<>();
+            for (final String author : String.valueOf(authors).split(",", -1)) {
+                if (!author.isBlank()) {
+                    authorList.add(Map.of("name", author.strip()));
+                }
+            }
+            additionalProperties.put("authorList", authorList);
+        }
         // The User-Agent product token is the published Maven artifactId, the
         // name a user types into their build file, not the Java package.
         additionalProperties.put(
@@ -914,6 +985,22 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             property.defaultValue =
                     property.defaultValue.replace("new ArrayList<>(", "new LinkedHashSet<>(");
         }
+        decorateForBuilder(property);
+    }
+
+    /**
+     * Records what the immutable model needs from a property: how its collection is copied and
+     * the name of its builder method. A property named like a reserved word is escaped with a
+     * leading underscore, which is no legal method or parameter name for Checkstyle, so its
+     * builder method takes a {@code Value} suffix instead.
+     */
+    private static void decorateForBuilder(CodegenProperty property) {
+        recordCollectionCopy(property);
+        property.vendorExtensions.put(
+                "builderName",
+                property.name != null && property.name.startsWith("_")
+                        ? property.name.replaceFirst("^_+", "") + "Value"
+                        : property.name);
     }
 
     /**
@@ -979,6 +1066,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 }
             }
         }
+        nameUnionVariants(model);
+        /* requiredVars are copies of the properties the hook above decorated, so they are
+         * decorated here for the required-argument constructor. */
+        for (final CodegenProperty required : model.requiredVars) {
+            decorateForBuilder(required);
+        }
         // The model description is rendered as the type's header Javadoc, whose
         // summary sentence must end with a period under google_checks
         // (SummaryJavadoc). That Javadoc sits above the class-level
@@ -986,6 +1079,62 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         // spec-supplied text to be compliant instead.
         model.description = endWithPeriod(model.description);
         return model;
+    }
+
+    /**
+     * Records how a collection-typed property is copied into the immutable model:
+     * {@code copyKind} is {@code List}, {@code Set} or {@code Map} (the
+     * {@code Collections.unmodifiableX} suffix) and {@code copyImpl} the mutable class the
+     * copy is made with. Scalars get neither.
+     */
+    private static void recordCollectionCopy(CodegenProperty property) {
+        final String type = property.isEnum ? property.datatypeWithEnum : property.dataType;
+        if (type == null) {
+            return;
+        }
+        if (type.startsWith("Set<")) {
+            property.vendorExtensions.put("copyKind", "Set");
+            property.vendorExtensions.put("copyImpl", "LinkedHashSet");
+        } else if (type.startsWith("List<")) {
+            property.vendorExtensions.put("copyKind", "List");
+            property.vendorExtensions.put("copyImpl", "ArrayList");
+        } else if (type.startsWith("Map<")) {
+            property.vendorExtensions.put("copyKind", "Map");
+            property.vendorExtensions.put("copyImpl", "LinkedHashMap");
+        }
+    }
+
+    /**
+     * Names the variants of a oneOf or anyOf union for the typed factories and accessors
+     * (F878): {@code variantName} is the Java type name as an identifier part
+     * ({@code Reservation}, {@code ListOfString}), and {@code isPlainVariant} is true when
+     * the variant is a bare class name, so an {@code instanceof} test is legal for it.
+     */
+    static void nameUnionVariants(CodegenModel model) {
+        if (model.getComposedSchemas() == null) {
+            return;
+        }
+        final List<List<CodegenProperty>> unions = new ArrayList<>();
+        if (model.getComposedSchemas().getOneOf() != null) {
+            unions.add(model.getComposedSchemas().getOneOf());
+        }
+        if (model.getComposedSchemas().getAnyOf() != null) {
+            unions.add(model.getComposedSchemas().getAnyOf());
+        }
+        for (final List<CodegenProperty> variants : unions) {
+            for (final CodegenProperty variant : variants) {
+                final String type = variant.dataType == null ? "Object" : variant.dataType;
+                final StringBuilder name = new StringBuilder();
+                for (final String word :
+                        type.replace("[]", " Array ").replace("<", " Of ").split("[^A-Za-z0-9]+", -1)) {
+                    if (!word.isEmpty()) {
+                        name.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+                    }
+                }
+                variant.vendorExtensions.put("variantName", name.length() == 0 ? "Value" : name.toString());
+                variant.vendorExtensions.put("isPlainVariant", type.matches("[A-Za-z_][A-Za-z0-9_.]*"));
+            }
+        }
     }
 
     /**
@@ -1197,6 +1346,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
         final List<Map<String, Object>> params = new ArrayList<>();
         final List<Map<String, Object>> requiredParams = new ArrayList<>();
+        /* The shared pass captures the named examples only after the Options files are written, so
+         * capture them here first or an optional parameter's examples never reach its setter (F893). */
+        capturePluralExamplesForParameters(optionsParams);
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
             param.put("paramName", p.paramName);

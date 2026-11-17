@@ -88,6 +88,72 @@ public class TreatmentRecord {
     return java.util.Collections.unmodifiableList(matchedInstances);
   }
 
+  /**
+   * Wraps a {@code Surgery} as this union.
+   *
+   * @param value the {@code Surgery} variant
+   * @return the union holding {@code value}
+   */
+  public static TreatmentRecord ofSurgery(Surgery value) {
+    return new TreatmentRecord((Object) value);
+  }
+
+  /**
+   * Tells whether this union retained a {@code Surgery}.
+   *
+   * @return {@code true} when a retained variant is a {@code Surgery}
+   */
+  public boolean isSurgery() {
+    return matchedInstances.stream().anyMatch(instance -> instance instanceof Surgery);
+  }
+
+  /**
+   * Returns the first retained variant that is a {@code Surgery}.
+   *
+   * @return the variant, or empty when no retained variant is a {@code Surgery}
+   */
+  public java.util.Optional<Surgery> asSurgery() {
+    for (Object instance : matchedInstances) {
+      if (instance instanceof Surgery variant) {
+        return java.util.Optional.of(variant);
+      }
+    }
+    return java.util.Optional.empty();
+  }
+
+  /**
+   * Wraps a {@code Medication} as this union.
+   *
+   * @param value the {@code Medication} variant
+   * @return the union holding {@code value}
+   */
+  public static TreatmentRecord ofMedication(Medication value) {
+    return new TreatmentRecord((Object) value);
+  }
+
+  /**
+   * Tells whether this union retained a {@code Medication}.
+   *
+   * @return {@code true} when a retained variant is a {@code Medication}
+   */
+  public boolean isMedication() {
+    return matchedInstances.stream().anyMatch(instance -> instance instanceof Medication);
+  }
+
+  /**
+   * Returns the first retained variant that is a {@code Medication}.
+   *
+   * @return the variant, or empty when no retained variant is a {@code Medication}
+   */
+  public java.util.Optional<Medication> asMedication() {
+    for (Object instance : matchedInstances) {
+      if (instance instanceof Medication variant) {
+        return java.util.Optional.of(variant);
+      }
+    }
+    return java.util.Optional.empty();
+  }
+
   /* Value equality on the retained variants, in order, so two unions decoded
    * from the same JSON compare equal (byte[] and List variants by content). */
   @Override

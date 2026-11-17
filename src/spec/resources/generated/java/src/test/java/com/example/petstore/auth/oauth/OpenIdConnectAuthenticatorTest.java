@@ -103,6 +103,55 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
+  void discoveryKeepsTheTransportsDefaultHeadersOffTheIdentityProvider() {
+    AtomicReference<Boolean> noDefaultHeaders = new AtomicReference<>();
+    ApiClient client =
+        new ApiClient() {
+          @Override
+          public ApiHttpResponse sendRequest(
+              String method,
+              String url,
+              Map<String, String> headers,
+              @javax.annotation.Nullable Object body) {
+            noDefaultHeaders.set(Boolean.FALSE);
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+          }
+
+          @Override
+          public ApiHttpResponse sendRequest(
+              String method,
+              String url,
+              Map<String, String> headers,
+              @javax.annotation.Nullable Object body,
+              boolean noRedirect,
+              boolean withoutDefaults) {
+            noDefaultHeaders.set(withoutDefaults);
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+          }
+        };
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.buildAuthorizationUrl(null);
+
+    assertTrue(Boolean.TRUE.equals(noDefaultHeaders.get()));
+  }
+
+  @Test
+  void failedDiscoveryNamesTheRequestInTheError() {
+    ApiClient client = (method, url, headers, body) -> new ApiHttpResponse(500, "oops", Map.of());
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    InternalServerErrorException thrown =
+        assertThrowsExactly(
+            InternalServerErrorException.class, () -> auth.buildAuthorizationUrl(null));
+
+    assertEquals("GET", thrown.getRequestMethod());
+    assertEquals("/.well-known/openid-configuration", thrown.getRequestPath());
+  }
+
+  @Test
   void obtainsTokenAfterCodeExchange() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     var calls =

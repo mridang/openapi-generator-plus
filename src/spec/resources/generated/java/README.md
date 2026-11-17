@@ -105,6 +105,41 @@ client; you own its lifecycle. Because the client carries its own proxy and TLS
 settings, combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails
 at `build()`, as does a client whose redirect policy is not `Redirect.NEVER`.
 
+### Per-call options
+
+Every operation that takes an options object (`FindItemsOptions` and the like)
+also accepts three per-call settings that apply to that one call only:
+`timeout(millis)` replaces the transport's end-to-end timeout, `maxRetries(n)`
+replaces its retry count (`0` turns retries off), and `headers(map)` adds
+request headers after the default headers; authentication headers are applied
+last and still win.
+
+### Errors
+
+A failed call throws a subclass of `ApiException`. Besides `getStatusCode()`,
+`getResponseHeaders()` and `getResponseBody()`, it carries `getRequestMethod()`
+and `getRequestPath()` (the path without its query string), and `toString()`
+renders them on a `Request: GET /items/1` line, so a log line names the call
+without the URL's query string, which may hold a credential.
+
+### Models are immutable
+
+A model's fields are `final`. Build one with `Model.builder()` (or its
+constructor when it has required properties) and copy it with one property
+changed through `model.toBuilder().property(value).build()`. A required property
+that is missing fails when the model is built, whether from code or from JSON.
+Collections are copied into unmodifiable ones. A model that accepts extra keys
+exposes them read-only through `getAdditionalProperties()` and writes them with
+the builder's `putAdditionalProperty`, `putAllAdditionalProperties`,
+`removeAdditionalProperty` and `additionalProperties(map)`.
+
+### Unions
+
+A `oneOf` or `anyOf` model has a typed factory per variant (`Union.ofVariant(v)`)
+and, for a variant that is a plain class, `isVariant()` and `asVariant()`
+(an `Optional`). An operation with several `2xx` responses decodes the body as
+the schema of the status that arrived and returns the union.
+
 ## Build
 
 ```bash
@@ -136,6 +171,58 @@ the optional brotli/zstd decoders, loaded reflectively, are unavailable in a
 native image unless you register them yourself.)
 
 ## Caveats
+
+### Optional and nullable are one `null`
+
+A property that is optional and one that is nullable both read as `null`: the
+model cannot tell a missing key from an explicit `null`. The one exception is a
+property that is both required and nullable, which must be present when decoding
+and is always written, `null` included.
+
+### Unknown enum values and discriminators fail loudly
+
+An enum value the spec does not list, and a discriminator value that maps to no
+variant, are errors (`SerializationException`), never a silent fallback. Regenerate
+the client when the API adds a value.
+
+### Response headers are one string each
+
+`ApiResult.headers()` and `ApiException.getResponseHeaders()` hold one string per
+header name, lower-cased. A header sent on several lines is joined with `, ` in
+the order received; `Set-Cookie` cannot be read back apart from that join.
+
+### Response compression
+
+Requests advertise `Accept-Encoding: gzip, deflate`, plus `br` and `zstd` when the
+optional `org.brotli:dec` and `zstd-jni` dependencies are on the class path. A
+compressed body is decoded for you and the returned headers drop `content-encoding`
+and `content-length`. Set your own `Accept-Encoding` header to change it.
+
+### Logging
+
+The SDK writes no log output and has no logging hook. To log requests, wrap the
+`ApiClient` interface (it has one `sendRequest` method) around the default
+transport, or give `TransportOptions.builder().httpClient(...)` a `HttpClient` of
+your own.
+
+### Streaming is not supported
+
+Request and response bodies are read whole into memory. There is no streaming
+download or server-sent events API; a large or streamed body needs your own
+`java.net.http.HttpClient` outside the SDK.
+
+### Configuration and `TransportOptions` stay separate
+
+`Configuration` holds what belongs to the API (the base URL and default headers);
+`TransportOptions` holds how bytes travel (proxy, TLS, timeout, retries,
+redirects). They are two types on purpose and the `Client` client
+builds the first from the authenticator and takes the second as an argument.
+
+### Versioning
+
+`1.0.0` is the version the generator was given (`artifactVersion`).
+It is not derived from the spec, so regenerating from a changed spec without
+raising the version produces different code under the same number.
 
 ### Decimal / `format: number` precision
 

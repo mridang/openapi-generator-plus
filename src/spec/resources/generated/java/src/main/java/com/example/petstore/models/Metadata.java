@@ -13,12 +13,13 @@ import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
 /** Metadata. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = Metadata.Builder.class)
 public class Metadata {
 
   /** The {@code createdAt} property. */
   @JsonProperty("createdAt")
   @Nullable
-  public OffsetDateTime createdAt;
+  public final OffsetDateTime createdAt;
 
   /* Wire names of the declared properties; an additional property with one of
    * these keys is never serialised (the declared property wins). */
@@ -27,18 +28,7 @@ public class Metadata {
 
   /* Not a property itself: the entries are written flat by the any-getter. */
   @com.fasterxml.jackson.annotation.JsonIgnore
-  private java.util.Map<String, Object> additionalProperties = new java.util.LinkedHashMap<>();
-
-  /**
-   * Stores an additional, undeclared property. Callers use it to send extra keys.
-   *
-   * @param key the property name
-   * @param value the property value
-   */
-  @com.fasterxml.jackson.annotation.JsonAnySetter
-  public void setAdditionalProperty(String key, Object value) {
-    this.additionalProperties.put(key, value);
-  }
+  private final java.util.Map<String, Object> additionalProperties;
 
   /**
    * Returns the additional, undeclared properties.
@@ -56,8 +46,131 @@ public class Metadata {
     return java.util.Collections.unmodifiableMap(extras);
   }
 
-  /** Creates an empty instance. */
-  public Metadata() {}
+  /** Creates an instance with every property at its default. */
+  public Metadata() {
+    this(new Builder());
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private Metadata(Builder builder) {
+    builder.requireNullableProperties();
+    this.createdAt = builder.createdAt;
+    this.additionalProperties = new java.util.LinkedHashMap<>(builder.additionalProperties);
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.createdAt = this.createdAt;
+    builder.additionalProperties.putAll(this.additionalProperties);
+    return builder;
+  }
+
+  /** Builds Metadata instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private OffsetDateTime createdAt;
+    private final java.util.Map<String, Object> additionalProperties =
+        new java.util.LinkedHashMap<>();
+
+    private Builder() {}
+
+    /**
+     * Sets the "createdAt" property.
+     *
+     * @param createdAt the new value
+     * @return this builder
+     */
+    @JsonProperty("createdAt")
+    public Builder createdAt(@Nullable OffsetDateTime createdAt) {
+      this.createdAt = createdAt;
+      return this;
+    }
+
+    /**
+     * Replaces all additional, undeclared properties.
+     *
+     * @param additionalProperties the additional properties, keyed by property name
+     * @return this builder
+     */
+    public Builder additionalProperties(java.util.Map<String, Object> additionalProperties) {
+      this.additionalProperties.clear();
+      this.additionalProperties.putAll(additionalProperties);
+      return this;
+    }
+
+    /**
+     * Adds one additional, undeclared property; deserialization uses it for every key the schema
+     * does not declare.
+     *
+     * @param key the property name
+     * @param value the property value
+     * @return this builder
+     */
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    public Builder putAdditionalProperty(String key, Object value) {
+      this.additionalProperties.put(key, value);
+      return this;
+    }
+
+    /**
+     * Adds every entry of the given map as an additional, undeclared property.
+     *
+     * @param additionalProperties the properties to add, keyed by property name
+     * @return this builder
+     */
+    public Builder putAllAdditionalProperties(java.util.Map<String, Object> additionalProperties) {
+      this.additionalProperties.putAll(additionalProperties);
+      return this;
+    }
+
+    /**
+     * Removes one additional, undeclared property.
+     *
+     * @param key the property name
+     * @return this builder
+     */
+    public Builder removeAdditionalProperty(String key) {
+      this.additionalProperties.remove(key);
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public Metadata build() {
+      return new Metadata(this);
+    }
+  }
 
   /* Value-equality based on all declared fields (including
    * the additionalProperties map). Generated so model

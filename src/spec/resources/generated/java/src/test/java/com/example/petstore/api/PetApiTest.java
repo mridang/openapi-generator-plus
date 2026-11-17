@@ -79,11 +79,13 @@ class PetApiTest {
 
   @Test
   void testAddPet() throws Exception {
-    Pet pet = new Pet();
-    pet.id = 12345L;
-    pet.name = "TestDog";
-    pet.photoUrls = Set.of("http://example.com/photo.jpg");
-    pet.status = Pet.StatusEnum.AVAILABLE;
+    Pet pet =
+        Pet.builder()
+            .id(12345L)
+            .name("TestDog")
+            .photoUrls(Set.of("http://example.com/photo.jpg"))
+            .status(Pet.StatusEnum.AVAILABLE)
+            .build();
 
     Pet result = api.addPet(pet, new AddPetOptions().auth(bearerAuth));
     assertNotNull(result);
@@ -96,11 +98,13 @@ class PetApiTest {
     // The Options arg (and its auth) is optional: omitting it falls back to
     // the credentials configured on the client (the default Authorization
     // header set in setUp), which must satisfy the secured endpoint.
-    Pet pet = new Pet();
-    pet.id = 54321L;
-    pet.name = "DefaultCredsDog";
-    pet.photoUrls = Set.of("http://example.com/photo.jpg");
-    pet.status = Pet.StatusEnum.AVAILABLE;
+    Pet pet =
+        Pet.builder()
+            .id(54321L)
+            .name("DefaultCredsDog")
+            .photoUrls(Set.of("http://example.com/photo.jpg"))
+            .status(Pet.StatusEnum.AVAILABLE)
+            .build();
 
     Pet result = api.addPet(pet);
     assertNotNull(result);
@@ -110,11 +114,13 @@ class PetApiTest {
 
   @Test
   void testAddPetWithHttpInfo() throws Exception {
-    Pet pet = new Pet();
-    pet.id = 99L;
-    pet.name = "HttpInfoDog";
-    pet.photoUrls = Set.of("http://example.com/photo.jpg");
-    pet.status = Pet.StatusEnum.AVAILABLE;
+    Pet pet =
+        Pet.builder()
+            .id(99L)
+            .name("HttpInfoDog")
+            .photoUrls(Set.of("http://example.com/photo.jpg"))
+            .status(Pet.StatusEnum.AVAILABLE)
+            .build();
 
     var result = api.addPetWithHttpInfo(pet, new AddPetOptions().auth(bearerAuth));
     assertNotNull(result);
@@ -161,11 +167,13 @@ class PetApiTest {
 
   @Test
   void testUpdatePet() throws Exception {
-    Pet pet = new Pet();
-    pet.id = 1L;
-    pet.name = "UpdatedDog";
-    pet.photoUrls = Set.of("http://example.com/updated.jpg");
-    pet.status = Pet.StatusEnum.PENDING;
+    Pet pet =
+        Pet.builder()
+            .id(1L)
+            .name("UpdatedDog")
+            .photoUrls(Set.of("http://example.com/updated.jpg"))
+            .status(Pet.StatusEnum.PENDING)
+            .build();
 
     Pet result = api.updatePet(1L, pet);
     assertNotNull(result);
@@ -173,11 +181,13 @@ class PetApiTest {
 
   @Test
   void testUpdatePetWithHttpInfo() throws Exception {
-    Pet pet = new Pet();
-    pet.id = 1L;
-    pet.name = "UpdatedDog";
-    pet.photoUrls = Set.of("http://example.com/updated.jpg");
-    pet.status = Pet.StatusEnum.PENDING;
+    Pet pet =
+        Pet.builder()
+            .id(1L)
+            .name("UpdatedDog")
+            .photoUrls(Set.of("http://example.com/updated.jpg"))
+            .status(Pet.StatusEnum.PENDING)
+            .build();
 
     var result = api.updatePetWithHttpInfo(1L, pet);
     assertNotNull(result);
@@ -273,9 +283,7 @@ class PetApiTest {
 
   @Test
   void testAddPetPhotos() throws Exception {
-    PhotoMetadata metadata = new PhotoMetadata();
-    metadata.caption = "Test photo";
-    metadata.isPrimary = true;
+    PhotoMetadata metadata = PhotoMetadata.builder().caption("Test photo").isPrimary(true).build();
 
     List<InputStream> files =
         List.of(new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8)));
@@ -483,10 +491,12 @@ class PetApiTest {
     PetStoreBearerAuthenticator perCallAuth =
         new PetStoreBearerAuthenticator(baseUrl, "per-call-token");
 
-    Pet pet = new Pet();
-    pet.id = 1L;
-    pet.name = "OverrideDog";
-    pet.photoUrls = Set.of("http://example.com/p.jpg");
+    Pet pet =
+        Pet.builder()
+            .id(1L)
+            .name("OverrideDog")
+            .photoUrls(Set.of("http://example.com/p.jpg"))
+            .build();
     overrideApi.addPet(pet, new AddPetOptions().auth(perCallAuth));
 
     assertThat(capturedAuthHeader[0]).isEqualTo("Bearer per-call-token");
@@ -520,10 +530,12 @@ class PetApiTest {
             .build();
     PetApi defaultApi = new PetApi(new DefaultApiClient(), defaultConfig);
 
-    Pet pet = new Pet();
-    pet.id = 1L;
-    pet.name = "DefaultDog";
-    pet.photoUrls = Set.of("http://example.com/p.jpg");
+    Pet pet =
+        Pet.builder()
+            .id(1L)
+            .name("DefaultDog")
+            .photoUrls(Set.of("http://example.com/p.jpg"))
+            .build();
     defaultApi.addPet(pet);
 
     assertThat(capturedAuthHeader[0]).isEqualTo("Bearer default-token");
@@ -1451,9 +1463,7 @@ class PetApiTest {
     PetApi petApi =
         new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
     com.example.petstore.models.PetCriteria criteria =
-        new com.example.petstore.models.PetCriteria();
-    criteria.breed = "lab";
-    criteria.minAge = 3;
+        com.example.petstore.models.PetCriteria.builder().breed("lab").minAge(3).build();
 
     petApi.getPetTag(
         5L,
@@ -1480,8 +1490,7 @@ class PetApiTest {
     PetApi petApi =
         new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
     com.example.petstore.models.Medication medication =
-        new com.example.petstore.models.Medication("aspirin");
-    medication.dosage = "10mg";
+        new com.example.petstore.models.Medication("aspirin").toBuilder().dosage("10mg").build();
 
     com.example.petstore.models.PetTreatment result =
         petApi.addPetTreatment(9L, new com.example.petstore.models.PetTreatment(medication));

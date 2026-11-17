@@ -734,6 +734,101 @@ class BaseApiTest {
     }
 
     @Nested
+    @DisplayName("per-call options")
+    class PerCallOptions {
+
+        /** A client that records the per-call overrides it is handed. */
+        static class OverrideCapturingClient extends CapturingApiClient {
+            @Nullable Integer capturedTimeout;
+            @Nullable Integer capturedRetries;
+            boolean overrideOverloadUsed;
+
+            @Override
+            public ApiHttpResponse sendRequest(
+                    String method,
+                    String url,
+                    Map<String, String> headers,
+                    @Nullable Object body,
+                    @Nullable Integer timeoutMillis,
+                    @Nullable Integer maxRetries) {
+                this.overrideOverloadUsed = true;
+                this.capturedTimeout = timeoutMillis;
+                this.capturedRetries = maxRetries;
+                return sendRequest(method, url, headers, body);
+            }
+        }
+
+        private PetApi apiOver(ApiClient client) {
+            return new PetApi(client, new Configuration("http://localhost", Map.of()));
+        }
+
+        @Test
+        @DisplayName("timeout and maxRetries reach the transport")
+        void timeoutAndRetriesReachTheTransport() {
+            var client = new OverrideCapturingClient();
+            try {
+                apiOver(client).findPetsByStatus(new FindPetsByStatusOptions().timeout(1500).maxRetries(0));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertTrue(client.overrideOverloadUsed);
+            assertEquals(1500, client.capturedTimeout);
+            assertEquals(0, client.capturedRetries);
+        }
+
+        @Test
+        @DisplayName("without per-call settings the plain send is used")
+        void withoutPerCallSettingsThePlainSendIsUsed() {
+            var client = new OverrideCapturingClient();
+            try {
+                apiOver(client).findPetsByStatus(new FindPetsByStatusOptions());
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertFalse(client.overrideOverloadUsed);
+        }
+
+        @Test
+        @DisplayName("headers are sent with the call")
+        void headersAreSentWithTheCall() {
+            var client = new CapturingApiClient();
+            try {
+                apiOver(client)
+                        .findPetsByStatus(
+                                new FindPetsByStatusOptions().headers(Map.of("X-Trace", "abc")));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured headers
+            }
+            assertEquals("abc", client.capturedHeaders.get("X-Trace"));
+        }
+
+        @Test
+        @DisplayName("a per-call header replaces a default header of the same name")
+        void perCallHeaderReplacesADefault() {
+            var client = new CapturingApiClient();
+            var api =
+                    new PetApi(
+                            client,
+                            new Configuration("http://localhost", Map.of("X-Trace", "default")));
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions().headers(Map.of("X-Trace", "call")));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured headers
+            }
+            assertEquals("call", client.capturedHeaders.get("X-Trace"));
+        }
+
+        @Test
+        @DisplayName("an invalid timeout or retry count is refused")
+        void anInvalidTimeoutOrRetryCountIsRefused() {
+            assertThrows(
+                    IllegalArgumentException.class, () -> new FindPetsByStatusOptions().timeout(0));
+            assertThrows(
+                    IllegalArgumentException.class, () -> new FindPetsByStatusOptions().maxRetries(-1));
+        }
+    }
+
+    @Nested
     @DisplayName("server variable overrides")
     class ServerVariableOverrides {
 

@@ -12,44 +12,130 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
 /** Surgery. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = Surgery.Builder.class)
 public class Surgery {
 
   /** The {@code procedureName} property. */
   @JsonProperty("procedureName")
-  public String procedureName;
+  public final String procedureName;
 
   /** The {@code durationMinutes} property. */
   @JsonProperty("durationMinutes")
   @Nullable
-  public Integer durationMinutes;
+  public final Integer durationMinutes;
 
   /** The {@code notes} property. */
   @JsonProperty("notes")
   @Nullable
-  public String notes;
-
-  /* No-arg constructor required by deserialization/test tooling. It
-   * intentionally leaves the @NonNull required fields uninitialized — the
-   * @JsonCreator constructor below populates them on the deserialization path.
-   * NullAway.Init cannot be moved to a global config home without either
-   * excluding every @JsonProperty field from init-checking (which would hide
-   * genuinely-missing initializers across all models) or marking whole classes
-   * unannotated (disabling null-safety on the model entirely); both weaken a
-   * real correctness rule, so the suppression is kept here, scoped to this
-   * single framework-mandated constructor. */
-  /** Creates an empty instance for deserialization; required fields are populated later. */
-  @SuppressWarnings("NullAway.Init")
-  public Surgery() {}
+  public final String notes;
 
   /**
    * Creates an instance with all required properties.
    *
    * @param procedureName the {@code procedureName} property
    */
-  @com.fasterxml.jackson.annotation.JsonCreator
-  public Surgery(@JsonProperty(value = "procedureName", required = true) String procedureName) {
+  public Surgery(String procedureName) {
+    this(new Builder().procedureName(procedureName));
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private Surgery(Builder builder) {
+    builder.requireNullableProperties();
     this.procedureName =
-        java.util.Objects.requireNonNull(procedureName, "procedureName is required");
+        java.util.Objects.requireNonNull(builder.procedureName, "procedureName is required");
+    this.durationMinutes = builder.durationMinutes;
+    this.notes = builder.notes;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.procedureName = this.procedureName;
+    builder.durationMinutes = this.durationMinutes;
+    builder.notes = this.notes;
+    return builder;
+  }
+
+  /** Builds Surgery instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private String procedureName;
+    @Nullable private Integer durationMinutes;
+    @Nullable private String notes;
+
+    private Builder() {}
+
+    /**
+     * Sets the "procedureName" property.
+     *
+     * @param procedureName the new value
+     * @return this builder
+     */
+    @JsonProperty("procedureName")
+    public Builder procedureName(String procedureName) {
+      this.procedureName = procedureName;
+      return this;
+    }
+
+    /**
+     * Sets the "durationMinutes" property.
+     *
+     * @param durationMinutes the new value
+     * @return this builder
+     */
+    @JsonProperty("durationMinutes")
+    public Builder durationMinutes(@Nullable Integer durationMinutes) {
+      this.durationMinutes = durationMinutes;
+      return this;
+    }
+
+    /**
+     * Sets the "notes" property.
+     *
+     * @param notes the new value
+     * @return this builder
+     */
+    @JsonProperty("notes")
+    public Builder notes(@Nullable String notes) {
+      this.notes = notes;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public Surgery build() {
+      return new Surgery(this);
+    }
   }
 
   /* Value-equality based on all declared fields. Generated so model

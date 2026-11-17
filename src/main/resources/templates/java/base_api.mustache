@@ -21,6 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -152,6 +154,61 @@ public abstract class BaseApi {
             String contentType,
             @Nullable Type returnType,
             @Nullable Authenticator auth) {
+        return invokeApiForResult(
+                operationId,
+                method,
+                path,
+                queryParams,
+                headerParams,
+                body,
+                accepts,
+                contentType,
+                returnType,
+                auth,
+                null,
+                null,
+                null);
+    }
+
+    /**
+     * Invoke an API operation with per-call overrides and, optionally, a decoder that
+     * turns a success body into the result by the status code that arrived.
+     *
+     * @param <T>             the return type
+     * @param operationId     operation id, named in serialization errors
+     * @param method          HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path            URL path (with path params already substituted)
+     * @param queryParams     query parameters
+     * @param headerParams    custom header parameters
+     * @param body            request body (model object or null)
+     * @param accepts         acceptable response content types
+     * @param contentType     request content type
+     * @param returnType      return type for deserialization (null for void)
+     * @param auth            optional authenticator for operation-specific auth
+     * @param timeoutMillis   end-to-end timeout in milliseconds for this call, or {@code null}
+     *                        to use the transport's timeout
+     * @param maxRetries      retry count for this call, or {@code null} to use the transport's
+     * @param successDecoder  decodes a non-empty success body from its status code and raw
+     *                        text, or {@code null} to decode with {@code returnType}; an
+     *                        operation with several 2xx schemas passes one so the body is
+     *                        decoded as the schema of the status that arrived
+     * @return ApiResult containing deserialized data, status code, raw body, and headers
+     * @throws ApiException if the API call fails
+     */
+    protected <T> ApiResult<T> invokeApiForResult(
+            String operationId,
+            String method,
+            String path,
+            Map<String, Object> queryParams,
+            Map<String, String> headerParams,
+            @Nullable Object body,
+            String[] accepts,
+            String contentType,
+            @Nullable Type returnType,
+            @Nullable Authenticator auth,
+            @Nullable Integer timeoutMillis,
+            @Nullable Integer maxRetries,
+            @Nullable BiFunction<Integer, String, T> successDecoder) {
 
         String url;
         if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -311,15 +368,24 @@ public abstract class BaseApi {
 
         ApiHttpResponse response =
                 sendReplayingOnUnauthorized(
-                        method, url, headers, requestBody, effectiveAuth, sentAuthHeaders);
+                        method,
+                        url,
+                        headers,
+                        requestBody,
+                        effectiveAuth,
+                        sentAuthHeaders,
+                        timeoutMillis,
+                        maxRetries);
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw ApiException.fromResponse(
-                    response.statusCode(), response.headers(), response.body());
+                    method, path, response.statusCode(), response.headers(), response.body());
         }
 
         T data = null;
-        if (returnType != null && response.body() != null && !response.body().isEmpty()) {
+        if (successDecoder != null && response.body() != null && !response.body().isEmpty()) {
+            data = successDecoder.apply(response.statusCode(), response.body());
+        } else if (returnType != null && response.body() != null && !response.body().isEmpty()) {
             String responseContentType = "";
             if (response.headers() != null) {
                 for (Map.Entry<String, String> entry : response.headers().entrySet()) {
@@ -401,6 +467,22 @@ public abstract class BaseApi {
     }
 
     /**
+     * Decode a success body as one variant of a result union and wrap it.
+     *
+     * @param <U>         the union type
+     * @param body        the raw response text
+     * @param variantType the schema of the status code that arrived
+     * @param wrap        wraps the decoded variant in the union
+     * @return the union, or {@code null} when the body decodes to nothing
+     * @throws SerializationException if the body does not match the variant schema
+     */
+    @Nullable
+    protected <U> U decodeVariant(String body, Type variantType, Function<Object, U> wrap) {
+        Object variant = objectSerializer.deserialize(body, variantType);
+        return variant == null ? null : wrap.apply(variant);
+    }
+
+    /**
      * Extract the single binary payload from a form-style body Map when a
      * raw-binary content-type (application/octet-stream or image/*) was
      * selected for an operation that also declares multipart/form-data.
@@ -446,8 +528,11 @@ public abstract class BaseApi {
             Map<String, String> headers,
             @Nullable Object requestBody,
             @Nullable Authenticator auth,
-            Map<String, String> sentAuthHeaders) {
-        ApiHttpResponse response = apiClient.sendRequest(method, url, headers, requestBody);
+            Map<String, String> sentAuthHeaders,
+            @Nullable Integer timeoutMillis,
+            @Nullable Integer maxRetries) {
+        ApiHttpResponse response =
+                send(method, url, headers, requestBody, timeoutMillis, maxRetries);
         if (response.statusCode() != 401 || !(auth instanceof HttpAwareAuthenticator tokenAuth)) {
             return response;
         }
@@ -464,7 +549,21 @@ public abstract class BaseApi {
         headers.keySet()
                 .removeIf(name -> fresh.keySet().stream().anyMatch(name::equalsIgnoreCase));
         headers.putAll(fresh);
-        return apiClient.sendRequest(method, url, headers, requestBody);
+        return send(method, url, headers, requestBody, timeoutMillis, maxRetries);
+    }
+
+    /** Send through the client, passing the per-call overrides only when there are any. */
+    private ApiHttpResponse send(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object requestBody,
+            @Nullable Integer timeoutMillis,
+            @Nullable Integer maxRetries) {
+        if (timeoutMillis == null && maxRetries == null) {
+            return apiClient.sendRequest(method, url, headers, requestBody);
+        }
+        return apiClient.sendRequest(method, url, headers, requestBody, timeoutMillis, maxRetries);
     }
 
     /**

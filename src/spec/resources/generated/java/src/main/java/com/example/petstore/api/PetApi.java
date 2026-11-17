@@ -434,6 +434,12 @@ public class PetApi extends BaseApi {
     String path = "/pet";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "addPet",
         "POST",
@@ -444,7 +450,10 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         addPetTypeRef,
-        auth);
+        auth,
+        callTimeout,
+        callMaxRetries,
+        null);
   }
 
   /**
@@ -495,6 +504,12 @@ public class PetApi extends BaseApi {
     formBody.put("files", options.files());
     formBody.put("metadata", options.metadata());
 
+    Integer callTimeout = options.timeout();
+    Integer callMaxRetries = options.maxRetries();
+    Map<String, String> callHeaders = options.headers();
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "addPetPhotos",
         "POST",
@@ -505,6 +520,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "multipart/form-data",
         addPetPhotosTypeRef,
+        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -586,6 +604,12 @@ public class PetApi extends BaseApi {
                         "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "addPetTreatment",
         "POST",
@@ -596,7 +620,10 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         addPetTreatmentTypeRef,
-        auth);
+        auth,
+        callTimeout,
+        callMaxRetries,
+        null);
   }
 
   /**
@@ -691,6 +718,12 @@ public class PetApi extends BaseApi {
     if (cookieJoiner.length() > 0) {
       headerParams.put("Cookie", cookieJoiner.toString());
     }
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "deletePet",
         "DELETE",
@@ -701,7 +734,10 @@ public class PetApi extends BaseApi {
         new String[] {},
         "application/json",
         null,
-        auth);
+        auth,
+        callTimeout,
+        callMaxRetries,
+        null);
   }
 
   /**
@@ -759,6 +795,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/octet-stream"},
         "application/json",
         downloadPetDocumentTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -804,6 +843,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         findPetsBornOnTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -904,6 +946,12 @@ public class PetApi extends BaseApi {
                   "simple",
                   false));
     }
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "findPetsByStatus",
         "GET",
@@ -914,6 +962,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         findPetsByStatusTypeRef,
+        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -990,6 +1041,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getExternalPetInfoTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -1066,6 +1120,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getMultiServerPetInfoTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -1111,6 +1168,9 @@ public class PetApi extends BaseApi {
         new String[] {"image/jpeg", "image/png"},
         "application/json",
         getPetAvatarTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -1158,6 +1218,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetAvatarThumbnailTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -1245,6 +1308,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetByIdTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -1315,6 +1381,12 @@ public class PetApi extends BaseApi {
                   "simple",
                   false));
     }
+    Integer callTimeout = options.timeout();
+    Integer callMaxRetries = options.maxRetries();
+    Map<String, String> callHeaders = options.headers();
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getPetByName",
         "GET",
@@ -1325,6 +1397,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetByNameTypeRef,
+        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -1374,6 +1449,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetPassportTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -1432,6 +1510,9 @@ public class PetApi extends BaseApi {
         new String[] {"image/jpeg", "image/png", "application/json"},
         "application/json",
         getPetPhotoTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -1522,6 +1603,12 @@ public class PetApi extends BaseApi {
     if (cookieJoiner.length() > 0) {
       headerParams.put("Cookie", cookieJoiner.toString());
     }
+    Integer callTimeout = options.timeout();
+    Integer callMaxRetries = options.maxRetries();
+    Map<String, String> callHeaders = options.headers();
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getPetSummary",
         "GET",
@@ -1532,6 +1619,9 @@ public class PetApi extends BaseApi {
         new String[] {"text/plain"},
         "application/json",
         getPetSummaryTypeRef,
+        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -1693,6 +1783,12 @@ public class PetApi extends BaseApi {
                   "simple",
                   false));
     }
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "getPetTag",
         "GET",
@@ -1703,6 +1799,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetTagTypeRef,
+        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -1779,6 +1878,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getStagingPetInfoTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -1887,6 +1989,9 @@ public class PetApi extends BaseApi {
         new String[] {},
         effectiveRequestContentType,
         null,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -1941,6 +2046,9 @@ public class PetApi extends BaseApi {
         setPetAvatarThumbnailRequest,
         new String[] {},
         "application/json",
+        null,
+        null,
+        null,
         null,
         null);
   }
@@ -2005,6 +2113,12 @@ public class PetApi extends BaseApi {
       formBody.put("reminder", options.reminder());
     }
 
+    Integer callTimeout = options.timeout();
+    Integer callMaxRetries = options.maxRetries();
+    Map<String, String> callHeaders = options.headers();
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "setPetPreferences",
         "POST",
@@ -2015,6 +2129,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/x-www-form-urlencoded",
         setPetPreferencesTypeRef,
+        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -2066,6 +2183,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         updatePetTypeRef,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -2113,6 +2233,12 @@ public class PetApi extends BaseApi {
     Map<String, Object> formBody = new LinkedHashMap<>();
     formBody.put("file", options.file());
 
+    Integer callTimeout = options.timeout();
+    Integer callMaxRetries = options.maxRetries();
+    Map<String, String> callHeaders = options.headers();
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "uploadPetCertificate",
         "POST",
@@ -2123,6 +2249,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "multipart/form-data",
         uploadPetCertificateTypeRef,
+        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 
@@ -2249,6 +2378,12 @@ public class PetApi extends BaseApi {
       }
       effectiveRequestContentType = requestContentType;
     }
+    Integer callTimeout = options.timeout();
+    Integer callMaxRetries = options.maxRetries();
+    Map<String, String> callHeaders = options.headers();
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
     return invokeApiForResult(
         "uploadPetDocument",
         "POST",
@@ -2259,6 +2394,9 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         effectiveRequestContentType,
         uploadPetDocumentTypeRef,
+        null,
+        callTimeout,
+        callMaxRetries,
         null);
   }
 

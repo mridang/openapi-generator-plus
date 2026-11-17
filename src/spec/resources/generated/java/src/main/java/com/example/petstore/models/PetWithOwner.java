@@ -19,6 +19,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 /** A pet record extended with owner information. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = PetWithOwner.Builder.class)
 public class PetWithOwner {
 
   /** Allowed values for the {@code status} property. */
@@ -81,7 +82,7 @@ public class PetWithOwner {
    */
   @JsonProperty("id")
   @Nullable
-  public Long id;
+  public final Long id;
 
   /**
    * The {@code name} property.
@@ -89,21 +90,21 @@ public class PetWithOwner {
    * <p>Example: {@code doggie}
    */
   @JsonProperty("name")
-  public String name;
+  public final String name;
 
   /** The {@code category} property. */
   @JsonProperty("category")
   @Nullable
-  public Category category;
+  public final Category category;
 
   /** The {@code photoUrls} property. */
   @JsonProperty("photoUrls")
-  public Set<String> photoUrls = new LinkedHashSet<>();
+  public final Set<String> photoUrls;
 
   /** The {@code tags} property. */
   @JsonProperty("tags")
   @Nullable
-  public List<Tag> tags;
+  public final List<Tag> tags;
 
   /**
    * pet status in the store
@@ -113,12 +114,12 @@ public class PetWithOwner {
   @Deprecated
   @JsonProperty("status")
   @Nullable
-  public StatusEnum status;
+  public final StatusEnum status;
 
   /** The {@code location} property. */
   @JsonProperty("location")
   @Nullable
-  public List<Object> location;
+  public final List<Object> location;
 
   /**
    * Absolute URL to the pet's public profile page
@@ -127,7 +128,7 @@ public class PetWithOwner {
    */
   @JsonProperty("homepageUrl")
   @Nullable
-  public URI homepageUrl;
+  public final URI homepageUrl;
 
   /**
    * Optionally-relative thumbnail location
@@ -136,7 +137,7 @@ public class PetWithOwner {
    */
   @JsonProperty("thumbnailRef")
   @Nullable
-  public String thumbnailRef;
+  public final String thumbnailRef;
 
   /**
    * RFC 6570 template for related-resource links
@@ -145,12 +146,12 @@ public class PetWithOwner {
    */
   @JsonProperty("linkTemplate")
   @Nullable
-  public String linkTemplate;
+  public final String linkTemplate;
 
   /** The {@code ownerEmail} property. */
   @JsonProperty("ownerEmail")
   @Nullable
-  public String ownerEmail;
+  public final String ownerEmail;
 
   /**
    * Pet weight in kilograms (decimal precision)
@@ -159,7 +160,7 @@ public class PetWithOwner {
    */
   @JsonProperty("weightKg")
   @Nullable
-  public BigDecimal weightKg;
+  public final BigDecimal weightKg;
 
   /**
    * The {@code nickname} property.
@@ -168,24 +169,11 @@ public class PetWithOwner {
    */
   @JsonProperty("nickname")
   @Nullable
-  public String nickname;
+  public final String nickname;
 
   /** The {@code ownerName} property. */
   @JsonProperty("ownerName")
-  public String ownerName;
-
-  /* No-arg constructor required by deserialization/test tooling. It
-   * intentionally leaves the @NonNull required fields uninitialized — the
-   * @JsonCreator constructor below populates them on the deserialization path.
-   * NullAway.Init cannot be moved to a global config home without either
-   * excluding every @JsonProperty field from init-checking (which would hide
-   * genuinely-missing initializers across all models) or marking whole classes
-   * unannotated (disabling null-safety on the model entirely); both weaken a
-   * real correctness rule, so the suppression is kept here, scoped to this
-   * single framework-mandated constructor. */
-  /** Creates an empty instance for deserialization; required fields are populated later. */
-  @SuppressWarnings("NullAway.Init")
-  public PetWithOwner() {}
+  public final String ownerName;
 
   /**
    * Creates an instance with all required properties.
@@ -194,14 +182,292 @@ public class PetWithOwner {
    * @param photoUrls the {@code photoUrls} property
    * @param ownerName the {@code ownerName} property
    */
-  @com.fasterxml.jackson.annotation.JsonCreator
-  public PetWithOwner(
-      @JsonProperty(value = "name", required = true) String name,
-      @JsonProperty(value = "photoUrls", required = true) Set<String> photoUrls,
-      @JsonProperty(value = "ownerName", required = true) String ownerName) {
-    this.name = java.util.Objects.requireNonNull(name, "name is required");
-    this.photoUrls = java.util.Objects.requireNonNull(photoUrls, "photoUrls is required");
-    this.ownerName = java.util.Objects.requireNonNull(ownerName, "ownerName is required");
+  public PetWithOwner(String name, Set<String> photoUrls, String ownerName) {
+    this(new Builder().name(name).photoUrls(photoUrls).ownerName(ownerName));
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private PetWithOwner(Builder builder) {
+    builder.requireNullableProperties();
+    this.id = builder.id;
+    this.name = java.util.Objects.requireNonNull(builder.name, "name is required");
+    this.category = builder.category;
+    this.photoUrls =
+        java.util.Collections.unmodifiableSet(
+            new java.util.LinkedHashSet<>(
+                java.util.Objects.requireNonNull(builder.photoUrls, "photoUrls is required")));
+    this.tags =
+        builder.tags == null
+            ? null
+            : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(builder.tags));
+    this.status = builder.status;
+    this.location =
+        builder.location == null
+            ? null
+            : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(builder.location));
+    this.homepageUrl = builder.homepageUrl;
+    this.thumbnailRef = builder.thumbnailRef;
+    this.linkTemplate = builder.linkTemplate;
+    this.ownerEmail = builder.ownerEmail;
+    this.weightKg = builder.weightKg;
+    this.nickname = builder.nickname;
+    this.ownerName = java.util.Objects.requireNonNull(builder.ownerName, "ownerName is required");
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.id = this.id;
+    builder.name = this.name;
+    builder.category = this.category;
+    builder.photoUrls = this.photoUrls;
+    builder.tags = this.tags;
+    builder.status = this.status;
+    builder.location = this.location;
+    builder.homepageUrl = this.homepageUrl;
+    builder.thumbnailRef = this.thumbnailRef;
+    builder.linkTemplate = this.linkTemplate;
+    builder.ownerEmail = this.ownerEmail;
+    builder.weightKg = this.weightKg;
+    builder.nickname = this.nickname;
+    builder.ownerName = this.ownerName;
+    return builder;
+  }
+
+  /** Builds PetWithOwner instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Long id;
+    @Nullable private String name;
+    @Nullable private Category category;
+    @Nullable private Set<String> photoUrls = new LinkedHashSet<>();
+    @Nullable private List<Tag> tags;
+    @Nullable private StatusEnum status;
+    @Nullable private List<Object> location;
+    @Nullable private URI homepageUrl;
+    @Nullable private String thumbnailRef;
+    @Nullable private String linkTemplate;
+    @Nullable private String ownerEmail;
+    @Nullable private BigDecimal weightKg;
+    @Nullable private String nickname;
+    @Nullable private String ownerName;
+
+    private Builder() {}
+
+    /**
+     * Sets the "id" property.
+     *
+     * @param id the new value
+     * @return this builder
+     */
+    @JsonProperty("id")
+    public Builder id(@Nullable Long id) {
+      this.id = id;
+      return this;
+    }
+
+    /**
+     * Sets the "name" property.
+     *
+     * @param name the new value
+     * @return this builder
+     */
+    @JsonProperty("name")
+    public Builder name(String name) {
+      this.name = name;
+      return this;
+    }
+
+    /**
+     * Sets the "category" property.
+     *
+     * @param category the new value
+     * @return this builder
+     */
+    @JsonProperty("category")
+    public Builder category(@Nullable Category category) {
+      this.category = category;
+      return this;
+    }
+
+    /**
+     * Sets the "photoUrls" property.
+     *
+     * @param photoUrls the new value
+     * @return this builder
+     */
+    @JsonProperty("photoUrls")
+    public Builder photoUrls(Set<String> photoUrls) {
+      this.photoUrls =
+          photoUrls == null
+              ? null
+              : java.util.Collections.unmodifiableSet(new java.util.LinkedHashSet<>(photoUrls));
+      return this;
+    }
+
+    /**
+     * Sets the "tags" property.
+     *
+     * @param tags the new value
+     * @return this builder
+     */
+    @JsonProperty("tags")
+    public Builder tags(@Nullable List<Tag> tags) {
+      this.tags =
+          tags == null
+              ? null
+              : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(tags));
+      return this;
+    }
+
+    /**
+     * Sets the "status" property.
+     *
+     * @param status the new value
+     * @return this builder
+     * @deprecated This property is deprecated.
+     */
+    @Deprecated
+    @JsonProperty("status")
+    public Builder status(@Nullable StatusEnum status) {
+      this.status = status;
+      return this;
+    }
+
+    /**
+     * Sets the "location" property.
+     *
+     * @param location the new value
+     * @return this builder
+     */
+    @JsonProperty("location")
+    public Builder location(@Nullable List<Object> location) {
+      this.location =
+          location == null
+              ? null
+              : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(location));
+      return this;
+    }
+
+    /**
+     * Sets the "homepageUrl" property.
+     *
+     * @param homepageUrl the new value
+     * @return this builder
+     */
+    @JsonProperty("homepageUrl")
+    public Builder homepageUrl(@Nullable URI homepageUrl) {
+      this.homepageUrl = homepageUrl;
+      return this;
+    }
+
+    /**
+     * Sets the "thumbnailRef" property.
+     *
+     * @param thumbnailRef the new value
+     * @return this builder
+     */
+    @JsonProperty("thumbnailRef")
+    public Builder thumbnailRef(@Nullable String thumbnailRef) {
+      this.thumbnailRef = thumbnailRef;
+      return this;
+    }
+
+    /**
+     * Sets the "linkTemplate" property.
+     *
+     * @param linkTemplate the new value
+     * @return this builder
+     */
+    @JsonProperty("linkTemplate")
+    public Builder linkTemplate(@Nullable String linkTemplate) {
+      this.linkTemplate = linkTemplate;
+      return this;
+    }
+
+    /**
+     * Sets the "ownerEmail" property.
+     *
+     * @param ownerEmail the new value
+     * @return this builder
+     */
+    @JsonProperty("ownerEmail")
+    public Builder ownerEmail(@Nullable String ownerEmail) {
+      this.ownerEmail = ownerEmail;
+      return this;
+    }
+
+    /**
+     * Sets the "weightKg" property.
+     *
+     * @param weightKg the new value
+     * @return this builder
+     */
+    @JsonProperty("weightKg")
+    public Builder weightKg(@Nullable BigDecimal weightKg) {
+      this.weightKg = weightKg;
+      return this;
+    }
+
+    /**
+     * Sets the "nickname" property.
+     *
+     * @param nickname the new value
+     * @return this builder
+     */
+    @JsonProperty("nickname")
+    public Builder nickname(@Nullable String nickname) {
+      this.nickname = nickname;
+      return this;
+    }
+
+    /**
+     * Sets the "ownerName" property.
+     *
+     * @param ownerName the new value
+     * @return this builder
+     */
+    @JsonProperty("ownerName")
+    public Builder ownerName(String ownerName) {
+      this.ownerName = ownerName;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public PetWithOwner build() {
+      return new PetWithOwner(this);
+    }
   }
 
   /* Value-equality based on all declared fields. Generated so model

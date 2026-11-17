@@ -8,12 +8,40 @@
     <description>{{#appDescription}}<![CDATA[{{#lambda.unescapeDocComment}}{{{appDescription}}}{{/lambda.unescapeDocComment}}]]>{{/appDescription}}{{^appDescription}}{{artifactId}}{{/appDescription}}</description>
     <version>{{artifactVersion}}</version>
 
+{{#homepageUrl}}
+    <url>{{homepageUrl}}</url>
+{{/homepageUrl}}
+
     <licenses>
         <license>
             <name>{{licenseId}}</name>
             <url>{{licenseUrl}}</url>
         </license>
     </licenses>
+{{#authorList}}
+{{#-first}}
+
+    <developers>
+{{/-first}}
+        <developer>
+            <name>{{name}}</name>
+        </developer>
+{{#-last}}
+    </developers>
+{{/-last}}
+{{/authorList}}
+{{#repositoryUrl}}
+
+    <scm>
+        <url>{{repositoryUrl}}</url>
+    </scm>
+{{/repositoryUrl}}
+{{#issueTrackerUrl}}
+
+    <issueManagement>
+        <url>{{issueTrackerUrl}}</url>
+    </issueManagement>
+{{/issueTrackerUrl}}
 
     <build>
         <plugins>
@@ -128,6 +156,19 @@
                         </manifestEntries>
                     </archive>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

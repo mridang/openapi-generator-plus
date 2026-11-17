@@ -109,13 +109,17 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
     }
     Map<String, String> headers = new HashMap<>();
     headers.put("Accept", "application/json");
-    ApiHttpResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
+    /* The identity provider is a different origin: the transport's default
+     * headers, which may hold the API credentials, stay off this request. */
+    ApiHttpResponse response =
+        apiClient.sendRequest("GET", openIdConnectUrl, headers, null, false, true);
     /* Guard the HTTP status before parsing: a 5xx/4xx discovery
      * response is typically an HTML/text error page, which would
      * otherwise surface as a confusing "invalid JSON" error instead
      * of the real "discovery failed" condition. */
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
-      throw ApiException.fromResponse(response.statusCode(), response.headers(), response.body());
+      throw ApiException.fromResponse(
+          "GET", openIdConnectUrl, response.statusCode(), response.headers(), response.body());
     }
     JsonNode discovery;
     try {

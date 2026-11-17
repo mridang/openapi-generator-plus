@@ -12,30 +12,147 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
 /** Photo. */
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = Photo.Builder.class)
 public class Photo {
 
   /** The {@code id} property. */
   @JsonProperty("id")
   @Nullable
-  public Long id;
+  public final Long id;
 
   /** The {@code caption} property. */
   @JsonProperty("caption")
   @Nullable
-  public String caption;
+  public final String caption;
 
   /** The {@code isPrimary} property. */
   @JsonProperty("isPrimary")
   @Nullable
-  public Boolean isPrimary;
+  public final Boolean isPrimary;
 
   /** The {@code url} property. */
   @JsonProperty("url")
   @Nullable
-  public String url;
+  public final String url;
 
-  /** Creates an empty instance. */
-  public Photo() {}
+  /** Creates an instance with every property at its default. */
+  public Photo() {
+    this(new Builder());
+  }
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private Photo(Builder builder) {
+    builder.requireNullableProperties();
+    this.id = builder.id;
+    this.caption = builder.caption;
+    this.isPrimary = builder.isPrimary;
+    this.url = builder.url;
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is {@code
+   * instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+    builder.id = this.id;
+    builder.caption = this.caption;
+    builder.isPrimary = this.isPrimary;
+    builder.url = this.url;
+    return builder;
+  }
+
+  /** Builds Photo instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+    @Nullable private Long id;
+    @Nullable private String caption;
+    @Nullable private Boolean isPrimary;
+    @Nullable private String url;
+
+    private Builder() {}
+
+    /**
+     * Sets the "id" property.
+     *
+     * @param id the new value
+     * @return this builder
+     */
+    @JsonProperty("id")
+    public Builder id(@Nullable Long id) {
+      this.id = id;
+      return this;
+    }
+
+    /**
+     * Sets the "caption" property.
+     *
+     * @param caption the new value
+     * @return this builder
+     */
+    @JsonProperty("caption")
+    public Builder caption(@Nullable String caption) {
+      this.caption = caption;
+      return this;
+    }
+
+    /**
+     * Sets the "isPrimary" property.
+     *
+     * @param isPrimary the new value
+     * @return this builder
+     */
+    @JsonProperty("isPrimary")
+    public Builder isPrimary(@Nullable Boolean isPrimary) {
+      this.isPrimary = isPrimary;
+      return this;
+    }
+
+    /**
+     * Sets the "url" property.
+     *
+     * @param url the new value
+     * @return this builder
+     */
+    @JsonProperty("url")
+    public Builder url(@Nullable String url) {
+      this.url = url;
+      return this;
+    }
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {}
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public Photo build() {
+      return new Photo(this);
+    }
+  }
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.
