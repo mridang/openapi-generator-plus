@@ -22,7 +22,7 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void RejectsUsernameWithCrlf()
+    public void RejectsUsernameWithCrlfAtConstruction()
     {
         // auth-validation-timing: credentials are validated eagerly at
         // construction (matching the 10-SDK majority), so a malformed username
@@ -33,7 +33,7 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void RejectsPasswordWithNul()
+    public void RejectsPasswordWithNulAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret")
@@ -41,7 +41,7 @@ public class BasicAuthenticatorTest
     }
 
     [Fact]
-    public void RejectsUsernameWithColon()
+    public void RejectsUsernameWithColonAtConstruction()
     {
         Assert.Throws<ArgumentException>(() =>
             new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")

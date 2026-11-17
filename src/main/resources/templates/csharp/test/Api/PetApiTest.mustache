@@ -362,6 +362,25 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestSetPetAvatarStreamsRawBytesWithDeclaredContentType()
+    {
+        // A request body declared type:string format:binary with a declared
+        // Content-Type of image/jpeg must reach the transport as the raw
+        // stream, with the declared Content-Type kept. It must never be
+        // JSON-marshaled, base64-encoded or sent as an int-array, and the
+        // Content-Type must never be overridden.
+        var client = new HeaderAndBodyCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        byte[] payload = { 0xFF, 0xD8, 0xFF, 0xE0 };
+
+        await api.SetPetAvatarAsync(1L, new MemoryStream(payload));
+
+        MemoryStream sent = Assert.IsType<MemoryStream>(client.CapturedBody);
+        Assert.Equal(payload, sent.ToArray());
+        Assert.Equal("image/jpeg", client.CapturedHeaders["Content-Type"]);
+    }
+
+    [Fact]
     public async Task TestSetPetAvatarSendsTheCallerBytesVerbatimUnderTheJsonSelector()
     {
         var client = new HeaderAndBodyCapturingApiClient();
