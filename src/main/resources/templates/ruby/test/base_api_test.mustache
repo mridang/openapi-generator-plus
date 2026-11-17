@@ -229,6 +229,17 @@ describe {{moduleName}}::Api::BaseApi do
     _(result[:method]).must_equal 'GET'
   end
 
+  it 'bhv_serializationwire_003 application/json response parses to an object' do
+    client = FixedResponseApiClient.new(
+      {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: '{"id":1,"name":"Dogs"}',
+                                          headers: { 'Content-Type' => 'application/json' })
+    )
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', 'Object')
+    _(result).must_equal('id' => 1, 'name' => 'Dogs')
+  end
+
   it 'bhv_serializationwire_019 returns raw string for non-JSON response' do
     result = api.call('GET', '/test/text-plain', {}, {}, nil,
                       ['text/plain'], 'application/json', 'String')
