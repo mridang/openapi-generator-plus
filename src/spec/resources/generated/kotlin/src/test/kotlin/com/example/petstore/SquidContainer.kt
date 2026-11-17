@@ -14,15 +14,17 @@ import java.time.Duration
 
 /**
  * Singleton Squid proxy container shared across all test classes.
+ *
+ * When PROXY_URL is set, an already-running proxy is used and no container is started.
  */
 object SquidContainer {
-    private val INSTANCE: GenericContainer<*>
+    private val EXTERNAL: Boolean = System.getenv("PROXY_URL") != null
 
-    init {
+    private val INSTANCE: GenericContainer<*> by lazy {
         // Force ChasmContainer initialization so the shared network is created first.
         ChasmContainer.getBaseUrl()
 
-        INSTANCE =
+        val container =
             GenericContainer("ubuntu/squid:6.10-24.10_beta")
                 .withExposedPorts(3128, 3129)
                 .withCopyFileToContainer(
@@ -39,21 +41,32 @@ object SquidContainer {
                     ),
                 ).withStartupTimeout(Duration.ofSeconds(120))
                 .withLabel("com.mridang.openapi.testcontainer", "true")
-        INSTANCE.start()
+        container.start()
         Runtime.getRuntime().addShutdownHook(
             Thread {
-                if (INSTANCE.isRunning) INSTANCE.stop()
+                if (container.isRunning) container.stop()
             },
         )
         Thread.sleep(3000)
+        container
     }
 
     /** URL of the open proxy port, which needs no credentials. */
-    fun getProxyUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3128)}"
+    fun getProxyUrl(): String =
+        if (EXTERNAL) {
+            System.getenv("PROXY_URL")
+        } else {
+            "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3128)}"
+        }
 
     /**
      * URL of the proxy port that answers 407 unless the request carries Basic
      * proxy credentials. Any user name and password are accepted.
      */
-    fun getAuthProxyUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3129)}"
+    fun getAuthProxyUrl(): String =
+        if (EXTERNAL) {
+            "http://${System.getenv("PROXY_AUTH_HOST_PORT")}"
+        } else {
+            "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3129)}"
+        }
 }

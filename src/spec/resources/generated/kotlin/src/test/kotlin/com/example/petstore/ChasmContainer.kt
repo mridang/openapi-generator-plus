@@ -15,15 +15,17 @@ import java.nio.file.Path
 
 /**
  * Singleton Chasm mock server container shared across all test classes.
+ *
+ * When CHASM_HTTP_URL is set, an already-running instance is used and no container is started.
  */
 object ChasmContainer {
+    private val EXTERNAL: Boolean = System.getenv("CHASM_HTTP_URL") != null
+
     /** Shared Docker network so Squid can reach Chasm via container alias. */
-    val PROXY_NETWORK: Network = Network.newNetwork()
+    val PROXY_NETWORK: Network by lazy { Network.newNetwork() }
 
-    private val INSTANCE: GenericContainer<*>
-
-    init {
-        INSTANCE =
+    private val INSTANCE: GenericContainer<*> by lazy {
+        val container =
             GenericContainer("mridang/chasm:1.3.0")
                 .withExposedPorts(4010, 8443)
                 .withCopyFileToContainer(
@@ -54,10 +56,10 @@ object ChasmContainer {
                 .waitingFor(Wait.forLogMessage(".*Listening on.*", 1))
                 .withStartupTimeout(java.time.Duration.ofMinutes(2))
                 .withLabel("com.mridang.openapi.testcontainer", "true")
-        INSTANCE.start()
+        container.start()
         Runtime.getRuntime().addShutdownHook(
             Thread {
-                if (INSTANCE.isRunning) INSTANCE.stop()
+                if (container.isRunning) container.stop()
                 try {
                     PROXY_NETWORK.close()
                 } catch (e: Exception) {
@@ -65,18 +67,41 @@ object ChasmContainer {
                 }
             },
         )
+        container
     }
 
-    fun getBaseUrl(): String = "http://${INSTANCE.host}:${INSTANCE.getMappedPort(4010)}"
+    fun getBaseUrl(): String =
+        if (EXTERNAL) {
+            System.getenv("CHASM_HTTP_URL")
+        } else {
+            "http://${INSTANCE.host}:${INSTANCE.getMappedPort(4010)}"
+        }
 
-    fun getHttpsBaseUrl(): String = "https://${INSTANCE.host}:${INSTANCE.getMappedPort(8443)}"
+    fun getHttpsBaseUrl(): String =
+        if (EXTERNAL) {
+            System.getenv("CHASM_HTTPS_URL")
+        } else {
+            "https://${INSTANCE.host}:${INSTANCE.getMappedPort(8443)}"
+        }
 
-    fun getHttpsPort(): Int = INSTANCE.getMappedPort(8443)
+    fun getHttpsPort(): Int =
+        if (EXTERNAL) {
+            java.net.URI
+                .create(System.getenv("CHASM_HTTPS_URL"))
+                .port
+        } else {
+            INSTANCE.getMappedPort(8443)
+        }
 
     fun getInternalHttpUrl(): String = "http://chasm:4010"
 
     fun getInternalHttpsUrl(): String = "https://chasm:8443"
 
     /** HTTPS by the mock server's IP address on [PROXY_NETWORK], reachable through Squid. */
-    fun getInternalHttpsAddressUrl(): String = "https://${INSTANCE.containerInfo.networkSettings.networks.values.first().ipAddress}:8443"
+    fun getInternalHttpsAddressUrl(): String =
+        if (EXTERNAL) {
+            System.getenv("CHASM_INTERNAL_HTTPS_ADDRESS_URL")
+        } else {
+            "https://${INSTANCE.containerInfo.networkSettings.networks.values.first().ipAddress}:8443"
+        }
 }

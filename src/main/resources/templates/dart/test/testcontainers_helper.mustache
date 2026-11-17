@@ -16,9 +16,25 @@ late String caCertPath;
 late DockerContainer _squidContainer;
 late DockerContainer _chasmContainer;
 late Network _network;
+bool _external = false;
 
 Future<void> setUpContainers() async {
   final fixtures = Directory('${Directory.current.path}/test/fixtures');
+  final env = Platform.environment;
+
+  /* CHASM_HTTP_URL and PROXY_URL point at instances that are already running. */
+  if (env['CHASM_HTTP_URL'] != null && env['PROXY_URL'] != null) {
+    _external = true;
+    caCertPath = '${fixtures.path}/certs/ca.pem';
+    proxyUrl = env['PROXY_URL']!;
+    proxyAuthHostPort = env['PROXY_AUTH_HOST_PORT']!;
+    chasmUrl = env['CHASM_HTTP_URL']!;
+    chasmHttpUrl = env['CHASM_HTTP_URL']!;
+    chasmHttpsUrl = env['CHASM_HTTPS_URL']!;
+    chasmInternalHttpUrl = env['CHASM_INTERNAL_HTTP_URL']!;
+    chasmInternalHttpsUrl = env['CHASM_INTERNAL_HTTPS_URL']!;
+    return;
+  }
 
   _network = Network();
   await _network.create();
@@ -100,6 +116,9 @@ Future<void> setUpContainers() async {
 }
 
 Future<void> tearDownContainers() async {
+  if (_external) {
+    return;
+  }
   await _chasmContainer.stop();
   await _squidContainer.stop();
   await _network.remove();

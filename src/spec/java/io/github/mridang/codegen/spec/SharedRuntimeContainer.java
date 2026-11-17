@@ -78,6 +78,7 @@ final class SharedRuntimeContainer {
                         }
                       });
                   pool.clear();
+                  SharedHelperContainers.stop();
                   try {
                     sharedNetwork.close();
                     logger.info("Closed shared Docker network");
@@ -188,6 +189,10 @@ final class SharedRuntimeContainer {
            * inside the container. Combined with the cache mount above,
            * each cargo/gradle/mix write lands in the persistent store. */
           spec.getCacheEnv().forEach(container::withEnv);
+
+          /* One Chasm and one Squid for the whole run; the generated fixtures use them when
+           * these variables are set. */
+          SharedHelperContainers.environment(sharedNetwork).forEach(container::withEnv);
 
           container.start();
 

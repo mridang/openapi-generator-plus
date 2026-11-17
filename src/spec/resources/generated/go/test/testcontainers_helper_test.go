@@ -78,6 +78,20 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	caCertPath = filepath.Join(fixturesDir, "certs", "ca.pem")
+
+	// CHASM_HTTP_URL and PROXY_URL point at instances that are already running.
+	if os.Getenv("CHASM_HTTP_URL") != "" && os.Getenv("PROXY_URL") != "" {
+		proxyURL = os.Getenv("PROXY_URL")
+		authProxyURL = "http://" + os.Getenv("PROXY_AUTH_HOST_PORT")
+		chasmURL = os.Getenv("CHASM_HTTP_URL")
+		chasmHTTPURL = os.Getenv("CHASM_HTTP_URL")
+		chasmHTTPSURL = os.Getenv("CHASM_HTTPS_URL")
+		chasmInternalHTTPURL = os.Getenv("CHASM_INTERNAL_HTTP_URL")
+		chasmInternalHTTPSURL = os.Getenv("CHASM_INTERNAL_HTTPS_URL")
+		os.Exit(m.Run())
+	}
+
 	// Create a shared network; network.New gives it a unique name.
 	sharedNetwork, err := network.New(ctx)
 	if err != nil {
@@ -86,8 +100,6 @@ func TestMain(m *testing.M) {
 	}
 
 	networkName := sharedNetwork.Name
-
-	caCertPath = filepath.Join(fixturesDir, "certs", "ca.pem")
 
 	// Start Squid container
 	squidConfPath := filepath.Join(fixturesDir, "proxy", "squid.conf")

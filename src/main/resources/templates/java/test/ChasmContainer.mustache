@@ -12,16 +12,25 @@ import java.time.Duration;
 
 /**
  * Singleton Chasm mock server container shared across all test classes.
+ *
+ * When CHASM_HTTP_URL is set, an already-running instance is used and no container is started.
  */
 public final class ChasmContainer {
 
-    /** Shared Docker network so Squid can reach Chasm via container alias. */
-    static final Network PROXY_NETWORK = Network.newNetwork();
+    private static final boolean EXTERNAL = System.getenv("CHASM_HTTP_URL") != null;
 
-    private static final GenericContainer<?> INSTANCE;
+    private ChasmContainer() {}
 
-    static {
-        INSTANCE = new GenericContainer<>("mridang/chasm:1.3.0")
+    /** The container, started on first use and only when no running instance was supplied. */
+    private static final class Started {
+
+        /** Shared Docker network so Squid can reach Chasm via container alias. */
+        static final Network PROXY_NETWORK = Network.newNetwork();
+
+        static final GenericContainer<?> INSTANCE = start();
+
+        private static GenericContainer<?> start() {
+        GenericContainer<?> instance = new GenericContainer<>("mridang/chasm:1.3.0")
             .withExposedPorts(4010, 8443)
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
@@ -41,10 +50,10 @@ public final class ChasmContainer {
             .waitingFor(Wait.forLogMessage(".*Listening on.*", 1))
             .withStartupTimeout(Duration.ofMinutes(2))
             .withLabel("com.mridang.openapi.testcontainer", "true");
-        INSTANCE.start();
+        instance.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (INSTANCE != null && INSTANCE.isRunning()) {
-                INSTANCE.stop();
+            if (instance.isRunning()) {
+                instance.stop();
             }
             if (PROXY_NETWORK != null) {
                 try {
@@ -54,20 +63,53 @@ public final class ChasmContainer {
                 }
             }
         }));
+        return instance;
+        }
     }
 
-    private ChasmContainer() {}
+    /**
+     * Returns the Docker network Chasm and Squid share.
+     *
+     * @return the network
+     */
+    static Network proxyNetwork() {
+        return Started.PROXY_NETWORK;
+    }
 
+    /**
+     * Returns the plain HTTP URL of the mock server.
+     *
+     * @return the base URL
+     */
     public static String getBaseUrl() {
-        return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(4010);
+        if (EXTERNAL) {
+            return System.getenv("CHASM_HTTP_URL");
+        }
+        return "http://" + Started.INSTANCE.getHost() + ":" + Started.INSTANCE.getMappedPort(4010);
     }
 
+    /**
+     * Returns the HTTPS URL of the mock server.
+     *
+     * @return the HTTPS base URL
+     */
     public static String getHttpsBaseUrl() {
-        return "https://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(8443);
+        if (EXTERNAL) {
+            return System.getenv("CHASM_HTTPS_URL");
+        }
+        return "https://" + Started.INSTANCE.getHost() + ":" + Started.INSTANCE.getMappedPort(8443);
     }
 
+    /**
+     * Returns the port the mock server serves HTTPS on.
+     *
+     * @return the HTTPS port
+     */
     public static int getHttpsPort() {
-        return INSTANCE.getMappedPort(8443);
+        if (EXTERNAL) {
+            return java.net.URI.create(System.getenv("CHASM_HTTPS_URL")).getPort();
+        }
+        return Started.INSTANCE.getMappedPort(8443);
     }
 
     public static String getInternalHttpUrl() {
