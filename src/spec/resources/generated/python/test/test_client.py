@@ -20,11 +20,11 @@ class TestClient:
         with pytest.raises(ValueError):
             BearerAuthenticator("/api/v3", "tok\r\nInjected: yes")
 
-    def test_bearer_rejects_non_ascii(self) -> None:
+    def test_bhv_lifecycle_006_bearer_rejects_non_ascii(self) -> None:
         with pytest.raises(ValueError):
             BearerAuthenticator("/api/v3", "ñoño")
 
-    def test_bearer_rejects_empty_token(self) -> None:
+    def test_bhv_lifecycle_005_bearer_rejects_empty_token(self) -> None:
         # bearer-no-empty-token-guard: an empty / whitespace-only token would
         # emit a bare "Authorization: Bearer " header and send the request
         # unauthenticated, so construction must reject it.
@@ -33,7 +33,7 @@ class TestClient:
         with pytest.raises(ValueError):
             BearerAuthenticator("/api/v3", "   ")
 
-    def test_api_key_header_rejects_crlf(self) -> None:
+    def test_bhv_lifecycle_002_api_key_header_rejects_crlf(self) -> None:
         # RFC 7230 §3.2.6 — HEADER location must reject anything outside
         # printable ASCII + TAB to prevent header injection (\r\n) and
         # silent UTF-8 mangling that varies per HTTP lib.
@@ -42,30 +42,34 @@ class TestClient:
                 "/api/v3", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.HEADER
             )
 
-    def test_api_key_header_rejects_non_ascii(self) -> None:
+    def test_bhv_lifecycle_004_api_key_header_rejects_non_ascii(self) -> None:
         with pytest.raises(ValueError):
             ApiKeyAuthenticator("/api/v3", "X-Api-Key", "kéy", ApiKeyLocation.HEADER)
 
-    def test_api_key_query_accepts_non_ascii(self) -> None:
+    def test_bhv_lifecycle_003_api_key_query_accepts_non_ascii(self) -> None:
         # Non-header locations accept arbitrary chars.
         auth = ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY)
         assert auth.get_query_params() == {"api_key": "kéy"}
 
-    def test_construct_with_authenticator_only(self) -> None:
+    def test_bhv_lifecycle_012_construct_with_authenticator_only(self) -> None:
         authenticator = BearerAuthenticator("/api/v3", "test-token")
 
         client = Client(authenticator)
 
         assert client is not None
 
-    def test_construct_with_authenticator_and_none_transport_options(self) -> None:
+    def test_bhv_lifecycle_010_construct_with_authenticator_and_none_transport_options(
+        self,
+    ) -> None:
         authenticator = BearerAuthenticator("/api/v3", "test-token")
 
         client = Client(authenticator, None)
 
         assert client is not None
 
-    def test_construct_with_authenticator_and_transport_options(self) -> None:
+    def test_bhv_lifecycle_011_construct_with_authenticator_and_transport_options(
+        self,
+    ) -> None:
         authenticator = BearerAuthenticator("/api/v3", "test-token")
         transport = TransportOptions.builder().build()
 
@@ -73,7 +77,7 @@ class TestClient:
 
         assert client is not None
 
-    def test_api_groups_are_accessible(self) -> None:
+    def test_bhv_lifecycle_001_api_groups_are_accessible(self) -> None:
         authenticator = BearerAuthenticator("/api/v3", "test-token")
 
         client = Client(authenticator)
@@ -127,7 +131,7 @@ class TestClientCredentials:
         assert _host(client) == "https://env.example.com"
         assert _authorization(client) == "Bearer env-token"
 
-    def test_the_environment_is_read_once_at_construction(
+    def test_bhv_lifecycle_014_the_environment_is_read_once_at_construction(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "first")
@@ -147,7 +151,7 @@ class TestClientCredentials:
         ):
             Client.with_token("https://arg.example.com")
 
-    def test_a_missing_host_fails_when_the_client_is_built(
+    def test_bhv_lifecycle_013_a_missing_host_fails_when_the_client_is_built(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", raising=False)
@@ -155,7 +159,7 @@ class TestClientCredentials:
         with pytest.raises(ValueError, match="SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"):
             Client.with_token(access_token="arg-token")
 
-    def test_a_token_provider_runs_for_every_request(self) -> None:
+    def test_bhv_lifecycle_017_a_token_provider_runs_for_every_request(self) -> None:
         tokens = iter(["one", "two"])
         client = Client.with_token(
             "https://arg.example.com", token_provider=lambda: next(tokens)
@@ -164,7 +168,7 @@ class TestClientCredentials:
         assert _authorization(client) == "Bearer one"
         assert _authorization(client) == "Bearer two"
 
-    def test_a_token_provider_needs_no_environment_token(
+    def test_bhv_lifecycle_016_a_token_provider_needs_no_environment_token(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", raising=False)
@@ -196,7 +200,9 @@ class TestClientSchemeCredentials:
 
         assert _host(client) == "https://default.example.com"
 
-    def test_the_client_takes_one_keyword_argument_per_security_scheme(self) -> None:
+    def test_bhv_lifecycle_015_the_client_takes_one_keyword_argument_per_security_scheme(
+        self,
+    ) -> None:
         parameters = inspect.signature(Client.__init__).parameters
 
         assert list(parameters) == [
@@ -489,7 +495,9 @@ class TestClientClose:
         pool.finish.set()
         await request
 
-    async def test_a_pool_manager_the_caller_supplied_is_never_cleared(self) -> None:
+    async def test_bhv_lifecycle_009_a_pool_manager_the_caller_supplied_is_never_cleared(
+        self,
+    ) -> None:
         pool = _SlowPool()
         client = Client(BearerAuthenticator("/api/v3", "test-token"), pool_manager=pool)
         request = asyncio.ensure_future(_send(client))
@@ -528,7 +536,7 @@ class TestClientPoolManager:
 
         assert pool.cleared is False
 
-    def test_closed_client_rejects_further_requests(self) -> None:
+    def test_bhv_lifecycle_008_closed_client_rejects_further_requests(self) -> None:
         client = Client(BearerAuthenticator("/api/v3", "test-token"))
 
         client.close()
@@ -536,7 +544,9 @@ class TestClientPoolManager:
         with pytest.raises(RuntimeError, match="closed"):
             client._api_client.send_request("GET", "/api/v3/x", {}, None)
 
-    def test_supplied_pool_manager_stays_usable_after_close(self) -> None:
+    def test_bhv_lifecycle_007_supplied_pool_manager_stays_usable_after_close(
+        self,
+    ) -> None:
         pool = _OwnedPool()
         client = Client(BearerAuthenticator("/api/v3", "test-token"), pool_manager=pool)
 

@@ -51,7 +51,7 @@ class TestSchemeAuthenticatorEnvironment:
 
         assert _scheme_class(module, name)(HOST) is not None
 
-    def test_explicit_arguments_need_no_environment(
+    def test_bhv_authscheme_002_explicit_arguments_need_no_environment(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str,
         variables: List[Tuple[str, str]], bearer: bool, basic: bool, api_key: bool,
     ) -> None:
@@ -78,7 +78,7 @@ class TestSchemeAuthenticatorEnvironment:
         with pytest.raises(ValueError, match=variables[0][1]):
             _scheme_class(module, name)(HOST)
 
-    def test_each_variable_is_required_on_its_own(
+    def test_bhv_authscheme_001_each_variable_is_required_on_its_own(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str,
         variables: List[Tuple[str, str]], bearer: bool, basic: bool, api_key: bool,
     ) -> None:

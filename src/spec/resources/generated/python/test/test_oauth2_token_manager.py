@@ -20,7 +20,9 @@ from petstore_client.errors import OpenAPIException
 
 
 class TestOAuth2TokenManager:
-    def test_extracts_access_token_from_response(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_014_extracts_access_token_from_response(
+        self,
+    ) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -44,7 +46,7 @@ class TestOAuth2TokenManager:
 
         assert token == "my_access_token"
 
-    def test_stores_refresh_token(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_028_stores_refresh_token(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -70,7 +72,9 @@ class TestOAuth2TokenManager:
 
         assert manager.refresh_token == "refresh456"
 
-    def test_returns_cached_token_when_not_expired(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_025_returns_cached_token_when_not_expired(
+        self,
+    ) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -93,7 +97,7 @@ class TestOAuth2TokenManager:
         assert second == "tok1"
         assert mock_client.send_request.call_count == 1
 
-    def test_refetches_token_when_expired(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_021_refetches_token_when_expired(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
 
@@ -133,7 +137,9 @@ class TestOAuth2TokenManager:
         assert second_token == "token_second"
         assert mock_client.send_request.call_count == 2
 
-    def test_set_access_token_bypasses_endpoint(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_026_set_access_token_bypasses_endpoint(
+        self,
+    ) -> None:
         manager = OAuth2TokenManager()
         manager.set_access_token("manual-token")
 
@@ -145,7 +151,9 @@ class TestOAuth2TokenManager:
 
         assert token == "manual-token"
 
-    def test_invalidate_access_token_forces_refetch(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_018_invalidate_access_token_forces_refetch(
+        self,
+    ) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.side_effect = [
@@ -181,7 +189,9 @@ class TestOAuth2TokenManager:
         assert second == "tok2"
         assert mock_client.send_request.call_count == 2
 
-    def test_throws_when_no_api_client_injected(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_030_throws_when_no_api_client_injected(
+        self,
+    ) -> None:
         manager = OAuth2TokenManager()
 
         # A wrong call order is a programming error: the invalid-state
@@ -194,7 +204,9 @@ class TestOAuth2TokenManager:
         assert type(exc_info.value) is RuntimeError
         assert not isinstance(exc_info.value, OpenAPIException)
 
-    def test_single_flight_coalesces_concurrent_callers(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_027_single_flight_coalesces_concurrent_callers(
+        self,
+    ) -> None:
         # 10 threads all see no cached token and race into get_access_token.
         # The lock + cache check must coalesce them into exactly ONE network
         # round-trip to the token endpoint.
@@ -239,7 +251,9 @@ class TestOAuth2TokenManager:
             "all callers must observe the same token"
         )
 
-    def test_expires_in_short_lived_token_does_not_storm(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_013_expires_in_short_lived_token_does_not_storm(
+        self,
+    ) -> None:
         # Gap CM: a short-lived token (expires_in < 30s safety buffer) must
         # only trigger ONE network call from a single get_access_token call,
         # not a storm of retries inside the manager.
@@ -260,7 +274,9 @@ class TestOAuth2TokenManager:
         assert token == "short"
         assert mock_client.send_request.call_count == 1
 
-    def test_expires_in_long_lived_token_applies_full_buffer(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_010_expires_in_long_lived_token_applies_full_buffer(
+        self,
+    ) -> None:
         # Gap CM: a long-lived token gets the full 30s safety buffer.
         # A second call inside the same instant must serve from cache.
         manager = OAuth2TokenManager()
@@ -280,7 +296,9 @@ class TestOAuth2TokenManager:
         assert second == "long"
         assert mock_client.send_request.call_count == 1
 
-    def test_a_sixty_second_token_is_cached_for_half_its_lifetime(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_007_a_sixty_second_token_is_cached_for_half_its_lifetime(
+        self,
+    ) -> None:
         # F910: one safety margin, capped at half the lifetime. A token with
         # expires_in=60 is reused for 30 s instead of being refetched on
         # every call.
@@ -314,7 +332,9 @@ class TestOAuth2TokenManager:
         assert (first, cached, second) == ("edge1", "edge1", "edge2")
         assert mock_client.send_request.call_count == 2
 
-    def test_refresh_token_empty_string_preserves_existing(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_024_refresh_token_empty_string_preserves_existing(
+        self,
+    ) -> None:
         # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
         # MUST NOT clobber the cached refresh_token.
         manager = OAuth2TokenManager()
@@ -356,7 +376,9 @@ class TestOAuth2TokenManager:
             "empty refresh_token in refresh response must not overwrite cached refresh_token"
         )
 
-    def test_expires_in_as_json_string_is_accepted(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_009_expires_in_as_json_string_is_accepted(
+        self,
+    ) -> None:
         # D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
         # quoted string. The manager must accept it and cache the token; a
         # second call within the buffer window must serve from cache.
@@ -377,7 +399,7 @@ class TestOAuth2TokenManager:
         assert second == "str-tok"
         assert mock_client.send_request.call_count == 1
 
-    def test_expires_in_as_float_is_floored(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_008_expires_in_as_float_is_floored(self) -> None:
         # D1: some providers send expires_in as a JSON float (e.g. 3600.5).
         # The manager must floor it and cache the token.
         manager = OAuth2TokenManager()
@@ -397,7 +419,9 @@ class TestOAuth2TokenManager:
         assert second == "flt-tok"
         assert mock_client.send_request.call_count == 1
 
-    def test_expires_in_negative_skips_caching(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_011_expires_in_negative_skips_caching(
+        self,
+    ) -> None:
         # D1: a negative expires_in (e.g. -1) must mark the token as
         # immediately stale so the very next call refetches.
         manager = OAuth2TokenManager()
@@ -424,7 +448,7 @@ class TestOAuth2TokenManager:
         assert second == "neg2"
         assert mock_client.send_request.call_count == 2
 
-    def test_throws_when_token_request_fails(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_031_throws_when_token_request_fails(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(
@@ -443,7 +467,9 @@ class TestOAuth2TokenManager:
         except OpenAPIException:
             pass
 
-    def test_token_response_missing_access_token_throws_typed_error(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_036_token_response_missing_access_token_throws_typed_error(
+        self,
+    ) -> None:
         # A 2xx response whose body omits access_token must surface as the
         # typed OAuth2TokenException, not silently cache an empty token.
         manager = OAuth2TokenManager()
@@ -464,7 +490,9 @@ class TestOAuth2TokenManager:
         except OAuth2TokenException:
             pass
 
-    def test_token_response_not_json_throws_typed_error(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_001_token_response_not_json_throws_typed_error(
+        self,
+    ) -> None:
         # A 2xx body that is not a JSON object cannot yield a token: it
         # surfaces as OAuth2TokenException, not a raw json decoder error.
         manager = OAuth2TokenManager()
@@ -506,7 +534,7 @@ class TestOAuth2TokenManager:
             ),
         ],
     )
-    def test_token_error_messages_are_the_canonical_text(
+    def test_bhv_authoauthtwotokenmgr_040_token_error_messages_are_the_canonical_text(
         self, body: str, message: str
     ) -> None:
         manager = OAuth2TokenManager()
@@ -526,7 +554,9 @@ class TestOAuth2TokenManager:
         assert str(exc_info.value) == message
 
     @pytest.mark.parametrize("token_type", ["bearer", "Bearer", "BEARER", None])
-    def test_a_bearer_or_absent_token_type_is_accepted(self, token_type: Any) -> None:
+    def test_bhv_authoauthtwotokenmgr_002_a_bearer_or_absent_token_type_is_accepted(
+        self, token_type: Any
+    ) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         payload: dict[str, Any] = {"access_token": "tok", "expires_in": 3600}
@@ -544,7 +574,9 @@ class TestOAuth2TokenManager:
         )
         assert token == "tok"
 
-    def test_token_endpoint_error_response_parsed_to_typed_error(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_032_token_endpoint_error_response_parsed_to_typed_error(
+        self,
+    ) -> None:
         # RFC 6749 §5.2: a 4xx response with a JSON error object must surface
         # as a typed OAuth2ServerException carrying code/description/uri.
         manager = OAuth2TokenManager()
@@ -574,7 +606,7 @@ class TestOAuth2TokenManager:
             assert err.description == "refresh token expired"
             assert err.uri == "https://docs.example.com/errors/invalid_grant"
 
-    def test_token_post_uses_no_redirect(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_034_token_post_uses_no_redirect(self) -> None:
         """3.2: the OAuth2 token POST must be issued with ``no_redirect=True``
         so the transport refuses to follow a 307/308 redirect that would
         otherwise silently replay the credential body against an attacker-
@@ -601,7 +633,9 @@ class TestOAuth2TokenManager:
             f"OAuth2 token POST must pass no_redirect=True; got call={call!r}"
         )
 
-    def test_token_endpoint_redirect_is_rejected(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_033_token_endpoint_redirect_is_rejected(
+        self,
+    ) -> None:
         """3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
         manager must refuse the whole 300-399 range (302 and 307 both checked
         here, plus 301/303/308) rather than replaying the credential-bearing
@@ -626,7 +660,9 @@ class TestOAuth2TokenManager:
             except OAuth2ServerException as err:
                 assert err.status_code == status
 
-    def test_invalidate_triggers_single_refetch_under_concurrency(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_019_invalidate_triggers_single_refetch_under_concurrency(
+        self,
+    ) -> None:
         # After invalidation, 10 threads must coalesce into exactly ONE
         # additional network round-trip (single-flight), all observing the
         # refreshed token.
@@ -711,7 +747,7 @@ def _form(call: Any) -> dict[str, list[str]]:
 
 
 class TestRefreshGrant:
-    def test_refresh_request_carries_the_cached_refresh_token_and_client_credentials(
+    def test_bhv_authoauthtwotokenmgr_022_refresh_request_carries_the_cached_refresh_token_and_client_credentials(
         self,
     ) -> None:
         manager, client = _manager_replying(
@@ -732,7 +768,9 @@ class TestRefreshGrant:
             "client_secret": ["sec"],
         }
 
-    def test_a_rejected_refresh_falls_back_to_the_original_grant(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_016_a_rejected_refresh_falls_back_to_the_original_grant(
+        self,
+    ) -> None:
         manager, client = _manager_replying(
             _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             ApiHttpResponse(
@@ -752,7 +790,7 @@ class TestRefreshGrant:
         assert _form(calls[1])["grant_type"] == ["refresh_token"]
         assert _form(calls[2]) == {key: [value] for key, value in _FIRST_GRANT.items()}
 
-    def test_a_refresh_response_without_expires_in_clears_the_expiry(
+    def test_bhv_authoauthtwotokenmgr_003_a_refresh_response_without_expires_in_clears_the_expiry(
         self,
     ) -> None:
         from unittest.mock import patch
@@ -777,7 +815,9 @@ class TestRefreshGrant:
         assert client.send_request.call_count == 2
         assert manager.exchanged is False
 
-    def test_the_token_request_is_a_form_post_accepting_json(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_035_the_token_request_is_a_form_post_accepting_json(
+        self,
+    ) -> None:
         manager, client = _manager_replying(
             _token_reply(access_token="a1", expires_in=3600),
         )
@@ -789,7 +829,9 @@ class TestRefreshGrant:
         assert call[0][2]["Content-Type"] == "application/x-www-form-urlencoded"
         assert call[0][2]["Accept"] == "application/json"
 
-    def test_an_expires_in_beyond_one_year_is_clamped_to_one_year(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_005_an_expires_in_beyond_one_year_is_clamped_to_one_year(
+        self,
+    ) -> None:
         from unittest.mock import patch
 
         manager, client = _manager_replying(
@@ -806,7 +848,9 @@ class TestRefreshGrant:
 
         assert client.send_request.call_count == 2
 
-    def test_the_refresh_goes_to_the_refresh_url_with_the_extra_headers(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_029_the_refresh_goes_to_the_refresh_url_with_the_extra_headers(
+        self,
+    ) -> None:
         manager, client = _manager_replying(
             _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             _token_reply(access_token="a2", expires_in=3600),
@@ -841,7 +885,9 @@ class TestRefreshGrant:
         urls = [call[0][1] for call in client.send_request.call_args_list]
         assert urls == [_TOKEN_URL, _REFRESH_URL, _TOKEN_URL]
 
-    def test_params_that_already_are_a_refresh_grant_are_posted_once(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_023_params_that_already_are_a_refresh_grant_are_posted_once(
+        self,
+    ) -> None:
         manager, client = _manager_replying(
             _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             _invalid_grant(),
@@ -867,7 +913,9 @@ _REFRESH_URL = "https://auth.example.com/refresh"
 
 
 class TestExchange:
-    def test_exchange_bypasses_a_cached_token_and_the_refresh_grant(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_006_exchange_bypasses_a_cached_token_and_the_refresh_grant(
+        self,
+    ) -> None:
         manager, client = _manager_replying(
             _token_reply(access_token="a1", refresh_token="r1", expires_in=3600),
             _token_reply(access_token="a2", refresh_token="r2", expires_in=3600),
@@ -894,7 +942,9 @@ class TestExchange:
 
         assert manager.refresh_token is None
 
-    def test_a_failed_exchange_restores_the_previous_session(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_015_a_failed_exchange_restores_the_previous_session(
+        self,
+    ) -> None:
         manager, client = _manager_replying(
             _token_reply(access_token="a1", refresh_token="r1", expires_in=3600),
             _invalid_grant(),
@@ -919,7 +969,9 @@ class TestExchange:
 
 
 class TestTokenWithoutExpiresIn:
-    def test_a_token_without_expires_in_is_cached_indefinitely(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_039_a_token_without_expires_in_is_cached_indefinitely(
+        self,
+    ) -> None:
         manager, client = _manager_replying(_token_reply(access_token="forever"))
 
         first = manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
@@ -931,7 +983,9 @@ class TestTokenWithoutExpiresIn:
 
 class TestNonStringRefreshToken:
     @pytest.mark.parametrize("value", [12345, True, ["r"], {"a": 1}])
-    def test_a_non_string_refresh_token_is_ignored(self, value: object) -> None:
+    def test_bhv_authoauthtwotokenmgr_020_a_non_string_refresh_token_is_ignored(
+        self, value: object
+    ) -> None:
         manager, _ = _manager_replying(
             _token_reply(access_token="a1", refresh_token=value, expires_in=3600)
         )
@@ -939,7 +993,9 @@ class TestNonStringRefreshToken:
         assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a1"
         assert manager.refresh_token is None
 
-    def test_a_non_string_refresh_token_keeps_the_cached_one(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_017_a_non_string_refresh_token_keeps_the_cached_one(
+        self,
+    ) -> None:
         manager, _ = _manager_replying(
             _token_reply(access_token="a1", refresh_token="r1", expires_in=0),
             _token_reply(access_token="a2", refresh_token=12345, expires_in=3600),
@@ -952,7 +1008,9 @@ class TestNonStringRefreshToken:
 
 
 class TestTokenTransportFailure:
-    def test_a_network_failure_reaches_the_caller_unchanged(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_037_a_network_failure_reaches_the_caller_unchanged(
+        self,
+    ) -> None:
         from petstore_client.errors import NetworkException
 
         failure = NetworkException(message="connection refused")

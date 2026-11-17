@@ -18,24 +18,24 @@ from petstore_client.object_serializer import ObjectSerializer
 
 
 class TestMetadataTypedAdditionalProperties:
-    def test_serialize_empty_metadata(self) -> None:
+    def test_bhv_models_008_serialize_empty_metadata(self) -> None:
         from petstore_client.models import Metadata
 
         metadata = Metadata()
         result = ObjectSerializer().serialize(metadata)
         assert result is not None
 
-    def test_deserialize_empty_object(self) -> None:
+    def test_bhv_models_003_deserialize_empty_object(self) -> None:
         metadata = ObjectSerializer().deserialize("{}", "Metadata")
         assert metadata is not None
 
-    def test_deserializes_known_properties(self) -> None:
+    def test_bhv_models_004_deserializes_known_properties(self) -> None:
         json_str = '{"createdAt":"2024-01-01T00:00:00Z"}'
         metadata = ObjectSerializer().deserialize(json_str, "Metadata")
         assert metadata is not None
         assert metadata.created_at is not None
 
-    def test_round_trip_preserves_known_properties(self) -> None:
+    def test_bhv_models_011_round_trip_preserves_known_properties(self) -> None:
         json_str = '{"createdAt":"2024-01-15T10:30:00Z"}'
         metadata = ObjectSerializer().deserialize(json_str, "Metadata")
         assert metadata is not None
@@ -43,7 +43,7 @@ class TestMetadataTypedAdditionalProperties:
         data = json.loads(serialized)
         assert data.get("createdAt") is not None
 
-    def test_additional_properties_field_exists(self) -> None:
+    def test_bhv_models_009_additional_properties_field_exists(self) -> None:
         json_str = '{"createdAt":"2024-01-01T00:00:00Z"}'
         metadata = ObjectSerializer().deserialize(json_str, "Metadata")
         assert metadata is not None
@@ -113,7 +113,7 @@ class TestMetadataTypedAdditionalProperties:
 
 
 class TestModelDocstringNoExampleNull:
-    def test_generated_model_has_no_example_null_doc_line(self) -> None:
+    def test_bhv_models_007_generated_model_has_no_example_null_doc_line(self) -> None:
         # L1 parity — a generated model file must not carry a literal
         # "Example: null" / "@example null" documentation line (a JS/Java-style
         # null-example doc artefact). Python is not affected, but assert it so a
@@ -127,7 +127,7 @@ class TestModelDocstringNoExampleNull:
         assert "Example: null" not in source
         assert "@example null" not in source
 
-    def test_the_file_header_prints_the_description_without_backslash_escapes(
+    def test_bhv_models_006_the_file_header_prints_the_description_without_backslash_escapes(
         self,
     ) -> None:
         import petstore_client.models.metadata as metadata_module
@@ -141,7 +141,7 @@ class TestModelDocstringNoExampleNull:
 
 
 class TestPackageManifest:
-    def test_pyproject_declares_non_empty_description(self) -> None:
+    def test_bhv_models_002_pyproject_declares_non_empty_description(self) -> None:
         # manifest-description-missing: the published pyproject.toml must carry
         # a non-empty description (wired from the spec's appDescription) so the
         # package does not publish with an empty description on PyPI.
@@ -731,7 +731,7 @@ class TestMetadataEquality:
     def _decode(raw: str) -> Any:
         return ObjectSerializer().deserialize(raw, "Metadata")
 
-    def test_equal_known_and_extra_properties_are_equal(self) -> None:
+    def test_bhv_models_005_equal_known_and_extra_properties_are_equal(self) -> None:
         raw = '{"createdAt":"2024-01-01T00:00:00Z","origin":"a"}'
 
         assert self._decode(raw) == self._decode(raw)

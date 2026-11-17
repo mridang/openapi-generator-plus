@@ -23,7 +23,9 @@ def _create_authenticator() -> OAuth2ImplicitAuthenticator:
 
 
 class TestOAuth2ImplicitAuthenticator:
-    def test_builds_authorization_url_with_response_type_token(self) -> None:
+    def test_bhv_authoauthtwoimplicit_003_builds_authorization_url_with_response_type_token(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         url = auth.build_authorization_url()
@@ -35,7 +37,9 @@ class TestOAuth2ImplicitAuthenticator:
         assert parsed.path == "/authorize"
         assert params["response_type"] == ["token"]
 
-    def test_builds_authorization_url_with_client_id(self) -> None:
+    def test_bhv_authoauthtwoimplicit_002_builds_authorization_url_with_client_id(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         url = auth.build_authorization_url()
@@ -44,7 +48,9 @@ class TestOAuth2ImplicitAuthenticator:
 
         assert params["client_id"] == ["my_implicit_client_id"]
 
-    def test_builds_authorization_url_with_scopes(self) -> None:
+    def test_bhv_authoauthtwoimplicit_004_builds_authorization_url_with_scopes(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         url = auth.build_authorization_url()
@@ -53,7 +59,9 @@ class TestOAuth2ImplicitAuthenticator:
 
         assert params["scope"] == ["read write"]
 
-    def test_builds_authorization_url_with_state(self) -> None:
+    def test_bhv_authoauthtwoimplicit_005_builds_authorization_url_with_state(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         url = auth.build_authorization_url(state="my-state")
@@ -62,7 +70,9 @@ class TestOAuth2ImplicitAuthenticator:
 
         assert params["state"] == ["my-state"]
 
-    def test_get_auth_headers_returns_bearer_after_set_access_token(self) -> None:
+    def test_bhv_authoauthtwoimplicit_007_get_auth_headers_returns_bearer_after_set_access_token(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         auth.set_access_token("implicit-tok")
 
@@ -70,7 +80,9 @@ class TestOAuth2ImplicitAuthenticator:
 
         assert headers["Authorization"] == "Bearer implicit-tok"
 
-    def test_throws_when_access_token_not_set(self) -> None:
+    def test_bhv_authoauthtwoimplicit_012_throws_when_access_token_not_set(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         with pytest.raises(
@@ -79,7 +91,9 @@ class TestOAuth2ImplicitAuthenticator:
             auth.get_auth_headers()
         assert type(exc_info.value) is RuntimeError
 
-    def test_throws_when_access_token_set_to_empty_string(self) -> None:
+    def test_bhv_authoauthtwoimplicit_013_throws_when_access_token_set_to_empty_string(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         auth.set_access_token("")
 
@@ -89,12 +103,14 @@ class TestOAuth2ImplicitAuthenticator:
             auth.get_auth_headers()
         assert type(exc_info.value) is RuntimeError
 
-    def test_get_host_returns_configured_host(self) -> None:
+    def test_bhv_authoauthtwoimplicit_008_get_host_returns_configured_host(
+        self,
+    ) -> None:
         auth = _create_authenticator()
 
         assert auth.get_host() == "https://api.example.com"
 
-    def test_redacts_secret(self) -> None:
+    def test_bhv_authoauthtwoimplicit_010_redacts_secret(self) -> None:
         """The repr masks the access token as ``***`` once set and never leaks it."""
         auth = _create_authenticator()
         auth.set_access_token("implicit-tok")
@@ -140,7 +156,9 @@ class TestSetAccessTokenValidation:
 
 
 class TestBrowserAuthWrapper:
-    def test_uses_the_spec_authorization_url_and_scope(self) -> None:
+    def test_bhv_authoauthtwoimplicit_006_uses_the_spec_authorization_url_and_scope(
+        self,
+    ) -> None:
         from petstore_client.auth.oauth.browser_auth_implicit_authenticator import (
             BrowserAuthImplicitAuthenticator,
         )
@@ -155,7 +173,9 @@ class TestBrowserAuthWrapper:
 
 
 class TestImplicitRedactedRepr:
-    def test_repr_lists_the_non_secret_fields_and_masks_the_token(self) -> None:
+    def test_bhv_authoauthtwoimplicit_011_repr_lists_the_non_secret_fields_and_masks_the_token(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         prefix = (
             "OAuth2ImplicitAuthenticator(host='https://api.example.com', "

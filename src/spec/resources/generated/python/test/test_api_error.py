@@ -46,7 +46,9 @@ ERROR_TREE = [
 
 
 class TestApiErrorShape:
-    def test_exposes_status_message_body_headers_error_body(self) -> None:
+    def test_bhv_errors_004_exposes_status_message_body_headers_error_body(
+        self,
+    ) -> None:
         err = ApiException(
             status_code=404,
             message="not found",
@@ -62,7 +64,9 @@ class TestApiErrorShape:
         assert err.response_headers["content-type"] == "application/json"
         assert err.error_body is None
 
-    def test_none_headers_and_body_mark_transport_no_response(self) -> None:
+    def test_bhv_errors_021_none_headers_and_body_mark_transport_no_response(
+        self,
+    ) -> None:
         # apierror-responsebody-headers-nullable-split: None is distinct from an
         # empty header map / empty body so a pre-response transport failure can
         # be encoded.
@@ -76,7 +80,7 @@ class TestApiErrorShape:
         assert err.response_headers is None
         assert err.response_body is None
 
-    def test_is_an_exception_subclass(self) -> None:
+    def test_bhv_errors_019_is_an_exception_subclass(self) -> None:
         err = ApiException(status_code=500, message="boom")
 
         assert isinstance(err, Exception)
@@ -102,7 +106,7 @@ class TestApiErrorShape:
 
 
 class TestExceptionHierarchy:
-    def test_typed_error_inherits_through_to_branded_root(self) -> None:
+    def test_bhv_errors_018_typed_error_inherits_through_to_branded_root(self) -> None:
         # BadRequest -> ClientException -> ApiException -> OpenAPIException
         err = BadRequestException(message="bad request")
 
@@ -113,7 +117,9 @@ class TestExceptionHierarchy:
         assert issubclass(ClientException, ApiException)
         assert issubclass(ApiException, OpenAPIException)
 
-    def test_network_errors_inherit_through_to_api_exception(self) -> None:
+    def test_bhv_errors_020_network_errors_inherit_through_to_api_exception(
+        self,
+    ) -> None:
         # NetworkTimeoutException -> NetworkException -> ApiException
         err = NetworkTimeoutException(message="timed out")
 
@@ -127,7 +133,9 @@ class TestExceptionHierarchy:
         assert ApiException().status_code == 0
         assert ApiException(message="connection reset").status_code == 0
 
-    def test_serialization_error_inherits_from_branded_root(self) -> None:
+    def test_bhv_errors_025_serialization_error_inherits_from_branded_root(
+        self,
+    ) -> None:
         err = SerializationException("boom")
 
         assert isinstance(err, OpenAPIException)
@@ -167,7 +175,7 @@ class TestCause:
 
         assert err.__cause__ is cause
 
-    def test_cause_defaults_to_none(self) -> None:
+    def test_bhv_errors_003_cause_defaults_to_none(self) -> None:
         assert NotFoundException(message="missing").__cause__ is None
 
 
@@ -204,7 +212,7 @@ class TestFromResponse:
             (302, ApiException),
         ],
     )
-    def test_maps_each_status_to_its_exception(
+    def test_bhv_errors_006_maps_each_status_to_its_exception(
         self, status: int, expected: type
     ) -> None:
         err = ApiException.from_response(status, {"x-request-id": "abc"}, '{"code":7}')
@@ -225,7 +233,9 @@ class TestFromResponse:
         assert not isinstance(err, ServerException)
         assert err.status_code == 600
 
-    def test_keeps_a_non_json_body_raw_without_an_error_body(self) -> None:
+    def test_bhv_errors_005_keeps_a_non_json_body_raw_without_an_error_body(
+        self,
+    ) -> None:
         err = ApiException.from_response(500, {}, "<html>oops</html>")
 
         assert type(err) is InternalServerErrorException
@@ -241,13 +251,13 @@ class TestFromResponse:
         assert err.response_headers is None
         assert err.response_body is None
 
-    def test_parses_a_bom_prefixed_error_body(self) -> None:
+    def test_bhv_errors_008_parses_a_bom_prefixed_error_body(self) -> None:
         err = ApiException.from_response(400, {}, '\ufeff{"code": 7}')
 
         assert type(err) is BadRequestException
         assert err.error_body == {"code": 7}
 
-    def test_refuses_a_deeply_nested_error_body(self) -> None:
+    def test_bhv_errors_009_refuses_a_deeply_nested_error_body(self) -> None:
         # The error body is attacker-controlled, so parsing is depth-capped:
         # an over-deep payload leaves error_body None instead of exhausting
         # the interpreter stack.
@@ -284,7 +294,7 @@ class TestApiErrorImmutability:
 
 
 class TestApiErrorTypedBody:
-    def test_get_typed_error_body_deserializes_body(self) -> None:
+    def test_bhv_errors_013_get_typed_error_body_deserializes_body(self) -> None:
         err = ApiException(
             status_code=400,
             message="bad request",
@@ -296,12 +306,16 @@ class TestApiErrorTypedBody:
         assert typed.id == 42
         assert typed.name == "Dogs"
 
-    def test_get_typed_error_body_returns_none_when_no_body(self) -> None:
+    def test_bhv_errors_015_get_typed_error_body_returns_none_when_no_body(
+        self,
+    ) -> None:
         err = ApiException(status_code=500, message="oops", response_body=None)
 
         assert err.get_typed_error_body(Category) is None
 
-    def test_get_typed_error_body_ignores_extraneous_fields(self) -> None:
+    def test_bhv_errors_014_get_typed_error_body_ignores_extraneous_fields(
+        self,
+    ) -> None:
         err = ApiException(
             status_code=422,
             message="unprocessable",
@@ -315,7 +329,9 @@ class TestApiErrorTypedBody:
 
 
 class TestApiErrorRendering:
-    def test_renders_every_present_part_in_order(self) -> None:
+    def test_bhv_errors_024_renders_the_message_status_headers_and_body_in_order(
+        self,
+    ) -> None:
         err = ApiException(
             status_code=404,
             message="not found",
@@ -328,7 +344,7 @@ class TestApiErrorRendering:
             '\nResponse headers: {"x-id":"7"}\nResponse body: ' + '{"a":1}'
         )
 
-    def test_omits_empty_headers_and_an_empty_body(self) -> None:
+    def test_bhv_errors_022_omits_empty_headers_and_an_empty_body(self) -> None:
         err = ApiException(
             status_code=502,
             message="bad gateway",
@@ -361,7 +377,9 @@ class TestApiErrorRendering:
         assert str(err).endswith("a" * 1024)
         assert "more bytes" not in str(err)
 
-    def test_escapes_control_characters_in_the_rendered_body(self) -> None:
+    def test_bhv_errors_001_escapes_control_characters_in_the_rendered_body(
+        self,
+    ) -> None:
         err = ApiException(
             status_code=500, message="boom", response_body="a\r\nb\tc\x01\x7f"
         )
@@ -372,7 +390,9 @@ class TestApiErrorRendering:
         )
         assert err.response_body == "a\r\nb\tc\x01\x7f"
 
-    def test_masks_credential_headers_in_the_rendered_headers(self) -> None:
+    def test_bhv_errors_023_masks_credential_headers_in_the_rendered_headers(
+        self,
+    ) -> None:
         headers = {
             "Authorization": "Bearer abc",
             "Proxy-Authorization": "Basic abc",
@@ -415,7 +435,7 @@ class TestRequestContext:
             (302, ApiException),
         ],
     )
-    def test_from_response_records_the_request(
+    def test_bhv_errors_007_from_response_records_the_request(
         self, status: int, expected: type
     ) -> None:
         err = ApiException.from_response(status, {}, None, "GET", "/items/7")
@@ -452,11 +472,22 @@ class TestRequestContext:
             lambda: NetworkTimeoutException(request_method="PUT", request_path="/a"),
         ],
     )
-    def test_every_constructor_takes_the_request_context(self, make: Any) -> None:
+    def test_bhv_errors_002_every_constructor_takes_the_request_context(
+        self, make: Any
+    ) -> None:
         err = make()
 
         assert err.request_method == "PUT"
         assert err.request_path == "/a"
+
+    def test_bhv_errors_012_from_response_without_a_request_keeps_the_plain_message(
+        self,
+    ) -> None:
+        err = ApiException.from_response(404, {}, None)
+
+        assert err.request_method is None
+        assert err.request_path is None
+        assert str(err) == "API returned status code 404\nHTTP status code: 404"
 
     def test_the_request_is_unknown_by_default(self) -> None:
         err = ApiException(status_code=500, message="boom")
@@ -465,7 +496,9 @@ class TestRequestContext:
         assert err.request_path is None
         assert str(err) == "boom\nHTTP status code: 500"
 
-    def test_the_message_names_the_request_before_the_status(self) -> None:
+    def test_bhv_errors_011_the_message_names_the_request_before_the_status(
+        self,
+    ) -> None:
         err = ApiException.from_response(502, {}, "down", "POST", "/items")
 
         assert str(err) == (
@@ -473,7 +506,9 @@ class TestRequestContext:
             "\nHTTP status code: 502\nResponse body: down"
         )
 
-    def test_a_query_string_is_stripped_from_the_recorded_path(self) -> None:
+    def test_bhv_errors_026_a_query_string_is_stripped_from_the_recorded_path(
+        self,
+    ) -> None:
         err = NetworkException(message="boom")._with_request(
             "GET", "/items?token=secret"
         )
@@ -483,7 +518,7 @@ class TestRequestContext:
 
 
 class TestFromResponseBodyShapes:
-    def test_a_scalar_json_body_becomes_the_error_body(self) -> None:
+    def test_bhv_errors_010_a_scalar_json_body_becomes_the_error_body(self) -> None:
         err = ApiException.from_response(400, {}, '"just a string"')
 
         assert type(err) is BadRequestException
@@ -501,7 +536,7 @@ class TestFromResponseBodyShapes:
 
 
 class TestApiErrorTypedBodyFailures:
-    def test_a_body_that_does_not_fit_the_type_raises_a_serialization_exception(
+    def test_bhv_errors_017_a_body_that_does_not_fit_the_type_raises_a_serialization_exception(
         self,
     ) -> None:
         err = ApiException(
@@ -513,7 +548,7 @@ class TestApiErrorTypedBodyFailures:
 
         assert type(excinfo.value) is SerializationException
 
-    def test_an_empty_string_body_yields_no_typed_body(self) -> None:
+    def test_bhv_errors_016_an_empty_string_body_yields_no_typed_body(self) -> None:
         err = ApiException(status_code=400, message="bad request", response_body="")
 
         assert err.get_typed_error_body(Category) is None

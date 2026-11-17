@@ -109,7 +109,7 @@ class TestPetApi:
             .build()
         self.api = PetApi(config=config)
 
-    async def test_add_pet(self) -> None:
+    async def test_bhv_operations_022_add_pet(self) -> None:
         pet = Pet(
             id=12345,
             name='TestDog',
@@ -122,14 +122,14 @@ class TestPetApi:
         assert result is not None
         assert result.name is not None
 
-    async def test_find_pets_by_status(self) -> None:
+    async def test_bhv_operations_039_find_pets_by_status(self) -> None:
         result = await self.api.find_pets_by_status(FindPetsByStatusOptions(status='available'))
 
         assert isinstance(result, list)
         assert len(result) > 0
         assert isinstance(result[0], Pet)
 
-    async def test_find_pets_by_status_omitting_status_sends_no_status_in_query(self) -> None:
+    async def test_bhv_operations_041_find_pets_by_status_omitting_status_sends_no_status_in_query(self) -> None:
         # Regression: `status` is an optional query parameter declared
         # allowEmptyValue:true. When the caller omits it (status left as None),
         # the SDK must NOT transmit a bare `status=` key — allowEmptyValue only
@@ -164,7 +164,7 @@ class TestPetApi:
 
         assert 'status=' not in captured.get('path', '')
 
-    async def test_find_pets_by_status_explicit_empty_sends_status_key(self) -> None:
+    async def test_bhv_operations_040_find_pets_by_status_explicit_empty_sends_status_key(self) -> None:
         # Counterpart to the omission case: when the caller explicitly provides
         # an empty string for `status`, allowEmptyValue:true means the SDK must
         # send the key with an empty value, so `status=` is present on the wire.
@@ -196,14 +196,14 @@ class TestPetApi:
 
         assert 'status=' in captured.get('path', '')
 
-    async def test_get_pet_by_id(self) -> None:
+    async def test_bhv_operations_047_get_pet_by_id(self) -> None:
         result = await self.api.get_pet_by_id(1)
 
         assert result is not None
         assert result.id is not None
         assert result.name is not None
 
-    async def test_update_pet(self) -> None:
+    async def test_bhv_operations_087_update_pet(self) -> None:
         pet = Pet(
             id=1,
             name='UpdatedDog',
@@ -215,17 +215,17 @@ class TestPetApi:
 
         assert result is not None
 
-    async def test_delete_pet(self) -> None:
+    async def test_bhv_operations_027_delete_pet(self) -> None:
         await self.api.delete_pet(1, DeletePetOptions())
 
         assert True
 
-    async def test_set_pet_avatar(self) -> None:
+    async def test_bhv_operations_070_set_pet_avatar(self) -> None:
         await self.api.set_pet_avatar(1, b'\xFF\xD8\xFF')
 
         assert True
 
-    async def test_set_pet_avatar_rejects_unknown_content_type(self) -> None:
+    async def test_bhv_operations_076_set_pet_avatar_rejects_unknown_content_type(self) -> None:
         # An unknown request_content_type must be rejected client-side (ValueError),
         # not passed onto the wire as an undeclared Content-Type.
         with pytest.raises(ValueError) as excinfo:
@@ -236,7 +236,7 @@ class TestPetApi:
             "set_pet_avatar; declared types are [image/jpeg, image/png, application/json]"
         )
 
-    async def test_set_pet_avatar_streams_raw_bytes_with_declared_content_type(self) -> None:
+    async def test_bhv_operations_073_set_pet_avatar_streams_raw_bytes_with_declared_content_type(self) -> None:
         # Regression: setPetAvatar declares a request body of type:string
         # format:binary with the declared Content-Type image/jpeg. The SDK must
         # put the RAW bytes on the wire unchanged — NOT a JSON int-array like
@@ -274,7 +274,7 @@ class TestPetApi:
         assert captured.get('body') == payload
         assert captured.get('content_type') == 'image/jpeg'
 
-    async def test_set_pet_avatar_honours_selected_request_content_type(self) -> None:
+    async def test_bhv_operations_071_set_pet_avatar_honours_selected_request_content_type(self) -> None:
         # setPetAvatar (PUT /pet/{petId}/avatar) declares request content types
         # image/jpeg, image/png and application/json. The generated method now
         # exposes an OPTIONAL request_content_type selector. Assert two cases:
@@ -324,36 +324,36 @@ class TestPetApi:
         assert captured[1]['body'] == payload
         assert captured[1]['content_type'] == 'image/png'
 
-    async def test_get_pet_avatar(self) -> None:
+    async def test_bhv_operations_045_get_pet_avatar(self) -> None:
         result = await self.api.get_pet_avatar(1)
 
         assert result is not None
 
-    async def test_get_pet_avatar_thumbnail(self) -> None:
+    async def test_bhv_operations_046_get_pet_avatar_thumbnail(self) -> None:
         result = await self.api.get_pet_avatar_thumbnail(1)
 
         assert result is not None
 
-    async def test_set_pet_avatar_thumbnail(self) -> None:
+    async def test_bhv_operations_074_set_pet_avatar_thumbnail(self) -> None:
         request = SetPetAvatarThumbnailRequest(actual_instance=b'\x89PNG')
 
         await self.api.set_pet_avatar_thumbnail(1, request)
 
         assert True
 
-    async def test_upload_pet_certificate(self) -> None:
+    async def test_bhv_operations_090_upload_pet_certificate(self) -> None:
         result = await self.api.upload_pet_certificate(1, UploadPetCertificateOptions(file=b'cert-data'))
 
         assert result is not None
         assert isinstance(result, ApiResponse)
 
-    async def test_upload_pet_document(self) -> None:
+    async def test_bhv_operations_091_upload_pet_document(self) -> None:
         result = await self.api.upload_pet_document(1, UploadPetDocumentOptions(file=b'doc-data', document_type='vaccination_record', notes='Annual checkup'))
 
         assert result is not None
         assert isinstance(result, ApiResponse)
 
-    async def test_upload_pet_document_honours_selected_request_content_type(self) -> None:
+    async def test_bhv_operations_093_upload_pet_document_honours_selected_request_content_type(self) -> None:
         # uploadPetDocument (POST /pet/{petId}/documents) declares TWO request
         # content types: multipart/form-data AND application/octet-stream. The
         # generated method exposes an OPTIONAL request_content_type selector.
@@ -429,7 +429,7 @@ class TestPetApi:
         assert b"Content-Disposition" in multipart["body"]
         assert multipart["body"] != file_bytes
 
-    async def test_upload_pet_document_sends_scalar_parts_as_plain_text(self) -> None:
+    async def test_bhv_operations_095_upload_pet_document_sends_scalar_parts_as_plain_text(self) -> None:
         captured = await _capture_get(
             lambda api: api.upload_pet_document(
                 1,
@@ -460,7 +460,7 @@ class TestPetApi:
             (GetMultiServerPetInfoServerChannel.IT_S, "https://eu.mirror.example.com/it's/v1"),
         ],
     )
-    def test_the_mirror_operation_server_resolves_raw_reserved_characters(
+    def test_bhv_operations_084_the_mirror_operation_server_resolves_raw_reserved_characters(
         self, channel: GetMultiServerPetInfoServerChannel, expected: str
     ) -> None:
         server = GetMultiServerPetInfoServerMirror(
@@ -468,11 +468,11 @@ class TestPetApi:
         )
         assert server.get_url() == expected
 
-    async def test_get_pet_tag_wires_the_matrix_and_label_path_styles(self) -> None:
+    async def test_bhv_operations_060_get_pet_tag_wires_the_matrix_and_label_path_styles(self) -> None:
         captured = await _capture_get(lambda api: api.get_pet_tag(7, 'cute'))
         assert captured['path'].startswith('/pet/;petId=7/tag/.cute')
 
-    async def test_find_pets_by_status_sends_a_deep_object_filter_in_key_order(self) -> None:
+    async def test_bhv_operations_044_find_pets_by_status_sends_a_deep_object_filter_in_key_order(self) -> None:
         captured = await _capture_get(
             lambda api: api.find_pets_by_status(
                 FindPetsByStatusOptions(filter={'color': 'red', 'size': 'xl'})
@@ -482,7 +482,7 @@ class TestPetApi:
         )
         assert 'filter%5Bcolor%5D=red&filter%5Bsize%5D=xl' in captured['path']
 
-    async def test_a_digit_leading_query_parameter_keeps_its_wire_name(self) -> None:
+    async def test_bhv_operations_021_a_digit_leading_query_parameter_keeps_its_wire_name(self) -> None:
         captured = await _capture_get(
             lambda api: api.find_pets_by_status(FindPetsByStatusOptions(n2nd_page=3)),
             'application/json',
@@ -491,7 +491,7 @@ class TestPetApi:
         assert '2ndPage=3' in captured['path']
         assert 'n2nd' not in captured['path']
 
-    async def test_add_pet_photos(self) -> None:
+    async def test_bhv_operations_023_add_pet_photos(self) -> None:
         metadata = PhotoMetadata(caption='Test photo', isPrimary=True)
 
         result = await self.api.add_pet_photos(1, AddPetPhotosOptions(files=[b'photo1'], metadata=metadata))
@@ -506,28 +506,28 @@ class TestPetApi:
         with pytest.raises(TypeError):
             cast(Any, self.api).add_pet_photos(1)
 
-    async def test_download_pet_document(self) -> None:
+    async def test_bhv_operations_035_download_pet_document(self) -> None:
         result = await self.api.download_pet_document(1, 1)
 
         assert result is not None
 
-    async def test_get_pet_photo(self) -> None:
+    async def test_bhv_operations_055_get_pet_photo(self) -> None:
         result = await self.api.get_pet_photo(1, 1)
 
         assert result is not None
 
-    async def test_get_pet_passport(self) -> None:
+    async def test_bhv_operations_053_get_pet_passport(self) -> None:
         result = await self.api.get_pet_passport(1)
 
         assert result is not None
         assert isinstance(result, PetPassport)
 
-    async def test_get_pet_tag_styled_params(self) -> None:
+    async def test_bhv_operations_058_get_pet_tag_styled_params(self) -> None:
         result = await self.api.get_pet_tag(5, 'cute', GetPetTagOptions(colors=['blue', 'black'], sizes=['S', 'M']))
 
         assert result is not None
 
-    async def test_get_pet_tag_optional_array_query_params_serialize_styled(self) -> None:
+    async def test_bhv_operations_068_get_pet_tag_optional_array_query_params_serialize_styled(self) -> None:
         # WAVE D OPTIONAL-ARRAY-PARAM: getPetTag declares two OPTIONAL array query
         # parameters, `colors` (style pipeDelimited, explode false) and `sizes`
         # (style spaceDelimited, explode false). When set to multiple values the
@@ -592,7 +592,7 @@ class TestPetApi:
             ("v1.0/beta:rc1[x]'y", "revision=v1.0/beta:rc1%5Bx%5D'y"),
         ],
     )
-    async def test_get_pet_tag_allow_reserved_wire_form(self, revision: str, expected: str) -> None:
+    async def test_bhv_operations_066_get_pet_tag_allow_reserved_wire_form(self, revision: str, expected: str) -> None:
         captured = await _capture_get(
             lambda api: api.get_pet_tag(5, 'cute', GetPetTagOptions(revision=revision))
         )
@@ -605,7 +605,7 @@ class TestPetApi:
             (b'\xfb\xff', 'fingerprint=%2B%2F8%3D', '+/8='),
         ],
     )
-    async def test_get_pet_tag_sends_byte_parameters_as_standard_padded_base64(
+    async def test_bhv_operations_059_get_pet_tag_sends_byte_parameters_as_standard_padded_base64(
         self, raw: bytes, query: str, header: str
     ) -> None:
         captured = await _capture_get(
@@ -617,7 +617,7 @@ class TestPetApi:
         sent = {name.lower(): value for name, value in captured['headers'].items()}
         assert sent['x-fingerprint'] == header
 
-    async def test_get_pet_summary_sends_matrix_path_date_array_query_and_cookie(self) -> None:
+    async def test_bhv_operations_057_get_pet_summary_sends_matrix_path_date_array_query_and_cookie(self) -> None:
         captured = await _capture_get(
             lambda api: api.get_pet_summary(
                 7,
@@ -636,7 +636,7 @@ class TestPetApi:
         assert sent['accept'] == 'text/plain'
         assert captured['result'] == 'done'
 
-    async def test_get_pet_summary_requires_the_session_cookie(self) -> None:
+    async def test_bhv_operations_056_get_pet_summary_requires_the_session_cookie(self) -> None:
         api = PetApi(config=Configuration.builder().base_url('http://localhost').build())
         with pytest.raises(
             ValueError,
@@ -644,7 +644,7 @@ class TestPetApi:
         ):
             await api.get_pet_summary(7, datetime.date(2024, 1, 5), GetPetSummaryOptions(session=''))
 
-    async def test_get_pet_by_name_requires_the_correlation_header(self) -> None:
+    async def test_bhv_operations_050_get_pet_by_name_requires_the_correlation_header(self) -> None:
         api = PetApi(config=Configuration.builder().base_url('http://localhost').build())
         with pytest.raises(
             ValueError,
@@ -654,7 +654,7 @@ class TestPetApi:
                 'Fido', GetPetByNameOptions(category='c', x_correlation_id='')
             )
 
-    async def test_get_pet_tag_sends_object_valued_parameters_by_style(self) -> None:
+    async def test_bhv_operations_067_get_pet_tag_sends_object_valued_parameters_by_style(self) -> None:
         criteria = PetCriteria(breed='lab', min_age=3)
         captured = await _capture_get(
             lambda api: api.get_pet_tag(
@@ -675,7 +675,7 @@ class TestPetApi:
         sent = {name.lower(): value for name, value in captured['headers'].items()}
         assert sent['x-criteria'] == 'breed,lab,min_age,3'
 
-    async def test_add_pet_treatment_sends_the_chosen_variant_as_the_body(self) -> None:
+    async def test_bhv_operations_024_add_pet_treatment_sends_the_chosen_variant_as_the_body(self) -> None:
         import json
 
         treatment = PetTreatment(Medication(drugName='Amoxicillin', dosage='5mg'))
@@ -693,7 +693,7 @@ class TestPetApi:
         assert isinstance(result.actual_instance, Medication)
 
     @pytest.mark.parametrize('name', ['.', '..'])
-    async def test_get_pet_by_name_rejects_a_dot_segment(self, name: str) -> None:
+    async def test_bhv_operations_051_get_pet_by_name_rejects_a_dot_segment(self, name: str) -> None:
         client = _RecordingApiClient()
         api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
         with pytest.raises(ValueError, match=r"Path parameter 'name' must not be '\.' or '\.\.'"):
@@ -702,7 +702,7 @@ class TestPetApi:
             )
         assert client.calls == 0
 
-    async def test_get_pet_by_name_keeps_inner_dots(self) -> None:
+    async def test_bhv_operations_064_get_pet_by_name_keeps_inner_dots(self) -> None:
         captured = await _capture_get(
             lambda api: api.get_pet_by_name(
                 'a..b', GetPetByNameOptions(category='c', x_correlation_id='r')
@@ -710,20 +710,20 @@ class TestPetApi:
         )
         assert captured['path'].startswith('/pet/byName/a..b?')
 
-    async def test_set_pet_avatar_json_selector_sends_raw_bytes(self) -> None:
+    async def test_bhv_operations_072_set_pet_avatar_json_selector_sends_raw_bytes(self) -> None:
         client = _RecordingApiClient()
         api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
         await api.set_pet_avatar(1, b'\xff\xd8\xff\xe0', request_content_type='application/json')
         assert client.body == b'\xff\xd8\xff\xe0'
         assert client.headers.get('Content-Type') == 'application/json'
 
-    async def test_set_pet_avatar_thumbnail_byte_body_stays_base64(self) -> None:
+    async def test_bhv_operations_077_set_pet_avatar_thumbnail_byte_body_stays_base64(self) -> None:
         client = _RecordingApiClient()
         api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
         await api.set_pet_avatar_thumbnail(1, SetPetAvatarThumbnailRequest(actual_instance=b'\x89PNG'))
         assert client.body == '"iVBORw=="'
 
-    async def test_set_pet_preferences_form_encodes_a_date_time_canonically(self) -> None:
+    async def test_bhv_operations_075_set_pet_preferences_form_encodes_a_date_time_canonically(self) -> None:
         client = _RecordingApiClient()
         api = PetApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
         await api.set_pet_preferences(1, SetPetPreferencesOptions(
@@ -734,7 +734,7 @@ class TestPetApi:
         assert 'reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00' in body
         assert '%20' not in body
 
-    async def test_get_external_pet_info_uses_per_operation_server(self, api_base_url: Any) -> None:
+    async def test_bhv_operations_061_get_external_pet_info_uses_per_operation_server(self, api_base_url: Any) -> None:
         # The operation's own server wins over the client's base URL: the
         # client points at a closed port, the per-operation server at the mock.
         class MockServer(GetExternalPetInfoServer):
@@ -788,17 +788,17 @@ def _create_mock_server(status: int, content_type: str, body: str) -> tuple[PetA
 class TestPetApiErrorHandling:
     """Test suite for PetApi error handling."""
 
-    async def test_error_handling_not_found(self) -> None:
+    async def test_bhv_operations_037_error_handling_not_found(self) -> None:
         api, server = _create_mock_server(404, 'application/json', '{"message":"Pet not found"}')
         with pytest.raises(NotFoundException):
             await api.get_pet_by_id(99999)
 
-    async def test_error_handling_server_error(self) -> None:
+    async def test_bhv_operations_038_error_handling_server_error(self) -> None:
         api, server = _create_mock_server(500, 'application/json', '{"message":"Internal server error"}')
         with pytest.raises(InternalServerErrorException):
             await api.get_pet_by_id(1)
 
-    async def test_empty_body_for_body_returning_op_raises(self) -> None:
+    async def test_bhv_operations_036_empty_body_for_body_returning_op_raises(self) -> None:
         # A body-returning operation that gets a 200 with an empty/undecodable
         # body must raise the SDK's typed ApiException, not return None or
         # crash under -O (the convenience method contract).
@@ -810,7 +810,7 @@ class TestPetApiErrorHandling:
             exc_info.value.message or ""
         )
 
-    async def test_required_string_param_empty_string_rejected(self) -> None:
+    async def test_bhv_operations_049_required_string_param_empty_string_rejected(self) -> None:
         # Parity with go/rust/swift/elixir: a required STRING parameter must
         # reject the empty string the same way it rejects None, so the caller
         # gets a clear error instead of silently sending an empty value.
@@ -821,12 +821,12 @@ class TestPetApiErrorHandling:
         ):
             await api.get_pet_by_name('Fido', GetPetByNameOptions(category='', x_correlation_id='r'))
 
-    async def test_download_binary_mock(self) -> None:
+    async def test_bhv_operations_034_download_binary_mock(self) -> None:
         api, server = _create_mock_server(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
         result = await api.get_pet_avatar(1)
         assert result is not None
 
-    async def test_upload_multipart_mock(self) -> None:
+    async def test_bhv_operations_089_upload_multipart_mock(self) -> None:
         api, server = _create_mock_server(200, 'application/json', '{"code":200,"type":"","message":"success"}')
         result = await api.upload_pet_certificate(1, UploadPetCertificateOptions(file=b'fake-cert-data'))
         assert result is not None
@@ -911,7 +911,7 @@ class TestPetApiErrorHandling:
 
         assert captured.get('X-API-Key') == 'secret-api-key'
 
-    async def test_auth_omitted_uses_configuration_credentials(self) -> None:
+    async def test_bhv_operations_078_auth_omitted_uses_configuration_credentials(self) -> None:
         # Regression: when no authenticator is supplied, the base client falls
         # back to the credentials configured on the Configuration object.
         captured: Dict[str, str] = {}
@@ -954,7 +954,7 @@ class TestPetApiErrorHandling:
             ('delete_pet_options', 'DeletePetOptions'),
         ],
     )
-    def test_no_options_class_carries_an_authenticator(self, module: str, name: str) -> None:
+    def test_bhv_operations_086_no_options_class_carries_an_authenticator(self, module: str, name: str) -> None:
         # F857: the credential is set per security scheme on the client, so an
         # Options class (which always exists, for the per-call timeout, headers
         # and retry budget) has no `auth` field, secured operation or not.
@@ -966,7 +966,7 @@ class TestPetApiErrorHandling:
         assert 'auth' not in names
         assert {'timeout', 'headers', 'max_retries'} <= names
 
-    def test_options_doc_names_no_per_call_authenticator(self) -> None:
+    def test_bhv_operations_082_options_doc_names_no_per_call_authenticator(self) -> None:
         import inspect
 
         expected = (
@@ -1054,7 +1054,7 @@ class TestPetApiErrorHandling:
         assert any('api_key=secret-client-key' in p for p in captured_path), \
             f'inherited-security op must apply the client api-key query param, got: {captured_path}'
 
-    async def test_secured_op_still_applies_client_authenticator(self) -> None:
+    async def test_bhv_operations_026_secured_op_still_applies_client_authenticator(self) -> None:
         # WAVE A1 GUARD (no over-suppression): add_pet IS secured. With a
         # client-level authenticator configured and no per-call override, the
         # credential must STILL reach the wire. This proves the no-auth sentinel
@@ -1102,7 +1102,7 @@ class TestPetApiWithHttpInfo:
             .build()
         self.api = PetApi(config=config)
 
-    async def test_get_pet_by_id_with_http_info(self) -> None:
+    async def test_bhv_operations_048_get_pet_by_id_with_http_info(self) -> None:
         result = await self.api.get_pet_by_id_with_http_info(1)
 
         assert result is not None
@@ -1110,7 +1110,7 @@ class TestPetApiWithHttpInfo:
         assert result.data is not None
         assert result.raw_body is not None
 
-    async def test_add_pet_with_http_info(self) -> None:
+    async def test_bhv_operations_025_add_pet_with_http_info(self) -> None:
         pet = Pet(
             id=99,
             name='HttpInfoDog',
@@ -1124,7 +1124,7 @@ class TestPetApiWithHttpInfo:
         assert 200 <= result.status_code < 300
         assert result.data is not None
 
-    async def test_update_pet_with_http_info(self) -> None:
+    async def test_bhv_operations_088_update_pet_with_http_info(self) -> None:
         pet = Pet(
             id=1,
             name='UpdatedDog',
@@ -1137,19 +1137,19 @@ class TestPetApiWithHttpInfo:
         assert result is not None
         assert 200 <= result.status_code < 300
 
-    async def test_delete_pet_with_http_info(self) -> None:
+    async def test_bhv_operations_031_delete_pet_with_http_info(self) -> None:
         result = await self.api.delete_pet_with_http_info(1, DeletePetOptions())
 
         assert result is not None
         assert 200 <= result.status_code < 300
 
-    async def test_find_pets_by_status_with_http_info(self) -> None:
+    async def test_bhv_operations_042_find_pets_by_status_with_http_info(self) -> None:
         result = await self.api.find_pets_by_status_with_http_info(FindPetsByStatusOptions(status='available'))
 
         assert result is not None
         assert result.status_code == 200
 
-    async def test_get_pet_passport_with_http_info(self) -> None:
+    async def test_bhv_operations_054_get_pet_passport_with_http_info(self) -> None:
         result = await self.api.get_pet_passport_with_http_info(1)
 
         assert result is not None

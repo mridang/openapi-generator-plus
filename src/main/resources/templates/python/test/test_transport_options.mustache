@@ -15,59 +15,59 @@ from {{packageName}}.transport_options import TransportOptions
 
 
 class TestTransportOptions:
-    def test_verify_ssl_defaults_to_true(self) -> None:
+    def test_bhv_options_043_verify_ssl_defaults_to_true(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.verify_ssl is True
 
-    def test_ca_cert_path_defaults_to_null(self) -> None:
+    def test_bhv_options_018_ca_cert_path_defaults_to_null(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.ca_cert_path is None
 
-    def test_proxy_defaults_to_null(self) -> None:
+    def test_bhv_options_032_proxy_defaults_to_null(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.proxy is None
 
-    def test_timeout_defaults_to_ten_seconds(self) -> None:
+    def test_bhv_options_038_timeout_defaults_to_ten_seconds(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.timeout == 10000
 
-    def test_follow_redirects_defaults_to_true(self) -> None:
+    def test_bhv_options_020_follow_redirects_defaults_to_true(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.follow_redirects is True
 
-    def test_max_redirects_defaults_to_null(self) -> None:
+    def test_bhv_options_025_max_redirects_defaults_to_null(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.max_redirects is None
 
-    def test_user_agent_defaults_to_non_empty_string(self) -> None:
+    def test_bhv_options_041_user_agent_defaults_to_non_empty_string(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.user_agent is not None
         assert len(opts.user_agent) > 0
 
-    def test_user_agent_default_names_the_published_distribution(self) -> None:
+    def test_bhv_options_042_user_agent_default_names_the_published_distribution(self) -> None:
         with open(os.path.join(os.getcwd(), 'pyproject.toml'), 'rb') as handle:
             project = tomllib.load(handle)['project']
         opts = TransportOptions.builder().build()
         assert opts.user_agent == f"{project['name']}/{project['version']} (python)"
 
-    def test_default_headers_defaults_to_empty(self) -> None:
+    def test_bhv_options_019_default_headers_defaults_to_empty(self) -> None:
         opts = TransportOptions.builder().build()
         assert len(opts.default_headers) == 0
 
-    def test_inject_request_id_defaults_to_false(self) -> None:
+    def test_bhv_options_022_inject_request_id_defaults_to_false(self) -> None:
         opts = TransportOptions.builder().build()
         assert opts.inject_request_id is False
 
-    def test_max_retries_defaults_to_two(self) -> None:
+    def test_bhv_options_026_max_retries_defaults_to_two(self) -> None:
         assert TransportOptions.builder().build().max_retries == 2
         assert TransportOptions().max_retries == 2
 
-    def test_max_retries_is_set_by_the_builder_and_zero_disables_retries(self) -> None:
+    def test_bhv_options_027_max_retries_is_set_by_the_builder_and_zero_disables_retries(self) -> None:
         assert TransportOptions.builder().max_retries(5).build().max_retries == 5
         assert TransportOptions.builder().max_retries(0).build().max_retries == 0
 
     @pytest.mark.parametrize('value', [-1, True])
-    def test_an_invalid_max_retries_is_rejected_with_the_canonical_message(
+    def test_bhv_options_007_an_invalid_max_retries_is_rejected_with_the_canonical_message(
         self, value: int
     ) -> None:
         message = f'Invalid max_retries: must be an integer of at least 0 (got {value})'
@@ -78,7 +78,7 @@ class TestTransportOptions:
             TransportOptions(max_retries=value)
         assert str(direct.value) == message
 
-    def test_builder_sets_all_fields(self) -> None:
+    def test_bhv_options_017_builder_sets_all_fields(self) -> None:
         opts = (
             TransportOptions.builder()
             .verify_ssl(False)
@@ -103,14 +103,14 @@ class TestTransportOptions:
         assert opts.default_headers["X-Custom"] == "value"
         assert opts.inject_request_id is True
 
-    def test_follow_redirects_defaults_to_true_with_null_max_redirects(self) -> None:
+    def test_bhv_options_021_follow_redirects_defaults_to_true_with_null_max_redirects(self) -> None:
         opts = TransportOptions.builder().follow_redirects(True).build()
 
         assert opts.follow_redirects is True
         assert opts.max_redirects is None
 
     @pytest.mark.parametrize('value', [-1, 0])
-    def test_a_non_positive_timeout_is_rejected_with_the_canonical_message(
+    def test_bhv_options_033_a_non_positive_timeout_is_rejected_with_the_canonical_message(
         self, value: int
     ) -> None:
         message = (
@@ -123,7 +123,7 @@ class TestTransportOptions:
             TransportOptions(timeout=value)
         assert str(direct.value) == message
 
-    def test_invalid_proxy_url_throws_exception(self) -> None:
+    def test_bhv_options_024_invalid_proxy_url_throws_exception(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             TransportOptions.builder().proxy('not-a-url').build()
         assert type(exc_info.value) is ValueError
@@ -136,12 +136,12 @@ class TestTransportOptions:
             'Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21'
         )
 
-    def test_constructing_directly_with_a_proxy_without_host_raises(self) -> None:
+    def test_bhv_options_011_constructing_directly_with_a_proxy_without_host_raises(self) -> None:
         with pytest.raises(ValueError) as exc_info:
             TransportOptions(proxy='http://')
         assert str(exc_info.value) == 'Invalid proxy URL (missing host): http://'
 
-    def test_replacing_the_proxy_with_an_invalid_url_raises(self) -> None:
+    def test_bhv_options_013_replacing_the_proxy_with_an_invalid_url_raises(self) -> None:
         valid = TransportOptions(proxy='http://proxy.example.com:3128')
         with pytest.raises(ValueError):
             dataclasses.replace(valid, proxy='socks5://proxy.example.com:1080')
@@ -152,11 +152,11 @@ class TestTransportOptions:
         )
         assert TransportOptions().proxy is None
 
-    def test_null_proxy_url_is_accepted(self) -> None:
+    def test_bhv_options_030_null_proxy_url_is_accepted(self) -> None:
         opts = TransportOptions.builder().proxy(None).build()
         assert opts.proxy is None
 
-    def test_builder_methods_return_same_instance(self) -> None:
+    def test_bhv_options_015_builder_methods_return_same_instance(self) -> None:
         builder = TransportOptions.builder()
 
         assert builder.verify_ssl(True) is builder
@@ -170,7 +170,7 @@ class TestTransportOptions:
         assert builder.default_headers({}) is builder
         assert builder.inject_request_id(False) is builder
 
-    def test_accumulates_headers_from_default_header_calls(self) -> None:
+    def test_bhv_options_012_accumulates_headers_from_default_header_calls(self) -> None:
         opts = (
             TransportOptions.builder()
             .default_header("X-First", "one")
@@ -182,7 +182,7 @@ class TestTransportOptions:
         assert opts.default_headers["X-First"] == "one"
         assert opts.default_headers["X-Second"] == "two"
 
-    def test_merges_headers_from_default_headers_call(self) -> None:
+    def test_bhv_options_028_merges_headers_from_default_headers_call(self) -> None:
         opts = (
             TransportOptions.builder()
             .default_header("X-First", "one")
@@ -195,7 +195,7 @@ class TestTransportOptions:
         assert opts.default_headers["X-Second"] == "two"
         assert opts.default_headers["X-Third"] == "three"
 
-    def test_modifying_source_map_does_not_affect_built_options(self) -> None:
+    def test_bhv_options_029_modifying_source_map_does_not_affect_built_options(self) -> None:
         headers = {"X-Original": "original"}
 
         opts = TransportOptions.builder().default_headers(headers).build()
@@ -207,7 +207,7 @@ class TestTransportOptions:
         assert "X-Added" not in opts.default_headers
         assert isinstance(opts.default_headers, MappingProxyType)
 
-    def test_builder_produces_independent_instances(self) -> None:
+    def test_bhv_options_016_builder_produces_independent_instances(self) -> None:
         builder = TransportOptions.builder().verify_ssl(False)
         first = builder.build()
         second = builder.build()
@@ -217,20 +217,20 @@ class TestTransportOptions:
 
     # TimeoutConfigTests
 
-    def test_timeout_defaults_to_ten_seconds_in_timeout_group(self) -> None:
+    def test_bhv_options_039_timeout_defaults_to_ten_seconds_in_timeout_group(self) -> None:
         # Default TransportOptions has a 10s end-to-end timeout.
         opts = TransportOptions.builder().build()
         assert opts.timeout == 10000
 
-    def test_timeout_can_be_explicitly_disabled(self) -> None:
+    def test_bhv_options_037_timeout_can_be_explicitly_disabled(self) -> None:
         opts = TransportOptions.builder().timeout(None).build()
         assert opts.timeout is None
 
-    def test_setting_timeout_is_accessible(self) -> None:
+    def test_bhv_options_036_setting_timeout_is_accessible(self) -> None:
         opts = TransportOptions.builder().timeout(5000).build()
         assert opts.timeout == 5000
 
-    def test_timeout_field_is_named_timeout(self) -> None:
+    def test_bhv_options_040_timeout_field_is_named_timeout(self) -> None:
         # Verify via the attribute that the field is named 'timeout'
         # (not e.g. 'connection_timeout' or 'open_timeout').
         opts = TransportOptions.builder().timeout(1000).build()
@@ -239,11 +239,11 @@ class TestTransportOptions:
 
     # ProxyConfigTests
 
-    def test_proxy_url_is_preserved_on_read_back(self) -> None:
+    def test_bhv_options_035_proxy_url_is_preserved_on_read_back(self) -> None:
         opts = TransportOptions.builder().proxy("http://proxy.example.com:8080").build()
         assert opts.proxy == "http://proxy.example.com:8080"
 
-    def test_setting_proxy_is_supported_on_all_platforms(self) -> None:
+    def test_bhv_options_034_setting_proxy_is_supported_on_all_platforms(self) -> None:
         # Proxy configuration must not raise on any platform.
         opts = TransportOptions.builder().proxy("http://proxy.example.com:8080").build()
         assert opts.proxy == "http://proxy.example.com:8080"
@@ -257,7 +257,7 @@ class TestProxyUrlValidation:
             ("http://user@[::1:3128", "http://***@[::1:3128"),
         ],
     )
-    def test_an_unterminated_ipv6_literal_is_rejected_with_the_exact_message(
+    def test_bhv_options_010_an_unterminated_ipv6_literal_is_rejected_with_the_exact_message(
         self, proxy: str, shown: str
     ) -> None:
         with pytest.raises(ValueError) as exc_info:
@@ -275,7 +275,7 @@ class TestProxyUrlValidation:
             "http://proxy:3128/path?q=1",
         ],
     )
-    def test_a_proxy_with_user_info_an_ipv6_literal_or_a_path_is_accepted(
+    def test_bhv_options_009_a_proxy_with_user_info_an_ipv6_literal_or_a_path_is_accepted(
         self, proxy: str
     ) -> None:
         assert TransportOptions.builder().proxy(proxy).build().proxy == proxy
@@ -300,7 +300,7 @@ class TestProxyUrlValidation:
             ("https:///path", "Invalid proxy URL (missing host): https:///path"),
         ],
     )
-    def test_builder_rejects_the_proxy_with_the_exact_message(
+    def test_bhv_options_031_builder_rejects_the_proxy_with_the_exact_message(
         self, proxy: str, message: str
     ) -> None:
         with pytest.raises(ValueError) as exc_info:
@@ -326,7 +326,7 @@ class TestProxyUrlValidation:
             ),
         ],
     )
-    def test_the_message_shows_the_userinfo_as_stars_never_the_password(
+    def test_bhv_options_008_the_message_shows_the_userinfo_as_stars_never_the_password(
         self, proxy: str, message: str
     ) -> None:
         with pytest.raises(ValueError) as builder_exc:
@@ -341,7 +341,7 @@ class TestProxyUrlValidation:
     @pytest.mark.parametrize(
         "proxy", ["HTTP://proxy.example.com:3128", "Https://proxy.example.com:3128"]
     )
-    def test_an_upper_case_scheme_is_accepted(self, proxy: str) -> None:
+    def test_bhv_options_014_an_upper_case_scheme_is_accepted(self, proxy: str) -> None:
         assert TransportOptions.builder().proxy(proxy).build().proxy == proxy
 
 
@@ -362,7 +362,7 @@ class TestTransportOptionsRepr:
         'name',
         ['Authorization', 'proxy-authorization', 'Cookie', 'X-Api-Key', 'X-Auth-Token', 'x-client-SECRET'],
     )
-    def test_repr_masks_sensitive_default_header_values(self, name: str) -> None:
+    def test_bhv_options_023_repr_masks_sensitive_default_header_values(self, name: str) -> None:
         opts = TransportOptions.builder().default_header(name, 'hunter2').build()
 
         assert 'hunter2' not in repr(opts)

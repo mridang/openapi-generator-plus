@@ -6,7 +6,9 @@ from petstore_client.servers import ALL
 
 
 class TestServerConfiguration:
-    def test_resolves_url_template_using_default_variable_values(self) -> None:
+    def test_bhv_servers_009_resolves_url_template_using_default_variable_values(
+        self,
+    ) -> None:
         config = ServerConfiguration(
             url_template="https://{env}.api.example.com/v{version}",
             description="primary server",
@@ -39,7 +41,7 @@ class TestServerConfiguration:
             config.get_url({"env": "staging"}) == "https://staging.api.example.com/v1"
         )
 
-    def test_exposes_raw_url_template_and_description(self) -> None:
+    def test_bhv_servers_006_exposes_raw_url_template_and_description(self) -> None:
         config = ServerConfiguration(
             url_template="https://{env}.api.example.com",
             description="primary server",
@@ -49,7 +51,9 @@ class TestServerConfiguration:
         assert config.url_template == "https://{env}.api.example.com"
         assert config.description == "primary server"
 
-    def test_rejects_override_value_outside_the_variable_enum(self) -> None:
+    def test_bhv_servers_008_rejects_override_value_outside_the_variable_enum(
+        self,
+    ) -> None:
         # server-variable-enum-validation: an override that is not in the
         # variable's enum is rejected at resolution time.
         config = ServerConfiguration(
@@ -66,7 +70,9 @@ class TestServerConfiguration:
         assert type(exc_info.value) is ValueError
         assert not isinstance(exc_info.value, OpenAPIException)
 
-    def test_template_without_variables_is_returned_verbatim(self) -> None:
+    def test_bhv_servers_011_template_without_variables_is_returned_verbatim(
+        self,
+    ) -> None:
         config = ServerConfiguration(url_template="https://api.example.com")
 
         assert config.get_url() == "https://api.example.com"
@@ -108,7 +114,9 @@ class TestGeneratedServers:
 
 
 class TestServerVariableResolution:
-    def test_variable_without_an_enum_accepts_any_override(self) -> None:
+    def test_bhv_servers_014_variable_without_an_enum_accepts_any_override(
+        self,
+    ) -> None:
         config = ServerConfiguration(
             url_template="https://{env}.api.example.com",
             variables={"env": ServerVariable(default_value="prod")},
@@ -118,7 +126,7 @@ class TestServerVariableResolution:
             "https://anything-goes.api.example.com"
         )
 
-    def test_default_value_outside_the_enum_is_rejected(self) -> None:
+    def test_bhv_servers_004_default_value_outside_the_enum_is_rejected(self) -> None:
         config = ServerConfiguration(
             url_template="https://{env}.api.example.com",
             variables={
@@ -136,7 +144,7 @@ class TestServerVariableResolution:
             "Allowed values: [prod, staging]"
         )
 
-    def test_rejection_names_the_value_the_variable_and_the_allowed_values(
+    def test_bhv_servers_012_rejection_names_the_value_the_variable_and_the_allowed_values(
         self,
     ) -> None:
         config = ServerConfiguration(
@@ -154,7 +162,9 @@ class TestServerVariableResolution:
             "Invalid value '3' for server variable 'version'. Allowed values: [1, 2]"
         )
 
-    def test_a_placeholder_introduced_by_a_value_is_not_expanded(self) -> None:
+    def test_bhv_servers_005_a_placeholder_introduced_by_a_value_is_not_expanded(
+        self,
+    ) -> None:
         config = ServerConfiguration(
             url_template="https://{env}.api.example.com/{version}",
             variables={
@@ -173,7 +183,9 @@ class TestServerVariableResolution:
 
         assert config.get_url() == "https://a\\1b$&.api.example.com"
 
-    def test_a_variable_repeated_in_the_template_is_replaced_everywhere(self) -> None:
+    def test_bhv_servers_002_a_variable_repeated_in_the_template_is_replaced_everywhere(
+        self,
+    ) -> None:
         config = ServerConfiguration(
             url_template="https://{region}.a.example.com/{region}/v1",
             variables={"region": ServerVariable(default_value="eu")},
@@ -186,7 +198,9 @@ class TestHostileGlobalServer:
     """The third global server carries quotes, an ampersand, a dollar sign and
     an interpolation opener in every text field."""
 
-    def test_url_description_and_variable_round_trip_unchanged(self) -> None:
+    def test_bhv_servers_013_url_description_and_variable_round_trip_unchanged(
+        self,
+    ) -> None:
         server = ALL[2]
 
         assert server.url_template == "https://{tenant}.example.com/api"

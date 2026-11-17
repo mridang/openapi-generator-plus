@@ -9,31 +9,31 @@ from {{packageName}}.auth.api_key_location import ApiKeyLocation
 
 class TestBasicAuthenticator:
 
-    def test_valid_credentials_produce_basic_header(self) -> None:
+    def test_bhv_authbasic_011_valid_credentials_produce_basic_header(self) -> None:
         auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
         headers = auth.get_auth_headers()
         assert headers['Authorization'] == 'Basic YWxpY2U6czNjcmV0'
 
-    def test_rejects_username_with_crlf_at_construction(self) -> None:
+    def test_bhv_authbasic_009_rejects_username_with_crlf_at_construction(self) -> None:
         with pytest.raises(ValueError):
             BasicAuthenticator(host='https://api.example.com', username='alice\r\n', password='s3cret')
 
-    def test_rejects_password_with_nul_at_construction(self) -> None:
+    def test_bhv_authbasic_007_rejects_password_with_nul_at_construction(self) -> None:
         with pytest.raises(ValueError):
             BasicAuthenticator(host='https://api.example.com', username='alice', password='s3c\x00ret')
 
-    def test_rejects_username_with_colon_at_construction(self) -> None:
+    def test_bhv_authbasic_008_rejects_username_with_colon_at_construction(self) -> None:
         with pytest.raises(ValueError):
             BasicAuthenticator(host='https://api.example.com', username='ali:ce', password='s3cret')
 
-    def test_password_is_not_leaked_in_repr(self) -> None:
+    def test_bhv_authbasic_005_password_is_not_leaked_in_repr(self) -> None:
         # The default repr/str must never expose the secret.
         auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
         assert 's3cret' not in repr(auth)
         assert 's3cret' not in str(auth)
         assert 'https://api.example.com' in repr(auth)
 
-    def test_redacts_secret(self) -> None:
+    def test_bhv_authbasic_006_redacts_secret(self) -> None:
         """The repr masks the password as ``***`` and never leaks its value."""
         auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
         rendered = repr(auth)
@@ -83,7 +83,7 @@ class TestApiKeyAuthenticatorRedaction:
 
 
 class TestBasicNonAsciiCredentials:
-    def test_non_ascii_credentials_are_utf8_encoded(self) -> None:
+    def test_bhv_authbasic_004_non_ascii_credentials_are_utf8_encoded(self) -> None:
         auth = BasicAuthenticator(
             host="https://api.example.com",
             username="ünïcødé",
@@ -96,7 +96,7 @@ class TestBasicNonAsciiCredentials:
 
 
 class TestBasicRedactedRepr:
-    def test_repr_lists_the_non_secret_fields_and_masks_the_password(self) -> None:
+    def test_bhv_authbasic_010_repr_lists_the_non_secret_fields_and_masks_the_password(self) -> None:
         auth = BasicAuthenticator(
             host="https://api.example.com", username="alice", password="s3cret"
         )
@@ -108,6 +108,34 @@ class TestBasicRedactedRepr:
 
 
 class TestBasicSchemeWrappers:
+    def test_bhv_authbasic_001_reads_credentials_from_the_environment_when_none_passed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import importlib
+
+        monkeypatch.setenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME', 'alice')
+        monkeypatch.setenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD', 's3cret')
+        cls = getattr(importlib.import_module('{{packageName}}.auth.pet_store_basic_authenticator'), 'PetStoreBasicAuthenticator')
+
+        auth = cls('https://api.example.com')
+
+        assert auth.get_auth_headers() == {'Authorization': 'Basic YWxpY2U6czNjcmV0'}
+
+    @pytest.mark.parametrize('username_value', [None, ''])
+    def test_bhv_authbasic_003_missing_or_empty_credentials_fail_at_construction(
+        self, monkeypatch: pytest.MonkeyPatch, username_value: str | None
+    ) -> None:
+        import importlib
+
+        monkeypatch.delenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME', raising=False)
+        if username_value is not None:
+            monkeypatch.setenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME', username_value)
+        monkeypatch.setenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD', 's3cret')
+        cls = getattr(importlib.import_module('{{packageName}}.auth.pet_store_basic_authenticator'), 'PetStoreBasicAuthenticator')
+
+        with pytest.raises(ValueError, match='Missing the credential'):
+            cls('https://api.example.com')
+
     @pytest.mark.parametrize(
         ("module", "name"),
         [
@@ -115,7 +143,7 @@ class TestBasicSchemeWrappers:
             ("pet_store_basic_authenticator", "PetStoreBasicAuthenticator"),
         ],
     )
-    def test_wrapper_sends_basic_credentials_and_still_validates(
+    def test_bhv_authbasic_002_wrapper_sends_basic_credentials_and_still_validates(
         self, module: str, name: str
     ) -> None:
         import importlib

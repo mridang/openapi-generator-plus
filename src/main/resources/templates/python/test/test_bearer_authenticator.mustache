@@ -6,36 +6,46 @@ from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
 
 class TestBearerAuthenticator:
 
-    def test_raw_token_is_prefixed_with_bearer(self) -> None:
+    def test_bhv_authbearer_009_raw_token_is_prefixed_with_bearer(self) -> None:
         auth = BearerAuthenticator(host='https://api.example.com', token='xyz')
         assert auth.get_auth_headers()['Authorization'] == 'Bearer xyz'
 
-    def test_already_prefixed_token_is_not_doubled(self) -> None:
+    def test_bhv_authbearer_001_repr_prints_its_own_name_with_the_token_masked(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token='s3cret-token')
+
+        assert repr(auth).startswith('BearerAuthenticator(')
+        assert 's3cret-token' not in repr(auth)
+
+    def test_bhv_authbearer_015_a_token_that_begins_with_bearer_is_kept_whole(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token='bearerish')
+        assert auth.get_auth_headers()['Authorization'] == 'Bearer bearerish'
+
+    def test_bhv_authbearer_003_already_prefixed_token_is_not_doubled(self) -> None:
         auth = BearerAuthenticator(host='https://api.example.com', token='Bearer xyz')
         assert auth.get_auth_headers()['Authorization'] == 'Bearer xyz'
 
-    def test_lowercase_bearer_prefix_is_stripped(self) -> None:
+    def test_bhv_authbearer_007_lowercase_bearer_prefix_is_stripped(self) -> None:
         auth = BearerAuthenticator(host='https://api.example.com', token='bearer xyz')
         assert auth.get_auth_headers()['Authorization'] == 'Bearer xyz'
 
-    def test_mixed_case_bearer_prefix_is_stripped(self) -> None:
+    def test_bhv_authbearer_008_mixed_case_bearer_prefix_is_stripped(self) -> None:
         auth = BearerAuthenticator(host='https://api.example.com', token='BeArEr xyz')
         assert auth.get_auth_headers()['Authorization'] == 'Bearer xyz'
 
-    def test_the_prefix_is_removed_once_and_only_as_a_whole_word(self) -> None:
+    def test_bhv_authbearer_004_the_prefix_is_removed_once_and_only_as_a_whole_word(self) -> None:
         twice = BearerAuthenticator(host='https://api.example.com', token='Bearer Bearer xyz')
         assert twice.get_auth_headers()['Authorization'] == 'Bearer Bearer xyz'
         lookalike = BearerAuthenticator(host='https://api.example.com', token='bearerxyz')
         assert lookalike.get_auth_headers()['Authorization'] == 'Bearer bearerxyz'
 
-    def test_rejects_empty_token(self) -> None:
+    def test_bhv_authbearer_005_rejects_empty_token(self) -> None:
         # bearer-no-empty-token-guard: an empty token would emit a bare
         # "Authorization: Bearer " header and send the request unauthenticated,
         # so construction must reject it.
         with pytest.raises(ValueError, match='Bearer token must not be empty'):
             BearerAuthenticator(host='https://api.example.com', token='')
 
-    def test_rejects_whitespace_only_token(self) -> None:
+    def test_bhv_authbearer_017_rejects_whitespace_only_token(self) -> None:
         with pytest.raises(ValueError):
             BearerAuthenticator(host='https://api.example.com', token='   ')
 
@@ -44,13 +54,13 @@ class TestBearerAuthenticator:
         with pytest.raises(ValueError, match='Bearer token must not be empty'):
             BearerAuthenticator(host='https://api.example.com', token=blank)
 
-    def test_unicode_space_is_not_treated_as_blank(self) -> None:
+    def test_bhv_authbearer_016_unicode_space_is_not_treated_as_blank(self) -> None:
         # U+00A0 is not ASCII whitespace, so it is not the "empty" error; the
         # printable-ASCII rule rejects it instead.
         with pytest.raises(ValueError, match='printable ASCII'):
             BearerAuthenticator(host='https://api.example.com', token='\u00a0')
 
-    def test_rejects_crlf(self) -> None:
+    def test_bhv_authbearer_012_rejects_crlf(self) -> None:
         # RFC 7230 §3.2.6 — reject anything outside printable ASCII + TAB to
         # prevent header injection (\r\n).
         with pytest.raises(ValueError):
@@ -65,7 +75,7 @@ class TestBearerAuthenticator:
         assert 'supersecret' not in repr(auth)
         assert 'supersecret' not in str(auth)
 
-    def test_redacts_secret(self) -> None:
+    def test_bhv_authbearer_011_redacts_secret(self) -> None:
         """The repr masks the token as ``***`` and never leaks its value."""
         auth = BearerAuthenticator(host='https://api.example.com', token='xyz')
         rendered = repr(auth)
@@ -82,7 +92,7 @@ class TestBearerAuthenticator:
 
 
 class TestBearerRedactedRepr:
-    def test_repr_lists_the_non_secret_fields_and_masks_the_token(self) -> None:
+    def test_bhv_authbearer_013_repr_lists_the_non_secret_fields_and_masks_the_token(self) -> None:
         auth = BearerAuthenticator(host="https://api.example.com", token="xyz")
 
         assert repr(auth) == (
@@ -98,7 +108,7 @@ class TestBearerSchemeWrappers:
             ("service_token_authenticator", "ServiceTokenAuthenticator"),
         ],
     )
-    def test_wrapper_sends_the_bearer_token_and_still_validates(
+    def test_bhv_authbearer_006_wrapper_sends_the_bearer_token_and_still_validates(
         self, module: str, name: str
     ) -> None:
         import importlib
@@ -115,18 +125,30 @@ class TestBearerSchemeWrappers:
 
 class TestBearerTokenProvider:
 
-    def test_the_provider_is_asked_for_every_request(self) -> None:
+    def test_bhv_authbearer_014_the_provider_is_asked_for_every_request(self) -> None:
         tokens = iter(['one', 'two'])
         auth = BearerAuthenticator(host='https://api.example.com', token_provider=lambda: next(tokens))
 
         assert auth.get_auth_headers()['Authorization'] == 'Bearer one'
         assert auth.get_auth_headers()['Authorization'] == 'Bearer two'
 
-    def test_a_blank_token_from_the_provider_is_rejected(self) -> None:
+    def test_bhv_authbearer_002_a_blank_token_from_the_provider_is_rejected(self) -> None:
         auth = BearerAuthenticator(host='https://api.example.com', token_provider=lambda: '  ')
 
         with pytest.raises(ValueError, match='must not be empty'):
             auth.get_auth_headers()
+
+    def test_bhv_authbearer_010_reads_the_token_from_the_environment_when_none_passed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import importlib
+
+        monkeypatch.setenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN', 'env-token')
+        cls = getattr(importlib.import_module('{{packageName}}.auth.pet_store_bearer_authenticator'), 'PetStoreBearerAuthenticator')
+
+        auth = cls('https://api.example.com')
+
+        assert auth.get_auth_headers() == {'Authorization': 'Bearer env-token'}
 
     def test_a_token_and_a_provider_together_are_rejected(self) -> None:
         with pytest.raises(ValueError, match='not both'):

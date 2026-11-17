@@ -14,7 +14,7 @@ from petstore_client.auth.api_key_location import ApiKeyLocation
 
 
 class TestApiKeyAuthenticator:
-    def test_valid_header_key_passes(self) -> None:
+    def test_bhv_authapikey_014_valid_header_key_passes(self) -> None:
         auth = ApiKeyAuthenticator(
             host="https://api.example.com",
             key_param_name="X-API-Key",
@@ -23,7 +23,7 @@ class TestApiKeyAuthenticator:
         )
         assert auth.get_auth_headers()["X-API-Key"] == "abc123"
 
-    def test_valid_query_key_passes(self) -> None:
+    def test_bhv_authapikey_016_valid_query_key_passes(self) -> None:
         auth = ApiKeyAuthenticator(
             host="https://api.example.com",
             key_param_name="api_key",
@@ -32,7 +32,30 @@ class TestApiKeyAuthenticator:
         )
         assert auth.get_query_params()["api_key"] == "abc123"
 
-    def test_query_accepts_non_ascii(self) -> None:
+    def test_bhv_authapikey_013_valid_cookie_key_passes(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host="https://api.example.com",
+            key_param_name="session",
+            api_key="abc123",
+            location=ApiKeyLocation.COOKIE,
+        )
+        assert auth.get_cookie_params() == {"session": "abc123"}
+        assert auth.get_auth_headers() == {}
+        assert auth.get_query_params() == {}
+
+    def test_bhv_authapikey_015_valid_query_key_is_exposed_in_query_params(
+        self,
+    ) -> None:
+        auth = ApiKeyAuthenticator(
+            host="https://api.example.com",
+            key_param_name="api_key",
+            api_key="abc123",
+            location=ApiKeyLocation.QUERY,
+        )
+        assert auth.get_query_params() == {"api_key": "abc123"}
+        assert auth.get_auth_headers() == {}
+
+    def test_bhv_authapikey_009_query_accepts_non_ascii(self) -> None:
         # Non-header locations accept arbitrary chars.
         auth = ApiKeyAuthenticator(
             host="https://api.example.com",
@@ -42,7 +65,7 @@ class TestApiKeyAuthenticator:
         )
         assert auth.get_query_params() == {"api_key": "kéy"}
 
-    def test_empty_key_header_rejected_at_construction(self) -> None:
+    def test_bhv_authapikey_005_empty_key_header_rejected_at_construction(self) -> None:
         with pytest.raises(ValueError):
             ApiKeyAuthenticator(
                 host="https://api.example.com",
@@ -51,7 +74,7 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.HEADER,
             )
 
-    def test_empty_key_query_rejected_at_construction(self) -> None:
+    def test_bhv_authapikey_006_empty_key_query_rejected_at_construction(self) -> None:
         with pytest.raises(ValueError):
             ApiKeyAuthenticator(
                 host="https://api.example.com",
@@ -60,7 +83,7 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.QUERY,
             )
 
-    def test_empty_key_cookie_rejected_at_construction(self) -> None:
+    def test_bhv_authapikey_004_empty_key_cookie_rejected_at_construction(self) -> None:
         with pytest.raises(ValueError):
             ApiKeyAuthenticator(
                 host="https://api.example.com",
@@ -69,7 +92,9 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.COOKIE,
             )
 
-    def test_whitespace_only_key_rejected_at_construction(self) -> None:
+    def test_bhv_authapikey_017_whitespace_only_key_rejected_at_construction(
+        self,
+    ) -> None:
         with pytest.raises(ValueError):
             ApiKeyAuthenticator(
                 host="https://api.example.com",
@@ -79,7 +104,9 @@ class TestApiKeyAuthenticator:
             )
 
     @pytest.mark.parametrize("blank", [" ", "\t", "\n", "\r", "\f", "\v", " \t\f\v"])
-    def test_ascii_whitespace_only_key_rejected_as_empty(self, blank: str) -> None:
+    def test_bhv_authapikey_011_ascii_whitespace_only_key_rejected_as_empty(
+        self, blank: str
+    ) -> None:
         with pytest.raises(ValueError, match="must not be empty"):
             ApiKeyAuthenticator(
                 host="https://api.example.com",
@@ -89,7 +116,7 @@ class TestApiKeyAuthenticator:
             )
 
     @pytest.mark.parametrize("space", ["\u00a0", "\u2003"])
-    def test_unicode_space_key_is_valid(self, space: str) -> None:
+    def test_bhv_authapikey_001_unicode_space_key_is_valid(self, space: str) -> None:
         auth = ApiKeyAuthenticator(
             host="https://api.example.com",
             key_param_name="api_key",
@@ -98,7 +125,9 @@ class TestApiKeyAuthenticator:
         )
         assert auth.get_query_params() == {"api_key": space}
 
-    def test_crlf_in_query_key_rejected_at_construction(self) -> None:
+    def test_bhv_authapikey_003_crlf_in_query_key_rejected_at_construction(
+        self,
+    ) -> None:
         # CR/LF is a forbidden control character in ALL locations.
         with pytest.raises(ValueError):
             ApiKeyAuthenticator(
@@ -108,7 +137,9 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.QUERY,
             )
 
-    def test_crlf_in_cookie_key_rejected_at_construction(self) -> None:
+    def test_bhv_authapikey_002_crlf_in_cookie_key_rejected_at_construction(
+        self,
+    ) -> None:
         with pytest.raises(ValueError):
             ApiKeyAuthenticator(
                 host="https://api.example.com",
@@ -128,7 +159,7 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.HEADER,
             )
 
-    def test_header_rejects_non_ascii(self) -> None:
+    def test_bhv_authapikey_008_header_rejects_non_ascii(self) -> None:
         with pytest.raises(ValueError):
             ApiKeyAuthenticator(
                 host="https://api.example.com",
@@ -147,7 +178,7 @@ class TestApiKeyAuthenticator:
         assert "topsecretkey" not in repr(auth)
         assert "topsecretkey" not in str(auth)
 
-    def test_redacts_secret(self) -> None:
+    def test_bhv_authapikey_010_redacts_secret(self) -> None:
         """The repr masks the API key as ``***`` and never leaks its value."""
         auth = ApiKeyAuthenticator(
             host="https://api.example.com",
@@ -179,7 +210,9 @@ class TestApiKeyAuthenticator:
 
 
 class TestApiKeyRedactedRepr:
-    def test_repr_lists_the_non_secret_fields_and_masks_the_key(self) -> None:
+    def test_bhv_authapikey_012_repr_lists_the_non_secret_fields_and_masks_the_key(
+        self,
+    ) -> None:
         auth = ApiKeyAuthenticator(
             host="https://api.example.com",
             key_param_name="X-API-Key",
@@ -253,7 +286,7 @@ def _api_key_wrapper(module: str, name: str) -> Any:
 
 class TestApiKeySchemeWrappers:
     @pytest.mark.parametrize(("module", "name", "key_name", "where"), _API_KEY_WRAPPERS)
-    def test_wrapper_emits_the_key_under_the_declared_name_and_location(
+    def test_bhv_authapikey_007_wrapper_emits_the_key_under_the_declared_name_and_location(
         self, module: str, name: str, key_name: str, where: str
     ) -> None:
         auth = _api_key_wrapper(module, name)("https://api.example.com", "abc123")

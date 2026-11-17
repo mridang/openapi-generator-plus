@@ -24,41 +24,52 @@ class TestIsJsonMime:
     def header_selector(self) -> HeaderSelector:
         return HeaderSelector()
 
-    def test_should_return_true_for_application_json(
+    def test_bhv_headers_019_should_return_true_for_application_json(
         self, header_selector: Any
     ) -> None:
         assert header_selector.is_json_mime("application/json") is True
 
-    def test_should_return_true_for_application_json_with_charset(
+    def test_bhv_headers_020_should_return_true_for_application_json_with_charset(
         self, header_selector: Any
     ) -> None:
         assert header_selector.is_json_mime("application/json; charset=UTF-8") is True
 
-    def test_should_return_true_for_uppercase_application_json(
+    def test_bhv_headers_021_should_return_true_for_uppercase_application_json(
         self, header_selector: Any
     ) -> None:
         assert header_selector.is_json_mime("APPLICATION/JSON") is True
 
-    def test_should_return_true_for_vendor_json_types(
+    def test_bhv_headers_022_should_return_true_for_vendor_json_types(
         self, header_selector: Any
     ) -> None:
         assert header_selector.is_json_mime("application/vnd.api+json") is True
         assert header_selector.is_json_mime("application/vnd.company+json") is True
         assert header_selector.is_json_mime("application/hal+json") is True
 
-    def test_should_return_false_for_text_html(self, header_selector: Any) -> None:
+    def test_bhv_headers_016_should_return_false_for_text_html(
+        self, header_selector: Any
+    ) -> None:
         assert header_selector.is_json_mime("text/html") is False
 
-    def test_should_return_false_for_application_xml(
+    def test_bhv_headers_013_should_return_false_for_application_xml(
         self, header_selector: Any
     ) -> None:
         assert header_selector.is_json_mime("application/xml") is False
 
-    def test_should_return_false_for_none(self, header_selector: Any) -> None:
+    def test_bhv_headers_015_should_return_false_for_none(
+        self, header_selector: Any
+    ) -> None:
         assert header_selector.is_json_mime(None) is False
 
-    def test_should_return_false_for_empty_string(self, header_selector: Any) -> None:
+    def test_bhv_headers_014_should_return_false_for_empty_string(
+        self, header_selector: Any
+    ) -> None:
         assert header_selector.is_json_mime("") is False
+
+    def test_bhv_headers_012_should_return_false_for_octet_stream(
+        self, header_selector: Any
+    ) -> None:
+        assert header_selector.is_json_mime("application/octet-stream") is False
 
 
 class TestSelectAcceptHeader:
@@ -68,7 +79,7 @@ class TestSelectAcceptHeader:
     def header_selector(self) -> HeaderSelector:
         return HeaderSelector()
 
-    def test_should_return_empty_string_for_none_input(
+    def test_bhv_headers_005_should_return_empty_string_for_none_input(
         self, header_selector: Any
     ) -> None:
         assert header_selector._select_accept_header(None) == ""
@@ -83,37 +94,45 @@ class TestSelectAcceptHeader:
     ) -> None:
         assert header_selector._select_accept_header(["", None]) == ""
 
-    def test_should_return_single_accept_as_is(self, header_selector: Any) -> None:
+    def test_bhv_headers_017_should_return_single_accept_as_is(
+        self, header_selector: Any
+    ) -> None:
         assert (
             header_selector._select_accept_header(["application/json"])
             == "application/json"
         )
 
-    def test_should_return_single_non_json_accept_as_is(
+    def test_bhv_headers_018_should_return_single_non_json_accept_as_is(
         self, header_selector: Any
     ) -> None:
         assert header_selector._select_accept_header(["text/html"]) == "text/html"
 
-    def test_should_join_in_declaration_order(self, header_selector: Any) -> None:
+    def test_bhv_headers_011_should_join_in_declaration_order(
+        self, header_selector: Any
+    ) -> None:
         result = header_selector._select_accept_header(
             ["image/jpeg", "image/png", "application/json"]
         )
         assert result == "image/jpeg, image/png, application/json"
 
-    def test_should_not_reorder_or_prioritize_json(self, header_selector: Any) -> None:
+    def test_bhv_headers_003_should_not_reorder_or_prioritize_json(
+        self, header_selector: Any
+    ) -> None:
         result = header_selector._select_accept_header(
             ["text/html", "application/json"]
         )
         # No JSON-first reordering, no quality weights.
         assert result == "text/html, application/json"
 
-    def test_should_filter_out_empty_entries_and_join_rest(
+    def test_bhv_headers_010_should_filter_out_empty_entries_and_join_rest(
         self, header_selector: Any
     ) -> None:
         result = header_selector._select_accept_header(["", "application/json", None])
         assert result == "application/json"
 
-    def test_should_drop_whitespace_only_entries(self, header_selector: Any) -> None:
+    def test_bhv_headers_008_should_drop_whitespace_only_entries(
+        self, header_selector: Any
+    ) -> None:
         result = header_selector._select_accept_header(["   ", "application/json"])
         assert result == "application/json"
 
@@ -132,7 +151,7 @@ class TestSelectHeaders:
     def header_selector(self) -> HeaderSelector:
         return HeaderSelector()
 
-    def test_should_set_accept_header_when_accepts_provided(
+    def test_bhv_headers_024_should_set_accept_header_when_accepts_provided(
         self, header_selector: Any
     ) -> None:
         headers = header_selector.select_headers(
@@ -140,13 +159,13 @@ class TestSelectHeaders:
         )
         assert headers.get("Accept") == "application/json"
 
-    def test_should_not_set_accept_header_when_accepts_empty(
+    def test_bhv_headers_004_should_not_set_accept_header_when_accepts_empty(
         self, header_selector: Any
     ) -> None:
         headers = header_selector.select_headers([], "application/json", False)
         assert headers.get("Accept") is None
 
-    def test_should_set_content_type_header_when_not_multipart(
+    def test_bhv_headers_025_should_set_content_type_header_when_not_multipart(
         self, header_selector: Any
     ) -> None:
         headers = header_selector.select_headers(
@@ -154,7 +173,7 @@ class TestSelectHeaders:
         )
         assert headers.get("Content-Type") == "application/json"
 
-    def test_should_not_set_content_type_header_when_multipart(
+    def test_bhv_headers_007_should_not_set_content_type_header_when_multipart(
         self, header_selector: Any
     ) -> None:
         headers = header_selector.select_headers(
@@ -169,13 +188,45 @@ class TestSelectHeaders:
         headers = header_selector.select_headers(["application/json"], declared, True)
         assert headers.get("Content-Type") == declared
 
-    def test_should_default_content_type_to_application_json_when_empty(
+    def test_bhv_headers_006_should_not_set_accept_header_when_all_entries_are_blank(
+        self, header_selector: Any
+    ) -> None:
+        headers = header_selector.select_headers(
+            ["", "  ", "\t"], "application/json", False
+        )
+        assert "Accept" not in headers
+
+    def test_bhv_headers_009_should_filter_out_empty_and_blank_entries_from_the_accept_header(
+        self, header_selector: Any
+    ) -> None:
+        headers = header_selector.select_headers(
+            ["", "text/plain", "   ", "text/csv"], "application/json", False
+        )
+        assert headers["Accept"] == "text/plain, text/csv"
+
+    def test_bhv_headers_023_should_send_a_single_accept_as_is(
+        self, header_selector: Any
+    ) -> None:
+        headers = header_selector.select_headers(
+            ["application/json"], "application/json", False
+        )
+        assert headers["Accept"] == "application/json"
+
+    def test_bhv_headers_026_should_join_non_json_types_in_declaration_order(
+        self, header_selector: Any
+    ) -> None:
+        headers = header_selector.select_headers(
+            ["text/csv", "image/png", "text/plain"], "application/json", False
+        )
+        assert headers["Accept"] == "text/csv, image/png, text/plain"
+
+    def test_bhv_headers_001_should_default_content_type_to_application_json_when_empty(
         self, header_selector: Any
     ) -> None:
         headers = header_selector.select_headers(["application/json"], "", False)
         assert headers.get("Content-Type") == "application/json"
 
-    def test_should_default_content_type_to_application_json_when_none(
+    def test_bhv_headers_002_should_default_content_type_to_application_json_when_none(
         self, header_selector: Any
     ) -> None:
         headers = header_selector.select_headers(["application/json"], None, False)
