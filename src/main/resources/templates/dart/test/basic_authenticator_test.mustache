@@ -24,7 +24,7 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw1')));
     });
 
-    test('the credentials fall back to the environment, read once', () {
+    test('bhv authbasic 001 the credentials fall back to the environment, read once', () {
       final environment = {
         BasicAuthenticator.defaultUsernameVariable: 'alice',
         BasicAuthenticator.defaultPasswordVariable: 'pw1',

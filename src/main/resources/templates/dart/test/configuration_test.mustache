@@ -5,6 +5,13 @@ import 'package:{{packageName}}/{{packageName}}.dart';
 
 void main() {
   group('Configuration', () {
+    test('bhv config 005 builder with no calls produces the default values', () {
+      final config = ConfigurationBuilder().build();
+
+      expect(config.baseUrl, equals('{{{basePath}}}'));
+      expect(config.defaultHeaders, isEmpty);
+    });
+
     test('bhv config 014 default values', () {
       final config = Configuration.defaultConfiguration();
 
@@ -156,6 +163,55 @@ void main() {
       expect(headers['X-First'], equals('one'));
       expect(headers['X-Second'], equals('two'));
       expect(headers['X-Third'], equals('three'));
+    });
+
+    test('bhv config 009 builder server applies every variable override', () {
+      final server = ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        description: 'Test server',
+        variables: {
+          'env': const ServerVariable(
+            defaultValue: 'api',
+            enumValues: ['api', 'staging'],
+          ),
+          'version': const ServerVariable(
+            defaultValue: 'v3',
+            enumValues: ['v2', 'v3'],
+          ),
+        },
+      );
+
+      final config = ConfigurationBuilder()
+          .server(server, {'env': 'staging', 'version': 'v2'})
+          .build();
+
+      expect(config.baseUrl, equals('https://staging.example.com/api/v2'));
+    });
+
+    test('bhv config 010 builder sets every field', () {
+      final config = ConfigurationBuilder()
+          .baseUrl('https://all.example.com')
+          .defaultHeader('X-One', 'one')
+          .defaultHeaders({'X-Two': 'two'})
+          .build();
+
+      expect(config.baseUrl, equals('https://all.example.com'));
+      expect(config.defaultHeaders, equals({'X-One': 'one', 'X-Two': 'two'}));
+    });
+
+    test('bhv config 015 inspect masks sensitive default headers', () {
+      final config = ConfigurationBuilder()
+          .defaultHeader('Authorization', 'Bearer secret-token')
+          .defaultHeader('X-Api-Key', 'key-value')
+          .defaultHeader('X-Trace', 'visible')
+          .build();
+
+      final text = config.toString();
+
+      expect(text, isNot(contains('secret-token')));
+      expect(text, isNot(contains('key-value')));
+      expect(text, contains('visible'));
+      expect(text, contains('***'));
     });
 
     test('bhv config 016 invalid server variable enum value throws', () {

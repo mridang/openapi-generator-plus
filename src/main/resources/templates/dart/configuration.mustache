@@ -39,6 +39,25 @@ class Configuration {
   /// configuration.
   Map<String, String> get defaultHeaders => Map<String, String>.from(_defaultHeaders);
 
+  /// Shows the base URL and the default headers, with credential headers masked.
+  @override
+  String toString() {
+    final shown = _defaultHeaders.map(
+      (name, value) => MapEntry(name, _isSecretHeader(name) ? '***' : value),
+    );
+    return 'Configuration(baseUrl: $baseUrl, defaultHeaders: $shown)';
+  }
+
+  static bool _isSecretHeader(String name) {
+    final lower = name.toLowerCase();
+    return lower == 'authorization' ||
+        lower == 'proxy-authorization' ||
+        lower == 'cookie' ||
+        lower.contains('key') ||
+        lower.contains('token') ||
+        lower.contains('secret');
+  }
+
   /// Create a new builder for constructing [Configuration] instances.
   static ConfigurationBuilder builder() => ConfigurationBuilder();
 
