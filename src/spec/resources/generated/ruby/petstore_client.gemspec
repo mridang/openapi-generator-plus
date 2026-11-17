@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
   s.summary     = 'Swagger Petstore - OpenAPI 3.0 Ruby Gem'
   s.description = 'A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.'
   s.license     = 'MIT'
-  s.required_ruby_version = '>= 3.4'
+  s.required_ruby_version = '>= 3.2'
   s.metadata['rubygems_mfa_required'] = 'true'
 
   # base64, json and set are default gems that Ruby is unbundling from

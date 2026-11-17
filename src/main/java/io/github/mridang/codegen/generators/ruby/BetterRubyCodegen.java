@@ -2,6 +2,7 @@ package io.github.mridang.codegen.generators.ruby;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.samskivert.mustache.Mustache;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
@@ -133,6 +134,16 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 .defaultValue("1.0.0"));
         cliOptions.add(CliOption.newString(CodegenConstants.MODULE_NAME,
                 CodegenConstants.MODULE_NAME_DESC));
+        cliOptions.add(CliOption.newString("authors",
+                "Comma-separated authors written to the gemspec (default: the API title)."));
+        cliOptions.add(CliOption.newString("repositoryUrl",
+                "Source repository URL, written to the gemspec as source_code_uri."));
+        cliOptions.add(CliOption.newString("homepageUrl",
+                "Home page URL, written to the gemspec as homepage."));
+        cliOptions.add(CliOption.newString("documentationUrl",
+                "Documentation URL, written to the gemspec as documentation_uri."));
+        cliOptions.add(CliOption.newString("issueTrackerUrl",
+                "Issue tracker URL, written to the gemspec as bug_tracker_uri."));
         cliOptions.add(CliOption.newString("apiErrorParent",
                 "Fully-qualified superclass for the generated ApiError, and the SDK-wide "
                         + "error base under which all serialization/HTTP errors are rooted. "
@@ -216,7 +227,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "ruby:3.4@sha256:439b61ca7ef0e20da3848a2d53a7ef9970018517c7cfacd1ab234964c9887b1a";
+        return "ruby:3.2@sha256:d3bcbd845d26ae1efafcc987f641aa9ac796267b9b857e0f196a2b05070c8330";
     }
 
     /** {@inheritDoc} */
@@ -227,7 +238,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             // Gemfile.lock (e.g. from an integration-test run sharing this
             // directory, or a previous formatter attempt) cannot poison the
             // bundle install.
-            "rm -rf vendor .bundle",
+            "rm -rf vendor .bundle Gemfile.lock",
             "bundle config set --local path /cache/bundle",
             "bundle install --quiet",
             // rubocop -A exits 1 when it auto-corrects offenses and 2 on a real
@@ -260,7 +271,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                     + ",Style/StringLiterals"
                     + ",Style/TrailingCommaInHashLiteral"
                     + " || [ $? -eq 1 ] )",
-            "rm -rf vendor .bundle"
+            // The lock is left out of the tree: it names the formatter image's
+            // platform, and the test image (musl) cannot install from it.
+            "rm -rf vendor .bundle Gemfile.lock"
         };
     }
 
@@ -335,6 +348,36 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         );
     }
 
+    /**
+     * Exposes the package metadata options to the gemspec and the README: the
+     * authors (comma separated) and the repository, homepage, documentation and
+     * issue-tracker URLs, each as a single-quote-safe literal body so the
+     * templates can write it with a triple mustache. The licence is the SPDX
+     * {@code licenseId} the shared generator already carries.
+     */
+    private void putManifestMetadata() {
+        final String authors = getPropertyOrDefault("authors", "");
+        final List<Map<String, String>> authorList = new ArrayList<>();
+        for (final String author : Splitter.on(',').split(authors)) {
+            if (!author.trim().isEmpty()) {
+                authorList.add(Map.of("name", escapeSingleQuoted(author.trim())));
+            }
+        }
+        additionalProperties.put("authorList", authorList);
+        additionalProperties.put("hasAuthorList", !authorList.isEmpty());
+        for (final String key :
+                new String[] {"repositoryUrl", "homepageUrl", "documentationUrl", "issueTrackerUrl"}) {
+            final String value = getPropertyOrDefault(key, "").trim();
+            if (value.isEmpty()) {
+                // An absent option stays absent: an empty string would still open a section.
+                additionalProperties.remove(key);
+                continue;
+            }
+            additionalProperties.put(key, value);
+            additionalProperties.put(key + "Literal", escapeSingleQuoted(value));
+        }
+    }
+
     @Override
     public void processOpts() {
         super.processOpts();
@@ -347,6 +390,10 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         final String gemVersion = getPropertyOrDefault("gemVersion", DEFAULT_GEM_VERSION);
         additionalProperties.put("gemVersion", gemVersion);
         additionalProperties.put("userAgentDefault", gemName + "/" + gemVersion + " (ruby)");
+        putManifestMetadata();
+        // The prefix of the environment variables a credential falls back to
+        // (<PREFIX>_TOKEN, <PREFIX>_USERNAME, <PREFIX>_PASSWORD, <PREFIX>_API_KEY).
+        additionalProperties.put("envPrefix", NamingConvention.UPPER_SNAKE_CASE.apply(gemName));
 
         // SDK-wide error base. ApiError (and through it the whole HTTP/OAuth
         // error tree) and the serializer errors all subclass this, so a single
@@ -872,7 +919,8 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         return Set.of(
                 "options", "server", "request_content_type", "path", "server_url",
                 "query_params", "header_params", "cookie_parts", "cookie_value",
-                "request_body", "declared_consumes", "resolved_content_type", "result");
+                "request_body", "declared_consumes", "resolved_content_type", "result",
+                "timeout", "headers", "max_retries");
     }
 
     /** {@inheritDoc} */
@@ -918,6 +966,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 .put(
                         "camelize",
                         (fragment, writer) -> writer.write(NamingConvention.PASCAL_CASE.apply(fragment.execute())))
+                .put(
+                        "rubySnake",
+                        (fragment, writer) -> writer.write(NamingConvention.SNAKE_CASE.apply(fragment.execute())))
                 .put(
                         "rubyConst",
                         (fragment, writer) -> writer.write(toRubyConstantName(fragment.execute())))
@@ -1370,6 +1421,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             if (!first) sig.append(", ");
             sig.append("auth: nil");
         }
+        // The per-call request options, on every Options object: a timeout in
+        // milliseconds, extra headers and a retry count that apply to this
+        // call alone (nil keeps the client's value).
+        if (!first || op.hasAuthMethods) sig.append(", ");
+        sig.append("timeout: nil, headers: nil, max_retries: nil");
 
         // Single grouped attr_accessor line (Style/AccessorGrouping): all
         // option params plus the optional `auth` member when present.
@@ -1382,8 +1438,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         }
         if (op.hasAuthMethods) {
             if (!firstAcc) accessors.append(", ");
+            firstAcc = false;
             accessors.append(":auth");
         }
+        if (!firstAcc) accessors.append(", ");
+        accessors.append(":timeout, :headers, :max_retries");
 
         final Map<String, Object> context = new HashMap<>();
         context.put("className", className);
@@ -1490,7 +1549,10 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             if (!first) sig.append(", ");
             sig.append("?auth: ::").append(moduleName)
                     .append("::Auth::").append(getAuthenticatorTypeName()).append('?');
+            first = false;
         }
+        if (!first) sig.append(", ");
+        sig.append("?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?");
 
         final Map<String, Object> context = new HashMap<>();
         context.put("className", className);

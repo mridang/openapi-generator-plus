@@ -60,6 +60,62 @@ module Petstore::Client
           value
         end
 
+        # The +Reservation+ variant of a built ReserveStockResponse value.
+        #
+        # @param value [Object] the result of build
+        # @return [Reservation, nil] +value+ when it is a Reservation, else nil
+        def as_reservation(value)
+          value if value.is_a?(::Petstore::Client::Models::Reservation)
+        end
+
+        # Whether a built ReserveStockResponse value is a +Reservation+.
+        #
+        # @param value [Object] the result of build
+        # @return [Boolean]
+        def reservation_variant?(value)
+          value.is_a?(::Petstore::Client::Models::Reservation)
+        end
+
+        # Wraps a +Reservation+ as a ReserveStockResponse: the union value is the
+        # variant itself, so this checks the type and returns it.
+        #
+        # @param variant [Reservation] the variant
+        # @return [Reservation] +variant+
+        # @raise [ArgumentError] if +variant+ is not a Reservation
+        def from_reservation(variant)
+          return variant if variant.is_a?(::Petstore::Client::Models::Reservation)
+
+          raise ArgumentError, "Expected a Reservation for ReserveStockResponse, got #{variant.class}"
+        end
+
+        # The +ReservationReceipt+ variant of a built ReserveStockResponse value.
+        #
+        # @param value [Object] the result of build
+        # @return [ReservationReceipt, nil] +value+ when it is a ReservationReceipt, else nil
+        def as_reservation_receipt(value)
+          value if value.is_a?(::Petstore::Client::Models::ReservationReceipt)
+        end
+
+        # Whether a built ReserveStockResponse value is a +ReservationReceipt+.
+        #
+        # @param value [Object] the result of build
+        # @return [Boolean]
+        def reservation_receipt_variant?(value)
+          value.is_a?(::Petstore::Client::Models::ReservationReceipt)
+        end
+
+        # Wraps a +ReservationReceipt+ as a ReserveStockResponse: the union value is the
+        # variant itself, so this checks the type and returns it.
+        #
+        # @param variant [ReservationReceipt] the variant
+        # @return [ReservationReceipt] +variant+
+        # @raise [ArgumentError] if +variant+ is not a ReservationReceipt
+        def from_reservation_receipt(variant)
+          return variant if variant.is_a?(::Petstore::Client::Models::ReservationReceipt)
+
+          raise ArgumentError, "Expected a ReservationReceipt for ReserveStockResponse, got #{variant.class}"
+        end
+
         # Builds the object
         # @param data [Object] data to be matched against the list of oneOf items
         # @return [Object] Returns the model or the data itself

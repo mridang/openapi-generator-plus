@@ -19,6 +19,13 @@ module {{moduleName}}::Models
   module {{classname}}
     def self.openapi_one_of: () -> Array[Symbol]
     def self.serialize_oneof: (untyped) -> untyped
+{{#composedSchemas.oneOf}}
+{{#isModel}}
+    def self.as_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}: (untyped) -> {{{dataType}}}?
+    def self.{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}_variant?: (untyped) -> bool
+    def self.from_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}: ({{{dataType}}}) -> {{{dataType}}}
+{{/isModel}}
+{{/composedSchemas.oneOf}}
 {{#discriminator}}
 {{#propertyName}}
     def self.openapi_discriminator_name: () -> Symbol
@@ -49,6 +56,13 @@ module {{moduleName}}::Models
     def self.openapi_any_of: () -> Array[Symbol]
     def self.actual_instance: (untyped) -> untyped
     def self.matched_instances: (untyped) -> Array[untyped]
+{{#composedSchemas.anyOf}}
+{{#isModel}}
+    def self.as_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}: (untyped) -> {{{dataType}}}?
+    def self.{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}_variant?: (untyped) -> bool
+    def self.from_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}: ({{{dataType}}}) -> {{{dataType}}}
+{{/isModel}}
+{{/composedSchemas.anyOf}}
     def self.build: (untyped) -> untyped
   end
 {{/-first}}
@@ -76,6 +90,7 @@ module {{moduleName}}::Models
     REQUIRED_NULLABLE: Hash[Symbol, bool]
     PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
     def inspect: () -> String
+    def with: (**untyped) -> {{classname}}
 {{#isAdditionalPropertiesTrue}}
     ADDITIONAL_PROPERTIES: bool
 {{#additionalPropertiesType}}

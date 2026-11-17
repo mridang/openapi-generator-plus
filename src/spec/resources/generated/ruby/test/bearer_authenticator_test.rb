@@ -111,4 +111,60 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
     _(auth.inspect).must_equal "#<#{auth.class.name} host=\"https://api.example.com\" token=\"***\">"
   end
+
+  describe 'credential sources' do
+    let(:prefix) { Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX }
+
+    it 'reads the token from the environment variable when none is given' do
+      auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => 'from-env' })
+
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer from-env'
+    end
+
+    it 'prefers the token given to the environment variable' do
+      auth = Petstore::Client::Auth::BearerAuthenticator.new(
+        'https://api.example.com', 'explicit', env: { "#{prefix}_TOKEN" => 'from-env' }
+      )
+
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer explicit'
+    end
+
+    it 'treats an empty environment variable as unset' do
+      error = _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => '' }) })
+              .must_raise ArgumentError
+
+      _(error.message).must_equal 'Bearer token must not be empty'
+    end
+
+    it 'fails at construction when there is no token at all' do
+      error = _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: {}) }).must_raise ArgumentError
+
+      _(error.message).must_equal 'Bearer token must not be empty'
+    end
+
+    it 'reads the environment variable once, at construction' do
+      env = { "#{prefix}_TOKEN" => 'first' }
+      auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: env)
+      env["#{prefix}_TOKEN"] = 'second'
+
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer first'
+    end
+
+    it 'asks the token provider for every request and prefers it to the environment variable' do
+      calls = 0
+      provider = -> { "token-#{calls += 1}" }
+      auth = Petstore::Client::Auth::BearerAuthenticator.new(
+        'https://api.example.com', token_provider: provider, env: { "#{prefix}_TOKEN" => 'from-env' }
+      )
+
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer token-1'
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer token-2'
+    end
+
+    it 'rejects an empty token from the provider when the request is made' do
+      auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', token_provider: -> { '' })
+
+      _(-> { auth.auth_headers }).must_raise ArgumentError
+    end
+  end
 end

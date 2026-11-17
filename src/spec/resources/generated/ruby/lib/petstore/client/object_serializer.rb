@@ -192,10 +192,8 @@ module Petstore::Client
       when Time, DateTime
         value.strftime(DEFAULT_DATETIME_FORMAT)
       when Tod::TimeOfDay
-        # 4.8: format: time → HH:MM:SS wire form. Forced seconds-only exception
-        # to the cross-SDK rule (.SSS when the millisecond part is non-zero):
-        # Tod::TimeOfDay stores whole seconds, so a fraction cannot be carried.
-        value.strftime('%H:%M:%S')
+        # 4.8: format: time → HH:MM:SS, plus .SSS when the milliseconds are not zero.
+        format_time_of_day(value)
       when ISO8601::Duration
         # format: duration → protobuf-JSON duration ("3600s"), the wire
         # form protobuf-derived APIs require. The
@@ -300,9 +298,8 @@ module Petstore::Client
         # #duration_to_protobuf_json; the native ISO-8601 form is rejected.
         duration_to_protobuf_json(object)
       when Tod::TimeOfDay
-        # 4.8: format: time — emit HH:MM:SS for JSON wire form. Seconds-only:
-        # Tod::TimeOfDay cannot carry a fraction (see #stringify).
-        object.strftime('%H:%M:%S')
+        # 4.8: format: time — HH:MM:SS, plus .SSS when the milliseconds are not zero.
+        format_time_of_day(object)
       when Array, Set, Hash
         visited ||= Set.new
         obj_id = object.object_id
@@ -447,7 +444,12 @@ module Petstore::Client
 
         # Float() takes any Numeric and is RBS-typed accordingly;
         # Numeric#to_f isn't declared in the core RBS sigs Steep uses.
-        Float(data)
+        number = Float(data)
+        # A literal that overflows a double (1e400) parses to Infinity; RFC 8259
+        # has no non-finite number, so it is rejected like NaN is.
+        raise ArgumentError, "Expected a finite number, got #{data.inspect}" if number.nil? || !number.finite?
+
+        number
       when 'Boolean'
         raise ArgumentError, "Expected Boolean, got #{data.class}: #{data.inspect}" unless [true, false].include?(data)
 
@@ -462,13 +464,13 @@ module Petstore::Client
       when 'Date'
         Date.parse(data.to_s)
       when 'Tod::TimeOfDay'
-        # 4.8: format: time — parse HH:MM[:SS] from the wire. A fractional
-        # part is accepted and dropped, since Tod::TimeOfDay holds whole seconds.
+        # 4.8: format: time — parse HH:MM[:SS[.fff]] from the wire. A fraction
+        # is kept to the millisecond (see #parse_time_of_day).
         # Tod::TimeOfDay.parse raises ArgumentError on malformed input,
         # which is wrapped into Errors::SerializationError by the outer rescue.
         return data if data.is_a?(Tod::TimeOfDay)
 
-        Tod::TimeOfDay.parse(data.to_s)
+        parse_time_of_day(data.to_s)
       when 'ISO8601::Duration'
         # 4.8: format: duration — parse protobuf-JSON duration ("3600s").
         # The native type stays ISO8601::Duration; only the wire form is
@@ -677,6 +679,34 @@ module Petstore::Client
     # seconds trimmed to 3, 6, or 9 digits ("3600.000000001s"). This is
     # the form protobuf-derived APIs require; the
     # native ISO-8601 form ("PT1H") is rejected by the server.
+    # Parses a +format: time+ value. Tod::TimeOfDay holds whole seconds, so the
+    # fraction of a second is kept beside it, cut to the millisecond, and
+    # #format_time_of_day writes it back.
+    #
+    # @param text [String] the value, e.g. +10:30:00.123+
+    # @return [Tod::TimeOfDay] the time of day
+    # @raise [ArgumentError] if +text+ is not a time of day
+    def self.parse_time_of_day(text)
+      match = text.match(/\A\s*(\d{1,2}:\d{2}:\d{2})[.,](\d+)\s*\z/)
+      return Tod::TimeOfDay.parse(text) unless match
+
+      # A parsed value is frozen; the copy is the one that carries the fraction.
+      time = Tod::TimeOfDay.parse(match[1].to_s).dup
+      time.instance_variable_set(:@millisecond, "#{match[2]}000"[0, 3].to_i)
+      time.freeze
+    end
+
+    # Writes a +format: time+ value: +HH:MM:SS+, and +.SSS+ when the
+    # milliseconds that #parse_time_of_day kept are not zero.
+    #
+    # @param time [Tod::TimeOfDay] the time of day
+    # @return [String] the wire form
+    def self.format_time_of_day(time)
+      text = time.strftime('%H:%M:%S')
+      millis = time.instance_variable_get(:@millisecond).to_i
+      millis.zero? ? text : format('%<text>s.%<millis>03d', text: text, millis: millis)
+    end
+
     def self.duration_to_protobuf_json(duration)
       total = duration.to_seconds
       sign = total.negative? ? '-' : ''

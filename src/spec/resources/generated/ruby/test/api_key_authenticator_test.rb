@@ -172,4 +172,36 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
       "api_key=\"***\" location=#{location}>"
     )
   end
+
+  it 'reads the key from the environment variable when none is given' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', nil, Petstore::Client::Auth::ApiKeyLocation::HEADER,
+      env: { "#{prefix}_API_KEY" => 'from-env' }
+    )
+
+    _(auth.auth_headers).must_equal('X-Api-Key' => 'from-env')
+  end
+
+  it 'prefers the key given to the environment variable' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', 'explicit', Petstore::Client::Auth::ApiKeyLocation::HEADER,
+      env: { "#{prefix}_API_KEY" => 'from-env' }
+    )
+
+    _(auth.auth_headers).must_equal('X-Api-Key' => 'explicit')
+  end
+
+  it 'fails at construction when the key is neither given nor in the environment' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    error = _(lambda {
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'X-Api-Key', nil, Petstore::Client::Auth::ApiKeyLocation::HEADER,
+        env: { "#{prefix}_API_KEY" => '' }
+      )
+    }).must_raise ArgumentError
+
+    _(error.message).must_equal "API key value for 'X-Api-Key' must not be empty"
+  end
 end

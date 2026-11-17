@@ -39,4 +39,13 @@ describe 'README' do
     _(readme).must_include 'max_retries(n)'
     _(readme).wont_include 'never retries'
   end
+
+  it 'documents the per-call options, the error request context and the design notes' do
+    ['### Per-call options', '### Errors', '`request_path`', '### Response compression', '### Logging',
+     '### Streaming', '### Versioning', '### Credentials', '### Optional and nullable are not told apart',
+     '### An unknown enum value or discriminator fails loudly', '### Repeated response headers are joined',
+     '### `Configuration` and `TransportOptions`'].each do |text|
+      _(readme).must_include text
+    end
+  end
 end

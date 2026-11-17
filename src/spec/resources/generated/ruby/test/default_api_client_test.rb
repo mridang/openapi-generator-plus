@@ -103,7 +103,8 @@ describe Petstore::Client::DefaultApiClient do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
       dead = %w[HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy]
       bypass = %w[NO_PROXY no_proxy]
-      saved = (dead + bypass).to_h { |name| [name, ENV.fetch(name, nil)] }
+      saved = {} # : Hash[String, String?]
+      (dead + bypass).each { |name| saved[name] = ENV.fetch(name, nil) }
       dead.each { |name| ENV[name] = 'http://127.0.0.1:1' }
       bypass.each { |name| ENV.delete(name) }
 

@@ -60,17 +60,23 @@ module {{moduleName}}
       # @param body [Object, nil] request body (model object or nil)
       # @param accepts [Array<String>] acceptable response content types
       # @param content_type [String, nil] request content type
-      # @param return_type [String, nil] return type for deserialization (nil for void)
+      # @param return_type [String, Hash{Integer, String => String}, nil] return type for
+      #   deserialization (nil for void). An operation with several 2xx schemas passes
+      #   a Hash of status code (a +'2XX'+ key for the range) to type name, and the
+      #   body is decoded as the type of the status the response actually carries.
       # @param auth [Object, nil] operation-specific auth resolution. Three states:
       #   NO_AUTH suppresses auth (security: [] operation), nil falls back to the
       #   client-level authenticator, and a real authenticator is a per-call override.
       # @param operation_id [String, nil] the calling operation as +Class.operation+, named in a
       #   serialization error (defaults to the API class name)
+      # @param request_options [Object, nil] the per-call options of the operation: its +timeout+
+      #   (milliseconds), +headers+ and +max_retries+ apply to this call alone, and nil members
+      #   keep the client's values. A custom ApiClient receives the headers only.
       # @return [ApiResult] ApiResult containing deserialized data, status code, raw body, and headers
       # @raise [Errors::ApiError] if the API call fails
       def invoke_api_for_result(
         method, path, query_params, header_params, body,
-        accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil
+        accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil
       )
         url = if path.start_with?('http://', 'https://')
                 path
@@ -123,6 +129,7 @@ module {{moduleName}}
         headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
         headers.merge!(@config.default_headers)
         headers.merge!(header_params)
+        merge_call_headers(headers, request_options.headers) if request_options&.headers
         request_headers = authenticated_headers(headers, effective_auth)
         serialized_body = serialize_body(body, content_type, raw_body: raw_body)
         request_headers.delete('Content-Type') if serialized_body.nil?
@@ -134,7 +141,8 @@ module {{moduleName}}
           fresh.delete('Content-Type') if serialized_body.nil?
           fresh
         end
-        response = dispatch_request(method, url, request_headers, serialized_body, fresh_headers)
+        call_options = transport_call_options(request_options)
+        response = dispatch_request(method, url, request_headers, serialized_body, fresh_headers, call_options)
         if response.status_code == 401 && effective_auth.respond_to?(:invalidate_access_token) && replayable_body?(serialized_body)
           # A revoked or rotated token keeps failing while it is cached. Drop it,
           # obtain a new one (a refresh grant first) and replay the request
@@ -146,16 +154,17 @@ module {{moduleName}}
           rescue {{apiErrorParent}}
             nil
           end
-          response = dispatch_request(method, url, renewed, serialized_body, fresh_headers) if renewed
+          response = dispatch_request(method, url, renewed, serialized_body, fresh_headers, call_options) if renewed
         end
-        throw_api_error(response) if response.status_code < 200 || response.status_code >= 300
+        throw_api_error(response, method, url) if response.status_code < 200 || response.status_code >= 300
 
         data = nil
-        if return_type && response.body && !response.body.empty?
+        decode_type = return_type_for_status(return_type, response.status_code)
+        if decode_type && response.body && !response.body.empty?
           # @type var resp_content_type: String?
           ct_pair = response.headers.find { |k, _| k.downcase == 'content-type' }
           resp_content_type = ct_pair ? ct_pair.last.split(';').first.strip : nil
-          data = if binary_return_type?(return_type)
+          data = if binary_return_type?(decode_type)
                    # Binary return types (File) must never be JSON-deserialized,
                    # even when content negotiation makes the server label the
                    # raw bytes `application/json`. Detect by the target return
@@ -170,8 +179,8 @@ module {{moduleName}}
                                end
                    StringIO.new(raw_bytes)
                  elsif !resp_content_type || @header_selector.json_mime?(resp_content_type)
-                   ::{{moduleName}}::ObjectSerializer.deserialize(response.body, return_type)
-                 elsif return_type == 'String'
+                   ::{{moduleName}}::ObjectSerializer.deserialize(response.body, decode_type)
+                 elsif decode_type == 'String'
                    response.body
                  else
                    # A non-JSON body can only be returned verbatim for a String
@@ -252,12 +261,18 @@ module {{moduleName}}
 
       # Send one request. The SDK's own transport also gets +fresh_headers+, so
       # an automatic retry rebuilds the headers (and re-authenticates) first.
-      def dispatch_request(method, url, headers, body, fresh_headers)
+      def dispatch_request(method, url, headers, body, fresh_headers, call_options = {})
         unless @api_client.is_a?(::{{moduleName}}::DefaultApiClient)
           return @api_client.send_request(method, url, headers, body)
         end
 
-        @api_client.send_request(method, url, headers, body, retry_headers: fresh_headers)
+        @api_client.send_request(method, url, headers, body, retry_headers: fresh_headers, **call_options)
+      rescue ::{{moduleName}}::Errors::ApiError => e
+        # A failure that carries no request yet (the network, a refused redirect,
+        # an undecodable body) learns which request it belongs to.
+        e.instance_variable_set(:@request_method, method.to_s.upcase) if e.request_method.nil?
+        e.instance_variable_set(:@request_path, request_path_of(url)) if e.request_path.nil?
+        raise
       end
 
       # Whether a request body can be sent a second time: none, or a string. A
@@ -266,12 +281,49 @@ module {{moduleName}}
         body.nil? || body.is_a?(String)
       end
 
-      # Raises the error ApiError.from_response maps the response to. The body
-      # is parsed as JSON where possible so that structured error data (e.g.
-      # from a +default+ response schema) is available via
+      # Raises the error ApiError.from_response maps the response to, carrying
+      # the method and the path (never the query string) of the request. The
+      # body is parsed as JSON where possible so that structured error data
+      # (e.g. from a +default+ response schema) is available via
       # {Errors::ApiError#error_body}.
-      def throw_api_error(response)
-        raise ::{{moduleName}}::Errors::ApiError.from_response(response.status_code, response.headers, response.body)
+      def throw_api_error(response, method, url)
+        raise ::{{moduleName}}::Errors::ApiError.from_response(
+          response.status_code, response.headers, response.body,
+          request_method: method.to_s, request_path: request_path_of(url)
+        )
+      end
+
+      # The timeout and retry count of one call, checked, as the keywords the
+      # transport takes; a member left nil is left out, so the transport's own
+      # value applies.
+      def transport_call_options(request_options)
+        timeout = request_options&.timeout
+        max_retries = request_options&.max_retries
+        if timeout && (!timeout.is_a?(Numeric) || timeout <= 0)
+          raise ArgumentError, "Invalid timeout: must be a positive number of milliseconds (got #{timeout.inspect})"
+        end
+
+        ::{{moduleName}}::TransportOptions.validate_max_retries!(max_retries) unless max_retries.nil?
+        { timeout: timeout, max_retries: max_retries }.compact
+      end
+
+      # Adds the headers of one call to +headers+; a name replaces one of the
+      # same name whatever its casing (RFC 9110 section 5.1).
+      def merge_call_headers(headers, extra)
+        unless extra.is_a?(Hash) && extra.all? { |name, value| name.is_a?(String) && value.is_a?(String) }
+          raise ArgumentError, "Invalid headers: must be a Hash of String names to String values (got #{extra.inspect})"
+        end
+
+        extra.each do |name, value|
+          headers.delete_if { |existing, _| existing.casecmp?(name) }
+          headers[name] = value
+        end
+      end
+
+      # The path of +url+ without its scheme, host and query string.
+      def request_path_of(url)
+        path = url.split('?', 2).first.to_s.sub(%r{\A[A-Za-z][A-Za-z0-9+.-]*://[^/]*}, '')
+        path.empty? ? '/' : path
       end
 
       def build_query_string(query_params)
@@ -366,6 +418,15 @@ module {{moduleName}}
       def binary_part_from_form_body(form_body)
         io_part = form_body.values.find { |v| v.respond_to?(:read) }
         io_part || form_body.values.first
+      end
+
+      # The type name to decode a response of +status+ into: +return_type+ itself,
+      # or, for a Hash of status to type, the entry of that status (else of its
+      # +'2XX'+ range, else none).
+      def return_type_for_status(return_type, status)
+        return return_type unless return_type.is_a?(Hash)
+
+        return_type.fetch(status) { return_type['2XX'] }
       end
 
       # Whether the operation's target return type denotes raw binary data

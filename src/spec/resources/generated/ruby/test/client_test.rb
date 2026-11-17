@@ -30,6 +30,21 @@ describe Petstore::Client::Petstore do
     _(client).wont_be_nil
   end
 
+  it 'with_token takes the token provider as the credential' do
+    client = Petstore::Client::Petstore.with_token('/api/v3', token_provider: -> { 'fresh-token' })
+
+    _(client).wont_be_nil
+  end
+
+  it 'with_token fails when no token, provider or environment variable gives one' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    skip "#{prefix}_TOKEN is set in this environment" unless ENV.fetch("#{prefix}_TOKEN", '').empty?
+
+    error = _(-> { Petstore::Client::Petstore.with_token('/api/v3') }).must_raise ArgumentError
+
+    _(error.message).must_equal 'Bearer token must not be empty'
+  end
+
   it 'BearerAuthenticator rejects CR/LF and non-ASCII' do
     # RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
     # newlines from .env / file reads, which would CRLF-inject the

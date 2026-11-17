@@ -73,6 +73,62 @@ module Petstore::Client
           }
         end
 
+        # The +DryFood+ variant of a built PetFood value.
+        #
+        # @param value [Object] the result of build
+        # @return [DryFood, nil] +value+ when it is a DryFood, else nil
+        def as_dry_food(value)
+          value if value.is_a?(::Petstore::Client::Models::DryFood)
+        end
+
+        # Whether a built PetFood value is a +DryFood+.
+        #
+        # @param value [Object] the result of build
+        # @return [Boolean]
+        def dry_food_variant?(value)
+          value.is_a?(::Petstore::Client::Models::DryFood)
+        end
+
+        # Wraps a +DryFood+ as a PetFood: the union value is the
+        # variant itself, so this checks the type and returns it.
+        #
+        # @param variant [DryFood] the variant
+        # @return [DryFood] +variant+
+        # @raise [ArgumentError] if +variant+ is not a DryFood
+        def from_dry_food(variant)
+          return variant if variant.is_a?(::Petstore::Client::Models::DryFood)
+
+          raise ArgumentError, "Expected a DryFood for PetFood, got #{variant.class}"
+        end
+
+        # The +WetFood+ variant of a built PetFood value.
+        #
+        # @param value [Object] the result of build
+        # @return [WetFood, nil] +value+ when it is a WetFood, else nil
+        def as_wet_food(value)
+          value if value.is_a?(::Petstore::Client::Models::WetFood)
+        end
+
+        # Whether a built PetFood value is a +WetFood+.
+        #
+        # @param value [Object] the result of build
+        # @return [Boolean]
+        def wet_food_variant?(value)
+          value.is_a?(::Petstore::Client::Models::WetFood)
+        end
+
+        # Wraps a +WetFood+ as a PetFood: the union value is the
+        # variant itself, so this checks the type and returns it.
+        #
+        # @param variant [WetFood] the variant
+        # @return [WetFood] +variant+
+        # @raise [ArgumentError] if +variant+ is not a WetFood
+        def from_wet_food(variant)
+          return variant if variant.is_a?(::Petstore::Client::Models::WetFood)
+
+          raise ArgumentError, "Expected a WetFood for PetFood, got #{variant.class}"
+        end
+
         # Builds the object
         # @param data [Object] data to be matched against the list of oneOf items
         # @return [Object] Returns the model or the data itself

@@ -8,7 +8,7 @@ module Petstore::Client
       class GetPetSummaryOptions
         attr_reader session: String
         attr_reader days: Array[Date]?
-        def initialize: (session: String, ?days: Array[Date]?) -> void
+        def initialize: (session: String, ?days: Array[Date]?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
       end
     end
   end

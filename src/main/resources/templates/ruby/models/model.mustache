@@ -152,6 +152,38 @@ module {{moduleName}}
         {{/-last}}
         {{/mappedModels}}
         {{/discriminator}}
+{{#composedSchemas.oneOf}}
+{{#isModel}}
+        # The +{{{dataType}}}+ variant of a built {{classname}} value.
+        #
+        # @param value [Object] the result of build
+        # @return [{{{dataType}}}, nil] +value+ when it is a {{{dataType}}}, else nil
+        def as_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}(value)
+          value if value.is_a?(::{{moduleName}}::Models::{{{dataType}}})
+        end
+
+        # Whether a built {{classname}} value is a +{{{dataType}}}+.
+        #
+        # @param value [Object] the result of build
+        # @return [Boolean]
+        def {{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}_variant?(value)
+          value.is_a?(::{{moduleName}}::Models::{{{dataType}}})
+        end
+
+        # Wraps a +{{{dataType}}}+ as a {{classname}}: the union value is the
+        # variant itself, so this checks the type and returns it.
+        #
+        # @param variant [{{{dataType}}}] the variant
+        # @return [{{{dataType}}}] +variant+
+        # @raise [ArgumentError] if +variant+ is not a {{{dataType}}}
+        def from_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}(variant)
+          return variant if variant.is_a?(::{{moduleName}}::Models::{{{dataType}}})
+
+          raise ArgumentError, "Expected a {{{dataType}}} for {{classname}}, got #{variant.class}"
+        end
+
+{{/isModel}}
+{{/composedSchemas.oneOf}}
         # Builds the object
         # @param data [Object] data to be matched against the list of oneOf items
         # @return [Object] Returns the model or the data itself
@@ -322,6 +354,38 @@ module {{moduleName}}
           [value]
         end
 
+{{#composedSchemas.anyOf}}
+{{#isModel}}
+        # The +{{{dataType}}}+ variant of a built {{classname}} value.
+        #
+        # @param value [Object] the result of build
+        # @return [{{{dataType}}}, nil] the retained {{{dataType}}}, or nil
+        def as_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}(value)
+          matched_instances(value).find { |instance| instance.is_a?(::{{moduleName}}::Models::{{{dataType}}}) }
+        end
+
+        # Whether a built {{classname}} value retains a +{{{dataType}}}+.
+        #
+        # @param value [Object] the result of build
+        # @return [Boolean]
+        def {{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}_variant?(value)
+          matched_instances(value).any?(::{{moduleName}}::Models::{{{dataType}}})
+        end
+
+        # Wraps a +{{{dataType}}}+ as a {{classname}}: the union value is the
+        # variant itself, so this checks the type and returns it.
+        #
+        # @param variant [{{{dataType}}}] the variant
+        # @return [{{{dataType}}}] +variant+
+        # @raise [ArgumentError] if +variant+ is not a {{{dataType}}}
+        def from_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}(variant)
+          return variant if variant.is_a?(::{{moduleName}}::Models::{{{dataType}}})
+
+          raise ArgumentError, "Expected a {{{dataType}}} for {{classname}}, got #{variant.class}"
+        end
+
+{{/isModel}}
+{{/composedSchemas.anyOf}}
         # Builds the object
         # @param data [Object] data to be matched against the list of anyOf items
         # @return [Object] Returns a single variant when exactly one matches, a
@@ -510,6 +574,20 @@ module {{moduleName}}
           "#{name}=#{PASSWORD_ATTRIBUTES.key?(name) && !value.nil? ? '***' : value.inspect}"
         end
         "#<#{self.class.name} #{fields.join(' ')}>"
+      end
+
+      # A copy of this model with +changes+ applied. A model has no writers, so
+      # this is how a value is modified: the receiver stays as it was.
+      #
+      # @param changes [Hash{Symbol => Object}] the attributes to replace, by name
+      # @return [{{classname}}] the copy
+      # @raise [ArgumentError] if a key is not an attribute of this model
+      def with(**changes)
+        known = self.class::ATTRIBUTE_MAP.keys{{#isAdditionalPropertiesTrue}} + [:additional_properties]{{/isAdditionalPropertiesTrue}}
+        unknown = changes.keys - known
+        raise ArgumentError, "Unknown attribute for {{classname}}: #{unknown.join(', ')}" unless unknown.empty?
+
+        self.class.new(**attributes, **changes)
       end
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.

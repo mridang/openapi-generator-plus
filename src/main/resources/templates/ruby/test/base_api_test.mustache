@@ -12,9 +12,29 @@ class TestableApi < {{moduleName}}::Api::BaseApi
   end
 
   def call_for_result(method, path, query_params, header_params, body,
-                      accepts, content_type, return_type, auth = nil, operation_id: nil)
+                      accepts, content_type, return_type, auth = nil, operation_id: nil, request_options: nil)
     invoke_api_for_result(method, path, query_params, header_params, body,
-                          accepts, content_type, return_type, auth, operation_id: operation_id)
+                          accepts, content_type, return_type, auth, operation_id: operation_id,
+                                                                    request_options: request_options)
+  end
+end
+
+CallOptions = Struct.new(:timeout, :headers, :max_retries)
+
+# A DefaultApiClient that records what BaseApi hands the transport instead of
+# sending it.
+class RecordingDefaultApiClient < {{moduleName}}::DefaultApiClient
+  attr_reader :captured_kwargs
+
+  def send_request(_method, _url, _headers, _body, **kwargs)
+    @captured_kwargs = kwargs
+    {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
+  end
+end
+
+class RaisingApiClient
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    raise {{moduleName}}::Errors::NetworkError.new(message: 'connection refused')
   end
 end
 
@@ -146,6 +166,8 @@ describe {{moduleName}}::Api::BaseApi do
       _(err.status_code).must_equal status
       _(err.response_body).wont_be_nil
       _(err.response_body).wont_be_empty
+      _(err.request_method).must_equal 'GET'
+      _(err.request_path).must_equal "/test/status/#{status}"
     end
   end
 
@@ -1058,5 +1080,87 @@ describe {{moduleName}}::Api::BaseApi do
 
     assert_raises({{moduleName}}::Errors::ForbiddenError) { replay_call(api) }
     _(client.api_requests.length).must_equal 1
+  end
+
+  # ── Request context on errors ──
+
+  it 'names the method and the path, never the query string, on an API error' do
+    response = {{moduleName}}::ApiHttpResponse.new(status_code: 404, body: '', headers: {})
+    config = {{moduleName}}::Configuration.builder.base_url('https://example.test/v1').build
+    test_api = TestableApi.new(FixedResponseApiClient.new(response), config)
+
+    err = assert_raises({{moduleName}}::Errors::NotFoundError) do
+      test_api.call(:get, '/items/7', { 'token' => 'secret' }, {}, nil, ['application/json'], 'application/json', nil)
+    end
+
+    _(err.request_method).must_equal 'GET'
+    _(err.request_path).must_equal '/v1/items/7'
+    _(err.message).must_include("\nRequest: GET /v1/items/7")
+    _(err.message).wont_include('secret')
+  end
+
+  it 'names the request on a failure that never reached the server' do
+    config = {{moduleName}}::Configuration.builder.base_url('https://example.test').build
+    test_api = TestableApi.new(RaisingApiClient.new, config)
+
+    err = assert_raises({{moduleName}}::Errors::NetworkError) do
+      test_api.call(:post, '/items', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+
+    _(err.request_method).must_equal 'POST'
+    _(err.request_path).must_equal '/items'
+    _(err.status_code).must_equal 0
+  end
+
+  # ── Per-call request options ──
+
+  it 'sends the headers of the call over the configured default headers' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost')
+                                          .default_headers({ 'X-Trace' => 'client', 'Accept-Language' => 'en' }).build
+    test_api = TestableApi.new(client, config)
+    options = CallOptions.new(nil, { 'x-trace' => 'call' }, nil)
+
+    test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil,
+                             request_options: options)
+
+    _(client.captured_headers['x-trace']).must_equal 'call'
+    _(client.captured_headers.keys.count { |name| name.casecmp?('x-trace') }).must_equal 1
+    _(client.captured_headers['Accept-Language']).must_equal 'en'
+  end
+
+  it 'hands the timeout and retry count of the call to the transport' do
+    client = RecordingDefaultApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+
+    test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil,
+                             request_options: CallOptions.new(2500, nil, 4))
+
+    _(client.captured_kwargs[:timeout]).must_equal 2500
+    _(client.captured_kwargs[:max_retries]).must_equal 4
+  end
+
+  it 'rejects a per-call timeout, retry count or header set that is not valid' do
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(RecordingDefaultApiClient.new, config)
+
+    [CallOptions.new(0, nil, nil), CallOptions.new(nil, nil, -1), CallOptions.new(nil, { 'X' => 1 }, nil)].each do |options|
+      _(lambda do
+        test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil,
+                                 request_options: options)
+      end).must_raise ArgumentError
+    end
+  end
+
+  it 'leaves the transport values alone when the call sets none' do
+    client = RecordingDefaultApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+
+    test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil,
+                             request_options: CallOptions.new(nil, nil, nil))
+
+    _(client.captured_kwargs.keys).must_equal([:retry_headers])
   end
 end

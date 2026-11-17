@@ -11,9 +11,10 @@ require_relative '{{apiErrorParentFile}}'
 module {{moduleName}}
   module Errors
     # Represents an error returned by the API, including the HTTP status code,
-    # response headers, and response body.
+    # response headers, and response body, and the request it answers
+    # (+request_method+ and +request_path+, the path without its query string).
     class ApiError < {{apiErrorParent}}
-      attr_reader :status_code, :response_headers, :response_body, :error_body
+      attr_reader :status_code, :response_headers, :response_body, :error_body, :request_method, :request_path
 
       # The one status-to-error mapping in the SDK: the error a non-2xx response
       # with this status raises. The API classes and the OpenID Connect
@@ -22,15 +23,19 @@ module {{moduleName}}
       # @param status_code [Integer] the HTTP status code of the response
       # @param headers [Hash{String => String}] the response headers
       # @param body [String, nil] the raw response body
+      # @param request_method [String, nil] the HTTP method of the request
+      # @param request_path [String, nil] the path of the request; a query string is dropped
       # @return [ApiError] the status-specific subclass where there is one (for
       #   example NotFoundError for 404), else ClientError for any other 4xx,
       #   ServerError for any other 5xx, and ApiError for everything else
-      def self.from_response(status_code, headers, body)
+      def self.from_response(status_code, headers, body, request_method: nil, request_path: nil)
         opts = {
           message: "API returned status code #{status_code}",
           response_body: body,
           response_headers: headers,
-          error_body: parse_error_body(body)
+          error_body: parse_error_body(body),
+          request_method: request_method,
+          request_path: request_path
         }
         case status_code
         when 400 then BadRequestError.new(**opts)
@@ -85,6 +90,10 @@ module {{moduleName}}
           super
           @message = arg
         end
+        # The method is shown in capitals and the path never carries its query
+        # string, which can hold a credential.
+        @request_method = @request_method.to_s.upcase unless @request_method.nil?
+        @request_path = @request_path.to_s.split('?', 2).first unless @request_path.nil?
       end
 
       # Override to_s to display a friendly error message
@@ -122,7 +131,8 @@ module {{moduleName}}
       private_constant :MAX_RENDERED_BODY_BYTES, :CREDENTIAL_RESPONSE_HEADERS
 
       # Build a human-readable error message from the stored attributes. The
-      # headers and body sections are left out when they are nil or empty. The
+      # request section (+Request: GET /items/1+) follows the status code.
+      # The headers and body sections are left out when they are nil or empty. The
       # headers have their credentials redacted (the S15 list plus Set-Cookie, WWW-Authenticate and Proxy-Authenticate),
       # and the body is cut at 1 KiB with control characters escaped, so one
       # error never floods or forges a log line. The full values stay in
@@ -131,6 +141,7 @@ module {{moduleName}}
         msg = detail_message
 
         msg += "\nHTTP status code: #{status_code}" if status_code && status_code != 0
+        msg += "\nRequest: #{request_method} #{request_path}" if request_method && request_path
         msg += "\nResponse headers: #{JSON.generate(rendered_headers.sort.to_h)}" unless response_headers.nil? || response_headers.empty?
         msg += "\nResponse body: #{rendered_body}" unless response_body.nil? || response_body.empty?
 
@@ -144,7 +155,8 @@ module {{moduleName}}
       # @return [Hash{String => String}]
       def rendered_headers
         headers = ::{{moduleName}}::TransportOptions.redact_headers(response_headers || {})
-        headers.to_h { |name, value| [name, CREDENTIAL_RESPONSE_HEADERS.include?(name.to_s.downcase) ? '***' : value] }
+        headers.each_key { |name| headers[name] = '***' if CREDENTIAL_RESPONSE_HEADERS.include?(name.to_s.downcase) }
+        headers
       end
 
       # The response body cut at {MAX_RENDERED_BODY_BYTES} bytes, control

@@ -11,12 +11,21 @@ module Petstore::Client
   module Api
     module Options
       # Options for the upload_pet_certificate operation.
+      #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
       # @param file [File]
       class UploadPetCertificateOptions
-        attr_reader :file
+        attr_reader :file, :timeout, :headers, :max_retries
 
-        def initialize(file:)
+        def initialize(file:, timeout: nil, headers: nil, max_retries: nil)
           @file = file
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
           freeze
         end
       end

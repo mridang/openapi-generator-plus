@@ -7,8 +7,8 @@ module {{moduleName}}
     # DNS failure, TLS failure, or connection reset. The status code is
     # always 0; the underlying library error is kept as +cause+.
     class NetworkError < ::{{moduleName}}::Errors::ApiError
-      def initialize(message: nil)
-        super({ status_code: 0, message: message })
+      def initialize(message: nil, request_method: nil, request_path: nil)
+        super({ status_code: 0, message: message, request_method: request_method, request_path: request_path })
       end
     end
   end

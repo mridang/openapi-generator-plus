@@ -10,12 +10,29 @@ Gem::Specification.new do |s|
   s.name        = '{{gemName}}'
   s.version     = ::{{moduleName}}::VERSION
   s.platform    = Gem::Platform::RUBY
+{{#hasAuthorList}}
+  s.authors     = [{{#authorList}}'{{{name}}}'{{^-last}}, {{/-last}}{{/authorList}}]
+{{/hasAuthorList}}
+{{^hasAuthorList}}
   s.authors     = ['{{#infoName}}{{infoName}}{{/infoName}}{{^infoName}}{{appNameBase}}{{/infoName}}']
+{{/hasAuthorList}}
   s.summary     = '{{appNameBase}} Ruby Gem'
   s.description = '{{#appDescription}}{{{appDescription}}}{{/appDescription}}{{^appDescription}}{{appNameBase}} Ruby Gem{{/appDescription}}'
   s.license     = '{{licenseId}}'
-  s.required_ruby_version = '>= 3.4'
+  s.required_ruby_version = '>= 3.2'
+{{#homepageUrl}}
+  s.homepage = '{{{homepageUrlLiteral}}}'
+{{/homepageUrl}}
   s.metadata['rubygems_mfa_required'] = 'true'
+{{#repositoryUrl}}
+  s.metadata['source_code_uri'] = '{{{repositoryUrlLiteral}}}'
+{{/repositoryUrl}}
+{{#documentationUrl}}
+  s.metadata['documentation_uri'] = '{{{documentationUrlLiteral}}}'
+{{/documentationUrl}}
+{{#issueTrackerUrl}}
+  s.metadata['bug_tracker_uri'] = '{{{issueTrackerUrlLiteral}}}'
+{{/issueTrackerUrl}}
 
   # base64, json and set are default gems that Ruby is unbundling from
   # the standard library (base64 is no longer a default gem on Ruby

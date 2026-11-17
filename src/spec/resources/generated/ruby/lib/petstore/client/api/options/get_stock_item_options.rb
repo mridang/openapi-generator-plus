@@ -11,12 +11,21 @@ module Petstore::Client
   module Api
     module Options
       # Options for the get_stock_item operation.
+      #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
       # @param as_of [Time] Only consider stock as of this instant
       class GetStockItemOptions
-        attr_reader :as_of
+        attr_reader :as_of, :timeout, :headers, :max_retries
 
-        def initialize(as_of: nil)
+        def initialize(as_of: nil, timeout: nil, headers: nil, max_retries: nil)
           @as_of = as_of
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
           freeze
         end
       end

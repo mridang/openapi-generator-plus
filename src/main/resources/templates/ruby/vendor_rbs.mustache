@@ -16,6 +16,7 @@ module Dry
     # readers on each subclass provide the precise per-field types.
     def self.new: (**untyped) -> instance
     def initialize: (**untyped) -> void
+    def attributes: () -> Hash[Symbol, untyped]
   end
 end
 

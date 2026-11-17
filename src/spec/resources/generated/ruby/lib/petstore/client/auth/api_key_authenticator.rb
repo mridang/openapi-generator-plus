@@ -15,14 +15,18 @@ module Petstore::Client
 
       # @param host [String] API base URL
       # @param key_param_name [String] name of the key parameter
-      # @param api_key [String] the API key value
+      # @param api_key [String, nil] the API key value; when nil it is read once,
+      #   here, from the environment variable +<PREFIX>_API_KEY+ (an empty value
+      #   counts as unset)
       # @param location [Symbol] :header, :query, or :cookie
-      def initialize(host, key_param_name, api_key, location)
+      # @param env [#[]] where +<PREFIX>_API_KEY+ is read from
+      def initialize(host, key_param_name, api_key, location, env: ENV)
         super()
+        api_key = credential_from(api_key, 'API_KEY', env)
         validate_api_key!(key_param_name, api_key, location)
         @host = host
         @key_param_name = key_param_name
-        @api_key = api_key
+        @api_key = api_key.to_s
         @location = location
       end
 

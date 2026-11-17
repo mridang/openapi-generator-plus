@@ -17,12 +17,12 @@ interface RubySpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("ruby:3.4-alpine");
+    return DockerImageName.parse("ruby:3.2-alpine");
   }
 
   @Override
   default String getDockerImage() {
-    return "ruby:3.4-alpine";
+    return "ruby:3.2-alpine";
   }
 
   @Override

@@ -14,6 +14,23 @@ describe 'Composed Schema' do
       _(result).must_be_kind_of(Petstore::Client::Models::DryFood)
     end
 
+    it 'offers a typed accessor, predicate and factory per variant' do
+      food = Petstore::Client::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+
+      _(Petstore::Client::Models::PetFood.as_dry_food(food)).must_be_same_as(food)
+      assert_nil(Petstore::Client::Models::PetFood.as_wet_food(food))
+      _(Petstore::Client::Models::PetFood.dry_food_variant?(food)).must_equal(true)
+      _(Petstore::Client::Models::PetFood.wet_food_variant?(food)).must_equal(false)
+    end
+
+    it 'builds a variant through its typed factory and rejects another type' do
+      dry = Petstore::Client::Models::DryFood.new(weight_kg: 2.5)
+
+      _(Petstore::Client::Models::PetFood.from_dry_food(dry)).must_be_same_as(dry)
+      error = _ { Petstore::Client::Models::PetFood.from_wet_food(dry) }.must_raise(ArgumentError) # steep:ignore ArgumentTypeMismatch
+      _(error.message).must_equal("Expected a WetFood for PetFood, got #{dry.class}")
+    end
+
     it 'deserializes to WetFood via discriminator' do
       json = '{"foodType":"wet","volumeMl":400}'
       result = Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood')

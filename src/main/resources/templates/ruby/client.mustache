@@ -70,12 +70,18 @@ module {{moduleName}}
     end
 
     # Creates a client authenticated with a static Bearer token.
+    # The token is the +access_token+ given here, else the result of
+    # +token_provider+ (called for every request), else the environment variable
+    # +<PREFIX>_TOKEN+ (read once, here). A client with none of them cannot be
+    # built: this raises an ArgumentError.
+    #
     # @param host [String] API base URL.
-    # @param access_token [String] Bearer token.
+    # @param access_token [String, nil] Bearer token.
     # @param transport_options [TransportOptions, nil] Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+    # @param token_provider [#call, nil] Returns the Bearer token for one request.
     # @return [{{clientClassName}}] Configured client instance.
-    def self.with_token(host, access_token, transport_options = nil)
-      new(Auth::BearerAuthenticator.new(host, access_token), transport_options)
+    def self.with_token(host, access_token = nil, transport_options = nil, token_provider: nil)
+      new(Auth::BearerAuthenticator.new(host, access_token, token_provider: token_provider), transport_options)
     end
 
     # Creates a client from a ready-made authenticator.

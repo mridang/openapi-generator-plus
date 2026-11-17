@@ -4,8 +4,9 @@ Auto-generated Ruby SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- Ruby `>= 3.4` (the gem targets Ruby 3.4+; older runtimes are not
-  supported and rubocop is configured with `TargetRubyVersion: 3.4`).
+- Ruby `>= 3.2` (the oldest Ruby release that still receives security fixes;
+  older runtimes are not supported and rubocop is configured with
+  `TargetRubyVersion: 3.2`).
 - Bundler `>= 2.x` (`gem install bundler` if missing).
 
 ## Installation
@@ -26,6 +27,10 @@ client = Petstore::Client::Petstore.with_token('https://api.example.com', 'your-
 client.close
 ```
 
+### Credentials
+
+A credential comes from the first of: the value you pass to the constructor, a token provider (`token_provider:`, called for every request), and the environment variable `PETSTORE_CLIENT_TOKEN`, `PETSTORE_CLIENT_USERNAME`, `PETSTORE_CLIENT_PASSWORD` or `PETSTORE_CLIENT_API_KEY`, read once when the authenticator is built (an empty variable counts as unset). A client whose required credential is missing is not built: the constructor raises `ArgumentError`.
+
 See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
 
 ## Configuration
@@ -40,6 +45,22 @@ See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a w
 
 `TransportOptions.builder.max_retries(n)` sets how many times a failed request is sent again (default `2`; `0` turns retries off). A request is retried after a network error that happened before any response, and after a `408`, `409`, `429` or `5xx` (not `501`) response. The wait starts at 0.5 seconds and doubles up to 8 seconds, with up to 25% jitter; a `Retry-After` header (seconds or an HTTP date, at most 60 seconds) is honoured instead. The `timeout` budget is never extended by retries, a TLS failure is not retried, and a multipart or stream body is never sent twice. Every retry is a new request: its headers, authentication included, are built again.
 
+### Per-call options
+
+An operation that takes an Options object accepts three members that apply to that call alone: `timeout` (milliseconds, replacing the client's end-to-end timeout), `headers` (sent in addition to the default headers, and replacing a default of the same name) and `max_retries` (replacing the client's retry count). A member left `nil` keeps the client's value. A client built with your own `ApiClient` receives the headers only. An operation that has no query, header, form or cookie parameter and no security takes no Options object, so these three cannot be set for it.
+
+```ruby
+options = Petstore::Client::Api::Options::<Operation>Options.new(timeout: 2_000, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
+```
+
+### `Configuration` and `TransportOptions`
+
+`Configuration` holds what a request says (the base URL and the default headers) and `TransportOptions` holds how it is sent (timeouts, proxy, TLS, redirects, retries). They stay two objects on purpose: a `Configuration` is cheap to rebuild per tenant, while a `TransportOptions` owns the connection settings the client reuses.
+
+### Errors
+
+An `ApiError` (and every subclass, `NetworkError` included) carries `status_code`, `response_headers`, `response_body`, `error_body`, `request_method` and `request_path`, the path of the request without its query string. The message names them as `Request: GET /items/1` after the status code line.
+
 ### Raw responses
 
 Every operation has a `<operation>_with_http_info` variant returning an `ApiResult` with `status_code`, `headers` (a frozen copy, lower-cased names) and `data`.
@@ -48,10 +69,27 @@ Every operation has a `<operation>_with_http_info` variant returning an `ApiResu
 
 The SDK has no cancellation API of its own. Ruby's native mechanisms (`Timeout`, killing the thread) apply; a call that exceeds the request timeout fails with `NetworkTimeoutError`.
 
+### Response compression
+
+The SDK asks for `gzip, deflate` and decompresses the body itself; `br` and `zstd` are also advertised when the optional `brotli` and `zstd-ruby` gems are installed (the `optional` group in the `Gemfile`). A body that cannot be decoded raises an `ApiError` carrying the response's status.
+
+### Logging
+
+The SDK writes no log. To log requests, supply a `Faraday::Connection` with the logging middleware you want through `TransportOptions.builder.connection(...)`. Authorization headers and other credentials are never part of an error message or of `inspect`.
+
+### Streaming
+
+Streaming request and response bodies are not supported: a response is read in full before it is returned and a request body is a string, a model or a file read in full. For a streaming transport, inject your own `Faraday::Connection`.
+
+### Versioning
+
+The gem follows semantic versioning (`1.0.0` today). The supported Ruby versions are the ones that still receive security fixes (`>= 3.2` today); dropping an end-of-life Ruby is a minor release.
+
 ## Gem
 
 - Name: `petstore_client`
 - Version: `1.0.0`
+- License: MIT
 
 ## Caveats
 
@@ -97,6 +135,22 @@ canonical form (`/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/`) on both
 the deserialize and serialize paths. Invalid values raise
 `SerializationError`. Use `SecureRandom.uuid` to generate new
 identifiers.
+
+### Optional and nullable are not told apart
+
+A property that is optional and a property that is nullable both read as `nil` when absent or `null`. Use `with` to build a changed copy of a model (models have no writers) and `additional_properties` where the schema allows extras.
+
+### An unknown enum value or discriminator fails loudly
+
+A response holding an enum value the SDK does not list, or a discriminator it does not map, raises `SerializationError` instead of being kept as a raw value.
+
+### Repeated response headers are joined
+
+`headers` of a response is a map of lower-cased name to one string: a header the server sent several times is joined with `, ` in the order received, `Set-Cookie` included.
+
+### Several 2xx responses decode by status
+
+An operation that declares different schemas for several 2xx statuses returns the union, and the body is decoded as the schema of the status the response actually carries; use `as_<variant>`, `<variant>_variant?` and `from_<variant>` on the union module to narrow the result.
 
 ### Discriminator no-match raises
 

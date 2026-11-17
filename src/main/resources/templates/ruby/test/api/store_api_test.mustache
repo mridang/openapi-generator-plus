@@ -19,8 +19,9 @@ describe {{moduleName}}::Api::StoreApi do
   # Starts a one-shot TCP server that records the real outgoing request line
   # headers (lower-cased names) and body, then answers 200 with the given JSON
   # +response_body+. The returned Queue receives one
-  # { request_line:, headers:, body: } Hash.
-  def capture_wire_request(response_body)
+  # { request_line:, headers:, body: } Hash. The +status_line+ is the status
+  # code and reason it answers with.
+  def capture_wire_request(response_body, status_line: '200 OK')
     server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
     port = server.addr[1]
     captured = Queue.new
@@ -41,7 +42,7 @@ describe {{moduleName}}::Api::StoreApi do
       length = headers.fetch('content-length', '0').to_i
       captured << { request_line: request_line, headers: headers,
                     body: length.positive? ? client.read(length).to_s : '' }
-      client.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+      client.print("HTTP/1.1 #{status_line}\r\nContent-Type: application/json\r\n" \
                    "Content-Length: #{response_body.bytesize}\r\nConnection: close\r\n\r\n#{response_body}")
       client.close
     end
@@ -437,6 +438,34 @@ describe {{moduleName}}::Api::StoreApi do
 
         _(department).must_be_kind_of({{moduleName}}::Models::Department)
         _(department.lead.department).must_be_kind_of({{moduleName}}::Models::Department)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'decodes a 200 reserve_stock body as the existing reservation' do
+      api, server, thread, = capture_wire_request('{"reservationId":31,"quantity":4}')
+      begin
+        result = api.reserve_stock
+
+        _(result).must_be_kind_of({{moduleName}}::Models::Reservation)
+        _(result.reservation_id).must_equal(31)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'decodes a 201 reserve_stock body as the new receipt' do
+      api, server, thread, = capture_wire_request(
+        '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}', status_line: '201 Created'
+      )
+      begin
+        result = api.reserve_stock
+
+        _(result).must_be_kind_of({{moduleName}}::Models::ReservationReceipt)
+        _(result.receipt_code).must_equal('R-1')
       ensure
         server.close
         thread.join(2)

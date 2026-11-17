@@ -12,14 +12,23 @@ module Petstore::Client
     module Options
       # Options for the add_pet operation.
       #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
+      #
       # The optional +auth+ member overrides the client's configured
       # credentials for this call only; when nil, the base client falls
       # back to the Configuration credentials.
       class AddPetOptions
-        attr_reader :auth
+        attr_reader :auth, :timeout, :headers, :max_retries
 
-        def initialize(auth: nil)
+        def initialize(auth: nil, timeout: nil, headers: nil, max_retries: nil)
           @auth = auth
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
           freeze
         end
       end
