@@ -713,7 +713,7 @@ func (c *queryCapturingApiClient) SendRequestWithOptions(method, url string, hea
 // Close satisfies the ApiClient contract; this stub holds no resources.
 func (c *queryCapturingApiClient) Close() error { return nil }
 
-func TestBaseApi_QueryParamSerialization(t *testing.T) {
+func TestBhvSerializationwire002_BaseApi_QueryParamSerialization(t *testing.T) {
 	t.Parallel()
 	client := &queryCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -2099,7 +2099,7 @@ func TestBaseApi_StopsAfterMaxRetriesAndReturnsTheLastFailure(t *testing.T) {
 	}
 }
 
-func TestBaseApi_MaxRetriesZeroSendsOneRequest(t *testing.T) {
+func TestBhvRetries018_BaseApi_MaxRetriesZeroSendsOneRequest(t *testing.T) {
 	t.Parallel()
 	srv := newScriptedServer(t, scriptedReply{status: 503})
 	api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
@@ -2145,7 +2145,7 @@ func TestBaseApi_RetryAfterSecondsReplacesTheBackoff(t *testing.T) {
 	}
 }
 
-func TestBaseApi_RetryAfterHttpDateReplacesTheBackoff(t *testing.T) {
+func TestBhvRetries022_BaseApi_RetryAfterHttpDateReplacesTheBackoff(t *testing.T) {
 	t.Parallel()
 	date := time.Now().Add(2 * time.Second).UTC().Format(http.TimeFormat)
 	srv := newScriptedServer(t, scriptedReply{status: 503, retryAfter: date}, scriptedReply{status: 200})
@@ -2160,7 +2160,7 @@ func TestBaseApi_RetryAfterHttpDateReplacesTheBackoff(t *testing.T) {
 	}
 }
 
-func TestBaseApi_RetriesNeverExtendTheEndToEndTimeout(t *testing.T) {
+func TestBhvRetries025_BaseApi_RetriesNeverExtendTheEndToEndTimeout(t *testing.T) {
 	t.Parallel()
 	srv := newScriptedServer(t, scriptedReply{status: 503})
 	timeout := 1200
@@ -2519,7 +2519,7 @@ func countingFailureServer(hits *atomic.Int32) *httptest.Server {
 	}))
 }
 
-func TestBaseApi_PerCallMaxRetriesZeroTurnsRetryingOffForTheCall(t *testing.T) {
+func TestBhvRetries014_BaseApi_PerCallMaxRetriesZeroTurnsRetryingOffForTheCall(t *testing.T) {
 	t.Parallel()
 	var hits atomic.Int32
 	server := countingFailureServer(&hits)
@@ -2718,5 +2718,97 @@ func TestBhvAuthintegration016_BaseApi_Auth_SecurityNoneSendsNoSchemeCredential(
 	}
 	if got, ok := client.capturedHeaders["X-API-Key"]; ok {
 		t.Errorf("security:[] operation sent an api key = %q", got)
+	}
+}
+
+func TestBhvSerializationwire006_BaseApi_EmptyBinaryBodyYieldsNil(t *testing.T) {
+	t.Parallel()
+	client := &binaryResponseApiClient{
+		responseBody:        "",
+		responseContentType: "application/octet-stream",
+	}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	got, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarThumbnail returned error: %v", err)
+	}
+	if got != nil {
+		t.Errorf("expected a nil []byte for an empty binary body, got %v", got)
+	}
+}
+
+func TestBhvSerializationwire008_BaseApi_EmptyJsonObjectBodyIncludesContentType(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewStoreApi(client, config, nil, {{packageName}}.Credentials{})
+	_, _ = api.PlaceOrder(context.Background(), models.NewOrder())
+	body, _ := client.capturedBody.([]byte)
+	if !strings.HasPrefix(string(body), "{") {
+		t.Errorf("expected a JSON object body, got %q", string(body))
+	}
+	if ct := client.capturedHeaders["Content-Type"]; ct != "application/json" {
+		t.Errorf("expected Content-Type application/json, got %q", ct)
+	}
+}
+
+func TestBhvSerializationwire010_BaseApi_FindPetsByStatusOmittingStatusSendsNoStatusParam(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{})
+	if strings.Contains(client.capturedURL, "status=") {
+		t.Errorf("expected no status parameter when status is omitted, got %q", client.capturedURL)
+	}
+}
+
+func TestBhvSerializationwire011_BaseApi_FormOptionalNullFieldsAreOmitted(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{Nickname: "good boy"})
+	body, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected a serialized []byte body, got %T", client.capturedBody)
+	}
+	if string(body) != "nickname=good+boy" {
+		t.Errorf("expected only the set field in the form body, got %q", string(body))
+	}
+}
+
+// Only the transient statuses are retried, and each is retried exactly once
+// when MaxRetries is 1.
+func TestBhvRetries021_BaseApi_RetriesExactlyTheRetryableStatuses(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{408, 429, 500, 502, 503, 504, 599} {
+		srv := newScriptedServer(t, scriptedReply{status: status, retryAfter: "0"})
+		api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.MaxRetries(1) }, nil)
+
+		if err := addPetCall(api); err == nil {
+			t.Errorf("status %d: expected an error", status)
+		}
+		if got := srv.hits.Load(); got != 2 {
+			t.Errorf("status %d: expected 2 requests, got %d", status, got)
+		}
+	}
+}
+
+// A 401 replays an OAuth2 request with a fresh token, but a multipart body is
+// never replayed: the first attempt may already have consumed its file part.
+func TestBhvRetries006_BaseApi_AMultipartBodyIsNotReplayedOnA401(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "tok2", 0)
+	client := replayClient(t, srv)
+
+	_, err := client.Pet.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: strings.NewReader("document-bytes")})
+	var unauthorized *apierrors.UnauthorizedError
+	if !errors.As(err, &unauthorized) {
+		t.Fatalf("expected *UnauthorizedError without a replay, got %T: %v", err, err)
+	}
+	if got := srv.apiHits.Load(); got != 1 {
+		t.Errorf("expected the multipart request sent once, got %d", got)
 	}
 }

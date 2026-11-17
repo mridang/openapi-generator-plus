@@ -9,12 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1245,7 +1247,7 @@ func TestDefaultApiClient_CancellingTheCallContextAbortsTheRequest(t *testing.T)
 // F1078: Close is graceful. A request already in flight finishes with its
 // response, a request sent afterwards fails with ErrClientClosed, and closing
 // twice is harmless.
-func TestDefaultApiClient_CloseLetsTheRequestsInFlightFinish(t *testing.T) {
+func TestBhvLifecycle021_DefaultApiClient_CloseLetsTheRequestsInFlightFinish(t *testing.T) {
 	t.Parallel()
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -1290,7 +1292,7 @@ func TestDefaultApiClient_CloseLetsTheRequestsInFlightFinish(t *testing.T) {
 
 // Close releases only a transport the SDK created: one the caller supplied is
 // still usable through the caller's own handle afterwards.
-func TestDefaultApiClient_CloseNeverClosesACallerSuppliedClient(t *testing.T) {
+func TestBhvLifecycle020_DefaultApiClient_CloseNeverClosesACallerSuppliedClient(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
 	defer server.Close()
@@ -1397,7 +1399,7 @@ func (d *recordingDoer) Do(req *http.Request) (*http.Response, error) {
 	}, nil
 }
 
-func TestDefaultApiClient_ClosedClientRejectsRequestsAndLeavesSuppliedDoerOpen(t *testing.T) {
+func TestBhvLifecycle007_DefaultApiClient_ClosedClientRejectsRequestsAndLeavesSuppliedDoerOpen(t *testing.T) {
 	t.Parallel()
 	doer := &recordingDoer{}
 	transport, err := NewTransportOptionsBuilder().HttpClient(doer).Build()
@@ -1726,5 +1728,213 @@ func TestBhvTransport048_DefaultApiClient_NonexistentCaCertPathFailsEvenWhenVeri
 	_, err := NewTransportOptionsBuilder().VerifySsl(false).CACertPath("/nonexistent/ca.pem").Build()
 	if !errors.Is(err, ErrInvalidCACertificate) {
 		t.Fatalf("expected ErrInvalidCACertificate, got %v", err)
+	}
+}
+
+func TestBhvLifecycle008_DefaultApiClient_ClosedClientRejectsFurtherRequests(t *testing.T) {
+	t.Parallel()
+	client := NewDefaultApiClient(nil)
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	_, err := client.SendRequest("POST", "http://example.invalid/pets", map[string]string{"Content-Type": "application/json"}, []byte("{}"))
+	if !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed for a POST after Close, got %v", err)
+	}
+}
+
+// closeCountingDoer is a caller-supplied doer that also has a Close method, so a
+// test can see whether the SDK ever closes a transport it does not own.
+type closeCountingDoer struct {
+	recordingDoer
+	closes int
+}
+
+func (d *closeCountingDoer) Close() error {
+	d.closes++
+	return nil
+}
+
+func TestBhvLifecycle009_DefaultApiClient_CloseNeverClosesASuppliedTransportThatHasAClose(t *testing.T) {
+	t.Parallel()
+	doer := &closeCountingDoer{}
+	transport, err := NewTransportOptionsBuilder().HttpClient(doer).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	if doer.closes != 0 {
+		t.Errorf("expected the caller's transport never to be closed, got %d Close calls", doer.closes)
+	}
+}
+
+func TestBhvLifecycle019_DefaultApiClient_CloseLetsAnInFlightPostFinishAndRefusesANewOne(t *testing.T) {
+	t.Parallel()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		close(started)
+		<-release
+		w.WriteHeader(201)
+		_, _ = w.Write([]byte("created"))
+	}))
+	defer server.Close()
+	client := NewDefaultApiClient(nil)
+	type outcome struct {
+		resp *ApiHttpResponse
+		err  error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		resp, err := client.SendRequest("POST", server.URL, map[string]string{"Content-Type": "application/json"}, []byte("{}"))
+		done <- outcome{resp, err}
+	}()
+	<-started
+
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	if _, err := client.SendRequest("POST", server.URL, map[string]string{"Content-Type": "application/json"}, []byte("{}")); !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed for a POST sent after Close, got %v", err)
+	}
+	close(release)
+
+	got := <-done
+	if got.err != nil {
+		t.Fatalf("expected the in-flight POST to finish, got %v", got.err)
+	}
+	if got.resp.StatusCode != 201 || got.resp.Body != "created" {
+		t.Errorf("expected the full in-flight response, got %d %q", got.resp.StatusCode, got.resp.Body)
+	}
+}
+
+func TestBhvLifecycle022_DefaultApiClient_CloseReleasesTheTransportAtOnceAndASecondCloseIsANoOp(t *testing.T) {
+	t.Parallel()
+	var closedConnections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateClosed {
+			closedConnections.Add(1)
+		}
+	}
+	server.Start()
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	if _, err := client.SendRequest("GET", server.URL, map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for closedConnections.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if closedConnections.Load() == 0 {
+		t.Error("expected Close to release the idle connection of the transport it created")
+	}
+	if err := client.Close(); err != nil {
+		t.Errorf("expected a second Close to be a no-op, got %v", err)
+	}
+}
+
+// A 307 keeps the method and body, so an HTTPS→HTTP hop with a body is refused
+// before anything reaches the plaintext target.
+func TestBhvRetries010_DefaultApiClient_Https307ToHttpWithBodyThrowsWithoutReplay(t *testing.T) {
+	t.Parallel()
+	var plainHits atomic.Int32
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		plainHits.Add(1)
+		w.WriteHeader(200)
+	}))
+	defer plainTarget.Close()
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", plainTarget.URL+"/downgraded")
+		w.WriteHeader(307)
+	}))
+	defer origin.Close()
+	transport, err := NewTransportOptionsBuilder().VerifySsl(false).FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+
+	_, err = client.SendRequest("POST", origin.URL+"/start", map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, []byte("client_secret=hunter2"))
+	if err == nil {
+		t.Fatal("expected the 307 HTTPS→HTTP body replay to be refused, got nil")
+	}
+	if plainHits.Load() != 0 {
+		t.Errorf("expected no request to reach the plaintext target, got %d", plainHits.Load())
+	}
+}
+
+// A 308 keeps the method and body too, so the same HTTPS→HTTP hop is refused.
+func TestBhvRetries020_DefaultApiClient_Https308ToHttpWithBodyRefusesTheReplay(t *testing.T) {
+	t.Parallel()
+	var plainHits atomic.Int32
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		plainHits.Add(1)
+		w.WriteHeader(200)
+	}))
+	defer plainTarget.Close()
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", plainTarget.URL+"/downgraded")
+		w.WriteHeader(308)
+	}))
+	defer origin.Close()
+	transport, err := NewTransportOptionsBuilder().VerifySsl(false).FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+
+	_, err = client.SendRequest("POST", origin.URL+"/start", map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, []byte("client_secret=hunter2"))
+	if err == nil {
+		t.Fatal("expected the 308 HTTPS→HTTP body replay to be refused, got nil")
+	}
+	if plainHits.Load() != 0 {
+		t.Errorf("expected no request to reach the plaintext target, got %d", plainHits.Load())
+	}
+}
+
+// Between two HTTPS origins there is no downgrade, so a 307 replays the body
+// to the target unchanged.
+func TestBhvRetries016_DefaultApiClient_Https307ToHttpsReplaysTheBody(t *testing.T) {
+	t.Parallel()
+	const form = "client_secret=hunter2"
+	received := make(chan string, 1)
+	target := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		received <- string(b)
+		w.WriteHeader(200)
+	}))
+	defer target.Close()
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", target.URL+"/next")
+		w.WriteHeader(307)
+	}))
+	defer origin.Close()
+	transport, err := NewTransportOptionsBuilder().VerifySsl(false).FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+
+	resp, err := client.SendRequest("POST", origin.URL+"/start", map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, []byte(form))
+	if err != nil {
+		t.Fatalf("expected the HTTPS→HTTPS redirect to proceed, got %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if got := <-received; got != form {
+		t.Errorf("expected the target to receive the body %q, got %q", form, got)
 	}
 }

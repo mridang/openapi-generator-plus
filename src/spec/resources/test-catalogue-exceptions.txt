@@ -10,32 +10,4 @@ swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept ar
 swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed
 elixir | options013 | Elixir has no option setter: TransportOptions is a keyword list fixed by TransportOptions.new/1, so the URL is validated only at construction and there is no later setter to reject it in
 elixir | retries019 | The psr18 client is a PHP transport object with its own timeout budget; the Elixir deadline is fixed once per call and retries never extend it (bhv retries 025)
-||||||| 4610d9ef3
-elixir | config002 | Elixir has no builder: Configuration.new/1 takes the headers once as a map, so no call accumulates headers
-elixir | config003 | Elixir has no builder, so there is no chained call to be fluent; Configuration.new/1 takes its keyword list once
-elixir | config004 | Elixir has no builder: single and bulk headers are one default_headers map given to Configuration.new/1, so there is no single-header call to merge
-elixir | config007 | Elixir has no builder object to return: Configuration.new/1 returns the configuration struct itself
-elixir | authbearer001 | A scheme wrapper returns the shared BearerAuthenticator struct (new/1 delegates to it), so inspect prints the base module and there is no per-scheme name to print
-||||||| 4610d9ef3
-go | serializationobject002 | type: number is float64 in go, documented as lossy (no stdlib decimal), so an exact value in plain notation cannot hold for every number
-go | serializationobject015 | uniqueItems sets keep the sorted order of their scalar members (S6, D69): Set[T] is map-backed, so go has no insertion order to keep
-||||||| 4610d9ef3
-go | serializationobject164 | Go has no time-of-day type: format: time is a plain string (EdgeCases.cutoff) that no SDK code reformats, so there is no HH:mm:ss or .SSS formatter to test; the partial-time round trip is bhv serialization 163
-||||||| 4610d9ef3
-go | operations111 | the tracking id is uuid.UUID, a fixed 16-byte value, so a malformed uuid cannot be passed; the caller parses it with uuid.Parse before the call
-||||||| 4610d9ef3
-go | headers002 | selectHeaders takes a plain string content type, so a nil value cannot reach it; the empty-string default is covered by bhv headers 001
-go | headers015 | isJSONMIME takes a plain string, so a nil value cannot reach it; the empty string is covered by bhv headers 014
-go | errors003 | status-specific errors are built only by FromResponse, which takes no cause, so a caller cannot pass one; the cause contract is covered by bhv errors 025 and by NewApiError
-||||||| 4610d9ef3
-go | authintegration002 | go has no per-call authenticator: no Options struct carries one (authintegration011) and the spec picks the scheme, so no per-call HTTP-aware authenticator is handed the client
-go | authintegration013 | go has no per-call auth override: a call cannot replace the scheme's credential, the spec and the Credentials struct decide it
-||||||| 4610d9ef3
-go | options027 | Go has no constructor that takes maxRetries: TransportOptions is built only through NewTransportOptionsBuilder, so there is no second construction path to test; the builder path and the MaxRetries(0) disabling are bhv options 026
-||||||| 4610d9ef3
-rust | serializationobject009 | Rust == takes two values of one type, so a list of byte arrays cannot be compared with a map of them: the compiler rejects the comparison, a stronger guarantee than a runtime inequality
-||||||| 4610d9ef3
-rust | headers002 | select_headers takes a typed string content type, so a nil value cannot reach it; the empty-string default is covered by bhv headers 001
-rust | headers005 | select_headers takes a typed slice of accept values, so a nil value cannot reach it; the empty slice is covered by bhv headers 004
-rust | headers015 | is_json_mime takes a typed string reference, so a nil value cannot reach it; the empty string is covered by bhv headers 014
-rust | serializationparam083 | a set parameter reaches the serializer only as an iterator over its items, and a HashSet has no defined order, so set and list expansion cannot differ observably; the list expansion is covered by bhv serializationparam 032 and 009
+go | lifecycle015 | Go has no keyword arguments, so one credential per security scheme is a positional constructor parameter and cannot be passed by name
