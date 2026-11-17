@@ -531,6 +531,21 @@ mod service_token_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_011_an_empty_variable_is_unset_and_fails_naming_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(ServiceTokenAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_an_explicit_argument_is_not_overridden_by_the_environment() {
         /* The variables hold values no authenticator accepts, so the call can
          * only succeed when they were never consulted. */
@@ -752,6 +767,21 @@ mod internal_api_key_authenticator {
 
     #[test]
     fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(InternalApiKeyAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_012_an_empty_variable_is_unset_and_fails_naming_it() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(InternalApiKeyAuthenticator::new(
                 "https://api.example.com",
@@ -1056,6 +1086,22 @@ mod machine_auth_client_credentials_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_013_an_empty_variable_is_unset_and_fails_naming_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(MachineAuthClientCredentialsAuthenticator::new(
+                "https://api.example.com",
+                None,
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_an_explicit_argument_is_not_overridden_by_the_environment() {
         /* The variables hold values no authenticator accepts, so the call can
          * only succeed when they were never consulted. */
@@ -1186,6 +1232,24 @@ mod legacy_auth_password_authenticator {
 
     #[test]
     fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(LegacyAuthPasswordAuthenticator::new(
+                "https://api.example.com",
+                None,
+                None,
+                None,
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_014_an_empty_variable_is_unset_and_fails_naming_it() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(LegacyAuthPasswordAuthenticator::new(
                 "https://api.example.com",
@@ -1347,6 +1411,23 @@ mod user_auth_authorization_code_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_015_an_empty_variable_is_unset_and_fails_naming_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(UserAuthAuthorizationCodeAuthenticator::new(
+                "https://api.example.com",
+                None,
+                None,
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_an_explicit_argument_is_not_overridden_by_the_environment() {
         /* The variables hold values no authenticator accepts, so the call can
          * only succeed when they were never consulted. */
@@ -1433,6 +1514,21 @@ mod browser_auth_implicit_authenticator {
 
     #[test]
     fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text(BrowserAuthImplicitAuthenticator::new(
+                "https://api.example.com",
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_016_an_empty_variable_is_unset_and_fails_naming_it() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(BrowserAuthImplicitAuthenticator::new(
                 "https://api.example.com",
