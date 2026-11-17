@@ -3231,6 +3231,55 @@
     "go"
    ],
    "reason": "go has no optional constructor arguments: NewApiError, NewNetworkError and NewNetworkTimeoutError take the required fields only, and AttachRequest sets requestMethod and requestPath afterwards"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": [
+    "kotlin",
+    "php",
+    "node"
+   ],
+   "reason": "F830 wave 2: csharp and dart land requestMethod and requestPath on the error factory first; the other languages add them in their own wave branches, after which this rule is deleted"
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "optional",
+   "languages": [
+    "kotlin",
+    "php",
+    "node"
+   ],
+   "reason": "F830 wave 2: same transitional difference as the params rule above; delete both when every language has landed"
+  },
+  {
+   "element": "*options.headers",
+   "aspect": "prop-optional",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust has no null for a map: the per-call headers field is a HashMap whose empty value means no extra headers, where the other SDKs make the property optional"
+  },
+  {
+   "element": [
+    "reservestockresponse.reservation",
+    "reservestockresponse.asreservation",
+    "reservestockresponse.reservationreceipt",
+    "reservestockresponse.asreservationreceipt"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust oneOf is a sum type: the enum variant constructor is the typed factory and match or if let is the typed accessor, so no separate from/as_ functions exist"
+  },
+  {
+   "element": "bearerauthenticator.<ctor>",
+   "aspect": "ctor",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust has no default arguments or overloads: the token-provider callback is set by BearerAuthenticator::with_token_provider instead of a third constructor argument"
   }
  ]
 }
