@@ -314,7 +314,8 @@ public final class ErrorResponses {
      * Folds the rows of every operation into the specification-level list of
      * distinct error schemas, in the order they are first seen. Each entry has
      * {@code schemaName}, {@code className}, {@code parentStem},
-     * {@code parentClassName}, {@code statuses} and {@code hasMultipleStatuses}.
+     * {@code parentClassName}, {@code ancestorClassNames} (the parent and every type above it, ending in the base
+     * type), {@code statuses} and {@code hasMultipleStatuses}.
      *
      * @param operations the rows of every operation, from {@link #operationRows}
      * @param suffix the language's error suffix
@@ -360,6 +361,14 @@ public final class ErrorResponses {
             schema.put("className", schemaClassName(e.getKey(), suffix));
             schema.put("parentStem", parent);
             schema.put("parentClassName", statusNamer.apply(parent));
+            final List<String> ancestors = new ArrayList<>();
+            for (String stem = parent; ; stem = parentStem(stem)) {
+                ancestors.add(statusNamer.apply(stem));
+                if (API.equals(stem)) {
+                    break;
+                }
+            }
+            schema.put("ancestorClassNames", ancestors);
             schema.put("parentIsFamily", API.equals(parent) || CLIENT.equals(parent) || SERVER.equals(parent));
             schema.put("statuses", new ArrayList<>(e.getValue()));
             schema.put("hasMultipleStatuses", e.getValue().size() > 1);

@@ -164,6 +164,17 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
     * `{:ok, {{{returnType}}}{{^returnType}}nil{{/returnType}}}` on success.
     * `{:error, exception}` on failure.
+  {{#vendorExtensions.op.hasErrorResponses}}
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `{{moduleName}}.Errors.ClientError`.
+  {{#vendorExtensions.op.errorResponses}}
+
+    * HTTP {{status}}: `{{moduleName}}.Errors.{{#hasSchema}}{{{schemaClassName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}}`{{#hasSchema}}, whose `typed_error_body/1` is a `{{moduleName}}.Models.{{{schemaName}}}`{{/hasSchema}}
+  {{/vendorExtensions.op.errorResponses}}
+  {{/vendorExtensions.op.hasErrorResponses}}
   {{#externalDocs}}
 
   ## See also
@@ -518,7 +529,17 @@ defmodule {{moduleName}}.Api.{{classname}} do
       {{#consumes.1}}content_type{{/consumes.1}}{{^consumes.1}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes.1}},
       {{#vendorExtensions.op.hasMultiple2xx}}{"{{{returnType}}}", [{{#vendorExtensions.op.successResponses}}{"{{statusCode}}", "{{{returnType}}}"}{{^isLast}}, {{/isLast}}{{/vendorExtensions.op.successResponses}}]}{{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}"{{{.}}}"{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.op.hasMultiple2xx}},
       auth,
-      call
+      call,
+      {{#vendorExtensions.op.hasErrorSchemaResponses}}
+      %{
+{{#vendorExtensions.op.errorSchemaResponses}}
+        "{{{status}}}" => {{moduleName}}.Errors.{{{schemaClassName}}}{{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+      }
+      {{/vendorExtensions.op.hasErrorSchemaResponses}}
+      {{^vendorExtensions.op.hasErrorSchemaResponses}}
+      %{}
+      {{/vendorExtensions.op.hasErrorSchemaResponses}}
     )
   end
 

@@ -180,4 +180,18 @@ class ErrorResponsesTest {
         assertEquals(true, schemas.get(2).get("parentIsFamily"));
         assertEquals(404, schemas.get(0).get("sampleStatus"));
     }
+
+    @Test
+    void aSchemaListsTheTypesAboveItUpToTheBaseType() {
+        final List<Map<String, Object>> schemas =
+                ErrorResponses.distinctSchemas(
+                        List.of(
+                                ErrorResponses.operationRows(
+                                        List.of(d("404", "Gone"), d("5XX", "Down"), d("default", "Other")),
+                                        "Error")),
+                        "Error");
+        assertEquals(List.of("NotFoundError", "ClientError", "ApiError"), schemas.get(0).get("ancestorClassNames"));
+        assertEquals(List.of("ServerError", "ApiError"), schemas.get(1).get("ancestorClassNames"));
+        assertEquals(List.of("ApiError"), schemas.get(2).get("ancestorClassNames"));
+    }
 }

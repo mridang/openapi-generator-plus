@@ -71,6 +71,13 @@ defmodule PetstoreClient.Api.ProblemsApi do
     * `{:ok, Result}` on success.
     * `{:error, exception}` on failure.
 
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP default: `PetstoreClient.Errors.UnexpectedFailureError`, whose `typed_error_body/1` is a `PetstoreClient.Models.UnexpectedFailure`
+
   """
   @spec get_fallback(
           t(),
@@ -187,7 +194,10 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call
+      call,
+      %{
+        "default" => PetstoreClient.Errors.UnexpectedFailureError
+      }
     )
   end
 
@@ -207,6 +217,13 @@ defmodule PetstoreClient.Api.ProblemsApi do
 
     * `{:ok, Result}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.MemberNotFoundError`, whose `typed_error_body/1` is a `PetstoreClient.Models.MemberNotFound`
 
   """
   @spec get_member(
@@ -324,7 +341,10 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call
+      call,
+      %{
+        "404" => PetstoreClient.Errors.MemberNotFoundError
+      }
     )
   end
 
@@ -344,6 +364,13 @@ defmodule PetstoreClient.Api.ProblemsApi do
 
     * `{:ok, Result}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.ProjectNotFoundError`, whose `typed_error_body/1` is a `PetstoreClient.Models.ProjectNotFound`
 
   """
   @spec get_project(
@@ -461,7 +488,10 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call
+      call,
+      %{
+        "404" => PetstoreClient.Errors.ProjectNotFoundError
+      }
     )
   end
 
@@ -481,6 +511,13 @@ defmodule PetstoreClient.Api.ProblemsApi do
 
     * `{:ok, Result}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 4XX: `PetstoreClient.Errors.RejectedRequestError`, whose `typed_error_body/1` is a `PetstoreClient.Models.RejectedRequest`
 
   """
   @spec get_range(
@@ -598,7 +635,10 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call
+      call,
+      %{
+        "4XX" => PetstoreClient.Errors.RejectedRequestError
+      }
     )
   end
 
@@ -618,6 +658,13 @@ defmodule PetstoreClient.Api.ProblemsApi do
 
     * `{:ok, Result}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 5XX: `PetstoreClient.Errors.UpstreamFailureError`, whose `typed_error_body/1` is a `PetstoreClient.Models.UpstreamFailure`
 
   """
   @spec get_upstream(
@@ -735,7 +782,10 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call
+      call,
+      %{
+        "5XX" => PetstoreClient.Errors.UpstreamFailureError
+      }
     )
   end
 
@@ -755,6 +805,15 @@ defmodule PetstoreClient.Api.ProblemsApi do
 
     * `{:ok, Result}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 409: `PetstoreClient.Errors.StateConflictError`, whose `typed_error_body/1` is a `PetstoreClient.Models.StateConflict`
+
+    * HTTP 423: `PetstoreClient.Errors.StateConflictError`, whose `typed_error_body/1` is a `PetstoreClient.Models.StateConflict`
 
   """
   @spec take_lock(
@@ -872,7 +931,11 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call
+      call,
+      %{
+        "409" => PetstoreClient.Errors.StateConflictError,
+        "423" => PetstoreClient.Errors.StateConflictError
+      }
     )
   end
 end

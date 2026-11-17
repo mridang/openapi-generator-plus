@@ -53,6 +53,26 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterElixirCodegen.class);
 
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        final String pkg = Optional.ofNullable((String) additionalProperties.get("packageName"))
+                .orElse(packageName);
+        return Path.of(
+                        outputFolder,
+                        "lib",
+                        pkg,
+                        "errors",
+                        org.openapitools.codegen.utils.StringUtils.underscore(className) + ".ex")
+                .toString();
+    }
+
     /**
      * The generated per-scheme authenticators that read an environment variable, with the
      * variable of each credential, for the generated unit test (F862).

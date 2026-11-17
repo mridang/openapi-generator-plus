@@ -78,6 +78,8 @@ defmodule PetstoreClient.Errors.ClientError do
   specialise it, `false` otherwise.
   """
   @spec client_error?(term()) :: boolean()
-  def client_error?(%module{}), do: module in @family
+  def client_error?(%module{} = error),
+    do: module in @family or ApiError.specialises?(error, __MODULE__)
+
   def client_error?(_term), do: false
 end

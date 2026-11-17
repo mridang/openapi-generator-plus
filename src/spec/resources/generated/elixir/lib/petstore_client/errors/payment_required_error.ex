@@ -54,4 +54,11 @@ defmodule PetstoreClient.Errors.PaymentRequiredError do
   @impl true
   def message(%__MODULE__{} = error),
     do: ApiError.message(struct(ApiError, Map.from_struct(error)))
+
+  @doc """
+  Returns `true` if `term` is a `PaymentRequiredError` or an error generated for a declared error schema that
+  specialises it, `false` otherwise.
+  """
+  @spec payment_required?(term()) :: boolean()
+  def payment_required?(term), do: ApiError.specialises?(term, __MODULE__)
 end

@@ -172,7 +172,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Account",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -192,6 +193,15 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `{:ok, nil}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 400: `PetstoreClient.Errors.BadRequestError`
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec delete_order(
@@ -291,7 +301,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       nil,
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -472,7 +483,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Category",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -574,7 +586,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Defaults",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -676,7 +689,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Department",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -786,7 +800,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "[%{String.t() => Category}]",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -888,7 +903,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "%{String.t() => integer()}",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -990,7 +1006,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "[[integer()]]",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1010,6 +1027,15 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `{:ok, Order}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 400: `PetstoreClient.Errors.BadRequestError`
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec get_order_by_id(
@@ -1125,7 +1151,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Order",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1267,7 +1294,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Order",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1392,7 +1420,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "StockItem",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1494,7 +1523,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Swatch",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1604,7 +1634,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "[%{String.t() => Swatch}]",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1714,7 +1745,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "[%{String.t() => DateTime.t()}]",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1816,7 +1848,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "TreeNode",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1836,6 +1869,13 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `{:ok, Order}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 400: `PetstoreClient.Errors.BadRequestError`
 
   """
   @spec place_order(
@@ -1930,7 +1970,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Order",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1951,6 +1992,13 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `{:ok, ReserveStockResponse}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 400: `PetstoreClient.Errors.BadRequestError`
 
   """
   @spec reserve_stock(t(), PetstoreClient.Api.Options.ReserveStockOptions.t() | nil, keyword()) ::
@@ -2034,7 +2082,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       {"ReserveStockResponse", [{"200", "Reservation"}, {"201", "ReservationReceipt"}]},
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -2200,7 +2249,8 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "[Order]",
       auth,
-      call
+      call,
+      %{}
     )
   end
 end

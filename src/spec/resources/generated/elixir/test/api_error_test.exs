@@ -382,6 +382,97 @@ defmodule PetstoreClient.ApiErrorTest do
     assert body.name == "Cat"
   end
 
+  test "bhv errors 201 an error is retryable exactly for the statuses the client retries" do
+    for status <- [408, 409, 429, 500, 502, 503, 504, 599] do
+      error = PetstoreClient.Errors.ApiError.from_response(status, %{}, nil)
+      assert PetstoreClient.Errors.ApiError.retryable?(error), "status #{status}"
+    end
+
+    for status <- [400, 401, 403, 404, 422, 501, 302] do
+      error = PetstoreClient.Errors.ApiError.from_response(status, %{}, nil)
+      refute PetstoreClient.Errors.ApiError.retryable?(error), "status #{status}"
+    end
+  end
+
+  test "bhv errors 202 an error exposes the x-request-id header as its request id" do
+    from = fn headers -> PetstoreClient.Errors.ApiError.from_response(500, headers, nil) end
+
+    assert PetstoreClient.Errors.ApiError.request_id(from.(%{"X-Request-ID" => "abc"})) == "abc"
+    assert PetstoreClient.Errors.ApiError.request_id(from.(%{"x-request-id" => "abc"})) == "abc"
+    assert PetstoreClient.Errors.ApiError.request_id(from.(%{"other" => "abc"})) == nil
+
+    assert PetstoreClient.Errors.ApiError.request_id(
+             PetstoreClient.Errors.ApiError.exception(message: "no response")
+           ) == nil
+  end
+
+  defmodule ExactFactory do
+    def from_error_response(status, headers, body),
+      do:
+        PetstoreClient.Errors.ApiError.exception(
+          message: "exact",
+          status_code: status,
+          response_headers: headers,
+          response_body: body
+        )
+  end
+
+  defmodule RangeFactory do
+    def from_error_response(status, headers, body),
+      do:
+        PetstoreClient.Errors.ApiError.exception(
+          message: "range",
+          status_code: status,
+          response_headers: headers,
+          response_body: body
+        )
+  end
+
+  defmodule DefaultFactory do
+    def from_error_response(status, headers, body),
+      do:
+        PetstoreClient.Errors.ApiError.exception(
+          message: "default",
+          status_code: status,
+          response_headers: headers,
+          response_body: body
+        )
+  end
+
+  test "bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default" do
+    errors = %{"404" => ExactFactory, "4XX" => RangeFactory, "default" => DefaultFactory}
+
+    from = fn status, map ->
+      PetstoreClient.Errors.ApiError.from_response(status, %{}, "{}", map)
+    end
+
+    assert from.(404, errors).message == "exact"
+    assert from.(418, errors).message == "range"
+    assert from.(502, errors).message == "default"
+    assert %PetstoreClient.Errors.BadGatewayError{} = from.(502, %{})
+    assert %PetstoreClient.Errors.NotFoundError{} = from.(404, %{"5XX" => RangeFactory})
+  end
+
+  test "bhv errors 204 a body that does not match its declared error schema leaves the status error with the raw body and a cause" do
+    error = PetstoreClient.Errors.UnexpectedFailureError.from_error_response(400, %{}, "[1, 2")
+
+    assert error.__struct__ ==
+             PetstoreClient.Errors.ApiError.from_response(400, %{}, "[1, 2").__struct__
+
+    assert error.response_body == "[1, 2"
+    assert error.status_code == 400
+    assert %PetstoreClient.Errors.SerializationError{} = error.cause
+  end
+
+  test "the error of a declared error schema is an ApiError and every error above it" do
+    error = PetstoreClient.Errors.UnexpectedFailureError.exception(%{})
+
+    assert PetstoreClient.Errors.ApiError.api_error?(error)
+    assert PetstoreClient.Errors.ApiError.specialises?(error, PetstoreClient.Errors.ApiError)
+    assert PetstoreClient.Errors.UnexpectedFailureError.typed_error_body(error) == nil
+    assert PetstoreClient.Errors.OpenAPIError.open_api_error?(error)
+  end
+
   describe "SDK error grouping" do
     test "bhv errors 025 ApiError, a typed error and the Serialization error are all recognised" do
       api_error = PetstoreClient.Errors.ApiError.exception(status_code: 500, message: "boom")

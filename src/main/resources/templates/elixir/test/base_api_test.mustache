@@ -2263,5 +2263,31 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert retry_after.(%{"retry-after" => "120"}) == 60_000
     assert retry_after.(%{"retry-after" => "Sun, 06 Nov 1994 18:49:37 GMT"}) == 60_000
   end
+
+  test "bhv errors 205 a response body that cannot be decoded carries the response and the request" do
+    client =
+      ScriptedApiClient.new(fn _url, _headers, _requests ->
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          headers: %{"content-type" => "text/plain", "x-trace" => "t1"},
+          body: "not json"
+        }
+      end)
+
+    state = %{config: {{moduleName}}.Configuration.new(base_url: "https://api.example.com"), api_client: client}
+
+    error =
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.Api.BaseApi.invoke_api(
+          state, :get, "/things", [{"q", "1"}], %{}, nil, ["application/json"], "application/json", "Object"
+        )
+      end
+
+    assert error.status_code == 200
+    assert error.response_headers == %{"content-type" => "text/plain", "x-trace" => "t1"}
+    assert error.response_body == "not json"
+    assert error.request_method == "GET"
+    assert error.request_path == "/things"
+  end
 end
 {{/generateTests}}

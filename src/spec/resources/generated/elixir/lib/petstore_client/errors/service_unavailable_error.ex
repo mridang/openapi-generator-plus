@@ -54,4 +54,11 @@ defmodule PetstoreClient.Errors.ServiceUnavailableError do
   @impl true
   def message(%__MODULE__{} = error),
     do: ApiError.message(struct(ApiError, Map.from_struct(error)))
+
+  @doc """
+  Returns `true` if `term` is a `ServiceUnavailableError` or an error generated for a declared error schema that
+  specialises it, `false` otherwise.
+  """
+  @spec service_unavailable?(term()) :: boolean()
+  def service_unavailable?(term), do: ApiError.specialises?(term, __MODULE__)
 end

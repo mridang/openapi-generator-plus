@@ -229,6 +229,80 @@ defmodule PetstoreClient.Errors.ApiError do
     })
   end
 
+  @doc """
+  Map an HTTP response that was not a success to the error for its status, using the error schemas
+  the operation declares.
+
+  `errors` maps a declared status (`"404"`, a range `"4XX"` or `"5XX"`, or `"default"`) to the error
+  module of its schema. The module for the status is chosen by the exact status first, then the
+  range, then `"default"`, and its `from_error_response/3` builds the error. A body that does not
+  match the schema never hides the real error: the result is then the one `from_response/3` gives,
+  with the raw body and the decoding failure as its `cause`. A status that no entry names, or an empty
+  map, gives the result of `from_response/3`.
+
+  Each operation passes its own map, so the same status can become different errors for different
+  operations.
+  """
+  @spec from_response(
+          integer(),
+          %{optional(String.t()) => String.t()} | nil,
+          String.t() | nil,
+          %{optional(String.t()) => module()}
+        ) :: Exception.t()
+  def from_response(status_code, headers, body, errors) when is_map(errors) do
+    case error_module(errors, status_code) do
+      nil -> from_response(status_code, headers, body)
+      module -> module.from_error_response(status_code, headers, body)
+    end
+  end
+
+  defp error_module(errors, status_code) do
+    Map.get(errors, Integer.to_string(status_code)) ||
+      Map.get(errors, range_key(status_code)) ||
+      Map.get(errors, "default")
+  end
+
+  defp range_key(status_code) when status_code >= 400 and status_code < 500, do: "4XX"
+  defp range_key(status_code) when status_code >= 500 and status_code < 600, do: "5XX"
+  defp range_key(_status_code), do: nil
+
+  @doc """
+  Whether repeating the request can succeed: the status is 408, 409, 429 or a 5xx other than 501,
+  the statuses the client itself retries. It looks at the status only.
+  """
+  @spec retryable?(term()) :: boolean()
+  def retryable?(%{status_code: status}) when is_integer(status),
+    do: PetstoreClient.Api.BaseApi.retryable_status?(status)
+
+  def retryable?(_error), do: false
+
+  @doc """
+  The request id the server sent in the `x-request-id` response header, or `nil` when the header is
+  absent. The header name is matched in any casing.
+  """
+  @spec request_id(term()) :: String.t() | nil
+  def request_id(%{response_headers: headers}) when is_map(headers) do
+    Enum.find_value(headers, fn {name, value} ->
+      if String.downcase(to_string(name)) == "x-request-id", do: value
+    end)
+  end
+
+  def request_id(_error), do: nil
+
+  @doc """
+  Whether `term` is `module` or an error that specialises it. Elixir exceptions have no inheritance,
+  so the errors generated for a declared error schema name the errors above them and this is the one
+  place that reads that.
+  """
+  @spec specialises?(term(), module()) :: boolean()
+  def specialises?(%module{}, target) do
+    module == target or
+      (Code.ensure_loaded?(module) and function_exported?(module, :__ancestors__, 0) and
+         target in module.__ancestors__())
+  end
+
+  def specialises?(_term, _target), do: false
+
   @doc false
   # Records the request an error answers: the HTTP method (upper case) and the
   # request path, with the query string and the fragment dropped so a credential
@@ -326,22 +400,24 @@ defmodule PetstoreClient.Errors.ApiError do
     The deserialized error body, or `nil` if the body is empty.
   """
   @spec typed_error_body(struct(), String.t()) :: term()
-  def typed_error_body(%module{response_body: body}, _type_name)
-      when module in @family and body in [nil, ""],
-      do: nil
+  def typed_error_body(%{response_body: body} = error, _type_name) when body in [nil, ""] do
+    true = api_error?(error)
+    nil
+  end
 
-  def typed_error_body(%module{} = error, type_name) when module in @family do
+  def typed_error_body(%{} = error, type_name) do
+    true = api_error?(error)
     PetstoreClient.ObjectSerializer.deserialize(error.response_body, type_name)
   end
 
   @doc """
   Returns `true` if `term` is an `ApiError` or one of the errors that
-  specialise it (the 4xx and 5xx errors, `NetworkError` and
-  `NetworkTimeoutError`), `false` otherwise. Elixir exceptions have no
+  specialise it (the 4xx and 5xx errors, the errors generated for a declared error schema,
+  `NetworkError` and `NetworkTimeoutError`), `false` otherwise. Elixir exceptions have no
   inheritance, so this predicate expresses the hierarchy the other SDKs
   express with subclasses.
   """
   @spec api_error?(term()) :: boolean()
-  def api_error?(%module{}), do: module in @family
+  def api_error?(%module{} = error), do: module in @family or specialises?(error, __MODULE__)
   def api_error?(_term), do: false
 end
