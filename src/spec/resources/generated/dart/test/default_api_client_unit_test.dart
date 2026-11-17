@@ -49,7 +49,7 @@ class _CloseTrackingClient extends http.BaseClient {
 }
 
 void main() {
-  group('DefaultApiClient unit tests', () {
+  group('DefaultApiClientUnit', () {
     test(
       'a caller-supplied http client receives the request with the SDK defaults',
       () async {

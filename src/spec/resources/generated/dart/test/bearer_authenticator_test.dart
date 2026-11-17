@@ -192,19 +192,20 @@ void main() {
     });
   });
 
-  group('BearerAuthenticator prefix handling', () {
-    for (final token in [
-      'Bearer xyz',
-      'bearer xyz',
-      'BEARER xyz',
-      'BeArEr xyz',
-    ]) {
-      test('"$token" is not prefixed twice', () {
+  group('BearerAuthenticator', () {
+    const prefixed = {
+      'already prefixed token is not doubled': 'Bearer xyz',
+      'lowercase bearer prefix is stripped': 'bearer xyz',
+      'uppercase bearer prefix is stripped': 'BEARER xyz',
+      'mixed case bearer prefix is stripped': 'BeArEr xyz',
+    };
+    prefixed.forEach((name, token) {
+      test(name, () {
         final auth = BearerAuthenticator(host: '/api/v3', token: token);
 
         expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
       });
-    }
+    });
 
     test('a token that merely begins with the word bearer is kept whole', () {
       final auth = BearerAuthenticator(host: '/api/v3', token: 'bearerxyz');

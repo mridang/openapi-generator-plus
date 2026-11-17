@@ -26,31 +26,6 @@
         }
       ]
     },
-    "dart": {
-      "missingTests": [
-        {
-          "reason": "tracked in #118",
-          "keys": [
-            "baseapi::serializesnumberqueryparams",
-            "basicauthenticator::redactssecret",
-            "bearerauthenticator::alreadyprefixedtokenisnotdoubled",
-            "bearerauthenticator::lowercasebearerprefixisstripped",
-            "bearerauthenticator::mixedcasebearerprefixisstripped",
-            "defaultapiclientunit::injectsdefaultuseragentwhennotexplicitlyset",
-            "defaultapiclientunit::joinsmultivalueresponseheaders",
-            "defaultapiclientunit::returnsjsonbodyforvendorjsoncontenttype",
-            "defaultapiclientunit::returnsnon2xxstatuscode",
-            "defaultapiclientunit::returnsresponseheaders",
-            "defaultapiclientunit::sendsdeleterequest",
-            "defaultapiclientunit::sendsgetrequestandreturnsresponse",
-            "defaultapiclientunit::sendspostwithjsonbody",
-            "defaultapiclientunit::sendsputrequest",
-            "transportoptions::settingproxyissupportedonallplatforms",
-            "valueserializer::patharrayitemwithreservedcharispercentencoded"
-          ]
-        }
-      ]
-    },
     "elixir": {
       "missingGroups": [
         {

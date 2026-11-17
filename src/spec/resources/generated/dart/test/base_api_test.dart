@@ -1229,7 +1229,7 @@ void main() {
       }
     });
 
-    test('serializes number query params without decimal', () async {
+    test('serializes number path params without decimal', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
       server.listen((request) {
@@ -1256,6 +1256,20 @@ void main() {
       } finally {
         await server.close();
       }
+    });
+
+    test('serializes number query params', () async {
+      final client = _CapturingApiClient();
+      final api = _RecordingApi(client);
+
+      await api.invokeApi(
+        method: 'GET',
+        path: '/test/echo',
+        queryParams: {'limit': 10},
+      );
+
+      expect(client.capturedUrl, contains('limit=10'));
+      expect(client.capturedUrl, isNot(contains('limit=10.0')));
     });
 
     test('collapses double-slash when baseUrl has trailing slash', () async {
