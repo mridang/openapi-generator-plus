@@ -70,6 +70,17 @@ describe 'Composed Schema' do
       _(err.message).must_include('raw')
     end
 
+    it 'bhv_serializationobject_128 returns the variant the discriminator selects' do
+      result = {{moduleName}}::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+
+      _(result).must_be_kind_of({{moduleName}}::Models::DryFood)
+    end
+
+    it 'bhv_serializationobject_129 raises SerializationError when no oneOf variant matches' do
+      _ { {{moduleName}}::ObjectSerializer.deserialize('{"foodType":"raw","calories":300}', 'PetFood') }
+        .must_raise {{moduleName}}::Errors::SerializationError
+    end
+
     it 'bhv_unions_020 serializes DryFood back to JSON' do
       json = '{"foodType":"dry","weightKg":2.5}'
       result = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetFood')
@@ -181,6 +192,11 @@ describe 'Composed Schema' do
 
       _(serialized).wont_be_empty
       _(serialized).must_include('Amoxicillin')
+    end
+
+    it 'bhv_serializationobject_127 raises SerializationError when no anyOf variant matches' do
+      _ { {{moduleName}}::ObjectSerializer.deserialize('{}', 'PetTreatment') }
+        .must_raise {{moduleName}}::Errors::SerializationError
     end
 
     it 'bhv_unions_007 raises for anyOf payload matching no variant' do
