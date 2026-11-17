@@ -750,6 +750,25 @@ class TestQueryParameters:
 
 
 class TestQuerySerialization:
+    async def test_bhv_serializationparam_107_a_query_value_keeps_only_the_unreserved_set_literal(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {"q": "a!*'()~"},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert client.captured_url == "http://localhost/test/echo?q=a%21%2A%27%28%29~"
+
     async def test_bhv_serializationwire_009_expands_array_query_params(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
@@ -960,6 +979,52 @@ class TestAuthInjection:
             None,
         )
         assert client.captured_headers.get("X-Client-Auth") == "client-level-token"
+
+    async def test_bhv_authintegration_018_a_configured_client_authenticator_is_applied_to_a_secured_operation(
+        self, chasm_http_url: Any
+    ) -> None:
+        client_auth = StubAuthenticator(headers={"X-API-Key": "key-value-456"})
+        stub = StubApi(
+            api_client=DefaultApiClient(
+                TransportOptions.builder().max_retries(0).build()
+            ),
+            config=Configuration(base_url=chasm_http_url),
+            authenticator=client_auth,
+        )
+        result = await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            "object",
+        )
+        assert result["headers"]["x-api-key"] == "key-value-456"
+
+    async def test_bhv_authintegration_019_an_invalid_auth_cookie_fails_before_any_request_is_sent(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        auth = StubAuthenticator(cookies={"session": "a;b"})
+        stub = StubApi(
+            api_client=client,
+            config=Configuration(base_url="http://localhost"),
+            authenticator=auth,
+        )
+        with pytest.raises(ValueError, match="cookie-octet"):
+            await stub.call(
+                "GET",
+                "/test/echo",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                None,
+            )
+        assert client.captured_url == ""
 
     async def test_bhv_authintegration_013_per_call_auth_overrides_client_level(
         self,

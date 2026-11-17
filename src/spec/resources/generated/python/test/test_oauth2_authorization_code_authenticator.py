@@ -77,7 +77,9 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         # The token POST must never have been issued for an empty code.
         mock_client.send_request.assert_not_called()
 
-    def test_headers_before_the_exchange_name_the_canonical_call(self) -> None:
+    def test_bhv_authoauthtwoauthcode_030_headers_before_the_exchange_name_the_canonical_call(
+        self,
+    ) -> None:
         auth = _create_authenticator()
         auth.set_api_client(MagicMock())
         with pytest.raises(
@@ -283,6 +285,31 @@ class TestAuthorizationUrlEncoding:
         url = _create_authenticator().build_authorization_url(state="")
 
         assert "state" not in parse_qs(urlparse(url).query)
+
+    def test_bhv_authoauthtwoauthcode_032_code_exchange_body_uses_a_fixed_parameter_order(
+        self,
+    ) -> None:
+        auth = OAuth2AuthorizationCodeAuthenticator(
+            host="https://api.example.com",
+            client_id="id",
+            client_secret="sec",
+            authorization_url="https://auth.example.com/authorize",
+            token_url="https://auth.example.com/token",
+            redirect_uri="https://app.example.com/callback",
+            scopes=["read"],
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = _code_reply(
+            access_token="at", expires_in=3600
+        )
+        auth.set_api_client(mock_client)
+
+        auth.exchange_code("C")
+
+        assert mock_client.send_request.call_args[0][3] == (
+            "grant_type=authorization_code&code=C&client_id=id&client_secret=sec"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+        )
 
     def test_bhv_authoauthtwoauthcode_017_code_exchange_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
         self,

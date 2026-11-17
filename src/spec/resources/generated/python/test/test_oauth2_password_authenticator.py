@@ -50,6 +50,18 @@ def _create_authenticator_with_mock() -> tuple[OAuth2PasswordAuthenticator, Magi
 
 
 class TestOAuth2PasswordAuthenticator:
+    def test_bhv_authoauthtwopassword_021_password_grant_body_uses_a_fixed_parameter_order(
+        self,
+    ) -> None:
+        auth, mock_client = _create_authenticator_with_mock()
+
+        auth.get_auth_headers()
+
+        assert mock_client.send_request.call_args[0][3] == (
+            "grant_type=password&username=testuser&password=testpass"
+            "&client_id=my_client_id&client_secret=my_client_secret&scope=read+write"
+        )
+
     def test_bhv_authoauthtwopassword_014_sends_password_grant_type(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
 
@@ -265,6 +277,32 @@ class TestPasswordRefreshUrlRouting:
         auth.get_auth_headers()
 
         return [call[0][1] for call in mock_client.send_request.call_args_list]
+
+    def test_bhv_authoauthtwopassword_022_scheme_wrapper_sends_the_first_grant_to_the_token_url_and_the_refresh_to_the_refresh_url(
+        self,
+    ) -> None:
+        from petstore_client.auth.oauth.legacy_auth_password_authenticator import (
+            LegacyAuthPasswordAuthenticator,
+        )
+
+        auth = LegacyAuthPasswordAuthenticator(
+            "https://api.example.com", "cid", "sec", "alice", "pw"
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            _token_reply(access_token="t1", refresh_token="r1", expires_in=0),
+            _token_reply(access_token="t2", expires_in=3600),
+        ]
+        auth.set_api_client(mock_client)
+
+        auth.get_auth_headers()
+        auth.get_auth_headers()
+
+        urls = [call[0][1] for call in mock_client.send_request.call_args_list]
+        assert urls == [
+            "https://auth.example.com/oauth/token",
+            "https://auth.example.com/oauth/refresh",
+        ]
 
     def test_bhv_authoauthtwopassword_017_first_grant_goes_to_the_token_url_and_the_refresh_to_the_refresh_url(
         self,

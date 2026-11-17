@@ -15,7 +15,7 @@ VARIABLE = "SDK_TEST_CREDENTIAL"
 
 
 class TestResolveCredential:
-    def test_a_passed_value_wins_over_the_environment(
+    def test_bhv_authscheme_009_a_passed_value_wins_over_the_environment(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv(VARIABLE, "from-environment")

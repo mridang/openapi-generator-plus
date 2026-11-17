@@ -116,6 +116,14 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()['Authorization'] == 'Bearer from-environment'
 
+    def test_bhv_authscheme_010_an_empty_bearer_variable_is_unset_and_names_the_variable(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        monkeypatch.setenv(variables[0][1], '')
+
+        with pytest.raises(ValueError, match=variables[0][1]):
+            _scheme_class(module, name)(HOST)
+
     def test_bhv_lifecycle_025_the_environment_is_read_once_when_it_is_built(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
     ) -> None:

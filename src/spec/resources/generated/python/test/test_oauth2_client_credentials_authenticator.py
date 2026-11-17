@@ -239,6 +239,18 @@ class TestClientCredentialsWireEncoding:
             "&client_secret=my_client_secret&scope=read+write"
         )
 
+    def test_bhv_authoauthtwoclientcred_016_token_body_uses_a_fixed_parameter_order(
+        self,
+    ) -> None:
+        auth, mock_client = _create_authenticator_with_mock()
+
+        auth.get_auth_headers()
+
+        assert mock_client.send_request.call_args[0][3] == (
+            "grant_type=client_credentials&client_id=my_client_id"
+            "&client_secret=my_client_secret&scope=read+write"
+        )
+
     def test_bhv_authoauthtwoclientcred_006_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
         self,
     ) -> None:

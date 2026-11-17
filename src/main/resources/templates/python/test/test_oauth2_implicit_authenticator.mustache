@@ -141,7 +141,7 @@ class TestSetAccessTokenValidation:
         )
         assert auth.get_auth_headers() == {"Authorization": "Bearer kept"}
 
-    def test_a_tab_is_allowed_inside_a_token(self) -> None:
+    def test_bhv_authoauthtwoimplicit_016_a_tab_is_allowed_inside_a_token(self) -> None:
         auth = _create_authenticator()
 
         auth.set_access_token("a\tb")
