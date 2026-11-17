@@ -377,13 +377,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
      */
     @Override
     protected Set<String> getInjectedArgumentNames() {
-        // auth, timeout, maxRetries and headers are the per-call settings every Options object
-        // carries, so a parameter named like one becomes authParam, timeoutParam and so on.
+        // timeout, maxRetries and headers are the per-call settings every Options object
+        // carries, so a parameter named like one becomes timeoutParam and so on.
         return Set.of(
                 "options",
                 "server",
                 "requestContentType",
-                "auth",
                 "timeout",
                 "maxRetries",
                 "headers");
@@ -590,6 +589,56 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
         additionalProperties.put("apiKeyHeaderNames", apiKeyHeaderNames);
         additionalProperties.put("hasApiKeyHeaderNames", !apiKeyHeaderNames.isEmpty());
+        additionalProperties.put("clientSchemes", javaClientSchemes(openAPI));
+    }
+
+    /** Names the client builder itself declares, so a scheme setter never takes one of them. */
+    private static final Set<String> BUILDER_METHOD_NAMES =
+            Set.of("builder", "build", "transportOptions", "scheme", "host", "schemes");
+
+    /**
+     * Adds what the java client builder needs to each shared client scheme (F857): the
+     * {@code importName} of the scheme's authenticator class (OAuth 2 and OpenID Connect schemes
+     * live in the {@code auth.oauth} package) and the {@code methodName} of the builder setter,
+     * the camel-case scheme name with {@code Credential} appended when it is a Java reserved
+     * word or one of the builder's own method names.
+     */
+    private List<Map<String, Object>> javaClientSchemes(final OpenAPI openAPI) {
+        final List<Map<String, Object>> out = new ArrayList<>();
+        final Object shared = additionalProperties.get("clientSchemes");
+        if (!(shared instanceof List<?>)) {
+            return out;
+        }
+        for (final Object item : (List<?>) shared) {
+            if (!(item instanceof Map<?, ?>)) {
+                continue;
+            }
+            final Map<String, Object> scheme = new java.util.LinkedHashMap<>();
+            for (final Map.Entry<?, ?> entry : ((Map<?, ?>) item).entrySet()) {
+                scheme.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+            final String schemeId = String.valueOf(scheme.get("schemeId"));
+            final String paramName = String.valueOf(scheme.get("paramName"));
+            final SecurityScheme definition =
+                    openAPI.getComponents().getSecuritySchemes().get(schemeId);
+            final boolean oauth =
+                    definition != null
+                            && (definition.getType() == SecurityScheme.Type.OAUTH2
+                                    || definition.getType() == SecurityScheme.Type.OPENIDCONNECT);
+            scheme.put(
+                    "importName",
+                    invokerPackage
+                            + ".auth"
+                            + (oauth ? ".oauth." : ".")
+                            + scheme.get("className"));
+            scheme.put(
+                    "methodName",
+                    isReservedWord(paramName) || BUILDER_METHOD_NAMES.contains(paramName)
+                            ? paramName + "Credential"
+                            : paramName);
+            out.add(scheme);
+        }
+        return out;
     }
 
     /**
@@ -1519,8 +1568,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         context.put("hasModelImports", !modelTypes.isEmpty());
         context.put("extraImports", new ArrayList<>(extraImports));
         context.put("hasExtraImports", !extraImports.isEmpty());
-        injectAuthFieldContext(op, context);
-        context.put("authImport", invokerPackage + ".auth." + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
     }
 

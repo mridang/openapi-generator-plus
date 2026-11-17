@@ -27,6 +27,15 @@ public final class {{className}} extends {{baseClass}} {
         this({{#constructorParams}}{{name}}, {{/constructorParams}}System.getenv());
     }
 
+    /**
+     * Creates an authenticator whose every credential is read from its environment variable.
+     *
+     * @param host the API base URL (never read from the environment)
+     */
+    public {{className}}(String host) {
+        this(host{{#constructorParams}}{{^-first}}, null{{/-first}}{{/constructorParams}}, System.getenv());
+    }
+
     /* Package-private so a test can supply the environment instead of the process one. */
     {{className}}({{#constructorParams}}{{#hasEnv}}@Nullable {{/hasEnv}}{{type}} {{name}}, {{/constructorParams}}Map<String, String> environment) {
         super({{#superArgs}}{{{.}}}{{^-last}}, {{/-last}}{{/superArgs}});
@@ -82,6 +91,15 @@ public final class {{className}} extends BaseAuthenticator {
      */
     public {{className}}({{#constructorParams}}{{#hasEnv}}@Nullable {{/hasEnv}}{{type}} {{name}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
         this({{#constructorParams}}{{name}}, {{/constructorParams}}System.getenv());
+    }
+
+    /**
+     * Creates an authenticator whose every credential is read from its environment variable.
+     *
+     * @param host the API base URL (never read from the environment)
+     */
+    public {{className}}(String host) {
+        this(host{{#constructorParams}}{{^-first}}, null{{/-first}}{{/constructorParams}}, System.getenv());
     }
 
     /* Package-private so a test can supply the environment instead of the process one. */

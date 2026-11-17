@@ -30,6 +30,15 @@ public final class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthen
     this(host, clientId, System.getenv());
   }
 
+  /**
+   * Creates an authenticator whose every credential is read from its environment variable.
+   *
+   * @param host the API base URL (never read from the environment)
+   */
+  public BrowserAuthImplicitAuthenticator(String host) {
+    this(host, null, System.getenv());
+  }
+
   /* Package-private so a test can supply the environment instead of the process one. */
   BrowserAuthImplicitAuthenticator(
       String host, @Nullable String clientId, Map<String, String> environment) {

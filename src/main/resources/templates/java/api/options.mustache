@@ -15,9 +15,6 @@ import {{modelPackage}}.{{{.}}};
 import {{{.}}};
 {{/extraImports}}
 {{/hasExtraImports}}
-{{#hasAuthField}}
-import {{authImport}};
-{{/hasAuthField}}
 import javax.annotation.Nullable;
 
 /**
@@ -35,9 +32,6 @@ public final class {{className}} {
     @Nullable private {{{dataType}}} {{paramName}};
 {{/required}}
 {{/params}}
-{{#hasAuthField}}
-    @Nullable private {{authFieldType}} auth;
-{{/hasAuthField}}
     @Nullable private Integer timeout;
     @Nullable private Integer maxRetries;
     @Nullable private Map<String, String> headers;
@@ -136,30 +130,6 @@ public final class {{className}} {
 {{/isByteArrayParam}}
     }
 {{/params}}
-{{#hasAuthField}}
-
-    /**
-     * Sets the per-operation authenticator. When set, it overrides the
-     * client's configured credentials for this call only.
-     *
-     * @param auth the authenticator to use for this operation
-     * @return this options instance for chaining
-     */
-    public {{className}} auth({{authFieldType}} auth) {
-        this.auth = auth;
-        return this;
-    }
-
-    /**
-     * Returns the per-operation authenticator.
-     *
-     * @return the authenticator, or {@code null} to use the configured credentials
-     */
-    @Nullable
-    public {{authFieldType}} auth() {
-        return auth;
-    }
-{{/hasAuthField}}
 
     /**
      * Sets the end-to-end timeout for this call only, in milliseconds. It replaces the

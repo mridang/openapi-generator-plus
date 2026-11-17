@@ -10,23 +10,46 @@ package com.example.petstore;
 
 import com.example.petstore.api.PetApi;
 import com.example.petstore.api.StoreApi;
+import com.example.petstore.auth.AdminBasicAuthenticator;
+import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
+import com.example.petstore.auth.ApiKeyQueryAuthenticator;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.BearerAuthenticator;
 import com.example.petstore.auth.HttpAwareAuthenticator;
+import com.example.petstore.auth.InternalApiKeyAuthenticator;
+import com.example.petstore.auth.PetStoreBasicAuthenticator;
+import com.example.petstore.auth.PetStoreBearerAuthenticator;
+import com.example.petstore.auth.ServiceTokenAuthenticator;
+import com.example.petstore.auth.SessionCookieAuthenticator;
+import com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator;
+import com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator;
+import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator;
+import com.example.petstore.auth.oauth.SsoAuthAuthenticator;
+import com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * Unified entry point for all API services.
  *
- * <p>Takes an {@link Authenticator} and optionally {@link TransportOptions}, then exposes each API
- * group as a typed property. If the authenticator implements {@link HttpAwareAuthenticator}, the
- * shared {@link ApiClient} is injected so that authentication HTTP calls (token exchange,
- * discovery) use the same transport configuration as regular API calls.
+ * <p>Takes an {@link Authenticator} (one credential for every operation) or, through {@link
+ * #builder(String)}, one optional credential per security scheme named after the scheme, and
+ * optionally {@link TransportOptions}. It then exposes each API group as a typed property. If an
+ * authenticator implements {@link HttpAwareAuthenticator}, the shared {@link ApiClient} is injected
+ * so that authentication HTTP calls (token exchange, discovery) use the same transport
+ * configuration as regular API calls.
+ *
+ * <p>Each operation uses the credential of the first scheme in its own security list that the
+ * client holds, falls back to the single authenticator when it holds none of them, and sends no
+ * credential when there is neither. There is no per-call scheme override.
  *
  * <p>Usage:
  *
  * <pre>{@code
- * // Default transport
+ * // One credential for every operation
  * Client client = new Client(authenticator);
  *
  * // Custom transport (proxy, timeouts, etc.)
@@ -35,12 +58,31 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  *     .timeout(5000)
  *     .build();
  * Client client = new Client(authenticator, transport);
+ *
+ * // One optional credential per security scheme, named after the scheme
+ * Client client = Client.builder(host)
+ *     .petStoreBasic(...)
+ *     .adminBasic(...)
+ *     .petStoreBearer(...)
+ *     .serviceToken(...)
+ *     .apiKeyHeader(...)
+ *     .internalApiKey(...)
+ *     .apiKeyQuery(...)
+ *     .sessionCookie(...)
+ *     .machineAuth(...)
+ *     .legacyAuth(...)
+ *     .userAuth(...)
+ *     .browserAuth(...)
+ *     .ssoAuth(...)
+ *     .transportOptions(transport)
+ *     .build();
  * }</pre>
  *
- * <p>The client is {@link AutoCloseable}: closing it releases the HTTP stack the SDK built itself,
- * and never closes a {@link java.net.http.HttpClient} the caller supplied through {@link
- * TransportOptions}. A closed client rejects further requests with an {@link
- * IllegalStateException}.
+ * <p>The client is {@link AutoCloseable}, and {@link #close()} is graceful and idempotent: it marks
+ * the client closed and returns, requests already in flight finish, and the HTTP stack the SDK
+ * built itself is released when the last of them completes. It never closes a {@link
+ * java.net.http.HttpClient} the caller supplied through {@link TransportOptions}. A request issued
+ * after closing fails with an {@link IllegalStateException}.
  */
 @SuppressFBWarnings(
     value = {"URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"},
@@ -73,30 +115,236 @@ public final class Client implements AutoCloseable {
   /**
    * Creates a new client with the given authenticator and transport options.
    *
-   * <p>If the authenticator implements {@link HttpAwareAuthenticator}, the shared {@link ApiClient}
-   * is injected so that token exchange and discovery requests use the same proxy, TLS, and timeout
-   * settings.
+   * <p>The authenticator is the credential for every operation. If it implements {@link
+   * HttpAwareAuthenticator}, the shared {@link ApiClient} is injected so that token exchange and
+   * discovery requests use the same proxy, TLS, and timeout settings.
    *
    * @param authenticator provides host URL and auth headers
    * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
    * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
    */
   public Client(Authenticator authenticator, TransportOptions transportOptions) {
+    this(hostOf(authenticator), authenticator, Map.of(), transportOptions);
+  }
+
+  private Client(
+      String host,
+      @Nullable Authenticator authenticator,
+      Map<String, Authenticator> schemeAuthenticators,
+      TransportOptions transportOptions) {
     ApiClient apiClient = new DefaultApiClient(transportOptions);
     this.apiClient = apiClient;
 
     if (authenticator instanceof HttpAwareAuthenticator httpAware) {
       httpAware.setApiClient(apiClient);
     }
+    for (Authenticator scheme : schemeAuthenticators.values()) {
+      if (scheme instanceof HttpAwareAuthenticator httpAware) {
+        httpAware.setApiClient(apiClient);
+      }
+    }
 
-    Configuration config = Configuration.builder().baseUrl(authenticator.getHost()).build();
-    this.pet = new PetApi(apiClient, config, authenticator);
-    this.store = new StoreApi(apiClient, config, authenticator);
+    Configuration config = Configuration.builder().baseUrl(host).build();
+    this.pet = new PetApi(apiClient, config, authenticator, schemeAuthenticators);
+    this.store = new StoreApi(apiClient, config, authenticator, schemeAuthenticators);
+  }
+
+  private static String hostOf(Authenticator authenticator) {
+    return Objects.requireNonNull(authenticator, "authenticator").getHost();
   }
 
   /**
-   * Releases the HTTP stack this client built. Idempotent. A transport the caller supplied is never
-   * closed.
+   * Starts a client that holds one optional credential per security scheme, each named after its
+   * scheme. An operation uses the credential of the first scheme in its own security list that the
+   * client holds; an operation none of whose schemes has a credential is sent without one.
+   *
+   * @param host API base URL
+   * @return a builder for the client
+   */
+  public static Builder builder(String host) {
+    return new Builder(host);
+  }
+
+  /** Builds a client that holds one credential per security scheme. */
+  public static final class Builder {
+
+    private final String host;
+    private final Map<String, Authenticator> schemes = new LinkedHashMap<>();
+    @Nullable private TransportOptions transportOptions;
+
+    private Builder(String host) {
+      this.host = Objects.requireNonNull(host, "host");
+    }
+
+    /**
+     * Sets the credential for the {@code petStoreBasic} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder petStoreBasic(@Nullable PetStoreBasicAuthenticator authenticator) {
+      return scheme("petStoreBasic", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code adminBasic} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder adminBasic(@Nullable AdminBasicAuthenticator authenticator) {
+      return scheme("adminBasic", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code petStoreBearer} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder petStoreBearer(@Nullable PetStoreBearerAuthenticator authenticator) {
+      return scheme("petStoreBearer", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code serviceToken} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder serviceToken(@Nullable ServiceTokenAuthenticator authenticator) {
+      return scheme("serviceToken", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code apiKeyHeader} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder apiKeyHeader(@Nullable ApiKeyHeaderAuthenticator authenticator) {
+      return scheme("apiKeyHeader", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code internalApiKey} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder internalApiKey(@Nullable InternalApiKeyAuthenticator authenticator) {
+      return scheme("internalApiKey", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code apiKeyQuery} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder apiKeyQuery(@Nullable ApiKeyQueryAuthenticator authenticator) {
+      return scheme("apiKeyQuery", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code sessionCookie} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder sessionCookie(@Nullable SessionCookieAuthenticator authenticator) {
+      return scheme("sessionCookie", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code machineAuth} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder machineAuth(@Nullable MachineAuthClientCredentialsAuthenticator authenticator) {
+      return scheme("machineAuth", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code legacyAuth} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder legacyAuth(@Nullable LegacyAuthPasswordAuthenticator authenticator) {
+      return scheme("legacyAuth", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code userAuth} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder userAuth(@Nullable UserAuthAuthorizationCodeAuthenticator authenticator) {
+      return scheme("userAuth", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code browserAuth} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder browserAuth(@Nullable BrowserAuthImplicitAuthenticator authenticator) {
+      return scheme("browserAuth", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code ssoAuth} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder ssoAuth(@Nullable SsoAuthAuthenticator authenticator) {
+      return scheme("ssoAuth", authenticator);
+    }
+
+    /**
+     * Sets the HTTP transport configuration (proxy, TLS, timeouts, etc.).
+     *
+     * @param transportOptions the transport options, or {@code null} for the defaults
+     * @return this builder
+     */
+    public Builder transportOptions(@Nullable TransportOptions transportOptions) {
+      this.transportOptions = transportOptions;
+      return this;
+    }
+
+    /**
+     * Creates the client.
+     *
+     * @return the configured client
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or
+     *     parsed
+     */
+    public Client build() {
+      TransportOptions transport =
+          transportOptions != null ? transportOptions : TransportOptions.builder().build();
+      return new Client(host, null, new LinkedHashMap<>(schemes), transport);
+    }
+
+    private Builder scheme(String schemeId, @Nullable Authenticator authenticator) {
+      if (authenticator == null) {
+        schemes.remove(schemeId);
+      } else {
+        schemes.put(schemeId, authenticator);
+      }
+      return this;
+    }
+  }
+
+  /**
+   * Closes the client gracefully. The first call marks it closed and returns at once; requests
+   * already in flight finish, and the HTTP stack the SDK built is released when the last of them
+   * completes. Later calls do nothing. A transport the caller supplied is never closed, and a
+   * request issued after closing fails with an {@link IllegalStateException}.
    */
   @Override
   public void close() {

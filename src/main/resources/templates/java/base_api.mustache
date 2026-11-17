@@ -44,9 +44,12 @@ public abstract class BaseApi {
     /** Content negotiation logic for Accept and Content-Type headers. */
     private final HeaderSelector headerSelector;
 
-    /** Default authenticator used when no per-operation auth is provided. */
+    /** Default authenticator used when the client holds no credential for an operation's scheme. */
     @Nullable
     protected final Authenticator authenticator;
+
+    /** The credential the client holds for each security scheme, keyed by the scheme name. */
+    private final Map<String, Authenticator> schemeAuthenticators;
 
     /**
      * Sentinel authenticator that marks an operation as explicitly unauthenticated.
@@ -59,10 +62,10 @@ public abstract class BaseApi {
      * <ul>
      *   <li>{@code auth == NO_AUTH} — the operation is unauthenticated; the
      *       client-level authenticator must NOT be applied (no credential leak);
-     *   <li>{@code auth == null} — a secured operation with no per-call override;
-     *       fall back to the client-level authenticator (unchanged behaviour);
-     *   <li>{@code auth} is any other instance — a per-call override; use it
-     *       (unchanged behaviour).
+     *   <li>{@code auth == null} — a secured operation whose scheme the client holds
+     *       no credential for; fall back to the client-level authenticator;
+     *   <li>{@code auth} is any other instance — the credential the client holds for the
+     *       scheme the operation requires ({@link #resolveSchemeAuth}); use it.
      * </ul>
      *
      * <p>This is a private, identity-comparable singleton; it returns empty
@@ -115,14 +118,52 @@ public abstract class BaseApi {
      *
      * @param apiClient     the HTTP transport client
      * @param config        API-level configuration (base URL and default headers)
-     * @param authenticator default authenticator for operations without explicit auth
+     * @param authenticator default authenticator for operations whose scheme has no credential
      */
     public BaseApi(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
-        this.apiClient        = apiClient;
-        this.config           = config;
-        this.objectSerializer = new ObjectSerializer();
-        this.headerSelector   = new HeaderSelector();
-        this.authenticator    = authenticator;
+        this(apiClient, config, authenticator, Map.of());
+    }
+
+    /**
+     * Create an API instance with a custom API client, configuration, default authenticator and
+     * one credential per security scheme.
+     *
+     * @param apiClient            the HTTP transport client
+     * @param config               API-level configuration (base URL and default headers)
+     * @param authenticator        default authenticator for operations whose scheme has no credential
+     * @param schemeAuthenticators the credential for each security scheme, keyed by the scheme name
+     */
+    public BaseApi(
+            ApiClient apiClient,
+            Configuration config,
+            @Nullable Authenticator authenticator,
+            Map<String, Authenticator> schemeAuthenticators) {
+        this.apiClient            = apiClient;
+        this.config               = config;
+        this.objectSerializer     = new ObjectSerializer();
+        this.headerSelector       = new HeaderSelector();
+        this.authenticator        = authenticator;
+        this.schemeAuthenticators = Map.copyOf(schemeAuthenticators);
+    }
+
+    /**
+     * Returns the credential the client holds for the first of the given scheme names that has
+     * one, or {@code null} when it holds none. An operation passes the schemes its spec lists, in
+     * the order it lists them, so it always uses a scheme the spec names and a caller cannot pick
+     * another one per call.
+     *
+     * @param schemes the names of the security schemes the operation accepts, in the spec's order
+     * @return the authenticator of the first scheme the client holds a credential for, or null
+     */
+    @Nullable
+    protected Authenticator resolveSchemeAuth(String... schemes) {
+        for (String scheme : schemes) {
+            Authenticator found = schemeAuthenticators.get(scheme);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 
     /**
@@ -139,7 +180,7 @@ public abstract class BaseApi {
      * @param accepts     acceptable response content types
      * @param contentType request content type
      * @param returnType  return type for deserialization (null for void)
-     * @param auth        optional authenticator for operation-specific auth
+     * @param auth        the credential for the scheme the operation requires, or {@code NO_AUTH}
      * @return ApiResult containing deserialized data, status code, raw body, and headers
      * @throws ApiException if the API call fails
      */
@@ -184,7 +225,7 @@ public abstract class BaseApi {
      * @param accepts         acceptable response content types
      * @param contentType     request content type
      * @param returnType      return type for deserialization (null for void)
-     * @param auth            optional authenticator for operation-specific auth
+     * @param auth            the credential for the scheme the operation requires, or {@code NO_AUTH}
      * @param timeoutMillis   end-to-end timeout in milliseconds for this call, or {@code null}
      *                        to use the transport's timeout
      * @param maxRetries      retry count for this call, or {@code null} to use the transport's
@@ -223,15 +264,15 @@ public abstract class BaseApi {
 
         {{! Three-state auth resolution. NO_AUTH (security:[]) suppresses the
             client authenticator; a null auth falls back to it (secured op, no
-            per-call override); any other instance is an explicit per-call
-            override. Identity comparison against the sentinel — never equals. }}
+            held credential); any other instance is the credential held for the
+            operation's scheme. Identity comparison against the sentinel — never equals. }}
         Authenticator effectiveAuth;
         if (auth == NO_AUTH) {
             effectiveAuth = null;
         } else if (auth != null) {
             effectiveAuth = auth;
-            {{! A per-call OAuth2 or OpenID Connect authenticator was never handed
-                the client-level transport: give it this API's client so its token
+            {{! An OAuth2 or OpenID Connect authenticator built outside the Client was never
+                handed the client-level transport: give it this API's client so its token
                 and discovery requests use the same proxy, TLS and timeout. }}
             if (auth instanceof HttpAwareAuthenticator httpAware) {
                 httpAware.setApiClient(apiClient);
@@ -579,7 +620,7 @@ public abstract class BaseApi {
      * @param accepts     acceptable response content types
      * @param contentType request content type
      * @param returnType  return type for deserialization (null for void)
-     * @param auth        optional authenticator for operation-specific auth
+     * @param auth        the credential for the scheme the operation requires, or {@code NO_AUTH}
      * @return deserialized response or null
      * @throws ApiException if the API call fails
      */

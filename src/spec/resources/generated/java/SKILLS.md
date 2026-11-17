@@ -29,7 +29,7 @@ Client client = Client.withToken("https://api.example.com", "your-token");
 
 ## Authentication
 
-All authentication is handled via `Authenticator` implementations passed to the client constructor.
+All authentication is handled via `Authenticator` implementations passed to the client constructor or, one per security scheme, to `Client.builder(host)`.
 
 ### Bearer Token
 
@@ -130,6 +130,29 @@ var authenticator = new OpenIdConnectAuthenticator(
     "client-id", "client-secret", "https://app.example.com/callback", List.of());
 var client = new Client(authenticator);
 authenticator.exchangeCode("authorization-code");
+```
+
+### Credentials per security scheme
+
+`Client.builder(host)` takes one optional credential per security scheme, named after the scheme. Each operation uses the credential of the first scheme in its own security list that the client holds, falls back to the single authenticator of `new Client(authenticator)` when it holds none of them, and sends no credential when there is neither or when the operation declares `security: []`. There is no per-call scheme override and no authenticator on an options object.
+
+```java
+var client = Client.builder("https://api.example.com")
+    .petStoreBasic(...)
+    .adminBasic(...)
+    .petStoreBearer(...)
+    .serviceToken(...)
+    .apiKeyHeader(...)
+    .internalApiKey(...)
+    .apiKeyQuery(...)
+    .sessionCookie(...)
+    .machineAuth(...)
+    .legacyAuth(...)
+    .userAuth(...)
+    .browserAuth(...)
+    .ssoAuth(...)
+    .transportOptions(transportOptions)
+    .build();
 ```
 
 ### Credentials from the environment
@@ -299,6 +322,14 @@ var transport = TransportOptions.builder().httpClient(httpClient).build();
 
 The SDK sends every request through your client and never closes it. Combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails at `build()`.
 
+### Closing the client
+
+`close()` is graceful and idempotent: it marks the client closed and returns, requests already in flight finish, and the transport the SDK created is released when the last of them completes. A request issued after that throws `IllegalStateException` ("ApiClient has been closed and can no longer send requests"). A `java.net.http.HttpClient` you supplied is never closed.
+
+### Cookie parameters
+
+A cookie parameter is sent exactly as given when every character is a legal RFC 6265 cookie-octet (`%` is one, so a value you percent-encoded yourself goes out unchanged). Any other value (space, double quote, comma, semicolon, backslash, control or non-ASCII character) throws `IllegalArgumentException` before the request is sent; percent-encode it first. The SDK never encodes a cookie value.
+
 ### Cancellation
 
 Interrupt the calling thread; the call throws `java.util.concurrent.CancellationException` (the `InterruptedException` is its cause) and is never reported as `NetworkTimeoutException`.
@@ -311,7 +342,7 @@ task.cancel(true);
 
 ### Per-call options
 
-Every operation takes an optional trailing `<Operation>Options` object, even one with no parameters of its own and no security. It also takes `timeout(millis)`, `maxRetries(n)` and `headers(map)`, which apply to that call only; leave it out or pass `null` to use the client's settings.
+Every operation takes an optional trailing `<Operation>Options` object, even one with no parameters of its own and no security. It also takes `timeout(millis)`, `maxRetries(n)` and `headers(map)`, which apply to that call only (it never carries an authenticator); leave it out or pass `null` to use the client's settings.
 
 ### Raw responses, timeouts and the request id
 

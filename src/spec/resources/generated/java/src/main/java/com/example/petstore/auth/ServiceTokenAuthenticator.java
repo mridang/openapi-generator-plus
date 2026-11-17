@@ -31,6 +31,15 @@ public final class ServiceTokenAuthenticator extends BaseAuthenticator {
     this(host, token, System.getenv());
   }
 
+  /**
+   * Creates an authenticator whose every credential is read from its environment variable.
+   *
+   * @param host the API base URL (never read from the environment)
+   */
+  public ServiceTokenAuthenticator(String host) {
+    this(host, null, System.getenv());
+  }
+
   /* Package-private so a test can supply the environment instead of the process one. */
   ServiceTokenAuthenticator(String host, @Nullable String token, Map<String, String> environment) {
     this.delegate =
