@@ -1766,7 +1766,9 @@ class TestContentTypeDeserialization:
                 "Pet",
             )
 
-    async def test_unexpected_content_type_names_the_operation(self) -> None:
+    async def test_bhv_errors_054_unexpected_content_type_names_the_operation(
+        self,
+    ) -> None:
         client = PlainTextApiClient()
         config = Configuration(base_url="http://localhost")
         stub = StubApi(api_client=client, config=config)
