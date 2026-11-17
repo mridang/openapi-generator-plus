@@ -207,6 +207,8 @@ do {
 }
 ```
 
+Every `ApiError` has `requestMethod` and `requestPath` (no query string), and its message reads `API returned status code 404 for GET /items/7`.
+
 A mistake in how the SDK is configured or called (a bad proxy URL, a missing required parameter, a closed client) is a `ConfigurationError`, which is not part of this hierarchy.
 
 ## Configuration
@@ -234,6 +236,14 @@ Failed calls are retried automatically: `TransportOptions.builder().maxRetries(n
 
 Cancel the Swift `Task` that made the call and the call throws `CancellationError`; the SDK has no cancellation API of its own. `NetworkTimeoutError` is only for the SDK's own `TransportOptions` timeout.
 
+### Per-call options
+
+An operation's options struct also takes `timeout` (milliseconds, greater than zero), `maxRetries` (`0` turns retries off) and `headers` for that call alone; a `nil` keeps the transport's setting. An operation with no parameters and no security requirement has no options struct yet.
+
+### Credentials from the environment
+
+`Client.fromEnvironment()` reads `PETSTORE_CLIENT_HOST` and `PETSTORE_CLIENT_TOKEN` once, when the client is built (an empty value is unset); the `host`, `token` and `tokenProvider` arguments win, and a missing host or credential throws `ConfigurationError.invalidArgument`.
+
 ### Raw responses, timeouts and request ids
 
 Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult` with the status code, the response headers, the raw body and the decoded data. `TransportOptions.builder().timeout(_:)` is in milliseconds (default 10000) and covers the whole call. Unless `injectRequestID(false)` is set, every request carries a generated `X-Request-ID` header; one you supply always wins.
@@ -251,6 +261,8 @@ Models are generated as Swift structs in the `Models` directory.
 ```swift
 let model = Account(username: "example")
 ```
+
+A model is immutable: its properties are `let`. `model.copy(name: "x")` returns a copy with the given properties replaced (pass `.some(nil)` to clear an optional one). A `oneOf` union is built with `Union.fromVariant(value)` and read with `isVariant` and `asVariant`; an operation with several 2xx schemas returns such a union, decoded by the status that arrived.
 
 ## Binary / File Uploads
 

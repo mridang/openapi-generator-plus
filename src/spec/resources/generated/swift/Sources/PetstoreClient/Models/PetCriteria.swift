@@ -9,8 +9,8 @@ import Foundation
 
 /// PetCriteria is a model class generated from the OpenAPI schema.
 public struct PetCriteria: Codable, Sendable, Equatable, Hashable {
-  public var breed: String?
-  public var minAge: Int?
+  public let breed: String?
+  public let minAge: Int?
 
   enum CodingKeys: String, CodingKey {
     case breed = "breed"
@@ -21,6 +21,13 @@ public struct PetCriteria: Codable, Sendable, Equatable, Hashable {
   public init(breed: String? = nil, minAge: Int? = nil) {
     self.breed = breed
     self.minAge = minAge
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(breed: String?? = .none, minAge: Int?? = .none) -> PetCriteria {
+    return PetCriteria(breed: breed ?? self.breed, minAge: minAge ?? self.minAge)
   }
 
   /// Decodes this instance from the given decoder.

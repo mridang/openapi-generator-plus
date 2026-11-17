@@ -9,8 +9,8 @@ import Foundation
 
 /// Employee is a model class generated from the OpenAPI schema.
 public struct Employee: Codable, Sendable, Equatable, Hashable {
-  public var name: String
-  @Indirect public var department: Department?
+  public let name: String
+  @Indirect public private(set) var department: Department?
 
   enum CodingKeys: String, CodingKey {
     case name = "name"
@@ -21,6 +21,13 @@ public struct Employee: Codable, Sendable, Equatable, Hashable {
   public init(name: String, department: Department? = nil) {
     self.name = name
     self.department = department
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(name: String? = nil, department: Department?? = .none) -> Employee {
+    return Employee(name: name ?? self.name, department: department ?? self.department)
   }
 
   /// Decodes this instance from the given decoder.

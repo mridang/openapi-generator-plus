@@ -10,41 +10,47 @@ import Foundation
 /// Pet is a model class generated from the OpenAPI schema.
 /// See https://example.com/docs/pet Learn more about the Pet model
 /// Typed enum for Pet.status.
-public enum PetStatusEnum: String, Codable, Sendable, CaseIterable {
+public enum PetStatusEnum: String, Codable, Sendable, CaseIterable, CustomStringConvertible {
   case available = "available"
   case pending = "pending"
   case sold = "sold"
+
+  /// The wire value (`"active"`, `2`), not the case name, so interpolating
+  /// the enum prints what the server sees.
+  public var description: String {
+    return "\(rawValue)"
+  }
 }
 
 public struct Pet: Codable, Sendable, Equatable, Hashable {
   /// Example: 10
-  public var id: Int64?
+  public let id: Int64?
   /// Example: doggie
-  public var name: String
-  public var category: Category?
-  public var photoUrls: Set<String>
-  public var tags: [Tag]?
+  public let name: String
+  public let category: Category?
+  public let photoUrls: Set<String>
+  public let tags: [Tag]?
   /// pet status in the store
   @available(*, deprecated, message: "This property is deprecated.")
-  public var status: PetStatusEnum?
-  public var location: [AnyCodable]?
+  public let status: PetStatusEnum?
+  public let location: [AnyCodable]?
   /// Absolute URL to the pet's public profile page
   /// Example: https://example.com/pets/fido
-  public var homepageUrl: String?
+  public let homepageUrl: String?
   /// Optionally-relative thumbnail location
   /// Example: /assets/thumb-fido.png
-  public var thumbnailRef: String?
+  public let thumbnailRef: String?
   /// RFC 6570 template for related-resource links
   /// Example: https://example.com/pets/{id}/photos{?size}
-  public var linkTemplate: String?
+  public let linkTemplate: String?
   /// Contact email for the pet's owner
   /// Example: owner@example.com
-  public var ownerEmail: String?
+  public let ownerEmail: String?
   /// Pet weight in kilograms (decimal precision)
   /// Example: 12.345
-  public var weightKg: Double?
+  public let weightKg: Double?
   /// Example: rex
-  public var nickname: String?
+  public let nickname: String?
 
   enum CodingKeys: String, CodingKey {
     case id = "id"
@@ -82,6 +88,25 @@ public struct Pet: Codable, Sendable, Equatable, Hashable {
     self.ownerEmail = ownerEmail
     self.weightKg = weightKg
     self.nickname = nickname
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    name: String? = nil, photoUrls: Set<String>? = nil, id: Int64?? = .none,
+    category: Category?? = .none, tags: [Tag]?? = .none, status: PetStatusEnum?? = .none,
+    location: [AnyCodable]?? = .none, homepageUrl: String?? = .none, thumbnailRef: String?? = .none,
+    linkTemplate: String?? = .none, ownerEmail: String?? = .none, weightKg: Double?? = .none,
+    nickname: String?? = .none
+  ) -> Pet {
+    return Pet(
+      name: name ?? self.name, photoUrls: photoUrls ?? self.photoUrls, id: id ?? self.id,
+      category: category ?? self.category, tags: tags ?? self.tags, status: status ?? self.status,
+      location: location ?? self.location, homepageUrl: homepageUrl ?? self.homepageUrl,
+      thumbnailRef: thumbnailRef ?? self.thumbnailRef,
+      linkTemplate: linkTemplate ?? self.linkTemplate, ownerEmail: ownerEmail ?? self.ownerEmail,
+      weightKg: weightKg ?? self.weightKg, nickname: nickname ?? self.nickname)
   }
 
   /// Decodes this instance from the given decoder.

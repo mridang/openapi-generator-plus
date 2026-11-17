@@ -8,9 +8,15 @@
 import Foundation
 
 /// String enum whose values sanitise to an empty or colliding identifier
-public enum Separator: String, Codable, Sendable, CaseIterable {
+public enum Separator: String, Codable, Sendable, CaseIterable, CustomStringConvertible {
   case space1 = " "
   case value00400040 = "@@"
   case ab = "a-b"
   case ab2 = "a_b"
+
+  /// The wire value (`"active"`, `2`), not the case name, so interpolating
+  /// the enum prints what the server sees.
+  public var description: String {
+    return "\(rawValue)"
+  }
 }

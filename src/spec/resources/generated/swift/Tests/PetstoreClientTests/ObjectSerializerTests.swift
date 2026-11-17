@@ -1308,13 +1308,13 @@ import Testing
 
   // MARK: - integer-backed enum (Priority) round-trips as a JSON NUMBER
 
-  // Priority is an Int-backed enum (NUMBER_1=1, NUMBER_2=2, NUMBER_3=3).
+  // Priority is an Int-backed enum (number1=1, number2=2, number3=3).
   // Serializing a Priority must emit a bare JSON number (2), NOT a quoted
   // string ("2"); deserializing the number 2 must yield the matching member.
   // StockItem.priority is a required Priority field, exercising the enum via
   // a real model rather than in isolation.
   @Test func testIntegerEnumSerializesAsJsonNumber() throws {
-    let item = StockItem(priority: .NUMBER_2)
+    let item = StockItem(priority: .number2)
     let json = try ObjectSerializer.serialize(item)
     #expect(
       json.contains("\"priority\":2"),
@@ -1328,15 +1328,15 @@ import Testing
     let json = "{\"priority\":2}"
     let item = try ObjectSerializer.deserialize(json, as: StockItem.self)
     #expect(
-      item?.priority == .NUMBER_2,
-      "the JSON number 2 must decode to Priority.NUMBER_2")
+      item?.priority == .number2,
+      "the JSON number 2 must decode to Priority.number2")
   }
 
   @Test func testIntegerEnumRoundTripPreservesMember() throws {
-    let original = StockItem(priority: .NUMBER_3)
+    let original = StockItem(priority: .number3)
     let json = try ObjectSerializer.serialize(original)
     let decoded = try ObjectSerializer.deserialize(json, as: StockItem.self)
-    #expect(decoded?.priority == .NUMBER_3)
+    #expect(decoded?.priority == .number3)
   }
 
   // MARK: - non-lowercase string enum (Availability) wire-casing preserved
@@ -1347,7 +1347,7 @@ import Testing
   // raw value must yield the matching member, and an unknown value must be
   // rejected (not coerced to a default/unknown variant).
   @Test func testNonLowercaseStringEnumSerializesWireCasing() throws {
-    let item = StockItem(priority: .NUMBER_1, availability: .available)
+    let item = StockItem(priority: .number1, availability: .available)
     let json = try ObjectSerializer.serialize(item)
     #expect(
       json.contains("\"availability\":\"Available\""),
@@ -1355,7 +1355,7 @@ import Testing
   }
 
   @Test func testNonLowercaseStringEnumSerializesHyphenatedWireCasing() throws {
-    let item = StockItem(priority: .NUMBER_1, availability: .onHold)
+    let item = StockItem(priority: .number1, availability: .onHold)
     let json = try ObjectSerializer.serialize(item)
     #expect(
       json.contains("\"availability\":\"on-hold\""),
@@ -1568,7 +1568,7 @@ import Testing
   // to typed Int leaves (not raw JSON) and deep-encode back, preserving the
   // grid structure exactly.
   @Test func testNestedArrayOfArrayDeepRoundTrips() throws {
-    let original = StockItem(priority: .NUMBER_1, matrix: [[1, 2, 3], [4, 5], []])
+    let original = StockItem(priority: .number1, matrix: [[1, 2, 3], [4, 5], []])
     let json = try ObjectSerializer.serialize(original)
     let decoded = try ObjectSerializer.deserialize(json, as: StockItem.self)
     #expect(
@@ -1756,14 +1756,16 @@ import Testing
 
   /* A container of integers is checked element by element like a single
      integer: a quoted, fractional or null element is rejected. */
-  @Test(arguments: ["{\"a\":\"5\"}", "{\"a\":1.5}", "{\"a\":null}"])
+  @Test(arguments: [
+    "{\"a\":\"5\"}", "{\"a\":1.5}", "{\"a\":null}", "{\"a\":99999999999999999999}",
+  ])
   func testMapOfIntegersRejectsWrongTypedElement(json: String) {
     #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize(json, as: [String: Int].self)
     }
   }
 
-  @Test(arguments: ["[[\"5\"]]", "[[1.5]]", "[[null]]"])
+  @Test(arguments: ["[[\"5\"]]", "[[1.5]]", "[[null]]", "[[99999999999999999999]]"])
   func testNestedArrayOfIntegersRejectsWrongTypedElement(json: String) {
     #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize(json, as: [[Int]].self)

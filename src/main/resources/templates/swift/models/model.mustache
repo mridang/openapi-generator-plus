@@ -10,12 +10,18 @@ import Foundation
 {{^description}}
 /// {{classname}} is an enumeration of allowed values.
 {{/description}}
-public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable {
+public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable, CustomStringConvertible {
 {{#allowableValues}}
 {{#enumVars}}
     case {{name}} = {{{value}}}
 {{/enumVars}}
 {{/allowableValues}}
+
+    /// The wire value (`"active"`, `2`), not the case name, so interpolating
+    /// the enum prints what the server sees.
+    public var description: String {
+        return "\(rawValue)"
+    }
 }
 {{/isEnum}}
 {{^isEnum}}
@@ -36,12 +42,18 @@ public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLon
 {{#vars}}
 {{#isEnum}}
 /// Typed enum for {{classname}}.{{name}}.
-public enum {{classname}}{{enumName}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable {
+public enum {{classname}}{{enumName}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable, CustomStringConvertible {
 {{#allowableValues}}
 {{#enumVars}}
     case {{name}} = {{{value}}}
 {{/enumVars}}
 {{/allowableValues}}
+
+    /// The wire value (`"active"`, `2`), not the case name, so interpolating
+    /// the enum prints what the server sees.
+    public var description: String {
+        return "\(rawValue)"
+    }
 }
 
 {{/isEnum}}
@@ -76,16 +88,16 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     @available(*, deprecated, message: "This property is deprecated.")
 {{/deprecated}}
 {{#required}}
-    {{#vendorExtensions.isSelfRecursive}}@Indirect {{/vendorExtensions.isSelfRecursive}}public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}
+    {{#vendorExtensions.isSelfRecursive}}@Indirect public private(set) var{{/vendorExtensions.isSelfRecursive}}{{^vendorExtensions.isSelfRecursive}}public let{{/vendorExtensions.isSelfRecursive}} {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}
 {{/required}}
 {{^required}}
-    {{#vendorExtensions.isSelfRecursive}}@Indirect {{/vendorExtensions.isSelfRecursive}}public var {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?
+    {{#vendorExtensions.isSelfRecursive}}@Indirect public private(set) var{{/vendorExtensions.isSelfRecursive}}{{^vendorExtensions.isSelfRecursive}}public let{{/vendorExtensions.isSelfRecursive}} {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
 
     /// Additional properties not defined in the schema.
-    public var additionalProperties: [String: AnyCodable]
+    public let additionalProperties: [String: AnyCodable]
 {{/isAdditionalPropertiesTrue}}
 
 {{^isAdditionalPropertiesTrue}}
@@ -104,6 +116,13 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#optionalVars}}
         self.{{name}} = {{name}}
 {{/optionalVars}}
+    }
+
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}? = nil{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?? = .none{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: [String: AnyCodable]? = nil{{/isAdditionalPropertiesTrue}}) -> {{classname}} {
+        return {{classname}}({{#requiredVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: additionalProperties ?? self.additionalProperties{{/isAdditionalPropertiesTrue}})
     }
 
     /// Decodes this instance from the given decoder.
@@ -294,6 +313,13 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         self.additionalProperties = additionalProperties
     }
 {{/hasVars}}
+
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}? = nil{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?? = .none{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: [String: AnyCodable]? = nil{{/isAdditionalPropertiesTrue}}) -> {{classname}} {
+        return {{classname}}({{#requiredVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: additionalProperties ?? self.additionalProperties{{/isAdditionalPropertiesTrue}})
+    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -500,6 +526,23 @@ public struct {{classname}}: Codable, @unchecked Sendable {
         self._value = value
     }
 {{/oneOf}}
+{{#composedSchemas.oneOf}}
+
+    /// Wraps a ``{{{dataType}}}`` as this union's value; the named form of ``init(_:)``.
+    public static func from{{vendorExtensions.variantName}}(_ value: {{{dataType}}}) -> {{classname}} {
+        return {{classname}}(value)
+    }
+
+    /// Whether this union holds a ``{{{dataType}}}``.
+    public var is{{vendorExtensions.variantName}}: Bool {
+        return _value is {{{dataType}}}
+    }
+
+    /// The held value as a ``{{{dataType}}}``, or nil when this union holds another variant.
+    public var as{{vendorExtensions.variantName}}: {{{dataType}}}? {
+        return _value as? {{{dataType}}}
+    }
+{{/composedSchemas.oneOf}}
 
     public init(from decoder: Decoder) throws {
 {{#discriminator}}

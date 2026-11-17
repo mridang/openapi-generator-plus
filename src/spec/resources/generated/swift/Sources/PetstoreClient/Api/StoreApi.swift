@@ -157,7 +157,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Category",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getBySwatch"
+      operation: "StoreApi.getBySwatch",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Category.self)
@@ -506,7 +509,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "StockItem",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.getStockItem"
+      operation: "StoreApi.getStockItem",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: StockItem.self)
@@ -752,7 +758,19 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       operation: "StoreApi.reserveStock"
     )
 
-    return try await invokeAPIForResult(params, as: ReserveStockResponse.self)
+    /* Several 2xx responses with different schemas: the body is read as the
+     * schema of the status that arrived. */
+    return try await invokeAPIForResult(params) {
+      (response: ApiHttpResponse) -> ReserveStockResponse? in
+      switch response.statusCode {
+      case 200:
+        return try ObjectSerializer.deserialize(response.body, as: Reservation.self)
+          .map { ReserveStockResponse($0) }
+      default:
+        return try ObjectSerializer.deserialize(response.body, as: ReservationReceipt.self)
+          .map { ReserveStockResponse($0) }
+      }
+    }
   }
 
   /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
@@ -817,7 +835,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "[Order]",
       auth: BaseApi.noAuthSentinel,
-      operation: "StoreApi.searchStore"
+      operation: "StoreApi.searchStore",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: [Order].self)

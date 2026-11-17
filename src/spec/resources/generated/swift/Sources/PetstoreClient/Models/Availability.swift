@@ -8,7 +8,7 @@
 import Foundation
 
 /// Stock availability, non-lowercase string enum
-public enum Availability: String, Codable, Sendable, CaseIterable {
+public enum Availability: String, Codable, Sendable, CaseIterable, CustomStringConvertible {
   case available = "Available"
   case sold = "Sold"
   case onHold = "on-hold"
@@ -16,4 +16,10 @@ public enum Availability: String, Codable, Sendable, CaseIterable {
   case ab = "a\\b"
   case eq = "$eq"
   case x = "#{x}"
+
+  /// The wire value (`"active"`, `2`), not the case name, so interpolating
+  /// the enum prints what the server sees.
+  public var description: String {
+    return "\(rawValue)"
+  }
 }

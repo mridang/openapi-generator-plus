@@ -200,8 +200,8 @@
    "languages": [
     "swift"
    ],
-   "value": "*underlyingerror)",
-   "reason": "swift's Foundation convention names a wrapped error underlyingError"
+   "value": "*underlyingerror*)",
+   "reason": "swift's Foundation convention names a wrapped error underlyingError, and the request method and path may follow it"
   },
   {
    "element": [
@@ -2262,6 +2262,52 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": [
+    "*options.timeout",
+    "*options.headers",
+    "*options.maxretries"
+   ],
+   "aspect": "member",
+   "languages": [
+    "swift"
+   ],
+   "reason": "F827 wave 2: every per-operation Options struct gains optional timeout, headers and maxRetries; swift lands in its own wave branch and the other languages add the same shape in theirs, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "client.fromenvironment"
+   ],
+   "aspect": "member",
+   "languages": [
+    "swift"
+   ],
+   "reason": "F862 wave 2: credentials are read from {PREFIX}_HOST and {PREFIX}_TOKEN when the client is built; swift lands in its own wave branch and the other languages add the same entry point in theirs, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "reservestockresponse.*",
+    "setpetavatarthumbnailrequest.*",
+    "petfood.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "swift"
+   ],
+   "reason": "F878 wave 2: a oneOf wrapper gains a typed from<Variant> factory and is<Variant>/as<Variant> accessors per variant; swift lands in its own wave branch and the other languages add typed accessors in their idiom in theirs, after which this rule is deleted"
+  },
+  {
+   "element": [
+    "treenode.child",
+    "department.lead",
+    "employee.department"
+   ],
+   "aspect": "member",
+   "languages": [
+    "swift"
+   ],
+   "reason": "F868 wave 2: a recursive property is `@Indirect public private(set) var` (a property wrapper cannot be `let`), and the extractor's modifier pattern does not read `private(set)`, so the public get-only property is reported missing; delete this rule when the extractor reads it"
   }
  ]
 }

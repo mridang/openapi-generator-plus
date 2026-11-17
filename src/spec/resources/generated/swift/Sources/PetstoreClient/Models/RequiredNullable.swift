@@ -9,7 +9,7 @@ import Foundation
 
 /// RequiredNullable is a model class generated from the OpenAPI schema.
 public struct RequiredNullable: Codable, Sendable, Equatable, Hashable {
-  public var note: String?
+  public let note: String?
 
   enum CodingKeys: String, CodingKey {
     case note = "note"
@@ -18,6 +18,13 @@ public struct RequiredNullable: Codable, Sendable, Equatable, Hashable {
   /// Creates a new RequiredNullable instance.
   public init(note: String?) {
     self.note = note
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(note: String?? = nil) -> RequiredNullable {
+    return RequiredNullable(note: note ?? self.note)
   }
 
   /// Decodes this instance from the given decoder.

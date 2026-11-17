@@ -9,7 +9,7 @@ import Foundation
 
 /// ModelResult is a model class generated from the OpenAPI schema.
 public struct ModelResult: Codable, Sendable, Equatable, Hashable {
-  public var ok: Bool?
+  public let ok: Bool?
 
   enum CodingKeys: String, CodingKey {
     case ok = "ok"
@@ -18,6 +18,13 @@ public struct ModelResult: Codable, Sendable, Equatable, Hashable {
   /// Creates a new ModelResult instance.
   public init(ok: Bool? = nil) {
     self.ok = ok
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(ok: Bool?? = .none) -> ModelResult {
+    return ModelResult(ok: ok ?? self.ok)
   }
 
   /// Decodes this instance from the given decoder.

@@ -9,8 +9,8 @@ import Foundation
 
 /// Department is a model class generated from the OpenAPI schema.
 public struct Department: Codable, Sendable, Equatable, Hashable {
-  public var name: String
-  @Indirect public var lead: Employee?
+  public let name: String
+  @Indirect public private(set) var lead: Employee?
 
   enum CodingKeys: String, CodingKey {
     case name = "name"
@@ -21,6 +21,13 @@ public struct Department: Codable, Sendable, Equatable, Hashable {
   public init(name: String, lead: Employee? = nil) {
     self.name = name
     self.lead = lead
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(name: String? = nil, lead: Employee?? = .none) -> Department {
+    return Department(name: name ?? self.name, lead: lead ?? self.lead)
   }
 
   /// Decodes this instance from the given decoder.

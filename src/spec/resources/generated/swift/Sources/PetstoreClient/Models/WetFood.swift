@@ -9,8 +9,8 @@ import Foundation
 
 /// WetFood is a model class generated from the OpenAPI schema.
 public struct WetFood: Codable, Sendable, Equatable, Hashable {
-  public var foodType: String
-  public var volumeMl: Int
+  public let foodType: String
+  public let volumeMl: Int
 
   enum CodingKeys: String, CodingKey {
     case foodType = "foodType"
@@ -21,6 +21,13 @@ public struct WetFood: Codable, Sendable, Equatable, Hashable {
   public init(foodType: String = "wet", volumeMl: Int) {
     self.foodType = foodType
     self.volumeMl = volumeMl
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(foodType: String? = nil, volumeMl: Int? = nil) -> WetFood {
+    return WetFood(foodType: foodType ?? self.foodType, volumeMl: volumeMl ?? self.volumeMl)
   }
 
   /// Decodes this instance from the given decoder.

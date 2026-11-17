@@ -9,15 +9,15 @@ import Foundation
 
 /// PetPassport is a model class generated from the OpenAPI schema.
 public struct PetPassport: Codable, Sendable, Equatable, Hashable {
-  public var pet: Pet?
+  public let pet: Pet?
   /// Base64-encoded primary thumbnail
   /// Example: dGVzdC10aHVtYm5haWw=
-  public var thumbnail: Data?
+  public let thumbnail: Data?
   /// Base64-encoded scans of each passport page
-  public var scans: [Data]?
-  public var issuedAt: Date?
+  public let scans: [Data]?
+  public let issuedAt: Date?
   /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
-  public var biometricChip: Data?
+  public let biometricChip: Data?
 
   enum CodingKeys: String, CodingKey {
     case pet = "pet"
@@ -37,6 +37,18 @@ public struct PetPassport: Codable, Sendable, Equatable, Hashable {
     self.scans = scans
     self.issuedAt = issuedAt
     self.biometricChip = biometricChip
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    pet: Pet?? = .none, thumbnail: Data?? = .none, scans: [Data]?? = .none,
+    issuedAt: Date?? = .none, biometricChip: Data?? = .none
+  ) -> PetPassport {
+    return PetPassport(
+      pet: pet ?? self.pet, thumbnail: thumbnail ?? self.thumbnail, scans: scans ?? self.scans,
+      issuedAt: issuedAt ?? self.issuedAt, biometricChip: biometricChip ?? self.biometricChip)
   }
 
   /// Decodes this instance from the given decoder.

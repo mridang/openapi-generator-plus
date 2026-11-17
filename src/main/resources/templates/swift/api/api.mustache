@@ -481,16 +481,35 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             contentType: {{#consumes}}{{#-last}}{{^-first}}effectiveRequestContentType{{/-first}}{{#-first}}"{{vendorExtensions.op.effectiveConsumes}}"{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes}},
             returnType: "{{#returnType}}{{{.}}}{{/returnType}}",
             auth: {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.auth{{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}BaseApi.noAuthSentinel{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
-            operation: "{{classname}}.{{operationId}}"{{#bodyParam}}{{#isBinary}},{{/isBinary}}{{/bodyParam}}
-{{#bodyParam}}
-{{#isBinary}}
-            rawBody: true
-{{/isBinary}}
-{{/bodyParam}}
+            operation: "{{classname}}.{{operationId}}"{{#bodyParam}}{{#isBinary}},
+            rawBody: true{{/isBinary}}{{/bodyParam}}{{#vendorExtensions.op.hasOptionsObject}},
+            timeout: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}timeout,
+            requestHeaders: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}headers,
+            maxRetries: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}maxRetries{{/vendorExtensions.op.hasOptionsObject}}
         )
 
 {{#returnType}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+        /* Several 2xx responses with different schemas: the body is read as the
+         * schema of the status that arrived. */
+        return try await invokeAPIForResult(params) { (response: ApiHttpResponse) -> {{{vendorExtensions.op.successUnionType}}}? in
+            switch response.statusCode {
+{{#vendorExtensions.op.successResponses}}
+{{^isLast}}
+            case {{statusCode}}:
+{{/isLast}}
+{{#isLast}}
+            default:
+{{/isLast}}
+                return try ObjectSerializer.deserialize(response.body, as: {{{returnType}}}.self)
+                    .map { {{{vendorExtensions.op.successUnionType}}}($0) }
+{{/vendorExtensions.op.successResponses}}
+            }
+        }
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{^vendorExtensions.op.hasMultiple2xx}}
         return try await invokeAPIForResult(params, as: {{{.}}}.self)
+{{/vendorExtensions.op.hasMultiple2xx}}
 {{/returnType}}
 {{^returnType}}
         return try await invokeAPIForEmptyResult(params)

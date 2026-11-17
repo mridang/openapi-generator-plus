@@ -8,8 +8,14 @@
 import Foundation
 
 /// Swatch is an enumeration of allowed values.
-public enum Swatch: String, Codable, Sendable, CaseIterable {
+public enum Swatch: String, Codable, Sendable, CaseIterable, CustomStringConvertible {
   case red = "red"
   case green = "green"
   case blue = "blue"
+
+  /// The wire value (`"active"`, `2`), not the case name, so interpolating
+  /// the enum prints what the server sees.
+  public var description: String {
+    return "\(rawValue)"
+  }
 }

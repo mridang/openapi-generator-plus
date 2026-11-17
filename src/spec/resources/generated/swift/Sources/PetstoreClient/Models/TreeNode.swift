@@ -9,8 +9,8 @@ import Foundation
 
 /// TreeNode is a model class generated from the OpenAPI schema.
 public struct TreeNode: Codable, Sendable, Equatable, Hashable {
-  public var value: String
-  @Indirect public var child: TreeNode?
+  public let value: String
+  @Indirect public private(set) var child: TreeNode?
 
   enum CodingKeys: String, CodingKey {
     case value = "value"
@@ -21,6 +21,13 @@ public struct TreeNode: Codable, Sendable, Equatable, Hashable {
   public init(value: String, child: TreeNode? = nil) {
     self.value = value
     self.child = child
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(value: String? = nil, child: TreeNode?? = .none) -> TreeNode {
+    return TreeNode(value: value ?? self.value, child: child ?? self.child)
   }
 
   /// Decodes this instance from the given decoder.

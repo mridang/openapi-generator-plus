@@ -9,25 +9,31 @@ import Foundation
 
 /// Order is a model class generated from the OpenAPI schema.
 /// Typed enum for Order.status.
-public enum OrderStatusEnum: String, Codable, Sendable, CaseIterable {
+public enum OrderStatusEnum: String, Codable, Sendable, CaseIterable, CustomStringConvertible {
   case placed = "placed"
   case approved = "approved"
   case delivered = "delivered"
+
+  /// The wire value (`"active"`, `2`), not the case name, so interpolating
+  /// the enum prints what the server sees.
+  public var description: String {
+    return "\(rawValue)"
+  }
 }
 
 public struct Order: Codable, Sendable, Equatable, Hashable {
   /// Example: 10
-  public var id: Int64?
+  public let id: Int64?
   /// Example: 198772
-  public var petId: Int64?
+  public let petId: Int64?
   /// Example: 7
-  public var quantity: Int?
-  public var trackingId: UUID?
-  public var shipDate: Date?
+  public let quantity: Int?
+  public let trackingId: UUID?
+  public let shipDate: Date?
   /// Order Status
   /// Example: approved
-  public var status: OrderStatusEnum?
-  public var complete: Bool?
+  public let status: OrderStatusEnum?
+  public let complete: Bool?
 
   enum CodingKeys: String, CodingKey {
     case id = "id"
@@ -52,6 +58,20 @@ public struct Order: Codable, Sendable, Equatable, Hashable {
     self.shipDate = shipDate
     self.status = status
     self.complete = complete
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    id: Int64?? = .none, petId: Int64?? = .none, quantity: Int?? = .none,
+    trackingId: UUID?? = .none, shipDate: Date?? = .none, status: OrderStatusEnum?? = .none,
+    complete: Bool?? = .none
+  ) -> Order {
+    return Order(
+      id: id ?? self.id, petId: petId ?? self.petId, quantity: quantity ?? self.quantity,
+      trackingId: trackingId ?? self.trackingId, shipDate: shipDate ?? self.shipDate,
+      status: status ?? self.status, complete: complete ?? self.complete)
   }
 
   /// Decodes this instance from the given decoder.

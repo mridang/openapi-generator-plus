@@ -407,4 +407,72 @@ import Testing
         #expect(!(network is NetworkTimeoutError))
         #expect((network.underlyingError as? URLError)?.code == .cannotConnectToHost)
     }
+
+    // MARK: - Request context
+
+    /* An error for a response names the request it answered, without the query string. */
+    @Test func testFromResponseNamesTheRequestAndCutsTheQuery() {
+        let err = ApiError.fromResponse(
+            statusCode: 404, headers: [:], body: "", requestMethod: "GET",
+            requestPath: "/v1/items/7?key=secret#top")
+        #expect(err is NotFoundError)
+        #expect(err.requestMethod == "GET")
+        #expect(err.requestPath == "/v1/items/7")
+        #expect(err.message == "API returned status code 404 for GET /v1/items/7")
+        #expect(err.errorDescription?.hasPrefix("API returned status code 404 for GET /v1/items/7") == true)
+        #expect(err.errorDescription?.contains("secret") == false)
+    }
+
+    @Test func testFromResponseWithoutARequestKeepsTheMessage() {
+        let err = ApiError.fromResponse(statusCode: 404, headers: [:], body: "")
+        #expect(err.requestMethod == nil)
+        #expect(err.requestPath == nil)
+        #expect(err.message == "API returned status code 404")
+    }
+
+    /* A method with no path (or the reverse) names nothing, so a half request is never shown. */
+    @Test func testAMethodWithoutAPathIsNotRecorded() {
+        let err = ApiError.fromResponse(statusCode: 500, headers: [:], body: "", requestMethod: "GET")
+        #expect(err.requestMethod == nil)
+        #expect(err.message == "API returned status code 500")
+    }
+
+    @Test(arguments: [302, 400, 401, 403, 404, 409, 418, 422, 429, 500, 503])
+    func testEveryStatusErrorCarriesTheRequest(status: Int) {
+        let err = ApiError.fromResponse(
+            statusCode: status, headers: [:], body: "", requestMethod: "POST", requestPath: "/orders")
+        #expect(err.statusCode == status)
+        #expect(err.requestMethod == "POST")
+        #expect(err.requestPath == "/orders")
+        #expect(err.message == "API returned status code \(status) for POST /orders")
+    }
+
+    @Test func testSubclassConstructorsAcceptTheRequest() {
+        let err = NotFoundError(message: "missing", requestMethod: "DELETE", requestPath: "/items/7?x=1")
+        #expect(err.statusCode == 404)
+        #expect(err.requestMethod == "DELETE")
+        #expect(err.requestPath == "/items/7")
+    }
+
+    @Test func testAttachRequestNamesTheRequestOnce() {
+        let err = NetworkError(statusCode: 0, message: "connection reset")
+        err.attachRequest(method: "GET", path: "/items?key=secret")
+        #expect(err.message == "connection reset for GET /items")
+        #expect(err.requestMethod == "GET")
+        #expect(err.requestPath == "/items")
+        err.attachRequest(method: "POST", path: "/other")
+        #expect(err.message == "connection reset for GET /items")
+        #expect(err.requestMethod == "GET")
+    }
+
+    @Test(arguments: [
+        ("https://host.example/v1/items/7?key=x", "/v1/items/7"),
+        ("https://host.example/items#top", "/items"),
+        ("https://host.example", "/"),
+        ("https://host.example?x=1", "/"),
+        ("/already/a/path?q=1", "/already/a/path"),
+    ])
+    func testPathOfRequestURLKeepsTheBasePathAndDropsHostAndQuery(url: String, path: String) {
+        #expect(ApiError.pathOfRequestURL(url) == path)
+    }
 }

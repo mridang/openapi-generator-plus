@@ -10,9 +10,9 @@ import Foundation
 /// SetPetAvatarRequest is a model class generated from the OpenAPI schema.
 public struct SetPetAvatarRequest: Codable, Sendable, Equatable, Hashable {
   /// Base64-encoded image data
-  public var data: Data
+  public let data: Data
   /// Example: image/jpeg
-  public var mimeType: String
+  public let mimeType: String
 
   enum CodingKeys: String, CodingKey {
     case data = "data"
@@ -23,6 +23,13 @@ public struct SetPetAvatarRequest: Codable, Sendable, Equatable, Hashable {
   public init(data: Data, mimeType: String) {
     self.data = data
     self.mimeType = mimeType
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(data: Data? = nil, mimeType: String? = nil) -> SetPetAvatarRequest {
+    return SetPetAvatarRequest(data: data ?? self.data, mimeType: mimeType ?? self.mimeType)
   }
 
   /// Decodes this instance from the given decoder.

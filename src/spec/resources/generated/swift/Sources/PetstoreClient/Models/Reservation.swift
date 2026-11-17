@@ -10,9 +10,9 @@ import Foundation
 /// Reservation is a model class generated from the OpenAPI schema.
 public struct Reservation: Codable, Sendable, Equatable, Hashable {
   /// Example: 31
-  public var reservationId: Int64
+  public let reservationId: Int64
   /// Example: 4
-  public var quantity: Int
+  public let quantity: Int
 
   enum CodingKeys: String, CodingKey {
     case reservationId = "reservationId"
@@ -23,6 +23,14 @@ public struct Reservation: Codable, Sendable, Equatable, Hashable {
   public init(reservationId: Int64, quantity: Int) {
     self.reservationId = reservationId
     self.quantity = quantity
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(reservationId: Int64? = nil, quantity: Int? = nil) -> Reservation {
+    return Reservation(
+      reservationId: reservationId ?? self.reservationId, quantity: quantity ?? self.quantity)
   }
 
   /// Decodes this instance from the given decoder.

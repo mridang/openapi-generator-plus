@@ -125,7 +125,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   // rejection that would break legitimate tokens.
   @Test func testBearerAcceptsNonEmptyTokenWithGuardInPlace() async throws {
     let auth = try BearerAuthenticator(host: "/api/v3", token: "abc.def-123")
-    let headers = await auth.authHeaders()
+    let headers = try await auth.authHeaders()
     #expect(headers["Authorization"] == "Bearer abc.def-123")
   }
 
@@ -140,6 +140,99 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       manifest.range(of: #"exclude: \[[^\]]*\]"#, options: .regularExpression))
     #expect(manifest[exclude].contains("\"Fixtures\""))
     #expect(!manifest[exclude].contains("\"Spec\""))
+  }
+
+  // MARK: - Credentials from the environment
+
+  private final class TokenCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    func next() -> String {
+      lock.lock()
+      defer { lock.unlock() }
+      count += 1
+      return "provided-\(count)"
+    }
+  }
+
+  private func firstApiAuthenticator(of client: Client) -> Authenticator? {
+    return client.pet.authenticator
+  }
+
+  private func environmentClient(
+    host: String? = nil, token: String? = nil,
+    tokenProvider: (@Sendable () async throws -> String)? = nil,
+    environment: [String: String]
+  ) throws -> Client {
+    return try Client.fromEnvironment(
+      host: host, token: token, tokenProvider: tokenProvider, transportOptions: nil,
+      environment: environment)
+  }
+
+  @Test func testFromEnvironmentReadsTheHostAndTheToken() async throws {
+    let client = try environmentClient(environment: [
+      "PETSTORE_CLIENT_HOST": "https://env.example.com",
+      "PETSTORE_CLIENT_TOKEN": "env-token",
+    ])
+    let auth = try #require(firstApiAuthenticator(of: client))
+    #expect(auth.host() == "https://env.example.com")
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
+  }
+
+  @Test func testExplicitArgumentsWinOverTheEnvironment() async throws {
+    let client = try environmentClient(
+      host: "https://explicit.example.com", token: "explicit-token",
+      environment: [
+        "PETSTORE_CLIENT_HOST": "https://env.example.com",
+        "PETSTORE_CLIENT_TOKEN": "env-token",
+      ])
+    let auth = try #require(firstApiAuthenticator(of: client))
+    #expect(auth.host() == "https://explicit.example.com")
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+  }
+
+  @Test func testAnEmptyEnvironmentValueCountsAsUnset() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "No API host: pass host or set the PETSTORE_CLIENT_HOST environment variable")
+    ) {
+      _ = try self.environmentClient(environment: [
+        "PETSTORE_CLIENT_HOST": "", "PETSTORE_CLIENT_TOKEN": "env-token",
+      ])
+    }
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "No credential: pass token or tokenProvider, or set the PETSTORE_CLIENT_TOKEN environment variable"
+      )
+    ) {
+      _ = try self.environmentClient(environment: [
+        "PETSTORE_CLIENT_HOST": "https://env.example.com", "PETSTORE_CLIENT_TOKEN": "",
+      ])
+    }
+  }
+
+  @Test func testAMissingHostOrCredentialFailsWhenTheClientIsBuilt() {
+    #expect(throws: ConfigurationError.self) {
+      _ = try self.environmentClient(environment: [:])
+    }
+    #expect(throws: ConfigurationError.self) {
+      _ = try self.environmentClient(host: "https://explicit.example.com", environment: [:])
+    }
+    #expect(throws: ConfigurationError.self) {
+      _ = try Client.fromEnvironment(host: "https://explicit.example.com")
+    }
+  }
+
+  @Test func testATokenProviderIsCalledBeforeEveryRequestAndBeatsTheEnvironmentToken() async throws
+  {
+    let counter = TokenCounter()
+    let client = try environmentClient(
+      host: "https://explicit.example.com", tokenProvider: { counter.next() },
+      environment: ["PETSTORE_CLIENT_TOKEN": "env-token"])
+    let auth = try #require(firstApiAuthenticator(of: client))
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
   }
 
   @Test func testApiGroupsAreAccessible() throws {

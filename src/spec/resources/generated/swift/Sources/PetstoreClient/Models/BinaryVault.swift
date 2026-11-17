@@ -10,11 +10,11 @@ import Foundation
 /// BinaryVault is a model class generated from the OpenAPI schema.
 public struct BinaryVault: Codable, Sendable, Equatable, Hashable {
   /// A bare byte array; equality compares its contents.
-  public var seal: Data?
+  public let seal: Data?
   /// A list of byte arrays; equality compares element contents.
-  public var shards: [Data]?
+  public let shards: [Data]?
   /// A map of byte arrays; equality compares each value's contents.
-  public var labels: [String: Data]?
+  public let labels: [String: Data]?
 
   enum CodingKeys: String, CodingKey {
     case seal = "seal"
@@ -27,6 +27,16 @@ public struct BinaryVault: Codable, Sendable, Equatable, Hashable {
     self.seal = seal
     self.shards = shards
     self.labels = labels
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(seal: Data?? = .none, shards: [Data]?? = .none, labels: [String: Data]?? = .none)
+    -> BinaryVault
+  {
+    return BinaryVault(
+      seal: seal ?? self.seal, shards: shards ?? self.shards, labels: labels ?? self.labels)
   }
 
   /// Decodes this instance from the given decoder.

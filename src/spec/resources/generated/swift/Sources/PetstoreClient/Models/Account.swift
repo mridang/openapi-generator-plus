@@ -11,10 +11,10 @@ import Foundation
 /// See https://example.com/docs/account Account <docs> & "notes" it's here
 public struct Account: Codable, Sendable, Equatable, Hashable {
   /// - Note: This property is read-only; it is still sent and received.
-  public var id: Int64?
-  public var username: String
+  public let id: Int64?
+  public let username: String
   /// - Note: This property is write-only; it is still sent and received.
-  public var password: String?
+  public let password: String?
 
   enum CodingKeys: String, CodingKey {
     case id = "id"
@@ -27,6 +27,16 @@ public struct Account: Codable, Sendable, Equatable, Hashable {
     self.username = username
     self.id = id
     self.password = password
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(username: String? = nil, id: Int64?? = .none, password: String?? = .none)
+    -> Account
+  {
+    return Account(
+      username: username ?? self.username, id: id ?? self.id, password: password ?? self.password)
   }
 
   /// Decodes this instance from the given decoder.

@@ -9,10 +9,10 @@ import Foundation
 
 /// StockItem is a model class generated from the OpenAPI schema.
 public struct StockItem: Codable, Sendable, Equatable, Hashable {
-  public var priority: Priority
-  public var availability: Availability?
+  public let priority: Priority
+  public let availability: Availability?
   /// Quantity grid as an array of integer arrays
-  public var matrix: [[Int]]?
+  public let matrix: [[Int]]?
 
   enum CodingKeys: String, CodingKey {
     case priority = "priority"
@@ -25,6 +25,17 @@ public struct StockItem: Codable, Sendable, Equatable, Hashable {
     self.priority = priority
     self.availability = availability
     self.matrix = matrix
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    priority: Priority? = nil, availability: Availability?? = .none, matrix: [[Int]]?? = .none
+  ) -> StockItem {
+    return StockItem(
+      priority: priority ?? self.priority, availability: availability ?? self.availability,
+      matrix: matrix ?? self.matrix)
   }
 
   /// Decodes this instance from the given decoder.

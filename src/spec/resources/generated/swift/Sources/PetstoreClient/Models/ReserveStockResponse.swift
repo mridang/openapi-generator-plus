@@ -23,6 +23,36 @@ public struct ReserveStockResponse: Codable, @unchecked Sendable {
     self._value = value
   }
 
+  /// Wraps a ``Reservation`` as this union's value; the named form of ``init(_:)``.
+  public static func fromReservation(_ value: Reservation) -> ReserveStockResponse {
+    return ReserveStockResponse(value)
+  }
+
+  /// Whether this union holds a ``Reservation``.
+  public var isReservation: Bool {
+    return _value is Reservation
+  }
+
+  /// The held value as a ``Reservation``, or nil when this union holds another variant.
+  public var asReservation: Reservation? {
+    return _value as? Reservation
+  }
+
+  /// Wraps a ``ReservationReceipt`` as this union's value; the named form of ``init(_:)``.
+  public static func fromReservationReceipt(_ value: ReservationReceipt) -> ReserveStockResponse {
+    return ReserveStockResponse(value)
+  }
+
+  /// Whether this union holds a ``ReservationReceipt``.
+  public var isReservationReceipt: Bool {
+    return _value is ReservationReceipt
+  }
+
+  /// The held value as a ``ReservationReceipt``, or nil when this union holds another variant.
+  public var asReservationReceipt: ReservationReceipt? {
+    return _value as? ReservationReceipt
+  }
+
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
     let data = try container.decode(AnyCodable.self)

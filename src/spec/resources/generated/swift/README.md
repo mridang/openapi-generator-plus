@@ -74,7 +74,7 @@ reason for each is recorded here.
 
 | Rule | Why the generated code cannot satisfy it |
 |---|---|
-| `AlwaysUseLowerCamelCase` | Enum cases come verbatim from the OpenAPI document (`US`, `SANDBOX`, `V2`, and `NUMBER_<n>` for integer-backed enums) and are the identifiers the other SDKs expose for the same schema. |
+| `AlwaysUseLowerCamelCase` | Enum cases come verbatim from the OpenAPI document (`US`, `SANDBOX`, `V2`) and are the identifiers the other SDKs expose for the same schema. |
 | `NoBlockComments` | Generated sources comment with `/* ... */` by convention across all twelve SDKs, and the generator's own spec fails the build on a `//` comment in a generated source. The two rules are mutually exclusive. |
 | `AllPublicDeclarationsHaveDocumentation` | A schema or operation without a `description` has no documentation to emit, and inventing one would put generator prose in the caller's API docs. |
 | `BeginDocumentationCommentWithOneLineSummary` | Doc comments are the document's own `description` text, reproduced unaltered; it is not the generator's to re-punctuate into a one-line summary. |
@@ -86,6 +86,13 @@ reason for each is recorded here.
 
 - Name: `PetstoreClient`
 - Version: managed via git tags (SwiftPM)
+- License: MIT
+
+The package follows semantic versioning: a patch release only fixes bugs, a minor
+release only adds members, and a major release may change the public API. The
+package builds with Swift 6.0 or newer and the platforms listed under
+Requirements; a toolchain or platform that its vendor stops supporting is
+dropped from the supported set in a major release.
 
 ## Cancellation
 
@@ -135,6 +142,96 @@ is the single end-to-end budget: retries never extend it, and a wait that does
 not fit in what is left is skipped. Every retry is a fresh request that asks the
 authenticator for its headers again. A stream body and the OAuth2 token request
 are never retried, and a request that timed out is not retried.
+
+## Per-call options
+
+Every operation that takes an options struct (`<Operation>Options` and the
+like) accepts three per-call settings next to its parameters: `timeout`
+(milliseconds, greater than zero) replaces the transport timeout for that call,
+`maxRetries` replaces the retry limit (`0` turns retries off) and `headers` adds
+request headers, sent after the default and authentication headers and replacing
+a header of the same name. Anything left `nil` keeps the transport's setting. An
+operation with no parameters and no security requirement has no options struct
+yet, so it cannot carry them.
+
+## Error details
+
+An `ApiError` and every subclass carry `requestMethod` and `requestPath` (the
+path without its query string) next to `statusCode` and `responseBody`, and the
+message names them: `API returned status code 404 for GET /items/7`. The query
+string is left out so a key or token sent in it never reaches a log.
+
+## Immutable models
+
+Model properties are `let`, so a model is never changed after it is built. Copy
+it with `copy(...)`, which replaces the properties you pass and keeps the rest:
+`let next = item.copy(name: "x")`. A bare `nil` also means "keep"; to clear an
+optional property pass `.some(nil)`. The copy is shallow, so an array or
+dictionary property still holds the same elements. A union (`oneOf`) wrapper is
+immutable too: build it with `Wrapper.fromVariant(value)` or `Wrapper(value)`
+and read it back with `isVariant` and `asVariant`.
+
+## Several success responses
+
+An operation that declares more than one 2xx response with different schemas
+returns a union, and the body is decoded as the schema of the status that
+arrived: `200` as the first, `201` as the second. Ask the union which one it
+holds with its `is...` and `as...` members.
+
+## Credentials from the environment
+
+`Client.fromEnvironment()` reads the host from `PETSTORE_CLIENT_HOST` and
+the bearer token from `PETSTORE_CLIENT_TOKEN`, once, when the client is built; an empty
+value counts as unset. The `host`, `token` and `tokenProvider` arguments win over the
+environment, and a `tokenProvider` callback is called before every request, so a token
+refreshed elsewhere is picked up. A missing host or credential fails the call that
+builds the client with `ConfigurationError.invalidArgument`.
+
+## Response compression
+
+`URLSession` negotiates `gzip` and `deflate` and decodes the body itself, so the
+body you read is always the decoded one. The SDK never sets `Accept-Encoding`
+(setting it would switch the decoding off), and a body it finds still gzip
+encoded after the transport is decoded by the SDK.
+
+## Logging
+
+The SDK writes no logs. To see requests and responses, pass your own `URLSession`
+through `TransportOptionsBuilder.session(_:)` with a `URLProtocol` that records
+them, or wrap the `ApiClient` you inject.
+
+## Optional versus nullable
+
+A property that is optional is `T?` and `nil` means it was absent. A property that
+is optional and also `nullable: true` collapses into the same `T?`: an absent key
+and an explicit `null` read the same, and neither is written back. A required
+nullable property keeps its key and is written as `null`.
+
+## Unknown enum values and discriminators
+
+An enum value, or a `oneOf` discriminator value, that the SDK does not know fails
+loudly with a decoding error (a `SerializationError` at the call) instead of being
+kept as a raw string. Regenerate the SDK when the API adds a value.
+
+## Response headers
+
+`ApiResult.headers` and `ApiError.responseHeaders` are a plain dictionary with
+lower-cased names. A header the server repeats (`Link`, `Set-Cookie`) is joined
+into one value with `, ` in the order it arrived, so a `Set-Cookie` value is not
+parsed for you.
+
+## Streaming
+
+Request and response bodies are read and sent whole; there is no streaming of a
+response body. Inject your own transport through `TransportOptionsBuilder.session(_:)`
+or `ApiClient` when you need to stream.
+
+## Configuration and transport options
+
+`Configuration` holds what belongs to the API (the base URL and default headers)
+and `TransportOptions` holds how bytes travel (proxy, TLS, timeouts, retries). They
+stay separate: the transport is shared by every API group, the configuration is
+per group.
 
 ## Caveats
 

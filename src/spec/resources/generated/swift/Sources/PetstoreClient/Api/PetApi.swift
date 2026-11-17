@@ -201,7 +201,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Pet",
       auth: options?.auth,
-      operation: "PetApi.addPet"
+      operation: "PetApi.addPet",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -261,7 +264,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: "multipart/form-data",
       returnType: "[Photo]",
       auth: nil,
-      operation: "PetApi.addPetPhotos"
+      operation: "PetApi.addPetPhotos",
+      timeout: options.timeout,
+      requestHeaders: options.headers,
+      maxRetries: options.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: [Photo].self)
@@ -314,7 +320,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "PetTreatment",
       auth: options?.auth,
-      operation: "PetApi.addPetTreatment"
+      operation: "PetApi.addPetTreatment",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: PetTreatment.self)
@@ -380,7 +389,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "",
       auth: options?.auth,
-      operation: "PetApi.deletePet"
+      operation: "PetApi.deletePet",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForEmptyResult(params)
@@ -577,7 +589,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "[Pet]",
       auth: nil,
-      operation: "PetApi.findPetsByStatus"
+      operation: "PetApi.findPetsByStatus",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: [Pet].self)
@@ -932,7 +947,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Pet",
       auth: nil,
-      operation: "PetApi.getPetByName"
+      operation: "PetApi.getPetByName",
+      timeout: options.timeout,
+      requestHeaders: options.headers,
+      maxRetries: options.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -1126,7 +1144,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "String",
       auth: nil,
-      operation: "PetApi.getPetSummary"
+      operation: "PetApi.getPetSummary",
+      timeout: options.timeout,
+      requestHeaders: options.headers,
+      maxRetries: options.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: String.self)
@@ -1247,7 +1268,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: "application/json",
       returnType: "Pet",
       auth: nil,
-      operation: "PetApi.getPetTag"
+      operation: "PetApi.getPetTag",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: Pet.self)
@@ -1492,7 +1516,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: "application/x-www-form-urlencoded",
       returnType: "ApiResponse",
       auth: nil,
-      operation: "PetApi.setPetPreferences"
+      operation: "PetApi.setPetPreferences",
+      timeout: options.timeout,
+      requestHeaders: options.headers,
+      maxRetries: options.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: ApiResponse.self)
@@ -1602,7 +1629,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: "multipart/form-data",
       returnType: "ApiResponse",
       auth: nil,
-      operation: "PetApi.uploadPetCertificate"
+      operation: "PetApi.uploadPetCertificate",
+      timeout: options.timeout,
+      requestHeaders: options.headers,
+      maxRetries: options.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: ApiResponse.self)
@@ -1712,7 +1742,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       contentType: effectiveRequestContentType,
       returnType: "ApiResponse",
       auth: nil,
-      operation: "PetApi.uploadPetDocument"
+      operation: "PetApi.uploadPetDocument",
+      timeout: options.timeout,
+      requestHeaders: options.headers,
+      maxRetries: options.maxRetries
     )
 
     return try await invokeAPIForResult(params, as: ApiResponse.self)

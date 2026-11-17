@@ -119,8 +119,18 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     /* Discovery is an HTTP call like any other: a transport failure is
      * already a NetworkError or NetworkTimeoutError and passes through. */
     let headers = ["Accept": "application/json"]
-    let response = try await client.sendRequest(
-      method: "GET", url: openIDConnectURL, headers: headers, body: nil)
+    /* The identity provider is another origin: the API's default headers (an
+     * Authorization or API key meant for the API) are not sent to it. A
+     * client that is not the SDK's own has no such headers to hold back. */
+    let response: ApiHttpResponse
+    if let sdkClient = client as? DefaultApiClient {
+      response = try await sdkClient.sendRequest(
+        method: "GET", url: openIDConnectURL, headers: headers, body: nil,
+        noRedirect: false, refreshHeaders: nil, sendDefaultHeaders: false)
+    } else {
+      response = try await client.sendRequest(
+        method: "GET", url: openIDConnectURL, headers: headers, body: nil)
+    }
 
     /* Guard on the HTTP status before attempting to JSON-decode the
      * discovery document. A 5xx HTML error page or a 404 surfaces as the
@@ -130,7 +140,9 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
       throw ApiError.fromResponse(
         statusCode: response.statusCode,
         headers: response.headers,
-        body: response.body
+        body: response.body,
+        requestMethod: "GET",
+        requestPath: ApiError.pathOfRequestURL(openIDConnectURL)
       )
     }
 

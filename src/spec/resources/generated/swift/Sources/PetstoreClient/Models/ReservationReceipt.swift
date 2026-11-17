@@ -10,9 +10,9 @@ import Foundation
 /// ReservationReceipt is a model class generated from the OpenAPI schema.
 public struct ReservationReceipt: Codable, Sendable, Equatable, Hashable {
   /// Example: rcpt-77
-  public var receiptCode: String
+  public let receiptCode: String
   /// Example: 2030-01-01T00:00:00Z
-  public var expiresAt: Date
+  public let expiresAt: Date
 
   enum CodingKeys: String, CodingKey {
     case receiptCode = "receiptCode"
@@ -23,6 +23,14 @@ public struct ReservationReceipt: Codable, Sendable, Equatable, Hashable {
   public init(receiptCode: String, expiresAt: Date) {
     self.receiptCode = receiptCode
     self.expiresAt = expiresAt
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(receiptCode: String? = nil, expiresAt: Date? = nil) -> ReservationReceipt {
+    return ReservationReceipt(
+      receiptCode: receiptCode ?? self.receiptCode, expiresAt: expiresAt ?? self.expiresAt)
   }
 
   /// Decodes this instance from the given decoder.

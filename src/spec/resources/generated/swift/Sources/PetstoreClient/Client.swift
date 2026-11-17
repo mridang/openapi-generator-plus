@@ -90,6 +90,70 @@ public final class Client: Sendable {
       transportOptions: transportOptions)
   }
 
+  /// Creates a client from explicit arguments first and the environment second.
+  ///
+  /// The host is the `host` argument, else the environment variable
+  /// `PETSTORE_CLIENT_HOST`; the credential is the `tokenProvider` callback, else the
+  /// `token` argument, else `PETSTORE_CLIENT_TOKEN`. The environment is read once, here,
+  /// and an empty value counts as unset. A missing host or credential fails the call
+  /// that builds the client, not a later request. The callback runs before every
+  /// request, so a token refreshed elsewhere is picked up.
+  ///
+  /// - Parameters:
+  ///   - host: API base URL, or nil to read it from the environment.
+  ///   - token: Bearer token, or nil to read it from the environment.
+  ///   - tokenProvider: Returns the current bearer token before each request.
+  ///   - transportOptions: Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when no host or no credential
+  ///   is available, or the token is not valid.
+  public static func fromEnvironment(
+    host: String? = nil,
+    token: String? = nil,
+    tokenProvider: (@Sendable () async throws -> String)? = nil,
+    transportOptions: TransportOptions? = nil
+  ) throws -> Client {
+    return try fromEnvironment(
+      host: host, token: token, tokenProvider: tokenProvider,
+      transportOptions: transportOptions, environment: ProcessInfo.processInfo.environment)
+  }
+
+  /// The same as ``fromEnvironment(host:token:tokenProvider:transportOptions:)`` over a
+  /// given environment, so the lookup can be exercised without touching the process's own.
+  static func fromEnvironment(
+    host: String?,
+    token: String?,
+    tokenProvider: (@Sendable () async throws -> String)?,
+    transportOptions: TransportOptions?,
+    environment: [String: String]
+  ) throws -> Client {
+    func firstSet(_ explicit: String?, _ variable: String) -> String? {
+      if let explicit = explicit, !explicit.isEmpty {
+        return explicit
+      }
+      if let value = environment[variable], !value.isEmpty {
+        return value
+      }
+      return nil
+    }
+    guard let resolvedHost = firstSet(host, "PETSTORE_CLIENT_HOST") else {
+      throw ConfigurationError.invalidArgument(
+        "No API host: pass host or set the PETSTORE_CLIENT_HOST environment variable")
+    }
+    if let tokenProvider = tokenProvider {
+      return try Client(
+        authenticator: BearerAuthenticator(host: resolvedHost, tokenProvider: tokenProvider),
+        transportOptions: transportOptions)
+    }
+    guard let resolvedToken = firstSet(token, "PETSTORE_CLIENT_TOKEN") else {
+      throw ConfigurationError.invalidArgument(
+        "No credential: pass token or tokenProvider, or set the PETSTORE_CLIENT_TOKEN environment variable"
+      )
+    }
+    return try Client(
+      authenticator: BearerAuthenticator(host: resolvedHost, token: resolvedToken),
+      transportOptions: transportOptions)
+  }
+
   /// Creates a client authenticated with a static Bearer token. The named
   /// factory form of ``init(host:accessToken:transportOptions:)``, the
   /// counterpart of ``withAuthenticator(_:transportOptions:)`` and the

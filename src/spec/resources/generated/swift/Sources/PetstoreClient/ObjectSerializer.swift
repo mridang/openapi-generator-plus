@@ -610,7 +610,7 @@ internal enum ObjectSerializer {
        * numeric wire value (`rawValue`) rather than the Swift case name.
        * Without this an Int-backed enum used as a path/query/header/cookie
        * param would fall through to CustomStringConvertible, whose
-       * synthesized conformance returns the case name (`NUMBER_1`) instead
+       * synthesized conformance returns the case name (`number1`) instead
        * of the wire value (`1`). This branch mirrors the String-backed one
        * above and must precede the CustomStringConvertible fallthrough. */
       return (rawInt.rawValue as? Int).map { "\($0)" } ?? "\(value)"

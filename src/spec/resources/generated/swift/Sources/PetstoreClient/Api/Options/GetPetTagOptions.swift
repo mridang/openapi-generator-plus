@@ -15,11 +15,21 @@ public struct GetPetTagOptions: Sendable {
   public let fingerprint: Data?
   public let xCriteria: PetCriteria?
   public let xFingerprint: Data?
+  /// Per-call timeout in milliseconds, greater than zero. Replaces the
+  /// transport's timeout for this call; nil keeps it.
+  public let timeout: Int?
+  /// Per-call request headers. Sent after the default and authentication
+  /// headers and replacing a header of the same name, whatever its casing.
+  public let headers: [String: String]?
+  /// Per-call retry limit. Replaces the transport's `maxRetries` for this
+  /// call; 0 turns retries off and nil keeps the transport's value.
+  public let maxRetries: Int?
 
   public init(
     colors: [String]? = nil, sizes: [String]? = nil, filter: String? = nil, revision: String? = nil,
     criteria: PetCriteria? = nil, criteriaCsv: PetCriteria? = nil, criteriaDeep: PetCriteria? = nil,
-    fingerprint: Data? = nil, xCriteria: PetCriteria? = nil, xFingerprint: Data? = nil
+    fingerprint: Data? = nil, xCriteria: PetCriteria? = nil, xFingerprint: Data? = nil,
+    timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil
   ) {
     self.colors = colors
     self.sizes = sizes
@@ -31,5 +41,8 @@ public struct GetPetTagOptions: Sendable {
     self.fingerprint = fingerprint
     self.xCriteria = xCriteria
     self.xFingerprint = xFingerprint
+    self.timeout = timeout
+    self.headers = headers
+    self.maxRetries = maxRetries
   }
 }

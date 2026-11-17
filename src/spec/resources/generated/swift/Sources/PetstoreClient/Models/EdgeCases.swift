@@ -9,36 +9,42 @@ import Foundation
 
 /// EdgeCases Edge-case property shapes mirrored from real protobuf-derived specs.
 /// Typed enum for EdgeCases.phase.
-public enum EdgeCasesPhaseEnum: String, Codable, Sendable, CaseIterable {
+public enum EdgeCasesPhaseEnum: String, Codable, Sendable, CaseIterable, CustomStringConvertible {
   case inStock = "In-Stock"
   case onHold = "on-hold"
   case outofstock = "OUT_OF_STOCK"
+
+  /// The wire value (`"active"`, `2`), not the case name, so interpolating
+  /// the enum prints what the server sees.
+  public var description: String {
+    return "\(rawValue)"
+  }
 }
 
 public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
-  public var freeFormAny: AnyCodable?
-  public var favoriteColor: Color?
+  public let freeFormAny: AnyCodable?
+  public let favoriteColor: Color?
   /// Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
-  public var permissionsNote: String?
-  public var and: Bool?
-  public var or: Bool?
-  public var not: Bool?
-  public var _class: String?
-  public var _return: String?
+  public let permissionsNote: String?
+  public let and: Bool?
+  public let or: Bool?
+  public let not: Bool?
+  public let _class: String?
+  public let _return: String?
   /// Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
-  public var retryAfter: TimeInterval?
+  public let retryAfter: TimeInterval?
   /// Absolute expiry instant
-  public var expiresAt: Date?
-  public var n2fa: Bool?
-  public var separator: Separator?
-  public var null: String?
-  public var _true: Bool?
-  public var _false: Bool?
-  public var lastError: ModelError?
-  public var outcome: ModelResult?
-  public var cutoff: String?
-  public var phase: EdgeCasesPhaseEnum?
-  public var slug: String?
+  public let expiresAt: Date?
+  public let n2fa: Bool?
+  public let separator: Separator?
+  public let null: String?
+  public let _true: Bool?
+  public let _false: Bool?
+  public let lastError: ModelError?
+  public let outcome: ModelResult?
+  public let cutoff: String?
+  public let phase: EdgeCasesPhaseEnum?
+  public let slug: String?
 
   enum CodingKeys: String, CodingKey {
     case freeFormAny = "freeFormAny"
@@ -92,6 +98,31 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     self.cutoff = cutoff
     self.phase = phase
     self.slug = slug
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    freeFormAny: AnyCodable?? = .none, favoriteColor: Color?? = .none,
+    permissionsNote: String?? = .none, and: Bool?? = .none, or: Bool?? = .none, not: Bool?? = .none,
+    _class: String?? = .none, _return: String?? = .none, retryAfter: TimeInterval?? = .none,
+    expiresAt: Date?? = .none, n2fa: Bool?? = .none, separator: Separator?? = .none,
+    null: String?? = .none, _true: Bool?? = .none, _false: Bool?? = .none,
+    lastError: ModelError?? = .none, outcome: ModelResult?? = .none, cutoff: String?? = .none,
+    phase: EdgeCasesPhaseEnum?? = .none, slug: String?? = .none
+  ) -> EdgeCases {
+    return EdgeCases(
+      freeFormAny: freeFormAny ?? self.freeFormAny,
+      favoriteColor: favoriteColor ?? self.favoriteColor,
+      permissionsNote: permissionsNote ?? self.permissionsNote, and: and ?? self.and,
+      or: or ?? self.or, not: not ?? self.not, _class: _class ?? self._class,
+      _return: _return ?? self._return, retryAfter: retryAfter ?? self.retryAfter,
+      expiresAt: expiresAt ?? self.expiresAt, n2fa: n2fa ?? self.n2fa,
+      separator: separator ?? self.separator, null: null ?? self.null, _true: _true ?? self._true,
+      _false: _false ?? self._false, lastError: lastError ?? self.lastError,
+      outcome: outcome ?? self.outcome, cutoff: cutoff ?? self.cutoff, phase: phase ?? self.phase,
+      slug: slug ?? self.slug)
   }
 
   /// Decodes this instance from the given decoder.

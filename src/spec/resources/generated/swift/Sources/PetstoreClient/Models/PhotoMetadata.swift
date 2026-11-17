@@ -9,10 +9,10 @@ import Foundation
 
 /// PhotoMetadata is a model class generated from the OpenAPI schema.
 public struct PhotoMetadata: Codable, Sendable, Equatable, Hashable {
-  public var caption: String?
-  public var isPrimary: Bool?
-  public var takenAt: Date?
-  public var location: PhotoMetadataLocation?
+  public let caption: String?
+  public let isPrimary: Bool?
+  public let takenAt: Date?
+  public let location: PhotoMetadataLocation?
 
   enum CodingKeys: String, CodingKey {
     case caption = "caption"
@@ -30,6 +30,18 @@ public struct PhotoMetadata: Codable, Sendable, Equatable, Hashable {
     self.isPrimary = isPrimary
     self.takenAt = takenAt
     self.location = location
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    caption: String?? = .none, isPrimary: Bool?? = .none, takenAt: Date?? = .none,
+    location: PhotoMetadataLocation?? = .none
+  ) -> PhotoMetadata {
+    return PhotoMetadata(
+      caption: caption ?? self.caption, isPrimary: isPrimary ?? self.isPrimary,
+      takenAt: takenAt ?? self.takenAt, location: location ?? self.location)
   }
 
   /// Decodes this instance from the given decoder.

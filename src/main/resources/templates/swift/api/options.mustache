@@ -16,6 +16,15 @@ public struct {{className}}: Sendable {
     public let {{name}}: {{{dataType}}}?
 {{/required}}
 {{/params}}
+    /// Per-call timeout in milliseconds, greater than zero. Replaces the
+    /// transport's timeout for this call; nil keeps it.
+    public let timeout: Int?
+    /// Per-call request headers. Sent after the default and authentication
+    /// headers and replacing a header of the same name, whatever its casing.
+    public let headers: [String: String]?
+    /// Per-call retry limit. Replaces the transport's `maxRetries` for this
+    /// call; 0 turns retries off and nil keeps the transport's value.
+    public let maxRetries: Int?
 {{#hasAuthField}}
     /// Per-operation authenticator. When set, it overrides the client's
     /// configured credentials for this call only; when nil, the configured
@@ -23,10 +32,13 @@ public struct {{className}}: Sendable {
     public let auth: {{authFieldType}}?
 {{/hasAuthField}}
 
-    public init({{#params}}{{name}}: {{#required}}{{{dataType}}}{{/required}}{{^required}}{{{dataType}}}? = nil{{/required}}{{^-last}}, {{/-last}}{{/params}}{{#hasAuthField}}{{#params.0}}, {{/params.0}}auth: {{authFieldType}}? = nil{{/hasAuthField}}) {
+    public init({{#params}}{{name}}: {{#required}}{{{dataType}}}{{/required}}{{^required}}{{{dataType}}}? = nil{{/required}}, {{/params}}timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil{{#hasAuthField}}, auth: {{authFieldType}}? = nil{{/hasAuthField}}) {
 {{#params}}
         self.{{name}} = {{name}}
 {{/params}}
+        self.timeout = timeout
+        self.headers = headers
+        self.maxRetries = maxRetries
 {{#hasAuthField}}
         self.auth = auth
 {{/hasAuthField}}

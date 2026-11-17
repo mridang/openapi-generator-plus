@@ -19,7 +19,7 @@ public class SwiftClientSpec extends AbstractClientSpec implements SwiftSpec {
              * directory; clear the previous run's there, so a run that fails
              * before writing one does not print stale results. */
             "find /app/.out/reports -mindepth 1 -delete 2>/dev/null; mkdir -p .out/reports",
-            "swift test --parallel --enable-code-coverage --enable-swift-testing --disable-xctest --xunit-output .out/reports/junit.xml"
+            "SWIFT_SDK_STRICT_WARNINGS=1 swift test --parallel --enable-code-coverage --enable-swift-testing --disable-xctest --xunit-output .out/reports/junit.xml"
         };
     }
 

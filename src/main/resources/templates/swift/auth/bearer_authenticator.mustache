@@ -5,6 +5,7 @@ import Foundation
 public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
     private let _host: String
     private let token: String
+    private let tokenProvider: (@Sendable () async throws -> String)?
 
     /// Creates an HTTP Bearer token authenticator.
     ///
@@ -14,6 +15,30 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
     /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the token is
     ///   empty or holds a character that cannot be sent in a header.
     public init(host: String, token: String) throws {
+        try BearerAuthenticator.validate(token)
+        self._host = host
+        self.token = token
+        self.tokenProvider = nil
+        super.init()
+    }
+
+    /// Creates an HTTP Bearer authenticator whose token comes from a callback.
+    ///
+    /// The callback runs before every request, so it can hand out a token that
+    /// was refreshed elsewhere; each token it returns is validated like a
+    /// static one, and a failure of either fails that request.
+    ///
+    /// - Parameters:
+    ///   - host: The base URL of the API.
+    ///   - tokenProvider: Returns the current bearer token.
+    public init(host: String, tokenProvider: @escaping @Sendable () async throws -> String) {
+        self._host = host
+        self.token = ""
+        self.tokenProvider = tokenProvider
+        super.init()
+    }
+
+    private static func validate(_ token: String) throws {
         /* Reject an empty or whitespace-only token: it would otherwise be
          * sent as the literal header `Authorization: Bearer ` and the
          * request would go out effectively unauthenticated. This mirrors
@@ -34,9 +59,6 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
                 "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
             )
         }
-        self._host = host
-        self.token = token
-        super.init()
     }
 
     /// Returns the base URL of the API.
@@ -45,11 +67,19 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
     }
 
     /// Returns the authentication headers to include in every request.
-    override public func authHeaders() async -> [String: String] {
+    ///
+    /// - Throws: whatever the token provider throws, and
+    ///   ``ConfigurationError/invalidArgument(_:)`` when it returns a token that
+    ///   is empty or cannot be sent in a header.
+    override public func authHeaders() async throws -> [String: String] {
         /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
            from env files are commonly stored already-prefixed; emitting
            "Bearer Bearer xyz" would otherwise silently break auth. */
         var value = token
+        if let provider = tokenProvider {
+            value = try await provider()
+            try BearerAuthenticator.validate(value)
+        }
         if value.count >= 7 {
             let head = String(value.prefix(7))
             if head.lowercased() == "bearer " {

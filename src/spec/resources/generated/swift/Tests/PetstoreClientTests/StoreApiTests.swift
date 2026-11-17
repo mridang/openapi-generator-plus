@@ -323,7 +323,7 @@ import Testing
     let mockApi = storeApiForMock(
       statusCode: 200, body: "{\"priority\":2,\"matrix\":[[1],[2,3]]}")
     let result = try await mockApi.getStockItem()
-    #expect(result.priority == .NUMBER_2)
+    #expect(result.priority == .number2)
     #expect(result.matrix == [[1], [2, 3]])
   }
 

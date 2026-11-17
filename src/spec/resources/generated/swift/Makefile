@@ -1,5 +1,8 @@
 .PHONY: all build test format lint analyse docs clean
 
+# Warnings are errors in this package's own debug builds; see Package.swift.
+export SWIFT_SDK_STRICT_WARNINGS = 1
+
 all: build
 
 build:
