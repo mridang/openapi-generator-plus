@@ -158,7 +158,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void {{className}}TreatsAnEmptyVariableAsUnset()
+    public void {{#isBearer}}BhvAuthscheme011{{/isBearer}}{{#isApiKey}}BhvAuthscheme012{{/isApiKey}}{{#isClientCredentialsFlow}}BhvAuthscheme013{{/isClientCredentialsFlow}}{{#isPasswordFlow}}BhvAuthscheme014{{/isPasswordFlow}}{{#isAuthorizationCodeFlow}}BhvAuthscheme015{{/isAuthorizationCodeFlow}}{{#isImplicitFlow}}BhvAuthscheme016{{/isImplicitFlow}}{{className}}TreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in {{className}}Variables)
         {

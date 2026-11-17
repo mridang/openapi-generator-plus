@@ -1086,8 +1086,8 @@ authoidc032 | A discovered endpoint that is not https is rejected
 authoidc033 | A failed discovery request reports its method and path in the error
 authscheme009 | A credential passed explicitly wins over its environment variable
 authscheme010 | An empty environment variable for the bearer scheme credential is treated as unset and fails naming the variable
-authscheme011 | An empty environment variable for the service token scheme credential is treated as unset and fails naming the variable
-authscheme012 | An empty environment variable for the api key scheme credential is treated as unset and fails naming the variable
+authscheme011 | An empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable | multi
+authscheme012 | An empty environment variable for the api key scheme credential is treated as unset and fails naming the variable | multi
 authscheme013 | An empty environment variable for the client credentials scheme credential is treated as unset and fails naming the variable
 authscheme014 | An empty environment variable for the password scheme credential is treated as unset and fails naming the variable
 authscheme015 | An empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable

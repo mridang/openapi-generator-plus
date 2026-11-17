@@ -14,7 +14,7 @@ namespace Test;
 public class ConfigurationTest
 {
     [Fact]
-    public void DefaultConstructorUsesSpecBaseUrl()
+    public void BhvConfig018DefaultConstructorUsesSpecBaseUrl()
     {
         var config = new Configuration();
 
@@ -142,6 +142,22 @@ public class ConfigurationTest
     }
 
     [Fact]
+    public void BhvConfig020BuilderChainSetsBaseUrlAndDefaultHeadersInOneConfiguration()
+    {
+        var config = Configuration
+            .Builder()
+            .BaseUrl("https://chain.example.com")
+            .DefaultHeader("X-First", "one")
+            .DefaultHeaders(new Dictionary<string, string> { { "X-Second", "two" } })
+            .Build();
+
+        Assert.Equal("https://chain.example.com", config.BaseUrl);
+        Assert.Equal(2, config.DefaultHeaders.Count);
+        Assert.Equal("one", config.DefaultHeaders["X-First"]);
+        Assert.Equal("two", config.DefaultHeaders["X-Second"]);
+    }
+
+    [Fact]
     public void BhvConfig008BuilderServerResolvesUrl()
     {
         var server = new ServerConfiguration(
@@ -181,6 +197,24 @@ public class ConfigurationTest
             .Build();
 
         Assert.Equal("https://staging.example.com/api/v2", config.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig021ServerUrlTemplateResolvesItsVariablesToTheirDefaults()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/api/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+                ["version"] = new ServerVariable("v3", null, ["v2", "v3"]),
+            }
+        );
+
+        var config = Configuration.Builder().Server(server).Build();
+
+        Assert.Equal("https://api.example.com/api/v3", config.BaseUrl);
     }
 
     [Fact]
@@ -233,7 +267,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void DefaultConfigurationUsesSpecBaseUrl()
+    public void BhvConfig019DefaultConfigurationUsesSpecBaseUrl()
     {
         var config = Configuration.DefaultConfiguration();
 
@@ -252,6 +286,42 @@ public class ConfigurationTest
 
         Assert.NotSame(first, second);
         Assert.Equal(first.BaseUrl, second.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig023EachDefaultConfigurationCallReturnsAFreshInstance()
+    {
+        var first = Configuration.DefaultConfiguration();
+        var second = Configuration.DefaultConfiguration();
+
+        Assert.NotSame(first, second);
+        Assert.Equal("/api/v3", first.BaseUrl);
+        Assert.Equal("/api/v3", second.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig024ConfigurationHasNoSettableProcessWideDefault()
+    {
+        var settable = typeof(Configuration)
+            .GetProperties(
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
+            )
+            .Where(property => property.CanWrite);
+
+        Assert.Empty(settable);
+    }
+
+    [Fact]
+    public void BhvConfig022MutatingTheReturnedDefaultHeadersLeavesTheConfigurationUnchanged()
+    {
+        var config = Configuration.Builder().DefaultHeader("X-Test", "value").Build();
+        var headers = config.DefaultHeaders;
+
+        Assert.Throws<NotSupportedException>(() =>
+            ((IDictionary<string, string>)headers)["X-Mutated"] = "should-not-affect-config"
+        );
+        Assert.DoesNotContain("X-Mutated", config.DefaultHeaders.Keys);
+        Assert.Equal("value", config.DefaultHeaders["X-Test"]);
     }
 
     [Fact]

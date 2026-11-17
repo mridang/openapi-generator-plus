@@ -75,7 +75,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void RendersTheHeadersAsCompactSortedJsonWithSlashesUnescaped()
+    public void BhvErrors050RendersTheHeadersAsCompactSortedJsonWithSlashesUnescaped()
     {
         var ex = new ApiException(
             302,
@@ -257,7 +257,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void ToStringFallsBackToTheGenericMessageWhenTheMessageIsEmpty()
+    public void BhvErrors051ToStringFallsBackToTheGenericMessageWhenTheMessageIsEmpty()
     {
         var ex = new ApiException(502, "", null, null);
 
@@ -329,7 +329,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void TypedClientErrorWalksTheFullChain()
+    public void BhvErrors052TypedClientErrorWalksTheFullChain()
     {
         // BadRequest → ClientException → ApiException → OpenAPIException.
         var ex = new BadRequestException("bad request");
@@ -440,7 +440,7 @@ public class ApiExceptionTest
     }
 
     [Fact]
-    public void NamedErrorWithInnerExceptionKeepsItsStatus()
+    public void BhvErrors053NamedErrorWithInnerExceptionKeepsItsStatus()
     {
         // The (message, inner) constructor must pin the leaf's status like
         // every other constructor, instead of leaving StatusCode at 0.
@@ -591,6 +591,26 @@ public class ApiExceptionTest
         var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), "");
 
         Assert.Null(ex.GetTypedErrorBody<Category>());
+    }
+
+    [Fact]
+    public void BhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNull()
+    {
+        var ex = new NotFoundException("missing");
+
+        Assert.Equal(404, ex.StatusCode);
+        Assert.Null(ex.ResponseHeaders);
+        Assert.Null(ex.ResponseBody);
+        Assert.Null(ex.ErrorBody);
+    }
+
+    [Fact]
+    public void BhvErrors056AStatusAtOrAbove600YieldsTheBaseErrorNotAServerError()
+    {
+        var ex = ApiException.FromResponse(600, null, null);
+
+        Assert.Equal(typeof(ApiException), ex.GetType());
+        Assert.IsNotType<ServerException>(ex);
     }
 
     [Fact]
