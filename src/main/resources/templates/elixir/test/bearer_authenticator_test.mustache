@@ -130,6 +130,21 @@ defmodule {{moduleName}}.Auth.BearerAuthenticatorTest do
 
     # authenticator-secret-in-default-string-repr: the token must never
     # appear in the authenticator's default Inspect representation.
+    test "bhv authbearer 013 the redacted representation shows the host and masks the token" do
+      auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
+
+      assert inspect(auth) =~ ~s(host: "https://api.example.com")
+      refute inspect(auth) =~ "super-secret-token"
+    end
+
+    test "bhv authbearer 006 a generated scheme wrapper emits a bearer header and masks the token" do
+      wrapper = {{moduleName}}.Auth.PetStoreBearerAuthenticator.new("https://api.example.com", "xyz")
+
+      assert BearerAuthenticator.auth_headers(wrapper) == %{"Authorization" => "Bearer xyz"}
+      refute inspect(wrapper) =~ "xyz"
+      assert_raise ArgumentError, fn -> {{moduleName}}.Auth.PetStoreBearerAuthenticator.new("https://api.example.com", "") end
+    end
+
     test "bhv authbearer 011 default inspect/1 redacts the token but keeps the host" do
       auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
 

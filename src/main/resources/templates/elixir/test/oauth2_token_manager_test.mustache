@@ -393,6 +393,122 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       assert headers["Accept"] == "application/json"
     end
 
+    test "bhv authoauthtwotokenmgr 001 a 2xx token response that is not JSON raises OAuth2TokenError" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{status_code: 200, body: "<html>not json</html>"}
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      err =
+        assert_raise {{moduleName}}.Errors.OAuth2TokenError, fn ->
+          {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials"}
+          )
+        end
+
+      assert err.message == "Token response is not valid JSON"
+    end
+
+    test "bhv authoauthtwotokenmgr 007 expires_in applies one margin capped at half the lifetime" do
+      for {expires_in, margin_ms} <- [{60, 30_000}, {3600, 60_000}] do
+        fake_client = FakeApiClient.new([
+          %{{moduleName}}.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "margin", "expires_in" => expires_in})
+          }
+        ])
+
+        {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+        started = System.monotonic_time(:millisecond)
+
+        assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+                 manager,
+                 "https://auth.example.com/token",
+                 %{"grant_type" => "client_credentials"}
+               ) == "margin"
+
+        expected = started + expires_in * 1000 - margin_ms
+        assert abs(Agent.get(manager, & &1.token_expiry) - expected) <= 5_000
+      end
+    end
+
+    test "bhv authoauthtwotokenmgr 017 a refresh_token that is not a string is ignored, whatever its type" do
+      for bad <- [["list"], %{"key" => "value"}, true] do
+        fake_client = FakeApiClient.new([
+          %{{moduleName}}.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => bad, "expires_in" => 3600})
+          }
+        ])
+
+        {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+        assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+                 manager,
+                 "https://auth.example.com/token",
+                 %{"grant_type" => "client_credentials"}
+               ) == "tok1"
+
+        assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == nil
+      end
+    end
+
+    test "bhv authoauthtwotokenmgr 038 a token type other than bearer is refused without echoing it" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok", "token_type" => "unusual-type-marker"})
+        }
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      err =
+        assert_raise {{moduleName}}.Errors.OAuth2TokenError, fn ->
+          {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            "https://auth.example.com/token",
+            %{"grant_type" => "client_credentials"}
+          )
+        end
+
+      assert err.message == "Unsupported token_type in token response"
+      refute err.message =~ "unusual-type-marker"
+    end
+
+    test "bhv authoauthtwotokenmgr 040 an unusable token response has its canonical message and no cause" do
+      for {body, message} <- [
+            {"not json", "Token response is not valid JSON"},
+            {"[1, 2]", "Token response is not a JSON object"},
+            {Jason.encode!(%{"refresh_token" => "x"}), "Token response missing or empty access_token field"}
+          ] do
+        fake_client = FakeApiClient.new([%{{moduleName}}.ApiHttpResponse{status_code: 200, body: body}])
+
+        {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+        err =
+          assert_raise {{moduleName}}.Errors.OAuth2TokenError, fn ->
+            {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+              manager,
+              "https://auth.example.com/token",
+              %{"grant_type" => "client_credentials"}
+            )
+          end
+
+        assert err.message == message
+        assert Map.get(err, :cause) == nil
+      end
+    end
+
     test "bhv authoauthtwotokenmgr 005 an oversized expires_in is clamped to one year" do
       fake_client = FakeApiClient.new([
         %{{moduleName}}.ApiHttpResponse{

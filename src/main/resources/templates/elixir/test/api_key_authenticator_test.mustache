@@ -218,6 +218,43 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticatorTest do
       end
     end
 
+    test "bhv authapikey 003 rejects a CR/LF key for the query location at construction" do
+      assert_raise ArgumentError,
+                   "API key value for 'api_key' contains forbidden control characters (CR/LF/NUL)",
+                   fn -> ApiKeyAuthenticator.new("https://api.example.com", "api_key", "abc\r\n", :query) end
+    end
+
+    test "bhv authapikey 004 rejects an empty cookie key at construction" do
+      assert_raise ArgumentError, ~r/must not be empty/, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "session", "", :cookie)
+      end
+    end
+
+    test "bhv authapikey 006 rejects an empty query key at construction" do
+      assert_raise ArgumentError, ~r/must not be empty/, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "api_key", "", :query)
+      end
+    end
+
+    test "bhv authapikey 009 the query location accepts a non-ASCII key" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "api_key", "kéy", :query)
+
+      assert ApiKeyAuthenticator.query_params(auth) == %{"api_key" => "kéy"}
+    end
+
+    test "bhv authapikey 016 a valid query key builds an authenticator" do
+      assert %ApiKeyAuthenticator{} = ApiKeyAuthenticator.new("https://api.example.com", "api_key", "abc123", :query)
+    end
+
+    test "bhv authapikey 012 the redacted representation shows the non-secret fields and masks the key" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "super-secret-key", :header)
+
+      assert inspect(auth) =~ ~s(host: "https://api.example.com")
+      assert inspect(auth) =~ ~s(key_param_name: "X-Api-Key")
+      assert inspect(auth) =~ "location: :header"
+      refute inspect(auth) =~ "super-secret-key"
+    end
+
     # authenticator-secret-in-default-string-repr: the key must never appear
     # in the authenticator's default Inspect representation.
     test "bhv authapikey 010 default inspect/1 redacts the API key" do

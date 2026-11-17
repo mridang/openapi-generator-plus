@@ -244,7 +244,7 @@ defmodule {{moduleName}}.Api.StoreApiTest do
 
   # An operation with no query, header, form or cookie parameter and no security
   # still takes an options struct, which carries only the per-call settings.
-  test "get_inventory takes an options struct that carries the per-call settings and no auth" do
+  test "bhv authintegration 011 get_inventory takes an options struct that carries the per-call settings and no auth" do
     {:ok, name} = StubApiClient.start(~s({"available":1}))
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
@@ -285,7 +285,7 @@ defmodule {{moduleName}}.Api.StoreApiTest do
   # F857: an operation declared `security: []` sends no credential, however many
   # a client holds; an operation that inherits the root requirement (petStoreBasic
   # or petStoreBearer) uses the first of those two the client holds.
-  test "get_inventory (security: []) sends no credential even when the client holds several" do
+  test "bhv authintegration 016 get_inventory (security: []) sends no credential even when the client holds several" do
     {:ok, name} = StubApiClient.start(~s({"available":1}))
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     default = %{auth_headers: %{"Authorization" => "default"}}
@@ -294,6 +294,21 @@ defmodule {{moduleName}}.Api.StoreApiTest do
 
     assert {:ok, _inventory} = {{moduleName}}.Api.StoreApi.get_inventory(api)
 
+    refute Map.has_key?(StubApiClient.captured(name).headers, "Authorization")
+
+    Agent.stop(name)
+  end
+
+  test "bhv authintegration 007 each operation sends the credential of the scheme it names, not another's" do
+    {:ok, name} = StubApiClient.start(~s({"id":1}))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    bearer = %{auth_headers: %{"Authorization" => "bearer"}}
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config, nil, %{"petStoreBearer" => bearer})
+
+    assert {:ok, _order} = {{moduleName}}.Api.StoreApi.place_order(api, %{{moduleName}}.Models.Order{id: 1})
+    assert StubApiClient.captured(name).headers["Authorization"] == "bearer"
+
+    assert {:ok, _inventory} = {{moduleName}}.Api.StoreApi.get_inventory(api)
     refute Map.has_key?(StubApiClient.captured(name).headers, "Authorization")
 
     Agent.stop(name)
