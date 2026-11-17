@@ -323,8 +323,8 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("an authenticator with no fresher credential is not replayed")
-        void unchangedCredentialIsNotReplayed() {
+        @DisplayName("bhvAuthIntegration001 a failed re-authentication leaves the 401 as it is")
+        void bhvAuthIntegration001FailedReauthenticationLeavesTheUnauthorizedResponse() {
             var client = new ScriptedApiClient(401, 200);
             var auth = new RotatingTokenAuthenticator(false);
             assertThrowsExactly(
@@ -906,6 +906,21 @@ class BaseApiTest {
             TestableApi testApi = new TestableApi(config.getBaseUrl());
             assertNotNull(testApi);
         }
+
+        @Test
+        @DisplayName("bhvErrors027 an absolute URL in the path bypasses the client base URL")
+        void bhvErrors027AbsoluteUrlInPathBypassesTheClientBaseUrl() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "https://api.example.invalid/base");
+            testApi.call(
+                    "GET", "https://other.example.invalid/abs/x",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertEquals("https://other.example.invalid/abs/x", client.capturedUrl);
+        }
     }
 
     @Nested
@@ -1188,6 +1203,123 @@ class BaseApiTest {
             assertEquals("Bearer client-secret", captured.get("Authorization"),
                     "the client authenticator must be applied to the inherited-security getPetById operation");
         }
+
+        @Test
+        @DisplayName("bhvAuthIntegration004 appends auth cookies to a Cookie header the operation already set")
+        void bhvAuthIntegration004AppendsAuthCookiesToAnExistingCookieHeader() throws ApiException {
+            var client = new CapturingApiClient();
+            var auth = new TestAuthenticator(Map.of(), Map.of(), Map.of("session", "abc123"));
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(Map.of("Cookie", "a=1")),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, auth);
+            assertEquals("a=1; session=abc123", client.capturedHeaders.get("Cookie"));
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration005 a security:[] operation keeps the client authenticator header off the wire")
+        void bhvAuthIntegration005SecurityNoneOperationDropsTheClientAuthenticatorHeader() {
+            var captured = new HashMap<String, String>();
+            var capturingClient = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    captured.putAll(headers);
+                    return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var clientAuth =
+                    new TestAuthenticator(Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
+            var config = new Configuration("http://localhost", Map.of());
+            var storeApi = new StoreApi(capturingClient, config, clientAuth);
+            try {
+                storeApi.getInventory();
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertFalse(captured.containsKey("X-Client-Auth"),
+                    "the client authenticator must not reach a security:[] operation");
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration003 a scheme credential wins over the client-level authenticator, and the fallback is used when none matches")
+        void bhvAuthIntegration003SchemeCredentialWinsOverClientAuthenticator() {
+            var client = new CapturingApiClient();
+            var clientAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "client-cred"), Map.of(), Map.of());
+            var schemeAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "scheme-cred"), Map.of(), Map.of());
+            var config = new Configuration("http://localhost", Map.of());
+            var pet = new {{invokerPackage}}.models.Pet("rex", java.util.Set.of("https://x.invalid/rex"));
+            var withScheme = new PetApi(client, config, clientAuth, Map.of("petStoreBearer", schemeAuth));
+            try {
+                withScheme.addPet(pet);
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("scheme-cred", client.capturedHeaders.get("X-Credential"));
+
+            var withoutScheme = new PetApi(client, config, clientAuth, Map.of());
+            try {
+                withoutScheme.addPet(pet);
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("client-cred", client.capturedHeaders.get("X-Credential"));
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration007 each operation sends the credential of its own scheme")
+        void bhvAuthIntegration007EachOperationSendsTheCredentialOfItsOwnScheme() {
+            var client = new CapturingApiClient();
+            var apiKeyAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "api-key-cred"), Map.of(), Map.of());
+            var basicAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "basic-cred"), Map.of(), Map.of());
+            var bearerAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "bearer-cred"), Map.of(), Map.of());
+            var config = new Configuration("http://localhost", Map.of());
+            var petApi = new PetApi(
+                    client, config, null,
+                    Map.of("apiKeyHeader", apiKeyAuth, "petStoreBasic", basicAuth, "petStoreBearer", bearerAuth));
+            var pet = new {{invokerPackage}}.models.Pet("rex", java.util.Set.of("https://x.invalid/rex"));
+            try {
+                petApi.addPet(pet);
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("api-key-cred", client.capturedHeaders.get("X-Credential"));
+            try {
+                petApi.downloadPetDocument(1L, 2L);
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("basic-cred", client.capturedHeaders.get("X-Credential"));
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration014 resolves the credential of the first listed scheme the client holds")
+        void bhvAuthIntegration014ResolvesTheFirstListedHeldScheme() {
+            var client = new CapturingApiClient();
+            var apiKeyAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "api-key-cred"), Map.of(), Map.of());
+            var bearerAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "bearer-cred"), Map.of(), Map.of());
+            var config = new Configuration("http://localhost", Map.of());
+            var petApi = new PetApi(
+                    client, config, null,
+                    Map.of("petStoreBearer", bearerAuth, "apiKeyHeader", apiKeyAuth));
+            try {
+                petApi.addPet(new {{invokerPackage}}.models.Pet("rex", java.util.Set.of("https://x.invalid/rex")));
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("api-key-cred", client.capturedHeaders.get("X-Credential"));
+        }
     }
 
     @Nested
@@ -1394,8 +1526,8 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("rejects a text/plain response when the return type is not String")
-        void rejectsTextPlainForNonStringReturnType() {
+        @DisplayName("bhvErrors035 rejects a text/plain response when the return type is not String")
+        void bhvErrors035RejectsTextPlainForNonStringReturnType() {
             var client = new CapturingApiClient() {
                 @Override
                 public ApiHttpResponse sendRequest(
