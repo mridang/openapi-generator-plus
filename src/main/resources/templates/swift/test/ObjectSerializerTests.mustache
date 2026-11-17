@@ -279,6 +279,11 @@ import Testing
         #expect(ObjectSerializer.stringify(Data("hi".utf8)) == "aGk=")
     }
 
+    @Test func testBhvSerializationobject175UUIDReturnsItsStringRepresentation() {
+        let uuid = UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")!
+        #expect(ObjectSerializer.stringify(uuid) == uuid.uuidString.lowercased())
+    }
+
     @Test func testBhvSerializationobject016StringifyUUIDIsLowercase() {
         let uuid = UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")!
         #expect(ObjectSerializer.stringify(uuid) == "e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
@@ -290,6 +295,11 @@ import Testing
         // The canonical encoder emits millisecond fractional seconds; a
         // whole-second instant therefore serializes with a `.000` fraction.
         #expect(result == "2024-01-15T10:50:00.000+00:00")
+    }
+
+    @Test func testBhvSerializationobject179WholeSecondDateTimeHasAFixedThreeDigitFraction() {
+        let date = Date(timeIntervalSince1970: 0)
+        #expect(ObjectSerializer.stringify(date) == "1970-01-01T00:00:00.000+00:00")
     }
 
     @Test func testStringifyNil() {
@@ -501,6 +511,18 @@ import Testing
         let json = try ObjectSerializer.serialize(dry)
         #expect(json.contains("\"foodType\":\"dry\""),
             "serialised JSON must contain auto-injected discriminator, got: \(json)")
+    }
+
+    @Test func testBhvSerializationobject177WeightKgSurvivesASerializeDeserializeRoundTripAsANumber() throws {
+        let json = try ObjectSerializer.serialize(DryFood(weightKg: 1.25))
+        let decoded = try ObjectSerializer.deserialize(Data(json.utf8), as: DryFood.self)
+        #expect(decoded?.weightKg == 1.25)
+    }
+
+    @Test func testBhvSerializationobject178WetSubtypeSerializeAutoEmitsDiscriminator() throws {
+        let json = try ObjectSerializer.serialize(WetFood(volumeMl: 120))
+        #expect(json.contains("\"foodType\":\"wet\""),
+            "serialised JSON must contain the auto-injected wet discriminator, got: \(json)")
     }
 
     @Test func testBhvSerializationobject055SubtypeRoundTripViaParentDiscriminator() throws {

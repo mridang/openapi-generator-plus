@@ -212,6 +212,19 @@ import Testing
     /* A content-encoded parameter goes through the SDK's own serializer in
        every location: the query value is the JSON text, the header is the
        JSON text verbatim, and neither is dropped. */
+    @Test func testBhvOperations097SearchStoreSendsContentQueryAsTheObjectSerializerOutput() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "[]"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        _ = try await api.searchStore(options: SearchStoreOptions(q: PhotoMetadata(caption: "plain")))
+
+        let components = URLComponents(string: mockClient.lastURL)
+        let q = components?.queryItems?.first { $0.name == "q" }?.value
+        #expect(q == "{\"caption\":\"plain\"}")
+    }
+
     @Test func testBhvOperations121SearchStoreEncodesContentParametersAsJson() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "[]"
