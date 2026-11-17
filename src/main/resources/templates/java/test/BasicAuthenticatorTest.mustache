@@ -14,6 +14,13 @@ import org.junit.jupiter.api.Test;
 class BasicAuthenticatorTest {
 
     @Test
+    void bhvAuthBasic018PasswordMayContainAColon() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "p:ss");
+        assertEquals("Basic YWxpY2U6cDpzcw==", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
     void bhvAuthBasic011ValidCredentialsProduceBasicHeader() {
         BasicAuthenticator auth =
                 new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
