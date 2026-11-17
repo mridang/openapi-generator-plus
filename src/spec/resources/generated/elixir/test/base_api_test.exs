@@ -91,7 +91,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert %{"method" => "GET"} = Jason.decode!(body)
   end
 
-  test "raises BadRequestError for status 400", %{state: state} do
+  test "bhv errors 058 raises BadRequestError for status 400", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -127,7 +127,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert error.status_code == 401
   end
 
-  test "raises ForbiddenError for status 403", %{state: state} do
+  test "bhv errors 059 raises ForbiddenError for status 403", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -145,7 +145,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert error.status_code == 403
   end
 
-  test "raises NotFoundError for status 404", %{state: state} do
+  test "bhv errors 060 raises NotFoundError for status 404", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -163,7 +163,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert error.status_code == 404
   end
 
-  test "raises ConflictError for status 409", %{state: state} do
+  test "bhv errors 067 raises ConflictError for status 409", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -181,7 +181,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert error.status_code == 409
   end
 
-  test "raises UnprocessableEntityError for status 422", %{state: state} do
+  test "bhv errors 068 raises UnprocessableEntityError for status 422", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -199,7 +199,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert error.status_code == 422
   end
 
-  test "raises InternalServerError for status 500", %{state: state} do
+  test "bhv errors 069 raises InternalServerError for status 500", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -217,7 +217,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert error.status_code == 500
   end
 
-  test "raises ServerError for status 502", %{state: state} do
+  test "bhv errors 070 raises ServerError for status 502", %{state: state} do
     assert {:error, error} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -3127,7 +3127,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     refute error.request_path =~ "abc123"
   end
 
-  test "an error without a response names the request too" do
+  test "bhv errors 057 a network failure error carries the request method and path" do
     state = retry_state([{:transport_error, :econnrefused}], max_retries: 0)
 
     assert {:error, %PetstoreClient.Errors.NetworkError{} = error} = get_thing(state)

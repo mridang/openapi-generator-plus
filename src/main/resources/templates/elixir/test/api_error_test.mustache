@@ -42,7 +42,7 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert Exception.message(err) =~ "500"
   end
 
-  test "an empty message renders the default text, like a missing one" do
+  test "bhv errors 064 an empty message renders the default text, like a missing one" do
     default = "Error message: the server returns an error"
 
     assert {{moduleName}}.Errors.ApiError.message(
@@ -87,7 +87,7 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert {{moduleName}}.Errors.ApiError.message(bare) == "boom"
   end
 
-  test "the message cuts a long response body at 1 KiB and counts the bytes left out" do
+  test "bhv errors 065 the message cuts a long response body at 1 KiB and counts the bytes left out" do
     body = String.duplicate("a", 3_000)
 
     err =
@@ -290,7 +290,7 @@ defmodule {{moduleName}}.ApiErrorTest do
                "Token request failed with status 400: invalid_grant -- refresh token expired"
     end
 
-    test "names the raw body when the response is not an OAuth2 error object" do
+    test "bhv authoauthtwotokenmgr 047 an OAuth2 server error without an error code names the status and the raw body" do
       err = {{moduleName}}.Errors.OAuth2ServerError.exception(status_code: 502, raw_body: "Bad Gateway")
 
       assert Exception.message(err) == "Token request failed with status 502: Bad Gateway"
@@ -496,7 +496,16 @@ defmodule {{moduleName}}.ApiErrorTest do
       assert {{moduleName}}.Errors.ApiError.api_error?(err)
     end
 
-    test "a 429 is a TooManyRequestsError and a ClientError" do
+    test "bhv errors 061 a bad request error is a client error, an API error and an OpenAPI error" do
+      err = {{moduleName}}.Errors.ApiError.from_response(400, %{}, nil)
+
+      assert %{{moduleName}}.Errors.BadRequestError{} = err
+      assert {{moduleName}}.Errors.ClientError.client_error?(err)
+      assert {{moduleName}}.Errors.ApiError.api_error?(err)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+    end
+
+    test "bhv errors 066 a 429 is a TooManyRequestsError and a ClientError" do
       err = {{moduleName}}.Errors.ApiError.from_response(429, %{"retry-after" => "3"}, nil)
 
       assert %{{moduleName}}.Errors.TooManyRequestsError{status_code: 429} = err

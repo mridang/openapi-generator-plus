@@ -150,6 +150,37 @@ defmodule PetstoreClient.ClientTest do
     assert_received {:released, nil}
   end
 
+  test "bhv lifecycle 028 an explicit host and token win over the environment" do
+    name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+    System.put_env(name, "env-token")
+    on_exit(fn -> System.delete_env(name) end)
+
+    authenticator =
+      PetstoreClient.Auth.BearerAuthenticator.new("https://arg.example.com", "arg-token")
+
+    client = PetstoreClient.Client.new(authenticator)
+
+    assert PetstoreClient.Auth.BearerAuthenticator.host(client.authenticator) ==
+             "https://arg.example.com"
+
+    assert PetstoreClient.Auth.BearerAuthenticator.auth_headers(client.authenticator)[
+             "Authorization"
+           ] == "Bearer arg-token"
+  end
+
+  test "bhv lifecycle 032 a token passed to the client is preferred to the one in the environment" do
+    name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+    System.put_env(name, "env-token")
+    on_exit(fn -> System.delete_env(name) end)
+
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "passed-token")
+    client = PetstoreClient.Client.new(authenticator)
+
+    assert PetstoreClient.Auth.BearerAuthenticator.auth_headers(client.authenticator)[
+             "Authorization"
+           ] == "Bearer passed-token"
+  end
+
   test "bhv lifecycle 008 a request that starts after close fails with the one canonical client closed error" do
     authenticator = %ClosingAuthenticator{notify: self()}
     {_adapter, transport} = blocked_transport()
@@ -161,6 +192,26 @@ defmodule PetstoreClient.ClientTest do
     error = assert_raise RuntimeError, call
     assert error.message == "ApiClient has been closed and can no longer send requests"
     refute_received {:waiting, _pid}
+  end
+
+  test "bhv lifecycle 035 a request issued after close fails with the closed error and never reaches the transport" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, :reached_transport)
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    transport =
+      PetstoreClient.TransportOptions.new(req_options: [adapter: adapter], max_retries: 0)
+
+    client = PetstoreClient.Client.new(%ClosingAuthenticator{notify: self()}, transport)
+
+    assert PetstoreClient.Client.close(client) == :ok
+
+    error = assert_raise RuntimeError, call_through(client)
+    assert error.message == "ApiClient has been closed and can no longer send requests"
+    refute_received :reached_transport
   end
 
   test "a request that starts while another is in flight after close still fails" do
@@ -230,7 +281,7 @@ defmodule PetstoreClient.ClientTest do
     assert client.pet.authenticator == nil
   end
 
-  test "the base URL comes from the authenticator first, then the first scheme credential" do
+  test "bhv lifecycle 030 the base URL comes from the authenticator first, then the first scheme credential" do
     default = PetstoreClient.Auth.BearerAuthenticator.new("https://default.example.com", "t")
     credential = PetstoreClient.Auth.BearerAuthenticator.new("https://scheme.example.com", "t")
 
@@ -249,7 +300,7 @@ defmodule PetstoreClient.ClientTest do
     end
   end
 
-  test "a client without an authenticator and without any scheme credential raises ArgumentError" do
+  test "bhv lifecycle 026 a client built with no credential at all is refused" do
     assert_raise ArgumentError, ~r/At least one credential is required/, fn ->
       PetstoreClient.Client.new(nil)
     end

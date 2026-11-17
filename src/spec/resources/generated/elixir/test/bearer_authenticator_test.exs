@@ -55,6 +55,12 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       end
     end
 
+    test "bhv authbearer 028 a bearer token containing CRLF is rejected at construction" do
+      assert_raise ArgumentError, ~r/printable ASCII/, fn ->
+        BearerAuthenticator.new("https://api.example.com", "abc\r\ndef")
+      end
+    end
+
     test "bhv authbearer 016 a token of Unicode spaces is not blank: the printable ASCII rule rejects it" do
       error =
         assert_raise ArgumentError, fn ->
