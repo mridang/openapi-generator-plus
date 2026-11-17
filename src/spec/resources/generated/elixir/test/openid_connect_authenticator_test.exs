@@ -525,7 +525,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert FakeApiClient.last_body(fake_client) =~ "grant_type=refresh_token"
     end
 
-    test "redacts the secret" do
+    test "redacts secret" do
       auth = create_authenticator()
 
       refute inspect(auth) =~ "my-client-secret"

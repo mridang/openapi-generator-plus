@@ -158,7 +158,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
                "https://api.example.com"
     end
 
-    test "redacts the secret" do
+    test "redacts secret" do
       auth = create_authenticator()
 
       auth =
