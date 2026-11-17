@@ -23,6 +23,15 @@ test('bhv authoauthtwoimplicit 003 builds authorization url with response type t
     expect($url)->toContain('response_type=token');
 });
 
+test('bhv authoauthtwoimplicit 006 generated scheme wrapper uses its spec url and scopes', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($url)->toStartWith('https://auth.example.com/authorize?');
+    expect($url)->toContain('scope=read%20write');
+});
+
 test('bhv authoauthtwoimplicit 002 builds authorization url with client id', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 

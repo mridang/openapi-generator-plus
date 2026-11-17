@@ -47,3 +47,4 @@ php | serializationobject008 | format: uri is a plain string in php and schema c
 php | serializationobject030 | schema bounds such as nickname minLength and quantity maximum are not enforced client-side (S3, D55); a typed int32 overflow is bhv serializationobject 089
 php | authoauthtwotokenmgr019 | PHP runs one call at a time in one process, so no caller can race another caller's refetch after an invalidate; the refetch after an invalidate is bhv authoauthtwotokenmgr 018
 php | authoauthtwotokenmgr027 | PHP runs one call at a time in one process, so concurrent callers cannot arrive while a refresh is in flight; a later caller served from the cache is bhv authoauthtwotokenmgr 025
+php | models005 | PHP models define no equals(): a model has only the field-dump string form (D23) and == compares the Ds\Map additionalProperties as objects, which the SDK does not pin, so equality is not a tested contract in php yet
