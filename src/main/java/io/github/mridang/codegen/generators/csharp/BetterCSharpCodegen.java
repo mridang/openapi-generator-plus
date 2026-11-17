@@ -983,6 +983,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
      * Records what {@code SchemeAuthenticatorTest} needs to exercise one per-scheme authenticator:
      * its class, its base kind and its environment variables.
      */
+    @SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "keyIn values are ASCII-only OpenAPI location strings (header/query/cookie)")
     private void recordSchemeAuthTest(
             final SchemeAuthSpec spec,
             @Nullable final String namespaceSuffix,

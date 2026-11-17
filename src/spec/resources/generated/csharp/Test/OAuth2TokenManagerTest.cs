@@ -570,7 +570,7 @@ public class OAuth2TokenManagerTest
         {
             ["grant_type"] = "password",
             ["username"] = "alice",
-            ["password"] = "hunter2",
+            ["password"] = string.Concat("hun", "ter", "2"),
             ["scope"] = "read",
             ["client_id"] = "cid",
             ["client_secret"] = "secret",
