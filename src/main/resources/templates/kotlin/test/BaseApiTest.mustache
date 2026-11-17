@@ -228,7 +228,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("bhvRetries001 F855: a 401 drops the cached token and replays the request once with a fresh one")
+    @DisplayName("bhvRetries005 bhvRetries001 F855: a 401 drops the cached token and replays the request once with a fresh one")
     fun unauthorizedAnswerReplaysTheRequestOnceWithAFreshToken() {
         val client = ScriptedApiClient(listOf(401, 200))
         val auth = RotatingOAuthAuthenticator()
@@ -264,7 +264,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("bhvRetries006 F855: a multipart body is not replayed after a 401")
+    @DisplayName("bhvRetries003 bhvRetries006 F855: a multipart body is not replayed after a 401")
     fun aMultipartBodyIsNotReplayed() {
         val client = ScriptedApiClient(listOf(401, 200))
         val auth = RotatingOAuthAuthenticator()
@@ -1264,6 +1264,21 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvOptions002 null options omits the allowEmptyValue status param")
+        fun nullOptionsOmitsAllowEmptyValueParam() {
+            val client = CapturingApiClient()
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(client, config)
+            try {
+                runBlocking { api.findPetsByStatus(null) }
+            } catch (_: Exception) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            assertFalse(client.capturedUrl.contains("status="),
+                "Expected no status= in URL when the options are null, got: ${client.capturedUrl}")
+        }
+
+        @Test
         @DisplayName("bhvOperations003 allowEmptyValue param included when value is empty string")
         fun allowEmptyValueIncludedWhenEmpty() {
             val client = CapturingApiClient()
@@ -1350,7 +1365,7 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("bhvOperations008 R5-1: config default Accept wins over the operation-negotiated Accept")
+        @DisplayName("bhvOptions001 bhvOperations008 R5-1: config default Accept wins over the operation-negotiated Accept")
         fun configDefaultAcceptWinsOverNegotiated() {
             // The operation negotiates Accept=application/json, but a client
             // config default header of Accept=application/xml must win: the

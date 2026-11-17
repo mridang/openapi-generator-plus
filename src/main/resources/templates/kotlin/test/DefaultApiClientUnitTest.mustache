@@ -2132,7 +2132,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("the last answer is returned once the retries are spent")
+        @DisplayName("bhvRetries024 the last answer is returned once the retries are spent")
         fun theLastAnswerIsReturnedWhenRetriesAreSpent() {
             val apiClient = retrying(listOf(500))
 
@@ -2166,7 +2166,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("408, 409, 429 and every 5xx but 501 are retried")
+        @DisplayName("bhvRetries021 408, 409, 429 and every 5xx but 501 are retried")
         fun retryableStatusesAreRetried() {
             for (status in listOf(408, 409, 429, 500, 502, 503, 504, 599)) {
                 requestCount = 0
@@ -2176,7 +2176,7 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("200, 201, 301, 400, 401, 403, 404, 422 and 501 are not retried")
+        @DisplayName("bhvRetries021 200, 201, 301, 400, 401, 403, 404, 422 and 501 are not retried")
         fun otherStatusesAreNotRetried() {
             for (status in listOf(200, 201, 301, 400, 401, 403, 404, 422, 501)) {
                 requestCount = 0
@@ -2289,6 +2289,19 @@ class DefaultApiClientUnitTest {
             assertEquals(503, response.statusCode, "a 5 s wait cannot fit in a 1 s budget")
             assertEquals(1, requestCount)
             assertTrue(sleeps.isEmpty())
+        }
+
+        @Test
+        @DisplayName("bhvRetries019 each call starts a fresh timeout budget, so a retry that fits one call fits the next")
+        fun timeoutBudgetStartsAfreshForEveryCall() {
+            // Each call's 1 s budget is spent to 600 ms by its own wait. A budget shared across
+            // calls would have 400 ms left for the second call and stop its retry.
+            val apiClient = retrying(listOf(503, 200, 503, 200), timeout = 1000L, retryAfter = "0.6")
+            apiClient.sleeper = { kotlinx.coroutines.delay(it) }
+
+            assertEquals(200, get(apiClient).statusCode)
+            assertEquals(200, get(apiClient).statusCode)
+            assertEquals(4, requestCount)
         }
 
         @Test

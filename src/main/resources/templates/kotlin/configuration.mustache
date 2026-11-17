@@ -106,4 +106,18 @@ class Configuration private constructor(
          */
         fun build(): Configuration = Configuration(baseUrl, defaultHeaders.toMap())
     }
+
+    /**
+     * A redacted string form: a default header that carries a credential (see
+     * [DefaultApiClient.isSensitiveHeader]) prints as `***`, so logging a configuration
+     * never leaks the API key, token or cookie it holds (S15).
+     *
+     * @return the string form with the sensitive header values masked
+     */
+    override fun toString(): String {
+        val headers = defaultHeaders.entries.joinToString(", ", "{", "}") { (name, value) ->
+            "$name=" + if (DefaultApiClient.isSensitiveHeader(name)) "***" else value
+        }
+        return "Configuration(baseUrl=$baseUrl, defaultHeaders=$headers)"
+    }
 }

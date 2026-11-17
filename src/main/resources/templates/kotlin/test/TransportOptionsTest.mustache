@@ -486,4 +486,27 @@ class TransportOptionsTest {
             }
         }
     }
+
+    @Nested
+    @DisplayName("string forms")
+    inner class StringForms {
+
+        @Test
+        @DisplayName("bhvOptions023 inspect masks the proxy password and sensitive default headers")
+        fun toStringMasksProxyPasswordAndSensitiveHeaders() {
+            val options = TransportOptions.builder()
+                .proxy("http://svc:s3cret@proxy.example.com:3128")
+                .defaultHeader("Proxy-Authorization", "Basic c2VjcmV0")
+                .defaultHeader("X-Trace", "visible")
+                .build()
+
+            val text = options.toString()
+
+            assertFalse(text.contains("s3cret"), text)
+            assertFalse(text.contains("c2VjcmV0"), text)
+            assertTrue(text.contains("proxy=http://***@proxy.example.com:3128"), text)
+            assertTrue(text.contains("Proxy-Authorization=***"), text)
+            assertTrue(text.contains("X-Trace=visible"), text)
+        }
+    }
 }
