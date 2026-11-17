@@ -97,13 +97,18 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: credentials not passed come from SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME and SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD")
+    @DisplayName("F862: credentials not passed come from the environment")
     fun credentialsComeFromTheEnvironment() =
         runBlocking {
-            val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME" to "alice", "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "s3" + "cret")
+            val env =
+                mapOf(
+                    "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME" to "alice",
+                    "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "s3" + "cret",
+                )
             val auth = withEnvironment(env) { BasicAuthenticator("https://api.example.com") }
             assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
-            val mixed = withEnvironment(env) { BasicAuthenticator("https://api.example.com", "bob") }
+            val mixed =
+                withEnvironment(env) { BasicAuthenticator("https://api.example.com", "bob") }
             assertTrue(mixed.getAuthHeaders()["Authorization"]!!.startsWith("Basic "))
         }
 
@@ -126,9 +131,11 @@ class BasicAuthenticatorTest {
                     "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME" to "from-env",
                     "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD" to "pw" + "-env",
                 )
-            val auth = withEnvironment(env) { BasicAuthenticator("https://api.example.com", "alice") }
+            val auth =
+                withEnvironment(env) { BasicAuthenticator("https://api.example.com", "alice") }
             assertEquals("Basic YWxpY2U6cHctZW52", auth.getAuthHeaders()["Authorization"])
-            val both = withEnvironment(env) { BasicAuthenticator("https://api.example.com", "alice", "s3" + "cret") }
+            val both =
+                withEnvironment(env) { BasicAuthenticator("https://api.example.com", "alice", "s3" + "cret") }
             assertEquals("Basic YWxpY2U6czNjcmV0", both.getAuthHeaders()["Authorization"])
         }
 
@@ -153,7 +160,8 @@ class BasicAuthenticatorTest {
                 )
             val auth = withEnvironment(env) { AdminBasicAuthenticator("https://api.example.com") }
             assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
-            val explicit = withEnvironment(env) { AdminBasicAuthenticator("https://api.example.com", "bob", "pw") }
+            val explicit =
+                withEnvironment(env) { AdminBasicAuthenticator("https://api.example.com", "bob", "pw") }
             assertEquals("Basic Ym9iOnB3", explicit.getAuthHeaders()["Authorization"])
             val other =
                 withEnvironment(env) {

@@ -94,6 +94,16 @@ class DefaultApiClient internal constructor(
     @Volatile
     private var closed: Boolean = false
 
+    /** The requests that have been admitted and not yet finished; [close] waits for them. */
+    private val inFlight =
+        java.util.concurrent.atomic
+            .AtomicInteger(0)
+
+    /** Set once the transport has been released, so that it is released exactly once. */
+    private val released =
+        java.util.concurrent.atomic
+            .AtomicBoolean(false)
+
     /**
      * Create a client with a pre-configured Ktor [HttpClient].
      *
@@ -177,9 +187,38 @@ class DefaultApiClient internal constructor(
         body: Any?,
         noRedirect: Boolean,
     ): ApiHttpResponse {
+        inFlight.incrementAndGet()
         if (closed) {
+            finishRequest()
             throw IllegalStateException("ApiClient has been closed and can no longer send requests")
         }
+        try {
+            return sendWithRetries(method, url, headers, body, noRedirect)
+        } finally {
+            finishRequest()
+        }
+    }
+
+    /** Ends one admitted request; the last one out after [close] releases the transport. */
+    private fun finishRequest() {
+        if (inFlight.decrementAndGet() == 0 && closed) {
+            releaseTransport()
+        }
+    }
+
+    private fun releaseTransport() {
+        if (released.compareAndSet(false, true)) {
+            httpClient.close()
+        }
+    }
+
+    private suspend fun sendWithRetries(
+        method: String,
+        url: String,
+        headers: Map<String, String>,
+        body: Any?,
+        noRedirect: Boolean,
+    ): ApiHttpResponse {
         // `timeout` is one end-to-end budget for the whole call: every attempt, every redirect
         // hop, the body read and every wait between retries draw from it.
         val callSettings = kotlin.coroutines.coroutineContext[CallSettings]
@@ -636,12 +675,17 @@ class DefaultApiClient internal constructor(
      * Closes the Ktor [HttpClient] this SDK built and releases its connection
      * pool / engine threads. A client supplied through
      * [TransportOptions.httpClient] is never closed: only the SDK's derived view
-     * of it is released, and the caller's client and engine stay open. After
-     * calling this method the client must not be reused.
+     * of it is released, and the caller's client and engine stay open.
+     *
+     * Closing is graceful and idempotent: requests already in flight finish and
+     * the transport is released after the last of them, a new request fails with
+     * [IllegalStateException], and closing again does nothing.
      */
     override fun close() {
         closed = true
-        httpClient.close()
+        if (inFlight.get() == 0) {
+            releaseTransport()
+        }
     }
 }
 

@@ -357,7 +357,8 @@ class OAuth2PasswordAuthenticatorTest {
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
 
-        val auth = LegacyAuthPasswordAuthenticator("https://api.example.com", "cid", "sec", "alice", "pw")
+        val auth =
+            LegacyAuthPasswordAuthenticator("https://api.example.com", "cid", "sec", "alice", "pw")
         auth.setApiClient(client)
 
         runBlocking { auth.getAuthHeaders() }
@@ -393,7 +394,8 @@ class OAuth2PasswordAuthenticatorTest {
                 "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME" to "env-user",
                 "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD" to "env-" + "pw",
             )
-        val auth = withEnvironment(env) { LegacyAuthPasswordAuthenticator("https://api.example.com", username = "arg-user") }
+        val auth =
+            withEnvironment(env) { LegacyAuthPasswordAuthenticator("https://api.example.com", username = "arg-user") }
         auth.setApiClient(client)
 
         runBlocking { auth.getAuthHeaders() }

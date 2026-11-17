@@ -506,7 +506,7 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("F866: a property whose $ref carries a sibling default starts at that default")
+        @DisplayName("F866: a property whose \$ref carries a sibling default starts at that default")
         fun refSiblingDefaultAppliesOnConstructionAndDecode() {
             // StockItem.availability is a $ref to the Availability enum with
             // `default: on-hold` written next to it. The default must be the
@@ -523,6 +523,18 @@ class ObjectSerializerTest {
 
             val explicit = serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":1,\"availability\":\"Sold\"}")
             assertEquals(com.example.petstore.models.Availability.SOLD, explicit!!.availability)
+        }
+
+        @Test
+        @DisplayName("F316: building a model never validates, an unknown enum string fails only at decode")
+        fun constructionNeverValidatesAndDecodeFailsOnAnUnknownEnum() {
+            val built =
+                com.example.petstore.models
+                    .StockItem(priority = com.example.petstore.models.Priority.NUMBER_1)
+            assertNotNull(built)
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":1,\"availability\":\"no-such-member\"}")
+            }
         }
 
         @Test

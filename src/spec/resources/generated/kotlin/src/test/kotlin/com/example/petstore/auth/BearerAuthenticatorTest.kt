@@ -224,9 +224,11 @@ class BearerAuthenticatorTest {
         runBlocking {
             val provider: suspend () -> String = { "from-provider" }
             val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "from-env")
-            val explicit = withEnvironment(env) { BearerAuthenticator("https://api.example.com", "explicit", provider) }
+            val explicit =
+                withEnvironment(env) { BearerAuthenticator("https://api.example.com", "explicit", provider) }
             assertEquals("Bearer explicit", explicit.getAuthHeaders()["Authorization"])
-            val fromEnv = withEnvironment(env) { BearerAuthenticator("https://api.example.com", tokenProvider = provider) }
+            val fromEnv =
+                withEnvironment(env) { BearerAuthenticator("https://api.example.com", tokenProvider = provider) }
             assertEquals("Bearer from-env", fromEnv.getAuthHeaders()["Authorization"])
             val fromProvider =
                 withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "")) {
@@ -238,7 +240,8 @@ class BearerAuthenticatorTest {
     @Test
     @DisplayName("F862: a token the provider returns is validated like a static one")
     fun providerTokenIsValidated() {
-        val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { "bad\r\ntoken" })
+        val auth =
+            BearerAuthenticator("https://api.example.com", tokenProvider = { "bad\r\ntoken" })
         assertThrows(IllegalArgumentException::class.java) { runBlocking { auth.getAuthHeaders() } }
     }
 
@@ -247,7 +250,8 @@ class BearerAuthenticatorTest {
     fun schemeWrapperReadsItsOwnVariable() =
         runBlocking {
             val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "from-env")
-            val auth = withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com") }
+            val auth =
+                withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com") }
             assertEquals("Bearer from-env", auth.getAuthHeaders()["Authorization"])
             val other =
                 withEnvironment(env) {
@@ -262,9 +266,11 @@ class BearerAuthenticatorTest {
         runBlocking {
             val provider: suspend () -> String = { "from-provider" }
             val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "from-env")
-            val explicit = withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", "explicit", provider) }
+            val explicit =
+                withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", "explicit", provider) }
             assertEquals("Bearer explicit", explicit.getAuthHeaders()["Authorization"])
-            val fromEnv = withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", tokenProvider = provider) }
+            val fromEnv =
+                withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", tokenProvider = provider) }
             assertEquals("Bearer from-env", fromEnv.getAuthHeaders()["Authorization"])
             val empty =
                 withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "")) {

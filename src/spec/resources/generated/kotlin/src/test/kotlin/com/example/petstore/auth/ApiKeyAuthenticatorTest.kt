@@ -335,7 +335,8 @@ class ApiKeyAuthenticatorTest {
                         )
                     }
                 val headers = auth.getAuthHeaders()
-                val seen = headers["k"] ?: auth.getQueryParams()["k"] ?: auth.getCookieParams()["k"]
+                val seen =
+                    headers["k"] ?: auth.getQueryParams()["k"] ?: auth.getCookieParams()["k"]
                 assertEquals("key-$calls", seen)
             }
             assertEquals(ApiKeyLocation.values().size, calls)
@@ -369,9 +370,11 @@ class ApiKeyAuthenticatorTest {
     fun schemeWrapperReadsItsOwnVariable() =
         runBlocking {
             val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY" to "from-env")
-            val auth = withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com") }
+            val auth =
+                withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com") }
             assertEquals("from-env", auth.getAuthHeaders()["X-API-Key"])
-            val explicit = withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com", "explicit") }
+            val explicit =
+                withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com", "explicit") }
             assertEquals("explicit", explicit.getAuthHeaders()["X-API-Key"])
             val other =
                 withEnvironment(env) {

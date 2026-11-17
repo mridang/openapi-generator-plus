@@ -501,7 +501,7 @@ class PetApiTest {
 
             // (2) Selector set to image/png -> Content-Type is image/png, NOT
             // image/jpeg, with the same raw bytes.
-            runBlocking { api.setPetAvatar(1L, imageData, "image/png") }
+            runBlocking { api.setPetAvatar(1L, imageData, requestContentType = "image/png") }
             assertEquals("image/png", capturedContentType)
         }
 

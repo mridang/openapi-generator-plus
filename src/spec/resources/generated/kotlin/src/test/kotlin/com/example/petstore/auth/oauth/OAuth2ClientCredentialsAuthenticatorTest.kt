@@ -275,7 +275,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"wrapped","expires_in":3600}""")
 
-        val auth = MachineAuthClientCredentialsAuthenticator("https://api.example.com", "cid", "sec")
+        val auth =
+            MachineAuthClientCredentialsAuthenticator("https://api.example.com", "cid", "sec")
         auth.setApiClient(client)
 
         val headers = runBlocking { auth.getAuthHeaders() }
@@ -307,7 +308,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
                 "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID" to "env-id",
                 "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET" to "env-" + "secret",
             )
-        val auth = withEnvironment(env) { MachineAuthClientCredentialsAuthenticator("https://api.example.com") }
+        val auth =
+            withEnvironment(env) { MachineAuthClientCredentialsAuthenticator("https://api.example.com") }
         auth.setApiClient(client)
 
         assertEquals("Bearer from-env", runBlocking { auth.getAuthHeaders() }["Authorization"])
@@ -323,7 +325,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
                 "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID" to "env-id",
                 "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET" to "env-" + "secret",
             )
-        val auth = withEnvironment(env) { MachineAuthClientCredentialsAuthenticator("https://api.example.com", "arg-id") }
+        val auth =
+            withEnvironment(env) { MachineAuthClientCredentialsAuthenticator("https://api.example.com", "arg-id") }
         auth.setApiClient(client)
 
         runBlocking { auth.getAuthHeaders() }
