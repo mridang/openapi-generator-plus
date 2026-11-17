@@ -114,7 +114,8 @@ case "$cmd" in
           exit 2
         fi
       done
-      specs="$(printf '%s*Spec,' "$@")"
+      # TestParitySpec compares the test suites of the languages that ran (it skips below two).
+      specs="$(printf '%s*Spec,' "$@")TestParitySpec"
       gens="$(printf 'Generate%sClientTest,' "$@")"
       # Focused runs stay modest so the machine is not oversubscribed: fewer generators and
       # formatters at once than the full unit-test phase.

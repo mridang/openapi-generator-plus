@@ -1,0 +1,632 @@
+{
+  "partialGroups": [
+    {
+      "reason": "tracked in #118",
+      "keys": [
+        "credentials",
+        "readme",
+        "schemeauthenticator",
+        "schemeauthenticators",
+        "skills"
+      ]
+    }
+  ],
+  "languages": {
+    "csharp": {
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "basicauthenticator::rejectspasswordwithnulatconstruction",
+            "basicauthenticator::rejectsusernamewithcolonatconstruction",
+            "basicauthenticator::rejectsusernamewithcrlfatconstruction",
+            "openidconnectauthenticator::fetchesdiscoverydocumentonlyonce",
+            "petapi::setpetavatarstreamsrawbyteswithdeclaredcontenttype"
+          ]
+        }
+      ]
+    },
+    "dart": {
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "baseapi::serializesnumberqueryparams",
+            "basicauthenticator::redactssecret",
+            "bearerauthenticator::alreadyprefixedtokenisnotdoubled",
+            "bearerauthenticator::lowercasebearerprefixisstripped",
+            "bearerauthenticator::mixedcasebearerprefixisstripped",
+            "defaultapiclientunit::injectsdefaultuseragentwhennotexplicitlyset",
+            "defaultapiclientunit::joinsmultivalueresponseheaders",
+            "defaultapiclientunit::returnsjsonbodyforvendorjsoncontenttype",
+            "defaultapiclientunit::returnsnon2xxstatuscode",
+            "defaultapiclientunit::returnsresponseheaders",
+            "defaultapiclientunit::sendsdeleterequest",
+            "defaultapiclientunit::sendsgetrequestandreturnsresponse",
+            "defaultapiclientunit::sendspostwithjsonbody",
+            "defaultapiclientunit::sendsputrequest",
+            "transportoptions::settingproxyissupportedonallplatforms",
+            "valueserializer::patharrayitemwithreservedcharispercentencoded"
+          ]
+        }
+      ]
+    },
+    "elixir": {
+      "missingGroups": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "defaultapiclient"
+          ]
+        }
+      ],
+      "extraGroups": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "defaultapiclientintegration"
+          ]
+        }
+      ],
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "baseapi::expandsarrayqueryparams",
+            "baseapi::forwardsauthheaders",
+            "baseapi::serializestextplainbody",
+            "basicauthenticator::redactssecret",
+            "configuration::builderproducesindependentinstances",
+            "configuration::buildersetsbaseurl",
+            "configuration::buildersetsmultipledefaultheaders",
+            "objectserializer::deserializeappliesschemadefaultforabsentfield",
+            "petapi::addpet",
+            "petapi::addpetphotos",
+            "petapi::addpetwithhttpinfo",
+            "petapi::deletepet",
+            "petapi::deletepetwithhttpinfo",
+            "petapi::downloadbinarymock",
+            "petapi::downloadpetdocument",
+            "petapi::errorhandlingnotfound",
+            "petapi::findpetsbystatus",
+            "petapi::findpetsbystatuswithhttpinfo",
+            "petapi::getpetavatar",
+            "petapi::getpetavatarthumbnail",
+            "petapi::getpetbyid",
+            "petapi::getpetbyidwithhttpinfo",
+            "petapi::getpetpassport",
+            "petapi::getpetpassportwithhttpinfo",
+            "petapi::getpetphoto",
+            "petapi::setpetavatar",
+            "petapi::setpetavatarthumbnail",
+            "petapi::updatepet",
+            "petapi::updatepetwithhttpinfo",
+            "petapi::uploadmultipartmock",
+            "petapi::uploadpetcertificate",
+            "petapi::uploadpetdocument",
+            "storeapi::deleteorder",
+            "storeapi::deleteordernotfound",
+            "storeapi::getinventory",
+            "storeapi::getinventorywithhttpinfo",
+            "storeapi::getorderbyid",
+            "storeapi::getorderbyidwithhttpinfo",
+            "storeapi::getordernotfound",
+            "storeapi::placeorder",
+            "storeapi::placeorderservererror",
+            "storeapi::placeorderwithhttpinfo",
+            "transportoptions::cacertpathdefaultstonull",
+            "transportoptions::maxredirectsdefaultstonull",
+            "transportoptions::proxydefaultstonull",
+            "transportoptions::useragentdefaultstononemptystring",
+            "valueserializer::patharrayitemwithreservedcharispercentencoded"
+          ]
+        }
+      ]
+    },
+    "go": {
+      "missingGroups": [
+        {
+          "reason": "Go names a test after the function it exercises (TestSerializeValue_...), not after the type, so the group is named differently; tracked in #118",
+          "keys": [
+            "composedschema",
+            "defaultapiclientunit",
+            "oauth2clientcredentialsauthenticator",
+            "oauth2implicitauthenticator",
+            "oauth2passwordauthenticator",
+            "objectserializer",
+            "openidconnectauthenticator",
+            "tracecontextutil"
+          ]
+        }
+      ],
+      "extraGroups": [
+        {
+          "reason": "Go names a test after the function it exercises (TestSerializeValue_...), not after the type, so the group is named differently; tracked in #118",
+          "keys": [
+            "additionalproperties",
+            "adminbasicauthenticator",
+            "apihttpresponse",
+            "apikeyheaderauthenticator",
+            "apikeyqueryauthenticator",
+            "apikeywrappers",
+            "attachrequestcontext",
+            "auth",
+            "availabilityenum",
+            "basicwrappers",
+            "binaryresponse",
+            "binaryvault",
+            "browserauthimplicitauthenticator",
+            "browserauthwrapper",
+            "buildhttpclient",
+            "buildmultipartbody",
+            "bytefield",
+            "datetimejson",
+            "datetimeoffset",
+            "deserializationerror",
+            "deserialize",
+            "discriminator",
+            "dotsegmentpathparamisinvalidpathparameter",
+            "doublefield",
+            "dryfood",
+            "duration",
+            "edgecases",
+            "emptystringpathparamismissingrequiredparameter",
+            "encodecontentcookievalue",
+            "encodequeryallowingreserved",
+            "error",
+            "errorsas",
+            "foreignerror",
+            "formatdatepathparam",
+            "formatfloat",
+            "formattimeofday",
+            "fromresponse",
+            "gettypederrorbody",
+            "injecttracecontext",
+            "internalapikeyauthenticator",
+            "invokeapi",
+            "isjsonnull",
+            "isretryablestatus",
+            "isretryabletransporterror",
+            "legacyauthpasswordauthenticator",
+            "legacyauthwrapper",
+            "lookslikejsondocument",
+            "machineauthclientcredentialsauthenticator",
+            "machineauthwrapper",
+            "marshaldurationprotojson",
+            "maybeallowreserved",
+            "mergeheaders",
+            "mimetypeforfilename",
+            "model",
+            "modelequal",
+            "multipart",
+            "nestedcontainer",
+            "networkerrors",
+            "newcallsettings",
+            "nonascii",
+            "nullbody",
+            "nullresponsebody",
+            "oauth2authcode",
+            "oauth2clientcredentials",
+            "oauth2implicit",
+            "oauth2password",
+            "openidconnect",
+            "order",
+            "packageroot",
+            "parsetimeofday",
+            "pathencodingparity",
+            "pet",
+            "petfood",
+            "petpassport",
+            "petstorebasicauthenticator",
+            "petstorebearerauthenticator",
+            "pettreatment",
+            "petwithowner",
+            "priorityenum",
+            "proxyauth",
+            "readonlyandwriteonlypropertieshavenowireeffect",
+            "requestpathof",
+            "resolveanyof",
+            "resolveoneof",
+            "retryafterdelay",
+            "retrydelay",
+            "sameorigin",
+            "serializationerror",
+            "serialize",
+            "serializebodyordered",
+            "serializedeepobject",
+            "serializestyled",
+            "serializevalue",
+            "servicetokenauthenticator",
+            "sessioncookieauthenticator",
+            "setpetavatarthumbnailrequest",
+            "settracecontextpropagator",
+            "ssoauthauthenticator",
+            "ssoauthwrapper",
+            "stricttag",
+            "stringify",
+            "stringifydate",
+            "timeofday",
+            "tocookievalue",
+            "toformvalue",
+            "toheadervalue",
+            "topathvalue",
+            "toqueryvalue",
+            "tostringslice",
+            "transportoptionsbuilder",
+            "treatmentrecord",
+            "typederror",
+            "typederrors",
+            "unmarshaldurationprotojson",
+            "userauthauthorizationcodeauthenticator",
+            "userauthwrapper",
+            "withheaders",
+            "withhttpinfo"
+          ]
+        }
+      ],
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "baseapi::nullbodypostdoesnotsendcontenttype",
+            "basicauthenticator::rejectspasswordwithnulatconstruction",
+            "basicauthenticator::rejectsusernamewithcolonatconstruction",
+            "basicauthenticator::rejectsusernamewithcrlfatconstruction",
+            "defaultapiclient::multipartfieldnamewithcrlfrejectedonstringvalue",
+            "oauth2authorizationcodeauthenticator::authheadersbeforeexchangereturnsrecoverableerror",
+            "oauth2authorizationcodeauthenticator::buildsauthorizationurlwithrequiredparams",
+            "oauth2authorizationcodeauthenticator::buildsauthorizationurlwithstate",
+            "oauth2authorizationcodeauthenticator::exchangescodewithcorrectgranttype",
+            "oauth2authorizationcodeauthenticator::gethostreturnsconfiguredhost",
+            "oauth2authorizationcodeauthenticator::includesrefreshtokenonrefresh",
+            "oauth2authorizationcodeauthenticator::throwsbeforeexchangecodecalled",
+            "transportoptions::useragentdefaultstononemptystring"
+          ]
+        }
+      ]
+    },
+    "java": {
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "baseapi::apirequestusesresolvedserverurl",
+            "baseapi::nullbodypostdoesnotsendcontenttype"
+          ]
+        }
+      ]
+    },
+    "kotlin": {
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "baseapi::nullbodypostdoesnotsendcontenttype",
+            "configuration::builderproducesindependentinstances",
+            "configuration::buildersetsbaseurl",
+            "configuration::buildersetsmultipledefaultheaders",
+            "defaultapiclient::closereleasesunderlyingclient",
+            "petapi::addpet",
+            "petapi::addpetphotos",
+            "petapi::addpetwithhttpinfo",
+            "petapi::deletepet",
+            "petapi::deletepetwithhttpinfo",
+            "petapi::downloadbinarymock",
+            "petapi::downloadpetdocument",
+            "petapi::errorhandlingnotfound",
+            "petapi::findpetsbystatus",
+            "petapi::findpetsbystatuswithhttpinfo",
+            "petapi::getpetavatar",
+            "petapi::getpetavatarthumbnail",
+            "petapi::getpetbyid",
+            "petapi::getpetbyidwithhttpinfo",
+            "petapi::getpetpassport",
+            "petapi::getpetpassportwithhttpinfo",
+            "petapi::getpetphoto",
+            "petapi::setpetavatar",
+            "petapi::setpetavatarthumbnail",
+            "petapi::updatepet",
+            "petapi::updatepetwithhttpinfo",
+            "petapi::uploadmultipartmock",
+            "petapi::uploadpetcertificate",
+            "petapi::uploadpetdocument",
+            "storeapi::deleteorder",
+            "storeapi::deleteordernotfound",
+            "storeapi::getinventory",
+            "storeapi::getinventorywithhttpinfo",
+            "storeapi::getorderbyid",
+            "storeapi::getorderbyidwithhttpinfo",
+            "storeapi::getordernotfound",
+            "storeapi::placeorder",
+            "storeapi::placeorderservererror",
+            "storeapi::placeorderwithhttpinfo",
+            "transportoptions::invalidproxyurlthrowserror"
+          ]
+        }
+      ]
+    },
+    "node": {
+      "missingGroups": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "baseapi",
+            "metadata"
+          ]
+        }
+      ],
+      "extraGroups": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "baseapierrordispatch",
+            "perschemeauthenticators"
+          ]
+        },
+        {
+          "reason": "package.json is a Node-only manifest, so only the Node SDK tests it",
+          "keys": [
+            "packagejsonmanifest"
+          ]
+        },
+        {
+          "reason": "the portable web (fetch) transport exists only in the Node SDK",
+          "keys": [
+            "webportabletransport"
+          ]
+        }
+      ],
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "basicauthenticator::redactssecret",
+            "bearerauthenticator::mixedcasebearerprefixisstripped",
+            "defaultapiclient::closereleasesunderlyingclient",
+            "defaultapiclient::decompressesgzipresponse",
+            "defaultapiclient::followsredirectswhenenabled",
+            "defaultapiclient::injectscustomuseragentheader",
+            "defaultapiclient::makeshttprequestthroughproxy",
+            "defaultapiclient::makeshttpsrequestthroughproxywithverifysslfalse",
+            "defaultapiclient::makeshttpsrequestwithcustomcacert",
+            "defaultapiclient::makeshttpsrequestwithverifysslfalse",
+            "defaultapiclient::multipartfieldnamewithcrlfrejectedonstringvalue",
+            "defaultapiclient::postwithnullbodysendscontentlengthzero",
+            "defaultapiclient::proxywithcredentialsinjectsbasicauthorization",
+            "defaultapiclient::respectsmaxredirectslimit",
+            "defaultapiclient::sendsmultipartformdata",
+            "defaultapiclient::timesoutonslowendpoint",
+            "oauth2authorizationcodeauthenticator::authorizeurlwithexistingquerystringusesampseparator",
+            "objectserializer::deserializeappliesschemadefaultforabsentfield",
+            "petapi::downloadbinarymock",
+            "petapi::errorhandlingnotfound",
+            "petapi::getpetphoto",
+            "petapi::setpetavatarstreamsrawbyteswithdeclaredcontenttype",
+            "petapi::uploadmultipartmock",
+            "storeapi::deleteordernotfound",
+            "storeapi::getordernotfound",
+            "storeapi::placeorderservererror",
+            "transportoptions::invalidproxyurlthrowserror",
+            "transportoptions::settingproxyissupportedonallplatforms",
+            "valueserializer::patharrayitemwithreservedcharispercentencoded"
+          ]
+        }
+      ]
+    },
+    "php": {
+      "extraGroups": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "compositeauthenticator"
+          ]
+        },
+        {
+          "reason": "PSR-18 is a PHP-only HTTP client interface, so only the PHP SDK has a client for it",
+          "keys": [
+            "psr18apiclientunit"
+          ]
+        }
+      ],
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "basicauthenticator::redactssecret",
+            "oauth2authorizationcodeauthenticator::authorizeurlwithexistingquerystringusesampseparator",
+            "oauth2authorizationcodeauthenticator::gethostreturnsconfiguredhost",
+            "oauth2clientcredentialsauthenticator::basicauthurlencodesclientidandsecret",
+            "oauth2clientcredentialsauthenticator::cachestokenacrosscalls",
+            "oauth2clientcredentialsauthenticator::gethostreturnsconfiguredhost",
+            "oauth2clientcredentialsauthenticator::returnsauthorizationbearerheader",
+            "oauth2clientcredentialsauthenticator::sendsrequesttotokenurl",
+            "oauth2clientcredentialsauthenticator::tokenfetcherrorissurfacednotswallowed",
+            "oauth2passwordauthenticator::basicauthurlencodesclientidandsecret",
+            "oauth2passwordauthenticator::gethostreturnsconfiguredhost",
+            "oauth2passwordauthenticator::returnsauthorizationbearerheader",
+            "oauth2passwordauthenticator::sendsclientidandsecret",
+            "oauth2tokenmanager::throwswhennoapiclientinjected",
+            "openidconnectauthenticator::fetchesdiscoverydocumentonlyonce",
+            "openidconnectauthenticator::getauthheadersreturnsbearerafterexchange",
+            "openidconnectauthenticator::gethostreturnsconfiguredhost",
+            "openidconnectauthenticator::throwswhennoapiclientinjected",
+            "petapi::addpetwithhttpinfo",
+            "petapi::deletepetwithhttpinfo",
+            "petapi::findpetsbystatuswithhttpinfo",
+            "petapi::getpetbyidwithhttpinfo",
+            "petapi::getpetpassportwithhttpinfo",
+            "petapi::updatepetwithhttpinfo"
+          ]
+        }
+      ]
+    },
+    "python": {
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "baseapi::collapsesdoubleslashwhenbaseurlhastrailingslash",
+            "defaultapiclient::decompressesgzipresponse",
+            "transportoptions::cacertpathdefaultstonull",
+            "transportoptions::maxredirectsdefaultstonull",
+            "transportoptions::proxydefaultstonull"
+          ]
+        }
+      ]
+    },
+    "ruby": {
+      "missingGroups": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "client",
+            "defaultapiclientunit",
+            "metadata"
+          ]
+        }
+      ],
+      "extraGroups": [
+        {
+          "reason": "the gemspec is a Ruby-only manifest, so only the Ruby SDK tests it",
+          "keys": [
+            "gemmanifest"
+          ]
+        },
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "models",
+            "petstore"
+          ]
+        }
+      ],
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "oauth2authorizationcodeauthenticator::authorizeurlwithexistingquerystringusesampseparator",
+            "petapi::addpet",
+            "petapi::addpetphotos",
+            "petapi::addpetwithhttpinfo",
+            "petapi::deletepet",
+            "petapi::deletepetwithhttpinfo",
+            "petapi::downloadbinarymock",
+            "petapi::downloadpetdocument",
+            "petapi::errorhandlingnotfound",
+            "petapi::findpetsbystatus",
+            "petapi::findpetsbystatuswithhttpinfo",
+            "petapi::getpetavatar",
+            "petapi::getpetavatarthumbnail",
+            "petapi::getpetbyid",
+            "petapi::getpetbyidwithhttpinfo",
+            "petapi::getpetpassport",
+            "petapi::getpetpassportwithhttpinfo",
+            "petapi::getpetphoto",
+            "petapi::setpetavatar",
+            "petapi::setpetavatarstreamsrawbyteswithdeclaredcontenttype",
+            "petapi::setpetavatarthumbnail",
+            "petapi::updatepet",
+            "petapi::updatepetwithhttpinfo",
+            "petapi::uploadmultipartmock",
+            "petapi::uploadpetcertificate",
+            "petapi::uploadpetdocument",
+            "storeapi::deleteorder",
+            "storeapi::deleteordernotfound",
+            "storeapi::getinventory",
+            "storeapi::getinventorywithhttpinfo",
+            "storeapi::getorderbyid",
+            "storeapi::getorderbyidwithhttpinfo",
+            "storeapi::getordernotfound",
+            "storeapi::placeorder",
+            "storeapi::placeorderservererror",
+            "storeapi::placeorderwithhttpinfo",
+            "transportoptions::cacertpathdefaultstonull",
+            "transportoptions::invalidproxyurlthrowserror",
+            "transportoptions::maxredirectsdefaultstonull",
+            "transportoptions::proxydefaultstonull"
+          ]
+        }
+      ]
+    },
+    "rust": {
+      "extraGroups": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "apiclient",
+            "base64serde",
+            "datetime"
+          ]
+        },
+        {
+          "reason": "a Rust-only test helper module that the other languages keep inside their test fixtures",
+          "keys": [
+            "testcontainershelper"
+          ]
+        }
+      ],
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "baseapi::collapsesdoubleslashwhenbaseurlhastrailingslash",
+            "baseapi::expandsarrayqueryparams",
+            "baseapi::serializesformurlencodedbody",
+            "baseapi::serializestextplainbody",
+            "basicauthenticator::rejectspasswordwithnulatconstruction",
+            "basicauthenticator::rejectsusernamewithcolonatconstruction",
+            "basicauthenticator::rejectsusernamewithcrlfatconstruction",
+            "client::constructwithauthenticatorandtransportoptions",
+            "defaultapiclientunit::injectsdefaultuseragentwhennotexplicitlyset",
+            "defaultapiclientunit::joinsmultivalueresponseheaders",
+            "defaultapiclientunit::returnsjsonbodyforvendorjsoncontenttype",
+            "defaultapiclientunit::returnsnon2xxstatuscode",
+            "defaultapiclientunit::returnsresponseheaders",
+            "defaultapiclientunit::sendsdeleterequest",
+            "defaultapiclientunit::sendsgetrequestandreturnsresponse",
+            "defaultapiclientunit::sendspostwithjsonbody",
+            "defaultapiclientunit::sendsputrequest",
+            "oauth2clientcredentialsauthenticator::tokenfetcherrorissurfacednotswallowed",
+            "oauth2implicitauthenticator::throwswhenaccesstokennotset",
+            "objectserializer::deserializeappliesschemadefaultforabsentfield",
+            "transportoptions::cacertpathdefaultstonull",
+            "transportoptions::maxredirectsdefaultstonull",
+            "transportoptions::proxydefaultstonull",
+            "transportoptions::useragentdefaultstononemptystring"
+          ]
+        }
+      ]
+    },
+    "swift": {
+      "missingGroups": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "defaultapiclient"
+          ]
+        }
+      ],
+      "extraGroups": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "defaultapiclienttls"
+          ]
+        }
+      ],
+      "missingTests": [
+        {
+          "reason": "tracked in #118",
+          "keys": [
+            "baseapi::serializesformurlencodedbody",
+            "baseapi::serializestextplainbody",
+            "basicauthenticator::rejectspasswordwithnulatconstruction",
+            "basicauthenticator::rejectsusernamewithcolonatconstruction",
+            "basicauthenticator::rejectsusernamewithcrlfatconstruction",
+            "transportoptions::settingproxyissupportedonallplatforms"
+          ]
+        }
+      ]
+    }
+  }
+}
