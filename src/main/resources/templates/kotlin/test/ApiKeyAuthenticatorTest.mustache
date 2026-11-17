@@ -266,6 +266,74 @@ class ApiKeyAuthenticatorTest {
         }
     }
 
+    @Test
+    fun bhvAuthapikey022KeyIsEmittedOnlyAtItsOwnLocation() = runBlocking {
+        val header = ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "k", ApiKeyLocation.HEADER)
+        assertEquals(mapOf("X-API-Key" to "k"), header.getAuthHeaders())
+        assertTrue(header.getQueryParams().isEmpty())
+        assertTrue(header.getCookieParams().isEmpty())
+
+        val query = ApiKeyAuthenticator("https://api.example.com", "api_key", "k", ApiKeyLocation.QUERY)
+        assertTrue(query.getAuthHeaders().isEmpty())
+        assertEquals(mapOf("api_key" to "k"), query.getQueryParams())
+        assertTrue(query.getCookieParams().isEmpty())
+
+        val cookie = ApiKeyAuthenticator("https://api.example.com", "SESSION_ID", "k", ApiKeyLocation.COOKIE)
+        assertTrue(cookie.getAuthHeaders().isEmpty())
+        assertTrue(cookie.getQueryParams().isEmpty())
+        assertEquals(mapOf("SESSION_ID" to "k"), cookie.getCookieParams())
+    }
+
+    @Test
+    fun bhvAuthapikey023CookieKeyAcceptsANonAsciiValue() {
+        val auth = ApiKeyAuthenticator("https://api.example.com", "SESSION_ID", "clé-é", ApiKeyLocation.COOKIE)
+        assertEquals(mapOf("SESSION_ID" to "clé-é"), auth.getCookieParams())
+    }
+
+    @Test
+    fun bhvAuthapikey025GeneratedApiKeySchemeWrappersMaskTheKeyInTheirDebugOutput() {
+        assertEquals(
+            "ApiKeyHeaderAuthenticator(host=https://api.example.com, keyParamName=X-API-Key, apiKey=***, location=HEADER)",
+            ApiKeyHeaderAuthenticator("https://api.example.com", "k1").toString(),
+        )
+        assertEquals(
+            "ApiKeyQueryAuthenticator(host=https://api.example.com, keyParamName=api_key, apiKey=***, location=QUERY)",
+            ApiKeyQueryAuthenticator("https://api.example.com", "k3").toString(),
+        )
+    }
+
+    @Test
+    fun bhvAuthapikey026ApiKeyAuthenticatorDoesNotLeakItsKeyInItsDefaultDebugOutput() {
+        val secret = "sec" + "ret-" + "key"
+        val auth = ApiKeyAuthenticator("https://api.example.com", "X-API-Key", secret, ApiKeyLocation.HEADER)
+        assertFalse("$auth".contains(secret))
+        assertFalse(listOf(auth).toString().contains(secret))
+    }
+
+    @Test
+    fun bhvAuthscheme005ApiKeyHeaderAuthenticatorTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY_HEADER_API_KEY" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { ApiKeyHeaderAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_API_KEY_HEADER_API_KEY"), ex.message)
+    }
+
+    @Test
+    fun bhvAuthscheme006ApiKeyQueryAuthenticatorTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY_QUERY_API_KEY" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { ApiKeyQueryAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_API_KEY_QUERY_API_KEY"), ex.message)
+    }
+
+    @Test
+    fun bhvAuthscheme007SessionCookieAuthenticatorTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_SESSION_COOKIE_API_KEY" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { SessionCookieAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_SESSION_COOKIE_API_KEY"), ex.message)
+    }
+
     private fun <T> withEnvironment(values: Map<String, String>, body: () -> T): T {
         val saved = CredentialEnvironment.lookup
         CredentialEnvironment.lookup = { name -> values[name] }
@@ -277,12 +345,16 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: with no key passed, {{envVarPrefix}}_API_KEY is read once at construction")
-    fun keyComesFromTheEnvironment() = runBlocking {
+    @DisplayName("bhvAuthapikey021 with no key passed, {{envVarPrefix}}_API_KEY is read once at construction, and a passed key wins")
+    fun bhvAuthapikey021KeyComesFromTheEnvironmentAndAPassedKeyWins() = runBlocking {
         val auth = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY" to "from-env")) {
             ApiKeyAuthenticator("https://api.example.com", "X-API-Key", location = ApiKeyLocation.HEADER)
         }
         assertEquals("from-env", auth.getAuthHeaders()["X-API-Key"])
+        val explicit = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY" to "from-env")) {
+            ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "explicit", ApiKeyLocation.HEADER)
+        }
+        assertEquals("explicit", explicit.getAuthHeaders()["X-API-Key"])
     }
 
     @Test

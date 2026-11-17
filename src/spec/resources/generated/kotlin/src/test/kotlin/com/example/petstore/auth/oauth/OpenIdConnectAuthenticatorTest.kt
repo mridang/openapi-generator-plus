@@ -9,6 +9,7 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
+import com.example.petstore.auth.CredentialEnvironment
 import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.OpenAPIException
 import kotlinx.coroutines.async
@@ -318,6 +319,28 @@ class OpenIdConnectAuthenticatorTest {
 
         assertThrowsExactly(IllegalStateException::class.java) {
             runBlocking { auth.buildAuthorizationUrl() }
+        }
+    }
+
+    @Test
+    fun bhvAuthscheme008SsoAuthTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name ->
+            when (name) {
+                "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID" -> ""
+                "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET" -> "secret"
+                "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI" -> "https://app.example.com/callback"
+                else -> null
+            }
+        }
+        try {
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    SsoAuthAuthenticator("https://api.example.com")
+                }
+            assertTrue(ex.message!!.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID"), ex.message)
+        } finally {
+            CredentialEnvironment.lookup = saved
         }
     }
 
