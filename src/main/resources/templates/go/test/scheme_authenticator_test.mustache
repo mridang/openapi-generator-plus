@@ -130,7 +130,7 @@ func requireScheme{{className}}Credentials(t *testing.T, a *{{package}}.{{classN
 {{/isOAuth}}
 }
 
-func TestBhvAuthscheme001_SchemeAuthenticator_{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func Test{{#firstBasic}}BhvAuthbasic001_{{/firstBasic}}SchemeAuthenticator_{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
 
 	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
@@ -152,7 +152,7 @@ func TestSchemeAuthenticator_{{className}}_PrefersTheArgumentsOverTheEnvironment
 	requireScheme{{className}}Credentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func Test{{#firstBasic}}BhvAuthbasic003_{{/firstBasic}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range scheme{{className}}Variables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(scheme{{className}}Fields[i]+"/"+mode, func(t *testing.T) {

@@ -1173,7 +1173,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
         entry.put("package", spec.isOAuth() ? "oauth" : "auth");
-        entry.put("isBasic", "BasicAuthenticator".equals(spec.baseClass()));
+        final boolean isBasic = "BasicAuthenticator".equals(spec.baseClass());
+        entry.put("isBasic", isBasic);
+        /* The basic-credential behaviours carry one behaviour id each, so only the
+         * first Basic scheme names its tests with them (one test per id). */
+        entry.put("firstBasic", isBasic && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("isBasic"))));
         entry.put("isBearer", isBearer);
         entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
         entry.put("isOAuth", spec.isOAuth());

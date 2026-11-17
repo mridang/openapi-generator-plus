@@ -64,3 +64,11 @@ java | lifecycle014 | The Java client takes built authenticator objects and neve
 python | operations111 | the trackingId parameter is typed uuid.UUID, which refuses a malformed value when the caller builds it, so the SDK never receives one it must reject; a plain str bypasses that type and is sent unchecked
 dart | serializationobject002 | Dart decodes a bare type: number to double, a binary float (D83, FD-11), so it cannot be exact and written in plain notation the way the java, csharp and kotlin BigDecimal decoders are
 dart | models009 | Dart types additional properties as Map<String, dynamic> so each value keeps its JSON type (models001 round trip); a string-only additional-properties type is not the dart contract, as with rust
+go | authintegration013 | Go per-call request options (WithTimeout, WithHeaders, WithMaxRetries, WithRequestContentType) carry no authenticator, so there is no per-call :auth to override; a scheme credential replacing the client-level authenticator is bhv authintegration 003
+go | headers002 | HeaderSelector.selectHeaders takes a string content type, so a nil value cannot be passed; the empty-string default is bhv headers 001
+go | headers015 | HeaderSelector.isJSONMIME takes a string, so a nil value cannot be passed; the empty string is bhv headers 014
+go | models002 | A Go module manifest (go.mod) has no description field, so there is no manifest description to declare
+go | options027 | Go builds TransportOptions only through NewTransportOptionsBuilder and has no constructor taking max retries; the builder setter and the 0 that disables retries are bhv options 026
+go | operations111 | The trackingId parameter is typed uuid.UUID, so a malformed value cannot be passed to GetOrderByTrackingId; a malformed wire value is refused by the decoder
+go | transport031 | net/http has one client Timeout covering connect, headers and body and no connect-only deadline, so the one deadline is the one bhv transport 058 tests
+go | serializationobject164 | Go maps format time to string (typeMapping time to string), so there is no time-of-day type or HH:mm:ss formatter to test
