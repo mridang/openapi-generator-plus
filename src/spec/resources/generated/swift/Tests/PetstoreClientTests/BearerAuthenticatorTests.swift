@@ -134,6 +134,16 @@ import Testing
     }
   }
 
+  /* Each HTTP bearer wrapper emits a Bearer header and keeps its own name in its description. */
+  @Test(arguments: ["PetStoreBearer", "ServiceToken"])
+  func testBhvAuthbearer023SchemeWrapperEmitsABearerHeaderUnderItsOwnName(scheme: String)
+    async throws
+  {
+    let auth = try Self.schemeWrapper(scheme, token: "wrapper-token-value")
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer wrapper-token-value"])
+    #expect(String(describing: auth).hasPrefix("\(scheme)Authenticator("))
+  }
+
   // MARK: - Token provider
 
   private final class TokenBox: @unchecked Sendable {
@@ -219,6 +229,16 @@ import Testing
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
   }
 
+  /* The variable is read once at construction, under the behaviour id of the first bearer scheme. */
+  @Test func testBhvAuthbearer025PetStoreBearerAuthenticatorReadsItsVariableOnceAtConstruction()
+    async throws
+  {
+    var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "first"]
+    let auth = try PetStoreBearerAuthenticator(
+      host: "https://api.example.com", token: nil, environment: environment)
+    environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "second"]
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
+  }
   @Test
   func
     testBhvAuthbearer010ServiceTokenAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
@@ -295,6 +315,23 @@ import Testing
   @Test func testBhvAuthbearer017WhitespaceOnlyTokenIsRejectedAsEmpty() {
     #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
       _ = try BearerAuthenticator(host: "https://api.example.com", token: "   ")
+    }
+  }
+
+  /* A non-ASCII token is refused at construction, before any request is sent. */
+  @Test func testBhvAuthbearer022NonAsciiTokenIsRejectedAtConstruction() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
+    ) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: "caf\u{E9}-token")
+    }
+  }
+
+  /* A whitespace-only token is refused at construction as an empty token. */
+  @Test func testBhvAuthbearer027WhitespaceOnlyTokenIsRejectedAtConstruction() {
+    #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: " \t\n ")
     }
   }
 

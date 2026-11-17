@@ -219,7 +219,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
     }
 
-    @Test func testAnEmptyEnvironmentValueCountsAsUnset() {
+    @Test func testBhvAuthbearer019AnEmptyEnvironmentValueCountsAsUnset() {
         #expect(throws: ConfigurationError.invalidArgument(
             "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
         ) {
@@ -329,7 +329,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         }
     }
 
-    @Test func test{{className}}TreatsAnEmptyVariableAsUnset() {
+    @Test func test{{emptyVariableBhv}}{{className}}TreatsAnEmptyVariableAsUnset() {
 {{#envVars}}
 {{#-first}}
         let missing = ConfigurationError.invalidArgument(
