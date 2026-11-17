@@ -1848,6 +1848,138 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert Enum.map(attempts(), &Req.Request.get_header(&1, "x-attempt")) == [["n1"], ["n2"], ["n3"]]
   end
 
+  defp get_thing_with(state, call, query_params \\ %{}, header_params \\ %{}) do
+    {{moduleName}}.Api.BaseApi.invoke_api(
+      state, :get, "/things", query_params, header_params, nil, ["application/json"], "application/json", nil, nil, call
+    )
+  end
+
+  test "a per-call max_retries replaces the transport's for that call only" do
+    state = retry_state([{500, [{"retry-after", "0"}]}])
+
+    assert {:error, _} = get_thing_with(state, max_retries: 0)
+    assert length(attempts()) == 1
+
+    assert {:error, _} = get_thing_with(state, max_retries: 3)
+    assert length(attempts()) == 4
+
+    assert {:error, _} = get_thing(state)
+    assert length(attempts()) == 3
+
+    no_retries = retry_state([{503, [{"retry-after", "0"}]}], max_retries: 0)
+
+    assert {:error, _} = get_thing_with(no_retries, max_retries: 1)
+    assert length(attempts()) == 2
+  end
+
+  test "per-call headers are sent, replace a header of the same name in any casing and leave the next call alone" do
+    state = retry_state([200])
+
+    assert {:ok, _} = get_thing_with(state, [headers: %{"X-Trace" => "call", "X-Other" => "1"}], %{}, %{"x-trace" => "op"})
+
+    [request] = attempts()
+    assert Req.Request.get_header(request, "x-trace") == ["call"]
+    assert Req.Request.get_header(request, "x-other") == ["1"]
+
+    assert {:ok, _} = get_thing(state)
+
+    [request] = attempts()
+    assert Req.Request.get_header(request, "x-other") == []
+  end
+
+  test "a per-call timeout bounds that call and a Retry-After past it is not waited for" do
+    state = retry_state([{503, [{"retry-after", "5"}]}, 200])
+    started = System.monotonic_time(:millisecond)
+
+    assert {:error, %{{moduleName}}.Errors.ServerError{}} = get_thing_with(state, timeout: 300)
+    assert length(attempts()) == 1
+    assert System.monotonic_time(:millisecond) - started < 1_000
+  end
+
+  test "call_settings reads the options struct, lets opts win and leaves nil out" do
+    options = %{timeout: 5, headers: %{"a" => "1"}, max_retries: nil, other: 1}
+
+    assert Enum.sort({{moduleName}}.Api.BaseApi.call_settings(options, timeout: 9)) ==
+             [headers: %{"a" => "1"}, timeout: 9]
+
+    assert {{moduleName}}.Api.BaseApi.call_settings(nil, []) == []
+    assert {{moduleName}}.Api.BaseApi.call_settings(nil, headers: [{:"x-a", 1}]) == [headers: %{"x-a" => "1"}]
+  end
+
+  test "call_settings rejects an invalid timeout, max_retries or headers" do
+    for {opts, message} <- [
+          {[timeout: 0], "Invalid timeout: must be a positive number of milliseconds (got 0)"},
+          {[timeout: 1.5], "Invalid timeout: must be a positive number of milliseconds (got 1.5)"},
+          {[max_retries: -1], "Invalid max_retries: must be a non-negative integer (got -1)"},
+          {[headers: "x"], ~s(Invalid headers: must be a map of header names to values (got "x"))},
+          {[headers: [:a]], "Invalid headers: must be a map of header names to values (got [:a])"}
+        ] do
+      err = assert_raise ArgumentError, fn -> {{moduleName}}.Api.BaseApi.call_settings(nil, opts) end
+      assert err.message == message
+    end
+  end
+
+  test "an error response names the request, without its query string" do
+    state = retry_state([404])
+
+    assert {:error, %{{moduleName}}.Errors.NotFoundError{} = error} =
+             get_thing_with(state, [], [{"key", "abc123"}])
+
+    assert error.request_method == "GET"
+    assert error.request_path == "/things"
+    assert Exception.message(error) =~ "\nRequest: GET /things"
+    refute Exception.message(error) =~ "abc123"
+  end
+
+  test "an error without a response names the request too" do
+    state = retry_state([{:transport_error, :econnrefused}], max_retries: 0)
+
+    assert {:error, %{{moduleName}}.Errors.NetworkError{} = error} = get_thing(state)
+    assert error.request_method == "GET"
+    assert error.request_path == "/things"
+  end
+
+  # ---------------------------------------------------------------------------
+  # Several 2xx responses: the body is decoded by the status that arrived
+  # ---------------------------------------------------------------------------
+
+  defmodule TwoSuccessApiClient do
+    # A module-style api_client: BaseApi calls send_request/4 on it directly.
+    def send_request(_method, _url, _headers, _body) do
+      {status, body} = Process.get(:two_success_answer)
+
+      %{{moduleName}}.ApiHttpResponse{
+        status_code: status,
+        body: body,
+        headers: %{"Content-Type" => "application/json"}
+      }
+    end
+  end
+
+  defp decode_as(return_type, status) do
+    Process.put(:two_success_answer, {status, ~s({"id":1,"name":"x"})})
+    state = %{config: {{moduleName}}.Configuration.new(base_url: "http://localhost"), api_client: TwoSuccessApiClient}
+
+    {{moduleName}}.Api.BaseApi.invoke_api(
+      state, :post, "/things", %{}, %{}, nil, ["application/json"], "application/json", return_type
+    )
+  end
+
+  test "several 2xx responses decode as the type of the status that arrived" do
+    return_type = {"Tag", [{"200", "Category"}, {"201", "Tag"}, {"2XX", "Category"}]}
+
+    assert {:ok, %{{moduleName}}.Models.Category{id: 1, name: "x"}} = decode_as(return_type, 200)
+    assert {:ok, %{{moduleName}}.Models.Tag{id: 1, name: "x"}} = decode_as(return_type, 201)
+    assert {:ok, %{{moduleName}}.Models.Category{id: 1, name: "x"}} = decode_as(return_type, 202)
+  end
+
+  test "a 2xx that no row names decodes as the union" do
+    return_type = {"Tag", [{"200", "Category"}]}
+
+    assert {:ok, %{{moduleName}}.Models.Category{}} = decode_as(return_type, 200)
+    assert {:ok, %{{moduleName}}.Models.Tag{}} = decode_as(return_type, 201)
+  end
+
   test "the retry policy: statuses, backoff and Retry-After" do
     for status <- [408, 409, 429, 500, 502, 503, 599] do
       assert {{moduleName}}.Api.BaseApi.retryable_status?(status)

@@ -22,7 +22,14 @@ class GenerateElixirClientTest {
   void generate() throws IOException {
     ClientGenerator.generateClient(
         "elixir-plus",
-        Map.of("packageName", "petstore_client", "moduleName", "PetstoreClient"),
+        Map.of(
+            "packageName", "petstore_client",
+            "moduleName", "PetstoreClient",
+            "repositoryUrl", "https://example.com/acme/petstore-client",
+            "homepageUrl", "https://example.com/petstore",
+            "documentationUrl", "https://example.com/petstore/docs",
+            "issueTrackerUrl", "https://example.com/acme/petstore-client/issues",
+            "authors", "Ada Lovelace, Grace Hopper"),
         OUTPUT_DIR);
   }
 
@@ -117,6 +124,81 @@ class GenerateElixirClientTest {
         // The deprecation must annotate the `status` field, and the type must be
         // unchanged (allowEmptyValue:true => still a plain String.t() | nil).
         .contains("status: String.t() | nil");
+  }
+
+  /**
+   * F894: the repository, homepage, documentation and issue-tracker URLs and the authors reach
+   * the Hex manifest, the docs URLs and the README.
+   */
+  @Test
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void manifestOptionsReachTheMixProjectAndTheReadme() throws IOException {
+    final String mix = Files.readString(OUTPUT_DIR.resolve("mix.exs"));
+    assertThat(mix)
+        .contains("source_url: \"https://example.com/acme/petstore-client\"")
+        .contains("homepage_url: \"https://example.com/petstore\"")
+        .contains("maintainers: [\"Ada Lovelace\", \"Grace Hopper\"]")
+        .contains("\"Repository\" => \"https://example.com/acme/petstore-client\"")
+        .contains("\"Homepage\" => \"https://example.com/petstore\"")
+        .contains("\"Documentation\" => \"https://example.com/petstore/docs\"")
+        .contains("\"Issues\" => \"https://example.com/acme/petstore-client/issues\"");
+
+    final String readme = Files.readString(OUTPUT_DIR.resolve("README.md"));
+    assertThat(readme)
+        .contains("- Authors: Ada Lovelace, Grace Hopper")
+        .contains("- Repository: <https://example.com/acme/petstore-client>")
+        .contains("- Homepage: <https://example.com/petstore>")
+        .contains("- Documentation: <https://example.com/petstore/docs>")
+        .contains("- Issue tracker: <https://example.com/acme/petstore-client/issues>");
+  }
+
+  /**
+   * S8 (F1154): the server of an operation that declares one travels in the trailing {@code
+   * opts} keyword list next to the per-call settings, after the options struct, so adding a
+   * server never moves a positional argument.
+   */
+  @Test
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void theServerTravelsInTheTrailingOptsAfterTheOptionsStruct() throws IOException {
+    final String petApi = Files.readString(OUTPUT_DIR.resolve("lib/petstore_client/api/pet_api.ex"));
+    assertThat(petApi)
+        .contains("Keyword.validate!(opts, [:timeout, :headers, :max_retries, :server])")
+        .doesNotContain(", server \\\\ nil")
+        .doesNotContain("%__MODULE__{} = api, server");
+  }
+
+  /**
+   * F827: every per-operation options struct carries the per-call timeout, headers and
+   * max_retries next to its parameters.
+   */
+  @Test
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void everyOptionsStructCarriesThePerCallSettings() throws IOException {
+    final Path dir = OUTPUT_DIR.resolve("lib/petstore_client/api/options");
+    try (Stream<Path> files = Files.list(dir)) {
+      final java.util.List<Path> all =
+          files.filter(p -> p.toString().endsWith(".ex")).collect(java.util.stream.Collectors.toList());
+      assertThat(all).isNotEmpty();
+      for (final Path file : all) {
+        assertThat(Files.readString(file))
+            .as(file.getFileName().toString())
+            .contains("timeout: pos_integer() | nil")
+            .contains("headers: %{optional(String.t()) => String.t()} | nil")
+            .contains("max_retries: non_neg_integer() | nil");
+      }
+    }
+  }
+
+  /** F1062: an operation with several 2xx schemas passes the status table to the decoder. */
+  @Test
+  @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ)
+  void severalSuccessResponsesDecodeByStatus() throws IOException {
+    final String storeApi =
+        Files.readString(OUTPUT_DIR.resolve("lib/petstore_client/api/store_api.ex"));
+    assertThat(storeApi)
+        .contains(
+            "{\"ReserveStockResponse\", [{\"200\", \"Reservation\"}, {\"201\","
+                + " \"ReservationReceipt\"}]}");
   }
 
   /** Returns the {@code %__MODULE__{...}} typespec block so field assertions ignore prose. */

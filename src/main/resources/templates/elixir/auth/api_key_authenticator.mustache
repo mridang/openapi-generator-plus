@@ -11,7 +11,7 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticator do
   @type t :: %__MODULE__{
           host: String.t(),
           key_param_name: String.t(),
-          api_key: String.t(),
+          api_key: String.t() | (-> String.t()),
           location: atom()
         }
 
@@ -33,12 +33,26 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticator do
 
     * `host` - API base URL.
     * `key_param_name` - The name of the header, query parameter, or cookie carrying the key.
-    * `api_key` - The API key value.
+    * `api_key` - The API key value. `nil` reads it from the environment variable
+      `{{envPrefix}}_API_KEY`. A zero-argument function is called for every request
+      and returns the key, so a key that rotates is always read fresh.
     * `location` - Where the API key is sent on each request: `:header`, `:query`, or `:cookie`.
 
   """
-  @spec new(String.t(), String.t(), String.t(), atom()) :: t()
+  @spec new(String.t(), String.t(), String.t() | nil | (-> String.t()), atom()) :: t()
   def new(host, key_param_name, api_key, location) do
+    api_key = {{moduleName}}.Auth.BaseAuthenticator.credential(api_key, "API_KEY")
+    if not is_function(api_key, 0), do: validate_key!(api_key, key_param_name, location)
+
+    %__MODULE__{
+      host: host,
+      key_param_name: key_param_name,
+      api_key: api_key,
+      location: location
+    }
+  end
+
+  defp validate_key!(api_key, key_param_name, location) do
     # Validation applies to ALL locations: empty/whitespace API keys are
     # always a programmer error; CR/LF/NUL would either inject HTTP headers
     # (header location) or break URL/cookie construction (query/cookie - even
@@ -60,34 +74,34 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticator do
             "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
     end
 
-    %__MODULE__{
-      host: host,
-      key_param_name: key_param_name,
-      api_key: api_key,
-      location: location
-    }
+    api_key
   end
+
+  defp current_key(%__MODULE__{api_key: provider} = self) when is_function(provider, 0),
+    do: validate_key!(provider.(), self.key_param_name, self.location)
+
+  defp current_key(%__MODULE__{api_key: api_key}), do: api_key
 
   @impl true
   def host(%__MODULE__{} = self), do: self.host
 
   @impl true
   def auth_headers(%__MODULE__{location: :header} = self) do
-    %{self.key_param_name => self.api_key}
+    %{self.key_param_name => current_key(self)}
   end
 
   def auth_headers(_self), do: %{}
 
   @impl true
   def query_params(%__MODULE__{location: :query} = self) do
-    %{self.key_param_name => self.api_key}
+    %{self.key_param_name => current_key(self)}
   end
 
   def query_params(_self), do: %{}
 
   @impl true
   def cookie_params(%__MODULE__{location: :cookie} = self) do
-    %{self.key_param_name => self.api_key}
+    %{self.key_param_name => current_key(self)}
   end
 
   def cookie_params(_self), do: %{}

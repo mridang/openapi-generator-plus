@@ -10,6 +10,12 @@ defmodule {{moduleName}}.MixProject do
       deps: deps(),
       package: package(),
       docs: docs(),
+{{#repositoryUrlLiteral}}
+      source_url: {{{.}}},
+{{/repositoryUrlLiteral}}
+{{#homepageUrlLiteral}}
+      homepage_url: {{{.}}},
+{{/homepageUrlLiteral}}
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
         plt_add_apps: [:mix, :ex_unit],
@@ -42,7 +48,9 @@ defmodule {{moduleName}}.MixProject do
   defp package do
     [
       description: {{#lambda.quotedLiteral}}{{#appDescription}}{{#lambda.elixirRawText}}{{#lambda.unescapeDocComment}}{{{appDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.elixirRawText}}{{/appDescription}}{{^appDescription}}{{appNameBase}} Elixir SDK{{/appDescription}}{{/lambda.quotedLiteral}},
-      licenses: ["{{licenseId}}"]
+      licenses: ["{{licenseId}}"]{{#hasAuthors}},
+      maintainers: [{{#authorList}}{{{literal}}}{{^-last}}, {{/-last}}{{/authorList}}]{{/hasAuthors}}{{#hasPackageLinks}},
+      links: {{{packageLinksLiteral}}}{{/hasPackageLinks}}
     ]
   end
 

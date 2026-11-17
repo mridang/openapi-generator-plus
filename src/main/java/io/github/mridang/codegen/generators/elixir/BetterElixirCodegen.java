@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -129,6 +130,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                 CodegenConstants.MODULE_NAME_DESC));
         cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
                 "Version of the generated Elixir package (default: 1.0.0).").defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString("repositoryUrl",
+                "Source repository of the package, written to the Hex links and the docs source URL."));
+        cliOptions.add(CliOption.newString("homepageUrl",
+                "Home page of the package, written to the Hex links and the docs home page."));
+        cliOptions.add(CliOption.newString("authors",
+                "Comma-separated names of the package authors, written to the Hex maintainers."));
+        cliOptions.add(CliOption.newString("documentationUrl",
+                "Where the package is documented, written to the Hex links."));
+        cliOptions.add(CliOption.newString("issueTrackerUrl",
+                "Where issues are reported, written to the Hex links."));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
@@ -366,6 +377,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         additionalProperties.put("moduleName", moduleName);
         additionalProperties.put(
                 "userAgentDefault", packageName + "/" + packageVersion + " (elixir)");
+        additionalProperties.put(
+                "envPrefix",
+                errorPrefixSnake().toUpperCase(Locale.ROOT));
+        putManifestProperties();
 
         final String libDir = Path.of("lib", packageName).toString();
 
@@ -471,6 +486,67 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test",
                             "composed_schema_test.exs"));
         }
+    }
+
+    /**
+     * Derives the manifest values the templates read from the {@code authors},
+     * {@code repositoryUrl}, {@code homepageUrl}, {@code documentationUrl} and
+     * {@code issueTrackerUrl} options: the author list (each name as text and as
+     * an Elixir literal), the Hex {@code links} map literal and the two docs
+     * URLs. Every spec value is written through {@link #toElixirStringLiteral}.
+     */
+    private void putManifestProperties() {
+        final List<String> names = new ArrayList<>();
+        final Object authors = additionalProperties.get("authors");
+        if (authors instanceof Collection) {
+            for (final Object author : (Collection<?>) authors) {
+                names.add(String.valueOf(author));
+            }
+        } else if (authors != null) {
+            names.addAll(Arrays.asList(String.valueOf(authors).split(",")));
+        }
+        final List<Map<String, String>> authorList = new ArrayList<>();
+        for (final String name : names) {
+            final String trimmed = name.trim();
+            if (!trimmed.isEmpty()) {
+                final Map<String, String> author = new HashMap<>();
+                author.put("text", trimmed);
+                author.put("literal", toElixirStringLiteral(trimmed));
+                authorList.add(author);
+            }
+        }
+        additionalProperties.put("authorList", authorList);
+        additionalProperties.put("hasAuthors", !authorList.isEmpty());
+
+        final List<String> links = new ArrayList<>();
+        addManifestLink(links, "Repository", "repositoryUrl");
+        addManifestLink(links, "Homepage", "homepageUrl");
+        addManifestLink(links, "Documentation", "documentationUrl");
+        addManifestLink(links, "Issues", "issueTrackerUrl");
+        additionalProperties.put("hasPackageLinks", !links.isEmpty());
+        additionalProperties.put("packageLinksLiteral", "%{" + String.join(", ", links) + "}");
+        for (final String option : new String[] {"repositoryUrl", "homepageUrl"}) {
+            final String literal = manifestUrlLiteral(option);
+            if (literal != null) {
+                additionalProperties.put(option + "Literal", literal);
+            }
+        }
+    }
+
+    private void addManifestLink(final List<String> links, final String label, final String option) {
+        final String url = manifestUrlLiteral(option);
+        if (url != null) {
+            links.add(toElixirStringLiteral(label) + " => " + url);
+        }
+    }
+
+    @Nullable
+    private String manifestUrlLiteral(final String option) {
+        final Object value = additionalProperties.get(option);
+        if (value == null || String.valueOf(value).trim().isEmpty()) {
+            return null;
+        }
+        return toElixirStringLiteral(String.valueOf(value).trim());
     }
 
     /**
@@ -599,10 +675,13 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
      */
     static List<Map<String, Object>> toExampleDocs(CodegenParameter p) {
         final List<Map<String, Object>> docs = new ArrayList<>();
-        if (p.vendorExtensions == null) {
-            return docs;
+        /* The options files are written before the shared pass copies the examples
+           into the vendor extensions, so the examples are read from the parameter
+           itself when that copy is not there yet. */
+        Object plural = p.vendorExtensions == null ? null : p.vendorExtensions.get("pluralExamples");
+        if (!(plural instanceof List) && p.examples != null && !p.examples.isEmpty()) {
+            plural = buildPluralExamplesList(p.examples);
         }
-        final Object plural = p.vendorExtensions.get("pluralExamples");
         if (!(plural instanceof List)) {
             return docs;
         }
@@ -868,7 +947,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         return Set.of(
                 "api", "opts", "options", "auth", "path", "query_params", "header_params",
                 "request_body", "cookie_parts", "declared_content_types", "server",
-                "server_module", "server_url");
+                "server_module", "server_url", "call", "timeout", "headers", "max_retries");
     }
 
     /** {@inheritDoc} */

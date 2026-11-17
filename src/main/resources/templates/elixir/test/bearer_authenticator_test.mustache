@@ -76,6 +76,58 @@ defmodule {{moduleName}}.Auth.BearerAuthenticatorTest do
       assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer Bearer xyz"
     end
 
+    test "a nil token is read once from the environment and a passed token wins" do
+      name = "{{envPrefix}}_TOKEN"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", nil)
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer from-env"
+
+      System.put_env(name, "changed")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer from-env"
+
+      explicit = BearerAuthenticator.new("https://api.example.com", "xyz")
+      assert BearerAuthenticator.auth_headers(explicit)["Authorization"] == "Bearer xyz"
+    end
+
+    test "an empty or absent environment variable fails when the authenticator is built" do
+      name = "{{envPrefix}}_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      message = "Missing the credential 'token': pass it, or set the environment variable #{name}"
+
+      System.put_env(name, "")
+
+      assert_raise ArgumentError, message, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+
+      System.delete_env(name)
+
+      assert_raise ArgumentError, message, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "a zero-argument function supplies the token for every request" do
+      {:ok, counter} = Agent.start_link(fn -> 0 end)
+
+      provider = fn -> "t" <> Integer.to_string(Agent.get_and_update(counter, fn n -> {n + 1, n + 1} end)) end
+      auth = BearerAuthenticator.new("https://api.example.com", provider)
+
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer t1"
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer t2"
+      refute inspect(auth) =~ "#Function"
+    end
+
+    test "a token the function returns is checked like a passed one" do
+      auth = BearerAuthenticator.new("https://api.example.com", fn -> "" end)
+
+      assert_raise ArgumentError, ~r/Bearer token must not be empty/, fn ->
+        BearerAuthenticator.auth_headers(auth)
+      end
+    end
+
     # authenticator-secret-in-default-string-repr: the token must never
     # appear in the authenticator's default Inspect representation.
     test "default inspect/1 redacts the token but keeps the host" do
