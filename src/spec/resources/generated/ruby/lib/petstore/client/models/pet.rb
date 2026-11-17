@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and <tt>#{x}.</tt>
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -168,7 +168,7 @@ module Petstore::Client
       # @example /assets/thumb-fido.png
       attribute :thumbnail_ref, Types::Any.optional.meta(omittable: true)
       # RFC 6570 template for related-resource links
-      # @example https://example.com/pets/{id}/photos{?size}
+      # @example <tt>https://example.com/pets/{id}/photos{?size}</tt>
       attribute :link_template, Types::Any.optional.meta(omittable: true)
       # Contact email for the pet's owner
       # @example owner@example.com

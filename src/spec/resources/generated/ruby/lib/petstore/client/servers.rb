@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and <tt>#{x}.</tt>
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -53,7 +53,7 @@ module Petstore::Client
 
     # Server 2: +https://{tenant}.example.com/api+
     #
-    # Bob's "sandbox" & co: $5 #{x} a*/b
+    # Bob's "sandbox" & co: $5 <tt>#{x}</tt> a*/b
     SERVER_2 = ServerConfiguration.new(
       url_template: 'https://{tenant}.example.com/api',
       description: 'Bob\'s "sandbox" & co: $5 #{x} a*/b',

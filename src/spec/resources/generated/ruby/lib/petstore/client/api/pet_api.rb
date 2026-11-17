@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and <tt>#{x}.</tt>
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -168,7 +168,7 @@ module Petstore::Client
     end
 
     # PetApi provides methods for the Pet API group.
-    # Everything about your Pets (globs like /pets/* and /pets/**/ and an id of #{petId})
+    # Everything about your Pets (globs like /pets/* and /pets/**/ and an id of <tt>#{petId})</tt>
     # @see https://example.com/docs/pets Find out more about pets (it's */ here) on two lines
     class PetApi < BaseApi
       def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil,
@@ -1034,7 +1034,7 @@ module Petstore::Client
       end
 
       # Get a <plain> "text" summary & it's short
-      # Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done
+      # Returns '''plain''' text for <tt>/pets/#{id}</tt> and <b> & "c" it's done
       # @param pet_id [Integer]
       # @param as_of [Date] Summary date, sent as a matrix-style path segment
       # @param options [GetPetSummaryOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters

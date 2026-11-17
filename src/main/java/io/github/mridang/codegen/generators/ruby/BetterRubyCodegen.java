@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
@@ -1025,11 +1026,33 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                         (fragment, writer) -> writer.write(escapeSingleQuoted(fragment.execute())))
                 .put(
                         "rubyComment",
-                        (fragment, writer) -> writer.write(fragment.execute().replaceAll("\\s*[\\r\\n]+\\s*", " ").trim()))
+                        (fragment, writer) ->
+                                writer.write(
+                                        escapeYardLinkBraces(
+                                                fragment
+                                                        .execute()
+                                                        .replaceAll("\\s*[\\r\\n]+\\s*", " ")
+                                                        .trim())))
                 .put(
                         "rubyDocComment",
-                        (fragment, writer) -> writer.write(unescapeSingleQuoted(fragment.execute())));
+                        (fragment, writer) ->
+                                writer.write(
+                                        escapeYardLinkBraces(
+                                                unescapeSingleQuoted(fragment.execute()))));
     }
+
+    /**
+     * Sets every word of a doc comment that contains a brace in code font. YARD reads {@code {name}}
+     * as a link and fails {@code --fail-on-warning} when it cannot resolve the name, which happens for
+     * a placeholder such as {@code #{petId}} in a description. Character references do not help:
+     * YARD decodes them before it looks for links. Code font keeps the braces as written.
+     */
+    static String escapeYardLinkBraces(String input) {
+        return BRACED_WORD.matcher(input)
+                .replaceAll(match -> Matcher.quoteReplacement("<tt>" + match.group() + "</tt>"));
+    }
+
+    private static final Pattern BRACED_WORD = Pattern.compile("\\S*[{}]\\S*");
 
     /**
      * Reverses {@link #escapeSingleQuoted} for text that {@link #escapeText}
