@@ -2214,11 +2214,9 @@ describe 'DefaultApiClientUnit' do
     _(envs.length).must_equal 1
     _(delays).must_be_empty
   end
-end
 
-# The SDK follows redirects itself (so credentials can be stripped per origin),
-# so it must not depend on, or load, Faraday's own redirect middleware.
-describe 'DefaultApiClientUnit', 'redirect dependencies' do
+  # The SDK follows redirects itself (so credentials can be stripped per origin),
+  # so it must not depend on, or load, Faraday's own redirect middleware.
   it 'bhv_redirects_017 does not load the Faraday follow_redirects middleware' do
     _($LOADED_FEATURES.grep(%r{faraday/follow_redirects})).must_be_empty
   end
