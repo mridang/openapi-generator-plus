@@ -70,6 +70,16 @@ class TransportOptions private constructor(
     val maxRetries: Int,
 ) {
     companion object {
+        /* The proxy URL with any user-info replaced by `***@`, so an error message or a string
+         * form never carries the proxy credentials (D79). */
+        internal fun maskUserInfo(url: String): String {
+            val schemeEnd = url.indexOf("://")
+            val start = if (schemeEnd == -1) 0 else schemeEnd + 3
+            val authorityEnd = url.indexOfAny(charArrayOf('/', '?', '#'), start).let { if (it == -1) url.length else it }
+            val at = url.lastIndexOf('@', authorityEnd - 1)
+            return if (at <= start) url else url.substring(0, start) + "***@" + url.substring(at + 1)
+        }
+
         /**
          * Create a new builder for constructing [TransportOptions] instances.
          *
@@ -231,16 +241,6 @@ class TransportOptions private constructor(
             this.maxRetries = maxRetries
         }
 
-        /* The proxy URL with any user-info replaced by `***@`, so an error message never carries
-         * the proxy credentials (D79). */
-        private fun maskUserInfo(url: String): String {
-            val schemeEnd = url.indexOf("://")
-            val start = if (schemeEnd == -1) 0 else schemeEnd + 3
-            val authorityEnd = url.indexOfAny(charArrayOf('/', '?', '#'), start).let { if (it == -1) url.length else it }
-            val at = url.lastIndexOf('@', authorityEnd - 1)
-            return if (at <= start) url else url.substring(0, start) + "***@" + url.substring(at + 1)
-        }
-
         private fun canonicalProxy(proxy: String?): String? {
             if (proxy == null) {
                 return null
@@ -307,5 +307,22 @@ class TransportOptions private constructor(
                 maxRetries,
             )
         }
+    }
+
+    /**
+     * A redacted string form: the proxy password is replaced by `***` and a default header
+     * that carries a credential (see [DefaultApiClient.isSensitiveHeader]) prints as `***`
+     * (S15, D73, D79). The HTTP client is not printed.
+     *
+     * @return the string form with the credentials masked
+     */
+    override fun toString(): String {
+        val headers = defaultHeaders.entries.joinToString(", ", "{", "}") { (name, value) ->
+            "$name=" + if (DefaultApiClient.isSensitiveHeader(name)) "***" else value
+        }
+        return "TransportOptions(verifySsl=$verifySsl, caCertPath=$caCertPath, " +
+            "proxy=${proxy?.let { maskUserInfo(it) }}, timeout=$timeout, " +
+            "followRedirects=$followRedirects, maxRedirects=$maxRedirects, userAgent=$userAgent, " +
+            "defaultHeaders=$headers, injectRequestId=$injectRequestId, maxRetries=$maxRetries)"
     }
 }

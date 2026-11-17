@@ -111,7 +111,18 @@ class ServerConfigurationTest {
     }
 
     @Test
-    @DisplayName("getUrl applies a free-form variable with no enum constraint")
+    @DisplayName("bhvServers007 getUrl leaves an unknown placeholder in the template untouched")
+    fun getUrlLeavesAnUnknownPlaceholderUntouched() {
+        val server = ServerConfiguration(
+            "https://{tenant}.example.com/{unknown}",
+            null,
+            mapOf("tenant" to ServerVariable("acme", null, emptyList()))
+        )
+        assertEquals("https://acme.example.com/{unknown}", server.getUrl())
+    }
+
+    @Test
+    @DisplayName("bhvServers014 bhvServers016 getUrl applies a free-form variable with no enum constraint")
     fun getUrlAcceptsUnconstrainedVariable() {
         val server = ServerConfiguration(
             "https://{tenant}.example.com",
