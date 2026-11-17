@@ -994,3 +994,46 @@ unions023 | SetPetAvatarThumbnail byte oneOf round-trips through base64
 unions024 | Throws when discriminator value is empty
 unions025 | TreatmentRecord tries variants in declaration order
 unions026 | Unknown discriminator error names the offending value
+options044 | README names the builder setter that rejects a SOCKS proxy
+serializationwire053 | #1 array form field emits repeated keys
+retries026 | Waits for a Retry-After given in seconds
+authapikey018 | Rejects CR in a header key at construction
+authoauthtwoimplicit014 | Rejects a non-ASCII access token with the RFC 7230 message
+operations125 | Raises ArgumentError when the required query param category is nil
+errors044 | Every error lives in src/errors and the package root exports it
+serializationparam104 | EncodeContentCookie keeps only the unreserved set literal
+config017 | Configuration is immutable
+retries027 | Backoff doubles from half a second to eight seconds with quarter jitter
+serializationobject182 | Unknown enum value on deserialize throws
+serializationobject183 | Handles null
+authbasic012 | An empty variable counts as unset
+authoauthtwotokenmgr041 | A non-JSON 2xx token body is not echoed into the error message
+operations126 | Place order without an argument sends no body
+authapikey019 | Wrappers reject an empty key at construction
+authapikey020 | Every API-key wrapper validates eagerly and redacts the key
+serializationwire054 | Decodes a little-endian BOM utf-16 body as little-endian
+retries028 | Cancelling the caller during the wait stops the retrying
+headers027 | Returns empty string for empty accept array
+models012 | ToString dumps the fields and the additionalProperties map
+authoauthtwopassword020 | Without a refreshUrl the refresh grant also goes to tokenUrl
+errors045 | The OAuth2 errors are rooted at the branded base, not at ApiError
+errors046 | Oauth2 server exception message has three forms
+serializationobject184 | Iso8601 duration string rejected
+serializationobject185 | Deserialize: canonical padded base64 is accepted
+serializationobject186 | Request JSON escapes only the quote, the backslash and controls
+lifecycle024 | A supplied psr18 client conflicts with sdk proxy and tls settings
+errors047 | Name is ApiError
+serializationobject187 | An explicit key wins over the environment
+errors048 | 418 throws ClientException
+authbasic013 | Explicit credentials win over the environment
+authbearer018 | An explicit token wins over the environment
+transport059 | Authenticating proxy refuses a request without credentials
+servers018 | EnumValues are exposed for validation
+servers019 | Enum does not contain a value outside the allowed set
+serializationparam105 | SerializeStyled form scalar
+serializationwire055 | #3 space in a form value encodes as plus
+lifecycle025 | Reads the environment once, when the authenticator is built
+serializationwire056 | Falls back to application/octet-stream when extension is unknown
+serializationparam106 | Path with null style behaves like simple
+authoidc029 | Concurrent callers on a cold authenticator share one discovery request
+retries029 | Falls back to the backoff when Retry-After is not understood
