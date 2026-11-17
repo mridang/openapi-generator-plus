@@ -532,7 +532,7 @@ import Testing
         #expect(client.seenAuthorization == ["Bearer t1", "Bearer t2"])
     }
 
-    @Test func testASecond401IsSurfacedWithoutAThirdAttempt() async throws {
+    @Test func testBhvRetries008ASecond401IsSurfacedWithoutAThirdAttempt() async throws {
         let client = ScriptedApiClient(statuses: [401, 401, 200])
         let auth = RotatingAuth()
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
@@ -542,6 +542,36 @@ import Testing
             _ = try await api.getPetById(petId: 1)
         }
         #expect(client.seenAuthorization.count == 2)
+    }
+
+    /* A bearer token is not one this SDK fetched, so a 401 is never replayed. */
+    @Test func testBhvRetries002ABearerAuthenticatorNeverReplays() async throws {
+        let client = ScriptedApiClient(statuses: [401, 200])
+        let auth = try BearerAuthenticator(host: "https://example.com", token: "static-token")
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+        await #expect(throws: UnauthorizedError.self) {
+            _ = try await api.getPetById(petId: 1)
+        }
+        #expect(client.seenAuthorization.count == 1)
+    }
+
+    /* A multipart body is held in memory but is never sent twice: after a 401 the
+     * token is dropped, and the 401 is surfaced without a replay. */
+    @Test func testBhvRetries006MultipartBodyIsNotReplayedAfter401() async throws {
+        let client = ScriptedApiClient(statuses: [401, 200])
+        let auth = RotatingAuth()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+        await #expect(throws: UnauthorizedError.self) {
+            _ = try await api.addPetPhotos(
+                petId: 1,
+                options: AddPetPhotosOptions(files: [Data("photo".utf8)], metadata: PhotoMetadata(caption: "test")))
+        }
+        #expect(auth.invalidations == 1)
+        #expect(client.seenAuthorization.count == 1)
     }
 
     // MARK: - Nil body
@@ -740,7 +770,7 @@ import Testing
 
     // MARK: - Query parameter serialization
 
-    @Test func testQueryParamSerialization() async throws {
+    @Test func testBhvSerializationwire002QueryParamSerialization() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "[]"
 
@@ -751,6 +781,19 @@ import Testing
         _ = try? await api.findPetsByStatus(options: options)
         #expect(mockClient.lastURL.contains("status=available"),
             "expected URL to contain status=available, got: \(mockClient.lastURL)")
+    }
+
+    /* An omitted optional query parameter is left out of the query string. */
+    @Test func testBhvSerializationwire010FindPetsByStatusOmittingStatusSendsNoStatusParam() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "[]"
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.findPetsByStatus(options: FindPetsByStatusOptions())
+        #expect(!mockClient.lastURL.contains("status="),
+            "expected no status= in URL, got: \(mockClient.lastURL)")
     }
 
     @Test func testBhvSerializationwire015QueryParamEmptyWhenNoOptions() async throws {
@@ -1007,6 +1050,49 @@ import Testing
             return
         }
         #expect([UInt8](decoded) == original, "binary roundtrip must preserve bytes exactly")
+    }
+
+    /* Every byte value survives the base64 round trip unchanged. */
+    @Test func testBhvSerializationwire017OctetStreamRoundTripsAllBytesExactly() async throws {
+        let original: [UInt8] = (0...255).map { UInt8($0) }
+        let mockClient = MockApiClient()
+        mockClient.responseBody = Data(original).base64EncodedString()
+        mockClient.responseHeaders = ["Content-Type": "application/octet-stream"]
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
+        guard let decoded = Data(base64Encoded: result.rawBody) else {
+            Issue.record("rawBody was not valid base64: \(result.rawBody)")
+            return
+        }
+        #expect([UInt8](decoded) == original, "every byte must round-trip exactly")
+    }
+
+    /* A text/plain answer is returned as the raw string, not parsed. */
+    @Test func testBhvSerializationwire019NonJsonResponseIsReturnedAsRawString() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "all quiet"
+        mockClient.responseHeaders = ["Content-Type": "text/plain"]
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let summary = try await api.getPetSummary(
+            petId: 5, asOf: "2024-01-15", options: GetPetSummaryOptions(session: "abc"))
+        #expect(summary == "all quiet")
+    }
+
+    /* A text/plain body that looks like JSON is not deserialized: it stays text. */
+    @Test func testBhvSerializationwire025NonJsonContentTypeSkipsDeserialization() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"ok\":true}"
+        mockClient.responseHeaders = ["Content-Type": "text/plain"]
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let summary = try await api.getPetSummary(
+            petId: 5, asOf: "2024-01-15", options: GetPetSummaryOptions(session: "abc"))
+        #expect(summary == "{\"ok\":true}")
     }
 
     @Test func testBhvOperations012ImagePngResponseDecodedAsBytes() async throws {
