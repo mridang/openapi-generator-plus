@@ -1416,12 +1416,12 @@ func TestNullResponseBody_ConvenienceReturnsEmptyBodyError(t *testing.T) {
 	}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 
-	_, orderErr := {{packageName}}.NewStoreApi(client, config, nil).GetOrderById(context.Background(), int64(1), {{packageName}}.Credentials{})
+	_, orderErr := {{packageName}}.NewStoreApi(client, config, nil, {{packageName}}.Credentials{}).GetOrderById(context.Background(), int64(1))
 	if orderErr == nil || !strings.Contains(orderErr.Error(), "expected a response body for GetOrderById but received none") {
 		t.Errorf("GetOrderById: expected the empty-body error, got %v", orderErr)
 	}
 
-	_, petErr := {{packageName}}.NewPetApi(client, config, nil).GetPetById(context.Background(), int64(1), nil, {{packageName}}.Credentials{})
+	_, petErr := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{}).GetPetById(context.Background(), int64(1), nil)
 	if petErr == nil || !strings.Contains(petErr.Error(), "expected a response body for GetPetById but received none") {
 		t.Errorf("GetPetById: expected the empty-body error, got %v", petErr)
 	}
@@ -1438,7 +1438,7 @@ func TestNullResponseBody_WithHTTPInfoReportsNilData(t *testing.T) {
 		responseContentType: "application/json",
 	}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
-	result, err := {{packageName}}.NewStoreApi(client, config, nil).GetOrderByIdWithHTTPInfo(context.Background(), int64(1), {{packageName}}.Credentials{})
+	result, err := {{packageName}}.NewStoreApi(client, config, nil, {{packageName}}.Credentials{}).GetOrderByIdWithHTTPInfo(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

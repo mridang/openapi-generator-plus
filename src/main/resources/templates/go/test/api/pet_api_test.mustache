@@ -1446,6 +1446,34 @@ func TestPetApi_AddPetUsesOnlyTheCredentialOfTheSchemeItRequires(t *testing.T) {
 	}
 }
 
+// F857: an API group built on its own takes the per-scheme credentials as its
+// last constructor argument, like the client hands them to its groups.
+func TestPetApi_NewPetApiTakesTheCredentialsOfEachScheme(t *testing.T) {
+	t.Parallel()
+	var gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	bearer, err := auth.NewPetStoreBearerAuthenticator(server.URL, "group-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, nil, {{packageName}}.Credentials{PetStoreBearer: bearer})
+
+	pet := models.NewPet("GroupDog", models.Set[string]{"http://example.com/g.jpg"})
+	if _, err := api.AddPet(context.Background(), *pet, nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if gotAuth != "Bearer group-token" {
+		t.Errorf("expected the credential passed to NewPetApi, got %q", gotAuth)
+	}
+}
+
 // F857: of the schemes an operation accepts, the first in spec order that has a
 // credential wins.
 func TestPetApi_AddPetPrefersTheFirstAcceptedSchemeInSpecOrder(t *testing.T) {
