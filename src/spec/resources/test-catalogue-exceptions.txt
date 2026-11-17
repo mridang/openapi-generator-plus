@@ -33,3 +33,4 @@ swift | serializationobject015 | Swift Set members have no insertion order (S6, 
 swift | serializationobject044 | format: date maps to String in Swift, so a date-only value is written as the string it holds and no Date is turned into a date-only form
 swift | serializationobject164 | format: time maps to String in Swift (testTimeFormatStaysAsString), so no Time value is formatted and the wire string passes through unchanged
 swift | operations111 | the typed trackingId is a Foundation UUID, so a malformed value cannot be passed to getOrderByTrackingId; a malformed wire value is refused by the decoder (bhv serializationobject048)
+swift | redirects017 | PSR-18 is a PHP client interface with no Swift counterpart; the follow-by-default behaviour it checks is covered by bhv redirects004
