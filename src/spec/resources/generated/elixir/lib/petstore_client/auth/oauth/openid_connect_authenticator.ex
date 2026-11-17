@@ -302,10 +302,14 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     # status before parsing keeps a 500-HTML / 404 body from surfacing as a
     # confusing "invalid JSON" error.
     if response.status_code < 200 or response.status_code >= 300 do
-      raise PetstoreClient.Errors.ApiError.from_response(
-              response.status_code,
-              response.headers,
-              response.body
+      raise PetstoreClient.Errors.ApiError.with_request(
+              PetstoreClient.Errors.ApiError.from_response(
+                response.status_code,
+                response.headers,
+                response.body
+              ),
+              :get,
+              self.openid_connect_url
             )
     end
 

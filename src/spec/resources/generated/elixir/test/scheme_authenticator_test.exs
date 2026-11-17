@@ -138,7 +138,7 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
         end
       end
 
-      test "an argument that is passed wins over its environment variable" do
+      test "bhv authscheme 009 an argument that is passed wins over its environment variable" do
         Enum.each(@vars, fn {arg, env} -> System.put_env(env, "from-env-" <> arg) end)
         [{first, _env} | rest] = @vars
 
@@ -149,6 +149,15 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
         for {arg, _env} <- rest do
           assert Map.fetch!(auth, String.to_atom(arg)) == "from-env-" <> arg
         end
+      end
+
+      test "bhv authscheme 010 an empty environment variable is treated as unset and fails naming the variable" do
+        [{_arg, env} | _] = @vars
+        System.put_env(env, "")
+
+        error = assert_raise ArgumentError, fn -> build(@module, [@host]) end
+
+        assert Exception.message(error) =~ env
       end
 
       test "bhv authscheme 002 explicit arguments need no environment" do

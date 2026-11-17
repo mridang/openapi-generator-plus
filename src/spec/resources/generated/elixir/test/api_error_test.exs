@@ -327,14 +327,14 @@ defmodule PetstoreClient.ApiErrorTest do
       assert Exception.message(err) == "Token request failed with status 502: Bad Gateway"
     end
 
-    test "names the error code" do
+    test "bhv errors 049 names the error code" do
       err =
         PetstoreClient.Errors.OAuth2ServerError.exception(status_code: 400, code: "invalid_grant")
 
       assert Exception.message(err) == "Token request failed with status 400: invalid_grant"
     end
 
-    test "names the error code and description" do
+    test "bhv authoauthtwotokenmgr 042 names the error code and description" do
       err =
         PetstoreClient.Errors.OAuth2ServerError.exception(
           status_code: 400,

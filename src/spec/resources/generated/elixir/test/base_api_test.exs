@@ -1940,7 +1940,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
-  test "configured api-key authenticator is applied to a secured operation" do
+  test "bhv authintegration 018 configured api-key authenticator is applied to a secured operation" do
     {:ok, name} = AuthAppliedCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
 
@@ -2185,6 +2185,63 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     refute String.contains?(url, "#"),
            "A raw hash would truncate the query as a fragment, got: #{url}"
+
+    Agent.stop(name)
+  end
+
+  test "bhv authintegration 019 an invalid auth cookie raises ArgumentError before any request is sent" do
+    {:ok, name} = UrlCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    auth = %TestAuthenticator{
+      host_url: "",
+      headers: %{},
+      query: %{},
+      cookies: %{"session" => "a;b"}
+    }
+
+    assert_raise ArgumentError, ~r/RFC 6265/, fn ->
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil,
+        auth
+      )
+    end
+
+    assert UrlCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "bhv serializationparam 107 query value keeps only the unreserved set literal and percent-encodes * ! ' ( )" do
+    {:ok, name} = UrlCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{"k*'" => "a~b*c!d'e(f)g"},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = UrlCapturingApiClient.captured_url(name)
+
+    assert String.ends_with?(url, "/test/echo?k%2A%27=a~b%2Ac%21d%27e%28f%29g"),
+           "Expected only the unreserved set literal in the query, got: #{url}"
 
     Agent.stop(name)
   end

@@ -265,10 +265,14 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator do
     # status before parsing keeps a 500-HTML / 404 body from surfacing as a
     # confusing "invalid JSON" error.
     if response.status_code < 200 or response.status_code >= 300 do
-      raise {{moduleName}}.Errors.ApiError.from_response(
-              response.status_code,
-              response.headers,
-              response.body
+      raise {{moduleName}}.Errors.ApiError.with_request(
+              {{moduleName}}.Errors.ApiError.from_response(
+                response.status_code,
+                response.headers,
+                response.body
+              ),
+              :get,
+              self.openid_connect_url
             )
     end
 
