@@ -31,6 +31,13 @@ interface ElixirSpec extends LanguageSpec, DockerImageSpec {
      * directory, which still holds the previous run's JUnit report; drop it so
      * no later spec copies it back. */
     return List.of(
+        /* The Elixir image is Alpine and ships without make, which the SDK's own
+         * Makefile targets (docs, test, lint) need. Installed once with the
+         * shared container at a pinned package version, with retries because
+         * the package mirror is flaky on CI runners. */
+        "for i in 1 2 3 4 5; do apk add --no-cache make=4.4.1-r4 && break;"
+            + " echo \"apk attempt $i failed; retrying\" >&2; sleep 3; done;"
+            + " command -v make > /dev/null || { echo \"make missing after retries\" >&2; exit 1; }",
         "find .out/reports -mindepth 1 -delete 2>/dev/null; true",
         "mix local.hex --force && mix local.rebar --force",
         "mix deps.get",
