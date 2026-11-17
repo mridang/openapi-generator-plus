@@ -116,7 +116,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       end
     end
 
-    test "set_access_token rejects a token that is not printable ASCII" do
+    test "bhv authoauthtwoimplicit 014 set_access_token rejects a token that is not printable ASCII" do
       auth = create_authenticator()
 
       for token <- ["tok\r\nX-Injected: 1", "tok\nX", "tok\rX", "tok\0X", "t\u00F6k", "tok\u007F"] do

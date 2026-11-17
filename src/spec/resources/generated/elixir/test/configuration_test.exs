@@ -40,6 +40,15 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.default_headers["X-Custom"] == "value"
   end
 
+  test "bhv config 017 configuration is immutable: an update returns a new value and leaves the original" do
+    config = PetstoreClient.Configuration.new(default_headers: %{"X-Key" => "value"})
+
+    updated = %{config | default_headers: Map.put(config.default_headers, "X-New", "other")}
+
+    assert config.default_headers == %{"X-Key" => "value"}
+    assert updated.default_headers == %{"X-Key" => "value", "X-New" => "other"}
+  end
+
   test "bhv config 012 builder sets multiple default headers" do
     config =
       PetstoreClient.Configuration.new(

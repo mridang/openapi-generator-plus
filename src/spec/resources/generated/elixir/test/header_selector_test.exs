@@ -63,6 +63,11 @@ defmodule PetstoreClient.HeaderSelectorTest do
       refute Map.has_key?(headers, "Accept")
     end
 
+    test "bhv headers 027 an empty accept list yields an accept value of empty string, so only Content-Type is set" do
+      headers = PetstoreClient.HeaderSelector.select_headers([], "application/json", false)
+      assert headers == %{"Content-Type" => "application/json"}
+    end
+
     test "bhv headers 005 does not set Accept header when accepts is nil" do
       headers = PetstoreClient.HeaderSelector.select_headers(nil, "application/json", false)
       refute Map.has_key?(headers, "Accept")

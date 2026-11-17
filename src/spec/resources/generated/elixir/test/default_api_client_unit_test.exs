@@ -972,7 +972,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
            )
   end
 
-  test "decode_text_body honours a little-endian BOM on a bare utf-16 label" do
+  test "bhv serializationwire 054 decode_text_body honours a little-endian BOM on a bare utf-16 label" do
     body = <<0xFF, 0xFE, 0x41, 0x00, 0x42, 0x00>>
 
     assert PetstoreClient.DefaultApiClient.decode_text_body(body, "text/plain; charset=utf-16") ==
