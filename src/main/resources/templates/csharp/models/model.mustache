@@ -29,9 +29,9 @@ public enum {{classname}}
 
 /// <summary>
 /// Serializes <see cref="{{classname}}"/> to and from its OpenAPI wire string
-/// values. This generated converter replaces the .NET 9+
-/// <c>[JsonStringEnumMemberName]</c> attribute so the client targets net8.0
-/// (LTS); unknown values throw a <see cref="JsonException"/>, matching the
+/// values. This generated converter replaces the
+/// <c>[JsonStringEnumMemberName]</c> attribute so wire values stay explicit;
+/// unknown values throw a <see cref="JsonException"/>, matching the
 /// strict behaviour of the framework string-enum converter.
 /// </summary>
 internal sealed class {{classname}}Converter : JsonConverter<{{classname}}>
@@ -139,7 +139,7 @@ public abstract record {{classname}}
 {{/discriminator}}
 {{^discriminator}}
 [JsonConverter(typeof({{classname}}Converter))]
-public class {{classname}}(object value) : IEquatable<{{classname}}>
+public class {{classname}}(object value) : IEquatable<{{classname}}>, global::{{packageName}}.IOneOfWrapper
 {
     /// <summary>The wrapped variant. The wrapper is immutable: to change it, build another one.</summary>
     public object? ActualInstance { get; } = value;
@@ -456,7 +456,7 @@ public record {{classname}}{{#parent}} : {{{.}}}{{#vendorExtensions.hasGuardedRe
 
     /// <summary>
     /// Serializes <see cref="{{enumName}}"/> to and from its OpenAPI wire string
-    /// values -- a net8.0-compatible replacement for the .NET 9+
+    /// values -- an explicit replacement for the
     /// <c>[JsonStringEnumMemberName]</c> attribute.
     /// </summary>
     private sealed class {{enumName}}Converter : JsonConverter<{{enumName}}>
@@ -697,7 +697,7 @@ public record {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 
     /// <summary>
     /// Serializes <see cref="{{enumName}}"/> to and from its OpenAPI wire string
-    /// values -- a net8.0-compatible replacement for the .NET 9+
+    /// values -- an explicit replacement for the
     /// <c>[JsonStringEnumMemberName]</c> attribute.
     /// </summary>
     private sealed class {{enumName}}Converter : JsonConverter<{{enumName}}>

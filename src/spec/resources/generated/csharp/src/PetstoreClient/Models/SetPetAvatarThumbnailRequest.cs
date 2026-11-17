@@ -12,7 +12,9 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 [JsonConverter(typeof(SetPetAvatarThumbnailRequestConverter))]
-public class SetPetAvatarThumbnailRequest(object value) : IEquatable<SetPetAvatarThumbnailRequest>
+public class SetPetAvatarThumbnailRequest(object value)
+    : IEquatable<SetPetAvatarThumbnailRequest>,
+        global::PetstoreClient.IOneOfWrapper
 {
     /// <summary>The wrapped variant. The wrapper is immutable: to change it, build another one.</summary>
     public object? ActualInstance { get; } = value;

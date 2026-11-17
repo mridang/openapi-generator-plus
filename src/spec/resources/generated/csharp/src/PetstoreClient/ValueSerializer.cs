@@ -161,7 +161,7 @@ internal static class ValueSerializer
     /// characters, non-ASCII — is still percent-encoded, so the result is always
     /// a valid URL query segment. Only the characters RFC 3986 section 3.4
     /// permits in a query, <c>: / ? @ ! $ &#38; ' ( ) * + , ; =</c>, are restored
-    /// after <see cref="Uri.EscapeDataString"/> over-encodes them; <c>#</c>,
+    /// after <see cref="Uri.EscapeDataString(string)"/> over-encodes them; <c>#</c>,
     /// <c>[</c> and <c>]</c> stay percent-encoded so a literal <c>#</c> can never
     /// start a fragment and truncate the query.
     /// </remarks>

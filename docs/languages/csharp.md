@@ -6,11 +6,11 @@ The C# generator (`csharp-plus`, class `BetterCSharpCodegen`) produces a NuGet p
 
 | What | Version | Where it comes from |
 |---|---|---|
-| Target framework | `net8.0` | `<TargetFramework>` in the generated `.csproj` |
-| C# language version | 12 | `<LangVersion>12</LangVersion>` |
-| .NET SDK for building | 8.0 or newer | the generated README |
+| Target framework | `net10.0` | `<TargetFramework>` in the generated `.csproj` |
+| C# language version | 14 | `<LangVersion>14</LangVersion>` |
+| .NET SDK for building | 10.0 or newer | the generated README |
 
-The floor is written once, in the project file above. The package's stated policy is that a runtime which reaches end of support is dropped from the supported set in a major release. By that policy the floor is already behind: the generator's notes record that .NET 8 left support on 2026-11-10, and that raising the floor to `net10.0` is an open owner decision. The `net8.0` floor is also the reason the enum converters are hand-written, because `JsonStringEnumMemberNameAttribute` needs .NET 9 or newer. Nothing has been changed.
+The floor is written once, in the project file above. The support policy is that the floor is the oldest .NET runtime still in security support, and a runtime that reaches end of support is dropped in a major release. .NET 10 is a long-term-support release, supported until November 2028; .NET 8 left support on 2026-11-10. The enum converters stay hand-written so wire values are explicit and unknown values throw.
 
 ## Type mapping
 
@@ -106,7 +106,6 @@ The model namespace is always `Models` and the API namespace is always `Api`; th
 
 These are proposals from a review of the type mapping against current .NET. None of them is decided, and none changes what the generator produces today.
 
-- Raise the floor from `net8.0` to `net10.0`, the oldest long-term-support release the review found still supported. That would let the hand-written enum converters be replaced by `JsonStringEnumConverter` with `JsonStringEnumMemberName`, and would allow a newer language version.
 - Map `type: integer` with no format to `long` (or `BigInteger`) instead of `int`, as one decision shared with Java and Kotlin.
 - Map free-form objects to `System.Text.Json.Nodes.JsonNode` or `JsonElement` instead of `object`.
 - Map `ipv4` and `ipv6` to `System.Net.IPAddress` with a custom converter, or keep `string` for parity with the other SDKs.

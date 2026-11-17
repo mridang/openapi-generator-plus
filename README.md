@@ -61,7 +61,7 @@ Each language has a page with its supported versions, type mapping, dependencies
 |---|---|---|---|---|
 | Java | `java-plus` | `petstore-client` (`artifactId`) | Java 21 | [docs/languages/java.md](docs/languages/java.md) |
 | Kotlin | `kotlin-plus` | `petstore-client` (`artifactId`) | Kotlin 2.2 on JVM 17 | [docs/languages/kotlin.md](docs/languages/kotlin.md) |
-| C# | `csharp-plus` | `PetstoreClient` (`packageName`) | .NET 8.0, C# 12 | [docs/languages/csharp.md](docs/languages/csharp.md) |
+| C# | `csharp-plus` | `PetstoreClient` (`packageName`) | .NET 10, C# 14 | [docs/languages/csharp.md](docs/languages/csharp.md) |
 | Node.js / TypeScript | `node-plus` | `petstore-client` (`npmName`) | Node.js 22 | [docs/languages/node.md](docs/languages/node.md) |
 | Python | `python-plus` | `petstore-client` (`projectName`) | Python 3.10 | [docs/languages/python.md](docs/languages/python.md) |
 | Ruby | `ruby-plus` | `petstore_client` (`gemName`) | Ruby 3.2 | [docs/languages/ruby.md](docs/languages/ruby.md) |

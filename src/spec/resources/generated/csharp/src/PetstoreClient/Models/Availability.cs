@@ -34,9 +34,9 @@ public enum Availability
 
 /// <summary>
 /// Serializes <see cref="Availability"/> to and from its OpenAPI wire string
-/// values. This generated converter replaces the .NET 9+
-/// <c>[JsonStringEnumMemberName]</c> attribute so the client targets net8.0
-/// (LTS); unknown values throw a <see cref="JsonException"/>, matching the
+/// values. This generated converter replaces the
+/// <c>[JsonStringEnumMemberName]</c> attribute so wire values stay explicit;
+/// unknown values throw a <see cref="JsonException"/>, matching the
 /// strict behaviour of the framework string-enum converter.
 /// </summary>
 internal sealed class AvailabilityConverter : JsonConverter<Availability>
