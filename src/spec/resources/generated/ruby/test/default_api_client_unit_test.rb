@@ -1051,6 +1051,122 @@ describe Petstore::Client::DefaultApiClient do
     client.close # must not raise
   end
 
+  # ── F1078: close is graceful ──
+  #
+  # Serves one request that answers only when +release+ is pushed to, so a test
+  # can close the client while the request is in flight.
+  def serve_when_released(release)
+    serve_once do |socket|
+      release.pop
+      socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n" \
+                   "Connection: close\r\n\r\n{}")
+    end
+  end
+
+  # Waits, for at most five seconds, until the block is true.
+  def wait_until
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 5
+    sleep 0.01 until yield || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+  end
+
+  # A client whose own connection records how often it is closed.
+  def client_counting_closes(closes)
+    client = Petstore::Client::DefaultApiClient.new(single_attempt)
+    client.define_singleton_method(:build_connection) do
+      built = super()
+      built.define_singleton_method(:close) { closes << true }
+      built
+    end
+    client
+  end
+
+  it 'lets a request in flight finish after close and releases the connection when it completes' do
+    release = Queue.new
+    port, thread = serve_when_released(release)
+    closes = [] # : Array[bool]
+    client = client_counting_closes(closes)
+    request = Thread.new { client.send_request('GET', "http://127.0.0.1:#{port}/slow", {}, nil) }
+    wait_until { client.instance_variable_get(:@in_flight) == 1 && client.instance_variable_get(:@connection) }
+
+    client.close
+
+    _(closes).must_be_empty
+    release << true
+    response = request.value
+    _(response.status_code).must_equal 200
+    _(closes.length).must_equal 1
+    thread.join
+  end
+
+  it 'refuses a request started after close while another is still in flight' do
+    release = Queue.new
+    port, thread = serve_when_released(release)
+    client = client_counting_closes([])
+    request = Thread.new { client.send_request('GET', "http://127.0.0.1:#{port}/slow", {}, nil) }
+    wait_until { client.instance_variable_get(:@in_flight) == 1 }
+    client.close
+
+    err = assert_raises(RuntimeError) { client.send_request('GET', 'http://127.0.0.1:1/late', {}, nil) }
+
+    _(err.message).must_equal 'ApiClient has been closed and can no longer send requests'
+    release << true
+    _(request.value.status_code).must_equal 200
+    thread.join
+  end
+
+  it 'a second close releases nothing more, in flight or not' do
+    release = Queue.new
+    port, thread = serve_when_released(release)
+    closes = [] # : Array[bool]
+    client = client_counting_closes(closes)
+    request = Thread.new { client.send_request('GET', "http://127.0.0.1:#{port}/slow", {}, nil) }
+    wait_until { client.instance_variable_get(:@in_flight) == 1 && client.instance_variable_get(:@connection) }
+
+    client.close
+    client.close
+    release << true
+    request.value
+    client.close
+    client.close
+
+    _(closes.length).must_equal 1
+    thread.join
+  end
+
+  it 'releases the connection at once when no request is in flight' do
+    port, thread = serve_once do |socket|
+      socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n" \
+                   "Connection: close\r\n\r\n{}")
+    end
+    closes = [] # : Array[bool]
+    client = client_counting_closes(closes)
+    client.send_request('GET', "http://127.0.0.1:#{port}/once", {}, nil)
+
+    client.close
+
+    _(closes.length).must_equal 1
+    thread.join
+  end
+
+  it 'never closes a caller-supplied connection, not even when the last request completes' do
+    release = Queue.new
+    port, thread = serve_when_released(release)
+    closes = [] # : Array[bool]
+    supplied = Faraday.new
+    supplied.define_singleton_method(:close) { closes << true }
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.connection(supplied).max_retries(0).build)
+    request = Thread.new { client.send_request('GET', "http://127.0.0.1:#{port}/slow", {}, nil) }
+    wait_until { client.instance_variable_get(:@in_flight) == 1 }
+
+    client.close
+    release << true
+    _(request.value.status_code).must_equal 200
+    client.close
+
+    _(closes).must_be_empty
+    thread.join
+  end
+
   it 'close is on the ApiClient contract, not just the default transport' do
     # A custom transport must be closable through the abstraction, so the
     # base class declares close with a no-op default.

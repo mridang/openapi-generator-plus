@@ -3235,55 +3235,6 @@
    "reason": "F830: swift declares the request context as `public internal(set) var`, and the extractor's modifier pattern does not read `internal(set)` (as for `private(set)` above), so the public get-only property is reported missing; delete this rule when the extractor reads it"
   },
   {
-   "element": [
-    "createaccountoptions",
-    "deleteorderoptions",
-    "downloadpetdocumentoptions",
-    "findpetsbornonoptions",
-    "getdefaultsoptions",
-    "getdepartmentoptions",
-    "getexternalpetinfooptions",
-    "getgroupedcategoriesoptions",
-    "getinventoryoptions",
-    "getmatrixoptions",
-    "getmultiserverpetinfooptions",
-    "getorderbyidoptions",
-    "getorderbytrackingidoptions",
-    "getpetavataroptions",
-    "getpetavatarthumbnailoptions",
-    "getpetbyidoptions",
-    "getpetpassportoptions",
-    "getpetphotooptions",
-    "getstagingpetinfooptions",
-    "getswatchgroupsoptions",
-    "getswatchoptions",
-    "gettimestampgroupsoptions",
-    "gettreeoptions",
-    "placeorderoptions",
-    "reservestockoptions",
-    "setpetavataroptions",
-    "setpetavatarthumbnailoptions",
-    "updatepetoptions"
-   ],
-   "aspect": "type",
-   "languages": [
-    "ruby"
-   ],
-   "reason": "F827 adoption: every operation gets an Options object carrying the per-call timeout, headers and max_retries, so an operation with no parameter and no security has one; ruby lands first and the other languages mint theirs in their own adoption branches, after which this rule is deleted"
-  },
-  {
-   "element": [
-    "petapi.*",
-    "storeapi.*"
-   ],
-   "aspect": "params",
-   "languages": [
-    "ruby"
-   ],
-   "value": "*options*",
-   "reason": "F827 adoption: every operation takes the optional Options argument, so an operation with no parameter of its own takes (options); ruby lands first and the other languages add it in their own adoption branches, after which this rule is deleted"
-  },
-  {
    "element": "*options",
    "aspect": "type",
    "languages": [
@@ -3554,6 +3505,57 @@
    ],
    "value": "*?*",
    "reason": "F862 owner decision (an explicit credential wins, then the {PREFIX}_{FIELD} environment variable): the credential arguments of each scheme authenticator are optional so the variable can supply them; a missing one throws ConfigurationError at construction. Drop this row once the majority has it, as the kotlin rows above"
+  },
+  {
+   "element": [
+    "baseapi.<ctor>",
+    "petapi.<ctor>",
+    "storeapi.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F857 owner decision: an API class also takes the per-scheme credentials the client holds (an optional fourth scheme_authenticators argument keyed by scheme name), which an operation resolves for the first scheme its spec names that the client holds; the (apiClient, config, authenticator) call site is unchanged"
+  },
+  {
+   "element": [
+    "addpetoptions.auth",
+    "addpettreatmentoptions.auth",
+    "deletepetoptions.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F857 owner decision (the client takes one credential per security scheme, each operation uses the scheme its spec requires, no per-call scheme override): ruby removes the per-operation auth member from the Options objects. Delete this rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "petfood.dryfood",
+    "petfood.wetfood",
+    "pettreatment.medication",
+    "pettreatment.surgery",
+    "treatmentrecord.surgery",
+    "treatmentrecord.medication"
+   ],
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "F878: ruby spells the per-variant test as a predicate `<variant>_variant?` and the typed accessor as `as_<variant>`, so a union value, which is the variant itself, never collides with a model attribute reader, where the wrapper languages have a property named after the variant"
+  },
+  {
+   "element": [
+    "petapi.*",
+    "storeapi.*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "ruby"
+   ],
+   "value": "*, options, server)",
+   "reason": "the per-operation server is the keyword argument `server:` in ruby, and a keyword argument follows every positional one, so it comes after options where the other SDKs put the server before the options argument; the call site names it, so the position carries no meaning"
   }
  ]
 }

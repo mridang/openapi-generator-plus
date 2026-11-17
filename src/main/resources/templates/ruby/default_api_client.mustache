@@ -110,6 +110,8 @@ module {{moduleName}}
       super()
       @transport_options = transport_options || TransportOptions.builder.build
       @closed = false
+      @in_flight = 0
+      @lock = Mutex.new
       validate_ca_cert_path(@transport_options.ca_cert_path)
     end
 
@@ -148,12 +150,46 @@ module {{moduleName}}
     # @return [ApiHttpResponse] the HTTP response
     def send_request(method, url, headers, body, no_redirect: false, retry_headers: nil, no_default_headers: false,
                      timeout: nil, max_retries: nil)
-      # Bucket 3: using the client after #close has released its connection
-      # pool is a caller error. Surface it loudly as a RuntimeError (the
-      # invalid-state error) instead of lazily rebuilding a connection (which
-      # would make close a silent no-op), matching the other SDKs.
-      raise 'ApiClient has been closed and can no longer send requests' if @closed
+      enter_request
+      begin
+        perform_request(method, url, headers, body, no_redirect, retry_headers, no_default_headers, timeout, max_retries)
+      ensure
+        leave_request
+      end
+    end
 
+    # Closes the client gracefully. It is marked closed at once, so a request
+    # started afterwards raises a RuntimeError; a request already in flight
+    # finishes, and the Faraday connection the SDK built is released when the
+    # last of them completes (at once when none is running). The default
+    # +net_http+ adapter opens a socket per request, so there is no pooled
+    # socket to release. It is safe to call this method repeatedly
+    # (idempotent): a second call changes nothing.
+    #
+    # A connection supplied through {TransportOptions::Builder#connection}
+    # belongs to the caller and is never closed here.
+    def close
+      release = @lock.synchronize do
+        @closed = true
+        @in_flight.zero?
+      end
+      release_connection if release
+    end
+
+    # Returns the list of supported content encodings.
+    # @return [String]
+    def self.supported_encodings
+      encodings = 'gzip, deflate'
+      encodings += ', br' if defined?(Brotli)
+      encodings += ', zstd' if defined?(Zstd)
+      encodings
+    end
+
+    private
+
+    # The body of {#send_request}: one call, every redirect hop and retry
+    # included, while the request is counted as in flight.
+    def perform_request(method, url, headers, body, no_redirect, retry_headers, no_default_headers, timeout, max_retries)
       # The timeout is one budget for the whole call: every redirect hop and
       # every retry is sent with what is left of it, measured on the monotonic
       # clock.
@@ -210,31 +246,41 @@ module {{moduleName}}
       )
     end
 
-    # Drops the Faraday connection the SDK built and marks the client closed
-    # (the default +net_http+ adapter opens a socket per request, so there is
-    # no pooled socket to release). Subsequent calls to {#send_request} raise a
-    # RuntimeError rather than silently rebuilding a connection. It is safe
-    # to call this method repeatedly (idempotent).
+    # Counts a request as in flight, or refuses it when the client is closed.
     #
-    # A connection supplied through {TransportOptions::Builder#connection}
-    # belongs to the caller and is never closed here.
-    def close
-      conn = @connection
-      @connection = nil
-      @closed = true
+    # Using the client after #close is a caller error. Surface it loudly as a
+    # RuntimeError (the invalid-state error) instead of lazily rebuilding a
+    # connection (which would make close a silent no-op), matching the other
+    # SDKs.
+    def enter_request
+      @lock.synchronize do
+        raise 'ApiClient has been closed and can no longer send requests' if @closed
+
+        @in_flight += 1
+      end
+    end
+
+    # Ends one in-flight request; the last one out of a closed client releases
+    # the connection.
+    def leave_request
+      release = @lock.synchronize do
+        @in_flight -= 1
+        @closed && @in_flight.zero?
+      end
+      release_connection if release
+    end
+
+    # Drops the Faraday connection this client built. A connection supplied
+    # through {TransportOptions::Builder#connection} is the caller's and is
+    # never closed here.
+    def release_connection
+      conn = @lock.synchronize do
+        built = @connection
+        @connection = nil
+        built
+      end
       conn.close if conn.respond_to?(:close)
     end
-
-    # Returns the list of supported content encodings.
-    # @return [String]
-    def self.supported_encodings
-      encodings = 'gzip, deflate'
-      encodings += ', br' if defined?(Brotli)
-      encodings += ', zstd' if defined?(Zstd)
-      encodings
-    end
-
-    private
 
     # One attempt: merge the headers, send the request (following redirects)
     # and return the Faraday response, or raise the SDK's network error.

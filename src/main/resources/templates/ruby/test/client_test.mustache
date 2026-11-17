@@ -2,6 +2,33 @@
 
 require 'test_helper'
 
+{{#hasClientSchemes}}
+# A credential that records the transport the client hands it, as an OAuth2 or
+# OpenID Connect authenticator needs it.
+class ClientTestHttpAwareCredential < {{moduleName}}::Auth::Authenticator
+  include {{moduleName}}::Auth::HttpAwareAuthenticator
+
+  attr_reader :injected
+
+  def initialize(host)
+    super()
+    @host = host
+  end
+
+  def host
+    @host
+  end
+
+  def auth_headers
+    {}
+  end
+
+  def api_client=(client)
+    @injected = client
+  end
+end
+
+{{/hasClientSchemes}}
 describe {{moduleName}}::{{clientClassName}} do
   parallelize_me!
 
@@ -190,6 +217,54 @@ describe {{moduleName}}::{{clientClassName}} do
     _(problems).must_be_empty
   end
 
+{{#hasClientSchemes}}
+  # F857: one optional credential per security scheme, named after the scheme.
+  def api_groups_of(client)
+    client.instance_variables.map { |name| client.instance_variable_get(name) }.grep({{moduleName}}::Api::BaseApi)
+  end
+
+  it 'takes one optional keyword credential per security scheme, named after it' do
+    keywords = {{moduleName}}::{{clientClassName}}.instance_method(:initialize).parameters
+                                                  .select { |kind, _| kind == :key }.map(&:last)
+
+    _(keywords).must_equal %i[{{#clientSchemes}}{{argName}}{{^-last}} {{/-last}}{{/clientSchemes}}]
+  end
+
+  it 'is built from a scheme credential alone and takes its base URL from it' do
+    credential = {{moduleName}}::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
+
+    client = {{moduleName}}::{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{argName}}{{/-first}}{{/clientSchemes}}: credential)
+
+    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
+  end
+
+  it 'takes its base URL from the authenticator before any scheme credential' do
+    default = {{moduleName}}::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'default-token')
+    credential = {{moduleName}}::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
+
+    client = {{moduleName}}::{{clientClassName}}.new(default, nil, {{#clientSchemes}}{{#-first}}{{argName}}{{/-first}}{{/clientSchemes}}: credential)
+
+    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:2']
+  end
+
+  it 'is refused when it gets no credential at all' do
+    error = _ { {{moduleName}}::{{clientClassName}}.new }.must_raise ArgumentError
+
+    _(error.message).must_equal 'At least one credential is required'
+  end
+
+  it 'hands the shared transport to every credential that needs HTTP' do
+    default = ClientTestHttpAwareCredential.new('http://127.0.0.1:2')
+    credential = ClientTestHttpAwareCredential.new('http://127.0.0.1:1')
+
+    client = {{moduleName}}::{{clientClassName}}.new(default, nil, {{#clientSchemes}}{{#-first}}{{argName}}{{/-first}}{{/clientSchemes}}: credential)
+
+    api_client = client.instance_variable_get(:@api_client)
+    _(default.injected).must_be_same_as api_client
+    _(credential.injected).must_be_same_as api_client
+  end
+
+{{/hasClientSchemes}}
   it 'close makes the client reject further requests' do
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
     client = {{moduleName}}::{{clientClassName}}.new(authenticator)

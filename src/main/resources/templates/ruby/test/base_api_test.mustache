@@ -84,16 +84,6 @@ class TestAuthenticator < {{moduleName}}::Auth::Authenticator
   end
 end
 
-class HttpAwareTestAuthenticator < TestAuthenticator
-  include {{moduleName}}::Auth::HttpAwareAuthenticator
-
-  attr_reader :injected_client
-
-  def api_client=(client)
-    @injected_client = client
-  end
-end
-
 # Serves a scripted list of statuses for API calls and issues numbered tokens
 # at the token endpoint, recording what each received.
 class ReplayApiClient
@@ -296,7 +286,7 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_headers['Cookie']).must_equal 'theme=dark; session=abc123'
   end
 
-  it 'falls back to client-level authenticator when no per-call auth is supplied' do
+  it 'falls back to client-level authenticator when no scheme authenticator is supplied' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     client_auth = TestAuthenticator.new(headers: { 'X-Client-Auth' => 'client-level-token' })
@@ -306,45 +296,110 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_headers['X-Client-Auth']).must_equal 'client-level-token'
   end
 
-  it 'per-call auth overrides the client-level authenticator' do
+  it 'a scheme authenticator passed to invoke_api overrides the client-level authenticator' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     client_auth = TestAuthenticator.new(headers: { 'X-Client-Auth' => 'client-level-token' })
-    per_call_auth = TestAuthenticator.new(headers: { 'X-Client-Auth' => 'per-call-token' })
+    scheme_auth = TestAuthenticator.new(headers: { 'X-Client-Auth' => 'scheme-token' })
     test_api = TestableApi.new(client, config, client_auth)
     test_api.call('GET', '/test/echo', {}, {}, nil,
-                  ['application/json'], 'application/json', nil, per_call_auth)
-    _(client.captured_headers['X-Client-Auth']).must_equal 'per-call-token'
+                  ['application/json'], 'application/json', nil, scheme_auth)
+    _(client.captured_headers['X-Client-Auth']).must_equal 'scheme-token'
   end
 
-  it 'hands the transport to a per-call authenticator that needs HTTP' do
-    client = CapturingApiClient.new
-    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
-    per_call_auth = HttpAwareTestAuthenticator.new(headers: { 'X-Client-Auth' => 'per-call-token' })
-    test_api = TestableApi.new(client, config, nil)
-    test_api.call('GET', '/test/echo', {}, {}, nil,
-                  ['application/json'], 'application/json', nil, per_call_auth)
-    _(per_call_auth.injected_client).must_be_same_as client
-  end
-
-  # AUTH-APPLIED (Wave A1) — a configured authenticator must actually reach the
-  # wire on a SECURED operation. This is the cross-SDK regression guard for the
-  # Elixir bug where a configured authenticator was silently dropped: here we
-  # drive a real BearerAuthenticator through the generated, secured delete_pet
-  # operation (which forwards options.auth into invoke_api) and assert the
-  # OUTBOUND request actually carried the Bearer credential.
-  it 'applies a configured Bearer authenticator to a secured operation request' do
-    client = CapturingApiClient.new
-    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
-    api = {{moduleName}}::Api::PetApi.new(client, config)
-    auth = {{moduleName}}::Auth::BearerAuthenticator.new('http://localhost', 'secret-token')
-    options = {{moduleName}}::Api::Options::DeletePetOptions.new(auth: auth)
-    begin
-      api.delete_pet(1, options)
-    rescue StandardError
-      # Response handling is irrelevant; we only assert the captured request.
+  # F857: an operation uses the credential of the first scheme in its own
+  # security requirement that the client holds. add_pet accepts apiKeyHeader,
+  # then petStoreBearer; delete_pet accepts adminBasic, then machineAuth.
+  describe 'security scheme credentials' do
+    def api_with(schemes, authenticator = nil)
+      client = CapturingApiClient.new
+      config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+      [{{moduleName}}::Api::PetApi.new(client, config, authenticator, schemes), client]
     end
-    _(client.captured_headers['Authorization']).must_equal 'Bearer secret-token'
+
+    def credential(name)
+      TestAuthenticator.new(headers: { 'X-Credential' => name })
+    end
+
+    def add_pet(api)
+      api.add_pet({{moduleName}}::Models::Pet.new(name: 'Rex', photo_urls: Set['u']))
+    rescue StandardError
+      # Response handling is irrelevant; the assertions read the captured request.
+    end
+
+    it 'uses the credential of the first scheme in the operation order that the client holds' do
+      api, client = api_with({ 'petStoreBearer' => credential('bearer'), 'apiKeyHeader' => credential('key') })
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'key'
+    end
+
+    it 'skips a scheme the client holds no credential for' do
+      api, client = api_with({ 'petStoreBearer' => credential('bearer') })
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'bearer'
+    end
+
+    it 'falls back to the client authenticator when no scheme of the operation matches' do
+      api, client = api_with({ 'adminBasic' => credential('admin') }, credential('default'))
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'default'
+    end
+
+    it 'prefers a matching scheme credential to the client authenticator' do
+      api, client = api_with({ 'apiKeyHeader' => credential('key') }, credential('default'))
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'key'
+    end
+
+    it 'sends no credential when no scheme matches and there is no client authenticator' do
+      api, client = api_with({ 'adminBasic' => credential('admin') })
+
+      add_pet(api)
+
+      refute client.captured_headers.key?('X-Credential')
+    end
+
+    it 'sends the credential of the scheme the operation names to a different operation' do
+      api, client = api_with({ 'adminBasic' => credential('admin'), 'apiKeyHeader' => credential('key') })
+
+      begin
+        api.delete_pet(1)
+      rescue StandardError
+        # Response handling is irrelevant; the assertions read the captured request.
+      end
+
+      _(client.captured_headers['X-Credential']).must_equal 'admin'
+    end
+
+    it 'sends no scheme credential on a security:[] operation' do
+      client = CapturingApiClient.new
+      store_api = {{moduleName}}::Api::StoreApi.new(
+        client, {{moduleName}}::Configuration.builder.base_url('http://localhost').build, credential('default'),
+        { 'petStoreBasic' => credential('basic') }
+      )
+
+      begin
+        store_api.get_inventory
+      rescue StandardError
+        # Response handling is irrelevant; the assertions read the captured request.
+      end
+
+      refute client.captured_headers.key?('X-Credential')
+    end
+
+    it 'has no per-call authenticator on any Options object' do
+      %w[AddPetOptions DeletePetOptions GetPetByIdOptions].each do |name|
+        _({{moduleName}}::Api::Options.const_get(name).new).wont_respond_to :auth
+      end
+    end
   end
 
   # SECURITY-NONE (Wave A2) — an operation declared `security: []` is explicitly

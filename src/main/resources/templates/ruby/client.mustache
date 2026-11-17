@@ -31,6 +31,56 @@ module {{moduleName}}
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+{{#hasClientSchemes}}
+    # Creates a new client from its credentials and transport options.
+    #
+    # Each security scheme of the API has one optional credential, named after
+    # the scheme ({{#clientSchemes}}+{{argName}}+{{^-last}}, {{/-last}}{{/clientSchemes}}). An operation
+    # uses the credential of the first scheme in its own security requirement
+    # that you configured, and there is no per-call override. When none of its
+    # schemes matches, the operation uses +authenticator+ if one is given and
+    # otherwise sends no credential. The base URL comes from the first
+    # credential given, +authenticator+ first.
+    #
+    # If a credential includes {Auth::HttpAwareAuthenticator}, the shared
+    # {ApiClient} is injected so that token exchange and discovery requests
+    # use the same proxy, TLS, and timeout settings.
+    #
+    # @param authenticator [Auth::Authenticator, nil] default credential, used by an operation that no scheme credential matches
+    # @param transport_options [TransportOptions, nil] HTTP transport configuration (proxy, TLS, timeouts, etc.).
+{{#clientSchemes}}
+    # @param {{argName}} [Auth::Authenticator, nil] credential of the +{{#lambda.rubyComment}}{{{schemeId}}}{{/lambda.rubyComment}}+ security scheme
+{{/clientSchemes}}
+    # @raise [ArgumentError] when no credential is given
+    def initialize(authenticator = nil, transport_options = nil{{#clientSchemes}}, {{argName}}: nil{{/clientSchemes}})
+      # @type var schemes: Hash[String, Auth::Authenticator]
+      schemes = {}
+{{#clientSchemes}}
+      schemes['{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'] = {{argName}} unless {{argName}}.nil?
+{{/clientSchemes}}
+      first_credential = authenticator || schemes.values.first
+      raise ArgumentError, 'At least one credential is required' if first_credential.nil?
+
+      transport_options ||= TransportOptions.builder.build
+      api_client = DefaultApiClient.new(transport_options)
+      @api_client = api_client
+      [authenticator, *schemes.values].compact.each do |credential|
+        credential.api_client = api_client if credential.is_a?(Auth::HttpAwareAuthenticator)
+      end
+
+      config = Configuration.builder
+        .base_url(first_credential.host)
+        .build
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      @{{clientPropertyName}} = Api::{{classname}}.new(api_client, config, authenticator, schemes)
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    end
+{{/hasClientSchemes}}
+{{^hasClientSchemes}}
     # Creates a new client with the given authenticator and transport options.
     #
     # If the authenticator includes {Auth::HttpAwareAuthenticator}, the shared
@@ -56,13 +106,17 @@ module {{moduleName}}
 {{/apis}}
 {{/apiInfo}}
     end
+{{/hasClientSchemes}}
 
     # Releases the HTTP stack this client built (connection pool and sockets).
     #
-    # Calling it again is harmless. A request made through any of the API
-    # groups after it raises a RuntimeError. A Faraday connection supplied
-    # through {TransportOptions::Builder#connection} belongs to the caller and
-    # is never closed.
+    # Closing is graceful and idempotent: the client is marked closed at once,
+    # a request already in flight finishes, and the connection is released when
+    # the last of them completes (at once when none is running). A request
+    # started after it raises a RuntimeError, and calling it again does
+    # nothing. A Faraday connection supplied through
+    # {TransportOptions::Builder#connection} belongs to the caller and is
+    # never closed.
     #
     # @return [void]
     def close

@@ -28,7 +28,9 @@ module Petstore::Client
       # Inverse mapping from JSON key to ruby attribute name.
       JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
 
-      # Attribute type mapping.
+      # Attribute type mapping. An inline enum property names its enum class,
+      # so decoding checks the value against the allowed ones and fails on an
+      # unknown one; a model never checks it when it is built.
       OPENAPI_TYPES = {
         food_type: 'String',
         volume_ml: 'Integer'

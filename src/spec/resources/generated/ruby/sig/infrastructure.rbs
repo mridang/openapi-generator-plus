@@ -233,6 +233,10 @@ module Petstore::Client
     def close: () -> void
     def self.supported_encodings: () -> String
     private
+    def perform_request: (Symbol | String, String, Hash[String, String], untyped, bool, (^() -> Hash[String, String])?, bool, Numeric?, Integer?) -> ApiHttpResponse
+    def enter_request: () -> void
+    def leave_request: () -> void
+    def release_connection: () -> void
     def transmit: (Symbol | String, String, Hash[String, String], untyped, bool, Float?, bool, Numeric?) -> untyped
     def transmit_with_retries: (Symbol | String, String, Hash[String, String], untyped, bool, Float?, (^() -> Hash[String, String])?, bool, Numeric?, Integer) -> untyped
     def give_up: (Errors::NetworkError?, untyped) -> untyped
@@ -499,7 +503,7 @@ module Petstore::Client
     attr_reader pet: Api::PetApi
     attr_reader store: Api::StoreApi
     @api_client: DefaultApiClient
-    def initialize: (Auth::Authenticator, ?TransportOptions?) -> void
+    def initialize: (?Auth::Authenticator?, ?TransportOptions?, ?pet_store_basic: Auth::Authenticator?, ?admin_basic: Auth::Authenticator?, ?pet_store_bearer: Auth::Authenticator?, ?service_token: Auth::Authenticator?, ?api_key_header: Auth::Authenticator?, ?internal_api_key: Auth::Authenticator?, ?api_key_query: Auth::Authenticator?, ?session_cookie: Auth::Authenticator?, ?machine_auth: Auth::Authenticator?, ?legacy_auth: Auth::Authenticator?, ?user_auth: Auth::Authenticator?, ?browser_auth: Auth::Authenticator?, ?sso_auth: Auth::Authenticator?) -> void
     def close: () -> void
     def self.with_token: (String, ?String?, ?TransportOptions?, ?token_provider: (^() -> String)?) -> Petstore
     def self.with_authenticator: (Auth::Authenticator, ?TransportOptions?) -> Petstore
@@ -514,7 +518,8 @@ module Petstore::Client
       # A plain Object identity-compared against the per-call auth argument.
       NO_AUTH: Object
       attr_reader config: Configuration
-      def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?) -> void
+      def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?, ?Hash[String, Auth::Authenticator]) -> void
+      def scheme_authenticator: (Array[String]) -> Auth::Authenticator?
       def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped) -> ApiResult[untyped]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private

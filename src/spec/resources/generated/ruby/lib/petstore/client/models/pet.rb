@@ -65,14 +65,16 @@ module Petstore::Client
       # Inverse mapping from JSON key to ruby attribute name.
       JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
 
-      # Attribute type mapping.
+      # Attribute type mapping. An inline enum property names its enum class,
+      # so decoding checks the value against the allowed ones and fails on an
+      # unknown one; a model never checks it when it is built.
       OPENAPI_TYPES = {
         id: 'Integer',
         name: 'String',
         category: 'Category',
         photo_urls: 'Set<String>',
         tags: 'Array<Tag>',
-        status: 'String',
+        status: 'Pet::StatusEnum',
         location: 'Array<Object>',
         homepage_url: 'String',
         thumbnail_ref: 'String',
@@ -157,7 +159,7 @@ module Petstore::Client
       attribute :tags, Types::Any.optional.meta(omittable: true)
       # pet status in the store
       # @deprecated This property is deprecated.
-      attribute :status, Types::String.enum(*StatusEnum::VALUES).optional.meta(omittable: true)
+      attribute :status, Types::Any.optional.meta(omittable: true)
       attribute :location, Types::Any.optional.meta(omittable: true)
       # Absolute URL to the pet's public profile page
       # @example https://example.com/pets/fido

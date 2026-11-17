@@ -13,7 +13,8 @@ module Petstore::Client
     # StoreApi provides methods for the Store API group.
     # Access to Petstore orders
     class StoreApi < BaseApi
-      def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil)
+      def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil,
+                     scheme_authenticators = {})
         super
       end
 
@@ -100,7 +101,7 @@ module Petstore::Client
           [],
           'application/json',
           nil,
-          nil,
+          scheme_authenticator(['petStoreBasic', 'petStoreBearer']),
           operation_id: 'StoreApi.delete_order',
           request_options: options
         )
@@ -417,7 +418,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Order',
-          nil,
+          scheme_authenticator(['petStoreBasic', 'petStoreBearer']),
           operation_id: 'StoreApi.get_order_by_id',
           request_options: options
         )
@@ -738,7 +739,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'Order',
-          nil,
+          scheme_authenticator(['petStoreBasic', 'petStoreBearer']),
           operation_id: 'StoreApi.place_order',
           request_options: options
         )

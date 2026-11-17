@@ -2,6 +2,31 @@
 
 require 'test_helper'
 
+# A credential that records the transport the client hands it, as an OAuth2 or
+# OpenID Connect authenticator needs it.
+class ClientTestHttpAwareCredential < Petstore::Client::Auth::Authenticator
+  include Petstore::Client::Auth::HttpAwareAuthenticator
+
+  attr_reader :injected
+
+  def initialize(host)
+    super()
+    @host = host
+  end
+
+  def host
+    @host
+  end
+
+  def auth_headers
+    {}
+  end
+
+  def api_client=(client)
+    @injected = client
+  end
+end
+
 describe Petstore::Client::Petstore do
   parallelize_me!
 
@@ -177,6 +202,52 @@ describe Petstore::Client::Petstore do
     end
 
     _(problems).must_be_empty
+  end
+
+  # F857: one optional credential per security scheme, named after the scheme.
+  def api_groups_of(client)
+    client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi)
+  end
+
+  it 'takes one optional keyword credential per security scheme, named after it' do
+    keywords = Petstore::Client::Petstore.instance_method(:initialize).parameters
+                                                  .select { |kind, _| kind == :key }.map(&:last)
+
+    _(keywords).must_equal %i[pet_store_basic admin_basic pet_store_bearer service_token api_key_header internal_api_key api_key_query session_cookie machine_auth legacy_auth user_auth browser_auth sso_auth]
+  end
+
+  it 'is built from a scheme credential alone and takes its base URL from it' do
+    credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
+
+    client = Petstore::Client::Petstore.new(nil, nil, pet_store_basic: credential)
+
+    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
+  end
+
+  it 'takes its base URL from the authenticator before any scheme credential' do
+    default = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'default-token')
+    credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
+
+    client = Petstore::Client::Petstore.new(default, nil, pet_store_basic: credential)
+
+    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:2']
+  end
+
+  it 'is refused when it gets no credential at all' do
+    error = _ { Petstore::Client::Petstore.new }.must_raise ArgumentError
+
+    _(error.message).must_equal 'At least one credential is required'
+  end
+
+  it 'hands the shared transport to every credential that needs HTTP' do
+    default = ClientTestHttpAwareCredential.new('http://127.0.0.1:2')
+    credential = ClientTestHttpAwareCredential.new('http://127.0.0.1:1')
+
+    client = Petstore::Client::Petstore.new(default, nil, pet_store_basic: credential)
+
+    api_client = client.instance_variable_get(:@api_client)
+    _(default.injected).must_be_same_as api_client
+    _(credential.injected).must_be_same_as api_client
   end
 
   it 'close makes the client reject further requests' do

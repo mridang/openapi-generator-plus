@@ -56,4 +56,18 @@ describe 'README' do
     _(readme).must_include 'an empty variable counts as unset'
     _(readme).must_include 'Every operation takes an optional Options object'
   end
+
+  it 'documents the credential per security scheme, closing the client and cookie parameters' do
+{{#hasClientSchemes}}
+    _(readme).must_include '### Credentials per security scheme'
+{{#clientSchemes}}
+    _(readme).must_include '`{{argName}}:`'
+{{/clientSchemes}}
+    _(readme).must_include 'there is no per-call override'
+{{/hasClientSchemes}}
+    _(readme).must_include '### Closing the client'
+    _(readme).must_include 'a request already in flight finishes'
+    _(readme).must_include '### Cookie parameters'
+    _(readme).must_include 'RFC 6265 cookie-octet'
+  end
 end

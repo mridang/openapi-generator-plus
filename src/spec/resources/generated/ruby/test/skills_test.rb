@@ -83,4 +83,27 @@ describe 'SKILLS' do
     _(skills).must_include '### Credentials from the environment'
     _(skills).must_include '### Per-call options'
   end
+
+  it 'documents the credential per security scheme, closing the client and cookie parameters' do
+    skills = File.read(File.join(File.expand_path('..', File.dirname(__FILE__)), 'SKILLS.md'))
+    _(skills).must_include '### Credentials per security scheme'
+    _(skills).must_include '`pet_store_basic:`'
+    _(skills).must_include '`admin_basic:`'
+    _(skills).must_include '`pet_store_bearer:`'
+    _(skills).must_include '`service_token:`'
+    _(skills).must_include '`api_key_header:`'
+    _(skills).must_include '`internal_api_key:`'
+    _(skills).must_include '`api_key_query:`'
+    _(skills).must_include '`session_cookie:`'
+    _(skills).must_include '`machine_auth:`'
+    _(skills).must_include '`legacy_auth:`'
+    _(skills).must_include '`user_auth:`'
+    _(skills).must_include '`browser_auth:`'
+    _(skills).must_include '`sso_auth:`'
+    _(skills).must_include 'there is no per-call override'
+    _(skills).must_include '### Closing the client'
+    _(skills).must_include 'a request already in flight finishes'
+    _(skills).must_include '### Cookie parameters'
+    _(skills).must_include 'RFC 6265 cookie-octet'
+  end
 end
