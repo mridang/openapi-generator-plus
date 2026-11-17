@@ -143,7 +143,7 @@ describe('BaseApi', () => {
     [502, ServerError]
   ];
 
-  test.each(cases)('status %i throws correct exception', async (status, ErrorClass) => {
+  test.each(cases)('bhv errors 037 status %i throws correct exception', async (status, ErrorClass) => {
     try {
       await api().call('GET', `/test/status/${status}`, {}, {}, null,
         ['application/json'], 'application/json', null);
@@ -317,6 +317,15 @@ describe('BaseApi query parameters', () => {
 });
 
 describe('BaseApi', () => {
+  test('bhv serializationwire 001 a query param whose value is null is omitted from the URL', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('GET', '/test/echo', { status: null }, {}, null,
+      ['application/json'], 'application/json', null);
+    expect(client.capturedUrl).toBe('http://localhost/test/echo');
+  });
+
   test('bhv options 002 null options omits allowEmptyValue param', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
@@ -559,6 +568,28 @@ describe('BaseApi', () => {
       expect(seen.filter((request) => request.url !== tokenUrl)).toHaveLength(2);
     });
 
+    test('bhv retries 002 a bearer authenticator never replays a 401', async () => {
+      const seen: Array<string | undefined> = [];
+      const stub: ApiClient = {
+        async sendRequest(_method, _url, headers): Promise<ApiHttpResponse> {
+          seen.push(headers['Authorization']);
+          return { statusCode: 401, body: '{}', headers: { 'content-type': 'application/json' } };
+        }
+      };
+      const testable = new TestableApi(
+        stub,
+        new Configuration({ baseUrl: 'https://api.example.com' }),
+        new BearerAuthenticator('https://api.example.com', 'fixed')
+      );
+
+      const error = await testable
+        .call('GET', '/items', {}, {}, null, ['application/json'], 'application/json', null)
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(UnauthorizedError);
+      expect(seen).toHaveLength(1);
+    });
+
     test('bhv retries 006 does not replay a multipart body', async () => {
       const { seen, stub } = renewingServer(() => 401);
       const testable = new TestableApi(stub, new Configuration({ baseUrl: 'https://api.example.com' }), oauth(stub));
@@ -723,7 +754,7 @@ describe('BaseApi', () => {
   test.each([
     ['a nested map', { location: { lat: 1.5 } }],
     ['an array of objects', { location: [{ lat: 1.5 }] }],
-  ])('form-urlencoded body rejects %s with SerializationError', async (_label, body) => {
+  ])('bhv serializationwire 014 form-urlencoded body rejects %s with SerializationError', async (_label, body) => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
@@ -732,6 +763,15 @@ describe('BaseApi', () => {
         ['application/json'], 'application/x-www-form-urlencoded', null),
     ).rejects.toThrow(new SerializationError('form-urlencoded field location must be a scalar or array of scalars'));
     expect(client.capturedBody).toBeNull();
+  });
+
+  test('bhv serializationwire 011 a null optional form field is omitted', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('POST', '/test/echo', {}, {}, { name: 'a', tag: null },
+      ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect(client.capturedBody).toBe('name=a');
   });
 
   test('bhv serializationwire 013 form-urlencoded body keeps a well-formed surrogate pair', async () => {
@@ -980,6 +1020,19 @@ describe('BaseApi', () => {
 });
 
 describe('BaseApi', () => {
+  test('bhv serializationwire 018 an octet-stream response is carried as base64 and decodes to its bytes', async () => {
+    const original = new Uint8Array([0xDE, 0xAD, 0xBE, 0xEF]);
+    const client = new CapturingApiClient();
+    client.responseBody = Buffer.from(original).toString('base64');
+    client.responseHeaders = { 'content-type': 'application/octet-stream' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call('GET', '/test/echo', {}, {}, null,
+      ['application/octet-stream'], 'application/octet-stream',
+      (json) => json as string);
+    expect(Array.from(Buffer.from(result as string, 'base64'))).toEqual(Array.from(original));
+  });
+
   test('bhv serializationwire 017 octet-stream response roundtrips bytes exactly', async () => {
     const original = new Uint8Array([0x00, 0xFF, 0x42, 0x7F, 0x80, 0xC3, 0xA9]);
     const client = new CapturingApiClient();
@@ -1032,6 +1085,23 @@ describe('BaseApi', () => {
       (json) => json as string, undefined, 'string');
     expect(typeof result).toBe('string');
     expect(result).toBe('hello world');
+  });
+
+  test('bhv serializationwire 006 an empty binary response body yields no value and never reaches the decoder', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '';
+    client.responseHeaders = { 'content-type': 'application/octet-stream' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    let decoded = false;
+    const result = await testApi.call('GET', '/test/echo', {}, {}, null,
+      ['application/octet-stream'], 'application/octet-stream',
+      (json) => {
+        decoded = true;
+        return json as Uint8Array;
+      });
+    expect(decoded).toBe(false);
+    expect(result).toBeUndefined();
   });
 
   test('bhv operations 010 empty body yields undefined', async () => {
@@ -1501,6 +1571,15 @@ describe('BaseApi error request context', () => {
     const err = await fail(client, 'POST', '/items', 'https://api.example.com/v3');
     expect(err.requestMethod).toBe('POST');
     expect(err.requestPath).toBe('/v3/items');
+  });
+
+  test('bhv errors 026 the rendered request line never carries the query string', async () => {
+    const client = new RecordingApiClient();
+    client.statusCode = 404;
+    const err = await fail(client, 'GET', '/items/7');
+    expect(err.requestPath).not.toContain('?');
+    expect(err.toString()).toContain('\nRequest: GET /items/7\n');
+    expect(err.toString()).not.toContain('page=2');
   });
 
   test('a relative base URL gives the path without the query string', async () => {
