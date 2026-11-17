@@ -1925,6 +1925,56 @@ async fn test_request_after_close_returns_invalid_state() {
     }
 }
 
+/// Starts a server that reads one request, waits `delay_ms`, and then answers 200.
+fn start_delayed_server(delay_ms: u64) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            thread::sleep(std::time::Duration::from_millis(delay_ms));
+            let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// F1078: closing is graceful. A request already in flight when `close()` runs
+/// finishes, while a request started afterwards fails with the closed-client error.
+#[tokio::test]
+async fn test_close_lets_an_in_flight_request_finish() {
+    let base_url = start_delayed_server(400);
+    let client = Arc::new(DefaultApiClient::new(None));
+
+    let in_flight = {
+        let client = client.clone();
+        let url = format!("{}/slow", base_url);
+        tokio::spawn(async move {
+            client.send_request("GET", &url, &HashMap::new(), None).await.map(|r| r.status_code())
+        })
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    client.close();
+
+    let finished = in_flight.await.expect("the task must not panic");
+    assert_eq!(finished.expect("the in-flight request must finish"), 200);
+    let after = client
+        .send_request("GET", &format!("{}/slow", base_url), &HashMap::new(), None)
+        .await
+        .expect_err("a request started after close must fail");
+    assert!(matches!(
+        after.downcast_ref::<ConfigurationError>(),
+        Some(ConfigurationError::InvalidState(_))
+    ));
+}
+
 /// Starts a server that reads one request and then holds the connection open
 /// without answering, for at most ten seconds.
 fn start_silent_server() -> String {

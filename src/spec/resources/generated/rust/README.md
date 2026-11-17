@@ -117,15 +117,51 @@ credential never surfaces on the first request.
 To renew a token without rebuilding the client, pass a callback instead:
 `Client::with_token_provider(host, provider, transport_options)` takes an
 `Arc<dyn Fn() -> String + Send + Sync>` (`TokenProvider`) that is called for
-every request, and `PETSTORE_ACCESS_TOKEN` is not read. Only the Bearer path reads
-the environment; the other authenticators take their credentials as
-constructor arguments.
+every request, and `PETSTORE_ACCESS_TOKEN` is not read.
+
+The authenticator written for each security scheme in the API does the same for
+its own credentials. Every credential is an `Option<&str>` argument: the value
+you pass wins, even an empty one (the underlying authenticator then rejects it);
+when you pass `None` the variable below is read once, while the authenticator
+is built, and an empty variable counts as unset. A credential that is neither
+passed nor set fails `new` with `ConfigurationError::InvalidArgument` naming the
+variable, so the failure comes before the client exists. A Bearer scheme's
+authenticator also has `with_token_provider(host, provider)`, which takes the
+token from a callback instead and reads no variable.
+
+| Scheme | Field | Environment variable |
+|---|---|---|
+| `adminBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |
+| `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
+| `apiKeyHeader` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
+| `apiKeyQuery` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `browserAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `internalApiKey` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
+| `legacyAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
+| `legacyAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
+| `legacyAuth` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` |
+| `legacyAuth` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` |
+| `machineAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` |
+| `machineAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` |
+| `petStoreBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` |
+| `petStoreBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` |
+| `petStoreBearer` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` |
+| `serviceToken` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` |
+| `sessionCookie` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` |
+| `ssoAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` |
+| `ssoAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` |
+| `ssoAuth` | `redirectUri` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` |
+| `userAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` |
+| `userAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` |
+| `userAuth` | `redirectUri` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` |
+
+Set `envVarPrefix` when generating to change the `SWAGGER_PETSTORE_OPEN_API_3_0` prefix.
 
 ### Per-call options
 
-Every operation takes an `options` argument (`Option<&...Options>`). Besides
-the operation's own optional parameters it carries three settings for that one
-call: `timeout(Duration)` replaces the client's end-to-end timeout (zero is
+Every operation takes an `options` argument (`Option<&...Options>`), including an
+operation with no parameters and no security. Besides the operation's own
+optional parameters it carries three settings for that one call: `timeout(Duration)` replaces the client's end-to-end timeout (zero is
 refused with `ConfigurationError::InvalidTimeout`), `max_retries(u32)` replaces
 its retry budget (`0` turns retries off) and `header(name, value)` adds a header
 that wins over the client's default headers and the operation's header

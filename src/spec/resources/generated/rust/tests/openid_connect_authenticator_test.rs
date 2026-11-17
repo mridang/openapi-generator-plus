@@ -622,10 +622,11 @@ async fn test_scheme_wrapper_discovers_from_the_declared_url() {
     client.enqueue(DISCOVERY, 200);
     let mut auth = SsoAuthAuthenticator::new(
         "https://api.example.com",
-        "id",
-        "secret",
-        "https://app.example.com/callback",
-    );
+        Some("id"),
+        Some("secret"),
+        Some("https://app.example.com/callback"),
+    )
+    .unwrap();
     auth.as_http_aware_mut()
         .expect("http aware")
         .set_api_client(client.clone());

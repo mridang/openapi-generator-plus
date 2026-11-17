@@ -15,6 +15,7 @@ use crate::api_client::ApiClient;
 use crate::auth::Authenticator;
 use crate::auth::{BearerAuthenticator, TokenProvider};
 use crate::configuration::ConfigurationBuilder;
+use crate::credentials::Credentials;
 use crate::default_api_client::DefaultApiClient;
 use crate::errors::configuration_error::ConfigurationError;
 use crate::transport_options::TransportOptions;
@@ -84,6 +85,30 @@ impl Client {
         let transport = transport_options.unwrap_or_default();
         let api_client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(Some(transport)));
         Self::from_api_client(authenticator, api_client)
+    }
+
+    /// Creates a client that holds one optional credential per security scheme.
+    ///
+    /// Each operation uses the credential of the first scheme its specification
+    /// requires that is set in `credentials`, and goes out unauthenticated when
+    /// none is. `host` is the base URL of the API. `transport_options` is
+    /// optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+    pub fn with_credentials(
+        host: &str,
+        credentials: Credentials,
+        transport_options: Option<TransportOptions>,
+    ) -> Self {
+        let transport = transport_options.unwrap_or_default();
+        let api_client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(Some(transport)));
+        let config = ConfigurationBuilder::new().base_url(host).build();
+        let by_scheme = credentials.by_scheme();
+        Self {
+            api_client: api_client.clone(),
+            pet: PetApi::new(api_client.clone(), config.clone(), None)
+                .with_scheme_authenticators(by_scheme.clone()),
+            store: StoreApi::new(api_client.clone(), config.clone(), None)
+                .with_scheme_authenticators(by_scheme.clone()),
+        }
     }
 
     /// Wires the API groups to an already-built [`ApiClient`].

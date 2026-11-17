@@ -2919,14 +2919,6 @@
    "reason": "elixir passes the per-call settings (timeout, headers, max_retries) to the shared invoke function as a trailing keyword list; it is a support function called only by the generated operations, and the other languages carry the same settings in their own per-call options object"
   },
   {
-   "element": "*options",
-   "aspect": "type",
-   "languages": [
-    "rust"
-   ],
-   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options struct carrying the per-call timeout, headers and max_retries; rust mints one for each operation the shared pass leaves without. Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
    "element": [
     "*options.timeout",
     "*options.maxretries",
@@ -3497,6 +3489,39 @@
     "csharp"
    ],
    "reason": "F857 owner decision: no per-call scheme override. An operation uses the credential of the scheme its spec requires, so the csharp Options record carries no Auth member; the other languages drop it when they adopt F857"
+  },
+  {
+   "element": "*options",
+   "aspect": "type",
+   "languages": [
+    "rust"
+   ],
+   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options struct carrying the per-call timeout, headers and max_retries; rust opts in through mintsOptionsForEveryOperation() and the shared pass mints one for each operation. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "addpetoptions.auth",
+    "addpettreatmentoptions.auth",
+    "deletepetoptions.auth"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "F857 owner decision (the client takes one credential per security scheme, each operation uses the scheme its spec requires, no per-call scheme override): rust removes the per-operation auth field from the Options struct. Delete this rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "credentials",
+    "credentials.envvarname",
+    "credentials.readenvcredential",
+    "credentials.resolvecredential"
+   ],
+   "aspect": "*",
+   "languages": [
+    "rust"
+   ],
+   "reason": "F857 owner decision: rust holds the per-scheme credentials in a Credentials struct (one with_<scheme> setter per scheme, handed to Client::with_credentials) because it has no named constructor arguments or optional parameters to give the client one argument per scheme. Delete this rule when the other eleven SDKs land the same decision."
   }
  ]
 }

@@ -69,7 +69,9 @@ fn redacts_secret() {
 
 #[test]
 fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_password() {
-    let auth = AdminBasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
+    let auth =
+        AdminBasicAuthenticator::new("https://api.example.com", Some("alice"), Some("s3cret"))
+            .unwrap();
     let debug = format!("{:?}", auth);
     assert!(debug.starts_with("AdminBasicAuthenticator("), "{}", debug);
     assert!(!debug.contains("s3cret"), "{}", debug);
@@ -104,8 +106,8 @@ fn test_redacted_representation_shows_the_host_and_username() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_scheme_wrappers_emit_the_basic_header_and_validate_eagerly() {
     let host = "https://api.example.com";
-    let admin = AdminBasicAuthenticator::new(host, "alice", "s3cret").unwrap();
-    let store = PetStoreBasicAuthenticator::new(host, "alice", "s3cret").unwrap();
+    let admin = AdminBasicAuthenticator::new(host, Some("alice"), Some("s3cret")).unwrap();
+    let store = PetStoreBasicAuthenticator::new(host, Some("alice"), Some("s3cret")).unwrap();
     for headers in [admin.auth_headers().await, store.auth_headers().await] {
         assert_eq!(
             headers.get("Authorization").map(|s| s.as_str()),
@@ -113,11 +115,11 @@ async fn test_scheme_wrappers_emit_the_basic_header_and_validate_eagerly() {
         );
     }
     assert!(matches!(
-        AdminBasicAuthenticator::new(host, "ali:ce", "s3cret"),
+        AdminBasicAuthenticator::new(host, Some("ali:ce"), Some("s3cret")),
         Err(ConfigurationError::InvalidArgument(_))
     ));
     assert!(matches!(
-        PetStoreBasicAuthenticator::new(host, "alice", "s3c\0ret"),
+        PetStoreBasicAuthenticator::new(host, Some("alice"), Some("s3c\0ret")),
         Err(ConfigurationError::InvalidArgument(_))
     ));
 }

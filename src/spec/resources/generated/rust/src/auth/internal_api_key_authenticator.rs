@@ -18,15 +18,26 @@ pub struct InternalApiKeyAuthenticator(ApiKeyAuthenticator);
 impl InternalApiKeyAuthenticator {
     /// Creates an authenticator for the internalApiKey security scheme.
     ///
+    /// Each credential is optional. A value passed here wins, even an empty one
+    /// (the underlying authenticator then rejects it). Otherwise its environment
+    /// variable is read, once, here, and an empty variable counts as unset.
+    ///
+    /// * `api_key`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY`.
+    ///
     /// # Errors
     ///
-    /// Returns the [`ApiKeyAuthenticator`] constructor's
-    /// [`ConfigurationError`](crate::errors::configuration_error::ConfigurationError)
-    /// when the credentials are invalid.
+    /// Returns [`ConfigurationError::InvalidArgument`](crate::errors::configuration_error::ConfigurationError)
+    /// naming the variable when a credential is neither passed nor set in the
+    /// environment, or when the [`ApiKeyAuthenticator`] rejects a credential.
     pub fn new(
         host: &str,
-        api_key: &str,
+        api_key: Option<&str>,
     ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
+        let api_key = crate::auth::resolve_credential(
+            api_key,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY",
+        )?;
+        let api_key = api_key.as_str();
         Ok(Self(ApiKeyAuthenticator::new(
             host,
             "X-Internal-Key",

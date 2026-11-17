@@ -17,16 +17,34 @@ pub struct ServiceTokenAuthenticator(BearerAuthenticator);
 impl ServiceTokenAuthenticator {
     /// Creates an authenticator for the serviceToken security scheme.
     ///
+    /// Each credential is optional. A value passed here wins, even an empty one
+    /// (the underlying authenticator then rejects it). Otherwise its environment
+    /// variable is read, once, here, and an empty variable counts as unset.
+    ///
+    /// * `token`: environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN`.
+    ///
     /// # Errors
     ///
-    /// Returns the [`BearerAuthenticator`] constructor's
-    /// [`ConfigurationError`](crate::errors::configuration_error::ConfigurationError)
-    /// when the credentials are invalid.
+    /// Returns [`ConfigurationError::InvalidArgument`](crate::errors::configuration_error::ConfigurationError)
+    /// naming the variable when a credential is neither passed nor set in the
+    /// environment, or when the [`BearerAuthenticator`] rejects a credential.
     pub fn new(
         host: &str,
-        token: &str,
+        token: Option<&str>,
     ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
+        let token = crate::auth::resolve_credential(
+            token,
+            "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN",
+        )?;
+        let token = token.as_str();
         Ok(Self(BearerAuthenticator::new(host, token)?))
+    }
+
+    /// Creates an authenticator for the serviceToken security scheme whose token
+    /// comes from `provider`, which is called for every request. The environment
+    /// is not read.
+    pub fn with_token_provider(host: &str, provider: crate::auth::TokenProvider) -> Self {
+        Self(BearerAuthenticator::with_token_provider(host, provider))
     }
 }
 

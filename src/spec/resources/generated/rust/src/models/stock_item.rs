@@ -10,11 +10,24 @@
 use super::*;
 
 /// StockItem is a model class generated from the OpenAPI schema.
-#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+/// Serde default for the optional `availability` field: when the property is
+/// ABSENT from the wire payload the schema's `default` applies, so an
+/// omitted `availability` deserializes to `Some(Availability::OnHold)` rather
+/// than `None`. An explicit `null` still maps to `None`, and a present value
+/// is taken as-is.
+fn default_availability() -> Option<Availability> {
+    Some(Availability::OnHold)
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct StockItem {
     #[serde(rename = "priority")]
     pub priority: Priority,
-    #[serde(rename = "availability", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "availability",
+        default = "default_availability",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub availability: Option<Availability>,
     /// Quantity grid as an array of integer arrays
     #[serde(rename = "matrix", skip_serializing_if = "Option::is_none")]
@@ -26,7 +39,7 @@ impl StockItem {
     pub fn new(priority: Priority) -> Self {
         Self {
             priority,
-            availability: None,
+            availability: Some(Availability::OnHold),
             matrix: None,
         }
     }
@@ -53,5 +66,25 @@ impl StockItem {
     pub fn with_matrix(mut self, matrix: Vec<Vec<i32>>) -> Self {
         self.matrix = Some(matrix);
         self
+    }
+}
+
+/* Hand-written `Default` impl (the derive is suppressed above) so that
+ * `StockItem::default()` agrees with `StockItem::new()` on the
+ * schema-default fields. The derived impl would set every optional field to
+ * `None`, silently dropping the schema defaults `new()` seeds (and that the
+ * other SDKs emit on the wire). Required fields fall back to their own
+ * `Default` (matching what the derive would have produced); optional fields
+ * with a schema `default` are seeded with that declared default. */
+impl Default for StockItem {
+    fn default() -> Self {
+        Self {
+            priority: Default::default(),
+            /* Optional field with a schema default: seed the declared default
+             * so `default()` matches `new()` (and the wire output of the other
+             * SDKs) rather than emitting `None`. */
+            availability: Some(Availability::OnHold),
+            matrix: None,
+        }
     }
 }

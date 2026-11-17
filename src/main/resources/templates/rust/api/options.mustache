@@ -3,10 +3,6 @@
 {{#hasModelParams}}
 use crate::models::*;
 {{/hasModelParams}}
-{{#hasAuthField}}
-use crate::auth::Authenticator;
-use std::sync::Arc;
-{{/hasAuthField}}
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -20,20 +16,10 @@ use std::time::Duration;
     the required-param enforcement the other SDKs provide. Structs with only
     optional fields keep the cheap Default derive and a no-arg new(). }}
 {{#hasRequiredParams}}
-{{#hasAuthField}}
-#[derive(Clone)]
-{{/hasAuthField}}
-{{^hasAuthField}}
 #[derive(Debug, Clone)]
-{{/hasAuthField}}
 {{/hasRequiredParams}}
 {{^hasRequiredParams}}
-{{#hasAuthField}}
-#[derive(Clone, Default)]
-{{/hasAuthField}}
-{{^hasAuthField}}
 #[derive(Debug, Clone, Default)]
-{{/hasAuthField}}
 {{/hasRequiredParams}}
 pub struct {{className}} {
 {{#params}}
@@ -50,11 +36,6 @@ pub struct {{className}} {
     pub {{name}}: Option<{{{dataType}}}>,
 {{/required}}
 {{/params}}
-{{#hasAuthField}}
-    /// Per-operation authenticator. When set, it overrides the client's
-    /// configured credentials for this call only.
-    pub auth: Option<{{{authFieldType}}}>,
-{{/hasAuthField}}
     /// Replaces the client's end-to-end timeout for this call. Zero is refused
     /// with `ConfigurationError::InvalidTimeout` before anything is sent.
     pub timeout: Option<Duration>,
@@ -77,16 +58,9 @@ impl {{className}} {
     /// the chained setters below.
 {{/hasOptionalParams}}
 {{^hasOptionalParams}}
-{{#hasAuthField}}
-    /// Required fields are taken as constructor arguments so they cannot be
-    /// silently omitted; the optional per-operation authenticator starts as
-    /// `None` and is populated via the chained setter below.
-{{/hasAuthField}}
-{{^hasAuthField}}
     /// Every field of this struct is required and is taken as a constructor
-    /// argument so it cannot be silently omitted. This struct has no optional
-    /// fields and therefore no chained setters.
-{{/hasAuthField}}
+    /// argument so it cannot be silently omitted. The per-call timeout, retry
+    /// budget and headers start unset and have chained setters below.
 {{/hasOptionalParams}}
     pub fn new({{#params}}{{#required}}{{name}}: {{{dataType}}}, {{/required}}{{/params}}) -> Self {
         Self {
@@ -98,9 +72,6 @@ impl {{className}} {
             {{name}}: None,
 {{/required}}
 {{/params}}
-{{#hasAuthField}}
-            auth: None,
-{{/hasAuthField}}
             timeout: None,
             max_retries: None,
             headers: HashMap::new(),
@@ -126,15 +97,6 @@ impl {{className}} {
     }
 {{/required}}
 {{/params}}
-{{#hasAuthField}}
-
-    /// Sets the per-operation authenticator. When set, it overrides the
-    /// client's configured credentials for this call only.
-    pub fn auth(mut self, auth: {{{authFieldType}}}) -> Self {
-        self.auth = Some(auth);
-        self
-    }
-{{/hasAuthField}}
 
     /// Sets the end-to-end timeout of this call, replacing the client's.
     pub fn timeout(mut self, timeout: Duration) -> Self {

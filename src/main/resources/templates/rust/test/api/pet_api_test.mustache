@@ -14,7 +14,7 @@ use std::pin::Pin;
 use {{packageName}}::*;
 use {{packageName}}::api::*;
 use {{packageName}}::api::options::*;
-use {{packageName}}::auth::Authenticator;
+use {{packageName}}::auth::{ApiKeyHeaderAuthenticator, Authenticator};
 use {{packageName}}::models::*;
 
 /// Test authenticator that returns a static bearer token.
@@ -56,13 +56,17 @@ impl Authenticator for TestBasicAuth {
 }
 
 fn new_pet_api_for_integration() -> PetApi {
+    new_pet_api_for_integration_with(None)
+}
+
+fn new_pet_api_for_integration_with(authenticator: Option<Arc<dyn Authenticator>>) -> PetApi {
     let base_url = testcontainers_helper::chasm_url();
     let config = ConfigurationBuilder::new()
         .base_url(base_url)
         .default_header("Authorization", "Bearer test-token")
         .build();
     let client = DefaultApiClient::new(None);
-    PetApi::new(Arc::new(client), config, None)
+    PetApi::new(Arc::new(client), config, authenticator)
 }
 
 fn bearer_auth() -> TestBearerAuth { TestBearerAuth }
@@ -104,18 +108,18 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
 
 #[tokio::test]
 async fn test_pet_api_add_pet() {
-    let api = new_pet_api_for_integration();
+    let api = new_pet_api_for_integration_with(Some(Arc::new(bearer_auth())));
     let pet = Pet::new("Fido".to_string(), HashSet::from(["http://example.com/fido.jpg".to_string()]));
-    let opts = AddPetOptions::new().auth(Arc::new(bearer_auth()));
+    let opts = AddPetOptions::new();
     let result = api.add_pet(pet, Some(&opts)).await;
     assert!(result.is_ok(), "add_pet failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_pet_api_add_pet_with_http_info() {
-    let api = new_pet_api_for_integration();
+    let api = new_pet_api_for_integration_with(Some(Arc::new(bearer_auth())));
     let pet = Pet::new("Buddy".to_string(), HashSet::from(["http://example.com/buddy.jpg".to_string()]));
-    let opts = AddPetOptions::new().auth(Arc::new(bearer_auth()));
+    let opts = AddPetOptions::new();
     let result = api.add_pet_with_http_info(pet, Some(&opts)).await;
     assert!(result.is_ok(), "add_pet_with_http_info failed: {:?}", result.err());
     let api_result = result.unwrap();
@@ -162,8 +166,8 @@ async fn test_pet_api_update_pet_with_http_info() {
 
 #[tokio::test]
 async fn test_pet_api_delete_pet() {
-    let api = new_pet_api_for_integration();
-    let opts = DeletePetOptions::new().auth(Arc::new(basic_auth()));
+    let api = new_pet_api_for_integration_with(Some(Arc::new(basic_auth())));
+    let opts = DeletePetOptions::new();
     let result = api.delete_pet(1, Some(&opts)).await;
     assert!(result.is_ok(), "delete_pet failed: {:?}", result.err());
 }
@@ -218,8 +222,8 @@ async fn test_pet_api_delete_pet_rejects_invalid_cookie_value() {
 
 #[tokio::test]
 async fn test_pet_api_delete_pet_with_http_info() {
-    let api = new_pet_api_for_integration();
-    let opts = DeletePetOptions::new().auth(Arc::new(basic_auth()));
+    let api = new_pet_api_for_integration_with(Some(Arc::new(basic_auth())));
+    let opts = DeletePetOptions::new();
     let result = api.delete_pet_with_http_info(1, Some(&opts)).await;
     assert!(result.is_ok(), "delete_pet_with_http_info failed: {:?}", result.err());
 }
@@ -712,45 +716,57 @@ async fn test_pet_api_set_pet_avatar_honours_selected_request_content_type() {
 /// (not just `with_http_info`) must be applied to the outgoing request. The
 /// default header carries one token; the per-call authenticator carries a
 /// different one and must win on the wire.
-#[tokio::test]
-async fn test_pet_api_add_pet_per_call_auth_override() {
-    let (api, rx, _) = new_pet_api_for_capture();
+/// Sends add_pet through a client built from `credentials`, against a local
+/// capture server, and returns the request head the server saw.
+async fn add_pet_request_with(credentials: Credentials) -> String {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let client = {{clientClassName}}::with_credentials(&base_url, credentials, None);
     let pet = Pet::new(
-        "OverrideDog".to_string(),
+        "CredentialDog".to_string(),
         HashSet::from(["http://example.com/p.jpg".to_string()]),
     );
-    let opts = AddPetOptions::new().auth(Arc::new(bearer_auth()));
-    let _ = api.add_pet(pet, Some(&opts)).await;
-
-    let request = rx.recv().expect("expected a captured request");
-    /* hyper writes HTTP/1.1 header names lowercased, so assert on the VALUE:
-     * the per-call token must win over the config default-token. */
-    assert!(
-        request.contains("Bearer test-token") && !request.contains("Bearer default-token"),
-        "expected per-call auth (test-token) to override default-token on the wire, got request: {}",
-        request
-    );
+    let _ = client.pet.add_pet(pet, None).await;
+    rx.recv().expect("expected a captured request").to_lowercase()
 }
 
-/// auth-in-options: the per-operation authenticator now lives on the Options
-/// struct (AddPetOptions::auth), not as a standalone method argument. When set,
-/// its credentials must win over the Configuration default on the wire.
+/// F857: an operation uses the credential of the scheme its spec requires.
+/// add_pet lists apiKeyHeader and petStoreBearer; with only the bearer held, the
+/// bearer is sent.
 #[tokio::test]
-async fn test_pet_api_auth_in_options_overrides_default() {
-    let (api, rx, _) = new_pet_api_for_capture();
-    let pet = Pet::new(
-        "OptionsAuthDog".to_string(),
-        HashSet::from(["http://example.com/p.jpg".to_string()]),
-    );
-    let opts = AddPetOptions::new().auth(Arc::new(bearer_auth()));
-    let _ = api.add_pet(pet, Some(&opts)).await;
+async fn test_pet_api_credentials_send_the_bearer_scheme_the_operation_lists() {
+    let credentials = Credentials::new().with_pet_store_bearer(bearer_auth());
+    let request = add_pet_request_with(credentials).await;
+    assert!(request.contains("bearer test-token"), "request: {}", request);
+}
 
-    let request = rx.recv().expect("expected a captured request");
-    assert!(
-        request.contains("Bearer test-token") && !request.contains("Bearer default-token"),
-        "expected Options auth (test-token) to override default-token on the wire, got request: {}",
-        request
-    );
+/// F857: with only the API key held, the API key is sent and no bearer is.
+#[tokio::test]
+async fn test_pet_api_credentials_send_the_api_key_scheme_the_operation_lists() {
+    let key = ApiKeyHeaderAuthenticator::new("http://localhost", Some("key-one")).unwrap();
+    let request = add_pet_request_with(Credentials::new().with_api_key_header(key)).await;
+    assert!(request.contains("key-one"), "request: {}", request);
+    assert!(!request.contains("bearer"), "request: {}", request);
+}
+
+/// F857: when the client holds both schemes the operation lists, exactly one
+/// credential is sent, never both.
+#[tokio::test]
+async fn test_pet_api_credentials_send_one_scheme_when_the_client_holds_both() {
+    let key = ApiKeyHeaderAuthenticator::new("http://localhost", Some("key-one")).unwrap();
+    let credentials = Credentials::new()
+        .with_api_key_header(key)
+        .with_pet_store_bearer(bearer_auth());
+    let request = add_pet_request_with(credentials).await;
+    let sent = [request.contains("key-one"), request.contains("bearer test-token")];
+    assert_eq!(1, sent.iter().filter(|s| **s).count(), "request: {}", request);
+}
+
+/// F857: a credential for a scheme the operation does not list is not sent.
+#[tokio::test]
+async fn test_pet_api_credentials_for_another_scheme_are_not_sent() {
+    let credentials = Credentials::new().with_admin_basic(basic_auth());
+    let request = add_pet_request_with(credentials).await;
+    assert!(!request.contains("basic ywrtaw46"), "request: {}", request);
 }
 
 /// auth-in-options (omitted): when the Options auth field is left unset (or no
@@ -1575,16 +1591,14 @@ fn test_pet_api_default_constructs_without_arguments() {
 }
 
 /// The `options` argument is documented on every operation that takes one, and
-/// names the per-operation authenticator only where the options struct carries it.
+/// never mentions an authenticator: a call cannot pick another scheme.
 #[test]
 fn test_operations_document_their_options_argument() {
     let source = include_str!("../src/api/pet_api.rs");
-    let with_auth = "    /// * `options`: Options for query, header, form, and cookie parameters, \
-and an optional per-operation authenticator.\n    pub async fn add_pet(";
-    let without_auth = "    /// * `options`: Options for query, header, form, and cookie parameters.\n    \
-pub async fn add_pet_photos(";
-    assert!(source.contains(with_auth), "add_pet must document options with the authenticator");
-    assert!(source.contains(without_auth), "add_pet_photos must document options without one");
+    let documented = "    /// * `options`: Options for query, header, form, and cookie parameters.\n    \
+pub async fn add_pet(";
+    assert!(source.contains(documented), "add_pet must document options without an authenticator");
+    assert!(!source.contains("per-operation authenticator"), "no per-call authenticator is offered");
 }
 
 /// Operation summary, description and parameter prose reach the doc comment as

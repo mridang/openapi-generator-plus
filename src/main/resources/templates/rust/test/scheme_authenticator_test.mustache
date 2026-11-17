@@ -1,0 +1,133 @@
+{{>api_info}}
+
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::ConfigurationError;
+
+/* F862: every per-scheme authenticator reads its credentials from the
+ * environment when an argument is not passed. The tests share the process
+ * environment, so they run one at a time. */
+static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn with_variables<R>(variables: &[(&str, Option<&str>)], body: impl FnOnce() -> R) -> R {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let saved: Vec<(String, Option<String>)> = variables
+        .iter()
+        .map(|(name, _)| (name.to_string(), std::env::var(name).ok()))
+        .collect();
+    for (name, value) in variables {
+        match value {
+            Some(value) => std::env::set_var(name, value),
+            None => std::env::remove_var(name),
+        }
+    }
+    let result = body();
+    for (name, value) in saved {
+        match value {
+            Some(value) => std::env::set_var(name, value),
+            None => std::env::remove_var(name),
+        }
+    }
+    result
+}
+
+fn invalid_argument_text<T>(result: Result<T, ConfigurationError>) -> String {
+    match result {
+        Err(ConfigurationError::InvalidArgument(text)) => text,
+        Err(other) => panic!("expected InvalidArgument, got {:?}", other),
+        Ok(_) => panic!("expected InvalidArgument, got an authenticator"),
+    }
+}
+{{#perSchemeAuthEntries}}
+
+mod {{module}} {
+    use super::*;
+    use {{packageName}}::{{{path}}}::{{className}};
+
+    fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
+        vec![{{#envParams}}("{{envName}}", Some("value-{{name}}")), {{/envParams}}]
+    }
+
+    fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
+        vec![{{#envParams}}("{{envName}}", None), {{/envParams}}]
+    }
+
+    fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
+        vec![{{#envParams}}("{{envName}}", Some("")), {{/envParams}}]
+    }
+
+    #[test]
+    fn test_it_builds_from_its_environment_variables_alone() {
+        with_variables(&set_all(), || {
+            assert!({{className}}::new({{{bareArgs}}}).is_ok());
+        });
+    }
+
+    #[test]
+    fn test_explicit_arguments_need_no_environment() {
+        with_variables(&unset_all(), || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+
+    #[test]
+    fn test_a_missing_credential_names_its_variable() {
+        with_variables(&unset_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+
+    #[test]
+    fn test_an_empty_variable_counts_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+
+    #[test]
+    fn test_an_explicit_argument_is_not_overridden_by_the_environment() {
+        /* The variables hold values no authenticator accepts, so the call can
+         * only succeed when they were never consulted. */
+        let unusable: Vec<(&str, Option<&str>)> = vec![{{#envParams}}("{{envName}}", Some("bad\r\nvalue")), {{/envParams}}];
+        with_variables(&unusable, || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+{{#isBearer}}
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_the_explicit_token_is_the_one_sent() {
+        let auth = with_variables(&set_all(), || {
+            {{className}}::new({{{explicitArgs}}}).unwrap()
+        });
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer explicit-{{firstParam}}")
+        );
+    }
+
+    #[test]
+    fn test_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment() {
+        with_variables(&set_all(), || {
+            let text = invalid_argument_text({{className}}::new("https://api.example.com", Some("")));
+            assert!(!text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_a_token_provider_is_called_for_every_request() {
+        let auth = {{className}}::with_token_provider(
+            "https://api.example.com",
+            std::sync::Arc::new(|| "from-provider".to_string()),
+        );
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer from-provider")
+        );
+    }
+{{/isBearer}}
+}
+{{/perSchemeAuthEntries}}

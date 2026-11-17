@@ -246,9 +246,19 @@ impl PetApi {
         }
     }
 
+    /// Gives this API one credential per security scheme, by scheme id. An
+    /// operation uses the credential of the scheme its spec requires.
+    pub(crate) fn with_scheme_authenticators(
+        mut self,
+        authenticators: HashMap<String, Arc<dyn Authenticator>>,
+    ) -> Self {
+        self.base = self.base.with_scheme_authenticators(authenticators);
+        self
+    }
+
     /// Add a new pet to the store
     /// * `pet`: Create a new pet in the store
-    /// * `options`: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn add_pet(
         &self,
         pet: Pet,
@@ -296,10 +306,13 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* Per-operation auth is folded into the Options struct: source the
-         * authenticator from `options.auth` when present, otherwise pass None so
-         * the base client falls back to the Configuration credentials. */
-        let auth: Option<&dyn Authenticator> = options.and_then(|o| o.auth.as_deref());
+        /* The credential of the first security scheme this operation lists that
+         * the client holds; otherwise None, and the base client falls back to its
+         * single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for(&["petStoreBearer", "apiKeyHeader"]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet".to_string();
 
@@ -464,7 +477,7 @@ impl PetApi {
     }
 
     /// Record a treatment for a pet
-    /// * `options`: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn add_pet_treatment(
         &self,
         pet_id: i64,
@@ -518,10 +531,13 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>> {
-        /* Per-operation auth is folded into the Options struct: source the
-         * authenticator from `options.auth` when present, otherwise pass None so
-         * the base client falls back to the Configuration credentials. */
-        let auth: Option<&dyn Authenticator> = options.and_then(|o| o.auth.as_deref());
+        /* The credential of the first security scheme this operation lists that
+         * the client holds; otherwise None, and the base client falls back to its
+         * single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for(&["petStoreBasic", "petStoreBearer"]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet/{petId}/treatment".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
@@ -575,7 +591,7 @@ impl PetApi {
     /// Deletes a pet
     /// * `pet_id`: Pet id to delete
     /// * `api_key`: Session cookie used for authentication
-    /// * `options`: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn delete_pet(
         &self,
         pet_id: i64,
@@ -611,10 +627,11 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-        /* Per-operation auth is folded into the Options struct: source the
-         * authenticator from `options.auth` when present, otherwise pass None so
-         * the base client falls back to the Configuration credentials. */
-        let auth: Option<&dyn Authenticator> = options.and_then(|o| o.auth.as_deref());
+        /* The credential of the first security scheme this operation lists that
+         * the client holds; otherwise None, and the base client falls back to its
+         * single authenticator. There is no per-call override. */
+        let credential = self.base.authenticator_for(&["machineAuth", "adminBasic"]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet/{petId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(

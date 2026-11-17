@@ -312,8 +312,12 @@ async fn test_scheme_wrapper_sends_the_scopes_declared_by_the_spec() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
 
-    let mut auth =
-        MachineAuthClientCredentialsAuthenticator::new("https://api.example.com", "id", "secret");
+    let mut auth = MachineAuthClientCredentialsAuthenticator::new(
+        "https://api.example.com",
+        Some("id"),
+        Some("secret"),
+    )
+    .unwrap();
     auth.as_http_aware_mut()
         .expect("http aware")
         .set_api_client(client.clone());
@@ -333,9 +337,10 @@ async fn test_scheme_wrapper_sends_the_scopes_declared_by_the_spec() {
 fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_secret() {
     let auth = MachineAuthClientCredentialsAuthenticator::new(
         "https://api.example.com",
-        "id",
-        "wrapper-secret",
-    );
+        Some("id"),
+        Some("wrapper-secret"),
+    )
+    .unwrap();
     let debug = format!("{:?}", auth);
     assert!(
         debug.starts_with("MachineAuthClientCredentialsAuthenticator("),

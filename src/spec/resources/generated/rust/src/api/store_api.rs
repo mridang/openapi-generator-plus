@@ -54,6 +54,16 @@ impl StoreApi {
         }
     }
 
+    /// Gives this API one credential per security scheme, by scheme id. An
+    /// operation uses the credential of the scheme its spec requires.
+    pub(crate) fn with_scheme_authenticators(
+        mut self,
+        authenticators: HashMap<String, Arc<dyn Authenticator>>,
+    ) -> Self {
+        self.base = self.base.with_scheme_authenticators(authenticators);
+        self
+    }
+
     /// Create an account
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn create_account(
