@@ -121,8 +121,10 @@ export function durationFromProtoJson(value: string): Temporal.Duration {
       nanoseconds: negative ? -nanoseconds : nanoseconds,
     });
   } catch (cause) {
-    // Temporal rejects seconds beyond its safe-integer range with a RangeError;
-    // the wire contract is a SerializationError for every malformed or overflowing duration.
+    /*
+     * Temporal rejects seconds beyond its safe-integer range with a RangeError; the wire
+     * contract is a SerializationError for every malformed or overflowing duration.
+     */
     throw new SerializationError(
       `Invalid protobuf-JSON duration ${JSON.stringify(value)}: value is out of range.`,
       cause as Error,
