@@ -170,7 +170,7 @@ describe 'scheme authenticators' do
     end
   end
 
-  it 'reads the environment once, when the wrapper is built' do
+  it 'bhv_lifecycle_025 reads the environment once, when the wrapper is built' do
     environment_schemes.each do |name, base, credentials|
       next unless base == 'BearerAuthenticator'
 

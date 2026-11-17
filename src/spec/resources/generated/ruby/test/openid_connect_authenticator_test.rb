@@ -561,7 +561,7 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(discovery_requests(client).length).must_equal 3
   end
 
-  it 'issues one discovery request for concurrent callers on a cold authenticator' do
+  it 'bhv_authoidc_029 issues one discovery request for concurrent callers on a cold authenticator' do
     client = SlowDiscoveryClient.new(discovery_response[:body])
     auth = oidc_authenticator(client)
 

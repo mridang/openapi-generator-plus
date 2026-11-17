@@ -134,7 +134,7 @@ describe Petstore::Client::DefaultApiClient do
       _(JSON.parse(response.body)['method']).must_equal('GET')
     end
 
-    it 'authenticating proxy refuses a request without credentials' do
+    it 'bhv_transport_059 authenticating proxy refuses a request without credentials' do
       chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
       transport = Petstore::Client::TransportOptions.builder
         .proxy("http://#{ENV.fetch('PROXY_AUTH_HOST_PORT')}")

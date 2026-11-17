@@ -183,7 +183,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(auth.auth_headers).must_equal('X-Api-Key' => 'from-env')
   end
 
-  it 'prefers the key given to the environment variable' do
+  it 'bhv_serializationobject_187 prefers the key given to the environment variable' do
     prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'X-Api-Key', 'explicit', Petstore::Client::Auth::ApiKeyLocation::HEADER,

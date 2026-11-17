@@ -1547,7 +1547,7 @@ describe {{moduleName}}::Api::PetApi do
 
     # Canonical behavior 3 — a space inside a form value is encoded as '+',
     # never '%20' (WHATWG application/x-www-form-urlencoded rules).
-    it 'encodes a space in a form value as + not %20' do
+    it 'bhv_serializationwire_055 encodes a space in a form value as + not %20' do
       api, server, thread, captured = capture_request_body
       begin
         options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(

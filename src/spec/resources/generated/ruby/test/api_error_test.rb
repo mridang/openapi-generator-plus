@@ -159,7 +159,25 @@ describe Petstore::Client::Errors::ApiError do
     _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
   end
 
-  it 'roots OAuth2 token-manager errors at the branded base' do
+  it 'bhv_errors_046 OAuth2ServerError has three message forms' do
+    raw = Petstore::Client::Errors::OAuth2ServerError.new(502, nil, nil, nil, '<html>bad gateway</html>')
+    code = Petstore::Client::Errors::OAuth2ServerError.new(400, 'invalid_grant', nil, nil, '{}')
+    described = Petstore::Client::Errors::OAuth2ServerError.new(400, 'invalid_grant', 'refresh token expired', nil, '{}')
+
+    _(raw.message).must_equal('Token request failed with status 502: <html>bad gateway</html>')
+    _(code.message).must_equal('Token request failed with status 400: invalid_grant')
+    _(described.message).must_equal('Token request failed with status 400: invalid_grant -- refresh token expired')
+  end
+
+  it 'bhv_errors_047 a typed API error is an ApiError and the branded root' do
+    err = Petstore::Client::Errors::ApiError.from_response(500, {}, '{}')
+
+    _(err).must_be_kind_of(Petstore::Client::Errors::InternalServerError)
+    _(err).must_be_kind_of(Petstore::Client::Errors::ApiError)
+    _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
+  end
+
+  it 'bhv_errors_045 roots OAuth2 token-manager errors at the branded base' do
     token_err = Petstore::Client::Errors::OAuth2TokenError.new('missing access_token')
     server_err = Petstore::Client::Errors::OAuth2ServerError.new(400, 'invalid_grant', nil, nil, '{}')
 

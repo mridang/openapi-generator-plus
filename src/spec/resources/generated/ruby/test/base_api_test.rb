@@ -202,6 +202,13 @@ describe Petstore::Client::Api::BaseApi do
     end
   end
 
+  it 'bhv_errors_048 418 throws ClientError' do
+    err = assert_raises(Petstore::Client::Errors::ClientError) do
+      api.call('GET', '/test/status/418', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err.status_code).must_equal 418
+  end
+
   # ── Error body parsing ──
 
   it 'bhv_errors_034 parses JSON error body' do
