@@ -44,31 +44,34 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw1')));
     });
 
-    test('missing or empty credentials fail at construction', () {
-      for (final environment in <Map<String, String>>[
-        const {},
-        {BasicAuthenticator.defaultUsernameVariable: 'alice'},
-        {
-          BasicAuthenticator.defaultUsernameVariable: 'alice',
-          BasicAuthenticator.defaultPasswordVariable: '',
-        },
-      ]) {
+    test(
+      'bhv authbasic 003 missing or empty credentials fail at construction',
+      () {
+        for (final environment in <Map<String, String>>[
+          const {},
+          {BasicAuthenticator.defaultUsernameVariable: 'alice'},
+          {
+            BasicAuthenticator.defaultUsernameVariable: 'alice',
+            BasicAuthenticator.defaultPasswordVariable: '',
+          },
+        ]) {
+          expect(
+            () => BasicAuthenticator(
+              host: 'https://api.example.com',
+              environment: environment,
+            ),
+            throwsA(isA<ArgumentError>()),
+          );
+        }
         expect(
           () => BasicAuthenticator(
             host: 'https://api.example.com',
-            environment: environment,
+            username: 'alice',
           ),
-          throwsA(isA<ArgumentError>()),
+          throwsArgumentError,
         );
-      }
-      expect(
-        () => BasicAuthenticator(
-          host: 'https://api.example.com',
-          username: 'alice',
-        ),
-        throwsArgumentError,
-      );
-    });
+      },
+    );
 
     test('the provider is asked on every request', () {
       var calls = 0;
@@ -81,7 +84,7 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw2')));
     });
 
-    test('valid credentials produce basic header', () {
+    test('bhv authbasic 011 valid credentials produce basic header', () {
       final auth = BasicAuthenticator(
         host: 'https://api.example.com',
         username: 'alice',
@@ -91,7 +94,7 @@ void main() {
       expect(headers['Authorization'], equals(basic('alice:s3cret')));
     });
 
-    test('rejects username with crlf at construction', () {
+    test('bhv authbasic 009 rejects username with crlf at construction', () {
       expect(
         () => BasicAuthenticator(
           host: 'https://api.example.com',
@@ -102,7 +105,7 @@ void main() {
       );
     });
 
-    test('rejects password with nul at construction', () {
+    test('bhv authbasic 007 rejects password with nul at construction', () {
       expect(
         () => BasicAuthenticator(
           host: 'https://api.example.com',
@@ -113,7 +116,7 @@ void main() {
       );
     });
 
-    test('rejects username with colon at construction', () {
+    test('bhv authbasic 008 rejects username with colon at construction', () {
       expect(
         () => BasicAuthenticator(
           host: 'https://api.example.com',
@@ -166,7 +169,7 @@ void main() {
       expect(error.toString(), isNot(contains('ali:ce')));
     });
 
-    test('password is not leaked in default toString', () {
+    test('bhv authbasic 005 password is not leaked in default toString', () {
       // authenticator-secret-in-default-string-repr: the default toString()
       // must never expose the stored password.
       final auth = BasicAuthenticator(
@@ -177,7 +180,7 @@ void main() {
       expect(auth.toString(), isNot(contains('s3cret')));
     });
 
-    test('redacts secret', () {
+    test('bhv authbasic 006 redacts secret', () {
       final auth = BasicAuthenticator(
         host: 'https://api.example.com',
         username: 'alice',
@@ -189,33 +192,39 @@ void main() {
   });
 
   group('BasicAuthenticator encoding', () {
-    test('non-ASCII credentials are base64-encoded as UTF-8', () {
-      final auth = BasicAuthenticator(
-        host: 'https://api.example.com',
-        username: 'ünïcødé',
-        password: 'pässwörd',
-      );
+    test(
+      'bhv authbasic 004 non-ASCII credentials are base64-encoded as UTF-8',
+      () {
+        final auth = BasicAuthenticator(
+          host: 'https://api.example.com',
+          username: 'ünïcødé',
+          password: 'pässwörd',
+        );
 
-      expect(
-        auth.authHeaders()['Authorization'],
-        equals(basic('ünïcødé:pässwörd')),
-      );
-    });
+        expect(
+          auth.authHeaders()['Authorization'],
+          equals(basic('ünïcødé:pässwörd')),
+        );
+      },
+    );
 
-    test('the redacted repr shows host and username and masks the password', () {
-      final auth = BasicAuthenticator(
-        host: 'https://api.example.com',
-        username: 'alice',
-        password: 's3cret',
-      );
+    test(
+      'bhv authbasic 010 the redacted repr shows host and username and masks the password',
+      () {
+        final auth = BasicAuthenticator(
+          host: 'https://api.example.com',
+          username: 'alice',
+          password: 's3cret',
+        );
 
-      expect(
-        auth.toString(),
-        equals(
-          'BasicAuthenticator(host: https://api.example.com, username: alice, password: ***)',
-        ),
-      );
-    });
+        expect(
+          auth.toString(),
+          equals(
+            'BasicAuthenticator(host: https://api.example.com, username: alice, password: ***)',
+          ),
+        );
+      },
+    );
   });
 
   group('BasicAuthenticator scheme wrappers', () {
@@ -233,12 +242,15 @@ void main() {
     };
 
     builders.forEach((name, build) {
-      test('$name sends the credentials as a Basic header', () {
-        expect(
-          build('alice', 's3cret').authHeaders()['Authorization'],
-          equals(basic('alice:s3cret')),
-        );
-      });
+      test(
+        'bhv authbasic 002 $name sends the credentials as a Basic header',
+        () {
+          expect(
+            build('alice', 's3cret').authHeaders()['Authorization'],
+            equals(basic('alice:s3cret')),
+          );
+        },
+      );
 
       test('$name still rejects a colon in the username', () {
         expect(() => build('ali:ce', 's3cret'), throwsArgumentError);

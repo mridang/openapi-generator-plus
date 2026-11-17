@@ -72,7 +72,7 @@ void main() {
   });
 
   group('PetApi', () {
-    test('addPet', () async {
+    test('bhv operations 022 addPet', () async {
       final api = _newPetApiForIntegration(
         schemes: {'petStoreBearer': _TestAuth()},
       );
@@ -84,7 +84,7 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('addPetWithHttpInfo', () async {
+    test('bhv operations 025 addPetWithHttpInfo', () async {
       final api = _newPetApiForIntegration(
         schemes: {'petStoreBearer': _TestAuth()},
       );
@@ -99,14 +99,14 @@ void main() {
       expect(result.rawBody, isNotEmpty);
     });
 
-    test('getPetById', () async {
+    test('bhv operations 047 getPetById', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.getPetById(1, null, null);
       expect(result, isNotNull);
     });
 
-    test('getPetByIdWithHttpInfo', () async {
+    test('bhv operations 048 getPetByIdWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.getPetByIdWithHttpInfo(1, null, null);
@@ -115,7 +115,7 @@ void main() {
       expect(result.headers, isNotNull);
     });
 
-    test('findPetsByStatus', () async {
+    test('bhv operations 039 findPetsByStatus', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.findPetsByStatus(
@@ -124,7 +124,7 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('findPetsByStatusWithHttpInfo', () async {
+    test('bhv operations 042 findPetsByStatusWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.findPetsByStatusWithHttpInfo(
@@ -133,7 +133,7 @@ void main() {
       expect(result.statusCode, equals(200));
     });
 
-    test('updatePet', () async {
+    test('bhv operations 087 updatePet', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.updatePet(
@@ -147,7 +147,7 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('updatePetWithHttpInfo', () async {
+    test('bhv operations 088 updatePetWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.updatePetWithHttpInfo(
@@ -162,7 +162,7 @@ void main() {
       expect(result.statusCode, lessThan(300));
     });
 
-    test('deletePet', () async {
+    test('bhv operations 027 deletePet', () async {
       final api = _newPetApiForIntegration(
         schemes: {'adminBasic': _TestAuth()},
       );
@@ -170,7 +170,7 @@ void main() {
       await api.deletePet(1, null);
     });
 
-    test('deletePetWithHttpInfo', () async {
+    test('bhv operations 031 deletePetWithHttpInfo', () async {
       final api = _newPetApiForIntegration(
         schemes: {'adminBasic': _TestAuth()},
       );
@@ -180,21 +180,21 @@ void main() {
       expect(result.statusCode, lessThan(300));
     });
 
-    test('getPetPassport', () async {
+    test('bhv operations 053 getPetPassport', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.getPetPassport(1, null);
       expect(result, isNotNull);
     });
 
-    test('getPetPassportWithHttpInfo', () async {
+    test('bhv operations 054 getPetPassportWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.getPetPassportWithHttpInfo(1, null);
       expect(result.statusCode, equals(200));
     });
 
-    test('setPetAvatar', () async {
+    test('bhv operations 070 setPetAvatar', () async {
       final api = _newPetApiForIntegration();
 
       await api.setPetAvatar(
@@ -204,28 +204,31 @@ void main() {
       );
     });
 
-    test('setPetAvatar rejects an unrecognised request content-type', () async {
-      final api = _newPetApiForIntegration();
-      // An unknown requestContentType must be rejected client-side (ArgumentError),
-      // not passed onto the wire as an undeclared Content-Type.
-      await expectLater(
-        api.setPetAvatar(
-          1,
-          Uint8List.fromList([0xFF, 0xD8, 0xFF]),
-          null,
-          'application/unknown-type',
-        ),
-        throwsA(
-          isA<ArgumentError>().having(
-            (e) => e.message,
-            'message',
-            startsWith(
-              "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are [",
+    test(
+      'bhv operations 076 setPetAvatar rejects an unrecognised request content-type',
+      () async {
+        final api = _newPetApiForIntegration();
+        // An unknown requestContentType must be rejected client-side (ArgumentError),
+        // not passed onto the wire as an undeclared Content-Type.
+        await expectLater(
+          api.setPetAvatar(
+            1,
+            Uint8List.fromList([0xFF, 0xD8, 0xFF]),
+            null,
+            'application/unknown-type',
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              startsWith(
+                "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are [",
+              ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     /* binary-request-body-streamed-raw (canonical scenario C1): setPetAvatar's
      * request body is declared `type: string, format: binary` with a declared
@@ -236,42 +239,45 @@ void main() {
      * application/json. We capture the outgoing request against a local mock
      * (the same idiom used by the query-string capture test above) and assert
      * both the exact body bytes and the Content-Type header. */
-    test('setPetAvatar streams raw bytes with declared content type', () async {
-      List<int>? capturedBody;
-      String? capturedContentType;
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) async {
-        capturedContentType = request.headers.contentType?.toString();
-        final builder = BytesBuilder();
-        await for (final chunk in request) {
-          builder.add(chunk);
+    test(
+      'bhv operations 073 setPetAvatar streams raw bytes with declared content type',
+      () async {
+        List<int>? capturedBody;
+        String? capturedContentType;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          capturedContentType = request.headers.contentType?.toString();
+          final builder = BytesBuilder();
+          await for (final chunk in request) {
+            builder.add(chunk);
+          }
+          capturedBody = builder.takeBytes();
+          request.response
+            ..statusCode = 204
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          // A non-trivial JPEG SOI marker (0xFF 0xD8 0xFF 0xE0).
+          final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
+          await api.setPetAvatar(1, payload, null);
+
+          // (1) The body bytes are EXACTLY the raw payload — not a JSON
+          // int-array, not "{}", not base64, not JSON-marshaled.
+          expect(capturedBody, equals([0xFF, 0xD8, 0xFF, 0xE0]));
+          // (2) The outgoing Content-Type is exactly the declared image/jpeg,
+          // not overridden to octet-stream or application/json.
+          expect(capturedContentType, equals('image/jpeg'));
+        } finally {
+          await server.close();
         }
-        capturedBody = builder.takeBytes();
-        request.response
-          ..statusCode = 204
-          ..close();
-      });
-
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
-
-        // A non-trivial JPEG SOI marker (0xFF 0xD8 0xFF 0xE0).
-        final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
-        await api.setPetAvatar(1, payload, null);
-
-        // (1) The body bytes are EXACTLY the raw payload — not a JSON
-        // int-array, not "{}", not base64, not JSON-marshaled.
-        expect(capturedBody, equals([0xFF, 0xD8, 0xFF, 0xE0]));
-        // (2) The outgoing Content-Type is exactly the declared image/jpeg,
-        // not overridden to octet-stream or application/json.
-        expect(capturedContentType, equals('image/jpeg'));
-      } finally {
-        await server.close();
-      }
-    });
+      },
+    );
 
     /* optional-request-content-type-selector (decision H3): setPetAvatar
      * declares THREE request Content-Types — image/jpeg, image/png and
@@ -283,42 +289,45 @@ void main() {
      *       (image/jpeg) — backward compatible; and
      *   (2) passing 'image/png' with the same raw bytes sends Content-Type
      *       image/png, NOT image/jpeg. */
-    test('setPetAvatar honours the selected request content type', () async {
-      final captured = <String?>[];
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) async {
-        captured.add(request.headers.contentType?.toString());
-        await request.drain<void>();
-        request.response
-          ..statusCode = 204
-          ..close();
-      });
+    test(
+      'bhv operations 071 setPetAvatar honours the selected request content type',
+      () async {
+        final captured = <String?>[];
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          captured.add(request.headers.contentType?.toString());
+          await request.drain<void>();
+          request.response
+            ..statusCode = 204
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
+          final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
 
-        // (1) No selector — defaults to the first declared type (image/jpeg).
-        await api.setPetAvatar(1, payload, null);
-        // (2) Selector set to image/png — overrides the Content-Type header.
-        await api.setPetAvatar(1, payload, null, 'image/png');
+          // (1) No selector — defaults to the first declared type (image/jpeg).
+          await api.setPetAvatar(1, payload, null);
+          // (2) Selector set to image/png — overrides the Content-Type header.
+          await api.setPetAvatar(1, payload, null, 'image/png');
 
-        expect(captured.length, equals(2));
-        expect(captured[0], equals('image/jpeg'));
-        expect(captured[1], equals('image/png'));
-      } finally {
-        await server.close();
-      }
-    });
+          expect(captured.length, equals(2));
+          expect(captured[0], equals('image/jpeg'));
+          expect(captured[1], equals('image/png'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* A format:binary body goes out verbatim under any selected content type,
      * including application/json; a format:byte JSON body stays base64. */
     test(
-      'setPetAvatar sends the bytes verbatim under the JSON selector',
+      'bhv operations 072 setPetAvatar sends the bytes verbatim under the JSON selector',
       () async {
         final bodies = <List<int>>[];
         final types = <String?>[];
@@ -362,21 +371,21 @@ void main() {
       },
     );
 
-    test('getPetAvatar', () async {
+    test('bhv operations 045 getPetAvatar', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.getPetAvatar(1, null);
       expect(result, isNotNull);
     });
 
-    test('getPetAvatarThumbnail', () async {
+    test('bhv operations 046 getPetAvatarThumbnail', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.getPetAvatarThumbnail(1, null);
       expect(result, isNotNull);
     });
 
-    test('setPetAvatarThumbnail', () async {
+    test('bhv operations 074 setPetAvatarThumbnail', () async {
       final api = _newPetApiForIntegration();
 
       await api.setPetAvatarThumbnail(
@@ -386,7 +395,7 @@ void main() {
       );
     });
 
-    test('uploadPetCertificate', () async {
+    test('bhv operations 090 uploadPetCertificate', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.uploadPetCertificate(
@@ -398,7 +407,7 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('uploadPetDocument', () async {
+    test('bhv operations 091 uploadPetDocument', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.uploadPetDocument(
@@ -415,7 +424,7 @@ void main() {
     /* A primitive multipart value is a text part with no part Content-Type
      * carrying the canonical stringify form; only objects are JSON parts. */
     test(
-      'uploadPetDocument sends primitive fields as canonical text parts',
+      'bhv operations 095 uploadPetDocument sends primitive fields as canonical text parts',
       () async {
         String body = '';
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -481,7 +490,7 @@ void main() {
      * local mock (the same idiom as the setPetAvatar raw-bytes test) and
      * assert both the exact body bytes and the Content-Type header. */
     test(
-      'uploadPetDocument streams raw bytes when octet-stream is selected',
+      'bhv operations 092 uploadPetDocument streams raw bytes when octet-stream is selected',
       () async {
         List<int>? capturedBody;
         String? capturedContentType;
@@ -532,7 +541,7 @@ void main() {
      * body). This guards against the raw-body fix collapsing the multipart
      * path. */
     test(
-      'uploadPetDocument still sends multipart when that type is selected',
+      'bhv operations 094 uploadPetDocument still sends multipart when that type is selected',
       () async {
         List<int>? capturedBody;
         String? capturedContentType;
@@ -588,7 +597,7 @@ void main() {
       },
     );
 
-    test('addPetPhotos', () async {
+    test('bhv operations 023 addPetPhotos', () async {
       final api = _newPetApiForIntegration();
       final options = AddPetPhotosOptions(
         files: [
@@ -600,20 +609,20 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('downloadPetDocument', () async {
+    test('bhv operations 035 downloadPetDocument', () async {
       final api = _newPetApiForIntegration();
 
       final result = await api.downloadPetDocument(1, 1, null);
       expect(result, isNotNull);
     });
 
-    test('getPetPhoto', () async {
+    test('bhv operations 055 getPetPhoto', () async {
       final api = _newPetApiForIntegration();
       final result = await api.getPetPhoto(1, 1, null);
       expect(result, isNotNull);
     });
 
-    test('getPetTag', () async {
+    test('bhv operations 058 getPetTag', () async {
       final api = _newPetApiForIntegration();
       final result = await api.getPetTag(
         5,
@@ -623,7 +632,7 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('getExternalPetInfo', () async {
+    test('bhv operations 061 getExternalPetInfo', () async {
       // The operation's own server wins over the client's base URL: the client
       // points at a closed port, the per-operation server at the mock server.
       final config = ConfigurationBuilder()
@@ -640,7 +649,7 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('downloadBinaryMock', () async {
+    test('bhv operations 034 downloadBinaryMock', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -663,7 +672,7 @@ void main() {
       }
     });
 
-    test('uploadMultipartMock', () async {
+    test('bhv operations 089 uploadMultipartMock', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -693,37 +702,40 @@ void main() {
      * operation that receives a 200 with an empty body must throw the
      * typed ApiException from the plain convenience method (parity with
      * C#/Swift), not a Dart runtime TypeError from `null as Pet`. */
-    test('emptyBodyMock throws ApiException from convenience method', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..close();
-      });
+    test(
+      'bhv operations 036 emptyBodyMock throws ApiException from convenience method',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await expectLater(
-          api.getPetById(1, null, null),
-          throwsA(
-            isA<ApiException>().having(
-              (e) => e.message,
-              'message',
-              contains(
-                'Expected a response body for getPetById but received none',
+          await expectLater(
+            api.getPetById(1, null, null),
+            throwsA(
+              isA<ApiException>().having(
+                (e) => e.message,
+                'message',
+                contains(
+                  'Expected a response body for getPetById but received none',
+                ),
               ),
             ),
-          ),
-        );
-      } finally {
-        await server.close();
-      }
-    });
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* A bare JSON `null` 200 body is an absent body, the same as an empty
      * one: the convenience method throws the typed ApiException, never the
@@ -808,7 +820,7 @@ void main() {
      * fails closed with an ArgumentError BEFORE any request is sent — mirroring
      * the auth-cookie validation path. */
     test(
-      'deletePet cookie param with CR/LF fails closed with RFC 6265 error',
+      'bhv operations 029 deletePet cookie param with CR/LF fails closed with RFC 6265 error',
       () async {
         final config = ConfigurationBuilder()
             .baseUrl('http://localhost:1')
@@ -837,7 +849,7 @@ void main() {
      * back the raw string. getPetById deserializes into Pet, so a garbage body
      * must surface loudly. */
     test(
-      'getPetAvatarThumbnail rejects malformed base64 with a SerializationException',
+      'bhv operations 063 getPetAvatarThumbnail rejects malformed base64 with a SerializationException',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
@@ -893,42 +905,45 @@ void main() {
      * (not just WithHttpInfo) is applied to the outgoing request. The default
      * header carries one token, the scheme credential another, and the scheme
      * credential wins on the wire. */
-    test('addPet applies the credential of its scheme', () async {
-      String? capturedAuth;
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        capturedAuth = request.headers.value('authorization');
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"id":1,"name":"x","photoUrls":[]}')
-          ..close();
-      });
+    test(
+      'bhv operations 079 addPet applies the credential of its scheme',
+      () async {
+        String? capturedAuth;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"x","photoUrls":[]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .defaultHeader('Authorization', 'Bearer default-token')
-            .build();
-        final api = PetApi(
-          apiClient: DefaultApiClient(),
-          config: config,
-          schemeAuthenticators: {'petStoreBearer': _PerCallAuth()},
-        );
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .defaultHeader('Authorization', 'Bearer default-token')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {'petStoreBearer': _PerCallAuth()},
+          );
 
-        await api.addPet(
-          Pet(
-            name: 'OverrideDog',
-            photoUrls: <String>{'http://example.com/p.jpg'},
-          ),
-          null,
-        );
+          await api.addPet(
+            Pet(
+              name: 'OverrideDog',
+              photoUrls: <String>{'http://example.com/p.jpg'},
+            ),
+            null,
+          );
 
-        expect(capturedAuth, equals('Bearer per-call-token'));
-      } finally {
-        await server.close();
-      }
-    });
+          expect(capturedAuth, equals('Bearer per-call-token'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* F857: the credential configured for the scheme an operation's spec
      * names (schemeAuthenticators) is applied to the outgoing request,
@@ -971,62 +986,71 @@ void main() {
      * Options object, the call must fall back to the Configuration's
      * credentials (here a default Authorization header) rather than sending
      * no credentials at all. */
-    test('addPet without Options auth uses Configuration default', () async {
-      String? capturedAuth;
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        capturedAuth = request.headers.value('authorization');
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"id":1,"name":"x","photoUrls":[]}')
-          ..close();
-      });
+    test(
+      'bhv operations 078 addPet without Options auth uses Configuration default',
+      () async {
+        String? capturedAuth;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"x","photoUrls":[]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .defaultHeader('Authorization', 'Bearer default-token')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .defaultHeader('Authorization', 'Bearer default-token')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.addPet(
-          Pet(name: 'DefDog', photoUrls: <String>{'http://example.com/p.jpg'}),
-          const AddPetOptions(),
-        );
+          await api.addPet(
+            Pet(
+              name: 'DefDog',
+              photoUrls: <String>{'http://example.com/p.jpg'},
+            ),
+            const AddPetOptions(),
+          );
 
-        expect(capturedAuth, equals('Bearer default-token'));
-      } finally {
-        await server.close();
-      }
-    });
+          expect(capturedAuth, equals('Bearer default-token'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* unsecured-op-has-no-auth-field: getPetById is not secured, so its
      * generated signature carries no Options auth slot at all — the call
      * compiles and runs with only its path/server positional arguments. */
-    test('getPetById unsecured op has no auth field', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"id":7,"name":"Rex","photoUrls":[]}')
-          ..close();
-      });
+    test(
+      'bhv operations 086 getPetById unsecured op has no auth field',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":7,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetById(7, null, null);
-        expect(result, isNotNull);
-        expect(result.id, equals(7));
-      } finally {
-        await server.close();
-      }
-    });
+          final result = await api.getPetById(7, null, null);
+          expect(result, isNotNull);
+          expect(result.id, equals(7));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* required-nested-param-validation: getPetByName's `category` is a
      * REQUIRED query param carried on a REQUIRED (non-null) Options object,
@@ -1039,35 +1063,38 @@ void main() {
      * an explicit ArgumentError.checkNotNull enforcement point for parity.
      * The observable, reachable contract we assert here is that a supplied
      * category is REQUIRED to be present and is serialised onto the wire. */
-    test('getPetByName sends required category on the wire', () async {
-      String? capturedQuery;
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        capturedQuery = request.uri.query;
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"id":1,"name":"Rex","photoUrls":[]}')
-          ..close();
-      });
+    test(
+      'bhv operations 065 getPetByName sends required category on the wire',
+      () async {
+        String? capturedQuery;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedQuery = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetByName(
-          'Rex',
-          const GetPetByNameOptions(category: 'dogs', xCorrelationId: 'c-1'),
-        );
+          final result = await api.getPetByName(
+            'Rex',
+            const GetPetByNameOptions(category: 'dogs', xCorrelationId: 'c-1'),
+          );
 
-        expect(result, isNotNull);
-        expect(capturedQuery, contains('category=dogs'));
-      } finally {
-        await server.close();
-      }
-    });
+          expect(result, isNotNull);
+          expect(capturedQuery, contains('category=dogs'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* optional-array-query-param-styled (cross-SDK parity, Wave D): getPetTag
      * carries TWO OPTIONAL array query params — `colors` (pipeDelimited) and
@@ -1080,55 +1107,58 @@ void main() {
      * reflects over any `List` element type, so the styled form is produced
      * correctly. We capture the outbound query against a local mock and assert
      * the styled values are present and the debug blob is absent. */
-    test('getPetTag serializes optional array query params as styled', () async {
-      String? capturedQuery;
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        capturedQuery = request.uri.query;
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"id":5,"name":"Rex","photoUrls":[]}')
-          ..close();
-      });
+    test(
+      'bhv operations 068 getPetTag serializes optional array query params as styled',
+      () async {
+        String? capturedQuery;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedQuery = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":5,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .build();
-        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetTag(
-          5,
-          'cute',
-          GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']),
-        );
-        expect(result, isNotNull);
+          final result = await api.getPetTag(
+            5,
+            'cute',
+            GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']),
+          );
+          expect(result, isNotNull);
 
-        // Decode the captured raw query so percent-encoding of the structural
-        // separators (`|`, ` `) does not make the assertions brittle.
-        final decoded = Uri.decodeQueryComponent(capturedQuery ?? '');
+          // Decode the captured raw query so percent-encoding of the structural
+          // separators (`|`, ` `) does not make the assertions brittle.
+          final decoded = Uri.decodeQueryComponent(capturedQuery ?? '');
 
-        // colors is pipeDelimited → colors=blue|black ; both members appear in
-        // order joined by the declared `|` separator.
-        expect(decoded, contains('colors=blue|black'));
-        // sizes is spaceDelimited → sizes=S M (members joined by a space).
-        expect(decoded, contains('sizes=S M'));
+          // colors is pipeDelimited → colors=blue|black ; both members appear in
+          // order joined by the declared `|` separator.
+          expect(decoded, contains('colors=blue|black'));
+          // sizes is spaceDelimited → sizes=S M (members joined by a space).
+          expect(decoded, contains('sizes=S M'));
 
-        // The literal language-debug list form MUST NOT appear on the wire —
-        // this is exactly the garbage the go pointer-to-slice bug produced.
-        expect(decoded, isNot(contains('[blue')));
-        expect(decoded, isNot(contains('blue, black')));
-        expect(decoded, isNot(contains('blue black')));
-      } finally {
-        await server.close();
-      }
-    });
+          // The literal language-debug list form MUST NOT appear on the wire —
+          // this is exactly the garbage the go pointer-to-slice bug produced.
+          expect(decoded, isNot(contains('[blue')));
+          expect(decoded, isNot(contains('blue, black')));
+          expect(decoded, isNot(contains('blue black')));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* A digit-leading query parameter gets a legal Dart identifier (n2ndPage)
      * while the wire name stays `2ndPage`. */
     test(
-      'findPetsByStatus sends the digit-leading query parameter under its spec name',
+      'bhv operations 021 findPetsByStatus sends the digit-leading query parameter under its spec name',
       () async {
         String? capturedQuery;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1162,7 +1192,7 @@ void main() {
     /* A deepObject query parameter with an additionalProperties schema is sent
      * as one bracketed pair per entry. */
     test(
-      'findPetsByStatus sends the deepObject filter as bracketed pairs',
+      'bhv operations 044 findPetsByStatus sends the deepObject filter as bracketed pairs',
       () async {
         String? capturedQuery;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1199,7 +1229,7 @@ void main() {
     /* A matrix-style path parameter renders as `;name=value` and a label-style
      * one as `.value`. */
     test(
-      'getPetTag sends the matrix and label path parameters in their styles',
+      'bhv operations 060 getPetTag sends the matrix and label path parameters in their styles',
       () async {
         String? capturedPath;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1228,7 +1258,7 @@ void main() {
     );
 
     test(
-      'addPetTreatment sends the chosen anyOf variant as the request body',
+      'bhv operations 024 addPetTreatment sends the chosen anyOf variant as the request body',
       () async {
         String? requestBody;
         String? requestPath;
@@ -1277,7 +1307,7 @@ void main() {
      * a single comma-joined value, the deepObject a bracketed key per
      * property, and the simple-style header a comma-joined list. */
     test(
-      'getPetTag sends object-valued query and header parameters in their declared styles',
+      'bhv operations 067 getPetTag sends object-valued query and header parameters in their declared styles',
       () async {
         String? capturedQuery;
         String? capturedHeader;
@@ -1345,7 +1375,7 @@ void main() {
       final wantQuery = sample[1] as String;
       final wantHeader = sample[2] as String;
       test(
-        'getPetTag sends byte parameters as standard padded base64 ($wantHeader)',
+        'bhv operations 059 getPetTag sends byte parameters as standard padded base64 ($wantHeader)',
         () async {
           String? capturedQuery;
           String? capturedHeader;
@@ -1386,29 +1416,32 @@ void main() {
      * so the call must fail-fast with an ArgumentError rather than sending an
      * empty value on the wire. getPetByName's `category` is a required string
      * query param carried on the required Options object. */
-    test('getPetByName rejects empty-string required category', () async {
-      final config = ConfigurationBuilder()
-          .baseUrl('http://localhost:1')
-          .build();
-      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+    test(
+      'bhv operations 049 getPetByName rejects empty-string required category',
+      () async {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:1')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-      await expectLater(
-        api.getPetByName(
-          'Rex',
-          const GetPetByNameOptions(category: '', xCorrelationId: 'c-1'),
-        ),
-        throwsA(
-          isA<ArgumentError>().having(
-            (e) => e.message,
-            'message',
-            "Missing the required parameter 'category' when calling PetApi.getPetByName",
+        await expectLater(
+          api.getPetByName(
+            'Rex',
+            const GetPetByNameOptions(category: '', xCorrelationId: 'c-1'),
           ),
-        ),
-      );
-    });
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              "Missing the required parameter 'category' when calling PetApi.getPetByName",
+            ),
+          ),
+        );
+      },
+    );
 
     test(
-      'getPetByName rejects an empty required header with the canonical message',
+      'bhv operations 050 getPetByName rejects an empty required header with the canonical message',
       () async {
         final config = ConfigurationBuilder()
             .baseUrl('http://localhost:1')
@@ -1432,7 +1465,7 @@ void main() {
     );
 
     test(
-      'getPetSummary rejects an empty required cookie with the canonical message',
+      'bhv operations 056 getPetSummary rejects an empty required cookie with the canonical message',
       () async {
         final config = ConfigurationBuilder()
             .baseUrl('http://localhost:1')
@@ -1456,7 +1489,7 @@ void main() {
       },
     );
 
-    test('errorHandling_notFound', () async {
+    test('bhv operations 037 errorHandling_notFound', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/404')
           .build();
@@ -1470,7 +1503,7 @@ void main() {
       }
     });
 
-    test('errorHandling_serverError', () async {
+    test('bhv operations 038 errorHandling_serverError', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/500')
           .build();
@@ -1495,7 +1528,7 @@ void main() {
      * A matrix-style date path param and each item of a date-array query
      * param must still go out as YYYY-MM-DD, never as a full date-time. */
     test(
-      'getPetSummary sends the date path param and date array as dates',
+      'bhv operations 057 getPetSummary sends the date path param and date array as dates',
       () async {
         String? capturedPath;
         String? capturedQuery;
@@ -1572,12 +1605,15 @@ void main() {
       }
     }
 
-    test('a value of legal cookie-octets is sent raw', () async {
-      final (cookie, error) = await callWithSession('a=b/c%20d');
+    test(
+      'bhv operations 030 a value of legal cookie-octets is sent raw',
+      () async {
+        final (cookie, error) = await callWithSession('a=b/c%20d');
 
-      expect(error, isNull);
-      expect(cookie, equals('session=a=b/c%20d'));
-    });
+        expect(error, isNull);
+        expect(cookie, equals('session=a=b/c%20d'));
+      },
+    );
 
     test(
       'a value with a space, semicolon, comma, quote or backslash fails before sending',
@@ -1601,7 +1637,7 @@ void main() {
      * deprecated model carries it on the class and a deprecated parameter on
      * its Options field. */
     test(
-      'deprecation markers sit on every variant of a deprecated operation',
+      'bhv operations 033 deprecation markers sit on every variant of a deprecated operation',
       () {
         expect(
           source,
@@ -1627,28 +1663,31 @@ void main() {
       },
     );
 
-    test('deprecation markers sit on a deprecated model and parameter', () {
-      final tag = File(
-        '${Directory.current.path}/lib/src/models/tag.dart',
-      ).readAsStringSync();
-      expect(
-        tag,
-        contains("@Deprecated('This schema is deprecated.')\nclass Tag {"),
-      );
-      final options = File(
-        '${Directory.current.path}/lib/src/api/options/find_pets_by_status_options.dart',
-      ).readAsStringSync();
-      expect(
-        options,
-        contains(
-          "@Deprecated('This parameter is deprecated.')\n  final String? status;",
-        ),
-      );
-    });
+    test(
+      'bhv operations 032 deprecation markers sit on a deprecated model and parameter',
+      () {
+        final tag = File(
+          '${Directory.current.path}/lib/src/models/tag.dart',
+        ).readAsStringSync();
+        expect(
+          tag,
+          contains("@Deprecated('This schema is deprecated.')\nclass Tag {"),
+        );
+        final options = File(
+          '${Directory.current.path}/lib/src/api/options/find_pets_by_status_options.dart',
+        ).readAsStringSync();
+        expect(
+          options,
+          contains(
+            "@Deprecated('This parameter is deprecated.')\n  final String? status;",
+          ),
+        );
+      },
+    );
 
     /* The `options` argument is documented on every operation that takes
      * it, by what the Options class carries (no authenticator: F857). */
-    test('document the options argument by what it carries', () {
+    test('bhv operations 082 document the options argument by what it carries', () {
       expect(
         source,
         contains(
@@ -1698,7 +1737,7 @@ void main() {
   });
 
   group('operation-level server variants', () {
-    test('the fixed external variant resolves its URL', () {
+    test('bhv operations 083 the fixed external variant resolves its URL', () {
       expect(
         GetExternalPetInfoServerServer0().getUrl(),
         equals('https://external-api.example.com/v1'),
@@ -1723,7 +1762,7 @@ void main() {
     });
 
     test(
-      'the multi-server operation offers a fixed and a templated server',
+      'bhv operations 085 the multi-server operation offers a fixed and a templated server',
       () {
         expect(
           GetMultiServerPetInfoServerPrimary().getUrl(),
@@ -1739,7 +1778,7 @@ void main() {
     );
 
     test(
-      'the Mirror server variant keeps a&b and it\'s in the URL without entities',
+      'bhv operations 084 the Mirror server variant keeps a&b and it\'s in the URL without entities',
       () {
         expect(
           GetMultiServerPetInfoServerMirror(

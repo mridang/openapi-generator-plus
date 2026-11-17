@@ -13,7 +13,7 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('pubspec manifest', () {
-    test('declares a non-empty description', () {
+    test('bhv models 002 declares a non-empty description', () {
       // manifest-description-missing: the published pubspec must carry a
       // description (wired from the spec's appDescription, with a generated
       // fallback) so pub.dev does not show an empty description.
@@ -228,33 +228,36 @@ void main() {
   });
 
   group('file header', () {
-    test('prints the info description without backslash-escaped quotes', () {
-      /* F1156: the header comment of every generated source file renders the
+    test(
+      'bhv models 006 prints the info description without backslash-escaped quotes',
+      () {
+        /* F1156: the header comment of every generated source file renders the
        * info description; a quote must not reach it as a backslash-quote. */
-      final headers = Directory('${Directory.current.path}/lib')
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((file) => file.path.endsWith('.dart'))
-          .map(
-            (file) => file
-                .readAsLinesSync()
-                .takeWhile((line) => line.startsWith('//'))
-                .toList(),
-          )
-          .where((lines) => lines.isNotEmpty)
-          .toList();
-      expect(headers, isNotEmpty);
-      for (final header in headers) {
-        for (final line in header) {
-          expect(
-            line.contains(r'\"'),
-            isFalse,
-            reason:
-                'header line must not carry a backslash-escaped quote: $line',
-          );
+        final headers = Directory('${Directory.current.path}/lib')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('.dart'))
+            .map(
+              (file) => file
+                  .readAsLinesSync()
+                  .takeWhile((line) => line.startsWith('//'))
+                  .toList(),
+            )
+            .where((lines) => lines.isNotEmpty)
+            .toList();
+        expect(headers, isNotEmpty);
+        for (final header in headers) {
+          for (final line in header) {
+            expect(
+              line.contains(r'\"'),
+              isFalse,
+              reason:
+                  'header line must not carry a backslash-escaped quote: $line',
+            );
+          }
         }
-      }
-    });
+      },
+    );
   });
 
   group('package barrel', () {
@@ -288,21 +291,24 @@ void main() {
   });
 
   group('Metadata model', () {
-    test('a declared property wins over a colliding additional property', () {
-      final metadata = Metadata(
-        createdAt: DateTime.utc(2024, 1, 15, 10, 30),
-        additionalProperties: const {'createdAt': 'x', 'extra': 1},
-      );
+    test(
+      'bhv models 010 a declared property wins over a colliding additional property',
+      () {
+        final metadata = Metadata(
+          createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+          additionalProperties: const {'createdAt': 'x', 'extra': 1},
+        );
 
-      final json = jsonEncode(metadata.toJson());
+        final json = jsonEncode(metadata.toJson());
 
-      expect(
-        json,
-        equals('{"createdAt":"2024-01-15T10:30:00.000+00:00","extra":1}'),
-      );
-    });
+        expect(
+          json,
+          equals('{"createdAt":"2024-01-15T10:30:00.000+00:00","extra":1}'),
+        );
+      },
+    );
 
-    test('serialize empty metadata', () {
+    test('bhv models 008 serialize empty metadata', () {
       final obj = <String, dynamic>{};
 
       final json = jsonEncode(obj);
@@ -317,14 +323,14 @@ void main() {
       expect(parsed['createdAt'], isNotNull);
     });
 
-    test('deserialize empty object', () {
+    test('bhv models 003 deserialize empty object', () {
       final jsonData = '{}';
 
       final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
       expect(parsed, isEmpty);
     });
 
-    test('deserialize with additional properties', () {
+    test('bhv models 004 deserialize with additional properties', () {
       final jsonData =
           '{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":42}';
 
@@ -333,7 +339,7 @@ void main() {
       expect(parsed['count'], equals(42));
     });
 
-    test('round trip', () {
+    test('bhv models 011 round trip', () {
       final jsonData = '{"createdAt":"2024-01-15T10:30:00+00:00"}';
 
       final parsed = jsonDecode(jsonData);
@@ -353,7 +359,7 @@ void main() {
     // key). This exercises the real Metadata.fromJson / toJson, not raw
     // jsonDecode.
     test(
-      'Metadata captures unknown keys and re-serializes them at top level',
+      'bhv models 001 Metadata captures unknown keys and re-serializes them at top level',
       () {
         final source = <String, dynamic>{
           'createdAt': '2024-01-15T10:30:00+00:00',
@@ -384,36 +390,39 @@ void main() {
   });
 
   group('Model doc comments', () {
-    test('no generated model claims a literal `null` example', () {
-      // L1 regression: when the spec declares no example, the codegen fills
-      // the property example with the literal string `null`, which is truthy
-      // in Mustache. Without a guard, nearly every field would carry a false
-      // `/// Example: `null`` doc line. The model template gates that line so
-      // it is emitted ONLY for a genuine example. Assert NO generated model
-      // file contains the polluting doc text.
-      final modelsDir = Directory('${Directory.current.path}/lib/src/models');
-      expect(
-        modelsDir.existsSync(),
-        isTrue,
-        reason: 'generated models directory must exist',
-      );
+    test(
+      'bhv models 007 no generated model claims a literal `null` example',
+      () {
+        // L1 regression: when the spec declares no example, the codegen fills
+        // the property example with the literal string `null`, which is truthy
+        // in Mustache. Without a guard, nearly every field would carry a false
+        // `/// Example: `null`` doc line. The model template gates that line so
+        // it is emitted ONLY for a genuine example. Assert NO generated model
+        // file contains the polluting doc text.
+        final modelsDir = Directory('${Directory.current.path}/lib/src/models');
+        expect(
+          modelsDir.existsSync(),
+          isTrue,
+          reason: 'generated models directory must exist',
+        );
 
-      final offenders = <String>[];
-      for (final entity in modelsDir.listSync()) {
-        if (entity is File && entity.path.endsWith('.dart')) {
-          final contents = entity.readAsStringSync();
-          if (contents.contains('Example: `null`')) {
-            offenders.add(entity.path);
+        final offenders = <String>[];
+        for (final entity in modelsDir.listSync()) {
+          if (entity is File && entity.path.endsWith('.dart')) {
+            final contents = entity.readAsStringSync();
+            if (contents.contains('Example: `null`')) {
+              offenders.add(entity.path);
+            }
           }
         }
-      }
 
-      expect(
-        offenders,
-        isEmpty,
-        reason: 'these models stamp a false null example: $offenders',
-      );
-    });
+        expect(
+          offenders,
+          isEmpty,
+          reason: 'these models stamp a false null example: $offenders',
+        );
+      },
+    );
   });
 
   group('Metadata value equality', () {
@@ -425,7 +434,7 @@ void main() {
     });
 
     test(
-      'instances with equal additionalProperties are equal and hash alike',
+      'bhv models 005 instances with equal additionalProperties are equal and hash alike',
       () {
         final first = Metadata(
           additionalProperties: {

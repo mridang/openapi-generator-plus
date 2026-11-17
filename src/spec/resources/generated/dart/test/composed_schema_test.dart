@@ -15,7 +15,7 @@ void main() {
   group('Composed schemas', () {
     // oneOf with discriminator: PetFood
 
-    test('PetFood deserialize dry food', () {
+    test('bhv unions 012 PetFood deserialize dry food', () {
       final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
 
       final food = PetFood.fromJson(json);
@@ -23,7 +23,7 @@ void main() {
       expect(food.actualInstance, isA<DryFood>());
     });
 
-    test('PetFood deserialize wet food', () {
+    test('bhv unions 013 PetFood deserialize wet food', () {
       final json = <String, dynamic>{'foodType': 'wet', 'volumeMl': 400};
 
       final food = PetFood.fromJson(json);
@@ -31,57 +31,69 @@ void main() {
       expect(food.actualInstance, isA<WetFood>());
     });
 
-    test('PetFood unknown discriminator throws SerializationException', () {
-      // 4.7 — discriminator value not in the listed $ref mappings must
-      // surface as a SerializationException, not silently fall through nor
-      // bubble a generic ArgumentError.
-      final json = <String, dynamic>{'foodType': 'raw', 'calories': 300};
+    test(
+      'bhv unions 016 PetFood unknown discriminator throws SerializationException',
+      () {
+        // 4.7 — discriminator value not in the listed $ref mappings must
+        // surface as a SerializationException, not silently fall through nor
+        // bubble a generic ArgumentError.
+        final json = <String, dynamic>{'foodType': 'raw', 'calories': 300};
 
-      expect(
-        () => PetFood.fromJson(json),
-        throwsA(isA<SerializationException>()),
-      );
-    });
+        expect(
+          () => PetFood.fromJson(json),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
 
-    test('PetFood missing discriminator throws SerializationException', () {
-      // No foodType key at all — disc is null, still not a listed value.
-      final json = <String, dynamic>{'calories': 300};
+    test(
+      'bhv unions 015 PetFood missing discriminator throws SerializationException',
+      () {
+        // No foodType key at all — disc is null, still not a listed value.
+        final json = <String, dynamic>{'calories': 300};
 
-      expect(
-        () => PetFood.fromJson(json),
-        throwsA(isA<SerializationException>()),
-      );
-    });
+        expect(
+          () => PetFood.fromJson(json),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
 
-    test('PetFood empty discriminator throws SerializationException', () {
-      // An empty discriminator value matches no listed mapping and must
-      // surface as a SerializationException, not route to a fitting variant.
-      final json = <String, dynamic>{'foodType': '', 'weightKg': 2.5};
+    test(
+      'bhv unions 024 PetFood empty discriminator throws SerializationException',
+      () {
+        // An empty discriminator value matches no listed mapping and must
+        // surface as a SerializationException, not route to a fitting variant.
+        final json = <String, dynamic>{'foodType': '', 'weightKg': 2.5};
 
-      expect(
-        () => PetFood.fromJson(json),
-        throwsA(isA<SerializationException>()),
-      );
-    });
+        expect(
+          () => PetFood.fromJson(json),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
 
-    test('PetFood unknown discriminator error names the offending value', () {
-      // CS4: the error message must surface the offending discriminator value
-      // so callers can diagnose server/spec drift.
-      final json = <String, dynamic>{'foodType': 'raw', 'calories': 300};
+    test(
+      'bhv unions 026 PetFood unknown discriminator error names the offending value',
+      () {
+        // CS4: the error message must surface the offending discriminator value
+        // so callers can diagnose server/spec drift.
+        final json = <String, dynamic>{'foodType': 'raw', 'calories': 300};
 
-      expect(
-        () => PetFood.fromJson(json),
-        throwsA(
-          isA<SerializationException>().having(
-            (e) => e.toString(),
-            'message',
-            contains('raw'),
+        expect(
+          () => PetFood.fromJson(json),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.toString(),
+              'message',
+              contains('raw'),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
-    test('PetFood serialize dry food', () {
+    test('bhv unions 020 PetFood serialize dry food', () {
       final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
       final food = PetFood.fromJson(json);
 
@@ -107,7 +119,7 @@ void main() {
     });
 
     test(
-      'PetFood constructor wraps a variant that serializes with its discriminator',
+      'bhv unions 001 PetFood constructor wraps a variant that serializes with its discriminator',
       () {
         final food = PetFood(DryFood(weightKg: 2.5));
 
@@ -172,7 +184,7 @@ void main() {
 
     // anyOf without discriminator: PetTreatment
 
-    test('PetTreatment deserialize medication', () {
+    test('bhv unions 014 PetTreatment deserialize medication', () {
       final json = <String, dynamic>{
         'drugName': 'Amoxicillin',
         'dosage': '250mg',
@@ -183,7 +195,7 @@ void main() {
       expect(treatment.actualInstance, isA<Medication>());
     });
 
-    test('PetTreatment deserialize surgery', () {
+    test('bhv unions 006 PetTreatment deserialize surgery', () {
       final json = <String, dynamic>{
         'procedureName': 'Spay',
         'durationMinutes': 45,
@@ -194,19 +206,22 @@ void main() {
       expect(treatment.actualInstance, isA<Surgery>());
     });
 
-    test('PetTreatment no matching variant throws SerializationException', () {
-      // Cross-cutting `oneof-nondiscriminator-no-match-silent`: a body
-      // that matches none of the anyOf variants must surface a
-      // SerializationException, not a silently-empty union (data loss).
-      final json = <String, dynamic>{'completelyUnrelated': 'value'};
+    test(
+      'bhv unions 007 PetTreatment no matching variant throws SerializationException',
+      () {
+        // Cross-cutting `oneof-nondiscriminator-no-match-silent`: a body
+        // that matches none of the anyOf variants must surface a
+        // SerializationException, not a silently-empty union (data loss).
+        final json = <String, dynamic>{'completelyUnrelated': 'value'};
 
-      expect(
-        () => PetTreatment.fromJson(json),
-        throwsA(isA<SerializationException>()),
-      );
-    });
+        expect(
+          () => PetTreatment.fromJson(json),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
 
-    test('PetTreatment serialize round trip', () {
+    test('bhv unions 008 PetTreatment serialize round trip', () {
       final json = <String, dynamic>{
         'drugName': 'Amoxicillin',
         'dosage': '250mg',
@@ -217,44 +232,47 @@ void main() {
       expect(serialized, isNotEmpty);
     });
 
-    test('PetTreatment retains all matching variants (medication and surgery) '
-        'losslessly', () {
-      // anyOf is documented as matching a medication, a surgery, OR BOTH. A
-      // payload satisfying both variants at once must retain BOTH — keeping
-      // only the first match would silently drop the surgery fields and lose
-      // them on re-encode.
-      final json = <String, dynamic>{
-        'drugName': 'Amoxicillin',
-        'dosage': '250mg',
-        'procedureName': 'Spay',
-        'durationMinutes': 45,
-      };
+    test(
+      'bhv unions 009 PetTreatment retains all matching variants (medication and surgery) '
+      'losslessly',
+      () {
+        // anyOf is documented as matching a medication, a surgery, OR BOTH. A
+        // payload satisfying both variants at once must retain BOTH — keeping
+        // only the first match would silently drop the surgery fields and lose
+        // them on re-encode.
+        final json = <String, dynamic>{
+          'drugName': 'Amoxicillin',
+          'dosage': '250mg',
+          'procedureName': 'Spay',
+          'durationMinutes': 45,
+        };
 
-      final treatment = PetTreatment.fromJson(json);
+        final treatment = PetTreatment.fromJson(json);
 
-      // Both variants are accessible on the decoded value, not just the first.
-      expect(treatment.actualInstance, isA<Medication>());
-      expect(treatment.matchedInstances, [isA<Medication>(), isA<Surgery>()]);
-      final medication = treatment.valueOf<Medication>();
-      final surgery = treatment.valueOf<Surgery>();
-      expect(medication, isNotNull);
-      expect(surgery, isNotNull);
-      expect(medication!.drugName, equals('Amoxicillin'));
-      expect(medication.dosage, equals('250mg'));
-      expect(surgery!.procedureName, equals('Spay'));
-      expect(surgery.durationMinutes, equals(45));
+        // Both variants are accessible on the decoded value, not just the first.
+        expect(treatment.actualInstance, isA<Medication>());
+        expect(treatment.matchedInstances, [isA<Medication>(), isA<Surgery>()]);
+        final medication = treatment.valueOf<Medication>();
+        final surgery = treatment.valueOf<Surgery>();
+        expect(medication, isNotNull);
+        expect(surgery, isNotNull);
+        expect(medication!.drugName, equals('Amoxicillin'));
+        expect(medication.dosage, equals('250mg'));
+        expect(surgery!.procedureName, equals('Spay'));
+        expect(surgery.durationMinutes, equals(45));
 
-      // Re-serialize: the JSON still carries ALL FOUR fields, so the
-      // co-satisfied data round-trips with no silent drop.
-      final restored =
-          jsonDecode(jsonEncode(treatment.toJson())) as Map<String, dynamic>;
-      expect(restored['drugName'], equals('Amoxicillin'));
-      expect(restored['dosage'], equals('250mg'));
-      expect(restored['procedureName'], equals('Spay'));
-      expect(restored['durationMinutes'], equals(45));
-    });
+        // Re-serialize: the JSON still carries ALL FOUR fields, so the
+        // co-satisfied data round-trips with no silent drop.
+        final restored =
+            jsonDecode(jsonEncode(treatment.toJson())) as Map<String, dynamic>;
+        expect(restored['drugName'], equals('Amoxicillin'));
+        expect(restored['dosage'], equals('250mg'));
+        expect(restored['procedureName'], equals('Spay'));
+        expect(restored['durationMinutes'], equals(45));
+      },
+    );
 
-    test('PetTreatment shared-property collision keeps the last variant, '
+    test('bhv unions 010 PetTreatment shared-property collision keeps the last variant, '
         'emitted once', () {
       // anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
       // Retaining both members with DIFFERENT `notes` values must encode the
@@ -274,14 +292,17 @@ void main() {
       expect('"notes"'.allMatches(serialized).length, equals(1));
     });
 
-    test('TreatmentRecord tries variants in declaration order', () {
-      final record = TreatmentRecord.fromJson(<String, dynamic>{
-        'drugName': 'Amoxicillin',
-        'procedureName': 'Spay',
-      });
+    test(
+      'bhv unions 025 TreatmentRecord tries variants in declaration order',
+      () {
+        final record = TreatmentRecord.fromJson(<String, dynamic>{
+          'drugName': 'Amoxicillin',
+          'procedureName': 'Spay',
+        });
 
-      expect(record.matchedInstances, [isA<Surgery>(), isA<Medication>()]);
-    });
+        expect(record.matchedInstances, [isA<Surgery>(), isA<Medication>()]);
+      },
+    );
 
     test('anyOf unions decoded from identical JSON are equal', () {
       final json = <String, dynamic>{
@@ -325,7 +346,7 @@ void main() {
 
     // allOf: PetWithOwner extends Pet fields
 
-    test('PetWithOwner deserialize', () {
+    test('bhv unions 004 PetWithOwner deserialize', () {
       final json = <String, dynamic>{
         'name': 'Fido',
         'photoUrls': ['http://example.com/fido.jpg'],
@@ -337,7 +358,7 @@ void main() {
       expect(pet, isNotNull);
     });
 
-    test('PetWithOwner serialize', () {
+    test('bhv unions 021 PetWithOwner serialize', () {
       final json = <String, dynamic>{
         'name': 'Fido',
         'photoUrls': ['http://example.com/fido.jpg'],
@@ -353,7 +374,7 @@ void main() {
       expect(restored['ownerName'], equals('John Doe'));
     });
 
-    test('PetWithOwner round trip', () {
+    test('bhv unions 017 PetWithOwner round trip', () {
       final json = <String, dynamic>{
         'name': 'Buddy',
         'photoUrls': ['http://example.com/buddy.jpg'],
@@ -374,7 +395,7 @@ void main() {
     // value-less empty-stub that silently dropped the payload.
 
     test(
-      'setPetAvatarThumbnail byte oneOf round-trips through base64 (scalar)',
+      'bhv unions 023 setPetAvatarThumbnail byte oneOf round-trips through base64 (scalar)',
       () {
         final bytes = Uint8List.fromList(<int>[0x01, 0x02, 0x03, 0x04]);
 
@@ -396,35 +417,41 @@ void main() {
       },
     );
 
-    test('setPetAvatarThumbnail byte oneOf resolves scalar before array on '
-        'decode', () {
-      // A scalar base64 string must deserialize to the SCALAR variant (one
-      // Uint8List), NOT be mis-parsed element-by-element into a List. The
-      // scalar branch is declared before the array branch so ordering holds.
-      final bytes = Uint8List.fromList(<int>[0x01, 0x02, 0x03, 0x04]);
-      final wire = base64Encode(bytes);
+    test(
+      'bhv unions 018 setPetAvatarThumbnail byte oneOf resolves scalar before array on '
+      'decode',
+      () {
+        // A scalar base64 string must deserialize to the SCALAR variant (one
+        // Uint8List), NOT be mis-parsed element-by-element into a List. The
+        // scalar branch is declared before the array branch so ordering holds.
+        final bytes = Uint8List.fromList(<int>[0x01, 0x02, 0x03, 0x04]);
+        final wire = base64Encode(bytes);
 
-      final req = SetPetAvatarThumbnailRequest.fromJson(wire);
-      expect(req.actualInstance, isA<Uint8List>());
-      // The scalar variant is a Uint8List (which IS a List<int>), so the
-      // meaningful ordering check is that it was NOT mis-parsed into the ARRAY
-      // variant (a List<Uint8List>) element-by-element.
-      expect(req.actualInstance, isNot(isA<List<Uint8List>>()));
-      expect(req.actualInstance, equals(bytes));
-    });
-
-    test('SetPetAvatarThumbnailRequest round trips a single byte value', () {
-      final bytes = Uint8List.fromList(<int>[10, 20, 30]);
-      final wire = base64Encode(bytes);
-
-      final req = SetPetAvatarThumbnailRequest.fromJson(wire);
-      expect(req.actualInstance, isA<Uint8List>());
-      expect(req.actualInstance, equals(bytes));
-      expect(req.toJson(), equals(wire));
-    });
+        final req = SetPetAvatarThumbnailRequest.fromJson(wire);
+        expect(req.actualInstance, isA<Uint8List>());
+        // The scalar variant is a Uint8List (which IS a List<int>), so the
+        // meaningful ordering check is that it was NOT mis-parsed into the ARRAY
+        // variant (a List<Uint8List>) element-by-element.
+        expect(req.actualInstance, isNot(isA<List<Uint8List>>()));
+        expect(req.actualInstance, equals(bytes));
+      },
+    );
 
     test(
-      'SetPetAvatarThumbnailRequest round trips an array of byte values',
+      'bhv unions 019 SetPetAvatarThumbnailRequest round trips a single byte value',
+      () {
+        final bytes = Uint8List.fromList(<int>[10, 20, 30]);
+        final wire = base64Encode(bytes);
+
+        final req = SetPetAvatarThumbnailRequest.fromJson(wire);
+        expect(req.actualInstance, isA<Uint8List>());
+        expect(req.actualInstance, equals(bytes));
+        expect(req.toJson(), equals(wire));
+      },
+    );
+
+    test(
+      'bhv unions 022 SetPetAvatarThumbnailRequest round trips an array of byte values',
       () {
         final a = Uint8List.fromList(<int>[1, 2]);
         final b = Uint8List.fromList(<int>[3, 4]);

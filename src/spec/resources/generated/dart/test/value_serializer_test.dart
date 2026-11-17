@@ -17,22 +17,22 @@ void main() {
   group('ValueSerializer', () {
     // serializeValue by location
 
-    test('serializeValue path null', () {
+    test('bhv serializationparam 062 serializeValue path null', () {
       final result = serializeValue(null, 'path', 'string', '');
       expect(result, equals(''));
     });
 
-    test('serializeValue path string as-is', () {
+    test('bhv serializationparam 100 serializeValue path string as-is', () {
       final result = serializeValue('hello', 'path', 'string', '');
       expect(result, equals('hello'));
     });
 
-    test('serializeValue path string', () {
+    test('bhv serializationparam 102 serializeValue path string', () {
       final result = serializeValue('hello world', 'path', 'string', '');
       expect(result, equals('hello%20world'));
     });
 
-    test('serializeValue path string slash', () {
+    test('bhv serializationparam 101 serializeValue path string slash', () {
       final result = serializeValue('a/b', 'path', 'string', '');
       expect(result, equals('a%2Fb'));
     });
@@ -68,42 +68,42 @@ void main() {
       expect(slash, isNot(contains('%252F')));
     });
 
-    test('serializeValue path integer', () {
+    test('bhv serializationparam 044 serializeValue path integer', () {
       final result = serializeValue(42, 'path', 'integer', '');
       expect(result, equals('42'));
     });
 
-    test('serializeValue path boolean true', () {
+    test('bhv serializationparam 021 serializeValue path boolean true', () {
       final result = serializeValue(true, 'path', 'boolean', '');
       expect(result, equals('true'));
     });
 
-    test('serializeValue path boolean false', () {
+    test('bhv serializationparam 018 serializeValue path boolean false', () {
       final result = serializeValue(false, 'path', 'boolean', '');
       expect(result, equals('false'));
     });
 
-    test('serializeValue query null', () {
+    test('bhv serializationparam 067 serializeValue query null', () {
       final result = serializeValue(null, 'query', 'string', '');
       expect(result, isNull);
     });
 
-    test('serializeValue query string', () {
+    test('bhv serializationparam 096 serializeValue query string', () {
       final result = serializeValue('hello', 'query', 'string', '');
       expect(result, equals('hello'));
     });
 
-    test('serializeValue query integer', () {
+    test('bhv serializationparam 045 serializeValue query integer', () {
       final result = serializeValue(42, 'query', 'integer', '');
       expect(result, equals('42'));
     });
 
-    test('serializeValue query boolean true', () {
+    test('bhv serializationparam 022 serializeValue query boolean true', () {
       final result = serializeValue(true, 'query', 'boolean', '');
       expect(result, equals('true'));
     });
 
-    test('serializeValue query boolean false', () {
+    test('bhv serializationparam 019 serializeValue query boolean false', () {
       final result = serializeValue(false, 'query', 'boolean', '');
       expect(result, equals('false'));
     });
@@ -113,128 +113,134 @@ void main() {
       expect(result, equals('a,b,c'));
     });
 
-    test('serializeValue query array ssv', () {
+    test('bhv serializationparam 009 serializeValue query array ssv', () {
       final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'ssv');
       expect(result, equals('a b c'));
     });
 
-    test('serializeValue query array tsv', () {
+    test('bhv serializationparam 010 serializeValue query array tsv', () {
       final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'tsv');
       expect(result, equals('a\tb\tc'));
     });
 
-    test('serializeValue query array pipes', () {
+    test('bhv serializationparam 008 serializeValue query array pipes', () {
       final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'pipes');
       expect(result, equals('a|b|c'));
     });
 
-    test('serializeValue query array multi', () {
+    test('bhv serializationparam 015 serializeValue query array multi', () {
       final result = serializeValue(['a', 'b'], 'query', 'array', 'multi');
       expect(result, isA<List<String>>());
       final items = result as List<String>;
       expect(items, equals(['a', 'b']));
     });
 
-    test('serializeValue query array empty csv', () {
+    test('bhv serializationparam 007 serializeValue query array empty csv', () {
       final result = serializeValue([], 'query', 'array', 'csv');
       expect(result, equals(''));
     });
 
-    test('serializeValue query array empty multi', () {
-      final result = serializeValue([], 'query', 'array', 'multi');
-      expect(result, isA<List<String>>());
-      final items = result as List<String>;
-      expect(items, isEmpty);
-    });
+    test(
+      'bhv serializationparam 031 serializeValue query array empty multi',
+      () {
+        final result = serializeValue([], 'query', 'array', 'multi');
+        expect(result, isA<List<String>>());
+        final items = result as List<String>;
+        expect(items, isEmpty);
+      },
+    );
 
-    test('serializeValue query array single element', () {
-      final result = serializeValue(['a'], 'query', 'array', 'csv');
-      expect(result, equals('a'));
-    });
+    test(
+      'bhv serializationparam 090 serializeValue query array single element',
+      () {
+        final result = serializeValue(['a'], 'query', 'array', 'csv');
+        expect(result, equals('a'));
+      },
+    );
 
-    test('serializeValue query array integers', () {
+    test('bhv serializationparam 014 serializeValue query array integers', () {
       final result = serializeValue([1, 2, 3], 'query', 'array', 'csv');
       expect(result, equals('1,2,3'));
     });
 
-    test('serializeValue query array booleans', () {
+    test('bhv serializationparam 012 serializeValue query array booleans', () {
       final result = serializeValue([true, false], 'query', 'array', 'csv');
       expect(result, equals('true,false'));
     });
 
-    test('serializeValue header null', () {
+    test('bhv serializationparam 063 serializeValue header null', () {
       final result = serializeValue(null, 'header', 'string', '');
       expect(result, equals(''));
     });
 
-    test('serializeValue header string', () {
+    test('bhv serializationparam 097 serializeValue header string', () {
       final result = serializeValue('hello', 'header', 'string', '');
       expect(result, equals('hello'));
     });
 
-    test('serializeValue header integer', () {
+    test('bhv serializationparam 046 serializeValue header integer', () {
       final result = serializeValue(42, 'header', 'integer', '');
       expect(result, equals('42'));
     });
 
-    test('serializeValue header boolean true', () {
+    test('bhv serializationparam 023 serializeValue header boolean true', () {
       final result = serializeValue(true, 'header', 'boolean', '');
       expect(result, equals('true'));
     });
 
-    test('serializeValue header array', () {
+    test('bhv serializationparam 005 serializeValue header array', () {
       final result = serializeValue(['a', 'b', 'c'], 'header', 'array', '');
       expect(result, equals('a,b,c'));
     });
 
-    test('serializeValue header array empty', () {
+    test('bhv serializationparam 030 serializeValue header array empty', () {
       final result = serializeValue([], 'header', 'array', '');
       expect(result, equals(''));
     });
 
-    test('serializeValue header array integers', () {
+    test('bhv serializationparam 013 serializeValue header array integers', () {
       final result = serializeValue([1, 2, 3], 'header', 'array', '');
       expect(result, equals('1,2,3'));
     });
 
-    test('serializeValue cookie null', () {
+    test('bhv serializationparam 065 serializeValue cookie null', () {
       final result = serializeValue(null, 'cookie', 'string', '');
       expect(result, equals(''));
     });
 
-    test('serializeValue cookie string', () {
+    test('bhv serializationparam 099 serializeValue cookie string', () {
       final result = serializeValue('hello', 'cookie', 'string', '');
       expect(result, equals('hello'));
     });
 
-    test('serializeValue form null', () {
+    test('bhv serializationparam 064 serializeValue form null', () {
       final result = serializeValue(null, 'form', 'string', '');
       expect(result, equals(''));
     });
 
-    test('serializeValue form string', () {
+    test('bhv serializationparam 098 serializeValue form string', () {
       final result = serializeValue('hello', 'form', 'string', '');
       expect(result, equals('hello'));
     });
 
-    test('serializeValue form integer', () {
+    test('bhv serializationparam 047 serializeValue form integer', () {
       final result = serializeValue(42, 'form', 'integer', '');
       expect(result, equals('42'));
     });
 
-    test('serializeValue form boolean true', () {
+    test('bhv serializationparam 024 serializeValue form boolean true', () {
       final result = serializeValue(true, 'form', 'boolean', '');
       expect(result, equals('true'));
     });
 
-    test('serializeValue form boolean false', () {
+    test('bhv serializationparam 020 serializeValue form boolean false', () {
       final result = serializeValue(false, 'form', 'boolean', '');
       expect(result, equals('false'));
     });
 
     // SerializeStyled: matrix
 
-    test('serializeStyled matrix scalar', () {
+    test('bhv serializationparam 058 serializeStyled matrix scalar', () {
       final result = serializeStyled(
         'id',
         '5',
@@ -247,20 +253,23 @@ void main() {
       expect(result, equals(';id=5'));
     });
 
-    test('serializeStyled matrix array no explode', () {
-      final result = serializeStyled(
-        'color',
-        ['red', 'green', 'blue'],
-        'path',
-        'array',
-        '',
-        'matrix',
-        false,
-      );
-      expect(result, equals(';color=red,green,blue'));
-    });
+    test(
+      'bhv serializationparam 056 serializeStyled matrix array no explode',
+      () {
+        final result = serializeStyled(
+          'color',
+          ['red', 'green', 'blue'],
+          'path',
+          'array',
+          '',
+          'matrix',
+          false,
+        );
+        expect(result, equals(';color=red,green,blue'));
+      },
+    );
 
-    test('serializeStyled matrix array explode', () {
+    test('bhv serializationparam 055 serializeStyled matrix array explode', () {
       final result = serializeStyled(
         'color',
         ['red', 'green', 'blue'],
@@ -273,7 +282,7 @@ void main() {
       expect(result, equals(';color=red;color=green;color=blue'));
     });
 
-    test('serializeStyled matrix nil', () {
+    test('bhv serializationparam 057 serializeStyled matrix nil', () {
       final result = serializeStyled(
         'id',
         null,
@@ -288,7 +297,7 @@ void main() {
 
     // SerializeStyled: label
 
-    test('serializeStyled label scalar', () {
+    test('bhv serializationparam 052 serializeStyled label scalar', () {
       final result = serializeStyled(
         'id',
         '5',
@@ -301,20 +310,23 @@ void main() {
       expect(result, equals('.5'));
     });
 
-    test('serializeStyled label array no explode', () {
-      final result = serializeStyled(
-        'color',
-        ['red', 'green'],
-        'path',
-        'array',
-        '',
-        'label',
-        false,
-      );
-      expect(result, equals('.red,green'));
-    });
+    test(
+      'bhv serializationparam 050 serializeStyled label array no explode',
+      () {
+        final result = serializeStyled(
+          'color',
+          ['red', 'green'],
+          'path',
+          'array',
+          '',
+          'label',
+          false,
+        );
+        expect(result, equals('.red,green'));
+      },
+    );
 
-    test('serializeStyled label array explode', () {
+    test('bhv serializationparam 049 serializeStyled label array explode', () {
       final result = serializeStyled(
         'color',
         ['red', 'green'],
@@ -327,7 +339,7 @@ void main() {
       expect(result, equals('.red.green'));
     });
 
-    test('serializeStyled label nil', () {
+    test('bhv serializationparam 051 serializeStyled label nil', () {
       final result = serializeStyled(
         'color',
         null,
@@ -342,7 +354,7 @@ void main() {
 
     // SerializeStyled: simple
 
-    test('serializeStyled simple scalar', () {
+    test('bhv serializationparam 086 serializeStyled simple scalar', () {
       final result = serializeStyled(
         'id',
         '5',
@@ -355,7 +367,7 @@ void main() {
       expect(result, equals('5'));
     });
 
-    test('serializeStyled simple array', () {
+    test('bhv serializationparam 084 serializeStyled simple array', () {
       final result = serializeStyled(
         'color',
         ['red', 'green'],
@@ -368,7 +380,7 @@ void main() {
       expect(result, equals('red,green'));
     });
 
-    test('serializeStyled simple nil', () {
+    test('bhv serializationparam 085 serializeStyled simple nil', () {
       final result = serializeStyled(
         'id',
         null,
@@ -422,14 +434,17 @@ void main() {
       expect(result, equals('red,green'));
     });
 
-    test('serializeValue expands a Set like a List', () {
-      expect(
-        serializeValue(<int>{1, 2}, 'query', 'array', 'csv'),
-        equals('1,2'),
-      );
-    });
+    test(
+      'bhv serializationparam 083 serializeValue expands a Set like a List',
+      () {
+        expect(
+          serializeValue(<int>{1, 2}, 'query', 'array', 'csv'),
+          equals('1,2'),
+        );
+      },
+    );
 
-    test('serializeStyled form array explode', () {
+    test('bhv serializationparam 038 serializeStyled form array explode', () {
       final result = serializeStyled(
         'color',
         ['red', 'green'],
@@ -444,20 +459,23 @@ void main() {
       expect(items, equals(['red', 'green']));
     });
 
-    test('serializeStyled form array no explode', () {
-      final result = serializeStyled(
-        'color',
-        ['red', 'green'],
-        'query',
-        'array',
-        '',
-        'form',
-        false,
-      );
-      expect(result, equals('red,green'));
-    });
+    test(
+      'bhv serializationparam 037 serializeStyled form array no explode',
+      () {
+        final result = serializeStyled(
+          'color',
+          ['red', 'green'],
+          'query',
+          'array',
+          '',
+          'form',
+          false,
+        );
+        expect(result, equals('red,green'));
+      },
+    );
 
-    test('serializeStyled form nil query', () {
+    test('bhv serializationparam 040 serializeStyled form nil query', () {
       final result = serializeStyled(
         'color',
         null,
@@ -472,7 +490,7 @@ void main() {
 
     // SerializeStyled: spaceDelimited
 
-    test('serializeStyled spaceDelimited array', () {
+    test('bhv serializationparam 093 serializeStyled spaceDelimited array', () {
       final result = serializeStyled(
         'color',
         ['red', 'green', 'blue'],
@@ -485,35 +503,41 @@ void main() {
       expect(result, equals('red green blue'));
     });
 
-    test('serializeStyled spaceDelimited array explode returns list', () {
-      final result = serializeStyled(
-        'color',
-        ['red', 'green', 'blue'],
-        'query',
-        'array',
-        '',
-        'spaceDelimited',
-        true,
-      );
-      expect(result, equals(['red', 'green', 'blue']));
-    });
+    test(
+      'bhv serializationparam 094 serializeStyled spaceDelimited array explode returns list',
+      () {
+        final result = serializeStyled(
+          'color',
+          ['red', 'green', 'blue'],
+          'query',
+          'array',
+          '',
+          'spaceDelimited',
+          true,
+        );
+        expect(result, equals(['red', 'green', 'blue']));
+      },
+    );
 
-    test('serializeStyled spaceDelimited scalar', () {
-      final result = serializeStyled(
-        'color',
-        'red',
-        'query',
-        'string',
-        '',
-        'spaceDelimited',
-        false,
-      );
-      expect(result, equals('red'));
-    });
+    test(
+      'bhv serializationparam 095 serializeStyled spaceDelimited scalar',
+      () {
+        final result = serializeStyled(
+          'color',
+          'red',
+          'query',
+          'string',
+          '',
+          'spaceDelimited',
+          false,
+        );
+        expect(result, equals('red'));
+      },
+    );
 
     // SerializeStyled: pipeDelimited
 
-    test('serializeStyled pipeDelimited array', () {
+    test('bhv serializationparam 074 serializeStyled pipeDelimited array', () {
       final result = serializeStyled(
         'color',
         ['red', 'green', 'blue'],
@@ -526,20 +550,23 @@ void main() {
       expect(result, equals('red|green|blue'));
     });
 
-    test('serializeStyled pipeDelimited array explode returns list', () {
-      final result = serializeStyled(
-        'color',
-        ['red', 'green', 'blue'],
-        'query',
-        'array',
-        '',
-        'pipeDelimited',
-        true,
-      );
-      expect(result, equals(['red', 'green', 'blue']));
-    });
+    test(
+      'bhv serializationparam 075 serializeStyled pipeDelimited array explode returns list',
+      () {
+        final result = serializeStyled(
+          'color',
+          ['red', 'green', 'blue'],
+          'query',
+          'array',
+          '',
+          'pipeDelimited',
+          true,
+        );
+        expect(result, equals(['red', 'green', 'blue']));
+      },
+    );
 
-    test('serializeStyled pipeDelimited scalar', () {
+    test('bhv serializationparam 076 serializeStyled pipeDelimited scalar', () {
       final result = serializeStyled(
         'color',
         'red',
@@ -564,7 +591,7 @@ void main() {
       expect(result['filter[type]'], equals('dog'));
     });
 
-    test('serializeDeepObject null', () {
+    test('bhv serializationparam 061 serializeDeepObject null', () {
       final result = serializeDeepObject('filter', null);
       expect(result, isEmpty);
     });
@@ -574,7 +601,7 @@ void main() {
     final criteria = <String, Object?>{'breed': 'lab', 'min_age': 3};
 
     test(
-      'serializeStyled explodes a form-style object into one pair per property',
+      'bhv serializationparam 036 serializeStyled explodes a form-style object into one pair per property',
       () {
         final result = serializeStyled(
           'criteria',
@@ -594,7 +621,7 @@ void main() {
     );
 
     test(
-      'serializeStyled joins a non-exploded form-style object into one value',
+      'bhv serializationparam 039 serializeStyled joins a non-exploded form-style object into one value',
       () {
         expect(
           serializeStyled(
@@ -611,32 +638,35 @@ void main() {
       },
     );
 
-    test('serializeStyled writes a simple-style object as a header list', () {
-      expect(
-        serializeStyled(
-          'X-Criteria',
-          criteria,
-          'header',
-          'object',
-          '',
-          'simple',
-          false,
-        ),
-        equals('breed,lab,min_age,3'),
-      );
-      expect(
-        serializeStyled(
-          'X-Criteria',
-          criteria,
-          'header',
-          'object',
-          '',
-          'simple',
-          true,
-        ),
-        equals('breed=lab,min_age=3'),
-      );
-    });
+    test(
+      'bhv serializationparam 082 serializeStyled writes a simple-style object as a header list',
+      () {
+        expect(
+          serializeStyled(
+            'X-Criteria',
+            criteria,
+            'header',
+            'object',
+            '',
+            'simple',
+            false,
+          ),
+          equals('breed,lab,min_age,3'),
+        );
+        expect(
+          serializeStyled(
+            'X-Criteria',
+            criteria,
+            'header',
+            'object',
+            '',
+            'simple',
+            true,
+          ),
+          equals('breed=lab,min_age=3'),
+        );
+      },
+    );
 
     test('serializeStyled refuses a nested object leaf', () {
       final nested = <String, Object?>{
@@ -660,13 +690,16 @@ void main() {
       );
     });
 
-    test('parameterObject leaves scalars, lists and dates alone', () {
-      expect(parameterObject('x'), isNull);
-      expect(parameterObject(<String>['a']), isNull);
-      expect(parameterObject(DateTime.utc(2024)), isNull);
-      expect(parameterObject(null), isNull);
-      expect(parameterObject(criteria), equals(criteria));
-    });
+    test(
+      'bhv serializationparam 048 parameterObject leaves scalars, lists and dates alone',
+      () {
+        expect(parameterObject('x'), isNull);
+        expect(parameterObject(<String>['a']), isNull);
+        expect(parameterObject(DateTime.utc(2024)), isNull);
+        expect(parameterObject(null), isNull);
+        expect(parameterObject(criteria), equals(criteria));
+      },
+    );
 
     // Fallback
 
@@ -683,7 +716,7 @@ void main() {
       expect(result, equals('5'));
     });
 
-    test('serializeStyled empty style', () {
+    test('bhv serializationparam 035 serializeStyled empty style', () {
       final result = serializeStyled(
         'id',
         '5',
@@ -698,130 +731,145 @@ void main() {
 
     // Regression tests
 
-    test('serializeStyled form explode scalar returns single string', () {
-      final result = serializeStyled(
-        'color',
-        'blue',
-        'query',
-        'string',
-        '',
-        'form',
-        true,
-      );
-      expect(result, isA<String>());
-      expect(result, equals('blue'));
-    });
+    test(
+      'bhv serializationparam 041 serializeStyled form explode scalar returns single string',
+      () {
+        final result = serializeStyled(
+          'color',
+          'blue',
+          'query',
+          'string',
+          '',
+          'form',
+          true,
+        );
+        expect(result, isA<String>());
+        expect(result, equals('blue'));
+      },
+    );
 
-    test('serializeStyled simple path URL-encodes value', () {
-      // Gap W1: simple-style path values must be percent-encoded so reserved
-      // characters (space, '/', '?', '#') don't leak into the URL.
-      final result = serializeStyled(
-        'name',
-        'hello world',
-        'path',
-        'string',
-        '',
-        'simple',
-        false,
-      );
-      expect(result, equals('hello%20world'));
-    });
+    test(
+      'bhv serializationparam 087 serializeStyled simple path URL-encodes value',
+      () {
+        // Gap W1: simple-style path values must be percent-encoded so reserved
+        // characters (space, '/', '?', '#') don't leak into the URL.
+        final result = serializeStyled(
+          'name',
+          'hello world',
+          'path',
+          'string',
+          '',
+          'simple',
+          false,
+        );
+        expect(result, equals('hello%20world'));
+      },
+    );
 
-    test('serializeStyled form explode single-element array', () {
-      final result = serializeStyled(
-        'color',
-        ['red'],
-        'query',
-        'array',
-        '',
-        'form',
-        true,
-      );
-      expect(result, isA<List<String>>());
-      final items = result as List<String>;
-      expect(items, equals(['red']));
-    });
+    test(
+      'bhv serializationparam 042 serializeStyled form explode single-element array',
+      () {
+        final result = serializeStyled(
+          'color',
+          ['red'],
+          'query',
+          'array',
+          '',
+          'form',
+          true,
+        );
+        expect(result, isA<List<String>>());
+        final items = result as List<String>;
+        expect(items, equals(['red']));
+      },
+    );
 
-    test('path array item with reserved char is percent encoded', () {
-      // Gap W1 regression: every per-item path value in a styled array
-      // must be percent-encoded BEFORE being joined with the structural
-      // separator. Otherwise '/', '?', '#', space leak into the URL.
-      final items = ['a/b', 'c'];
-      expect(
-        serializeStyled('name', items, 'path', 'array', '', 'simple', false),
-        equals('a%2Fb,c'),
-      );
-      expect(
-        serializeStyled('name', items, 'path', 'array', '', 'label', true),
-        equals('.a%2Fb.c'),
-      );
-      expect(
-        serializeStyled('name', items, 'path', 'array', '', 'matrix', false),
-        equals(';name=a%2Fb,c'),
-      );
-    });
+    test(
+      'bhv serializationparam 069 path array item with reserved char is percent encoded',
+      () {
+        // Gap W1 regression: every per-item path value in a styled array
+        // must be percent-encoded BEFORE being joined with the structural
+        // separator. Otherwise '/', '?', '#', space leak into the URL.
+        final items = ['a/b', 'c'];
+        expect(
+          serializeStyled('name', items, 'path', 'array', '', 'simple', false),
+          equals('a%2Fb,c'),
+        );
+        expect(
+          serializeStyled('name', items, 'path', 'array', '', 'label', true),
+          equals('.a%2Fb.c'),
+        );
+        expect(
+          serializeStyled('name', items, 'path', 'array', '', 'matrix', false),
+          equals(';name=a%2Fb,c'),
+        );
+      },
+    );
 
     // Path encoding parity
     // Cross-language parity tests for path-segment percent-encoding.
     // Every SDK must produce identical encoded strings for these inputs.
 
     group('path encoding parity', () {
-      test('ASCII-safe pass-through', () {
+      test('bhv serializationparam 016 ASCII-safe pass-through', () {
         final result = serializeValue('abc123', 'path', 'string', '');
         expect(result, equals('abc123'));
       });
 
-      test('space encoded as %20', () {
+      test('bhv serializationparam 092 space encoded as %20', () {
         final result = serializeValue('a b', 'path', 'string', '');
         expect(result, equals('a%20b'));
       });
 
-      test('slash encoded', () {
+      test('bhv serializationparam 091 slash encoded', () {
         final result = serializeValue('a/b', 'path', 'string', '');
         expect(result, equals('a%2Fb'));
       });
 
-      test('question mark encoded', () {
+      test('bhv serializationparam 079 question mark encoded', () {
         final result = serializeValue('a?b', 'path', 'string', '');
         expect(result, equals('a%3Fb'));
       });
 
-      test('hash encoded', () {
+      test('bhv serializationparam 043 hash encoded', () {
         final result = serializeValue('a#b', 'path', 'string', '');
         expect(result, equals('a%23b'));
       });
 
-      test('comma preserved (sub-delimiter)', () {
+      test('bhv serializationparam 026 comma preserved (sub-delimiter)', () {
         final result = serializeValue('a,b', 'path', 'string', '');
         expect(result, equals('a,b'));
       });
 
-      test('colon preserved (sub-delimiter)', () {
+      test('bhv serializationparam 025 colon preserved (sub-delimiter)', () {
         final result = serializeValue('a:b', 'path', 'string', '');
         expect(result, equals('a:b'));
       });
 
-      test('plus preserved (sub-delimiter)', () {
+      test('bhv serializationparam 077 plus preserved (sub-delimiter)', () {
         final result = serializeValue('a+b', 'path', 'string', '');
         expect(result, equals('a+b'));
       });
 
-      test('unicode encoded as UTF-8 percent', () {
+      test('bhv serializationparam 103 unicode encoded as UTF-8 percent', () {
         final result = serializeValue('日本', 'path', 'string', '');
         expect(result, equals('%E6%97%A5%E6%9C%AC'));
       });
 
-      test('empty string preserved', () {
+      test('bhv serializationparam 034 empty string preserved', () {
         final result = serializeValue('', 'path', 'string', '');
         expect(result, equals(''));
       });
 
-      test('null returns empty string in path location', () {
-        final result = serializeValue(null, 'path', 'string', '');
-        expect(result, equals(''));
-      });
+      test(
+        'bhv serializationparam 066 null returns empty string in path location',
+        () {
+          final result = serializeValue(null, 'path', 'string', '');
+          expect(result, equals(''));
+        },
+      );
 
-      test('simple style encodes value', () {
+      test('bhv serializationparam 089 simple style encodes value', () {
         final result = serializeStyled(
           'color',
           'a b',
@@ -834,20 +882,23 @@ void main() {
         expect(result, equals('a%20b'));
       });
 
-      test('simple style array encodes each item', () {
-        final result = serializeStyled(
-          'color',
-          ['a b', 'c?d'],
-          'path',
-          'array',
-          '',
-          'simple',
-          false,
-        );
-        expect(result, equals('a%20b,c%3Fd'));
-      });
+      test(
+        'bhv serializationparam 088 simple style array encodes each item',
+        () {
+          final result = serializeStyled(
+            'color',
+            ['a b', 'c?d'],
+            'path',
+            'array',
+            '',
+            'simple',
+            false,
+          );
+          expect(result, equals('a%20b,c%3Fd'));
+        },
+      );
 
-      test('matrix style encodes value', () {
+      test('bhv serializationparam 059 matrix style encodes value', () {
         final result = serializeStyled(
           'color',
           'a b',
@@ -860,7 +911,7 @@ void main() {
         expect(result, equals(';color=a%20b'));
       });
 
-      test('label style encodes value', () {
+      test('bhv serializationparam 053 label style encodes value', () {
         final result = serializeStyled(
           'color',
           'a b',
@@ -873,7 +924,7 @@ void main() {
         expect(result, equals('.a%20b'));
       });
 
-      test('query location is not path-encoded', () {
+      test('bhv serializationparam 078 query location is not path-encoded', () {
         final result = serializeStyled(
           'color',
           'a b',
@@ -896,27 +947,33 @@ void main() {
     // This guards against accidental DateTime upcasting that would inject
     // a `T00:00:00+00:00` suffix into the URL.
     group('DateOnlyPathParam', () {
-      test('serializeValue path date-only string preserves YYYY-MM-DD', () {
-        final result = serializeValue('2024-01-15', 'path', 'string', '');
-        expect(
-          result,
-          equals('2024-01-15'),
-          reason: 'a format: date value must not gain a time/offset suffix',
-        );
-      });
+      test(
+        'bhv serializationparam 028 serializeValue path date-only string preserves YYYY-MM-DD',
+        () {
+          final result = serializeValue('2024-01-15', 'path', 'string', '');
+          expect(
+            result,
+            equals('2024-01-15'),
+            reason: 'a format: date value must not gain a time/offset suffix',
+          );
+        },
+      );
 
-      test('serializeStyled simple path date-only preserves YYYY-MM-DD', () {
-        final result = serializeStyled(
-          'when',
-          '2024-01-15',
-          'path',
-          'string',
-          '',
-          'simple',
-          false,
-        );
-        expect(result, equals('2024-01-15'));
-      });
+      test(
+        'bhv serializationparam 054 serializeStyled simple path date-only preserves YYYY-MM-DD',
+        () {
+          final result = serializeStyled(
+            'when',
+            '2024-01-15',
+            'path',
+            'string',
+            '',
+            'simple',
+            false,
+          );
+          expect(result, equals('2024-01-15'));
+        },
+      );
 
       test('stringify of date-only string preserves YYYY-MM-DD', () {
         // Sanity check: stringify must not reformat date-only strings.
@@ -924,49 +981,67 @@ void main() {
       });
     });
 
-    test('empty string path param throws ArgumentError', () {
-      // Gap W — empty-string path values silently produce malformed
-      // URLs like `/resource//details`; reject at serialization time so
-      // callers see the real error rather than a downstream 404.
-      expect(
-        () => serializeStyled('id', '', 'path', 'string', '', 'simple', false),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'bhv serializationparam 033 empty string path param throws ArgumentError',
+      () {
+        // Gap W — empty-string path values silently produce malformed
+        // URLs like `/resource//details`; reject at serialization time so
+        // callers see the real error rather than a downstream 404.
+        expect(
+          () =>
+              serializeStyled('id', '', 'path', 'string', '', 'simple', false),
+          throwsArgumentError,
+        );
+      },
+    );
 
     for (final dots in ['.', '..']) {
-      test('dot segment "$dots" path param throws ArgumentError', () {
+      test(
+        'bhv serializationparam 029 dot segment "$dots" path param throws ArgumentError',
+        () {
+          expect(
+            () => serializeStyled(
+              'id',
+              dots,
+              'path',
+              'string',
+              '',
+              'simple',
+              false,
+            ),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                "Path parameter 'id' must not be '.' or '..'",
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    test(
+      'bhv serializationparam 072 a value merely containing dots is a normal path segment',
+      () {
         expect(
-          () => serializeStyled(
+          serializeStyled('id', 'a..b', 'path', 'string', '', 'simple', false),
+          equals('a..b'),
+        );
+        expect(
+          serializeStyled(
             'id',
-            dots,
+            '.hidden',
             'path',
             'string',
             '',
             'simple',
             false,
           ),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              "Path parameter 'id' must not be '.' or '..'",
-            ),
-          ),
+          equals('.hidden'),
         );
-      });
-    }
-
-    test('a value merely containing dots is a normal path segment', () {
-      expect(
-        serializeStyled('id', 'a..b', 'path', 'string', '', 'simple', false),
-        equals('a..b'),
-      );
-      expect(
-        serializeStyled('id', '.hidden', 'path', 'string', '', 'simple', false),
-        equals('.hidden'),
-      );
-    });
+      },
+    );
 
     // N3/W3 parity: `format: date` path parameters must emit a date-only
     // string (YYYY-MM-DD), not a full ISO datetime. Dart has only
@@ -990,7 +1065,7 @@ void main() {
     // yield `%20`, never `+`.
     group('allowReserved query encoding', () {
       test(
-        'reserved characters left literal, other characters still encoded',
+        'bhv serializationparam 080 reserved characters left literal, other characters still encoded',
         () {
           expect(
             encodeQueryAllowingReserved('v1.0/beta:rc1'),
@@ -1003,7 +1078,7 @@ void main() {
       );
 
       test(
-        'only the query-legal reserved set stays literal; # [ ] are encoded',
+        'bhv serializationparam 068 only the query-legal reserved set stays literal; # [ ] are encoded',
         () {
           expect(
             encodeQueryAllowingReserved(
@@ -1014,13 +1089,16 @@ void main() {
         },
       );
 
-      test('maybeAllowReserved wraps only when allowReserved is true', () {
-        expect(maybeAllowReserved('plain', false), equals('plain'));
-        final wrapped = maybeAllowReserved('v1/beta', true);
-        expect(wrapped, isA<AllowReservedValue>());
-        expect((wrapped as AllowReservedValue).value, equals('v1/beta'));
-        expect(maybeAllowReserved(null, true), isNull);
-      });
+      test(
+        'bhv serializationparam 060 maybeAllowReserved wraps only when allowReserved is true',
+        () {
+          expect(maybeAllowReserved('plain', false), equals('plain'));
+          final wrapped = maybeAllowReserved('v1/beta', true);
+          expect(wrapped, isA<AllowReservedValue>());
+          expect((wrapped as AllowReservedValue).value, equals('v1/beta'));
+          expect(maybeAllowReserved(null, true), isNull);
+        },
+      );
     });
   });
 
@@ -1081,7 +1159,7 @@ void main() {
     final withNull = <Object?>['1', null, '3'];
 
     test(
-      'a null array element becomes an empty slot in every collection format',
+      'bhv serializationparam 001 a null array element becomes an empty slot in every collection format',
       () {
         expect(
           serializeValue(withNull, 'query', 'array', 'csv'),
@@ -1127,16 +1205,25 @@ void main() {
       ':': 'colon',
     };
     preserved.forEach((char, name) {
-      test('the $name is kept literal in a path segment', () {
-        expect(
-          serializeValue('a${char}b', 'path', 'string', ''),
-          equals('a${char}b'),
-        );
-      });
+      test(
+        'bhv serializationparam 071 the $name is kept literal in a path segment',
+        () {
+          expect(
+            serializeValue('a${char}b', 'path', 'string', ''),
+            equals('a${char}b'),
+          );
+        },
+      );
     });
 
-    test('an already percent-encoded value is encoded again', () {
-      expect(serializeValue('a%20b', 'path', 'string', ''), equals('a%2520b'));
-    });
+    test(
+      'bhv serializationparam 004 an already percent-encoded value is encoded again',
+      () {
+        expect(
+          serializeValue('a%20b', 'path', 'string', ''),
+          equals('a%2520b'),
+        );
+      },
+    );
   });
 }

@@ -83,22 +83,25 @@ class _GatedApiClient implements ApiClient {
 
 void main() {
   group('OAuth2TokenManager', () {
-    test('extracts access token from response', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok123","expires_in":3600}');
+    test(
+      'bhv authoauthtwotokenmgr 014 extracts access token from response',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok123","expires_in":3600}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final token = await manager.getAccessToken(
-        'https://auth.example.com/token',
-        {'grant_type': 'client_credentials'},
-      );
+        final token = await manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        );
 
-      expect(token, equals('tok123'));
-    });
+        expect(token, equals('tok123'));
+      },
+    );
 
-    test('stores refresh token', () async {
+    test('bhv authoauthtwotokenmgr 028 stores refresh token', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
@@ -114,24 +117,27 @@ void main() {
       expect(manager.refreshToken, equals('ref1'));
     });
 
-    test('returns cached token when not expired', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok1","expires_in":3600}');
+    test(
+      'bhv authoauthtwotokenmgr 025 returns cached token when not expired',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final params = {'grant_type': 'client_credentials'};
-      const tokenUrl = 'https://auth.example.com/token';
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
 
-      final first = await manager.getAccessToken(tokenUrl, params);
-      final second = await manager.getAccessToken(tokenUrl, params);
+        final first = await manager.getAccessToken(tokenUrl, params);
+        final second = await manager.getAccessToken(tokenUrl, params);
 
-      expect(first, equals('tok1'));
-      expect(second, equals('tok1'));
-    });
+        expect(first, equals('tok1'));
+        expect(second, equals('tok1'));
+      },
+    );
 
-    test('refetches token when expired', () async {
+    test('bhv authoauthtwotokenmgr 021 refetches token when expired', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":0}');
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
@@ -149,39 +155,45 @@ void main() {
       expect(second, equals('tok2'));
     });
 
-    test('setAccessToken bypasses endpoint', () async {
-      final manager = OAuth2TokenManager();
-      manager.setAccessToken('manual-token');
+    test(
+      'bhv authoauthtwotokenmgr 026 setAccessToken bypasses endpoint',
+      () async {
+        final manager = OAuth2TokenManager();
+        manager.setAccessToken('manual-token');
 
-      final token = await manager.getAccessToken(
-        'https://auth.example.com/token',
-        {},
-      );
+        final token = await manager.getAccessToken(
+          'https://auth.example.com/token',
+          {},
+        );
 
-      expect(token, equals('manual-token'));
-    });
+        expect(token, equals('manual-token'));
+      },
+    );
 
-    test('invalidateAccessToken forces refetch', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok1","expires_in":3600}');
-      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+    test(
+      'bhv authoauthtwotokenmgr 018 invalidateAccessToken forces refetch',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final params = {'grant_type': 'client_credentials'};
-      const tokenUrl = 'https://auth.example.com/token';
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
 
-      final first = await manager.getAccessToken(tokenUrl, params);
-      manager.invalidateAccessToken();
-      final second = await manager.getAccessToken(tokenUrl, params);
+        final first = await manager.getAccessToken(tokenUrl, params);
+        manager.invalidateAccessToken();
+        final second = await manager.getAccessToken(tokenUrl, params);
 
-      expect(first, equals('tok1'));
-      expect(second, equals('tok2'));
-      expect(client.requestCount, equals(2));
-    });
+        expect(first, equals('tok1'));
+        expect(second, equals('tok2'));
+        expect(client.requestCount, equals(2));
+      },
+    );
 
-    test('throws when no ApiClient injected', () {
+    test('bhv authoauthtwotokenmgr 030 throws when no ApiClient injected', () {
       final manager = OAuth2TokenManager();
 
       expect(
@@ -193,7 +205,7 @@ void main() {
     });
 
     test(
-      'single-flight: 10 concurrent getAccessToken calls trigger one HTTP request',
+      'bhv authoauthtwotokenmgr 027 single-flight: 10 concurrent getAccessToken calls trigger one HTTP request',
       () async {
         final gate = Completer<void>();
         final client = _GatedApiClient(
@@ -229,63 +241,72 @@ void main() {
       },
     );
 
-    test('expires_in short-lived token does not storm', () async {
-      // Gap CM: short-lived token (expires_in < buffer) must produce exactly
-      // ONE network call from a single getAccessToken call.
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"short","expires_in":10}');
+    test(
+      'bhv authoauthtwotokenmgr 013 expires_in short-lived token does not storm',
+      () async {
+        // Gap CM: short-lived token (expires_in < buffer) must produce exactly
+        // ONE network call from a single getAccessToken call.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"short","expires_in":10}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final token = await manager.getAccessToken(
-        'https://auth.example.com/token',
-        {'grant_type': 'client_credentials'},
-      );
+        final token = await manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        );
 
-      expect(token, equals('short'));
-      expect(client.requestCount, equals(1));
-    });
+        expect(token, equals('short'));
+        expect(client.requestCount, equals(1));
+      },
+    );
 
-    test('expires_in long-lived token applies full buffer', () async {
-      // Gap CM: long-lived token gets full 30s buffer; second call serves cache.
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"long","expires_in":3600}');
+    test(
+      'bhv authoauthtwotokenmgr 010 expires_in long-lived token applies full buffer',
+      () async {
+        // Gap CM: long-lived token gets full 30s buffer; second call serves cache.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"long","expires_in":3600}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final params = {'grant_type': 'client_credentials'};
-      const tokenUrl = 'https://auth.example.com/token';
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
 
-      final first = await manager.getAccessToken(tokenUrl, params);
-      final second = await manager.getAccessToken(tokenUrl, params);
+        final first = await manager.getAccessToken(tokenUrl, params);
+        final second = await manager.getAccessToken(tokenUrl, params);
 
-      expect(first, equals('long'));
-      expect(second, equals('long'));
-      expect(client.requestCount, equals(1));
-    });
+        expect(first, equals('long'));
+        expect(second, equals('long'));
+        expect(client.requestCount, equals(1));
+      },
+    );
 
-    test('expires_in of 60 s is reused: one margin, applied once', () async {
-      // F910: a single margin capped at half the lifetime, so a short-lived
-      // token is served from cache instead of re-fetched on every call.
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"edge1","expires_in":60}');
-      client.enqueue('{"access_token":"edge2","expires_in":60}');
+    test(
+      'bhv authoauthtwotokenmgr 004 expires_in of 60 s is reused: one margin, applied once',
+      () async {
+        // F910: a single margin capped at half the lifetime, so a short-lived
+        // token is served from cache instead of re-fetched on every call.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"edge1","expires_in":60}');
+        client.enqueue('{"access_token":"edge2","expires_in":60}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final params = {'grant_type': 'client_credentials'};
-      const tokenUrl = 'https://auth.example.com/token';
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
 
-      final first = await manager.getAccessToken(tokenUrl, params);
-      final second = await manager.getAccessToken(tokenUrl, params);
+        final first = await manager.getAccessToken(tokenUrl, params);
+        final second = await manager.getAccessToken(tokenUrl, params);
 
-      expect(first, equals('edge1'));
-      expect(second, equals('edge1'));
-      expect(client.requestCount, equals(1));
-    });
+        expect(first, equals('edge1'));
+        expect(second, equals('edge1'));
+        expect(client.requestCount, equals(1));
+      },
+    );
 
     test('a re-grant without expires_in clears the stale expiry', () async {
       // F911: no expires_in means no expiry, so the next call is cached.
@@ -305,98 +326,110 @@ void main() {
       expect(client.requestCount, equals(2));
     });
 
-    test('refresh_token empty string preserves existing', () async {
-      // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
-      // MUST NOT clobber the cached refresh_token.
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"old_access","refresh_token":"old_refresh","expires_in":0}',
-      );
-      client.enqueue(
-        '{"access_token":"new_access","expires_in":3600,"refresh_token":""}',
-      );
+    test(
+      'bhv authoauthtwotokenmgr 024 refresh_token empty string preserves existing',
+      () async {
+        // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+        // MUST NOT clobber the cached refresh_token.
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"old_access","refresh_token":"old_refresh","expires_in":0}',
+        );
+        client.enqueue(
+          '{"access_token":"new_access","expires_in":3600,"refresh_token":""}',
+        );
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final params = {'grant_type': 'authorization_code'};
-      const tokenUrl = 'https://auth.example.com/token';
+        final params = {'grant_type': 'authorization_code'};
+        const tokenUrl = 'https://auth.example.com/token';
 
-      await manager.getAccessToken(tokenUrl, params);
-      expect(manager.refreshToken, equals('old_refresh'));
+        await manager.getAccessToken(tokenUrl, params);
+        expect(manager.refreshToken, equals('old_refresh'));
 
-      // Second call: access token near-expiry triggers refresh; the response
-      // contains an empty refresh_token which must not overwrite the cache.
-      await manager.getAccessToken(tokenUrl, params);
-      expect(
-        manager.refreshToken,
-        equals('old_refresh'),
-        reason:
-            'empty refresh_token in refresh response must not overwrite cached refresh_token',
-      );
-    });
+        // Second call: access token near-expiry triggers refresh; the response
+        // contains an empty refresh_token which must not overwrite the cache.
+        await manager.getAccessToken(tokenUrl, params);
+        expect(
+          manager.refreshToken,
+          equals('old_refresh'),
+          reason:
+              'empty refresh_token in refresh response must not overwrite cached refresh_token',
+        );
+      },
+    );
 
-    test('expires_in as JSON string is accepted', () async {
-      // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
-      // quoted string. The manager must accept it and cache the token; a
-      // second call within the buffer window must serve from cache.
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"str-tok","expires_in":"3600"}');
+    test(
+      'bhv authoauthtwotokenmgr 009 expires_in as JSON string is accepted',
+      () async {
+        // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+        // quoted string. The manager must accept it and cache the token; a
+        // second call within the buffer window must serve from cache.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"str-tok","expires_in":"3600"}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final params = {'grant_type': 'client_credentials'};
-      const tokenUrl = 'https://auth.example.com/token';
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
 
-      final first = await manager.getAccessToken(tokenUrl, params);
-      final second = await manager.getAccessToken(tokenUrl, params);
+        final first = await manager.getAccessToken(tokenUrl, params);
+        final second = await manager.getAccessToken(tokenUrl, params);
 
-      expect(first, equals('str-tok'));
-      expect(second, equals('str-tok'));
-      expect(client.requestCount, equals(1));
-    });
+        expect(first, equals('str-tok'));
+        expect(second, equals('str-tok'));
+        expect(client.requestCount, equals(1));
+      },
+    );
 
-    test('expires_in as float is floored', () async {
-      // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
-      // The manager must floor it and cache the token.
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"flt-tok","expires_in":3600.5}');
+    test(
+      'bhv authoauthtwotokenmgr 008 expires_in as float is floored',
+      () async {
+        // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+        // The manager must floor it and cache the token.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"flt-tok","expires_in":3600.5}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final params = {'grant_type': 'client_credentials'};
-      const tokenUrl = 'https://auth.example.com/token';
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
 
-      final first = await manager.getAccessToken(tokenUrl, params);
-      final second = await manager.getAccessToken(tokenUrl, params);
+        final first = await manager.getAccessToken(tokenUrl, params);
+        final second = await manager.getAccessToken(tokenUrl, params);
 
-      expect(first, equals('flt-tok'));
-      expect(second, equals('flt-tok'));
-      expect(client.requestCount, equals(1));
-    });
+        expect(first, equals('flt-tok'));
+        expect(second, equals('flt-tok'));
+        expect(client.requestCount, equals(1));
+      },
+    );
 
-    test('expires_in negative skips caching', () async {
-      // D1: a negative expires_in (e.g. -1) must mark the token as
-      // immediately stale so the very next call refetches.
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"neg1","expires_in":-1}');
-      client.enqueue('{"access_token":"neg2","expires_in":3600}');
+    test(
+      'bhv authoauthtwotokenmgr 011 expires_in negative skips caching',
+      () async {
+        // D1: a negative expires_in (e.g. -1) must mark the token as
+        // immediately stale so the very next call refetches.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"neg1","expires_in":-1}');
+        client.enqueue('{"access_token":"neg2","expires_in":3600}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      final params = {'grant_type': 'client_credentials'};
-      const tokenUrl = 'https://auth.example.com/token';
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
 
-      final first = await manager.getAccessToken(tokenUrl, params);
-      final second = await manager.getAccessToken(tokenUrl, params);
+        final first = await manager.getAccessToken(tokenUrl, params);
+        final second = await manager.getAccessToken(tokenUrl, params);
 
-      expect(first, equals('neg1'));
-      expect(second, equals('neg2'));
-      expect(client.requestCount, equals(2));
-    });
+        expect(first, equals('neg1'));
+        expect(second, equals('neg2'));
+        expect(client.requestCount, equals(2));
+      },
+    );
 
     /* A lifetime beyond the one-year ceiling is clamped before the expiry
      * arithmetic: the token is cached (one request for two calls) instead of
@@ -408,24 +441,27 @@ void main() {
       '"31536001"',
     ]) {
       final label = lifetime.length > 24 ? 'a 400-digit string' : lifetime;
-      test('expires_in $label is clamped to one year and cached', () async {
-        final client = _FakeApiClient();
-        client.enqueue('{"access_token":"huge1","expires_in":$lifetime}');
-        client.enqueue('{"access_token":"huge2","expires_in":3600}');
+      test(
+        'bhv authoauthtwotokenmgr 005 expires_in $label is clamped to one year and cached',
+        () async {
+          final client = _FakeApiClient();
+          client.enqueue('{"access_token":"huge1","expires_in":$lifetime}');
+          client.enqueue('{"access_token":"huge2","expires_in":3600}');
 
-        final manager = OAuth2TokenManager();
-        manager.setApiClient(client);
+          final manager = OAuth2TokenManager();
+          manager.setApiClient(client);
 
-        final params = {'grant_type': 'client_credentials'};
-        const tokenUrl = 'https://auth.example.com/token';
+          final params = {'grant_type': 'client_credentials'};
+          const tokenUrl = 'https://auth.example.com/token';
 
-        final first = await manager.getAccessToken(tokenUrl, params);
-        final second = await manager.getAccessToken(tokenUrl, params);
+          final first = await manager.getAccessToken(tokenUrl, params);
+          final second = await manager.getAccessToken(tokenUrl, params);
 
-        expect(first, equals('huge1'));
-        expect(second, equals('huge1'));
-        expect(client.requestCount, equals(1));
-      });
+          expect(first, equals('huge1'));
+          expect(second, equals('huge1'));
+          expect(client.requestCount, equals(1));
+        },
+      );
     }
 
     /* A textual expires_in must be ASCII digits with an optional fraction.
@@ -439,24 +475,27 @@ void main() {
       '"Infinity"',
       '"3600."',
     ]) {
-      test('expires_in $lifetime is rejected and the token is stale', () async {
-        final client = _FakeApiClient();
-        client.enqueue('{"access_token":"bad1","expires_in":$lifetime}');
-        client.enqueue('{"access_token":"bad2","expires_in":3600}');
+      test(
+        'bhv authoauthtwotokenmgr 012 expires_in $lifetime is rejected and the token is stale',
+        () async {
+          final client = _FakeApiClient();
+          client.enqueue('{"access_token":"bad1","expires_in":$lifetime}');
+          client.enqueue('{"access_token":"bad2","expires_in":3600}');
 
-        final manager = OAuth2TokenManager();
-        manager.setApiClient(client);
+          final manager = OAuth2TokenManager();
+          manager.setApiClient(client);
 
-        final params = {'grant_type': 'client_credentials'};
-        const tokenUrl = 'https://auth.example.com/token';
+          final params = {'grant_type': 'client_credentials'};
+          const tokenUrl = 'https://auth.example.com/token';
 
-        final first = await manager.getAccessToken(tokenUrl, params);
-        final second = await manager.getAccessToken(tokenUrl, params);
+          final first = await manager.getAccessToken(tokenUrl, params);
+          final second = await manager.getAccessToken(tokenUrl, params);
 
-        expect(first, equals('bad1'));
-        expect(second, equals('bad2'));
-        expect(client.requestCount, equals(2));
-      });
+          expect(first, equals('bad1'));
+          expect(second, equals('bad2'));
+          expect(client.requestCount, equals(2));
+        },
+      );
     }
 
     /* Gap 3.2: ANY 3xx on the token endpoint must be refused outright
@@ -467,51 +506,57 @@ void main() {
      * raw 3xx status surfaces here. A 3xx is a non-2xx answer, so it throws
      * OAuth2ServerException carrying the status. */
     for (final status in [301, 302, 303, 307, 308]) {
-      test('refuses $status redirect on token endpoint', () async {
+      test(
+        'bhv authoauthtwotokenmgr 033 refuses $status redirect on token endpoint',
+        () async {
+          final client = _FakeApiClient();
+          client.enqueue('', statusCode: status);
+
+          final manager = OAuth2TokenManager();
+          manager.setApiClient(client);
+
+          await expectLater(
+            () => manager.getAccessToken('https://auth.example.com/token', {
+              'grant_type': 'client_credentials',
+              'client_secret': 'topsecret',
+            }),
+            throwsA(
+              isA<OAuth2ServerException>().having(
+                (e) => e.statusCode,
+                'statusCode',
+                status,
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    test(
+      'bhv authoauthtwotokenmgr 031 throws when token request fails',
+      () async {
         final client = _FakeApiClient();
-        client.enqueue('', statusCode: status);
+        client.enqueue('{"error":"invalid_client"}', statusCode: 401);
 
         final manager = OAuth2TokenManager();
         manager.setApiClient(client);
 
-        await expectLater(
-          () => manager.getAccessToken('https://auth.example.com/token', {
-            'grant_type': 'client_credentials',
-            'client_secret': 'topsecret',
-          }),
-          throwsA(
-            isA<OAuth2ServerException>().having(
-              (e) => e.statusCode,
-              'statusCode',
-              status,
-            ),
-          ),
-        );
-      });
-    }
-
-    test('throws when token request fails', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"error":"invalid_client"}', statusCode: 401);
-
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
-
-      /* The token manager maps a 4xx/5xx token-endpoint response to a
+        /* The token manager maps a 4xx/5xx token-endpoint response to a
        * typed OAuth2ServerException (RFC 6749 §5.2), the same canonical type
        * the other SDKs throw and assert for an HTTP-error token response.
        * OAuth2ServerException and OAuth2TokenException are siblings (both wrap an
        * SDK error), matching the 11 sibling SDKs. */
-      await expectLater(
-        () => manager.getAccessToken('https://auth.example.com/token', {
-          'grant_type': 'client_credentials',
-        }),
-        throwsA(isA<OAuth2ServerException>()),
-      );
-    });
+        await expectLater(
+          () => manager.getAccessToken('https://auth.example.com/token', {
+            'grant_type': 'client_credentials',
+          }),
+          throwsA(isA<OAuth2ServerException>()),
+        );
+      },
+    );
 
     test(
-      'missing access_token in 2xx response throws typed OAuth2TokenException',
+      'bhv authoauthtwotokenmgr 036 missing access_token in 2xx response throws typed OAuth2TokenException',
       () async {
         // A 2xx response whose body omits access_token must surface as the typed
         // OAuth2TokenException, not silently cache an empty token.
@@ -537,43 +582,49 @@ void main() {
     );
 
     for (final tokenType in ['"DPoP"', '"MAC"', '42']) {
-      test('token_type $tokenType is refused without echoing it', () async {
-        final client = _FakeApiClient();
-        client.enqueue(
-          '{"access_token":"tok","token_type":$tokenType,"expires_in":3600}',
-        );
-        final manager = OAuth2TokenManager();
-        manager.setApiClient(client);
-        await expectLater(
-          () => manager.getAccessToken('https://auth.example.com/token', {
-            'grant_type': 'client_credentials',
-          }),
-          throwsA(
-            isA<OAuth2TokenException>().having(
-              (e) => e.message,
-              'message',
-              'Unsupported token_type in token response',
+      test(
+        'bhv authoauthtwotokenmgr 038 token_type $tokenType is refused without echoing it',
+        () async {
+          final client = _FakeApiClient();
+          client.enqueue(
+            '{"access_token":"tok","token_type":$tokenType,"expires_in":3600}',
+          );
+          final manager = OAuth2TokenManager();
+          manager.setApiClient(client);
+          await expectLater(
+            () => manager.getAccessToken('https://auth.example.com/token', {
+              'grant_type': 'client_credentials',
+            }),
+            throwsA(
+              isA<OAuth2TokenException>().having(
+                (e) => e.message,
+                'message',
+                'Unsupported token_type in token response',
+              ),
             ),
-          ),
-        );
-      });
+          );
+        },
+      );
     }
 
     for (final tokenType in ['bearer', 'Bearer', 'BEARER']) {
-      test('token_type $tokenType is accepted', () async {
-        final client = _FakeApiClient();
-        client.enqueue(
-          '{"access_token":"tok","token_type":"$tokenType","expires_in":3600}',
-        );
-        final manager = OAuth2TokenManager();
-        manager.setApiClient(client);
-        expect(
-          await manager.getAccessToken('https://auth.example.com/token', {
-            'grant_type': 'client_credentials',
-          }),
-          equals('tok'),
-        );
-      });
+      test(
+        'bhv authoauthtwotokenmgr 002 token_type $tokenType is accepted',
+        () async {
+          final client = _FakeApiClient();
+          client.enqueue(
+            '{"access_token":"tok","token_type":"$tokenType","expires_in":3600}',
+          );
+          final manager = OAuth2TokenManager();
+          manager.setApiClient(client);
+          expect(
+            await manager.getAccessToken('https://auth.example.com/token', {
+              'grant_type': 'client_credentials',
+            }),
+            equals('tok'),
+          );
+        },
+      );
     }
 
     test('a non-JSON token response carries no parser detail', () async {
@@ -615,7 +666,7 @@ void main() {
     });
 
     test(
-      'a 2xx token response that is not JSON throws OAuth2TokenException',
+      'bhv authoauthtwotokenmgr 001 a 2xx token response that is not JSON throws OAuth2TokenException',
       () async {
         final client = _FakeApiClient();
         client.enqueue('<html>not json</html>');
@@ -639,7 +690,7 @@ void main() {
     );
 
     test(
-      'token endpoint error response parsed to typed OAuth2ServerException',
+      'bhv authoauthtwotokenmgr 032 token endpoint error response parsed to typed OAuth2ServerException',
       () async {
         // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as
         // a typed OAuth2ServerException carrying code/description/uri.
@@ -676,22 +727,25 @@ void main() {
       },
     );
 
-    test('token POST sets noRedirect=true on the transport', () async {
-      // Gap 3.2: the token POST carries credentials in the form body; the
-      // manager must pass noRedirect: true so the transport refuses any 3xx
-      // instead of silently replaying the body to a redirect target.
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok","expires_in":3600}');
+    test(
+      'bhv authoauthtwotokenmgr 034 token POST sets noRedirect=true on the transport',
+      () async {
+        // Gap 3.2: the token POST carries credentials in the form body; the
+        // manager must pass noRedirect: true so the transport refuses any 3xx
+        // instead of silently replaying the body to a redirect target.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok","expires_in":3600}');
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      await manager.getAccessToken('https://auth.example.com/token', {
-        'grant_type': 'client_credentials',
-      });
+        await manager.getAccessToken('https://auth.example.com/token', {
+          'grant_type': 'client_credentials',
+        });
 
-      expect(client.lastNoRedirect, isTrue);
-    });
+        expect(client.lastNoRedirect, isTrue);
+      },
+    );
 
     test('token POST leaves the transport default headers off', () async {
       final client = _FakeApiClient();
@@ -707,7 +761,7 @@ void main() {
     });
 
     test(
-      'invalidateAccessToken triggers a single refetch under concurrency',
+      'bhv authoauthtwotokenmgr 019 invalidateAccessToken triggers a single refetch under concurrency',
       () async {
         // After invalidation, 10 concurrent callers must coalesce into exactly
         // ONE additional HTTP request (single-flight), all observing the
@@ -775,7 +829,7 @@ void main() {
     };
 
     test(
-      'a stale token is refreshed with the refresh grant and the client credentials',
+      'bhv authoauthtwotokenmgr 022 a stale token is refreshed with the refresh grant and the client credentials',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -800,46 +854,52 @@ void main() {
       },
     );
 
-    test('a rejected refresh falls back to the original grant', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
-      );
-      client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
-      client.enqueue('{"access_token":"tok3","expires_in":3600}');
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+    test(
+      'bhv authoauthtwotokenmgr 016 a rejected refresh falls back to the original grant',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+        client.enqueue('{"access_token":"tok3","expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      await manager.getAccessToken(tokenUrl, original);
-      final third = await manager.getAccessToken(tokenUrl, original);
+        await manager.getAccessToken(tokenUrl, original);
+        final third = await manager.getAccessToken(tokenUrl, original);
 
-      expect(third, equals('tok3'));
-      expect(client.requestCount, equals(3));
-      expect(
-        client.bodies[1],
-        startsWith('grant_type=refresh_token&refresh_token=ref1'),
-      );
-      expect(client.bodies[2], equals(client.bodies[0]));
-    });
-
-    test('the refresh grant goes to the refreshUrl', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
-      );
-      client.enqueue('{"access_token":"tok2","expires_in":3600}');
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
-
-      const refreshUrl = 'https://auth.example.com/refresh';
-      await manager.getAccessToken(tokenUrl, original, const {}, refreshUrl);
-      await manager.getAccessToken(tokenUrl, original, const {}, refreshUrl);
-
-      expect(client.urls, equals([tokenUrl, refreshUrl]));
-    });
+        expect(third, equals('tok3'));
+        expect(client.requestCount, equals(3));
+        expect(
+          client.bodies[1],
+          startsWith('grant_type=refresh_token&refresh_token=ref1'),
+        );
+        expect(client.bodies[2], equals(client.bodies[0]));
+      },
+    );
 
     test(
-      'params that already are a refresh grant are posted exactly once',
+      'bhv authoauthtwotokenmgr 029 the refresh grant goes to the refreshUrl',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        const refreshUrl = 'https://auth.example.com/refresh';
+        await manager.getAccessToken(tokenUrl, original, const {}, refreshUrl);
+        await manager.getAccessToken(tokenUrl, original, const {}, refreshUrl);
+
+        expect(client.urls, equals([tokenUrl, refreshUrl]));
+      },
+    );
+
+    test(
+      'bhv authoauthtwotokenmgr 023 params that already are a refresh grant are posted exactly once',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -861,65 +921,83 @@ void main() {
       },
     );
 
-    test('exchange bypasses the cache and the refresh path', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
-      );
-      client.enqueue('{"access_token":"tok2","expires_in":3600}');
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+    test(
+      'bhv authoauthtwotokenmgr 006 exchange bypasses the cache and the refresh path',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      await manager.getAccessToken(tokenUrl, original);
-      await manager.exchange(tokenUrl, {
-        'grant_type': 'authorization_code',
-        'code': 'b',
-      });
-
-      expect(client.bodies[1], equals('grant_type=authorization_code&code=b'));
-      expect(await manager.getAccessToken(tokenUrl, original), equals('tok2'));
-      expect(manager.refreshToken, isEmpty);
-    });
-
-    test('a failed exchange restores the previous session', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
-      );
-      client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
-
-      await manager.getAccessToken(tokenUrl, original);
-      await expectLater(
-        manager.exchange(tokenUrl, {
+        await manager.getAccessToken(tokenUrl, original);
+        await manager.exchange(tokenUrl, {
           'grant_type': 'authorization_code',
-          'code': 'bad',
-        }),
-        throwsA(isA<OAuth2ServerException>()),
-      );
+          'code': 'b',
+        });
 
-      expect(await manager.getAccessToken(tokenUrl, original), equals('tok1'));
-      expect(manager.refreshToken, equals('ref1'));
-      expect(client.requestCount, equals(2));
-    });
-
-    test('a response without expires_in is cached indefinitely', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok1"}');
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
-
-      final first = await manager.getAccessToken(tokenUrl, original);
-      final second = await manager.getAccessToken(tokenUrl, original);
-
-      expect(first, equals('tok1'));
-      expect(second, equals('tok1'));
-      expect(client.requestCount, equals(1));
-    });
+        expect(
+          client.bodies[1],
+          equals('grant_type=authorization_code&code=b'),
+        );
+        expect(
+          await manager.getAccessToken(tokenUrl, original),
+          equals('tok2'),
+        );
+        expect(manager.refreshToken, isEmpty);
+      },
+    );
 
     test(
-      'a refresh response without expires_in clears the stale expiry',
+      'bhv authoauthtwotokenmgr 015 a failed exchange restores the previous session',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+        );
+        client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        await manager.getAccessToken(tokenUrl, original);
+        await expectLater(
+          manager.exchange(tokenUrl, {
+            'grant_type': 'authorization_code',
+            'code': 'bad',
+          }),
+          throwsA(isA<OAuth2ServerException>()),
+        );
+
+        expect(
+          await manager.getAccessToken(tokenUrl, original),
+          equals('tok1'),
+        );
+        expect(manager.refreshToken, equals('ref1'));
+        expect(client.requestCount, equals(2));
+      },
+    );
+
+    test(
+      'bhv authoauthtwotokenmgr 039 a response without expires_in is cached indefinitely',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1"}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        final first = await manager.getAccessToken(tokenUrl, original);
+        final second = await manager.getAccessToken(tokenUrl, original);
+
+        expect(first, equals('tok1'));
+        expect(second, equals('tok1'));
+        expect(client.requestCount, equals(1));
+      },
+    );
+
+    test(
+      'bhv authoauthtwotokenmgr 003 a refresh response without expires_in clears the stale expiry',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -939,25 +1017,28 @@ void main() {
       },
     );
 
-    test('a non-string refresh_token is ignored', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
-      );
-      client.enqueue(
-        '{"access_token":"tok2","refresh_token":12345,"expires_in":3600}',
-      );
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+    test(
+      'bhv authoauthtwotokenmgr 020 a non-string refresh_token is ignored',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue(
+          '{"access_token":"tok2","refresh_token":12345,"expires_in":3600}',
+        );
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      await manager.getAccessToken(tokenUrl, original);
-      await manager.getAccessToken(tokenUrl, original);
+        await manager.getAccessToken(tokenUrl, original);
+        await manager.getAccessToken(tokenUrl, original);
 
-      expect(manager.refreshToken, equals('ref1'));
-    });
+        expect(manager.refreshToken, equals('ref1'));
+      },
+    );
 
     test(
-      'a non-string refresh_token on the first response leaves none stored',
+      'bhv authoauthtwotokenmgr 017 a non-string refresh_token on the first response leaves none stored',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -972,18 +1053,21 @@ void main() {
       },
     );
 
-    test('a transport failure reaches the caller unchanged', () async {
-      const failure = NetworkException(message: 'connection refused');
-      final client = _FakeApiClient();
-      client.failure = failure;
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+    test(
+      'bhv authoauthtwotokenmgr 037 a transport failure reaches the caller unchanged',
+      () async {
+        const failure = NetworkException(message: 'connection refused');
+        final client = _FakeApiClient();
+        client.failure = failure;
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      await expectLater(
-        manager.getAccessToken(tokenUrl, original),
-        throwsA(same(failure)),
-      );
-    });
+        await expectLater(
+          manager.getAccessToken(tokenUrl, original),
+          throwsA(same(failure)),
+        );
+      },
+    );
   });
 
   group('OAuth2ServerException message', () {

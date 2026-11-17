@@ -274,7 +274,7 @@ void main() {
       expect(ok.authHeaders()['Authorization'], equals('Bearer t'));
     });
 
-    test('parses JSON error body', () async {
+    test('bhv errors 034 parses JSON error body', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/400')
           .build();
@@ -288,7 +288,7 @@ void main() {
       }
     });
 
-    test('deserializes JSON response', () async {
+    test('bhv serializationwire 004 deserializes JSON response', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
@@ -302,7 +302,7 @@ void main() {
       expect(parsed['method'], equals('GET'));
     });
 
-    test('returns raw body for non-JSON', () async {
+    test('bhv serializationwire 019 returns raw body for non-JSON', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
@@ -313,7 +313,7 @@ void main() {
       expect(resp.body, isNotEmpty);
     });
 
-    test('forwards auth headers', () async {
+    test('bhv authintegration 010 forwards auth headers', () async {
       final auth = _BaseApiAuth(
           headers: {'Authorization': 'Bearer test-token'});
       final api = _chasmApi(schemes: {'petStoreBearer': auth});
@@ -336,7 +336,7 @@ void main() {
       expect(headers['authorization'], equals('Bearer test-token'));
     });
 
-    test('sets cookie from auth', () async {
+    test('bhv authintegration 017 sets cookie from auth', () async {
       String? receivedCookie;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -365,7 +365,7 @@ void main() {
       }
     });
 
-    test('forwards auth query params', () async {
+    test('bhv serializationwire 002 forwards auth query params', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String? receivedQuery;
       server.listen((request) {
@@ -401,7 +401,7 @@ void main() {
     //
     // ApiException exposes getTypedErrorBody<T>(fromJson) which deserialises the
     // response body into a typed model when the server returned JSON.
-    test('getTypedErrorBody parses JSON body into a typed model', () async {
+    test('bhv errors 029 getTypedErrorBody parses JSON body into a typed model', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -432,7 +432,7 @@ void main() {
       }
     });
 
-    test('getTypedErrorBody returns null on empty response body', () async {
+    test('bhv errors 028 getTypedErrorBody returns null on empty response body', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -462,7 +462,7 @@ void main() {
     //
     // Every operation method has a sibling `<op>WithHttpInfo` that returns an
     // `ApiResult<T>` exposing status, data, raw body, and headers.
-    test('WithHttpInfo variant returns ApiResult exposing status/data/body/headers', () async {
+    test('bhv operations 018 WithHttpInfo variant returns ApiResult exposing status/data/body/headers', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -496,7 +496,7 @@ void main() {
 
     // -- OptionalAuthParamTests --
 
-    test('a scheme HTTP-aware authenticator receives the API transport', () async {
+    test('bhv authintegration 002 a scheme HTTP-aware authenticator receives the API transport', () async {
       final transport = _CapturingApiClient();
       final recorder = _ClientRecordingAuth();
       final api = PetApi(
@@ -506,7 +506,7 @@ void main() {
       expect(identical(recorder.injected, transport), isTrue);
     });
 
-    test('op-level auth is optional named param and falls back to client-level', () async {
+    test('bhv authintegration 009 op-level auth is optional named param and falls back to client-level', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String? receivedAuth;
       server.listen((request) {
@@ -538,7 +538,7 @@ void main() {
       }
     });
 
-    test('op-level auth in Options overrides client-level auth', () async {
+    test('bhv authintegration 013 op-level auth in Options overrides client-level auth', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String? receivedAuth;
       server.listen((request) {
@@ -578,7 +578,7 @@ void main() {
      * was silently dropped. Here a real BearerAuthenticator is configured on
      * the client, a secured operation (addPet) is invoked, and we assert the
      * outgoing Authorization header carried the bearer token. */
-    test('configured authenticator is applied to a secured request', () async {
+    test('bhv authintegration 006 configured authenticator is applied to a secured request', () async {
       String? receivedAuth;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -618,7 +618,7 @@ void main() {
      * (not the no-auth sentinel) and BaseApi falls back to the client-level
      * authenticator. A configured client credential MUST reach the wire — the
      * regression that silently dropped auth on every inherited-security op. */
-    test('configured authenticator is applied to an inherited-security op',
+    test('bhv authintegration 012 configured authenticator is applied to an inherited-security op',
         () async {
       String? receivedAuth;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -663,7 +663,7 @@ void main() {
      * getInventory is declared `security: []`, so it exercises the sentinel
      * path. The configured authenticator sets a header, a query param, AND a
      * cookie so all three credential channels are checked. */
-    test('client authenticator is suppressed on a security:[] operation',
+    test('bhv authintegration 005 client authenticator is suppressed on a security:[] operation',
         () async {
       String? receivedAuth;
       String? receivedApiKeyHeader;
@@ -740,7 +740,7 @@ void main() {
       expect(resp.statusCode, equals(200));
     });
 
-    test('all headers from selector flow through to request', () async {
+    test('bhv operations 002 all headers from selector flow through to request', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       Map<String, String> receivedHeaders = {};
       server.listen((request) {
@@ -780,7 +780,7 @@ void main() {
      * caller-set default Accept of application/xml replaces the operation's
      * negotiated application/json. Dart already merges in this order, so this
      * is GREEN; the assertion locks the precedence fleet-wide. */
-    test('config default header overrides operation-negotiated Accept', () async {
+    test('bhv options 001 config default header overrides operation-negotiated Accept', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String? receivedAccept;
       server.listen((request) {
@@ -810,7 +810,7 @@ void main() {
       }
     });
 
-    test('an explicit Accept header parameter beats the config default and the negotiated Accept', () async {
+    test('bhv operations 004 an explicit Accept header parameter beats the config default and the negotiated Accept', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String? receivedAccept;
       server.listen((request) {
@@ -841,7 +841,7 @@ void main() {
       }
     });
 
-    test('rejects a non-JSON content type for a model return type', () async {
+    test('bhv errors 035 rejects a non-JSON content type for a model return type', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -877,7 +877,7 @@ void main() {
       }
     });
 
-    test('deserializes vendor JSON MIME types like application/problem+json', () async {
+    test('bhv serializationwire 005 deserializes vendor JSON MIME types like application/problem+json', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -902,7 +902,7 @@ void main() {
       }
     });
 
-    test('deserializes JSON response when server omits Content-Type', () async {
+    test('bhv serializationwire 025 deserializes JSON response when server omits Content-Type', () async {
       /* Some servers send a JSON body with NO Content-Type header. The SDK
        * must default an absent/empty content-type to JSON and still
        * deserialize, rather than dropping the body. A raw socket is used
@@ -935,7 +935,7 @@ void main() {
       }
     });
 
-    test('serializes boolean query params', () async {
+    test('bhv serializationwire 020 serializes boolean query params', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
       server.listen((request) {
@@ -960,7 +960,7 @@ void main() {
       }
     });
 
-    test('null options omits allow_empty_value param', () async {
+    test('bhv options 002 null options omits allow_empty_value param', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
       server.listen((request) {
@@ -994,7 +994,7 @@ void main() {
      * does NOT mean the SDK must always send the key. When the caller omits
      * status (leaves it null), no `status=` may appear on the wire, exactly
      * like any other absent optional query param. */
-    test('findPetsByStatus omitting status sends no status= in query', () async {
+    test('bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
       server.listen((request) {
@@ -1022,7 +1022,7 @@ void main() {
       }
     });
 
-    test('includes empty value param in query string when value is empty string', () async {
+    test('bhv serializationwire 016 includes empty value param in query string when value is empty string', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
       server.listen((request) {
@@ -1047,7 +1047,7 @@ void main() {
       }
     });
 
-    test('expands array query params', () async {
+    test('bhv serializationwire 009 expands array query params', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
       server.listen((request) {
@@ -1077,7 +1077,7 @@ void main() {
       }
     });
 
-    test('handles empty query params without question mark', () async {
+    test('bhv serializationwire 015 handles empty query params without question mark', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
       server.listen((request) {
@@ -1102,7 +1102,7 @@ void main() {
       }
     });
 
-    test('serializes number path params without decimal', () async {
+    test('bhv serializationwire 023 serializes number path params without decimal', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';
       server.listen((request) {
@@ -1142,7 +1142,7 @@ void main() {
       expect(client.capturedUrl, isNot(contains('limit=10.0')));
     });
 
-    test('collapses double-slash when baseUrl has trailing slash', () async {
+    test('bhv operations 007 collapses double-slash when baseUrl has trailing slash', () async {
       // baseUrl='http://host/' + path='/pet/1' must produce
       // 'http://host/pet/1', not 'http://host//pet/1' which most servers
       // route to 404.
@@ -1156,7 +1156,7 @@ void main() {
           reason: 'expected exactly one slash, got: ${client.capturedUrl}');
     });
 
-    test('serializes JSON body for POST', () async {
+    test('bhv serializationwire 022 serializes JSON body for POST', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -1185,7 +1185,7 @@ void main() {
       }
     });
 
-    test('serializes text/plain body', () async {
+    test('bhv serializationwire 024 serializes text/plain body', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -1211,7 +1211,7 @@ void main() {
       }
     });
 
-    test('serializes form-urlencoded body', () async {
+    test('bhv serializationwire 021 serializes form-urlencoded body', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -1288,7 +1288,7 @@ void main() {
     /* form-optional-null-omitted: an optional form field left null
      * (`note`) must be omitted from the body entirely, not sent as
      * `note=` or `note=null`. */
-    test('form optional null field is omitted', () async {
+    test('bhv serializationwire 011 form optional null field is omitted', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -1324,7 +1324,7 @@ void main() {
 
     /* form-body-space-encoding: application/x-www-form-urlencoded mandates
      * `+` for a space (WHATWG/HTML form-encoding), never `%20`. */
-    test('form body encodes space as + not %20', () async {
+    test('bhv serializationwire 012 form body encodes space as + not %20', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -1379,7 +1379,7 @@ void main() {
       expect(client.capturedBody, isNot(contains('%20')));
     });
 
-    test('form body rejects a nested object field', () async {
+    test('bhv serializationwire 014 form body rejects a nested object field', () async {
       final api = BaseApi(
         apiClient: _CapturingApiClient(),
         config: ConfigurationBuilder().baseUrl('http://localhost').build(),
@@ -1545,7 +1545,7 @@ void main() {
      * extension -> octet-stream fallback; this asserts the fallback on the
      * operation path, while the extension-derivation is covered by the
      * DefaultApiClient unit tests with named-extension fields). */
-    test('multipart binary part falls back to octet-stream for extensionless field', () async {
+    test('bhv authintegration 008 multipart binary part falls back to octet-stream for extensionless field', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -1758,7 +1758,7 @@ void main() {
       expect(PetStatusEnum.fromJson('available'), equals(PetStatusEnum.available));
     });
 
-    test('passes binary body as-is', () async {
+    test('bhv operations 014 passes binary body as-is', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       List<int> receivedBytes = [];
       server.listen((request) async {
@@ -1786,7 +1786,7 @@ void main() {
       }
     });
 
-    test('sends no body when body is null', () async {
+    test('bhv operations 016 sends no body when body is null', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
@@ -1797,7 +1797,7 @@ void main() {
       expect(resp.statusCode, equals(200));
     });
 
-    test('NotFoundException is a ClientException', () async {
+    test('bhv errors 033 NotFoundException is a ClientException', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/404')
           .build();
@@ -1813,7 +1813,7 @@ void main() {
       }
     });
 
-    test('InternalServerErrorException is a ServerException', () async {
+    test('bhv errors 031 InternalServerErrorException is a ServerException', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/500')
           .build();
@@ -1846,7 +1846,7 @@ void main() {
       }
     });
 
-    test('returns null for void operations', () async {
+    test('bhv operations 015 returns null for void operations', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -1871,7 +1871,7 @@ void main() {
       }
     });
 
-    test('empty content-type defaults to application/json on requests with body', () async {
+    test('bhv serializationwire 007 empty content-type defaults to application/json on requests with body', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String? receivedContentType;
       server.listen((request) {
@@ -1903,21 +1903,21 @@ void main() {
       }
     });
 
-    test('server variable overrides resolve in base URL', () {
+    test('bhv options 003 server variable overrides resolve in base URL', () {
       final config = ConfigurationBuilder()
           .server(server1, {'environment': 'staging'})
           .build();
       expect(config.baseUrl, equals('https://staging.example.com/api/v3'));
     });
 
-    test('default server variables produce correct base URL', () {
+    test('bhv operations 009 default server variables produce correct base URL', () {
       final config = ConfigurationBuilder()
           .server(server1)
           .build();
       expect(config.baseUrl, equals('https://api.example.com/api/v3'));
     });
 
-    test('API request uses resolved server URL', () {
+    test('bhv operations 005 API request uses resolved server URL', () {
       final config = ConfigurationBuilder()
           .server(server1, {'environment': 'staging'})
           .build();
@@ -1936,7 +1936,7 @@ void main() {
       );
     });
 
-    test('invalid enum value throws error', () {
+    test('bhv errors 032 invalid enum value throws error', () {
       expect(
         () => ConfigurationBuilder()
             .server(server1, {'environment': 'invalid'})
@@ -1947,7 +1947,7 @@ void main() {
 
     // -- BinaryResponseTests --
 
-    test('octet-stream response decoded as base64 bytes', () async {
+    test('bhv serializationwire 018 octet-stream response decoded as base64 bytes', () async {
       final binaryData = Uint8List.fromList([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -1981,7 +1981,7 @@ void main() {
       }
     });
 
-    test('image/png response decoded as bytes', () async {
+    test('bhv operations 012 image/png response decoded as bytes', () async {
       final binaryData = Uint8List.fromList(
           [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d]);
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -2016,7 +2016,7 @@ void main() {
      * JSON string literal carrying base64 (`"dGVzdC1pbWFnZQ=="`, quotes
      * included). base_api must JSON-parse it, then base64-decode the inner
      * string to raw bytes — not base64-decode the quoted literal directly. */
-    test('byte response over application/json is JSON-parsed then base64-decoded', () async {
+    test('bhv serializationwire 017 byte response over application/json is JSON-parsed then base64-decoded', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -2039,7 +2039,7 @@ void main() {
       }
     });
 
-    test('application/json response parsed to object', () async {
+    test('bhv serializationwire 003 application/json response parsed to object', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -2065,7 +2065,7 @@ void main() {
       }
     });
 
-    test('text/plain response returns string', () async {
+    test('bhv operations 017 text/plain response returns string', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -2089,7 +2089,7 @@ void main() {
       }
     });
 
-    test('empty body yields empty string in response', () async {
+    test('bhv operations 010 empty body yields empty string in response', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -2190,7 +2190,7 @@ void main() {
 
     // -- NullBodyContentTypeTests --
 
-    test('null body POST does not send Content-Type', () async {
+    test('bhv operations 013 null body POST does not send Content-Type', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       Map<String, String> receivedHeaders = {};
       server.listen((request) {
@@ -2219,7 +2219,7 @@ void main() {
       }
     });
 
-    test('empty string body includes Content-Type', () async {
+    test('bhv operations 011 empty string body includes Content-Type', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String? receivedContentType;
       server.listen((request) {
@@ -2246,7 +2246,7 @@ void main() {
       }
     });
 
-    test('empty JSON object body includes Content-Type', () async {
+    test('bhv serializationwire 008 empty JSON object body includes Content-Type', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String? receivedContentType;
       server.listen((request) {
@@ -2343,7 +2343,7 @@ void main() {
   });
 
   group('BaseApi 401 replay', () {
-    test('a 401 drops the token and replays the request once with fresh headers', () async {
+    test('bhv retries 001 a 401 drops the token and replays the request once with fresh headers', () async {
       final auth = _RotatingAuth();
       final client = _ScriptedApiClient([_reply(401), _reply(200)]);
       final api = _RecordingApi(client, authenticator: auth);
@@ -2356,7 +2356,7 @@ void main() {
           equals(['Bearer t1', 'Bearer t2']));
     });
 
-    test('a second 401 is reported as Unauthorized after exactly two sends', () async {
+    test('bhv retries 008 a second 401 is reported as Unauthorized after exactly two sends', () async {
       final auth = _RotatingAuth();
       final client = _ScriptedApiClient([_reply(401), _reply(401)]);
       final api = _RecordingApi(client, authenticator: auth);
@@ -2369,7 +2369,7 @@ void main() {
       expect(auth.invalidations, equals(1));
     });
 
-    test('a failed re-authentication leaves the 401 as it is', () async {
+    test('bhv authintegration 001 a failed re-authentication leaves the 401 as it is', () async {
       final auth = _RotatingAuth()..failAfterInvalidation = true;
       final client = _ScriptedApiClient([_reply(401)]);
       final api = _RecordingApi(client, authenticator: auth);
@@ -2381,7 +2381,7 @@ void main() {
       expect(client.sentHeaders, hasLength(1));
     });
 
-    test('an authenticator that holds no fetched token never replays', () async {
+    test('bhv retries 002 an authenticator that holds no fetched token never replays', () async {
       final client = _ScriptedApiClient([_reply(401)]);
       final api = _RecordingApi(client,
           authenticator: _BaseApiAuth(headers: {'Authorization': 'Bearer fixed'}));
@@ -2393,7 +2393,7 @@ void main() {
       expect(client.sentHeaders, hasLength(1));
     });
 
-    test('a multipart body is not replayed', () async {
+    test('bhv retries 006 a multipart body is not replayed', () async {
       final auth = _RotatingAuth();
       final client = _ScriptedApiClient([_reply(401)]);
       final api = _RecordingApi(client, authenticator: auth);
@@ -2577,7 +2577,7 @@ void main() {
       expect(client.sentHeaders, hasLength(1));
     });
 
-    test('a retry asks the authenticator for the headers again', () async {
+    test('bhv retries 005 a retry asks the authenticator for the headers again', () async {
       final auth = _CountingAuth();
       final client = _ScriptedApiClient([_reply(503), _reply(200)]);
       final api = _RecordingApi(client, authenticator: auth);
@@ -2643,7 +2643,7 @@ void main() {
       }
     });
 
-    test('a multipart body is not retried', () async {
+    test('bhv retries 003 a multipart body is not retried', () async {
       final client = _ScriptedApiClient([_reply(503), _reply(200)]);
       final api = _RecordingApi(client);
 
@@ -2661,7 +2661,7 @@ void main() {
   });
 
   group('Per-call options', () {
-    test('the headers replace a default header of the same name in any case', () async {
+    test('bhv operations 001 the headers replace a default header of the same name in any case', () async {
       final client = _ScriptedApiClient([_reply(200)]);
       final api = _RecordingApi(client);
 
@@ -2677,7 +2677,7 @@ void main() {
       expect(client.sentHeaders.single['X-Extra'], equals('1'));
     });
 
-    test('the timeout reaches the transport for this call only', () async {
+    test('bhv transport 002 the timeout reaches the transport for this call only', () async {
       final client = _ScriptedApiClient([_reply(200), _reply(200)]);
       final api = _RecordingApi(client);
 
@@ -2698,7 +2698,7 @@ void main() {
       expect(client.sentHeaders, hasLength(1));
     });
 
-    test('maxRetries 3 allows more retries than the transport default', () async {
+    test('bhv retries 004 maxRetries 3 allows more retries than the transport default', () async {
       final client = _ScriptedApiClient(
           [_reply(503), _reply(503), _reply(503), _reply(200)]);
       final api = _RecordingApi(client);
@@ -2710,7 +2710,7 @@ void main() {
       expect(client.sentHeaders, hasLength(4));
     });
 
-    test('a negative timeout or maxRetries is refused before any request', () async {
+    test('bhv retries 009 a negative timeout or maxRetries is refused before any request', () async {
       final client = _ScriptedApiClient([_reply(200)]);
       final api = _RecordingApi(client);
 
@@ -2781,7 +2781,7 @@ void main() {
   group('Security scheme credentials (F857)', () {
     /* One optional credential per security scheme, named after the scheme;
      * each operation uses the credential of the scheme its spec requires. */
-    test('each operation sends the credential of its own scheme', () async {
+    test('bhv authintegration 007 each operation sends the credential of its own scheme', () async {
       final seen = <String, String?>{};
       final transport = Mock{{clientClassName}}((request) async {
         seen['${request.method} ${request.url.path}'] =
@@ -2826,7 +2826,7 @@ void main() {
       expect(() => {{clientClassName}}(), throwsArgumentError);
     });
 
-    test('the options object carries no authenticator', () {
+    test('bhv authintegration 011 the options object carries no authenticator', () {
       final source = File('lib/src/api/options/add_pet_options.dart').readAsStringSync();
 
       expect(source, isNot(contains('Authenticator')));
@@ -2930,7 +2930,7 @@ void main() {
   });
 
   group('BaseApi request context on errors', () {
-    test('a status error names the method and the path without the query', () async {
+    test('bhv errors 036 a status error names the method and the path without the query', () async {
       final client = _ScriptedApiClient([_reply(404)], maxRetries: 0);
       final api = _RecordingApi(client);
 
@@ -2977,7 +2977,7 @@ void main() {
       );
     });
 
-    test('an absolute url is reduced to its path', () async {
+    test('bhv errors 027 an absolute url is reduced to its path', () async {
       final client = _ScriptedApiClient([_reply(503)], maxRetries: 0);
       final api = _RecordingApi(client);
 

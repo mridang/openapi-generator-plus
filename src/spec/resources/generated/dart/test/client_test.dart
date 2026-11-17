@@ -31,17 +31,20 @@ class _CloseTrackingClient extends http.BaseClient {
 
 void main() {
   group('Client', () {
-    test('withToken takes a token provider instead of a token', () {
-      final client = Client.withToken(
-        host: '/api/v3',
-        tokenProvider: () => 'rotating-token',
-      );
+    test(
+      'bhv lifecycle 017 withToken takes a token provider instead of a token',
+      () {
+        final client = Client.withToken(
+          host: '/api/v3',
+          tokenProvider: () => 'rotating-token',
+        );
 
-      expect(client, isNotNull);
-    });
+        expect(client, isNotNull);
+      },
+    );
 
     test(
-      'withToken fails to build when no token is given or in the environment',
+      'bhv lifecycle 016 withToken fails to build when no token is given or in the environment',
       () {
         if (Platform.environment[BearerAuthenticator
                 .defaultEnvironmentVariable] !=
@@ -56,7 +59,7 @@ void main() {
       },
     );
 
-    test('construct with authenticator only', () {
+    test('bhv lifecycle 012 construct with authenticator only', () {
       final authenticator = BearerAuthenticator(
         host: '/api/v3',
         token: 'test-token',
@@ -67,37 +70,43 @@ void main() {
       expect(client, isNotNull);
     });
 
-    test('construct with authenticator and null transport options', () {
-      final authenticator = BearerAuthenticator(
-        host: '/api/v3',
-        token: 'test-token',
-      );
+    test(
+      'bhv lifecycle 010 construct with authenticator and null transport options',
+      () {
+        final authenticator = BearerAuthenticator(
+          host: '/api/v3',
+          token: 'test-token',
+        );
 
-      final client = Client(
-        authenticator: authenticator,
-        transportOptions: null,
-      );
+        final client = Client(
+          authenticator: authenticator,
+          transportOptions: null,
+        );
 
-      expect(client, isNotNull);
-    });
-
-    test('construct with authenticator and transport options', () {
-      final authenticator = BearerAuthenticator(
-        host: '/api/v3',
-        token: 'test-token',
-      );
-      final transport = TransportOptionsBuilder().build();
-
-      final client = Client(
-        authenticator: authenticator,
-        transportOptions: transport,
-      );
-
-      expect(client, isNotNull);
-    });
+        expect(client, isNotNull);
+      },
+    );
 
     test(
-      'construct with a caller-supplied http client in the transport options',
+      'bhv lifecycle 011 construct with authenticator and transport options',
+      () {
+        final authenticator = BearerAuthenticator(
+          host: '/api/v3',
+          token: 'test-token',
+        );
+        final transport = TransportOptionsBuilder().build();
+
+        final client = Client(
+          authenticator: authenticator,
+          transportOptions: transport,
+        );
+
+        expect(client, isNotNull);
+      },
+    );
+
+    test(
+      'bhv lifecycle 007 construct with a caller-supplied http client in the transport options',
       () {
         final authenticator = BearerAuthenticator(
           host: '/api/v3',
@@ -116,41 +125,47 @@ void main() {
       },
     );
 
-    test('close never closes a caller-supplied http client', () {
-      final supplied = _CloseTrackingClient(
-        MockClient((_) async => http.Response('', 200)),
-      );
-      final client = Client(
-        authenticator: BearerAuthenticator(
-          host: 'http://localhost:1',
-          token: 'test-token',
-        ),
-        transportOptions: TransportOptionsBuilder()
-            .httpClient(supplied)
-            .build(),
-      );
+    test(
+      'bhv lifecycle 009 close never closes a caller-supplied http client',
+      () {
+        final supplied = _CloseTrackingClient(
+          MockClient((_) async => http.Response('', 200)),
+        );
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'http://localhost:1',
+            token: 'test-token',
+          ),
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(supplied)
+              .build(),
+        );
 
-      client.close();
-      client.close();
+        client.close();
+        client.close();
 
-      expect(supplied.closed, isFalse);
-    });
-
-    test('close on a client that built its own transport is idempotent', () {
-      final client = Client(
-        authenticator: BearerAuthenticator(
-          host: 'http://localhost:1',
-          token: 'test-token',
-        ),
-      );
-
-      client.close();
-
-      expect(client.close, returnsNormally);
-    });
+        expect(supplied.closed, isFalse);
+      },
+    );
 
     test(
-      'BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
+      'bhv lifecycle 013 close on a client that built its own transport is idempotent',
+      () {
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'http://localhost:1',
+            token: 'test-token',
+          ),
+        );
+
+        client.close();
+
+        expect(client.close, returnsNormally);
+      },
+    );
+
+    test(
+      'bhv lifecycle 006 BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
       () {
         expect(
           () => BearerAuthenticator(
@@ -166,22 +181,25 @@ void main() {
       },
     );
 
-    test('BearerAuthenticator rejects an empty or whitespace token', () {
-      // bearer-no-empty-token-guard: an empty / whitespace-only token would
-      // emit a bare "Authorization: Bearer " header and send the request
-      // unauthenticated, so the constructor must reject it.
-      expect(
-        () => BearerAuthenticator(host: '/api/v3', token: ''),
-        throwsArgumentError,
-      );
-      expect(
-        () => BearerAuthenticator(host: '/api/v3', token: '   '),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'bhv lifecycle 005 BearerAuthenticator rejects an empty or whitespace token',
+      () {
+        // bearer-no-empty-token-guard: an empty / whitespace-only token would
+        // emit a bare "Authorization: Bearer " header and send the request
+        // unauthenticated, so the constructor must reject it.
+        expect(
+          () => BearerAuthenticator(host: '/api/v3', token: ''),
+          throwsArgumentError,
+        );
+        expect(
+          () => BearerAuthenticator(host: '/api/v3', token: '   '),
+          throwsArgumentError,
+        );
+      },
+    );
 
     test(
-      'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
+      'bhv lifecycle 004 ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
       () {
         // HEADER location must reject anything outside printable ASCII +
         // TAB to prevent header injection (\r\n) and silent UTF-8
@@ -216,7 +234,7 @@ void main() {
       },
     );
 
-    test('API groups are accessible', () {
+    test('bhv lifecycle 001 API groups are accessible', () {
       final authenticator = BearerAuthenticator(
         host: '/api/v3',
         token: 'test-token',

@@ -11,7 +11,7 @@ import 'package:petstore_client/petstore_client.dart';
 void main() {
   group('ApiException', () {
     test(
-      'exposes statusCode, message, responseBody, responseHeaders, errorBody',
+      'bhv errors 004 exposes statusCode, message, responseBody, responseHeaders, errorBody',
       () {
         const err = ApiException(
           statusCode: 404,
@@ -32,7 +32,7 @@ void main() {
       },
     );
 
-    test('null headers and body mark transport-no-response', () {
+    test('bhv errors 021 null headers and body mark transport-no-response', () {
       // apierror-responsebody-headers-nullable-split: null is distinct from an
       // empty header map / empty body so a pre-response transport failure can
       // be encoded.
@@ -55,58 +55,70 @@ void main() {
       expect(err.toString(), isNotEmpty);
     });
 
-    test('is a OpenAPIException (branded root)', () {
+    test('bhv errors 018 is a OpenAPIException (branded root)', () {
       const err = ApiException(statusCode: 500, message: 'boom');
 
       expect(err, isA<OpenAPIException>());
       expect(err, isA<Exception>());
     });
 
-    test('getTypedErrorBody deserializes the body into the requested type', () {
-      const err = ApiException(
-        statusCode: 400,
-        message: 'bad request',
-        responseBody: '{"id":42,"name":"Dogs"}',
-      );
+    test(
+      'bhv errors 013 getTypedErrorBody deserializes the body into the requested type',
+      () {
+        const err = ApiException(
+          statusCode: 400,
+          message: 'bad request',
+          responseBody: '{"id":42,"name":"Dogs"}',
+        );
 
-      final typed = err.getTypedErrorBody(Category.fromJson);
-      expect(typed, isNotNull);
-      expect(typed!.id, equals(42));
-      expect(typed.name, equals('Dogs'));
-    });
-
-    test('getTypedErrorBody returns null when there is no response body', () {
-      const err = ApiException(
-        statusCode: 500,
-        message: 'oops',
-        responseBody: null,
-      );
-
-      expect(err.getTypedErrorBody(Category.fromJson), isNull);
-    });
-
-    test('getTypedErrorBody returns null for an empty response body', () {
-      const err = ApiException(
-        statusCode: 500,
-        message: 'oops',
-        responseBody: '',
-      );
-
-      expect(err.getTypedErrorBody(Category.fromJson), isNull);
-    });
-
-    test('getTypedErrorBody returns null for a bare JSON null body', () {
-      const err = ApiException(
-        statusCode: 500,
-        message: 'oops',
-        responseBody: 'null',
-      );
-
-      expect(err.getTypedErrorBody(Category.fromJson), isNull);
-    });
+        final typed = err.getTypedErrorBody(Category.fromJson);
+        expect(typed, isNotNull);
+        expect(typed!.id, equals(42));
+        expect(typed.name, equals('Dogs'));
+      },
+    );
 
     test(
-      'getTypedErrorBody throws SerializationException for malformed JSON',
+      'bhv errors 015 getTypedErrorBody returns null when there is no response body',
+      () {
+        const err = ApiException(
+          statusCode: 500,
+          message: 'oops',
+          responseBody: null,
+        );
+
+        expect(err.getTypedErrorBody(Category.fromJson), isNull);
+      },
+    );
+
+    test(
+      'bhv errors 016 getTypedErrorBody returns null for an empty response body',
+      () {
+        const err = ApiException(
+          statusCode: 500,
+          message: 'oops',
+          responseBody: '',
+        );
+
+        expect(err.getTypedErrorBody(Category.fromJson), isNull);
+      },
+    );
+
+    test(
+      'bhv errors 005 getTypedErrorBody returns null for a bare JSON null body',
+      () {
+        const err = ApiException(
+          statusCode: 500,
+          message: 'oops',
+          responseBody: 'null',
+        );
+
+        expect(err.getTypedErrorBody(Category.fromJson), isNull);
+      },
+    );
+
+    test(
+      'bhv errors 017 getTypedErrorBody throws SerializationException for malformed JSON',
       () {
         const err = ApiException(
           statusCode: 500,
@@ -159,18 +171,21 @@ void main() {
       },
     );
 
-    test('getTypedErrorBody ignores extraneous fields not on the model', () {
-      const err = ApiException(
-        statusCode: 422,
-        message: 'unprocessable',
-        responseBody: '{"id":1,"name":"Cat","extra":"drop-me"}',
-      );
+    test(
+      'bhv errors 014 getTypedErrorBody ignores extraneous fields not on the model',
+      () {
+        const err = ApiException(
+          statusCode: 422,
+          message: 'unprocessable',
+          responseBody: '{"id":1,"name":"Cat","extra":"drop-me"}',
+        );
 
-      final typed = err.getTypedErrorBody(Category.fromJson);
-      expect(typed, isNotNull);
-      expect(typed!.id, equals(1));
-      expect(typed.name, equals('Cat'));
-    });
+        final typed = err.getTypedErrorBody(Category.fromJson);
+        expect(typed, isNotNull);
+        expect(typed!.id, equals(1));
+        expect(typed.name, equals('Cat'));
+      },
+    );
   });
 
   group('exception hierarchy', () {
@@ -233,7 +248,7 @@ void main() {
       expect(const NotFoundException(message: 'gone').responseHeaders, isNull);
     });
 
-    test('every status error accepts an optional cause', () {
+    test('bhv errors 003 every status error accepts an optional cause', () {
       final cause = StateError('root');
       final errors = <ApiException>[
         BadRequestException(cause: cause),
@@ -255,7 +270,7 @@ void main() {
     });
 
     test(
-      'NetworkTimeoutException is NetworkException and ApiException with status 0',
+      'bhv errors 020 NetworkTimeoutException is NetworkException and ApiException with status 0',
       () {
         const err = NetworkTimeoutException(message: 'timed out');
 
@@ -270,7 +285,7 @@ void main() {
       },
     );
 
-    test('SerializationException is a OpenAPIException', () {
+    test('bhv errors 025 SerializationException is a OpenAPIException', () {
       const err = SerializationException('nope');
 
       expect(err, isA<SerializationException>());
@@ -280,7 +295,7 @@ void main() {
   });
 
   group('fromResponse', () {
-    test('maps each status to its exception', () {
+    test('bhv errors 006 maps each status to its exception', () {
       final cases = <int, Type>{
         400: BadRequestException,
         401: UnauthorizedException,
@@ -318,7 +333,7 @@ void main() {
       expect(err.statusCode, equals(600));
     });
 
-    test('refuses a deeply nested error body', () {
+    test('bhv errors 009 refuses a deeply nested error body', () {
       // The error body is attacker-controlled, so parsing is depth-capped: an
       // over-deep payload leaves errorBody null instead of crashing the VM.
       final body = '${'[' * 2000}${']' * 2000}';
@@ -330,46 +345,55 @@ void main() {
       expect(err.errorBody, isNull);
     });
 
-    test('parses an error body that starts with a UTF-8 BOM', () {
-      final err = ApiException.fromResponse(
-        400,
-        const {},
-        '\u{FEFF}{"code": 7}',
-      );
+    test(
+      'bhv errors 008 parses an error body that starts with a UTF-8 BOM',
+      () {
+        final err = ApiException.fromResponse(
+          400,
+          const {},
+          '\u{FEFF}{"code": 7}',
+        );
 
-      expect(err.errorBody, equals({'code': 7}));
-    });
+        expect(err.errorBody, equals({'code': 7}));
+      },
+    );
   });
 
   group('request context', () {
-    test('fromResponse names the request in the message and the fields', () {
-      final err = ApiException.fromResponse(
-        404,
-        const {},
-        null,
-        requestMethod: 'GET',
-        requestPath: '/items/7?token=secret#top',
-      );
+    test(
+      'bhv errors 011 fromResponse names the request in the message and the fields',
+      () {
+        final err = ApiException.fromResponse(
+          404,
+          const {},
+          null,
+          requestMethod: 'GET',
+          requestPath: '/items/7?token=secret#top',
+        );
 
-      expect(err, isA<NotFoundException>());
-      expect(err.requestMethod, equals('GET'));
-      expect(err.requestPath, equals('/items/7'));
-      expect(err.message, equals('GET /items/7 returned status code 404'));
-      expect(
-        err.toString(),
-        startsWith('GET /items/7 returned status code 404\n'),
-      );
-    });
+        expect(err, isA<NotFoundException>());
+        expect(err.requestMethod, equals('GET'));
+        expect(err.requestPath, equals('/items/7'));
+        expect(err.message, equals('GET /items/7 returned status code 404'));
+        expect(
+          err.toString(),
+          startsWith('GET /items/7 returned status code 404\n'),
+        );
+      },
+    );
 
-    test('fromResponse without a request keeps the plain message', () {
-      final err = ApiException.fromResponse(500, const {}, null);
+    test(
+      'bhv errors 012 fromResponse without a request keeps the plain message',
+      () {
+        final err = ApiException.fromResponse(500, const {}, null);
 
-      expect(err.requestMethod, isNull);
-      expect(err.requestPath, isNull);
-      expect(err.message, equals('API returned status code 500'));
-    });
+        expect(err.requestMethod, isNull);
+        expect(err.requestPath, isNull);
+        expect(err.message, equals('API returned status code 500'));
+      },
+    );
 
-    test('every status class carries the request', () {
+    test('bhv errors 002 every status class carries the request', () {
       for (final status in [
         400,
         401,
@@ -397,7 +421,7 @@ void main() {
     });
 
     test(
-      'withRequest keeps the type and never overwrites a recorded request',
+      'bhv errors 007 withRequest keeps the type and never overwrites a recorded request',
       () {
         const timeout = NetworkTimeoutException(message: 'slow');
         const plain = ApiException(statusCode: 302, message: 'moved');
@@ -416,21 +440,24 @@ void main() {
   });
 
   group('ApiException rendering', () {
-    test('renders the message, status, headers and body one field per line', () {
-      const err = ApiException(
-        statusCode: 404,
-        message: 'not found',
-        responseBody: '{"id":7}',
-        responseHeaders: {'x-request-id': 'abc'},
-      );
+    test(
+      'bhv errors 024 renders the message, status, headers and body one field per line',
+      () {
+        const err = ApiException(
+          statusCode: 404,
+          message: 'not found',
+          responseBody: '{"id":7}',
+          responseHeaders: {'x-request-id': 'abc'},
+        );
 
-      expect(
-        err.toString(),
-        equals(
-          'not found\nHTTP status code: 404\nResponse headers: {"x-request-id":"abc"}\nResponse body: {"id":7}',
-        ),
-      );
-    });
+        expect(
+          err.toString(),
+          equals(
+            'not found\nHTTP status code: 404\nResponse headers: {"x-request-id":"abc"}\nResponse body: {"id":7}',
+          ),
+        );
+      },
+    );
 
     test('renders the response headers as compact sorted JSON', () {
       const err = ApiException(
@@ -472,7 +499,7 @@ void main() {
       );
     });
 
-    test('escapes control characters in the rendered body', () {
+    test('bhv errors 001 escapes control characters in the rendered body', () {
       const err = ApiException(
         statusCode: 500,
         message: 'boom',
@@ -487,45 +514,48 @@ void main() {
       );
     });
 
-    test('masks credential headers in the rendered text only', () {
-      const err = ApiException(
-        statusCode: 401,
-        message: 'denied',
-        responseHeaders: {
-          'Authorization': 'Bearer s1',
-          'Proxy-Authorization': 'Basic s2',
-          'Cookie': 's3',
-          'Set-Cookie': 's4',
-          'WWW-Authenticate': 'Bearer realm=s5',
-          'Proxy-Authenticate': 's6',
-          'X-Api-Key': 's7',
-          'X-Refresh-Token': 's8',
-          'X-Client-Secret': 's9',
-          'X-Request-Id': 'visible',
-        },
-      );
+    test(
+      'bhv errors 023 masks credential headers in the rendered text only',
+      () {
+        const err = ApiException(
+          statusCode: 401,
+          message: 'denied',
+          responseHeaders: {
+            'Authorization': 'Bearer s1',
+            'Proxy-Authorization': 'Basic s2',
+            'Cookie': 's3',
+            'Set-Cookie': 's4',
+            'WWW-Authenticate': 'Bearer realm=s5',
+            'Proxy-Authenticate': 's6',
+            'X-Api-Key': 's7',
+            'X-Refresh-Token': 's8',
+            'X-Client-Secret': 's9',
+            'X-Request-Id': 'visible',
+          },
+        );
 
-      final text = err.toString();
-      expect(text, contains('"X-Request-Id":"visible"'));
-      expect(text, contains('"Authorization":"***"'));
-      expect(text, contains('"WWW-Authenticate":"***"'));
-      expect(text, contains('"X-Api-Key":"***"'));
-      for (final leaked in [
-        's1',
-        's2',
-        's3',
-        's4',
-        's5',
-        's6',
-        's7',
-        's8',
-        's9',
-      ]) {
-        expect(text, isNot(contains('"$leaked"')));
-        expect(text, isNot(contains(': $leaked')));
-      }
-      expect(err.responseHeaders!['Authorization'], equals('Bearer s1'));
-    });
+        final text = err.toString();
+        expect(text, contains('"X-Request-Id":"visible"'));
+        expect(text, contains('"Authorization":"***"'));
+        expect(text, contains('"WWW-Authenticate":"***"'));
+        expect(text, contains('"X-Api-Key":"***"'));
+        for (final leaked in [
+          's1',
+          's2',
+          's3',
+          's4',
+          's5',
+          's6',
+          's7',
+          's8',
+          's9',
+        ]) {
+          expect(text, isNot(contains('"$leaked"')));
+          expect(text, isNot(contains(': $leaked')));
+        }
+        expect(err.responseHeaders!['Authorization'], equals('Bearer s1'));
+      },
+    );
 
     test('omits the status for a transport failure', () {
       const err = NetworkException(message: 'connection refused');
@@ -533,7 +563,7 @@ void main() {
       expect(err.toString(), equals('connection refused'));
     });
 
-    test('omits empty headers and an empty body', () {
+    test('bhv errors 022 omits empty headers and an empty body', () {
       const err = ApiException(
         statusCode: 500,
         message: 'boom',
@@ -554,7 +584,7 @@ void main() {
     });
 
     test(
-      'a scalar JSON error body is exposed but not deserializable into a model',
+      'bhv errors 010 a scalar JSON error body is exposed but not deserializable into a model',
       () {
         final err = ApiException.fromResponse(400, const {}, '"boom"');
 

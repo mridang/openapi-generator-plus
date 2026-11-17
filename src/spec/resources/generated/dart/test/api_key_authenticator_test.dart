@@ -100,7 +100,7 @@ void main() {
       expect(headers['X-Api-Key'], equals('abc123'));
     });
 
-    test('valid query key is exposed in query params', () {
+    test('bhv authapikey 015 valid query key is exposed in query params', () {
       final auth = ApiKeyAuthenticator(
         host: '/api/v3',
         keyParamName: 'api_key',
@@ -134,7 +134,7 @@ void main() {
       );
     });
 
-    test('the query location accepts a non-ASCII key', () {
+    test('bhv authapikey 009 the query location accepts a non-ASCII key', () {
       final queryAuth = ApiKeyAuthenticator(
         host: '/api/v3',
         keyParamName: 'api_key',
@@ -144,7 +144,7 @@ void main() {
       expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
     });
 
-    test('redacts the API key in toString', () {
+    test('bhv authapikey 010 redacts the API key in toString', () {
       // authenticator-secret-in-default-string-repr: the default toString()
       // must never expose the stored API key.
       final auth = ApiKeyAuthenticator(
@@ -186,44 +186,53 @@ void main() {
         );
       }
       for (final key in ['a\rb', 'a\nb', 'a\x00b']) {
-        test('${location.name} rejects CR, LF and NUL in ${key.codeUnits}', () {
-          expect(
-            () => build(key, location),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                equals(
-                  "API key value for 'k' contains forbidden control characters (CR/LF/NUL)",
+        test(
+          'bhv authapikey 002 ${location.name} rejects CR, LF and NUL in ${key.codeUnits}',
+          () {
+            expect(
+              () => build(key, location),
+              throwsA(
+                isA<ArgumentError>().having(
+                  (e) => e.message,
+                  'message',
+                  equals(
+                    "API key value for 'k' contains forbidden control characters (CR/LF/NUL)",
+                  ),
                 ),
               ),
-            ),
-          );
-        });
+            );
+          },
+        );
       }
     }
 
-    test('a Unicode space is not blank for the query and cookie locations', () {
-      for (final location in [ApiKeyLocation.query, ApiKeyLocation.cookie]) {
-        expect(() => build('\u00A0', location), returnsNormally);
-        expect(() => build('\u2003', location), returnsNormally);
-      }
-    });
+    test(
+      'bhv authapikey 001 a Unicode space is not blank for the query and cookie locations',
+      () {
+        for (final location in [ApiKeyLocation.query, ApiKeyLocation.cookie]) {
+          expect(() => build('\u00A0', location), returnsNormally);
+          expect(() => build('\u2003', location), returnsNormally);
+        }
+      },
+    );
 
-    test('a header key rejects non-ASCII with the RFC 7230 message', () {
-      expect(
-        () => build('kéy', ApiKeyLocation.header),
-        throwsA(
-          isA<ArgumentError>().having(
-            (e) => e.message,
-            'message',
-            equals(
-              "API key for header 'k' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+    test(
+      'bhv authapikey 008 a header key rejects non-ASCII with the RFC 7230 message',
+      () {
+        expect(
+          () => build('kéy', ApiKeyLocation.header),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              equals(
+                "API key for header 'k' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+              ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('a cookie key accepts non-ASCII and is emitted only as a cookie', () {
       final auth = build('kéy', ApiKeyLocation.cookie);
@@ -233,7 +242,7 @@ void main() {
       expect(auth.queryParams(), isEmpty);
     });
 
-    test('a header key is emitted only as a header', () {
+    test('bhv authapikey 014 a header key is emitted only as a header', () {
       final auth = build('abc', ApiKeyLocation.header);
 
       expect(auth.authHeaders(), equals({'k': 'abc'}));
@@ -241,14 +250,17 @@ void main() {
       expect(auth.cookieParams(), isEmpty);
     });
 
-    test('the redacted repr shows the non-secret fields and masks the key', () {
-      expect(
-        build('abc', ApiKeyLocation.cookie).toString(),
-        equals(
-          'ApiKeyAuthenticator(host: /api/v3, keyParamName: k, apiKey: ***, location: cookie)',
-        ),
-      );
-    });
+    test(
+      'bhv authapikey 012 the redacted repr shows the non-secret fields and masks the key',
+      () {
+        expect(
+          build('abc', ApiKeyLocation.cookie).toString(),
+          equals(
+            'ApiKeyAuthenticator(host: /api/v3, keyParamName: k, apiKey: ***, location: cookie)',
+          ),
+        );
+      },
+    );
   });
 
   group('ApiKeyAuthenticator scheme wrappers', () {
@@ -279,13 +291,16 @@ void main() {
       expect(auth.cookieParams(), isEmpty);
     });
 
-    test('ApiKeyQueryAuthenticator sends api_key as a query parameter', () {
-      final auth = builders['ApiKeyQueryAuthenticator']!('k1');
+    test(
+      'bhv authapikey 006 ApiKeyQueryAuthenticator sends api_key as a query parameter',
+      () {
+        final auth = builders['ApiKeyQueryAuthenticator']!('k1');
 
-      expect(auth.queryParams(), equals({'api_key': 'k1'}));
-      expect(auth.authHeaders(), isEmpty);
-      expect(auth.cookieParams(), isEmpty);
-    });
+        expect(auth.queryParams(), equals({'api_key': 'k1'}));
+        expect(auth.authHeaders(), isEmpty);
+        expect(auth.cookieParams(), isEmpty);
+      },
+    );
 
     test('SessionCookieAuthenticator sends SESSION_ID as a cookie', () {
       final auth = builders['SessionCookieAuthenticator']!('k1');
@@ -296,7 +311,7 @@ void main() {
     });
 
     builders.forEach((name, build) {
-      test('$name rejects an empty key at construction', () {
+      test('bhv authapikey 005 $name rejects an empty key at construction', () {
         expect(() => build(''), throwsArgumentError);
       });
 

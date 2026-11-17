@@ -5,7 +5,7 @@ import 'package:{{packageName}}/{{packageName}}.dart';
 
 void main() {
   group('ApiException', () {
-    test('exposes statusCode, message, responseBody, responseHeaders, errorBody',
+    test('bhv errors 004 exposes statusCode, message, responseBody, responseHeaders, errorBody',
         () {
       const err = ApiException(
         statusCode: 404,
@@ -22,7 +22,7 @@ void main() {
       expect(err.errorBody, isNull);
     });
 
-    test('null headers and body mark transport-no-response', () {
+    test('bhv errors 021 null headers and body mark transport-no-response', () {
       // apierror-responsebody-headers-nullable-split: null is distinct from an
       // empty header map / empty body so a pre-response transport failure can
       // be encoded.
@@ -45,14 +45,14 @@ void main() {
       expect(err.toString(), isNotEmpty);
     });
 
-    test('is a {{errorPrefix}}Exception (branded root)', () {
+    test('bhv errors 018 is a {{errorPrefix}}Exception (branded root)', () {
       const err = ApiException(statusCode: 500, message: 'boom');
 
       expect(err, isA<{{errorPrefix}}Exception>());
       expect(err, isA<Exception>());
     });
 
-    test('getTypedErrorBody deserializes the body into the requested type', () {
+    test('bhv errors 013 getTypedErrorBody deserializes the body into the requested type', () {
       const err = ApiException(
         statusCode: 400,
         message: 'bad request',
@@ -65,7 +65,7 @@ void main() {
       expect(typed.name, equals('Dogs'));
     });
 
-    test('getTypedErrorBody returns null when there is no response body', () {
+    test('bhv errors 015 getTypedErrorBody returns null when there is no response body', () {
       const err = ApiException(
         statusCode: 500,
         message: 'oops',
@@ -75,7 +75,7 @@ void main() {
       expect(err.getTypedErrorBody(Category.fromJson), isNull);
     });
 
-    test('getTypedErrorBody returns null for an empty response body', () {
+    test('bhv errors 016 getTypedErrorBody returns null for an empty response body', () {
       const err = ApiException(
         statusCode: 500,
         message: 'oops',
@@ -85,7 +85,7 @@ void main() {
       expect(err.getTypedErrorBody(Category.fromJson), isNull);
     });
 
-    test('getTypedErrorBody returns null for a bare JSON null body', () {
+    test('bhv errors 005 getTypedErrorBody returns null for a bare JSON null body', () {
       const err = ApiException(
         statusCode: 500,
         message: 'oops',
@@ -95,7 +95,7 @@ void main() {
       expect(err.getTypedErrorBody(Category.fromJson), isNull);
     });
 
-    test('getTypedErrorBody throws SerializationException for malformed JSON',
+    test('bhv errors 017 getTypedErrorBody throws SerializationException for malformed JSON',
         () {
       const err = ApiException(
         statusCode: 500,
@@ -143,7 +143,7 @@ void main() {
       );
     });
 
-    test('getTypedErrorBody ignores extraneous fields not on the model', () {
+    test('bhv errors 014 getTypedErrorBody ignores extraneous fields not on the model', () {
       const err = ApiException(
         statusCode: 422,
         message: 'unprocessable',
@@ -200,7 +200,7 @@ void main() {
       expect(const NotFoundException(message: 'gone').responseHeaders, isNull);
     });
 
-    test('every status error accepts an optional cause', () {
+    test('bhv errors 003 every status error accepts an optional cause', () {
       final cause = StateError('root');
       final errors = <ApiException>[
         BadRequestException(cause: cause),
@@ -221,7 +221,7 @@ void main() {
       expect(const NotFoundException().cause, isNull);
     });
 
-    test('NetworkTimeoutException is NetworkException and ApiException with status 0',
+    test('bhv errors 020 NetworkTimeoutException is NetworkException and ApiException with status 0',
         () {
       const err = NetworkTimeoutException(message: 'timed out');
 
@@ -232,7 +232,7 @@ void main() {
       expect(const NetworkException(message: 'refused').statusCode, equals(0));
     });
 
-    test('SerializationException is a {{errorPrefix}}Exception', () {
+    test('bhv errors 025 SerializationException is a {{errorPrefix}}Exception', () {
       const err = SerializationException('nope');
 
       expect(err, isA<SerializationException>());
@@ -242,7 +242,7 @@ void main() {
   });
 
   group('fromResponse', () {
-    test('maps each status to its exception', () {
+    test('bhv errors 006 maps each status to its exception', () {
       final cases = <int, Type>{
         400: BadRequestException,
         401: UnauthorizedException,
@@ -282,7 +282,7 @@ void main() {
       expect(err.statusCode, equals(600));
     });
 
-    test('refuses a deeply nested error body', () {
+    test('bhv errors 009 refuses a deeply nested error body', () {
       // The error body is attacker-controlled, so parsing is depth-capped: an
       // over-deep payload leaves errorBody null instead of crashing the VM.
       final body = '${'[' * 2000}${']' * 2000}';
@@ -294,7 +294,7 @@ void main() {
       expect(err.errorBody, isNull);
     });
 
-    test('parses an error body that starts with a UTF-8 BOM', () {
+    test('bhv errors 008 parses an error body that starts with a UTF-8 BOM', () {
       final err = ApiException.fromResponse(
         400,
         const {},
@@ -306,7 +306,7 @@ void main() {
   });
 
   group('request context', () {
-    test('fromResponse names the request in the message and the fields', () {
+    test('bhv errors 011 fromResponse names the request in the message and the fields', () {
       final err = ApiException.fromResponse(
         404,
         const {},
@@ -322,7 +322,7 @@ void main() {
       expect(err.toString(), startsWith('GET /items/7 returned status code 404\n'));
     });
 
-    test('fromResponse without a request keeps the plain message', () {
+    test('bhv errors 012 fromResponse without a request keeps the plain message', () {
       final err = ApiException.fromResponse(500, const {}, null);
 
       expect(err.requestMethod, isNull);
@@ -330,7 +330,7 @@ void main() {
       expect(err.message, equals('API returned status code 500'));
     });
 
-    test('every status class carries the request', () {
+    test('bhv errors 002 every status class carries the request', () {
       for (final status in [400, 401, 403, 404, 409, 418, 422, 429, 500, 503, 302]) {
         final err = ApiException.fromResponse(
           status,
@@ -345,7 +345,7 @@ void main() {
       }
     });
 
-    test('withRequest keeps the type and never overwrites a recorded request', () {
+    test('bhv errors 007 withRequest keeps the type and never overwrites a recorded request', () {
       const timeout = NetworkTimeoutException(message: 'slow');
       const plain = ApiException(statusCode: 302, message: 'moved');
 
@@ -362,7 +362,7 @@ void main() {
   });
 
   group('ApiException rendering', () {
-    test('renders the message, status, headers and body one field per line', () {
+    test('bhv errors 024 renders the message, status, headers and body one field per line', () {
       const err = ApiException(
         statusCode: 404,
         message: 'not found',
@@ -414,7 +414,7 @@ void main() {
       );
     });
 
-    test('escapes control characters in the rendered body', () {
+    test('bhv errors 001 escapes control characters in the rendered body', () {
       const err = ApiException(
         statusCode: 500,
         message: 'boom',
@@ -429,7 +429,7 @@ void main() {
       );
     });
 
-    test('masks credential headers in the rendered text only', () {
+    test('bhv errors 023 masks credential headers in the rendered text only', () {
       const err = ApiException(
         statusCode: 401,
         message: 'denied',
@@ -465,7 +465,7 @@ void main() {
       expect(err.toString(), equals('connection refused'));
     });
 
-    test('omits empty headers and an empty body', () {
+    test('bhv errors 022 omits empty headers and an empty body', () {
       const err = ApiException(
         statusCode: 500,
         message: 'boom',
@@ -485,7 +485,7 @@ void main() {
       );
     });
 
-    test('a scalar JSON error body is exposed but not deserializable into a model', () {
+    test('bhv errors 010 a scalar JSON error body is exposed but not deserializable into a model', () {
       final err = ApiException.fromResponse(400, const {}, '"boom"');
 
       expect(err.errorBody, equals('boom'));

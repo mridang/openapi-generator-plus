@@ -77,7 +77,7 @@ class _GatedApiClient implements ApiClient {
 
 void main() {
   group('OAuth2TokenManager', () {
-    test('extracts access token from response', () async {
+    test('bhv authoauthtwotokenmgr 014 extracts access token from response', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok123","expires_in":3600}');
 
@@ -92,7 +92,7 @@ void main() {
       expect(token, equals('tok123'));
     });
 
-    test('stores refresh token', () async {
+    test('bhv authoauthtwotokenmgr 028 stores refresh token', () async {
       final client = _FakeApiClient();
       client.enqueue(
           '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
@@ -108,7 +108,7 @@ void main() {
       expect(manager.refreshToken, equals('ref1'));
     });
 
-    test('returns cached token when not expired', () async {
+    test('bhv authoauthtwotokenmgr 025 returns cached token when not expired', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -125,7 +125,7 @@ void main() {
       expect(second, equals('tok1'));
     });
 
-    test('refetches token when expired', () async {
+    test('bhv authoauthtwotokenmgr 021 refetches token when expired', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":0}');
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
@@ -143,7 +143,7 @@ void main() {
       expect(second, equals('tok2'));
     });
 
-    test('setAccessToken bypasses endpoint', () async {
+    test('bhv authoauthtwotokenmgr 026 setAccessToken bypasses endpoint', () async {
       final manager = OAuth2TokenManager();
       manager.setAccessToken('manual-token');
 
@@ -155,7 +155,7 @@ void main() {
       expect(token, equals('manual-token'));
     });
 
-    test('invalidateAccessToken forces refetch', () async {
+    test('bhv authoauthtwotokenmgr 018 invalidateAccessToken forces refetch', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
       client.enqueue('{"access_token":"tok2","expires_in":3600}');
@@ -175,7 +175,7 @@ void main() {
       expect(client.requestCount, equals(2));
     });
 
-    test('throws when no ApiClient injected', () {
+    test('bhv authoauthtwotokenmgr 030 throws when no ApiClient injected', () {
       final manager = OAuth2TokenManager();
 
       expect(
@@ -187,7 +187,7 @@ void main() {
       );
     });
 
-    test('single-flight: 10 concurrent getAccessToken calls trigger one HTTP request', () async {
+    test('bhv authoauthtwotokenmgr 027 single-flight: 10 concurrent getAccessToken calls trigger one HTTP request', () async {
       final gate = Completer<void>();
       final client = _GatedApiClient(
         gate,
@@ -219,7 +219,7 @@ void main() {
       }
     });
 
-    test('expires_in short-lived token does not storm', () async {
+    test('bhv authoauthtwotokenmgr 013 expires_in short-lived token does not storm', () async {
       // Gap CM: short-lived token (expires_in < buffer) must produce exactly
       // ONE network call from a single getAccessToken call.
       final client = _FakeApiClient();
@@ -237,7 +237,7 @@ void main() {
       expect(client.requestCount, equals(1));
     });
 
-    test('expires_in long-lived token applies full buffer', () async {
+    test('bhv authoauthtwotokenmgr 010 expires_in long-lived token applies full buffer', () async {
       // Gap CM: long-lived token gets full 30s buffer; second call serves cache.
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"long","expires_in":3600}');
@@ -256,7 +256,7 @@ void main() {
       expect(client.requestCount, equals(1));
     });
 
-    test('expires_in of 60 s is reused: one margin, applied once', () async {
+    test('bhv authoauthtwotokenmgr 004 expires_in of 60 s is reused: one margin, applied once', () async {
       // F910: a single margin capped at half the lifetime, so a short-lived
       // token is served from cache instead of re-fetched on every call.
       final client = _FakeApiClient();
@@ -295,7 +295,7 @@ void main() {
       expect(client.requestCount, equals(2));
     });
 
-    test('refresh_token empty string preserves existing', () async {
+    test('bhv authoauthtwotokenmgr 024 refresh_token empty string preserves existing', () async {
       // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
       // MUST NOT clobber the cached refresh_token.
       final client = _FakeApiClient();
@@ -320,7 +320,7 @@ void main() {
           reason: 'empty refresh_token in refresh response must not overwrite cached refresh_token');
     });
 
-    test('expires_in as JSON string is accepted', () async {
+    test('bhv authoauthtwotokenmgr 009 expires_in as JSON string is accepted', () async {
       // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
       // quoted string. The manager must accept it and cache the token; a
       // second call within the buffer window must serve from cache.
@@ -341,7 +341,7 @@ void main() {
       expect(client.requestCount, equals(1));
     });
 
-    test('expires_in as float is floored', () async {
+    test('bhv authoauthtwotokenmgr 008 expires_in as float is floored', () async {
       // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
       // The manager must floor it and cache the token.
       final client = _FakeApiClient();
@@ -361,7 +361,7 @@ void main() {
       expect(client.requestCount, equals(1));
     });
 
-    test('expires_in negative skips caching', () async {
+    test('bhv authoauthtwotokenmgr 011 expires_in negative skips caching', () async {
       // D1: a negative expires_in (e.g. -1) must mark the token as
       // immediately stale so the very next call refetches.
       final client = _FakeApiClient();
@@ -392,7 +392,7 @@ void main() {
       '"31536001"',
     ]) {
       final label = lifetime.length > 24 ? 'a 400-digit string' : lifetime;
-      test('expires_in $label is clamped to one year and cached', () async {
+      test('bhv authoauthtwotokenmgr 005 expires_in $label is clamped to one year and cached', () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"huge1","expires_in":$lifetime}');
         client.enqueue('{"access_token":"huge2","expires_in":3600}');
@@ -423,7 +423,7 @@ void main() {
       '"Infinity"',
       '"3600."',
     ]) {
-      test('expires_in $lifetime is rejected and the token is stale', () async {
+      test('bhv authoauthtwotokenmgr 012 expires_in $lifetime is rejected and the token is stale', () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"bad1","expires_in":$lifetime}');
         client.enqueue('{"access_token":"bad2","expires_in":3600}');
@@ -451,7 +451,7 @@ void main() {
      * raw 3xx status surfaces here. A 3xx is a non-2xx answer, so it throws
      * OAuth2ServerException carrying the status. */
     for (final status in [301, 302, 303, 307, 308]) {
-      test('refuses $status redirect on token endpoint', () async {
+      test('bhv authoauthtwotokenmgr 033 refuses $status redirect on token endpoint', () async {
         final client = _FakeApiClient();
         client.enqueue('', statusCode: status);
 
@@ -469,7 +469,7 @@ void main() {
       });
     }
 
-    test('throws when token request fails', () async {
+    test('bhv authoauthtwotokenmgr 031 throws when token request fails', () async {
       final client = _FakeApiClient();
       client.enqueue('{"error":"invalid_client"}', statusCode: 401);
 
@@ -490,7 +490,7 @@ void main() {
       );
     });
 
-    test('missing access_token in 2xx response throws typed OAuth2TokenException', () async {
+    test('bhv authoauthtwotokenmgr 036 missing access_token in 2xx response throws typed OAuth2TokenException', () async {
       // A 2xx response whose body omits access_token must surface as the typed
       // OAuth2TokenException, not silently cache an empty token.
       final client = _FakeApiClient();
@@ -510,7 +510,7 @@ void main() {
     });
 
     for (final tokenType in ['"DPoP"', '"MAC"', '42']) {
-      test('token_type $tokenType is refused without echoing it', () async {
+      test('bhv authoauthtwotokenmgr 038 token_type $tokenType is refused without echoing it', () async {
         final client = _FakeApiClient();
         client.enqueue(
             '{"access_token":"tok","token_type":$tokenType,"expires_in":3600}');
@@ -526,7 +526,7 @@ void main() {
     }
 
     for (final tokenType in ['bearer', 'Bearer', 'BEARER']) {
-      test('token_type $tokenType is accepted', () async {
+      test('bhv authoauthtwotokenmgr 002 token_type $tokenType is accepted', () async {
         final client = _FakeApiClient();
         client.enqueue(
             '{"access_token":"tok","token_type":"$tokenType","expires_in":3600}');
@@ -566,7 +566,7 @@ void main() {
       );
     });
 
-    test('a 2xx token response that is not JSON throws OAuth2TokenException', () async {
+    test('bhv authoauthtwotokenmgr 001 a 2xx token response that is not JSON throws OAuth2TokenException', () async {
       final client = _FakeApiClient();
       client.enqueue('<html>not json</html>');
 
@@ -583,7 +583,7 @@ void main() {
       );
     });
 
-    test('token endpoint error response parsed to typed OAuth2ServerException', () async {
+    test('bhv authoauthtwotokenmgr 032 token endpoint error response parsed to typed OAuth2ServerException', () async {
       // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as
       // a typed OAuth2ServerException carrying code/description/uri.
       final client = _FakeApiClient();
@@ -611,7 +611,7 @@ void main() {
       );
     });
 
-    test('token POST sets noRedirect=true on the transport', () async {
+    test('bhv authoauthtwotokenmgr 034 token POST sets noRedirect=true on the transport', () async {
       // Gap 3.2: the token POST carries credentials in the form body; the
       // manager must pass noRedirect: true so the transport refuses any 3xx
       // instead of silently replaying the body to a redirect target.
@@ -643,7 +643,7 @@ void main() {
       expect(client.lastNoDefaultHeaders, isTrue);
     });
 
-    test('invalidateAccessToken triggers a single refetch under concurrency', () async {
+    test('bhv authoauthtwotokenmgr 019 invalidateAccessToken triggers a single refetch under concurrency', () async {
       // After invalidation, 10 concurrent callers must coalesce into exactly
       // ONE additional HTTP request (single-flight), all observing the
       // refreshed token.
@@ -704,7 +704,7 @@ void main() {
       'scope': 'read',
     };
 
-    test('a stale token is refreshed with the refresh grant and the client credentials', () async {
+    test('bhv authoauthtwotokenmgr 022 a stale token is refreshed with the refresh grant and the client credentials', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
@@ -727,7 +727,7 @@ void main() {
       );
     });
 
-    test('a rejected refresh falls back to the original grant', () async {
+    test('bhv authoauthtwotokenmgr 016 a rejected refresh falls back to the original grant', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
@@ -749,7 +749,7 @@ void main() {
       expect(client.bodies[2], equals(client.bodies[0]));
     });
 
-    test('the refresh grant goes to the refreshUrl', () async {
+    test('bhv authoauthtwotokenmgr 029 the refresh grant goes to the refreshUrl', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
@@ -765,7 +765,7 @@ void main() {
       expect(client.urls, equals([tokenUrl, refreshUrl]));
     });
 
-    test('params that already are a refresh grant are posted exactly once', () async {
+    test('bhv authoauthtwotokenmgr 023 params that already are a refresh grant are posted exactly once', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
@@ -785,7 +785,7 @@ void main() {
       expect(client.requestCount, equals(2));
     });
 
-    test('exchange bypasses the cache and the refresh path', () async {
+    test('bhv authoauthtwotokenmgr 006 exchange bypasses the cache and the refresh path', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
@@ -802,7 +802,7 @@ void main() {
       expect(manager.refreshToken, isEmpty);
     });
 
-    test('a failed exchange restores the previous session', () async {
+    test('bhv authoauthtwotokenmgr 015 a failed exchange restores the previous session', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
@@ -822,7 +822,7 @@ void main() {
       expect(client.requestCount, equals(2));
     });
 
-    test('a response without expires_in is cached indefinitely', () async {
+    test('bhv authoauthtwotokenmgr 039 a response without expires_in is cached indefinitely', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1"}');
       final manager = OAuth2TokenManager();
@@ -836,7 +836,7 @@ void main() {
       expect(client.requestCount, equals(1));
     });
 
-    test('a refresh response without expires_in clears the stale expiry', () async {
+    test('bhv authoauthtwotokenmgr 003 a refresh response without expires_in clears the stale expiry', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
@@ -854,7 +854,7 @@ void main() {
       expect(client.requestCount, equals(2));
     });
 
-    test('a non-string refresh_token is ignored', () async {
+    test('bhv authoauthtwotokenmgr 020 a non-string refresh_token is ignored', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
@@ -871,7 +871,7 @@ void main() {
       expect(manager.refreshToken, equals('ref1'));
     });
 
-    test('a non-string refresh_token on the first response leaves none stored', () async {
+    test('bhv authoauthtwotokenmgr 017 a non-string refresh_token on the first response leaves none stored', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"access_token":"tok1","refresh_token":12345,"expires_in":3600}',
@@ -884,7 +884,7 @@ void main() {
       expect(manager.refreshToken, isEmpty);
     });
 
-    test('a transport failure reaches the caller unchanged', () async {
+    test('bhv authoauthtwotokenmgr 037 a transport failure reaches the caller unchanged', () async {
       const failure = NetworkException(message: 'connection refused');
       final client = _FakeApiClient();
       client.failure = failure;

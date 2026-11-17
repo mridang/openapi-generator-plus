@@ -63,7 +63,7 @@ void main() {
       );
     });
 
-    test('the provider is asked on every request', () async {
+    test('bhv authbearer 014 the provider is asked on every request', () async {
       var calls = 0;
       final auth = BearerAuthenticator(
         host: '{{{basePath}}}',
@@ -84,19 +84,19 @@ void main() {
       expect(auth.authHeaders, throwsStateError);
     });
 
-    test('a provider result is validated like a fixed token', () async {
+    test('bhv authbearer 002 a provider result is validated like a fixed token', () async {
       final auth = BearerAuthenticator(host: '{{{basePath}}}', tokenProvider: () => '');
 
       await expectLater(auth.authHeadersAsync(), throwsArgumentError);
     });
 
-    test('raw token is prefixed with Bearer', () {
+    test('bhv authbearer 009 raw token is prefixed with Bearer', () {
       final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz');
       final headers = auth.authHeaders();
       expect(headers['Authorization'], equals('Bearer xyz'));
     });
 
-    test('rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+    test('bhv authbearer 012 rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
       expect(
         () => BearerAuthenticator(host: '{{{basePath}}}', token: 'tok\r\nInjected: yes'),
         throwsArgumentError,
@@ -107,7 +107,7 @@ void main() {
       );
     });
 
-    test('rejects an empty or whitespace token', () {
+    test('bhv authbearer 017 rejects an empty or whitespace token', () {
       // bearer-no-empty-token-guard: an empty / whitespace-only token would
       // emit a bare "Authorization: Bearer " header and send the request
       // unauthenticated, so the constructor must reject it.
@@ -127,7 +127,7 @@ void main() {
       );
     });
 
-    test('a Unicode space is not blank, so the printable ASCII check rejects it', () {
+    test('bhv authbearer 016 a Unicode space is not blank, so the printable ASCII check rejects it', () {
       expect(
         () => BearerAuthenticator(host: '{{{basePath}}}', token: '\u00A0'),
         throwsA(isA<ArgumentError>().having(
@@ -135,7 +135,7 @@ void main() {
       );
     });
 
-    test('redacts the token in toString', () {
+    test('bhv authbearer 011 redacts the token in toString', () {
       // authenticator-secret-in-default-string-repr: the default toString()
       // must never expose the stored token.
       final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz');
@@ -159,7 +159,7 @@ void main() {
       });
     });
 
-    test('a token that merely begins with the word bearer is kept whole', () {
+    test('bhv authbearer 015 a token that merely begins with the word bearer is kept whole', () {
       final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'bearerxyz');
 
       expect(
@@ -168,7 +168,7 @@ void main() {
       );
     });
 
-    test('the redacted repr shows the host and masks the token', () {
+    test('bhv authbearer 013 the redacted repr shows the host and masks the token', () {
       expect(
         BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz').toString(),
         equals('BearerAuthenticator(host: {{{basePath}}}, token: ***)'),
@@ -185,18 +185,18 @@ void main() {
     };
 
     builders.forEach((name, build) {
-      test('$name sends the token as a Bearer header', () {
+      test('bhv authbearer 006 $name sends the token as a Bearer header', () {
         expect(
           build('xyz').authHeaders(),
           equals({'Authorization': 'Bearer xyz'}),
         );
       });
 
-      test('$name rejects an empty token at construction', () {
+      test('bhv authbearer 005 $name rejects an empty token at construction', () {
         expect(() => build(''), throwsArgumentError);
       });
 
-      test('$name prints its own name with the token masked', () {
+      test('bhv authbearer 001 $name prints its own name with the token masked', () {
         expect(
           build('xyz').toString(),
           equals('$name(host: {{{basePath}}}, token: ***)'),
@@ -209,7 +209,7 @@ void main() {
   group('per-scheme authenticators', () {
 {{#credentialSchemes}}
     group('{{className}}', () {
-      test('reads its own variables from the environment', () {
+      test('bhv authbearer 010 reads its own variables from the environment', () {
         expect(
           () => {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}),
           returnsNormally,

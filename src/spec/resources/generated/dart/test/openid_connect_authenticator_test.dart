@@ -75,7 +75,7 @@ OpenIdConnectAuthenticator _createAuthenticator() {
 
 void main() {
   group('OpenIdConnectAuthenticator', () {
-    test('builds authorization URL from discovery', () async {
+    test('bhv authoidc 002 builds authorization URL from discovery', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"authorization_endpoint":"https://auth.example.com/authorize",'
@@ -93,7 +93,7 @@ void main() {
       expect(url, contains('state=my-state'));
     });
 
-    test('fetches discovery document', () async {
+    test('bhv authoidc 010 fetches discovery document', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"authorization_endpoint":"https://auth.example.com/authorize",'
@@ -113,7 +113,7 @@ void main() {
     });
 
     test(
-      'the discovery request leaves the transport default headers off',
+      'bhv authoidc 008 the discovery request leaves the transport default headers off',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -129,7 +129,7 @@ void main() {
       },
     );
 
-    test('obtains token after code exchange', () async {
+    test('bhv authoidc 017 obtains token after code exchange', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"authorization_endpoint":"https://auth.example.com/authorize",'
@@ -162,65 +162,74 @@ void main() {
       },
     );
 
-    test('getAuthHeaders returns Bearer after exchange', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"authorization_endpoint":"https://auth.example.com/authorize",'
-        '"token_endpoint":"https://auth.example.com/token"}',
-      );
-      client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
-      client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+    test(
+      'bhv authoidc 013 getAuthHeaders returns Bearer after exchange',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
+        client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+        client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await auth.exchangeCode('oidc-code');
-      final headers = await auth.authHeadersAsync();
+        await auth.exchangeCode('oidc-code');
+        final headers = await auth.authHeadersAsync();
 
-      expect(headers['Authorization'], equals('Bearer oidc-tok'));
-    });
+        expect(headers['Authorization'], equals('Bearer oidc-tok'));
+      },
+    );
 
     // Cross-cutting `oauth-oidc-missing-endpoint-guard`: a discovery
     // document missing authorization_endpoint or token_endpoint must fail
     // loudly rather than building a delegate with empty endpoint URLs.
-    test('throws when discovery is missing authorization_endpoint', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"token_endpoint":"https://auth.example.com/token"}');
+    test(
+      'bhv authoidc 025 throws when discovery is missing authorization_endpoint',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"token_endpoint":"https://auth.example.com/token"}');
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await expectLater(
-        auth.buildAuthorizationUrl(),
-        throwsA(
-          isA<SerializationException>().having(
-            (e) => e.message,
-            'message',
-            contains(
-              "OIDC discovery document is missing 'authorization_endpoint'",
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                "OIDC discovery document is missing 'authorization_endpoint'",
+              ),
             ),
           ),
-        ),
-      );
-    });
-
-    test('throws when discovery is missing token_endpoint', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"authorization_endpoint":"https://auth.example.com/authorize"}',
-      );
-
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
-
-      await expectLater(
-        auth.buildAuthorizationUrl(),
-        throwsA(isA<SerializationException>()),
-      );
-    });
+        );
+      },
+    );
 
     test(
-      'throws when the discovery issuer does not match the discovery URL',
+      'bhv authoidc 026 throws when discovery is missing token_endpoint',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize"}',
+        );
+
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv authoidc 024 throws when the discovery issuer does not match the discovery URL',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -245,21 +254,24 @@ void main() {
       },
     );
 
-    test('accepts an issuer that differs only by a trailing slash', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"issuer":"https://auth.example.com/",'
-        '"authorization_endpoint":"https://auth.example.com/authorize",'
-        '"token_endpoint":"https://auth.example.com/token"}',
-      );
+    test(
+      'bhv authoidc 004 accepts an issuer that differs only by a trailing slash',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"issuer":"https://auth.example.com/",'
+          '"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      final url = await auth.buildAuthorizationUrl('s');
+        final url = await auth.buildAuthorizationUrl('s');
 
-      expect(url, startsWith('https://auth.example.com/authorize?'));
-    });
+        expect(url, startsWith('https://auth.example.com/authorize?'));
+      },
+    );
 
     test('refuses a cleartext token_endpoint', () async {
       final client = _FakeApiClient();
@@ -305,23 +317,26 @@ void main() {
       );
     });
 
-    test('allows a cleartext endpoint on a loopback host', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"authorization_endpoint":"http://127.0.0.1:9000/authorize",'
-        '"token_endpoint":"http://localhost:9000/token"}',
-      );
+    test(
+      'bhv authoidc 005 allows a cleartext endpoint on a loopback host',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"authorization_endpoint":"http://127.0.0.1:9000/authorize",'
+          '"token_endpoint":"http://localhost:9000/token"}',
+        );
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      final url = await auth.buildAuthorizationUrl('s');
+        final url = await auth.buildAuthorizationUrl('s');
 
-      expect(url, startsWith('http://127.0.0.1:9000/authorize?'));
-    });
+        expect(url, startsWith('http://127.0.0.1:9000/authorize?'));
+      },
+    );
 
     test(
-      'throws SerializationException when the discovery document is not JSON',
+      'bhv authoidc 016 throws SerializationException when the discovery document is not JSON',
       () async {
         final client = _FakeApiClient();
         client.enqueue('<html>not json</html>');
@@ -342,13 +357,13 @@ void main() {
       },
     );
 
-    test('throws when no ApiClient injected', () {
+    test('bhv authoidc 028 throws when no ApiClient injected', () {
       final auth = _createAuthenticator();
 
       expect(() => auth.buildAuthorizationUrl(), throwsA(isA<StateError>()));
     });
 
-    test('getHost returns configured host', () {
+    test('bhv authoidc 014 getHost returns configured host', () {
       final auth = _createAuthenticator();
 
       expect(auth.host(), equals('https://api.example.com'));
@@ -358,45 +373,51 @@ void main() {
     // a 500 HTML error page) must surface as the same status-specific
     // exception an API call would throw, not a downstream "invalid JSON"
     // parse failure of the body.
-    test('throws when discovery returns a non-2xx status', () async {
-      final client = _FakeApiClient();
-      client.enqueue('<html>internal server error</html>', statusCode: 500);
+    test(
+      'bhv authoidc 027 throws when discovery returns a non-2xx status',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('<html>internal server error</html>', statusCode: 500);
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await expectLater(
-        auth.buildAuthorizationUrl(),
-        throwsA(
-          isA<InternalServerErrorException>()
-              .having(
-                (e) => e.runtimeType,
-                'runtimeType',
-                InternalServerErrorException,
-              )
-              .having((e) => e.statusCode, 'statusCode', 500),
-        ),
-      );
-    });
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(
+            isA<InternalServerErrorException>()
+                .having(
+                  (e) => e.runtimeType,
+                  'runtimeType',
+                  InternalServerErrorException,
+                )
+                .having((e) => e.statusCode, 'statusCode', 500),
+          ),
+        );
+      },
+    );
 
-    test('throws NotFoundException when discovery answers 404', () async {
-      final client = _FakeApiClient();
-      client.enqueue('<html>not found</html>', statusCode: 404);
+    test(
+      'bhv authoidc 007 throws NotFoundException when discovery answers 404',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('<html>not found</html>', statusCode: 404);
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await expectLater(
-        auth.buildAuthorizationUrl(),
-        throwsA(
-          isA<NotFoundException>()
-              .having((e) => e.runtimeType, 'runtimeType', NotFoundException)
-              .having((e) => e.statusCode, 'statusCode', 404),
-        ),
-      );
-    });
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(
+            isA<NotFoundException>()
+                .having((e) => e.runtimeType, 'runtimeType', NotFoundException)
+                .having((e) => e.statusCode, 'statusCode', 404),
+          ),
+        );
+      },
+    );
 
-    test('fetches discovery document only once', () async {
+    test('bhv authoidc 011 fetches discovery document only once', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"authorization_endpoint":"https://auth.example.com/authorize",'
@@ -413,7 +434,7 @@ void main() {
       expect(client.getCount, equals(1));
     });
 
-    test('redacts secret', () {
+    test('bhv authoidc 019 redacts secret', () {
       final auth = _createAuthenticator();
 
       expect(auth.toString(), isNot(contains('my-client-secret')));
@@ -427,7 +448,7 @@ void main() {
         '"token_endpoint":"https://auth.example.com/token"}';
 
     test(
-      'a transport failure during discovery reaches the caller unchanged',
+      'bhv authoidc 006 a transport failure during discovery reaches the caller unchanged',
       () async {
         const failure = NetworkException(message: 'connection refused');
         final client = _FakeApiClient();
@@ -458,7 +479,7 @@ void main() {
     );
 
     test(
-      'a rediscovery that names new endpoints keeps the PKCE verifier',
+      'bhv authoidc 021 a rediscovery that names new endpoints keeps the PKCE verifier',
       () async {
         final client = _FakeApiClient();
         client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
@@ -490,7 +511,7 @@ void main() {
     );
 
     test(
-      'invalidateAccessToken drops the delegate access token and is harmless before discovery',
+      'bhv authoidc 015 invalidateAccessToken drops the delegate access token and is harmless before discovery',
       () async {
         final client = _FakeApiClient();
         client.enqueue(document);
@@ -533,17 +554,20 @@ void main() {
       },
     );
 
-    test('Cache-Control max-age keeps the document for that long', () async {
-      final client = _FakeApiClient();
-      client.enqueue(document, headers: {'cache-control': 'max-age=3600'});
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+    test(
+      'bhv authoidc 003 Cache-Control max-age keeps the document for that long',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(document, headers: {'cache-control': 'max-age=3600'});
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await auth.buildAuthorizationUrl();
-      await auth.buildAuthorizationUrl();
+        await auth.buildAuthorizationUrl();
+        await auth.buildAuthorizationUrl();
 
-      expect(client.getCount, equals(1));
-    });
+        expect(client.getCount, equals(1));
+      },
+    );
 
     /* A max-age beyond the one-year ceiling, including a digit run that
      * overflows an int, is clamped before the expiry arithmetic, so the
@@ -554,7 +578,7 @@ void main() {
       '31536001',
     ]) {
       test(
-        'Cache-Control max-age=$maxAge is clamped to one year and cached',
+        'bhv authoidc 001 Cache-Control max-age=$maxAge is clamped to one year and cached',
         () async {
           final client = _FakeApiClient();
           client.enqueue(
@@ -589,7 +613,7 @@ void main() {
     );
 
     test(
-      'the exchanged tokens survive a rediscovery that names the same endpoints',
+      'bhv authoidc 020 the exchanged tokens survive a rediscovery that names the same endpoints',
       () async {
         final client = _FakeApiClient();
         client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
@@ -606,7 +630,7 @@ void main() {
       },
     );
 
-    test('the redacted repr shows the non-secret fields', () {
+    test('bhv authoidc 023 the redacted repr shows the non-secret fields', () {
       expect(
         _createAuthenticator().toString(),
         equals(
@@ -616,7 +640,7 @@ void main() {
     });
 
     test(
-      'SsoAuthAuthenticator discovers from the declared OpenID Connect URL and requests the openid scope',
+      'bhv authoidc 012 SsoAuthAuthenticator discovers from the declared OpenID Connect URL and requests the openid scope',
       () async {
         final client = _FakeApiClient();
         client.enqueue(document);

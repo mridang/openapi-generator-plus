@@ -74,18 +74,21 @@ void main() {
       },
     );
 
-    test('sends client credentials grant type', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok1","expires_in":3600}');
+    test(
+      'bhv authoauthtwoclientcred 010 sends client credentials grant type',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
 
-      expect(client.lastBody, isNotNull);
-      expect(client.lastBody!, contains('grant_type=client_credentials'));
-    });
+        expect(client.lastBody, isNotNull);
+        expect(client.lastBody!, contains('grant_type=client_credentials'));
+      },
+    );
 
     test(
       'posts the token request as a urlencoded form and asks for JSON',
@@ -106,7 +109,7 @@ void main() {
       },
     );
 
-    test('sends client id and secret', () async {
+    test('bhv authoauthtwoclientcred 011 sends client id and secret', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -119,7 +122,7 @@ void main() {
       expect(client.lastBody!, contains('client_secret=my-client-secret'));
     });
 
-    test('sends scopes', () async {
+    test('bhv authoauthtwoclientcred 013 sends scopes', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -132,19 +135,22 @@ void main() {
       expect(client.lastBody!, contains('write'));
     });
 
-    test('returns authorization bearer header', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok-abc","expires_in":3600}');
+    test(
+      'bhv authoauthtwoclientcred 008 returns authorization bearer header',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok-abc","expires_in":3600}');
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      final headers = await auth.authHeadersAsync();
+        final headers = await auth.authHeadersAsync();
 
-      expect(headers['Authorization'], equals('Bearer tok-abc'));
-    });
+        expect(headers['Authorization'], equals('Bearer tok-abc'));
+      },
+    );
 
-    test('sends request to token URL', () async {
+    test('bhv authoauthtwoclientcred 012 sends request to token URL', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -156,34 +162,37 @@ void main() {
       expect(client.lastUrl, equals('https://auth.example.com/token'));
     });
 
-    test('getHost returns configured host', () {
+    test('bhv authoauthtwoclientcred 004 getHost returns configured host', () {
       final auth = _createAuthenticator();
 
       expect(auth.host(), equals('https://api.example.com'));
     });
 
-    test('token fetch error is surfaced not swallowed', () async {
-      // oauth-cc-authheaders-error-swallow: a failed client-credentials token
-      // exchange must surface to the caller as a thrown error — NOT be
-      // swallowed into an empty header map that would send the API request
-      // unauthenticated and produce a confusing downstream 401.
-      final client = _FakeApiClient();
-      client.enqueue('{"error":"invalid_client"}', statusCode: 401);
+    test(
+      'bhv authoauthtwoclientcred 015 token fetch error is surfaced not swallowed',
+      () async {
+        // oauth-cc-authheaders-error-swallow: a failed client-credentials token
+        // exchange must surface to the caller as a thrown error — NOT be
+        // swallowed into an empty header map that would send the API request
+        // unauthenticated and produce a confusing downstream 401.
+        final client = _FakeApiClient();
+        client.enqueue('{"error":"invalid_client"}', statusCode: 401);
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await expectLater(
-        auth.authHeadersAsync(),
-        throwsA(
-          isA<OAuth2ServerException>()
-              .having((e) => e.statusCode, 'statusCode', 401)
-              .having((e) => e.code, 'code', 'invalid_client'),
-        ),
-      );
-    });
+        await expectLater(
+          auth.authHeadersAsync(),
+          throwsA(
+            isA<OAuth2ServerException>()
+                .having((e) => e.statusCode, 'statusCode', 401)
+                .having((e) => e.code, 'code', 'invalid_client'),
+          ),
+        );
+      },
+    );
 
-    test('caches token across calls', () async {
+    test('bhv authoauthtwoclientcred 003 caches token across calls', () async {
       // The token manager caches the access token until expiry, so two
       // consecutive header requests reuse the same token and issue only a
       // single token request. Only one response is enqueued; a second token
@@ -202,36 +211,39 @@ void main() {
       expect(headers2['Authorization'], equals('Bearer cached-cc-token'));
     });
 
-    test('basic auth url-encodes client id and secret', () async {
-      // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
-      // client_id and client_secret MUST be application/x-www-form-
-      // urlencoded BEFORE being joined with ':' and base64-encoded.
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"at","expires_in":3600}');
+    test(
+      'bhv authoauthtwoclientcred 002 basic auth url-encodes client id and secret',
+      () async {
+        // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+        // client_id and client_secret MUST be application/x-www-form-
+        // urlencoded BEFORE being joined with ':' and base64-encoded.
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"at","expires_in":3600}');
 
-      final auth = OAuth2ClientCredentialsAuthenticator(
-        host: 'https://api.example.com',
-        clientId: 'id+with/special',
-        clientSecret: 'secret&with=stuff',
-        tokenUrl: 'https://auth.example.com/token',
-        scopes: ['read'],
-        clientAuthMethod: ClientAuthMethod.basic,
-      );
-      auth.setApiClient(client);
+        final auth = OAuth2ClientCredentialsAuthenticator(
+          host: 'https://api.example.com',
+          clientId: 'id+with/special',
+          clientSecret: 'secret&with=stuff',
+          tokenUrl: 'https://auth.example.com/token',
+          scopes: ['read'],
+          clientAuthMethod: ClientAuthMethod.basic,
+        );
+        auth.setApiClient(client);
 
-      await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
 
-      final authHeader = client.lastHeaders['Authorization'];
-      expect(authHeader, isNotNull);
-      expect(authHeader!, startsWith('Basic '));
-      final b64 = authHeader.substring('Basic '.length);
-      final decoded = utf8.decode(base64.decode(b64));
-      // Expected: form-urlencoded id ':' form-urlencoded secret
-      expect(decoded, equals('id%2Bwith%2Fspecial:secret%26with%3Dstuff'));
-    });
+        final authHeader = client.lastHeaders['Authorization'];
+        expect(authHeader, isNotNull);
+        expect(authHeader!, startsWith('Basic '));
+        final b64 = authHeader.substring('Basic '.length);
+        final decoded = utf8.decode(base64.decode(b64));
+        // Expected: form-urlencoded id ':' form-urlencoded secret
+        expect(decoded, equals('id%2Bwith%2Fspecial:secret%26with%3Dstuff'));
+      },
+    );
 
     test(
-      'invalidateAccessToken drops the cached token so the next call fetches a new one',
+      'bhv authoauthtwoclientcred 005 invalidateAccessToken drops the cached token so the next call fetches a new one',
       () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"tok1","expires_in":3600}');
@@ -258,7 +270,7 @@ void main() {
       },
     );
 
-    test('redacts secret', () {
+    test('bhv authoauthtwoclientcred 007 redacts secret', () {
       final auth = _createAuthenticator();
 
       expect(auth.toString(), isNot(contains('my-client-secret')));
@@ -284,7 +296,7 @@ void main() {
     });
 
     test(
-      'the token body keeps ~ literal and percent-encodes * ! \' ( )',
+      'bhv authoauthtwoclientcred 006 the token body keeps ~ literal and percent-encodes * ! \' ( )',
       () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"tok1","expires_in":3600}');
@@ -308,7 +320,7 @@ void main() {
     );
 
     test(
-      'the Basic header keeps ~ literal and percent-encodes * ! \' ( )',
+      'bhv authoauthtwoclientcred 001 the Basic header keeps ~ literal and percent-encodes * ! \' ( )',
       () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"tok1","expires_in":3600}');
@@ -348,14 +360,17 @@ void main() {
       );
     });
 
-    test('the redacted repr shows the non-secret fields', () {
-      expect(
-        _createAuthenticator().toString(),
-        equals(
-          'OAuth2ClientCredentialsAuthenticator(host: https://api.example.com, clientId: my-client-id, clientSecret: ***, tokenUrl: https://auth.example.com/token, scopes: [read, write], clientAuthMethod: body)',
-        ),
-      );
-    });
+    test(
+      'bhv authoauthtwoclientcred 014 the redacted repr shows the non-secret fields',
+      () {
+        expect(
+          _createAuthenticator().toString(),
+          equals(
+            'OAuth2ClientCredentialsAuthenticator(host: https://api.example.com, clientId: my-client-id, clientSecret: ***, tokenUrl: https://auth.example.com/token, scopes: [read, write], clientAuthMethod: body)',
+          ),
+        );
+      },
+    );
   });
 
   group('OAuth2ClientCredentialsAuthenticator scheme wrapper', () {

@@ -58,25 +58,31 @@ OAuth2AuthorizationCodeAuthenticator _createAuthenticator() {
 
 void main() {
   group('OAuth2AuthorizationCodeAuthenticator', () {
-    test('builds authorization URL with required params', () {
-      final auth = _createAuthenticator();
+    test(
+      'bhv authoauthtwoauthcode 006 builds authorization URL with required params',
+      () {
+        final auth = _createAuthenticator();
 
-      final url = auth.buildAuthorizationUrl();
+        final url = auth.buildAuthorizationUrl();
 
-      expect(url, contains('response_type=code'));
-      expect(url, contains('client_id=my-client-id'));
-      expect(url, contains('redirect_uri='));
-      expect(url, contains('scope=read%20write'));
-      expect(url, startsWith('https://auth.example.com/authorize?'));
-    });
+        expect(url, contains('response_type=code'));
+        expect(url, contains('client_id=my-client-id'));
+        expect(url, contains('redirect_uri='));
+        expect(url, contains('scope=read%20write'));
+        expect(url, startsWith('https://auth.example.com/authorize?'));
+      },
+    );
 
-    test('builds authorization URL with state', () {
-      final auth = _createAuthenticator();
+    test(
+      'bhv authoauthtwoauthcode 007 builds authorization URL with state',
+      () {
+        final auth = _createAuthenticator();
 
-      final url = auth.buildAuthorizationUrl('csrf-state-123');
+        final url = auth.buildAuthorizationUrl('csrf-state-123');
 
-      expect(url, contains('state=csrf-state-123'));
-    });
+        expect(url, contains('state=csrf-state-123'));
+      },
+    );
 
     test(
       'the synchronous authHeaders raises after the exchange instead of returning no credentials',
@@ -102,46 +108,52 @@ void main() {
       },
     );
 
-    test('exchanges code with correct grant type', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
-      );
+    test(
+      'bhv authoauthtwoauthcode 012 exchanges code with correct grant type',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+        );
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await auth.exchangeCode('auth-code-xyz');
+        await auth.exchangeCode('auth-code-xyz');
 
-      expect(client.lastBody, isNotNull);
-      expect(client.lastBody!, contains('grant_type=authorization_code'));
-      expect(client.lastBody!, contains('code=auth-code-xyz'));
-      expect(client.lastBody!, contains('client_id=my-client-id'));
-      expect(client.lastBody!, contains('client_secret=my-client-secret'));
-    });
+        expect(client.lastBody, isNotNull);
+        expect(client.lastBody!, contains('grant_type=authorization_code'));
+        expect(client.lastBody!, contains('code=auth-code-xyz'));
+        expect(client.lastBody!, contains('client_id=my-client-id'));
+        expect(client.lastBody!, contains('client_secret=my-client-secret'));
+      },
+    );
 
     // Cross-cutting `oauth-exchangecode-no-empty-code-guard`: an empty or
     // whitespace-only authorization code must be rejected before the token
     // POST is issued.
-    test('exchangeCode rejects empty code', () async {
-      final auth = _createAuthenticator();
-      auth.setApiClient(_FakeApiClient());
+    test(
+      'bhv authoauthtwoauthcode 010 exchangeCode rejects empty code',
+      () async {
+        final auth = _createAuthenticator();
+        auth.setApiClient(_FakeApiClient());
 
-      await expectLater(
-        auth.exchangeCode(''),
-        throwsA(
-          isA<ArgumentError>().having(
-            (e) => e.message,
-            'message',
-            'Authorization code must not be empty',
+        await expectLater(
+          auth.exchangeCode(''),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              'Authorization code must not be empty',
+            ),
           ),
-        ),
-      );
-      await expectLater(
-        auth.exchangeCode('   '),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+        );
+        await expectLater(
+          auth.exchangeCode('   '),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
 
     test('authHeaders before exchangeCode names the precondition', () {
       final auth = _createAuthenticator();
@@ -157,61 +169,70 @@ void main() {
       );
     });
 
-    test('exchangeCode rejects whitespace-only code', () async {
-      // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
-      // distinct from the empty-string case and must also be rejected before
-      // any token POST is issued (code.trim().isEmpty guard).
-      final auth = _createAuthenticator();
-      auth.setApiClient(_FakeApiClient());
+    test(
+      'bhv authoauthtwoauthcode 011 exchangeCode rejects whitespace-only code',
+      () async {
+        // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+        // distinct from the empty-string case and must also be rejected before
+        // any token POST is issued (code.trim().isEmpty guard).
+        final auth = _createAuthenticator();
+        auth.setApiClient(_FakeApiClient());
 
-      await expectLater(
-        auth.exchangeCode('   '),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
-
-    test('includes refresh token on refresh', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
-      );
-      client.enqueue('{"access_token":"tok2","expires_in":3600}');
-
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
-
-      await auth.exchangeCode('auth-code-xyz');
-
-      final headers = await auth.authHeadersAsync();
-
-      expect(client.lastBody!, contains('refresh_token=ref1'));
-      expect(client.lastBody!, contains('grant_type=refresh_token'));
-      expect(headers['Authorization'], equals('Bearer tok2'));
-    });
-
-    test('the refresh grant carries the client credentials', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
-      );
-      client.enqueue('{"access_token":"tok2","expires_in":3600}');
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
-
-      await auth.exchangeCode('code-a');
-      await auth.authHeadersAsync();
-
-      expect(
-        client.bodies[1],
-        equals(
-          'grant_type=refresh_token&refresh_token=ref1'
-          '&client_id=my-client-id&client_secret=my-client-secret',
-        ),
-      );
-    });
+        await expectLater(
+          auth.exchangeCode('   '),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
 
     test(
-      'a rejected refresh surfaces OAuth2ServerException after one POST',
+      'bhv authoauthtwoauthcode 015 includes refresh token on refresh',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.exchangeCode('auth-code-xyz');
+
+        final headers = await auth.authHeadersAsync();
+
+        expect(client.lastBody!, contains('refresh_token=ref1'));
+        expect(client.lastBody!, contains('grant_type=refresh_token'));
+        expect(headers['Authorization'], equals('Bearer tok2'));
+      },
+    );
+
+    test(
+      'bhv authoauthtwoauthcode 026 the refresh grant carries the client credentials',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.exchangeCode('code-a');
+        await auth.authHeadersAsync();
+
+        expect(
+          client.bodies[1],
+          equals(
+            'grant_type=refresh_token&refresh_token=ref1'
+            '&client_id=my-client-id&client_secret=my-client-secret',
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv authoauthtwoauthcode 002 a rejected refresh surfaces OAuth2ServerException after one POST',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -230,31 +251,34 @@ void main() {
       },
     );
 
-    test('a second exchangeCode sends the new code', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
-      );
-      client.enqueue('{"access_token":"tok2","expires_in":3600}');
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+    test(
+      'bhv authoauthtwoauthcode 021 a second exchangeCode sends the new code',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await auth.exchangeCode('a');
-      await auth.exchangeCode('b');
+        await auth.exchangeCode('a');
+        await auth.exchangeCode('b');
 
-      expect(client.bodies, hasLength(2));
-      expect(
-        client.bodies[1],
-        startsWith('grant_type=authorization_code&code=b&'),
-      );
-      expect(
-        (await auth.authHeadersAsync())['Authorization'],
-        equals('Bearer tok2'),
-      );
-    });
+        expect(client.bodies, hasLength(2));
+        expect(
+          client.bodies[1],
+          startsWith('grant_type=authorization_code&code=b&'),
+        );
+        expect(
+          (await auth.authHeadersAsync())['Authorization'],
+          equals('Bearer tok2'),
+        );
+      },
+    );
 
     test(
-      'a second exchange without refresh_token drops the old refresh token',
+      'bhv authoauthtwoauthcode 022 a second exchange without refresh_token drops the old refresh token',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -273,27 +297,30 @@ void main() {
       },
     );
 
-    test('a failed exchange keeps the previous session', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
-      );
-      client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+    test(
+      'bhv authoauthtwoauthcode 013 a failed exchange keeps the previous session',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+        );
+        client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await auth.exchangeCode('a');
-      await expectLater(
-        auth.exchangeCode('bad'),
-        throwsA(isA<OAuth2ServerException>()),
-      );
-      expect(
-        (await auth.authHeadersAsync())['Authorization'],
-        equals('Bearer tok1'),
-      );
-    });
+        await auth.exchangeCode('a');
+        await expectLater(
+          auth.exchangeCode('bad'),
+          throwsA(isA<OAuth2ServerException>()),
+        );
+        expect(
+          (await auth.authHeadersAsync())['Authorization'],
+          equals('Bearer tok1'),
+        );
+      },
+    );
 
-    test('throws before exchange code called', () {
+    test('bhv authoauthtwoauthcode 027 throws before exchange code called', () {
       // Requesting a token before the code exchange is a wrong call order:
       // the invalid-state StateError, not an SDK exception.
       final auth = _createAuthenticator();
@@ -310,52 +337,58 @@ void main() {
       );
     });
 
-    test('getHost returns configured host', () {
+    test('bhv authoauthtwoauthcode 014 getHost returns configured host', () {
       final auth = _createAuthenticator();
 
       expect(auth.host(), equals('https://api.example.com'));
     });
 
-    test('auth_headers_before_exchange_returns_recoverable_error', () {
-      final auth = _createAuthenticator();
+    test(
+      'bhv authoauthtwoauthcode 003 auth_headers_before_exchange_returns_recoverable_error',
+      () {
+        final auth = _createAuthenticator();
 
-      // Calling authHeaders before exchangeCode is a precondition violation.
-      // It must surface as a catchable error so callers can recover --
-      // not as a process crash.
-      Object? caught;
-      try {
-        auth.authHeaders();
-      } on StateError catch (e) {
-        caught = e;
-      }
-      expect(
-        caught,
-        isNotNull,
-        reason: 'expected authHeaders to throw before exchangeCode',
-      );
-      expect(caught, isA<StateError>());
+        // Calling authHeaders before exchangeCode is a precondition violation.
+        // It must surface as a catchable error so callers can recover --
+        // not as a process crash.
+        Object? caught;
+        try {
+          auth.authHeaders();
+        } on StateError catch (e) {
+          caught = e;
+        }
+        expect(
+          caught,
+          isNotNull,
+          reason: 'expected authHeaders to throw before exchangeCode',
+        );
+        expect(caught, isA<StateError>());
 
-      // Caller continues normally after catching -- no process crash.
-      expect(auth.host(), equals('https://api.example.com'));
-    });
+        // Caller continues normally after catching -- no process crash.
+        expect(auth.host(), equals('https://api.example.com'));
+      },
+    );
 
-    test('authorize URL with existing query string uses amp separator', () {
-      final auth = OAuth2AuthorizationCodeAuthenticator(
-        host: 'https://api.example.com',
-        clientId: 'my-client-id',
-        clientSecret: 'my-client-secret',
-        authorizationUrl: 'https://x.auth0.com/authorize?audience=api',
-        tokenUrl: 'https://x.auth0.com/oauth/token',
-        redirectUri: 'https://app.example.com/callback',
-        scopes: ['read'],
-      );
+    test(
+      'bhv authoauthtwoauthcode 005 authorize URL with existing query string uses amp separator',
+      () {
+        final auth = OAuth2AuthorizationCodeAuthenticator(
+          host: 'https://api.example.com',
+          clientId: 'my-client-id',
+          clientSecret: 'my-client-secret',
+          authorizationUrl: 'https://x.auth0.com/authorize?audience=api',
+          tokenUrl: 'https://x.auth0.com/oauth/token',
+          redirectUri: 'https://app.example.com/callback',
+          scopes: ['read'],
+        );
 
-      final url = auth.buildAuthorizationUrl();
+        final url = auth.buildAuthorizationUrl();
 
-      expect(url, contains('audience=api'));
-      expect(url, contains('response_type=code'));
-      expect('?'.allMatches(url).length, equals(1));
-    });
+        expect(url, contains('audience=api'));
+        expect(url, contains('response_type=code'));
+        expect('?'.allMatches(url).length, equals(1));
+      },
+    );
 
     test(
       'the PKCE challenge of the RFC 7636 appendix B verifier is the published one',
@@ -370,7 +403,7 @@ void main() {
     );
 
     test(
-      'the code exchange proves the PKCE challenge of the authorize URL',
+      'bhv authoauthtwoauthcode 023 the code exchange proves the PKCE challenge of the authorize URL',
       () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"tok1","expires_in":3600}');
@@ -396,7 +429,7 @@ void main() {
     );
 
     test(
-      'each authorize URL gets its own verifier and a second exchange sends none',
+      'bhv authoauthtwoauthcode 008 each authorize URL gets its own verifier and a second exchange sends none',
       () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"tok1","expires_in":3600}');
@@ -424,7 +457,7 @@ void main() {
     );
 
     test(
-      'invalidateAccessToken drops the access token and keeps the refresh token',
+      'bhv authoauthtwoauthcode 016 invalidateAccessToken drops the access token and keeps the refresh token',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -444,7 +477,7 @@ void main() {
       },
     );
 
-    test('redacts secret', () {
+    test('bhv authoauthtwoauthcode 019 redacts secret', () {
       final auth = _createAuthenticator();
 
       expect(auth.toString(), isNot(contains('my-client-secret')));
@@ -467,7 +500,7 @@ void main() {
     });
 
     test(
-      'the authorize URL keeps ~ literal and percent-encodes * ! \' ( )',
+      'bhv authoauthtwoauthcode 004 the authorize URL keeps ~ literal and percent-encodes * ! \' ( )',
       () {
         final url = _createAuthenticator().buildAuthorizationUrl(
           "a~b*c!d'e(f)",
@@ -478,7 +511,7 @@ void main() {
     );
 
     test(
-      'the token body keeps ~ literal and percent-encodes * ! \' ( )',
+      'bhv authoauthtwoauthcode 017 the token body keeps ~ literal and percent-encodes * ! \' ( )',
       () async {
         final client = _FakeApiClient();
         client.enqueue('{"access_token":"tok1","expires_in":3600}');
@@ -497,7 +530,7 @@ void main() {
     );
 
     test(
-      'the code exchange goes to tokenUrl and the refresh grant to refreshUrl',
+      'bhv authoauthtwoauthcode 024 the code exchange goes to tokenUrl and the refresh grant to refreshUrl',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -552,14 +585,17 @@ void main() {
       },
     );
 
-    test('the redacted repr shows the non-secret fields', () {
-      expect(
-        _createAuthenticator().toString(),
-        equals(
-          'OAuth2AuthorizationCodeAuthenticator(host: https://api.example.com, clientId: my-client-id, clientSecret: ***, authorizationUrl: https://auth.example.com/authorize, tokenUrl: https://auth.example.com/token, refreshUrl: https://auth.example.com/token, redirectUri: https://app.example.com/callback, scopes: [read, write], tokenExchanged: false)',
-        ),
-      );
-    });
+    test(
+      'bhv authoauthtwoauthcode 025 the redacted repr shows the non-secret fields',
+      () {
+        expect(
+          _createAuthenticator().toString(),
+          equals(
+            'OAuth2AuthorizationCodeAuthenticator(host: https://api.example.com, clientId: my-client-id, clientSecret: ***, authorizationUrl: https://auth.example.com/authorize, tokenUrl: https://auth.example.com/token, refreshUrl: https://auth.example.com/token, redirectUri: https://app.example.com/callback, scopes: [read, write], tokenExchanged: false)',
+          ),
+        );
+      },
+    );
   });
 
   group('OAuth2AuthorizationCodeAuthenticator scheme wrapper', () {
