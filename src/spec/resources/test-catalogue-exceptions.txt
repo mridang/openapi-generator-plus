@@ -168,3 +168,15 @@ elixir | errors201 | the typed error hierarchy of issue 123 is rolled out one la
 elixir | errors202 | the typed error hierarchy of issue 123 is rolled out one language at a time; this language gets the accessor or the per-schema factory in a later phase
 elixir | errors203 | the typed error hierarchy of issue 123 is rolled out one language at a time; this language gets the accessor or the per-schema factory in a later phase
 elixir | errors204 | the typed error hierarchy of issue 123 is rolled out one language at a time; this language gets the accessor or the per-schema factory in a later phase
+csharp | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+dart | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+elixir | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+go | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+kotlin | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+node | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+php | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+python | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+ruby | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+rust | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+swift | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)
+java | errors205 | not yet implemented: the decode-failure error does not carry the status, headers and raw body (issue 131, item F03)

@@ -998,3 +998,4 @@ unions023 | SetPetAvatarThumbnail byte oneOf round-trips through base64
 unions024 | Throws when discriminator value is empty
 unions025 | TreatmentRecord tries variants in declaration order
 unions026 | Unknown discriminator error names the offending value
+errors205 | A decode failure of a response carries the status, the headers and the raw body
