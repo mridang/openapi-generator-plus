@@ -455,7 +455,7 @@ func TestBhvAuthintegration012_BaseApi_InheritedGlobalSecurityAppliesClientAuthe
 
 // ── Nil body ──
 
-func TestBaseApi_HandlesNilBody(t *testing.T) {
+func TestBhvSerializationobject183_BaseApi_HandlesNilBody(t *testing.T) {
 	t.Parallel()
 	client := petstore.NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
@@ -640,6 +640,28 @@ func TestBhvSerializationwire022_BaseApi_SerializesJsonBody(t *testing.T) {
 	}
 	if b, ok := client.capturedBody.([]byte); !ok || !strings.Contains(string(b), "TestPet") {
 		t.Errorf("expected body to contain 'TestPet', got %v", client.capturedBody)
+	}
+}
+
+// An array field of a form-urlencoded body is sent as one pair per element.
+func TestBhvSerializationwire053_BaseApi_FormArrayFieldEmitsRepeatedKeys(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+
+	tags := []string{"a", "b"}
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{
+		Nickname: "rex",
+		Tags:     &tags,
+	})
+
+	b, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected []byte body, got %T", client.capturedBody)
+	}
+	if wire := string(b); wire != "nickname=rex&tags=a&tags=b" {
+		t.Errorf("expected wire body %q, got %q", "nickname=rex&tags=a&tags=b", wire)
 	}
 }
 
@@ -1400,6 +1422,18 @@ func TestBhvOperations016_BaseApi_NullBody_PlaceOrderWithoutOrderSendsNoBodyAndN
 	}
 }
 
+// A PlaceOrder call that omits the order sends no body.
+func TestBhvOperations126_BaseApi_NullBody_PlaceOrderWithoutAnArgumentSendsNoBody(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewStoreApi(client, config, nil, petstore.Credentials{})
+	_, _ = api.PlaceOrder(context.Background(), nil)
+	if body, _ := client.capturedBody.([]byte); len(body) != 0 {
+		t.Errorf("expected no body when the order is omitted, got %q", body)
+	}
+}
+
 func TestBaseApi_NullBody_PlaceOrderWithOrderStillSendsJSONBody(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
@@ -2140,7 +2174,7 @@ func TestBhvRetries007_BaseApi_RetriesOnlyTheTransientStatuses(t *testing.T) {
 	}
 }
 
-func TestBaseApi_RetryAfterSecondsReplacesTheBackoff(t *testing.T) {
+func TestBhvRetries026_BaseApi_RetryAfterSecondsReplacesTheBackoff(t *testing.T) {
 	t.Parallel()
 	srv := newScriptedServer(t, scriptedReply{status: 429, retryAfter: "1"}, scriptedReply{status: 200})
 	api := retryApi(t, srv, nil, nil)
@@ -2211,7 +2245,7 @@ func TestBhvRetries009_BaseApi_ARetryAfterBeyondTheTimeoutEndsTheRetries(t *test
 	}
 }
 
-func TestBaseApi_CancellingDuringTheBackoffStopsTheRetries(t *testing.T) {
+func TestBhvRetries028_BaseApi_CancellingDuringTheBackoffStopsTheRetries(t *testing.T) {
 	t.Parallel()
 	srv := newScriptedServer(t, scriptedReply{status: 503, retryAfter: "30"}, scriptedReply{status: 200})
 	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.Timeout(nil) }, nil)

@@ -2486,7 +2486,16 @@ func TestBhvRetries023_DefaultApiClientUnit_RetryAfterDelay_ReadsSecondsAndDates
 
 // The backoff starts at 0.5 s, doubles up to 8 s and loses at most 25% to
 // jitter; a Retry-After replaces it.
-func TestDefaultApiClientUnit_RetryDelay_DoublesFromHalfASecondToEightWithJitter(t *testing.T) {
+// A UTF-16 body whose byte order mark says little-endian decodes little-endian, even under a bare utf-16 label.
+func TestBhvSerializationwire054_DefaultApiClientUnit_Utf16LittleEndianBomDecodesLittleEndian(t *testing.T) {
+	t.Parallel()
+	body := []byte{0xFF, 0xFE, 'T', 0, 'a', 0, 'g', 0}
+	if got := decodeUtf16(body, true); got != "Tag" {
+		t.Errorf("expected the little-endian body to decode as \"Tag\", got %q", got)
+	}
+}
+
+func TestBhvRetries027_DefaultApiClientUnit_RetryDelay_DoublesFromHalfASecondToEightWithJitter(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
 	for retries, base := range map[int]time.Duration{

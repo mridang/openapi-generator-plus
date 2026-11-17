@@ -73,6 +73,15 @@ func TestMetadata_DeserializeFromJSON(t *testing.T) {
 	}
 }
 
+// The string form of a model lists its additional properties as well as its fields.
+func TestBhvModels012_Metadata_StringFormDumpsTheAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	metadata := models.Metadata{AdditionalProperties: map[string]any{"extraKey": "extraValue"}}
+	if got := metadata.String(); !strings.Contains(got, `"extraKey":"extraValue"`) {
+		t.Errorf("expected the additional property in the string form, got %s", got)
+	}
+}
+
 // Keys the schema does not declare are captured into AdditionalProperties.
 func TestBhvModels001_Metadata_CapturesUndeclaredKeysIntoAdditionalProperties(t *testing.T) {
 	t.Parallel()

@@ -170,7 +170,7 @@ func TestBhvSerializationobject029_Model_ConstructionNeverValidatesAnEnumValue(t
 	}
 }
 
-func TestModel_DecodingAnUnknownEnumValueFailsLoudly(t *testing.T) {
+func TestBhvSerializationobject182_Model_DecodingAnUnknownEnumValueFailsLoudly(t *testing.T) {
 	t.Parallel()
 	var item models.StockItem
 	if err := json.Unmarshal([]byte(`{"priority":1,"availability":"not-a-member"}`), &item); err == nil {

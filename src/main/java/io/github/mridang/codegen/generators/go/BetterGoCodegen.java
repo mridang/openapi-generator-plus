@@ -1179,6 +1179,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
          * first Basic scheme names its tests with them (one test per id). */
         final boolean firstBasic = isBasic && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("isBasic")));
         entry.put("firstBasic", firstBasic);
+        /* The api-key behaviour ids name the first API-key scheme only, so one test name carries one id. */
+        entry.put(
+                "firstApiKey",
+                "ApiKeyAuthenticator".equals(spec.baseClass())
+                        && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("firstApiKey"))));
         /* authscheme001 names the first scheme that does not carry the basic id, so one
          * test name never carries two behaviour ids. */
         entry.put(

@@ -270,6 +270,25 @@ func TestBhvAuthapikey003_ApiKeyAuthenticator_CrlfInQueryKeyThrowsAtConstruction
 	expectInvalidApiKey(t, "abc\r\n", auth.ApiKeyLocationQuery)
 }
 
+// A CR in a header key is refused at construction, as a CR/LF is.
+func TestBhvAuthapikey018_ApiKeyAuthenticator_CrInHeaderKeyThrowsAtConstruction(t *testing.T) {
+	t.Parallel()
+	expectInvalidApiKey(t, "abc\r", auth.ApiKeyLocationHeader)
+}
+
+// An API key authenticator refuses an empty key at construction and never renders the key.
+func TestBhvAuthapikey020_ApiKeyAuthenticator_ValidatesEagerlyAndRedactsTheKey(t *testing.T) {
+	t.Parallel()
+	expectInvalidApiKey(t, "", auth.ApiKeyLocationHeader)
+	secret := "key-" + "material-" + "7731"
+	a := mustApiKey(t, "https://api.example.com", "X-API-Key", secret, auth.ApiKeyLocationHeader)
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
+		if strings.Contains(s, secret) {
+			t.Errorf("expected the key to be redacted, got %q", s)
+		}
+	}
+}
+
 // An empty cookie key is refused at construction.
 func TestBhvAuthapikey004_ApiKeyAuthenticator_EmptyCookieKeyThrowsAtConstruction(t *testing.T) {
 	t.Parallel()
