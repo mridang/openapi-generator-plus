@@ -6,12 +6,12 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.verify_ssl == true
   end
 
-  test "ca_cert_path defaults to nil" do
+  test "ca_cert_path defaults to null" do
     opts = PetstoreClient.TransportOptions.new()
     assert opts.ca_cert_path == nil
   end
 
-  test "proxy defaults to nil" do
+  test "proxy defaults to null" do
     opts = PetstoreClient.TransportOptions.new()
     assert opts.proxy == nil
   end
@@ -26,13 +26,14 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.follow_redirects == true
   end
 
-  test "max_redirects defaults to nil" do
+  test "max_redirects defaults to null" do
     opts = PetstoreClient.TransportOptions.new()
     assert opts.max_redirects == nil
   end
 
-  test "user_agent defaults to the registry name, version and language" do
+  test "user_agent defaults to non empty string" do
     opts = PetstoreClient.TransportOptions.new()
+    assert opts.user_agent != ""
     assert opts.user_agent == "petstore_client/1.0.0 (elixir)"
   end
 

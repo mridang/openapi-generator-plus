@@ -888,20 +888,6 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert PetstoreClient.ObjectSerializer.deserialize(nil, "Category") == nil
     end
 
-    # default-on-deserialize: Order.status carries a schema `default: placed`.
-    # When the wire payload omits "status", deserialize must fall back to that
-    # default rather than leaving the field nil — the struct's `status: :placed`
-    # default survives because the reducer skips absent keys. status is an enum,
-    # so the default is the atom `:placed`, identical to the value the
-    # deserializer produces for a present "status" wire string. Canonical across
-    # the product; the asserted value is the schema default placed.
-    test "deserialize applies schema default for absent field" do
-      json_str = ~s({"id":10,"petId":198772})
-      order = PetstoreClient.ObjectSerializer.deserialize(json_str, "Order")
-      assert %PetstoreClient.Models.Order{} = order
-      assert order.status == :placed
-    end
-
     # Defaults contract (canonical across all 12 SDKs): a schema `default`
     # applies ONLY when the property is absent from the payload. An explicit
     # JSON null is a provided value and is preserved (the field stays nil),
@@ -947,6 +933,20 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert top.child.value == "leaf"
       assert top.child.child == nil
     end
+  end
+
+  # default-on-deserialize: Order.status carries a schema `default: placed`.
+  # When the wire payload omits "status", deserialize must fall back to that
+  # default rather than leaving the field nil — the struct's `status: :placed`
+  # default survives because the reducer skips absent keys. status is an enum,
+  # so the default is the atom `:placed`, identical to the value the
+  # deserializer produces for a present "status" wire string. Canonical across
+  # the product; the asserted value is the schema default placed.
+  test "deserialize applies schema default for absent field" do
+    json_str = ~s({"id":10,"petId":198772})
+    order = PetstoreClient.ObjectSerializer.deserialize(json_str, "Order")
+    assert %PetstoreClient.Models.Order{} = order
+    assert order.status == :placed
   end
 
   # Divergence #10: deserialization must hard-fail when a required,

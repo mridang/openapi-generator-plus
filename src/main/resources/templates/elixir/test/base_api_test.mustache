@@ -511,7 +511,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     end
   end
 
-  test "serializes text/plain body as string", %{state: state} do
+  test "serializes text plain body", %{state: state} do
     body = "hello world"
     result = {{moduleName}}.Api.BaseApi.invoke_api(state, :post, "/test/echo", %{}, %{}, body, ["text/plain"], "text/plain", "String")
 
@@ -576,7 +576,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
 
   # Auth header injection
 
-  test "forwards auth headers via echo endpoint", %{state: state} do
+  test "forwards auth headers", %{state: state} do
     assert {:ok, result} =
              {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{"X-Custom" => "auth-value"}, nil, ["application/json"], "application/json", "Object")
 
@@ -1354,7 +1354,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     Agent.stop(name)
   end
 
-  test "non-empty array query param is included" do
+  test "expands array query params" do
     {:ok, name} = UrlCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: UrlCapturingApiClient}

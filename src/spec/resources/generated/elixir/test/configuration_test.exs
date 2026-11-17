@@ -8,7 +8,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.default_headers == %{}
   end
 
-  test "new sets base_url" do
+  test "builder sets base url" do
     config = PetstoreClient.Configuration.new(base_url: "https://custom.example.com")
     assert config.base_url == "https://custom.example.com"
   end
@@ -40,7 +40,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.default_headers["X-Custom"] == "value"
   end
 
-  test "new sets multiple default headers" do
+  test "builder sets multiple default headers" do
     config =
       PetstoreClient.Configuration.new(
         default_headers: %{
@@ -56,7 +56,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.default_headers["X-Third"] == "three"
   end
 
-  test "new creates independent instances" do
+  test "builder produces independent instances" do
     config1 = PetstoreClient.Configuration.new(base_url: "https://one.example.com")
     config2 = PetstoreClient.Configuration.new(base_url: "https://two.example.com")
 

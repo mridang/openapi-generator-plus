@@ -16,7 +16,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     %{api: api, base_url: base_url}
   end
 
-  test "add_pet creates a new pet", %{api: api} do
+  test "add_pet", %{api: api} do
     pet = %PetstoreClient.Models.Pet{
       id: :rand.uniform(1_000_000_000),
       name: "TestDog",
@@ -28,14 +28,14 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "find_pets_by_status returns pets by status", %{api: api} do
+  test "find_pets_by_status", %{api: api} do
     options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: "available"}
     assert {:ok, result} = PetstoreClient.Api.PetApi.find_pets_by_status(api, options)
     assert is_list(result)
     assert result != []
   end
 
-  test "get_pet_by_id returns a pet by id", %{api: api} do
+  test "get_pet_by_id", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_by_id(api, pet_id)
     assert result != nil
@@ -43,7 +43,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.name != nil
   end
 
-  test "update_pet updates an existing pet", %{api: api} do
+  test "update_pet", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     pet = %PetstoreClient.Models.Pet{
@@ -57,19 +57,19 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "delete_pet deletes a pet", %{api: api} do
+  test "delete_pet", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet(api, pet_id)
   end
 
-  test "set_pet_avatar uploads binary image data", %{api: api} do
+  test "set_pet_avatar", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     assert {:ok, _result} =
              PetstoreClient.Api.PetApi.set_pet_avatar(api, pet_id, <<0xFF, 0xD8, 0xFF>>)
   end
 
-  test "get_pet_avatar downloads the pet avatar as decoded binary", %{api: api} do
+  test "get_pet_avatar", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_avatar_with_http_info(api, pet_id)
     assert is_binary(result.data)
@@ -79,13 +79,13 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert Base.encode64(result.data) == result.raw_body
   end
 
-  test "get_pet_avatar_thumbnail returns a base64-encoded thumbnail", %{api: api} do
+  test "get_pet_avatar_thumbnail", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_avatar_thumbnail(api, pet_id)
     assert result != nil
   end
 
-  test "set_pet_avatar_thumbnail uploads a base64 thumbnail via JSON", %{api: api} do
+  test "set_pet_avatar_thumbnail", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     request = "iVBORw0KGgoAAAANSUhEUg=="
 
@@ -93,7 +93,7 @@ defmodule PetstoreClient.Api.PetApiTest do
              PetstoreClient.Api.PetApi.set_pet_avatar_thumbnail(api, pet_id, request)
   end
 
-  test "upload_pet_certificate uploads a certificate via multipart", %{api: api} do
+  test "upload_pet_certificate", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     options = %PetstoreClient.Api.Options.UploadPetCertificateOptions{
@@ -104,7 +104,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "upload_pet_document uploads a document with metadata via multipart", %{api: api} do
+  test "upload_pet_document", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     options = %PetstoreClient.Api.Options.UploadPetDocumentOptions{
@@ -117,7 +117,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "add_pet_photos uploads photos with metadata via multipart", %{api: api} do
+  test "add_pet_photos", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     metadata = %PetstoreClient.Models.PhotoMetadata{caption: "Test photo", is_primary: true}
 
@@ -131,21 +131,21 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert is_list(result)
   end
 
-  test "download_pet_document downloads a document as binary", %{api: api} do
+  test "download_pet_document", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     doc_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.download_pet_document(api, pet_id, doc_id)
     assert result != nil
   end
 
-  test "get_pet_photo returns a photo via content negotiation", %{api: api} do
+  test "get_pet_photo", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     photo_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_photo(api, pet_id, photo_id)
     assert result != nil
   end
 
-  test "get_pet_passport returns a passport with embedded byte fields", %{api: api} do
+  test "get_pet_passport", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_passport(api, pet_id)
     assert result != nil
@@ -675,7 +675,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     PetstoreClient.Api.PetApi.new(client, config)
   end
 
-  test "error handling 404 not found" do
+  test "error handling not found" do
     api = new_pet_api_for_mock(404, "application/json", ~s({"message":"Pet not found"}))
 
     assert {:error, %PetstoreClient.Errors.NotFoundError{status_code: 404}} =
@@ -745,7 +745,7 @@ defmodule PetstoreClient.Api.PetApiTest do
              PetstoreClient.Api.PetApi.get_pet_by_id(api, :rand.uniform(1_000_000_000))
   end
 
-  test "download binary from mock" do
+  test "download binary mock" do
     api = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA")
 
     assert {:ok, result} =
@@ -754,7 +754,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
-  test "upload multipart from mock" do
+  test "upload multipart mock" do
     api =
       new_pet_api_for_mock(
         200,
@@ -797,7 +797,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
   end
 
-  test "get_pet_by_id_with_http_info returns http metadata", %{api: api} do
+  test "get_pet_by_id_with_http_info", %{api: api} do
     assert {:ok, result} =
              PetstoreClient.Api.PetApi.get_pet_by_id_with_http_info(
                api,
@@ -809,7 +809,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.raw_body != nil
   end
 
-  test "add_pet_with_http_info returns http metadata", %{api: api} do
+  test "add_pet_with_http_info", %{api: api} do
     pet = %PetstoreClient.Models.Pet{
       id: :rand.uniform(1_000_000_000),
       name: "HttpInfoDog",
@@ -823,7 +823,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.data != nil
   end
 
-  test "update_pet_with_http_info returns http metadata", %{api: api} do
+  test "update_pet_with_http_info", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     pet = %PetstoreClient.Models.Pet{
@@ -838,7 +838,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.status_code < 300
   end
 
-  test "delete_pet_with_http_info returns http metadata", %{api: api} do
+  test "delete_pet_with_http_info", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
 
     assert {:ok, result} = PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, pet_id)
@@ -847,7 +847,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.status_code < 300
   end
 
-  test "find_pets_by_status_with_http_info returns http metadata", %{api: api} do
+  test "find_pets_by_status_with_http_info", %{api: api} do
     options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: "available"}
 
     assert {:ok, result} =
@@ -856,7 +856,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result.status_code == 200
   end
 
-  test "get_pet_passport_with_http_info returns http metadata", %{api: api} do
+  test "get_pet_passport_with_http_info", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_passport_with_http_info(api, pet_id)
     assert result.status_code == 200

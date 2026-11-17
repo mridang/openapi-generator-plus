@@ -1,4 +1,4 @@
-defmodule PetstoreClient.DefaultApiClientIntegrationTest do
+defmodule PetstoreClient.DefaultApiClientTest do
   use ExUnit.Case, async: true
 
   test "makes HTTPS request with verify_ssl=false" do
@@ -333,7 +333,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["headers"]["user-agent"] == "MyApp/1.0"
   end
 
-  test "injects X-Request-ID header with UUID format" do
+  test "injects request id header" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
@@ -359,7 +359,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
            )
   end
 
-  test "generates unique X-Request-ID per request" do
+  test "generates unique request ids" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
@@ -418,7 +418,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     refute response.body =~ "sdk-default-agent"
   end
 
-  test "includes transport-level default headers" do
+  test "includes transport default headers" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport =
@@ -440,7 +440,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["headers"]["x-custom"] == "custom-value"
   end
 
-  test "caller headers override transport default headers" do
+  test "caller headers override transport defaults" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(default_headers: %{"Accept" => "text/plain"})
@@ -481,7 +481,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["method"] == "GET"
   end
 
-  test "returns redirect response when disabled" do
+  test "returns redirect when disabled" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(follow_redirects: false)
@@ -499,7 +499,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert response.status_code == 302
   end
 
-  test "303 switches to GET and drops body (Gap T3)" do
+  test "redirect 303 switches to GET and drops body" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport =
@@ -600,7 +600,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   # T-new-3: multipart bodies must be replayed across 307 redirects per
   # RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
   # request after a 307 still carries the multipart form parts.
-  test "replays multipart body across 307 redirects (T-new-3)" do
+  test "multipart body replayed on 307 redirect" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
     transport =
@@ -894,7 +894,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   # marks the client closed so any subsequent use raises RuntimeError
   # (uniform use-after-close contract: a wrong call order is not an SDK
   # error).
-  test "close releases underlying client (Gap T6)" do
+  test "close releases underlying client" do
     client = PetstoreClient.DefaultApiClient.new()
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
