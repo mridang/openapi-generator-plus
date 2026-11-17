@@ -506,6 +506,27 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("F316: out-of-range, out-of-pattern and empty values are accepted when built in code")
+        fun constructionAcceptsAnyValue() {
+            assertEquals(-5, {{modelPackage}}.Order(quantity = -5).quantity)
+            assertEquals(Int.MAX_VALUE, {{modelPackage}}.Order(quantity = Int.MAX_VALUE).quantity)
+            val pet = {{modelPackage}}.Pet(name = "", photoUrls = emptySet(), nickname = "ZZZZZZZZZZ")
+            assertEquals("", pet.name)
+            assertEquals("ZZZZZZZZZZ", pet.nickname)
+        }
+
+        @Test
+        @DisplayName("F316: a null for a required property and a missing one fail only at decode")
+        fun decodeRejectsANullOrMissingRequiredProperty() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":null,\"photoUrls\":[]}")
+            }
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"photoUrls\":[]}")
+            }
+        }
+
+        @Test
         @DisplayName("primitive-type-coercion-lenient: unquoted scalar on a String field throws")
         fun unquotedScalarOnStringFieldThrows() {
             // isLenient=true accepts an unquoted bare literal as a string value

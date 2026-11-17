@@ -104,6 +104,21 @@ class BaseApiTest {
         ): ApiHttpResponse = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
     }
 
+    class TestableApiWithSchemes(
+        client: CapturingApiClient,
+        baseUrl: String,
+        authenticator: Authenticator?,
+        schemes: Map<String, Authenticator>,
+    ) : com.example.petstore.api.BaseApi(client, Configuration.builder().baseUrl(baseUrl).build(), authenticator, schemes) {
+        fun pick(vararg schemeIds: String): Authenticator? = schemeAuthenticator(*schemeIds)
+
+        suspend fun call(
+            path: String,
+            auth: Authenticator?,
+        ): ApiHttpResponse =
+            invokeApi("GET", path, mutableMapOf(), mutableMapOf(), null, arrayOf("application/json"), "application/json", auth)
+    }
+
     open class CapturingApiClient : ApiClient {
         var capturedUrl: String = ""
         var capturedHeaders: Map<String, String> = emptyMap()
@@ -743,8 +758,8 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("per-call auth overrides the client-level authenticator")
-        fun perCallAuthOverridesClientLevel() {
+        @DisplayName("a scheme credential is used in place of the client-level authenticator")
+        fun schemeCredentialIsUsedInPlaceOfClientLevel() {
             val client = CapturingApiClient()
             val clientAuth =
                 TestAuthenticator(
@@ -766,6 +781,46 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("F857: schemeAuthenticator returns the first listed scheme the client holds")
+        fun schemeAuthenticatorReturnsTheFirstHeldScheme() {
+            val first = TestAuthenticator(mapOf("X" to "first"), emptyMap(), emptyMap())
+            val second = TestAuthenticator(mapOf("X" to "second"), emptyMap(), emptyMap())
+            val api =
+                TestableApiWithSchemes(
+                    CapturingApiClient(),
+                    "http://localhost",
+                    null,
+                    mapOf("a" to first, "b" to second),
+                )
+            assertSame(second, api.pick("c", "b", "a"))
+            assertSame(first, api.pick("a", "b"))
+            assertNull(api.pick("c", "d"))
+            assertNull(api.pick())
+        }
+
+        @Test
+        @DisplayName("F857: the schemes are copied when the API is built")
+        fun schemesAreCopiedAtConstruction() {
+            val held =
+                mutableMapOf<String, Authenticator>(
+                    "a" to TestAuthenticator(mapOf("X" to "a"), emptyMap(), emptyMap()),
+                )
+            val api = TestableApiWithSchemes(CapturingApiClient(), "http://localhost", null, held)
+            held["b"] = TestAuthenticator(mapOf("X" to "b"), emptyMap(), emptyMap())
+            assertNull(api.pick("b"))
+        }
+
+        @Test
+        @DisplayName("F857: a call with no scheme credential falls back to the client-level authenticator")
+        fun noSchemeCredentialFallsBackToClientLevel() {
+            val client = CapturingApiClient()
+            val clientAuth = TestAuthenticator(mapOf("X-Client-Auth" to "client-level"), emptyMap(), emptyMap())
+            val api = TestableApiWithSchemes(client, "http://localhost", clientAuth, emptyMap())
+            runBlocking { api.call("/test/echo", api.pick("a")) }
+            assertEquals("client-level", client.capturedHeaders["X-Client-Auth"])
+        }
+
+        @Test
         @DisplayName("AUTH-APPLIED: configured Bearer authenticator reaches a secured operation's outbound request")
         fun configuredAuthenticatorAppliedToSecuredOperation() {
             // Regression guard for the Elixir auth-drop bug: a client constructed
@@ -773,8 +828,8 @@ class BaseApiTest {
             // when a SECURED operation is invoked through the generated API class
             // (here PetApi.addPet, secured by apiKeyHeader/petStoreBearer). This
             // goes through the real generated operation method — which threads
-            // options?.auth into invokeApi and falls back to the client-level
-            // authenticator — not just the generic invokeApi helper.
+            // the credential of the operation's own scheme into invokeApi and falls
+            // back to the client-level authenticator — not just the generic invokeApi helper.
             val client = CapturingApiClient()
             val config = Configuration.builder().baseUrl("http://localhost").build()
             val authenticator =

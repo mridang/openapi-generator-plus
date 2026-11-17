@@ -68,6 +68,14 @@ The authenticator generated for a security scheme reads its own variable instead
 - `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET`: the `clientSecret` of the `userAuth` scheme
 - `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI`: the `redirectUri` of the `userAuth` scheme
 
+### Credentials per security scheme
+
+`Client(host, <scheme> = credential, transportOptions)` takes one optional credential for each security scheme of the API, named after the scheme: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Each operation uses the credential of the first scheme its spec lists that you passed; a call cannot pick another scheme, so an options object has no authenticator. An operation none of whose schemes you passed a credential for uses the authenticator of `Client(authenticator)` if you gave one and is otherwise sent without a credential, and an operation declared with no security never sends one.
+
+```kotlin
+val client = Client("https://api.example.com", petStoreBasic = PetStoreBasicAuthenticator("https://api.example.com")) // its credential comes from the environment
+```
+
 ### Basic Auth
 
 ```kotlin
@@ -271,6 +279,18 @@ Every operation takes an options object, also one with no parameters and no secu
 ```kotlin
 client.someApi.someOperation(options = SomeOperationOptions(timeout = 2_000, maxRetries = 0))
 ```
+
+### Closing the client
+
+`close()` is graceful and idempotent. It marks the client closed and returns; requests already in flight finish, and the transport the SDK created is released after the last of them. A request issued after that fails with `IllegalStateException` ("ApiClient has been closed and can no longer send requests"). A Ktor client you supplied through `TransportOptions.builder().httpClient(...)` is never closed. Use `client.use { ... }` to close it when the block ends.
+
+### Cookie parameters
+
+A cookie parameter is sent exactly as you give it when every character is a legal RFC 6265 cookie-octet (`%` and `=` are legal, so a value you already percent-encoded goes out unchanged). A value with a space, quote, comma, semicolon, backslash, control character or non-ASCII character fails with `IllegalArgumentException` before anything is sent, so percent-encode it first. The SDK does not encode cookie values for you.
+
+### Models are never validated when built
+
+A model constructor accepts any value and never raises: an out-of-range number, a string outside its pattern and an empty collection are all kept. A payload is checked only when it is decoded, where a required property that arrives as `null` or is missing and an enum string outside the declared set fail with `SerializationException`.
 
 ### Response compression
 

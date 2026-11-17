@@ -16,16 +16,23 @@ import {{invokerPackage}}.auth.HttpAwareAuthenticator
 /**
  * Unified entry point for all API services.
  *
- * Takes an [Authenticator] and optionally [TransportOptions],
- * then exposes each API group as a typed property. If the authenticator
- * implements [HttpAwareAuthenticator], the shared [ApiClient]
- * is injected so that authentication HTTP calls (token exchange, discovery)
- * use the same transport configuration as regular API calls.
+ * Takes an [Authenticator] (or one optional credential per security scheme, named after the
+ * scheme) and optionally [TransportOptions], then exposes each API group as a typed property.
+ * If a credential implements [HttpAwareAuthenticator], the shared [ApiClient] is injected so
+ * that authentication HTTP calls (token exchange, discovery) use the same transport
+ * configuration as regular API calls.
  *
  * Usage:
  * ```kotlin
- * // Default transport
+ * // One credential for every operation
  * val client = {{clientClassName}}(authenticator)
+ *
+{{#clientSchemes}}
+{{#-first}}
+ * // One credential per security scheme
+ * val client = {{clientClassName}}("https://api.example.com", {{argName}} = credential)
+{{/-first}}
+{{/clientSchemes}}
  *
  * // Custom transport (proxy, timeouts, etc.)
  * val transport = TransportOptions.builder()
@@ -60,30 +67,73 @@ class {{clientClassName}} : AutoCloseable {
     /**
      * Creates a new client with the given authenticator and transport options.
      *
-     * If the authenticator implements [HttpAwareAuthenticator], the shared
-     * [ApiClient] is injected so that token exchange and discovery requests
-     * use the same proxy, TLS, and timeout settings.
+     * The authenticator is the credential for every operation. If it implements
+     * [HttpAwareAuthenticator], the shared [ApiClient] is injected so that token
+     * exchange and discovery requests use the same proxy, TLS, and timeout settings.
      *
      * @param authenticator provides host URL and auth headers
      * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
      * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
      */
-    constructor(authenticator: Authenticator, transportOptions: TransportOptions) {
+    constructor(authenticator: Authenticator, transportOptions: TransportOptions) :
+        this(emptyMap(), authenticator, authenticator.getHost(), transportOptions)
+
+    /**
+     * Creates a new client that holds one optional credential per security scheme the spec
+     * declares, each named after its scheme. An operation uses the credential of the first
+     * scheme its spec lists that you passed here; a call cannot pick another scheme. An
+     * operation none of whose schemes you passed a credential for is sent without one.
+     *
+     * @param host API base URL
+{{#clientSchemes}}
+     * @param {{{argName}}} credential for the `{{schemeId}}` security scheme, or null for none
+{{/clientSchemes}}
+     * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+     */
+    constructor(
+        host: String,
+{{#clientSchemes}}
+        {{{argName}}}: {{{authPackage}}}.{{className}}? = null,
+{{/clientSchemes}}
+        transportOptions: TransportOptions? = null,
+    ) : this(
+        mapOfNotNull(
+{{#clientSchemes}}
+            "{{#lambda.kotlinString}}{{{schemeId}}}{{/lambda.kotlinString}}" to {{{argName}}},
+{{/clientSchemes}}
+        ),
+        null,
+        host,
+        transportOptions ?: TransportOptions.builder().build(),
+    )
+
+    private constructor(
+        schemeAuthenticators: Map<String, Authenticator>,
+        authenticator: Authenticator?,
+        host: String,
+        transportOptions: TransportOptions,
+    ) {
         val apiClient: ApiClient = DefaultApiClient(transportOptions)
         this.apiClient = apiClient
 
         if (authenticator is HttpAwareAuthenticator) {
             authenticator.setApiClient(apiClient)
         }
+        for (scheme in schemeAuthenticators.values) {
+            if (scheme is HttpAwareAuthenticator) {
+                scheme.setApiClient(apiClient)
+            }
+        }
 
         val config = Configuration.builder()
-            .baseUrl(authenticator.getHost())
+            .baseUrl(host)
             .build()
 
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        this.{{clientPropertyName}} = {{classname}}(apiClient, config, authenticator)
+        this.{{clientPropertyName}} = {{classname}}(apiClient, config, authenticator, schemeAuthenticators)
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
@@ -101,6 +151,17 @@ class {{clientClassName}} : AutoCloseable {
     }
 
     companion object {
+        /** The credentials that were passed, keyed by scheme; a scheme given `null` is left out. */
+        private fun mapOfNotNull(vararg entries: Pair<String, Authenticator?>): Map<String, Authenticator> {
+            val held = LinkedHashMap<String, Authenticator>()
+            for ((scheme, credential) in entries) {
+                if (credential != null) {
+                    held[scheme] = credential
+                }
+            }
+            return held
+        }
+
         /**
          * Creates a client authenticated with a static Bearer token.
          *

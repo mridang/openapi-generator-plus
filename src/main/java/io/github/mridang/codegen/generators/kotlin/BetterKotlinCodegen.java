@@ -852,6 +852,49 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return pascalAuthFilename(stem, ".kt");
     }
 
+    /** Kotlin hard keywords, which a client argument named after a scheme must back-quote. */
+    private static final Set<String> KOTLIN_HARD_KEYWORDS = Set.of(
+            "as", "break", "class", "continue", "do", "else", "false", "for", "fun", "if", "in",
+            "interface", "is", "null", "object", "package", "return", "super", "this", "throw",
+            "true", "try", "typealias", "typeof", "val", "var", "when", "while");
+
+    /**
+     * Completes the shared {@code clientSchemes} property (F857) with what the client template
+     * needs to name each credential: {@code argName}, the scheme's camel-case argument with a
+     * Kotlin hard keyword back-quoted, and {@code authPackage}, the package of the scheme's
+     * authenticator, which is {@code auth.oauth} for OAuth 2 and OpenID Connect.
+     */
+    @Override
+    public void processOpenAPI(final io.swagger.v3.oas.models.OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        final Object shared = additionalProperties.get("clientSchemes");
+        final io.swagger.v3.oas.models.Components components = openAPI.getComponents();
+        if (!(shared instanceof List) || components == null) {
+            return;
+        }
+        final Map<String, io.swagger.v3.oas.models.security.SecurityScheme> declared =
+                components.getSecuritySchemes() == null
+                        ? Map.of()
+                        : components.getSecuritySchemes();
+        for (final Object entry : (List<?>) shared) {
+            @SuppressWarnings("unchecked")
+            final Map<String, Object> scheme = (Map<String, Object>) entry;
+            final String arg = (String) scheme.get("paramName");
+            scheme.put("argName", KOTLIN_HARD_KEYWORDS.contains(arg) ? "`" + arg + "`" : arg);
+            final io.swagger.v3.oas.models.security.SecurityScheme source =
+                    declared.get((String) scheme.get("schemeId"));
+            final boolean oauth =
+                    source != null
+                            && (source.getType()
+                                            == io.swagger.v3.oas.models.security.SecurityScheme.Type
+                                                    .OAUTH2
+                                    || source.getType()
+                                            == io.swagger.v3.oas.models.security.SecurityScheme.Type
+                                                    .OPENIDCONNECT);
+            scheme.put("authPackage", invokerPackage + (oauth ? ".auth.oauth" : ".auth"));
+        }
+    }
+
     /**
      * Every operation takes an Options object, so each call has a slot for its own timeout,
      * headers and retry budget (F827), even an operation with no parameter and no security.
@@ -1103,8 +1146,6 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         context.put("hasModelImports", !modelTypes.isEmpty());
         context.put("extraImports", new ArrayList<>(extraImports));
         context.put("hasExtraImports", !extraImports.isEmpty());
-        injectAuthFieldContext(op, context);
-        context.put("authImport", invokerPackage + ".auth." + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
     }
 
@@ -1239,7 +1280,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Names the variants of a oneOf union for the typed factories and accessors (F878):
+     * Names the variants of a oneOf or anyOf union for the typed factories and accessors (F878):
      * {@code variantName} is the Kotlin type as an identifier part ({@code Reservation},
      * {@code ListOfByteArray}) and {@code isPlainVariant} is true when the variant is a bare
      * class name, so an {@code is} test is legal for it (a generic type is erased). Two
@@ -1248,11 +1289,20 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
      * @param model the model whose composed variants to name
      */
     static void nameUnionVariants(final CodegenModel model) {
-        if (model.getComposedSchemas() == null || model.getComposedSchemas().getOneOf() == null) {
+        if (model.getComposedSchemas() == null) {
             return;
         }
         final Set<String> taken = new HashSet<>();
-        for (final CodegenProperty variant : model.getComposedSchemas().getOneOf()) {
+        nameVariants(model.getComposedSchemas().getOneOf(), taken);
+        nameVariants(model.getComposedSchemas().getAnyOf(), taken);
+    }
+
+    private static void nameVariants(
+            @Nullable final List<CodegenProperty> variants, final Set<String> taken) {
+        if (variants == null) {
+            return;
+        }
+        for (final CodegenProperty variant : variants) {
             final String type = variant.dataType == null ? "Any" : variant.dataType;
             final String simple = type.indexOf('<') < 0 && type.indexOf('.') > 0
                     ? type.substring(type.lastIndexOf('.') + 1)

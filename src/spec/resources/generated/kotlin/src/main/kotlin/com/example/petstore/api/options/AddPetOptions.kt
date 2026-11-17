@@ -1,13 +1,10 @@
 
 package com.example.petstore.api.options
 
-import com.example.petstore.auth.Authenticator
-
 /**
  * Options for the addPet operation.
  */
 class AddPetOptions(
-    val auth: Authenticator? = null,
     /**
      * The end-to-end timeout of this call in milliseconds, in place of the client's
      * `TransportOptions.timeout`; null keeps the client's setting.

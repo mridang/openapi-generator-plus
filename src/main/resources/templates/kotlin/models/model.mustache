@@ -576,6 +576,31 @@ class {{classname}}(
       is List<*> -> a.fold(1) { acc, e -> 31 * acc + deepHash(e) }
       else -> a.hashCode()
     }
+{{#composedSchemas.anyOf}}
+{{#vendorExtensions.isPlainVariant}}
+
+  /** Tells whether this union retained a [{{{dataType}}}]. */
+  val is{{vendorExtensions.variantName}}: Boolean
+    get() = matchedInstances.any { it is {{{dataType}}} }
+
+  /** The first retained [{{{dataType}}}], or null when this union retained none. */
+  fun as{{vendorExtensions.variantName}}(): {{{dataType}}}? = matchedInstances.firstOrNull { it is {{{dataType}}} } as? {{{dataType}}}
+{{/vendorExtensions.isPlainVariant}}
+{{/composedSchemas.anyOf}}
+{{#composedSchemas.anyOf}}
+{{#-first}}
+
+  companion object {
+{{/-first}}
+{{^-first}}
+
+{{/-first}}
+    /** Wraps a [{{{dataType}}}] as this union. */
+    fun from{{vendorExtensions.variantName}}(value: {{{dataType}}}): {{classname}} = {{classname}}(value)
+{{#-last}}
+  }
+{{/-last}}
+{{/composedSchemas.anyOf}}
 
   internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
     override val descriptor =

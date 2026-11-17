@@ -18,6 +18,8 @@ import com.example.petstore.api.options.SetPetPreferencesOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
 import com.example.petstore.auth.AdminBasicAuthenticator
+import com.example.petstore.auth.ApiKeyHeaderAuthenticator
+import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.PetStoreBearerAuthenticator
 import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.SerializationException
@@ -52,23 +54,54 @@ class PetApiTest {
                 .defaultHeader("Authorization", "Bearer test-token")
                 .build()
         }
+        private val sharedClient: DefaultApiClient by lazy { DefaultApiClient() }
         private val sharedApi: PetApi by lazy {
-            PetApi(DefaultApiClient(), sharedConfig)
+            PetApi(sharedClient, sharedConfig)
+        }
+
+        // The same transport with one credential per security scheme (F857): an
+        // operation uses the credential of the scheme its spec names.
+        private val sharedSchemeApi: PetApi by lazy {
+            PetApi(
+                sharedClient,
+                Configuration.builder().baseUrl(getBaseUrl()).build(),
+                null,
+                mapOf(
+                    "petStoreBearer" to PetStoreBearerAuthenticator(getBaseUrl(), "test-token"),
+                    "adminBasic" to AdminBasicAuthenticator(getBaseUrl(), "admin", "password"),
+                ),
+            )
         }
     }
 
-    private val bearerAuth =
-        PetStoreBearerAuthenticator(
-            getBaseUrl(),
-            "test-token",
-        )
+    // A PetApi over a mock engine that records the credential headers of the
+    // last request; `schemes` are the credentials the client holds and
+    // `fallback` the client-level authenticator.
+    private class Captured {
+        var authorization: String? = null
+        var apiKey: String? = null
+        var requests = 0
+    }
 
-    private val basicAuth =
-        AdminBasicAuthenticator(
-            getBaseUrl(),
-            "admin",
-            "password",
-        )
+    private fun apiWithSchemes(
+        captured: Captured,
+        schemes: Map<String, Authenticator>,
+        fallback: Authenticator? = null,
+    ): PetApi {
+        val engine =
+            MockEngine { request ->
+                captured.requests++
+                captured.authorization = request.headers["Authorization"]
+                captured.apiKey = request.headers["X-API-Key"]
+                respond(
+                    content = """{"id":1,"name":"x","photoUrls":[]}""",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Type", "application/json"),
+                )
+            }
+        val config = Configuration.builder().baseUrl("http://localhost").build()
+        return PetApi(DefaultApiClient(HttpClient(engine)), config, fallback, schemes)
+    }
 
     // Launders a null through an erased type parameter so it can be assigned to
     // a non-nullable field without a cast-time NullPointerException, emulating a
@@ -90,19 +123,19 @@ class PetApiTest {
                     photoUrls = setOf("http://example.com/photo.jpg"),
                 )
 
-            val result = runBlocking { api.addPet(pet, AddPetOptions(auth = bearerAuth)) }
+            val result = runBlocking { sharedSchemeApi.addPet(pet) }
 
             assertNotNull(result)
             assertNotNull(result!!.name)
         }
 
         @Test
-        @DisplayName("addPet falls back to configured credentials when auth omitted")
+        @DisplayName("addPet falls back to configured credentials when no scheme credential is held")
         fun testAddPetUsingConfiguredCredentials() {
-            // The Options arg (and its auth) is optional: omitting it falls back
-            // to the credentials configured on the client (the default
-            // Authorization header set on sharedConfig), which must satisfy the
-            // secured endpoint.
+            // No scheme credential is held: the call falls back to the
+            // credentials configured on the client (the default Authorization
+            // header set on sharedConfig), which must satisfy the secured
+            // endpoint.
             val pet =
                 Pet(
                     name = "DefaultCredsDog",
@@ -124,7 +157,7 @@ class PetApiTest {
                     photoUrls = setOf("http://example.com/photo.jpg"),
                 )
 
-            val result = runBlocking { api.addPetWithHttpInfo(pet, AddPetOptions(auth = bearerAuth)) }
+            val result = runBlocking { sharedSchemeApi.addPetWithHttpInfo(pet) }
 
             assertNotNull(result)
             assertTrue(result.statusCode in 200..299)
@@ -183,13 +216,13 @@ class PetApiTest {
         @Test
         @DisplayName("deletePet deletes a pet")
         fun testDeletePet() {
-            assertDoesNotThrow { runBlocking { api.deletePet(1L, DeletePetOptions(auth = basicAuth)) } }
+            assertDoesNotThrow { runBlocking { sharedSchemeApi.deletePet(1L) } }
         }
 
         @Test
         @DisplayName("deletePet with HttpInfo returns status")
         fun testDeletePetWithHttpInfo() {
-            val result = runBlocking { api.deletePetWithHttpInfo(1L, DeletePetOptions(auth = basicAuth)) }
+            val result = runBlocking { sharedSchemeApi.deletePetWithHttpInfo(1L) }
 
             assertNotNull(result)
             assertTrue(result.statusCode in 200..299)
@@ -1241,42 +1274,131 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("per-call auth override on base method wins on the wire")
-        fun testAddPetPerCallAuthOverride() {
-            // Verify the auth argument on the BASE operation method (not just the
-            // WithHttpInfo variant) is applied to the outgoing request. The
-            // default header carries one token; the per-call authenticator
-            // carries a different one and must win on the wire.
-            var capturedAuth: String? = null
+        @DisplayName("F857: an operation uses the credential of the scheme its spec names")
+        fun testSchemeCredentialIsUsed() {
+            val captured = Captured()
+            val api =
+                apiWithSchemes(
+                    captured,
+                    mapOf("petStoreBearer" to PetStoreBearerAuthenticator("http://localhost", "scheme-token")),
+                )
+
+            runBlocking { api.addPet(Pet(name = "SchemeDog", photoUrls = setOf("http://example.com/p.jpg"))) }
+
+            assertEquals("Bearer scheme-token", captured.authorization)
+            assertNull(captured.apiKey)
+        }
+
+        @Test
+        @DisplayName("F857: the first scheme in the operation's own order that the client holds wins")
+        fun testFirstHeldSchemeInOperationOrderWins() {
+            val captured = Captured()
+            val api =
+                apiWithSchemes(
+                    captured,
+                    mapOf(
+                        "petStoreBearer" to PetStoreBearerAuthenticator("http://localhost", "bearer-token"),
+                        "apiKeyHeader" to ApiKeyHeaderAuthenticator("http://localhost", "key-1"),
+                    ),
+                )
+
+            runBlocking { api.addPet(Pet(name = "OrderDog", photoUrls = setOf("http://example.com/p.jpg"))) }
+
+            assertEquals("key-1", captured.apiKey)
+            assertNull(captured.authorization)
+        }
+
+        @Test
+        @DisplayName("F857: a credential held for a scheme the operation does not name is not sent")
+        fun testCredentialForAnotherSchemeIsIgnored() {
+            val captured = Captured()
+            val api =
+                apiWithSchemes(
+                    captured,
+                    mapOf("apiKeyHeader" to ApiKeyHeaderAuthenticator("http://localhost", "key-1")),
+                )
+
+            runBlocking { api.deletePet(1L) }
+
+            assertEquals(1, captured.requests)
+            assertNull(captured.apiKey)
+            assertNull(captured.authorization)
+        }
+
+        @Test
+        @DisplayName("F857: an operation none of whose schemes is held uses the client-level authenticator")
+        fun testClientLevelAuthenticatorIsTheFallback() {
+            val captured = Captured()
+            val api =
+                apiWithSchemes(
+                    captured,
+                    mapOf("apiKeyHeader" to ApiKeyHeaderAuthenticator("http://localhost", "key-1")),
+                    PetStoreBearerAuthenticator("http://localhost", "fallback-token"),
+                )
+
+            runBlocking { api.deletePet(1L) }
+
+            assertEquals("Bearer fallback-token", captured.authorization)
+            assertNull(captured.apiKey)
+        }
+
+        @Test
+        @DisplayName("F857: an operation declared security none sends no credential")
+        fun testUnsecuredOperationSendsNoCredential() {
+            var authorization: String? = "unset"
             val engine =
                 MockEngine { request ->
-                    capturedAuth = request.headers["Authorization"]
+                    authorization = request.headers["Authorization"]
+                    respond(
+                        content = "{}",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val api =
+                StoreApi(
+                    DefaultApiClient(HttpClient(engine)),
+                    Configuration.builder().baseUrl("http://localhost").build(),
+                    PetStoreBearerAuthenticator("http://localhost", "fallback-token"),
+                    mapOf("petStoreBearer" to PetStoreBearerAuthenticator("http://localhost", "scheme-token")),
+                )
+
+            runBlocking { api.getInventory() }
+
+            assertNull(authorization)
+        }
+
+        @Test
+        @DisplayName("F857: the client routes each scheme credential to the operation that names it")
+        fun testClientRoutesSchemeCredentials() {
+            var authorization: String? = null
+            val engine =
+                MockEngine { request ->
+                    authorization = request.headers["Authorization"]
                     respond(
                         content = """{"id":1,"name":"x","photoUrls":[]}""",
                         status = HttpStatusCode.OK,
                         headers = headersOf("Content-Type", "application/json"),
                     )
                 }
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl("http://localhost")
-                    .defaultHeader("Authorization", "Bearer default-token")
-                    .build()
-            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
-            val perCallAuth = PetStoreBearerAuthenticator("http://localhost", "per-call-token")
+            val transport = TransportOptions.builder().httpClient(HttpClient(engine)).build()
+            val client =
+                Client(
+                    "http://localhost",
+                    petStoreBearer = PetStoreBearerAuthenticator("http://localhost", "scheme-token"),
+                    transportOptions = transport,
+                )
 
-            val pet = Pet(name = "OverrideDog", photoUrls = setOf("http://example.com/p.jpg"))
-            runBlocking { api.addPet(pet, AddPetOptions(auth = perCallAuth)) }
+            runBlocking { client.pet.addPet(Pet(name = "RoutedDog", photoUrls = setOf("http://example.com/p.jpg"))) }
 
-            assertEquals("Bearer per-call-token", capturedAuth)
+            assertEquals("Bearer scheme-token", authorization)
         }
 
         @Test
-        @DisplayName("configured credentials used when Options/auth omitted")
+        @DisplayName("configured credentials used when no scheme credential is held")
         fun testAddPetUsesConfiguredCredentialsWhenAuthOmitted() {
-            // When no per-call auth is supplied (Options omitted entirely), the
-            // client falls back to the credentials configured on the
+            // When the client holds no scheme credential, the call falls back to
+            // the credentials configured on the
             // Configuration (the default Authorization header). Verify that
             // token reaches the wire.
             var capturedAuth: String? = null
@@ -1304,12 +1426,12 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("unsecured operation Options exposes no auth field")
+        @DisplayName("F857: no Options object carries an auth field")
         fun testUnsecuredOperationOptionsExposesNoAuth() {
-            // An unsecured operation's Options object must NOT expose an auth
-            // field. An unsecured operation with path params only (getPetById)
-            // still takes an Options object, which holds just the per-call
-            // timeout, headers and maxRetries (F827).
+            // There is no per-call scheme override, so no Options object exposes
+            // an auth field. An unsecured operation with path params only
+            // (getPetById) still takes an Options object, which holds just the
+            // per-call timeout, headers and maxRetries (F827).
             val opts = FindPetsByStatusOptions(status = "available")
             assertNotNull(opts)
             val callSettingsOnly =
@@ -1322,9 +1444,13 @@ class PetApiTest {
                     .map { it.name }
                     .sorted(),
             )
-            // AddPetOptions (secured op) DOES carry the auth field.
-            val secured = AddPetOptions(auth = bearerAuth)
-            assertNotNull(secured.auth)
+            // AddPetOptions (secured op) carries no auth field either.
+            assertEquals(
+                listOf("headers", "maxRetries", "timeout"),
+                AddPetOptions::class.java.declaredFields
+                    .map { it.name }
+                    .sorted(),
+            )
         }
 
         @Test
@@ -1342,10 +1468,6 @@ class PetApiTest {
             assertEquals(listOf("blue", "black"), opts.colors)
             assertEquals(listOf("S", "M"), opts.sizes)
             assertNull(opts.filter)
-
-            // auth lives in Options as a `val` too, alongside operation params.
-            val secured = AddPetOptions(auth = bearerAuth)
-            assertEquals(bearerAuth, secured.auth)
 
             val findOpts = FindPetsByStatusOptions(status = "available")
             assertEquals("available", findOpts.status)
@@ -1661,7 +1783,7 @@ class PetApiTest {
                     runBlocking {
                         api.deletePet(
                             1L,
-                            DeletePetOptions(apiKey = "session\r\nInjected: 1", auth = basicAuth),
+                            DeletePetOptions(apiKey = "session\r\nInjected: 1"),
                         )
                     }
                 }
@@ -1669,6 +1791,45 @@ class PetApiTest {
                 ex.message!!.contains("RFC 6265"),
                 "cookie injection must fail with the RFC 6265 error, got: ${ex.message}",
             )
+        }
+
+        @Test
+        @DisplayName("F840: a cookie value of legal cookie-octets is sent exactly as given")
+        fun testLegalCookieValueIsSentRaw() {
+            var cookie: String? = null
+            val engine =
+                MockEngine { request ->
+                    cookie = request.headers["Cookie"]
+                    respond(content = "", status = HttpStatusCode.OK)
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking { api.deletePet(1L, DeletePetOptions(apiKey = "a%20b=c/d")) }
+
+            assertEquals("api_key=a%20b=c/d", cookie)
+        }
+
+        @Test
+        @DisplayName("F840: a cookie value with an illegal cookie-octet fails before any request")
+        fun testIllegalCookieValueFailsBeforeSending() {
+            var requests = 0
+            val engine =
+                MockEngine { _ ->
+                    requests++
+                    respond(content = "", status = HttpStatusCode.OK)
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            for (value in listOf("a b", "a,b", "a;b", "a\"b", "a\\b", "caf\u00e9", "a\u0007b")) {
+                val ex =
+                    assertThrows(IllegalArgumentException::class.java) {
+                        runBlocking { api.deletePet(1L, DeletePetOptions(apiKey = value)) }
+                    }
+                assertTrue(ex.message!!.contains("percent-encode"), "got: ${ex.message}")
+            }
+            assertEquals(0, requests)
         }
 
         @Test

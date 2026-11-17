@@ -2,12 +2,20 @@ package io.github.mridang.codegen.generators.kotlin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.security.OAuthFlow;
+import io.swagger.v3.oas.models.security.OAuthFlows;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.CodegenComposedSchemas;
@@ -194,6 +202,25 @@ class BetterKotlinCodegenTest {
         assertEquals("Int", variants.get(2).vendorExtensions.get("variantName"));
     }
 
+    /* F878: an anyOf wrapper has the same typed accessors as a oneOf wrapper. */
+    @Test
+    void namesTheVariantsOfAnAnyOfUnion() {
+        CodegenModel model = new CodegenModel();
+        CodegenProperty first = new CodegenProperty();
+        first.dataType = "Medication";
+        CodegenProperty second = new CodegenProperty();
+        second.dataType = "List<String>";
+        model.setComposedSchemas(
+                new CodegenComposedSchemas(List.of(), List.of(), List.of(first, second), null));
+
+        BetterKotlinCodegen.nameUnionVariants(model);
+
+        assertEquals("Medication", first.vendorExtensions.get("variantName"));
+        assertEquals(true, first.vendorExtensions.get("isPlainVariant"));
+        assertEquals("ListOfString", second.vendorExtensions.get("variantName"));
+        assertEquals(false, second.vendorExtensions.get("isPlainVariant"));
+    }
+
     @Test
     void aModelWithoutAUnionIsLeftAlone() {
         BetterKotlinCodegen.nameUnionVariants(new CodegenModel());
@@ -219,5 +246,52 @@ class BetterKotlinCodegenTest {
     @Test
     void aSchemeWithoutCredentialVariablesHasNone() {
         assertTrue(BetterKotlinCodegen.envNamesByField(Map.of()).isEmpty());
+    }
+
+    /* F857: the client names each scheme credential after the scheme and imports its authenticator. */
+    @Test
+    void clientSchemesCarryTheArgumentNameAndTheAuthenticatorPackage(@TempDir Path out) {
+        BetterKotlinCodegen codegen = new BetterKotlinCodegen();
+        codegen.setOutputDir(out.toString());
+        OpenAPI openAPI = new OpenAPI();
+        Components components = new Components();
+        components.addSecuritySchemes(
+                "api_key", new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer"));
+        components.addSecuritySchemes(
+                "object", new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("basic"));
+        components.addSecuritySchemes(
+                "machine",
+                new SecurityScheme()
+                        .type(SecurityScheme.Type.OAUTH2)
+                        .flows(
+                                new OAuthFlows()
+                                        .clientCredentials(
+                                                new OAuthFlow().tokenUrl("https://auth.example.com/token"))));
+        openAPI.setComponents(components);
+
+        codegen.processOpenAPI(openAPI);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> schemes =
+                (List<Map<String, Object>>) codegen.additionalProperties().get("clientSchemes");
+        assertNotNull(schemes);
+        assertEquals(3, schemes.size());
+        assertEquals("apiKey", schemes.get(0).get("argName"));
+        assertEquals("org.openapitools.auth", schemes.get(0).get("authPackage"));
+        assertEquals("`object`", schemes.get(1).get("argName"));
+        assertEquals("object", schemes.get(1).get("paramName"));
+        assertEquals("machine", schemes.get(2).get("argName"));
+        assertEquals("org.openapitools.auth.oauth", schemes.get(2).get("authPackage"));
+        assertEquals(true, codegen.additionalProperties().get("hasClientSchemes"));
+    }
+
+    @Test
+    void aSpecWithoutSecuritySchemesHasNoClientSchemes(@TempDir Path out) {
+        BetterKotlinCodegen codegen = new BetterKotlinCodegen();
+        codegen.setOutputDir(out.toString());
+        codegen.processOpenAPI(new OpenAPI());
+
+        assertEquals(List.of(), codegen.additionalProperties().get("clientSchemes"));
+        assertEquals(false, codegen.additionalProperties().get("hasClientSchemes"));
     }
 }
