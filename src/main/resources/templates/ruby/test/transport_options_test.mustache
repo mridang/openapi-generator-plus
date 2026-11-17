@@ -112,6 +112,13 @@ describe {{moduleName}}::TransportOptions do
     _(opts.max_redirects).must_be_nil
   end
 
+  it 'bhv_transport_057 sensitive header names include the static triple' do
+    _({{moduleName}}::TransportOptions.sensitive_header?('Authorization')).must_equal true
+    _({{moduleName}}::TransportOptions.sensitive_header?('Proxy-Authorization')).must_equal true
+    _({{moduleName}}::TransportOptions.sensitive_header?('Cookie')).must_equal true
+    _({{moduleName}}::TransportOptions.sensitive_header?('Accept')).must_equal false
+  end
+
   it 'a negative timeout raises ArgumentError' do
     assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(-1) }
     err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.timeout(-5) }

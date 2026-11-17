@@ -285,6 +285,22 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  it 'bhv_transport_052 sends an empty User-Agent header when the option is the empty string' do
+    captured_ua = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        captured_ua = env.request_headers['User-Agent']
+        [200, {}, '{}']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.user_agent('').build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(captured_ua).must_equal ''
+  end
+
   it 'bhv_transport_042 injects default User-Agent when not explicitly set' do
     captured_ua = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -375,6 +391,58 @@ describe 'DefaultApiClientUnit' do
     end
     _(captured_ids.length).must_equal 2
     _(captured_ids[0]).wont_equal captured_ids[1]
+  end
+
+  it 'bhv_transport_007 generates unique request ids across three requests' do
+    ids = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      3.times do
+        stub.get('/test') do |env|
+          ids << env.request_headers['X-Request-ID']
+          [200, {}, '{}']
+        end
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.inject_request_id(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      3.times { client.send_request('GET', 'http://localhost/test', {}, nil) }
+    end
+    _(ids.length).must_equal 3
+    _(ids.uniq.length).must_equal 3
+  end
+
+  it 'bhv_transport_013 injects an X-Request-ID header' do
+    sent = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        sent = env.request_headers['X-Request-ID']
+        [200, {}, '{}']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.inject_request_id(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(sent).wont_be_nil
+    _(sent).wont_be_empty
+  end
+
+  it 'bhv_transport_010 includes transport default headers' do
+    sent = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        sent = env.request_headers['X-Team']
+        [200, {}, '{}']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.default_header('X-Team', 'core').build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(sent).must_equal 'core'
   end
 
   it 'bhv_transport_039 includes transport-level default headers' do
@@ -801,6 +869,21 @@ describe 'DefaultApiClientUnit' do
       _(response.body).must_equal 'Tag'
     end
     stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_transport_046 leaves the proxy auth header unset when no proxy is configured' do
+    sent = :unset
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        sent = env.request_headers['Proxy-Authorization']
+        [200, {}, '{}']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(sent).must_be_nil
   end
 
   it 'parses proxy URL with userinfo without raising' do
@@ -1277,6 +1360,14 @@ describe 'DefaultApiClientUnit' do
     _(err).wont_be_kind_of {{apiErrorParent}}
   end
 
+  it 'bhv_transport_048 raises ArgumentError for a non-existent ca_cert_path even when verify_ssl is false' do
+    transport = {{moduleName}}::TransportOptions.builder.verify_ssl(false).ca_cert_path('/nonexistent/ca.pem').build
+    err = assert_raises(ArgumentError) do
+      {{moduleName}}::DefaultApiClient.new(transport)
+    end
+    _(err.message).must_include '/nonexistent/ca.pem'
+  end
+
   # A configured CA pins trust to that CA alone: the connection gets an empty
   # certificate store, because faraday-net_http would otherwise seed an unset
   # one with the system roots and accept public CAs as well.
@@ -1750,6 +1841,10 @@ describe 'DefaultApiClientUnit' do
     _(accept_encoding_sent({ 'Accept-Encoding' => 'gzip' })).must_equal 'gzip'
   end
 
+  it 'bhv_transport_026 a lower-case caller accept-encoding suppresses the value the SDK would send' do
+    _(accept_encoding_sent({ 'accept-encoding' => 'gzip' })).must_equal 'gzip'
+  end
+
   # ── a body that fails after the response head arrived ──
   # Serves one connection on a loopback port: reads the request head, then lets
   # the block write whatever the scenario needs before the socket is closed.
@@ -1808,6 +1903,20 @@ describe 'DefaultApiClientUnit' do
     _(err).must_be_instance_of {{moduleName}}::Errors::NetworkTimeoutError
     _(err.status_code).must_equal 0
     _(err.cause).must_be_kind_of Faraday::TimeoutError
+    thread.join
+  end
+
+  it 'bhv_transport_028 a per-call timeout replaces the transport timeout' do
+    port, thread = serve_once do |_socket|
+      sleep 1.5
+    end
+    transport = {{moduleName}}::TransportOptions.builder.timeout(60_000).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+
+    err = assert_raises({{moduleName}}::Errors::NetworkTimeoutError) do
+      client.send_request('GET', "http://127.0.0.1:#{port}/stalled", {}, nil, timeout: 300, max_retries: 0)
+    end
+    _(err.status_code).must_equal 0
     thread.join
   end
 

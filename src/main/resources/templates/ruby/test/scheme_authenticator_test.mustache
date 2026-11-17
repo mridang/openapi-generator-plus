@@ -74,7 +74,7 @@ describe 'scheme authenticators' do
     end
   end
 
-  it 'every Basic wrapper sends the credentials as a Basic credential' do
+  it 'bhv_authbasic_002 every Basic wrapper sends the credentials as a Basic credential and masks the password' do
     wrappers_of({{moduleName}}::Auth::BasicAuthenticator).each do |klass|
       auth = klass.new('https://api.example.com', 'alice', 's3cret')
       _(auth.auth_headers).must_equal({ 'Authorization' => 'Basic YWxpY2U6czNjcmV0' }, klass.name)
