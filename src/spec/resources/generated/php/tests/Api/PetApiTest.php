@@ -217,7 +217,7 @@ test('set pet avatar rejects an unrecognised request content-type', function ():
     file_put_contents($tmpFile, "\xFF\xD8\xFF");
     $body = new \SplFileObject($tmpFile, 'r');
 
-    expect(fn () => $this->api->setPetAvatar(1, $body, 'application/unknown-type'))
+    expect(fn () => $this->api->setPetAvatar(1, $body, requestContentType: 'application/unknown-type'))
         ->toThrow(
             \InvalidArgumentException::class,
             "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are ["
@@ -806,7 +806,7 @@ test('setPetAvatar honours the selected request content type', function (): void
     // (2) Selector 'image/png' with the same raw bytes -> image/png.
     [$api, $captured] = newBodyCapturingPetApi();
     $body = new \SplFileObject($tmpFile, 'r');
-    $api->setPetAvatar(1, $body, 'image/png');
+    $api->setPetAvatar(1, $body, requestContentType: 'image/png');
     expect($captured->headers['Content-Type'] ?? '')->toBe('image/png');
     expect($captured->body)->toBe($rawBytes);
 
@@ -832,7 +832,7 @@ test('setPetAvatar sends the bytes verbatim under the json selector', function (
     file_put_contents($tmpFile, $rawBytes);
 
     [$api, $captured] = newBodyCapturingPetApi();
-    $api->setPetAvatar(1, new \SplFileObject($tmpFile, 'r'), 'application/json');
+    $api->setPetAvatar(1, new \SplFileObject($tmpFile, 'r'), requestContentType: 'application/json');
     unlink($tmpFile);
 
     expect($captured->body)->toBe($rawBytes);
@@ -1222,11 +1222,13 @@ test('auth omitted from options falls back to configuration credentials', functi
 });
 
 test('unsecured operation options has no auth field', function (): void {
-    // getPetById is unsecured, so it takes no Options object at all and there
-    // is no GetPetByIdOptions class minted for it — confirming unsecured
-    // operations never gain an auth field.
-    expect(class_exists('\\' . PetApi::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Api\Options\GetPetByIdOptions::class))->toBeFalse();
+    /* getPetById is unsecured, so its options object carries only the per-call
+     * timeout, headers and retry count and never gains an auth field. */
+    $unsecured = new \ReflectionClass(\PetstoreClient\Api\Options\GetPetByIdOptions::class);
+    expect($unsecured->hasProperty('auth'))->toBeFalse();
+    expect($unsecured->hasProperty('timeout'))->toBeTrue();
+    expect($unsecured->hasProperty('headers'))->toBeTrue();
+    expect($unsecured->hasProperty('maxRetries'))->toBeTrue();
 
     // The authed addPet operation, by contrast, mints an all-optional Options
     // class that DOES expose a nullable auth property.

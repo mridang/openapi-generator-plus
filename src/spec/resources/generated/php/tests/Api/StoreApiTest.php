@@ -106,10 +106,12 @@ test('an operation without parameters or security still runs with no options', f
 });
 
 test('the options of an operation without parameters hold no auth field', function (): void {
-    expect(property_exists(GetInventoryOptions::class, 'auth'))->toBeFalse();
-    expect(property_exists(GetInventoryOptions::class, 'timeout'))->toBeTrue();
-    expect(property_exists(GetInventoryOptions::class, 'headers'))->toBeTrue();
-    expect(property_exists(GetInventoryOptions::class, 'maxRetries'))->toBeTrue();
+    $options = new \ReflectionClass(GetInventoryOptions::class);
+
+    expect($options->hasProperty('auth'))->toBeFalse();
+    expect($options->hasProperty('timeout'))->toBeTrue();
+    expect($options->hasProperty('headers'))->toBeTrue();
+    expect($options->hasProperty('maxRetries'))->toBeTrue();
 });
 
 test('a per call timeout and retry count of an operation without parameters must be valid', function (): void {
