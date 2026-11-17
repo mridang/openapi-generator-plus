@@ -781,7 +781,9 @@ import Testing
     #expect(json == "{\"text\":\"a\u{2028}b\u{2029}c/<>&\"}")
   }
 
-  @Test func testRequestJsonEscapesQuoteBackslashAndControlCharacters() throws {
+  @Test func testBhvSerializationobject186RequestJsonEscapesQuoteBackslashAndControlCharacters()
+    throws
+  {
     struct Holder: Codable { let text: String }
     let json = try ObjectSerializer.serialize(Holder(text: "q\"b\\\n"))
     #expect(json == #"{"text":"q\"b\\\n"}"#)
@@ -1328,7 +1330,7 @@ import Testing
     }
   }
 
-  @Test func testDurationParseRejectsIso8601() {
+  @Test func testBhvSerializationobject184DurationParseRejectsIso8601() {
     #expect(throws: SerializationError.self) {
       try ObjectSerializer.decodeDuration("PT1H30M")
     }
@@ -1690,6 +1692,13 @@ import Testing
     #expect(
       decoded?.thumbnail == original,
       "byte field must round-trip the exact bytes")
+  }
+
+  /* A byte field decodes a canonical padded standard base64 value to its bytes. */
+  @Test func testBhvSerializationobject185DeserializeAcceptsPaddedStandardBase64() throws {
+    struct Holder: Codable { let thumbnail: Data }
+    let decoded = try ObjectSerializer.deserialize("{\"thumbnail\":\"dGVzdA==\"}", as: Holder.self)
+    #expect(decoded?.thumbnail == Data("test".utf8))
   }
 
   /* An OAS 3.1 contentEncoding: base64 property is normalised to a byte

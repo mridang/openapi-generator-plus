@@ -33,6 +33,19 @@ import Testing
     #expect(variable.enumValues == ["prod", "staging"])
   }
 
+  /* ServerConfiguration validates overrides against the enum list, so the list
+   * must surface exactly the allowed values. */
+  @Test func testBhvServers018EnumValuesAreExposedForValidation() {
+    let variable = ServerVariable(
+      defaultValue: "prod",
+      description: "deployment environment",
+      enumValues: ["prod", "staging"]
+    )
+    #expect(variable.enumValues == ["prod", "staging"])
+    #expect(variable.enumValues.contains("prod"))
+    #expect(variable.enumValues.contains("staging"))
+  }
+
   /* An explicitly empty enum list means any override is allowed, as an omitted one is. */
   @Test func testBhvServers016EmptyEnumValuesMeansAnyValueAllowed() throws {
     let server = ServerConfiguration(
@@ -58,7 +71,7 @@ import Testing
     #expect(try server.url() == "https://prod.api.example.com")
   }
 
-  @Test func testEnumConstrainedDefaultOutsideAllowedIsRejected() throws {
+  @Test func testBhvServers019EnumConstrainedDefaultOutsideAllowedIsRejected() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.api.example.com",
       variables: [

@@ -175,6 +175,20 @@ import Testing
         #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
     }
 
+    @Test func testBhvAuthbearer018{{className}}AnExplicitTokenWinsOverTheEnvironment() async throws {
+        let auth = try {{className}}(host: "https://api.example.com", token: "explicit-token", environment: [{{#envVars}}"{{envName}}": "from-environment", {{/envVars}}])
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    }
+
+    /* The variable is read once, when the authenticator is built: a later change to
+       the environment does not reach a token that is already held. */
+    @Test func testBhvLifecycle025{{className}}ReadsTheEnvironmentOnceWhenBuilt() async throws {
+        var environment = [{{#envVars}}"{{envName}}": "first", {{/envVars}}]
+        let auth = try {{className}}(host: "https://api.example.com", token: nil, environment: environment)
+        environment = [{{#envVars}}"{{envName}}": "second", {{/envVars}}]
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
+    }
+
 {{/isBearerScheme}}
 {{/perSchemeAuthEntries}}
     private static func schemeWrapper(_ scheme: String, token: String) throws -> BearerAuthenticator {

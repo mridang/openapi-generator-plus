@@ -757,7 +757,7 @@ import Testing
 
     // MARK: - 418 Teapot (unrecognized status)
 
-    @Test func testErrorDispatch418() async throws {
+    @Test func testBhvErrors048ErrorDispatch418() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 418
         mockClient.responseBody = "{\"error\":\"teapot\"}"

@@ -461,7 +461,7 @@ import Testing
       "expected application/octet-stream fallback, got: \(bodyStr)")
   }
 
-  @Test func testMultipartFallsBackToOctetStreamWithoutExtension() throws {
+  @Test func testBhvSerializationwire056MultipartFallsBackToOctetStreamWithoutExtension() throws {
     let formParts: [String: Any] = ["nodot": Data([0x01])]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
     let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -1312,7 +1312,7 @@ import Testing
     #expect(far == 60)
   }
 
-  @Test func testUnreadableRetryAfterFallsBackToTheBackoff() {
+  @Test func testBhvRetries029UnreadableRetryAfterFallsBackToTheBackoff() {
     #expect(DefaultApiClient.retryDelay(attempt: 2, retryAfter: "soon", jitter: 0) == 2)
   }
 

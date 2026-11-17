@@ -271,11 +271,18 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   // MARK: - Credentials of the scheme authenticators
 
-  @Test func testAnExplicitCredentialWinsOverTheEnvironment() throws {
+  @Test func testBhvAuthbasic013AnExplicitCredentialWinsOverTheEnvironment() throws {
     let value = try BaseAuthenticator.credential(
       "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
       environment: ["EXAMPLE_TOKEN": "env-value"])
     #expect(value == "explicit-value")
+  }
+
+  @Test func testBhvSerializationobject187AnExplicitKeyWinsOverTheEnvironment() throws {
+    let value = try BaseAuthenticator.credential(
+      "explicit-key", name: "apiKey", variable: "EXAMPLE_API_KEY",
+      environment: ["EXAMPLE_API_KEY": "from-environment"])
+    #expect(value == "explicit-key")
   }
 
   @Test func testTheEnvironmentSuppliesACredentialThatWasNotPassed() throws {

@@ -124,3 +124,5 @@ swift | transport020 | the test needs a URLProtocol stub, which FoundationNetwor
 swift | transport040 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | transport046 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | options034 | the Apple-platform variant of the proxy test; on Linux the SDK rejects a proxy with a configuration error, which the Linux variant testSettingProxyRaisesOnLinux covers (it carries no catalogue id)
+swift | serializationparam106 | serializeStyled takes a non-optional style String, so a null style cannot be passed; the empty style that the SDK treats as unset is covered by bhv serializationparam 035
+swift | transport059 | the proxy setter raises on Linux (testSettingProxyRaisesOnLinux), so a request through the authenticating proxy runs only in the Apple-platform stub suite, the same reason as options034

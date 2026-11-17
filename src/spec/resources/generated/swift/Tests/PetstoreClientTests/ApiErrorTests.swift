@@ -194,7 +194,7 @@ import Testing
     #expect(tooDeep.responseBody == body)
   }
 
-  @Test func testApiErrorConformsToOpenAPIError() {
+  @Test func testBhvErrors047ApiErrorConformsToOpenAPIError() {
     // Branded root: every SDK-thrown error reaches OpenAPIError, so a
     // caller can catch the whole hierarchy with one `as? OpenAPIError`.
     let err: any Error = ApiError(statusCode: 500, message: "boom")
@@ -268,6 +268,19 @@ import Testing
 
     #expect(err is OpenAPIError)
     #expect(err as? OpenAPIError != nil)
+  }
+
+  /* The OAuth2 errors sit under the branded root, not under ApiError: they are
+   * not HTTP errors of the API, so an ApiError catch never sees them. */
+  @Test func testBhvErrors045OAuth2ErrorsDeriveFromTheBrandedRoot() {
+    let tokenError: any Error = OAuth2TokenError.missingAccessToken("missing access_token")
+    let serverError: any Error = OAuth2ServerError(
+      statusCode: 400, code: "invalid_grant", description: nil, uri: nil, rawBody: "{}")
+
+    #expect(tokenError is OpenAPIError)
+    #expect(serverError is OpenAPIError)
+    #expect(!(tokenError is ApiError))
+    #expect(!(serverError is ApiError))
   }
 
   @Test func testBhvErrors014GetTypedErrorBodyIgnoresExtraneousFields() throws {

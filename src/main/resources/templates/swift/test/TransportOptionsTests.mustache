@@ -85,6 +85,19 @@ import FoundationNetworking
         #expect(opts.session === session)
     }
 
+    /* A supplied session is refused with the SDK's own TLS settings, and the
+       message names each conflicting setting. */
+    @Test func testBhvLifecycle024SuppliedSessionConflictsWithTlsSettings() throws {
+        let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
+        builder.caCertPath("/path/to/ca.pem")
+        builder.verifySsl(false)
+        #expect(throws: ConfigurationError.invalidArgument(
+            "a supplied URLSession conflicts with the SDK's own settings: caCertPath, verifySsl(false); configure them on the session instead")
+        ) {
+            _ = try builder.build()
+        }
+    }
+
     /* A supplied session cannot be combined with the SDK's own proxy, TLS or
        redirect settings: build() fails fast. */
     @Test(arguments: ["proxy", "caCertPath", "verifySsl", "followRedirects", "maxRedirects"])
