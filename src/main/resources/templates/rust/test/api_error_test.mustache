@@ -642,7 +642,7 @@ fn test_from_response_maps_every_status_to_its_type() {
         (600, |e| e.is::<ApiError>()),
     ];
     for (status, is_expected_type) in cases {
-        let err = ApiError::from_response(status, &headers, r#"{"k":"v"}"#);
+        let err = ApiError::from_response(status, &headers, r#"{"k":"v"}"#, None, None);
         assert!(is_expected_type(&*err), "status {status}: unexpected type {err:?}");
         assert!(is_a::<ApiError>(&*err), "status {status}: must chain to ApiError");
         assert_eq!(is_a::<ClientError>(&*err), (400..500).contains(&status));
@@ -658,6 +658,55 @@ fn test_from_response_maps_every_status_to_its_type() {
             Some("abc")
         );
     }
+}
+
+/* F830: the error names the request it belongs to, without the query string, in
+ * the message and on the accessors of the root and of every status wrapper. */
+#[test]
+fn test_from_response_carries_the_request_method_and_path_without_the_query() {
+    let headers = HashMap::new();
+    for status in [400u16, 401, 403, 404, 409, 418, 422, 429, 500, 503, 302] {
+        let err = ApiError::from_response(
+            status,
+            &headers,
+            "",
+            Some("GET"),
+            Some("/items/7?token=secret#fragment"),
+        );
+        let api_error = std::iter::successors(Some(&*err as &(dyn std::error::Error + 'static)), |e| e.source())
+            .find_map(|e| e.downcast_ref::<ApiError>())
+            .expect("every HTTP error chains to an ApiError");
+        assert_eq!(api_error.request_method(), Some("GET"), "status {status}");
+        assert_eq!(api_error.request_path(), Some("/items/7"), "status {status}");
+        let text = err.to_string();
+        assert!(
+            text.starts_with(&format!("API returned status code {status} for GET /items/7\nHTTP status code: {status}")),
+            "status {status}: {text}"
+        );
+        assert!(!text.contains("secret"), "the query string must not reach the text: {text}");
+    }
+}
+
+#[test]
+fn test_from_response_without_a_request_keeps_the_plain_message() {
+    let err = ApiError::from_response(404, &HashMap::new(), "", None, None);
+    let api_error = std::iter::successors(Some(&*err as &(dyn std::error::Error + 'static)), |e| e.source())
+        .find_map(|e| e.downcast_ref::<ApiError>())
+        .expect("an ApiError");
+    assert_eq!(api_error.request_method(), None);
+    assert_eq!(api_error.request_path(), None);
+    assert!(err.to_string().starts_with("API returned status code 404\nHTTP status code: 404"));
+}
+
+#[test]
+fn test_with_request_cuts_the_path_at_the_query_and_reaches_the_kind_fields() {
+    let err = ApiError::new(500, "boom".to_string(), None, None).with_request("POST", "/orders?id=1");
+    assert_eq!(err.request_method(), Some("POST"));
+    assert_eq!(err.request_path(), Some("/orders"));
+    let kind = ApiErrorKind::from(err);
+    let fields = kind.fields().expect("a 500 has fields");
+    assert_eq!(fields.request_method(), Some("POST"));
+    assert_eq!(fields.request_path(), Some("/orders"));
 }
 
 #[test]
@@ -691,7 +740,7 @@ fn test_status_wrappers_display_the_wrapped_api_error() {
     let mut headers = HashMap::new();
     headers.insert("x-trace".to_string(), "abc".to_string());
     for status in [400u16, 401, 403, 404, 409, 418, 422, 500, 503] {
-        let boxed = ApiError::from_response(status, &headers, "detail-body");
+        let boxed = ApiError::from_response(status, &headers, "detail-body", None, None);
         let expected = ApiError::new(
             status,
             format!("API returned status code {}", status),

@@ -31,10 +31,6 @@ unused_mut = "allow"
 # `to_cookie_value`, `to_form_value`, `serialize_value`, ...). A given document
 # exercises only the subset its parameter styles require.
 dead_code = "allow"
-# Integer-backed enum variants keep the `NUMBER_<n>` identifiers the other
-# eleven SDKs emit; the wire value is the `serde_repr` discriminant, not the
-# variant name, so renaming them for Rust alone would break the alignment.
-non_camel_case_types = "allow"
 
 [lints.clippy]
 # Operation signatures take one argument per parameter the OpenAPI document

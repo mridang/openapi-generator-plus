@@ -26,4 +26,20 @@ impl ReservationReceipt {
             expires_at,
         }
     }
+
+    /// Returns this value with `receipt_code` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_receipt_code(mut self, receipt_code: String) -> Self {
+        self.receipt_code = receipt_code;
+        self
+    }
+
+    /// Returns this value with `expires_at` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_expires_at(mut self, expires_at: crate::date_time::DateTime) -> Self {
+        self.expires_at = expires_at;
+        self
+    }
 }

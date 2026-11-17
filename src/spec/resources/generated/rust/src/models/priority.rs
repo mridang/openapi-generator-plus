@@ -19,16 +19,16 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub enum Priority {
     /// Represents the value 1.
     #[default]
-    NUMBER_1 = 1,
+    Number1 = 1,
     /// Represents the value 2.
-    NUMBER_2 = 2,
+    Number2 = 2,
     /// Represents the value 3.
-    NUMBER_3 = 3,
+    Number3 = 3,
 }
 
 impl Priority {
     /// Returns all allowed values of Priority.
     pub fn all_values() -> Vec<Priority> {
-        vec![Priority::NUMBER_1, Priority::NUMBER_2, Priority::NUMBER_3]
+        vec![Priority::Number1, Priority::Number2, Priority::Number3]
     }
 }

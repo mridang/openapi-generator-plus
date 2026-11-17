@@ -320,6 +320,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* Secured operation: pass the resolved per-call authenticator (or
              * None for no override, which lets BaseApi fall back to the
              * client-level authenticator). */
@@ -453,6 +454,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<Photo>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -558,6 +560,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "PetTreatment",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* Secured operation: pass the resolved per-call authenticator (or
              * None for no override, which lets BaseApi fall back to the
              * client-level authenticator). */
@@ -695,6 +698,7 @@ impl PetApi {
             accepts: vec![],
             content_type: request_content_type,
             return_type: "",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* Secured operation: pass the resolved per-call authenticator (or
              * None for no override, which lets BaseApi fall back to the
              * client-level authenticator). */
@@ -706,13 +710,15 @@ impl PetApi {
 
     /// Download a vet document
     /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn download_pet_document(
         &self,
         pet_id: i64,
         document_id: i64,
+        options: Option<&DownloadPetDocumentOptions>,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
-            .download_pet_document_with_http_info(pet_id, document_id)
+            .download_pet_document_with_http_info(pet_id, document_id, options)
             .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -736,12 +742,13 @@ impl PetApi {
         &self,
         pet_id: i64,
         document_id: i64,
+        options: Option<&DownloadPetDocumentOptions>,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.download_pet_document_invoke(pet_id, document_id, "application/json")
+        self.download_pet_document_invoke(pet_id, document_id, options, "application/json")
             .await
     }
 
@@ -753,6 +760,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         document_id: i64,
+        options: Option<&DownloadPetDocumentOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
@@ -813,6 +821,7 @@ impl PetApi {
             accepts: vec!["application/octet-stream"],
             content_type: request_content_type,
             return_type: "Vec<u8>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -823,11 +832,15 @@ impl PetApi {
 
     /// List pets born on a given date
     /// * `born_on`: Date of birth to match
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn find_pets_born_on(
         &self,
         born_on: chrono::NaiveDate,
+        options: Option<&FindPetsBornOnOptions>,
     ) -> Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.find_pets_born_on_with_http_info(born_on).await?;
+        let result = self
+            .find_pets_born_on_with_http_info(born_on, options)
+            .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -849,12 +862,13 @@ impl PetApi {
     pub async fn find_pets_born_on_with_http_info(
         &self,
         born_on: chrono::NaiveDate,
+        options: Option<&FindPetsBornOnOptions>,
     ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.find_pets_born_on_invoke(born_on, "application/json")
+        self.find_pets_born_on_invoke(born_on, options, "application/json")
             .await
     }
 
@@ -865,6 +879,7 @@ impl PetApi {
     async fn find_pets_born_on_invoke(
         &self,
         born_on: chrono::NaiveDate,
+        options: Option<&FindPetsBornOnOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
@@ -905,6 +920,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<Pet>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1104,6 +1120,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<Pet>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1113,13 +1130,15 @@ impl PetApi {
     }
 
     /// Get external pet info
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_external_pet_info(
         &self,
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
+        options: Option<&GetExternalPetInfoOptions>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
-            .get_external_pet_info_with_http_info(pet_id, server)
+            .get_external_pet_info_with_http_info(pet_id, server, options)
             .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1143,12 +1162,13 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
+        options: Option<&GetExternalPetInfoOptions>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_external_pet_info_invoke(pet_id, server, "application/json")
+        self.get_external_pet_info_invoke(pet_id, server, options, "application/json")
             .await
     }
 
@@ -1160,6 +1180,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
+        options: Option<&GetExternalPetInfoOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1206,6 +1227,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1215,13 +1237,15 @@ impl PetApi {
     }
 
     /// Get multi-server pet info
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_multi_server_pet_info(
         &self,
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
+        options: Option<&GetMultiServerPetInfoOptions>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
-            .get_multi_server_pet_info_with_http_info(pet_id, server)
+            .get_multi_server_pet_info_with_http_info(pet_id, server, options)
             .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1246,12 +1270,13 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
+        options: Option<&GetMultiServerPetInfoOptions>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_multi_server_pet_info_invoke(pet_id, server, "application/json")
+        self.get_multi_server_pet_info_invoke(pet_id, server, options, "application/json")
             .await
     }
 
@@ -1263,6 +1288,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
+        options: Option<&GetMultiServerPetInfoOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1309,6 +1335,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1319,11 +1346,13 @@ impl PetApi {
 
     /// Get the pet's profile photo
     /// Returns the raw image bytes of the pet's current avatar.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_pet_avatar(
         &self,
         pet_id: i64,
+        options: Option<&GetPetAvatarOptions>,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_avatar_with_http_info(pet_id).await?;
+        let result = self.get_pet_avatar_with_http_info(pet_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1345,12 +1374,14 @@ impl PetApi {
     pub async fn get_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
+        options: Option<&GetPetAvatarOptions>,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_pet_avatar_invoke(pet_id, "application/json").await
+        self.get_pet_avatar_invoke(pet_id, options, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_pet_avatar operation. The resolved
@@ -1360,6 +1391,7 @@ impl PetApi {
     async fn get_pet_avatar_invoke(
         &self,
         pet_id: i64,
+        options: Option<&GetPetAvatarOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1400,6 +1432,7 @@ impl PetApi {
             accepts: vec!["image/jpeg", "image/png"],
             content_type: request_content_type,
             return_type: "Vec<u8>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1410,11 +1443,15 @@ impl PetApi {
 
     /// Get the pet's avatar thumbnail as base64
     /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
+        options: Option<&GetPetAvatarThumbnailOptions>,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_avatar_thumbnail_with_http_info(pet_id).await?;
+        let result = self
+            .get_pet_avatar_thumbnail_with_http_info(pet_id, options)
+            .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1437,12 +1474,13 @@ impl PetApi {
     pub async fn get_pet_avatar_thumbnail_with_http_info(
         &self,
         pet_id: i64,
+        options: Option<&GetPetAvatarThumbnailOptions>,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_pet_avatar_thumbnail_invoke(pet_id, "application/json")
+        self.get_pet_avatar_thumbnail_invoke(pet_id, options, "application/json")
             .await
     }
 
@@ -1453,6 +1491,7 @@ impl PetApi {
     async fn get_pet_avatar_thumbnail_invoke(
         &self,
         pet_id: i64,
+        options: Option<&GetPetAvatarThumbnailOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1493,6 +1532,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<u8>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1505,6 +1545,7 @@ impl PetApi {
     /// Returns a single pet
     #[deprecated]
     /// * `pet_id`: ID of pet to return
+    /// * `options`: Options for query, header, form, and cookie parameters.
     /// ### `pet_id` — Small breed ID
     /// A common small-breed pet identifier
     /// ```json
@@ -1519,8 +1560,11 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
+        options: Option<&GetPetByIdOptions>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_by_id_with_http_info(pet_id, server).await?;
+        let result = self
+            .get_pet_by_id_with_http_info(pet_id, server, options)
+            .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1544,12 +1588,13 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
+        options: Option<&GetPetByIdOptions>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_pet_by_id_invoke(pet_id, server, "application/json")
+        self.get_pet_by_id_invoke(pet_id, server, options, "application/json")
             .await
     }
 
@@ -1561,6 +1606,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
+        options: Option<&GetPetByIdOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1607,6 +1653,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1806,6 +1853,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1816,11 +1864,15 @@ impl PetApi {
 
     /// Get the pet's passport
     /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_pet_passport(
         &self,
         pet_id: i64,
+        options: Option<&GetPetPassportOptions>,
     ) -> Result<PetPassport, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_passport_with_http_info(pet_id).await?;
+        let result = self
+            .get_pet_passport_with_http_info(pet_id, options)
+            .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1842,12 +1894,13 @@ impl PetApi {
     pub async fn get_pet_passport_with_http_info(
         &self,
         pet_id: i64,
+        options: Option<&GetPetPassportOptions>,
     ) -> Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_pet_passport_invoke(pet_id, "application/json")
+        self.get_pet_passport_invoke(pet_id, options, "application/json")
             .await
     }
 
@@ -1858,6 +1911,7 @@ impl PetApi {
     async fn get_pet_passport_invoke(
         &self,
         pet_id: i64,
+        options: Option<&GetPetPassportOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1898,6 +1952,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "PetPassport",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1908,12 +1963,16 @@ impl PetApi {
 
     /// Get a photo or its metadata
     /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_pet_photo(
         &self,
         pet_id: i64,
         photo_id: i64,
+        options: Option<&GetPetPhotoOptions>,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_photo_with_http_info(pet_id, photo_id).await?;
+        let result = self
+            .get_pet_photo_with_http_info(pet_id, photo_id, options)
+            .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1936,12 +1995,13 @@ impl PetApi {
         &self,
         pet_id: i64,
         photo_id: i64,
+        options: Option<&GetPetPhotoOptions>,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_pet_photo_invoke(pet_id, photo_id, "application/json")
+        self.get_pet_photo_invoke(pet_id, photo_id, options, "application/json")
             .await
     }
 
@@ -1953,6 +2013,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         photo_id: i64,
+        options: Option<&GetPetPhotoOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
@@ -2011,6 +2072,7 @@ impl PetApi {
             accepts: vec!["image/jpeg", "image/png", "application/json"],
             content_type: request_content_type,
             return_type: "Vec<u8>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -2224,6 +2286,7 @@ impl PetApi {
             accepts: vec!["text/plain"],
             content_type: request_content_type,
             return_type: "String",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -2610,6 +2673,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -2619,13 +2683,15 @@ impl PetApi {
     }
 
     /// Get staging pet info
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_staging_pet_info(
         &self,
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
+        options: Option<&GetStagingPetInfoOptions>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
-            .get_staging_pet_info_with_http_info(pet_id, server)
+            .get_staging_pet_info_with_http_info(pet_id, server, options)
             .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -2649,12 +2715,13 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
+        options: Option<&GetStagingPetInfoOptions>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_staging_pet_info_invoke(pet_id, server, "application/json")
+        self.get_staging_pet_info_invoke(pet_id, server, options, "application/json")
             .await
     }
 
@@ -2666,6 +2733,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
+        options: Option<&GetStagingPetInfoOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
@@ -2712,6 +2780,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -2725,15 +2794,17 @@ impl PetApi {
     /// * `request_content_type`: the request Content-Type to send, one of
     ///   `image/jpeg`, `image/png`, `application/json`; `None` sends the first declared one. Only the header changes:
     ///   the caller supplies a body the server accepts for the chosen type.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn set_pet_avatar(
         &self,
         pet_id: i64,
         body: Vec<u8>,
+        options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let result = self
-            .set_pet_avatar_with_http_info(pet_id, body, request_content_type)
+            .set_pet_avatar_with_http_info(pet_id, body, options, request_content_type)
             .await?;
         let _ = result;
         Ok(())
@@ -2744,6 +2815,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         body: Vec<u8>,
+        options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
@@ -2751,8 +2823,13 @@ impl PetApi {
          * argument. The first declared request content-type,
          * image/jpeg, is the default
          * when the caller passes no `request_content_type`. */
-        self.set_pet_avatar_invoke(pet_id, body, request_content_type.unwrap_or("image/jpeg"))
-            .await
+        self.set_pet_avatar_invoke(
+            pet_id,
+            body,
+            options,
+            request_content_type.unwrap_or("image/jpeg"),
+        )
+        .await
     }
 
     /// Shared implementation for the set_pet_avatar operation. The resolved
@@ -2763,6 +2840,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         body: Vec<u8>,
+        options: Option<&SetPetAvatarOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
@@ -2825,6 +2903,7 @@ impl PetApi {
             accepts: vec![],
             content_type: request_content_type,
             return_type: "",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -2835,13 +2914,19 @@ impl PetApi {
 
     /// Set the pet's avatar thumbnail as base64
     /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn set_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Option<&SetPetAvatarThumbnailOptions>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let result = self
-            .set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request)
+            .set_pet_avatar_thumbnail_with_http_info(
+                pet_id,
+                set_pet_avatar_thumbnail_request,
+                options,
+            )
             .await?;
         let _ = result;
         Ok(())
@@ -2852,6 +2937,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Option<&SetPetAvatarThumbnailOptions>,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
@@ -2860,6 +2946,7 @@ impl PetApi {
         self.set_pet_avatar_thumbnail_invoke(
             pet_id,
             set_pet_avatar_thumbnail_request,
+            options,
             "application/json",
         )
         .await
@@ -2873,6 +2960,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        options: Option<&SetPetAvatarThumbnailOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
@@ -2914,6 +3002,7 @@ impl PetApi {
             accepts: vec![],
             content_type: request_content_type,
             return_type: "",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -3038,6 +3127,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "ApiResponse",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -3049,12 +3139,14 @@ impl PetApi {
     /// Update an existing pet
     /// * `pet_id`: ID of pet to update
     /// * `pet`: Pet object that needs to be updated
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn update_pet(
         &self,
         pet_id: i64,
         pet: Pet,
+        options: Option<&UpdatePetOptions>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.update_pet_with_http_info(pet_id, pet).await?;
+        let result = self.update_pet_with_http_info(pet_id, pet, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -3077,12 +3169,13 @@ impl PetApi {
         &self,
         pet_id: i64,
         pet: Pet,
+        options: Option<&UpdatePetOptions>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.update_pet_invoke(pet_id, pet, "application/json")
+        self.update_pet_invoke(pet_id, pet, options, "application/json")
             .await
     }
 
@@ -3094,6 +3187,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         pet: Pet,
+        options: Option<&UpdatePetOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
@@ -3134,6 +3228,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -3251,6 +3346,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "ApiResponse",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -3451,6 +3547,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "ApiResponse",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,

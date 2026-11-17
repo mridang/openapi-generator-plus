@@ -94,6 +94,14 @@ pub struct ApiError {
 
     /// Set when the request produced no HTTP response; `None` otherwise.
     transport_failure: Option<TransportFailure>,
+
+    /// The HTTP method of the request that failed (`GET`, `POST`, ...), when
+    /// the SDK built the error for a call.
+    request_method: Option<String>,
+
+    /// The path of the request that failed, without scheme, host, query string
+    /// or fragment, when the SDK built the error for a call.
+    request_path: Option<String>,
 }
 
 impl ApiError {
@@ -116,6 +124,8 @@ impl ApiError {
             error_body,
             source: None,
             transport_failure: None,
+            request_method: None,
+            request_path: None,
         }
     }
 
@@ -140,6 +150,8 @@ impl ApiError {
             error_body,
             source: Some(source),
             transport_failure: None,
+            request_method: None,
+            request_path: None,
         }
     }
 
@@ -158,7 +170,18 @@ impl ApiError {
             error_body: None,
             source: Some(source),
             transport_failure: Some(failure),
+            request_method: None,
+            request_path: None,
         }
+    }
+
+    /// Records the request this error belongs to: the HTTP method and the
+    /// path, which is cut at the first `?` or `#` so a query string (and any
+    /// credential in it) never reaches the error.
+    pub fn with_request(mut self, method: &str, path: &str) -> Self {
+        self.request_method = Some(method.to_string());
+        self.request_path = Some(strip_query(path).to_string());
+        self
     }
 
     /// Maps an HTTP response that was not a success to the error for its status.
@@ -175,13 +198,30 @@ impl ApiError {
         status_code: u16,
         headers: &HashMap<String, String>,
         body: &str,
+        request_method: Option<&str>,
+        request_path: Option<&str>,
     ) -> Box<dyn std::error::Error + Send + Sync> {
-        let base_err = Self::new(
+        let mut base_err = Self::new(
             status_code,
-            format!("API returned status code {}", status_code),
+            match (request_method, request_path) {
+                (Some(method), Some(path)) if !method.is_empty() && !path.is_empty() => {
+                    format!(
+                        "API returned status code {} for {} {}",
+                        status_code,
+                        method,
+                        strip_query(path)
+                    )
+                }
+                _ => format!("API returned status code {}", status_code),
+            },
             Some(headers.clone()),
             Some(body.to_string()),
         );
+        if let (Some(method), Some(path)) = (request_method, request_path) {
+            if !method.is_empty() && !path.is_empty() {
+                base_err = base_err.with_request(method, path);
+            }
+        }
 
         type Boxed = Box<dyn std::error::Error + Send + Sync>;
 
@@ -240,6 +280,18 @@ impl ApiError {
         self.response_headers.as_ref()
     }
 
+    /// The HTTP method of the request that failed, or `None` when the error
+    /// was not built for a call.
+    pub fn request_method(&self) -> Option<&str> {
+        self.request_method.as_deref()
+    }
+
+    /// The path of the request that failed (no scheme, host, query string or
+    /// fragment), or `None` when the error was not built for a call.
+    pub fn request_path(&self) -> Option<&str> {
+        self.request_path.as_deref()
+    }
+
     /// The parsed JSON error body, or `None` when the response carried no body
     /// or the body was not valid JSON.
     pub fn error_body(&self) -> Option<JsonValue> {
@@ -257,6 +309,56 @@ impl ApiError {
         &self,
     ) -> Result<Option<T>, SerializationError> {
         deserialize_error_body(self.response_body.as_deref())
+    }
+}
+
+/// Returns `path` cut at the first `?` or `#`.
+fn strip_query(path: &str) -> &str {
+    match path.find(['?', '#']) {
+        Some(cut) => &path[..cut],
+        None => path,
+    }
+}
+
+/// Returns the path an error names for a request target: the target without
+/// its scheme and host when it is an absolute URL, then without its query
+/// string or fragment.
+pub(crate) fn request_path_of(target: &str) -> String {
+    let rest = match target.split_once("://") {
+        Some((scheme, after)) if scheme.eq_ignore_ascii_case("http") || scheme.eq_ignore_ascii_case("https") => {
+            match after.find('/') {
+                Some(slash) => &after[slash..],
+                None => "/",
+            }
+        }
+        _ => target,
+    };
+    strip_query(rest).to_string()
+}
+
+/// Records the request on an error a transport or the SDK produced for it, when
+/// the error is one of the SDK's own response-less types or an [`ApiError`]; any
+/// other error is returned unchanged.
+pub(crate) fn attach_request(
+    err: Box<dyn std::error::Error + Send + Sync>,
+    method: &str,
+    path: &str,
+) -> Box<dyn std::error::Error + Send + Sync> {
+    match err.downcast::<ApiError>() {
+        Ok(api_error) => {
+            if api_error.request_method.is_some() {
+                api_error
+            } else {
+                Box::new(api_error.with_request(method, path))
+            }
+        }
+        Err(other) => match other.downcast::<crate::errors::network_error::NetworkError>() {
+            Ok(network) => Box::new(network.with_request(method, path)),
+            Err(other) => match other.downcast::<crate::errors::network_timeout_error::NetworkTimeoutError>() {
+                Ok(timeout) => Box::new(timeout.with_request(method, path)),
+                Err(other) => other,
+            },
+        },
     }
 }
 
@@ -382,9 +484,23 @@ pub struct ApiErrorFields {
     /// Crate-internal: read it through [`ApiErrorFields::error_body`], or use
     /// [`ApiErrorFields::typed_error_body`] for a typed view.
     pub(crate) error_body: Option<serde_json::Value>,
+    /// The HTTP method of the request that failed, when known.
+    request_method: Option<String>,
+    /// The path of the request that failed (no query string), when known.
+    request_path: Option<String>,
 }
 
 impl ApiErrorFields {
+    /// Returns the HTTP method of the request that failed, when known.
+    pub fn request_method(&self) -> Option<&str> {
+        self.request_method.as_deref()
+    }
+
+    /// Returns the path of the request that failed (no query string), when known.
+    pub fn request_path(&self) -> Option<&str> {
+        self.request_path.as_deref()
+    }
+
     /// Returns the HTTP status code surfaced by the transport.
     pub fn status_code(&self) -> u16 {
         self.status_code
@@ -427,6 +543,8 @@ impl From<ApiError> for ApiErrorFields {
             response_body: e.response_body,
             response_headers: e.response_headers,
             error_body: e.error_body,
+            request_method: e.request_method,
+            request_path: e.request_path,
         }
     }
 }

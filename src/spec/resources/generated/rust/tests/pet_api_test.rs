@@ -155,14 +155,14 @@ async fn test_pet_api_add_pet_with_http_info() {
 #[tokio::test]
 async fn test_pet_api_get_pet_by_id() {
     let api = new_pet_api_for_integration();
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(result.is_ok(), "GetPetById failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_pet_api_get_pet_by_id_with_http_info() {
     let api = new_pet_api_for_integration();
-    let result = api.get_pet_by_id_with_http_info(1, None).await;
+    let result = api.get_pet_by_id_with_http_info(1, None, None).await;
     assert!(
         result.is_ok(),
         "get_pet_by_id_with_http_info failed: {:?}",
@@ -179,7 +179,7 @@ async fn test_pet_api_update_pet() {
         "UpdatedFido".to_string(),
         HashSet::from(["http://example.com/fido-updated.jpg".to_string()]),
     );
-    let result = api.update_pet(1, pet).await;
+    let result = api.update_pet(1, pet, None).await;
     assert!(result.is_ok(), "update_pet failed: {:?}", result.err());
 }
 
@@ -190,7 +190,7 @@ async fn test_pet_api_update_pet_with_http_info() {
         "UpdatedFido".to_string(),
         HashSet::from(["http://example.com/fido-updated.jpg".to_string()]),
     );
-    let result = api.update_pet_with_http_info(1, pet).await;
+    let result = api.update_pet_with_http_info(1, pet, None).await;
     assert!(
         result.is_ok(),
         "update_pet_with_http_info failed: {:?}",
@@ -297,14 +297,14 @@ async fn test_pet_api_find_pets_by_status_with_http_info() {
 #[tokio::test]
 async fn test_pet_api_get_pet_passport() {
     let api = new_pet_api_for_integration();
-    let result = api.get_pet_passport(1).await;
+    let result = api.get_pet_passport(1, None).await;
     assert!(result.is_ok(), "GetPetPassport failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_pet_api_get_pet_passport_with_http_info() {
     let api = new_pet_api_for_integration();
-    let result = api.get_pet_passport_with_http_info(1).await;
+    let result = api.get_pet_passport_with_http_info(1, None).await;
     assert!(
         result.is_ok(),
         "get_pet_passport_with_http_info failed: {:?}",
@@ -316,7 +316,7 @@ async fn test_pet_api_get_pet_passport_with_http_info() {
 async fn test_pet_api_set_pet_avatar() {
     let api = new_pet_api_for_integration();
     let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
-    let result = api.set_pet_avatar(1, image_bytes, None).await;
+    let result = api.set_pet_avatar(1, image_bytes, None, None).await;
     assert!(result.is_ok(), "set_pet_avatar failed: {:?}", result.err());
 }
 
@@ -330,7 +330,7 @@ async fn test_pet_api_set_pet_avatar_rejects_unknown_content_type() {
     // An unknown request content-type must be rejected client-side (a typed Err),
     // not passed onto the wire as an undeclared Content-Type.
     let err = api
-        .set_pet_avatar(1, image_bytes, Some("application/unknown-type"))
+        .set_pet_avatar(1, image_bytes, None, Some("application/unknown-type"))
         .await
         .expect_err("an undeclared request content-type must be rejected");
     assert_eq!(
@@ -367,14 +367,14 @@ declared types are [multipart/form-data, application/octet-stream]"
 #[tokio::test]
 async fn test_pet_api_get_pet_avatar() {
     let api = new_pet_api_for_integration();
-    let result = api.get_pet_avatar(1).await;
+    let result = api.get_pet_avatar(1, None).await;
     assert!(result.is_ok(), "get_pet_avatar failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_pet_api_get_pet_avatar_thumbnail() {
     let api = new_pet_api_for_integration();
-    let result = api.get_pet_avatar_thumbnail(1).await;
+    let result = api.get_pet_avatar_thumbnail(1, None).await;
     assert!(
         result.is_ok(),
         "get_pet_avatar_thumbnail failed: {:?}",
@@ -386,7 +386,7 @@ async fn test_pet_api_get_pet_avatar_thumbnail() {
 async fn test_pet_api_set_pet_avatar_thumbnail() {
     let (api, rx, _) = new_pet_api_for_byte_capture();
     let body = SetPetAvatarThumbnailRequest::VecU8(vec![0xFF, 0xD8, 0xFF, 0xE0]);
-    api.set_pet_avatar_thumbnail(1, body)
+    api.set_pet_avatar_thumbnail(1, body, None)
         .await
         .expect("set_pet_avatar_thumbnail failed");
 
@@ -403,9 +403,7 @@ async fn test_pet_api_set_pet_avatar_thumbnail() {
 #[tokio::test]
 async fn test_pet_api_upload_pet_certificate() {
     let api = new_pet_api_for_integration();
-    let opts = UploadPetCertificateOptions {
-        file: b"certificate-content".to_vec(),
-    };
+    let opts = UploadPetCertificateOptions::new(b"certificate-content".to_vec());
     let result = api.upload_pet_certificate(1, Some(&opts)).await;
     assert!(
         result.is_ok(),
@@ -451,7 +449,7 @@ async fn test_pet_api_add_pet_photos() {
 #[tokio::test]
 async fn test_pet_api_download_pet_document() {
     let api = new_pet_api_for_integration();
-    let result = api.download_pet_document(1, 1).await;
+    let result = api.download_pet_document(1, 1, None).await;
     assert!(
         result.is_ok(),
         "download_pet_document failed: {:?}",
@@ -462,7 +460,10 @@ async fn test_pet_api_download_pet_document() {
 #[tokio::test]
 async fn test_pet_api_get_pet_photo() {
     let (api, _) = new_pet_api_for_mock(200, "image/jpeg", "FAKE_JPEG_BYTES");
-    let photo = api.get_pet_photo(1, 1).await.expect("get_pet_photo failed");
+    let photo = api
+        .get_pet_photo(1, 1, None)
+        .await
+        .expect("get_pet_photo failed");
     assert_eq!(photo, b"FAKE_JPEG_BYTES".to_vec());
 }
 
@@ -470,7 +471,10 @@ async fn test_pet_api_get_pet_photo() {
 async fn test_pet_api_get_pet_photo_json_reply_returns_the_raw_bytes() {
     let body = r#"{"id":7,"name":"photo"}"#;
     let (api, _) = new_pet_api_for_mock(200, "application/json", body);
-    let photo = api.get_pet_photo(1, 1).await.expect("get_pet_photo failed");
+    let photo = api
+        .get_pet_photo(1, 1, None)
+        .await
+        .expect("get_pet_photo failed");
     assert_eq!(photo, body.as_bytes().to_vec());
 }
 
@@ -478,7 +482,7 @@ async fn test_pet_api_get_pet_photo_json_reply_returns_the_raw_bytes() {
 async fn test_pet_api_get_pet_avatar_thumbnail_rejects_malformed_base64() {
     let (api, _) = new_pet_api_for_mock(200, "application/json", "\"!!not*base64??\"");
     let err = api
-        .get_pet_avatar_thumbnail(1)
+        .get_pet_avatar_thumbnail(1, None)
         .await
         .expect_err("malformed base64 must be an error, not empty bytes");
     assert!(
@@ -512,7 +516,7 @@ impl GetExternalPetInfoServer for MockExternalPetInfoServer {
 async fn test_pet_api_get_external_pet_info() {
     let api = new_pet_api_for_integration();
     let pet = api
-        .get_external_pet_info(1, Some(&MockExternalPetInfoServer))
+        .get_external_pet_info(1, Some(&MockExternalPetInfoServer), None)
         .await
         .expect("get_external_pet_info failed");
     let _ = pet;
@@ -523,7 +527,7 @@ async fn test_pet_api_error_handling_not_found() {
     let (api, _) = new_pet_api_for_mock(404, "application/json", r#"{"message":"Pet not found"}"#);
 
     let err = api
-        .get_pet_by_id(99999, None)
+        .get_pet_by_id(99999, None, None)
         .await
         .expect_err("expected error for non-existent pet");
     let not_found = err
@@ -541,7 +545,7 @@ async fn test_pet_api_error_handling_not_found() {
 async fn test_pet_api_get_pet_by_id_empty_body_throws_api_error() {
     let (api, _) = new_pet_api_for_mock(200, "application/json", "");
 
-    let result = api.get_pet_by_id(1, None).await;
+    let result = api.get_pet_by_id(1, None, None).await;
     assert!(
         result.is_err(),
         "empty body for a body-returning op must be an error, not a silent value"
@@ -566,7 +570,7 @@ async fn test_pet_api_get_pet_by_id_empty_body_throws_api_error() {
 async fn test_pet_api_get_pet_by_id_null_body_throws_api_error() {
     let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
 
-    let err = api.get_pet_by_id(1, None).await.unwrap_err();
+    let err = api.get_pet_by_id(1, None, None).await.unwrap_err();
     let api_err = err
         .downcast_ref::<petstore::ApiError>()
         .unwrap_or_else(|| panic!("null-body error must be the typed ApiError, got: {}", err));
@@ -580,7 +584,7 @@ async fn test_pet_api_get_pet_by_id_null_body_throws_api_error() {
 
     let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
     let result = api
-        .get_pet_by_id_with_http_info(1, None)
+        .get_pet_by_id_with_http_info(1, None, None)
         .await
         .expect("a null body is a result");
     assert_eq!(result.status_code(), 200);
@@ -687,7 +691,7 @@ async fn test_pet_api_set_pet_avatar_streams_raw_bytes_with_declared_content_typ
     // set_pet_avatar returns `()` and never deserializes the response body, so
     // it cannot fail on the capture mock's JSON 200 — but ignore the result
     // regardless: this is a request-capture test, not a response test.
-    let _ = api.set_pet_avatar(1, image_bytes.clone(), None).await;
+    let _ = api.set_pet_avatar(1, image_bytes.clone(), None, None).await;
 
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
@@ -742,7 +746,7 @@ async fn test_pet_api_set_pet_avatar_honours_selected_request_content_type() {
 
     // (1) Default path: no content-type selector -> first declared type.
     let (api, rx, _) = new_pet_api_for_byte_capture();
-    let _ = api.set_pet_avatar(1, image_bytes.clone(), None).await;
+    let _ = api.set_pet_avatar(1, image_bytes.clone(), None, None).await;
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
     let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
@@ -761,7 +765,7 @@ async fn test_pet_api_set_pet_avatar_honours_selected_request_content_type() {
     // (2) Selector set to "image/png" with the SAME bytes -> image/png on the wire.
     let (api, rx, _) = new_pet_api_for_byte_capture();
     let _ = api
-        .set_pet_avatar(1, image_bytes.clone(), Some("image/png"))
+        .set_pet_avatar(1, image_bytes.clone(), None, Some("image/png"))
         .await;
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
@@ -859,7 +863,7 @@ async fn test_pet_api_auth_omitted_uses_configuration_default() {
 async fn test_pet_api_unsecured_op_has_no_auth_field() {
     let api = new_pet_api_for_integration();
     let server: Option<&dyn GetPetByIdServer> = None;
-    let result = api.get_pet_by_id(1, server).await;
+    let result = api.get_pet_by_id(1, server, None).await;
     assert!(result.is_ok(), "get_pet_by_id failed: {:?}", result.err());
 }
 
@@ -870,10 +874,7 @@ async fn test_pet_api_unsecured_op_has_no_auth_field() {
 #[tokio::test]
 async fn test_pet_api_get_pet_by_name_path_encoded_once() {
     let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetByNameOptions {
-        category: "dogs".to_string(),
-        x_correlation_id: "corr-1".to_string(),
-    };
+    let opts = GetPetByNameOptions::new("dogs".to_string(), "corr-1".to_string());
     let _ = api.get_pet_by_name("a b/c".to_string(), Some(&opts)).await;
 
     let request = rx.recv().expect("expected a captured request");
@@ -919,10 +920,7 @@ async fn test_pet_api_get_pet_by_name_missing_required_query_errors() {
 #[tokio::test]
 async fn test_pet_api_get_pet_by_name_empty_required_query_errors() {
     let api = new_pet_api_for_integration();
-    let opts = GetPetByNameOptions {
-        category: String::new(),
-        x_correlation_id: "corr-1".to_string(),
-    };
+    let opts = GetPetByNameOptions::new(String::new(), "corr-1".to_string());
     let result = api.get_pet_by_name("rex".to_string(), Some(&opts)).await;
     assert!(
         result.is_err(),
@@ -942,10 +940,7 @@ async fn test_pet_api_get_pet_by_name_empty_required_query_errors() {
 #[tokio::test]
 async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
     let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetByNameOptions {
-        category: "cats".to_string(),
-        x_correlation_id: "corr-1".to_string(),
-    };
+    let opts = GetPetByNameOptions::new("cats".to_string(), "corr-1".to_string());
     let _ = api.get_pet_by_name("rex".to_string(), Some(&opts)).await;
 
     let request = rx.recv().expect("expected a captured request");
@@ -965,10 +960,7 @@ async fn test_pet_api_get_pet_by_name_empty_required_header_errors() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
-    let opts = GetPetByNameOptions {
-        category: "cats".to_string(),
-        x_correlation_id: String::new(),
-    };
+    let opts = GetPetByNameOptions::new("cats".to_string(), String::new());
     let err = api
         .get_pet_by_name("rex".to_string(), Some(&opts))
         .await
@@ -1115,10 +1107,7 @@ async fn test_pet_api_get_pet_by_name_rejects_dot_segments() {
         .base_url("http://127.0.0.1:1")
         .build();
     let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
-    let opts = GetPetByNameOptions {
-        category: "cats".to_string(),
-        x_correlation_id: "corr-1".to_string(),
-    };
+    let opts = GetPetByNameOptions::new("cats".to_string(), "corr-1".to_string());
     for value in [".", ".."] {
         let err = api
             .get_pet_by_name(value.to_string(), Some(&opts))
@@ -1139,10 +1128,7 @@ async fn test_pet_api_get_pet_by_name_rejects_dot_segments() {
 #[tokio::test]
 async fn test_pet_api_get_pet_by_name_keeps_inner_dots() {
     let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetByNameOptions {
-        category: "cats".to_string(),
-        x_correlation_id: "corr-1".to_string(),
-    };
+    let opts = GetPetByNameOptions::new("cats".to_string(), "corr-1".to_string());
     let _ = api.get_pet_by_name("a..b".to_string(), Some(&opts)).await;
 
     let request = rx.recv().expect("expected a captured request");
@@ -1308,7 +1294,7 @@ async fn test_pet_api_error_handling_server_error() {
     );
 
     let err = api
-        .get_pet_by_id(1, None)
+        .get_pet_by_id(1, None, None)
         .await
         .expect_err("expected error for server error response");
     let server_error = err
@@ -1321,7 +1307,10 @@ async fn test_pet_api_error_handling_server_error() {
 async fn test_pet_api_download_binary_mock() {
     let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
-    let avatar = api.get_pet_avatar(1).await.expect("get_pet_avatar failed");
+    let avatar = api
+        .get_pet_avatar(1, None)
+        .await
+        .expect("get_pet_avatar failed");
     assert_eq!(avatar, b"FAKE_BINARY_DATA".to_vec());
 }
 
@@ -1333,9 +1322,7 @@ async fn test_pet_api_upload_multipart_mock() {
         r#"{"code":200,"type":"","message":"success"}"#,
     );
 
-    let opts = UploadPetCertificateOptions {
-        file: b"certificate-content".to_vec(),
-    };
+    let opts = UploadPetCertificateOptions::new(b"certificate-content".to_vec());
     let response = api
         .upload_pet_certificate(1, Some(&opts))
         .await
@@ -1669,7 +1656,7 @@ async fn test_pet_api_mirror_operation_server_is_the_host_of_the_request() {
         region: GetMultiServerPetInfoServerMirrorRegion::EU,
         channel: GetMultiServerPetInfoServerChannel::ITS,
     };
-    let _ = api.get_multi_server_pet_info(7, Some(&mirror)).await;
+    let _ = api.get_multi_server_pet_info(7, Some(&mirror), None).await;
 
     let urls = client.urls.lock().unwrap();
     assert_eq!(urls.len(), 1, "{:?}", urls);
@@ -1745,13 +1732,15 @@ async fn test_pet_api_operation_server_is_the_host_of_the_request() {
         environment: GetStagingPetInfoServerEnvironment::SANDBOX,
         version: GetStagingPetInfoServerVersion::V2,
     };
-    let _ = api.get_staging_pet_info(7, Some(&staging)).await;
+    let _ = api.get_staging_pet_info(7, Some(&staging), None).await;
     let regional = GetMultiServerPetInfoServerRegional {
         region: GetMultiServerPetInfoServerRegionalRegion::AP,
     };
-    let _ = api.get_multi_server_pet_info(7, Some(&regional)).await;
     let _ = api
-        .get_external_pet_info(7, Some(&GetExternalPetInfoServerServer0 {}))
+        .get_multi_server_pet_info(7, Some(&regional), None)
+        .await;
+    let _ = api
+        .get_external_pet_info(7, Some(&GetExternalPetInfoServerServer0 {}), None)
         .await;
 
     let urls = client.urls.lock().unwrap();
@@ -1779,7 +1768,7 @@ async fn test_pet_api_operation_server_is_the_host_of_the_request() {
 async fn test_pet_api_find_pets_born_on_path_param_is_date_only() {
     let (api, client) = new_pet_api_recording_urls();
     let _ = api
-        .find_pets_born_on(chrono::NaiveDate::from_ymd_opt(2024, 1, 31).unwrap())
+        .find_pets_born_on(chrono::NaiveDate::from_ymd_opt(2024, 1, 31).unwrap(), None)
         .await;
 
     let urls = client.urls.lock().unwrap();

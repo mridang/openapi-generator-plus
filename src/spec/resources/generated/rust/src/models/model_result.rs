@@ -19,4 +19,12 @@ impl ModelResult {
     pub fn new() -> Self {
         Self { ok: None }
     }
+
+    /// Returns this value with `ok` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_ok(mut self, ok: bool) -> Self {
+        self.ok = Some(ok);
+        self
+    }
 }

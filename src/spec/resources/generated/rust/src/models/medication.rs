@@ -27,4 +27,28 @@ impl Medication {
             notes: None,
         }
     }
+
+    /// Returns this value with `drug_name` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_drug_name(mut self, drug_name: String) -> Self {
+        self.drug_name = drug_name;
+        self
+    }
+
+    /// Returns this value with `dosage` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_dosage(mut self, dosage: String) -> Self {
+        self.dosage = Some(dosage);
+        self
+    }
+
+    /// Returns this value with `notes` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_notes(mut self, notes: String) -> Self {
+        self.notes = Some(notes);
+        self
+    }
 }

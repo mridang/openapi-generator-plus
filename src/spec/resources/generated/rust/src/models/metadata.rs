@@ -37,4 +37,21 @@ impl Metadata {
             additional_properties: std::collections::HashMap::new(),
         }
     }
+
+    /// Returns this value with `created_at` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_created_at(mut self, created_at: crate::date_time::DateTime) -> Self {
+        self.created_at = Some(created_at);
+        self
+    }
+
+    /// Returns this value with its additional properties replaced.
+    pub fn with_additional_properties(
+        mut self,
+        additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>,
+    ) -> Self {
+        self.additional_properties = additional_properties;
+        self
+    }
 }

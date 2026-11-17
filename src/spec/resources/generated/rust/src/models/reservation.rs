@@ -26,4 +26,20 @@ impl Reservation {
             quantity,
         }
     }
+
+    /// Returns this value with `reservation_id` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_reservation_id(mut self, reservation_id: i64) -> Self {
+        self.reservation_id = reservation_id;
+        self
+    }
+
+    /// Returns this value with `quantity` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_quantity(mut self, quantity: i32) -> Self {
+        self.quantity = quantity;
+        self
+    }
 }

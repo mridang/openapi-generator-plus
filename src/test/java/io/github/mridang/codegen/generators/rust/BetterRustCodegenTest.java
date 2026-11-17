@@ -6,7 +6,13 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 class BetterRustCodegenTest {
@@ -58,5 +64,81 @@ class BetterRustCodegenTest {
     assertThat(codegen.toParamName("path")).isEqualTo("path_param");
     assertThat(codegen.toParamName("headers")).isEqualTo("headers_param");
     assertThat(codegen.toParamName("item_id")).isEqualTo("item_id");
+  }
+
+  /* F827: a parameter named like a per-call setting is renamed, so the options struct can carry
+   * the timeout, the retry budget and the headers. */
+  @Test
+  void renamesAParameterNamedLikeAPerCallSetting() {
+    assertThat(codegen.toParamName("timeout")).isEqualTo("timeout_param");
+    assertThat(codegen.toParamName("max_retries")).isEqualTo("max_retries_param");
+    assertThat(codegen.toParamName("header")).isEqualTo("header_param");
+  }
+
+  /* F308: an integer enum member takes the casing of every other Rust variant. */
+  @Test
+  void anIntegerEnumMemberIsCamelCased() {
+    assertThat(codegen.toEnumVarName("2", "i32")).isEqualTo("Number2");
+    assertThat(codegen.toEnumVarName("-1", "i64")).isEqualTo("NumberMinus1");
+    assertThat(codegen.toEnumVarName("1.5", "f64")).isEqualTo("Number1Dot5");
+    assertThat(codegen.toEnumVarName("active", "String")).isEqualTo("Active");
+  }
+
+  /* F1154: the server comes before the options in every operation signature. */
+  @Test
+  void theServerComesBeforeTheOptionsInEverySignature() throws IOException {
+    final Path api = Path.of("src/spec/resources/generated/rust/src/api");
+    final Pattern signature = Pattern.compile("pub async fn \\w+\\(\\n(.*?)\\n    \\)", Pattern.DOTALL);
+    int checked = 0;
+    for (final String file : new String[] {"pet_api.rs", "store_api.rs"}) {
+      final Matcher m = signature.matcher(Files.readString(api.resolve(file)));
+      while (m.find()) {
+        final String args = m.group(1);
+        final int server = args.indexOf("        server:");
+        final int options = args.indexOf("        options:");
+        if (server >= 0 && options >= 0) {
+          assertThat(server).as("server must precede options in:\n" + args).isLessThan(options);
+          checked++;
+        }
+      }
+    }
+    assertThat(checked).as("operations with both a server and options").isGreaterThan(0);
+  }
+
+  /* F827: every operation of the petstore golden takes the options argument that carries the
+   * per-call timeout, retry budget and headers. */
+  @Test
+  void everyOperationTakesAnOptionsArgument() throws IOException {
+    final Path api = Path.of("src/spec/resources/generated/rust/src/api");
+    final Pattern signature =
+        Pattern.compile("pub async fn (\\w+)\\(\\s*&self,(.*?)\\)\\s*->", Pattern.DOTALL);
+    int checked = 0;
+    for (final String file : new String[] {"pet_api.rs", "store_api.rs"}) {
+      final Matcher m = signature.matcher(Files.readString(api.resolve(file)));
+      while (m.find()) {
+        assertThat(m.group(2)).as("signature of " + m.group(1)).contains("options:");
+        checked++;
+      }
+    }
+    assertThat(checked).isGreaterThan(0);
+  }
+
+  /* F894 and F862: the package metadata options and the environment prefix reach the templates. */
+  @Test
+  void packageMetadataOptionsAndTheEnvironmentPrefixAreExposedToTheTemplates() {
+    final BetterRustCodegen configured = new BetterRustCodegen();
+    configured.additionalProperties().put("packageName", "item-client");
+    configured.additionalProperties().put("repositoryUrl", "https://example.com/repo");
+    configured.additionalProperties().put("authors", "Ada Lovelace, \"Q\" Smith,");
+    configured.processOpts();
+
+    assertThat(configured.additionalProperties().get("hasProjectUrls")).isEqualTo(true);
+    assertThat(configured.additionalProperties().get("hasAuthors")).isEqualTo(true);
+    assertThat(configured.additionalProperties().get("authorsList"))
+        .isEqualTo(List.of(Map.of("name", "Ada Lovelace"), Map.of("name", "\\\"Q\\\" Smith")));
+    assertThat(configured.additionalProperties().get("repositoryUrl"))
+        .isEqualTo("https://example.com/repo");
+    assertThat(configured.additionalProperties()).doesNotContainKey("homepageUrl");
+    assertThat(configured.additionalProperties().get("envPrefix")).isEqualTo("ITEM_CLIENT");
   }
 }

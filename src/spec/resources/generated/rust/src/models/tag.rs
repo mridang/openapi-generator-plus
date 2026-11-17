@@ -25,4 +25,20 @@ impl Tag {
             name: None,
         }
     }
+
+    /// Returns this value with `id` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_id(mut self, id: i64) -> Self {
+        self.id = Some(id);
+        self
+    }
+
+    /// Returns this value with `name` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = Some(name);
+        self
+    }
 }

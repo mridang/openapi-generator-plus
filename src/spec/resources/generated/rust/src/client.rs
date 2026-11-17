@@ -13,11 +13,30 @@ use crate::api::PetApi;
 use crate::api::StoreApi;
 use crate::api_client::ApiClient;
 use crate::auth::Authenticator;
-use crate::auth::BearerAuthenticator;
+use crate::auth::{BearerAuthenticator, TokenProvider};
 use crate::configuration::ConfigurationBuilder;
 use crate::default_api_client::DefaultApiClient;
 use crate::errors::configuration_error::ConfigurationError;
 use crate::transport_options::TransportOptions;
+
+/// The value of `PETSTORE_<field>`, or `None` when it is unset or empty.
+fn from_environment(field: &str) -> Option<String> {
+    std::env::var(format!("PETSTORE_{}", field))
+        .ok()
+        .filter(|value| !value.is_empty())
+}
+
+/// The API host: the argument, then `PETSTORE_BASE_URL`.
+fn resolve_host(host: Option<&str>) -> Result<String, ConfigurationError> {
+    match host {
+        Some(host) => Ok(host.to_string()),
+        None => from_environment("BASE_URL").ok_or_else(|| {
+            ConfigurationError::InvalidArgument(
+                "The API host is required: pass host or set PETSTORE_BASE_URL".to_string(),
+            )
+        }),
+    }
+}
 
 /// Unified entry point for all API services.
 ///
@@ -139,21 +158,58 @@ impl Client {
 
     /// Creates a client authenticated with a static Bearer token.
     ///
-    /// `host` is the API base URL, `access_token` the Bearer token, and
-    /// `transport_options` optional HTTP transport configuration (proxy, TLS,
-    /// timeouts, etc.).
+    /// Each value is resolved the same way: the argument you pass wins, then
+    /// the environment variable, read once here. `host` falls back to
+    /// `PETSTORE_BASE_URL` and `access_token` to `PETSTORE_ACCESS_TOKEN`;
+    /// an empty variable counts as unset. `transport_options` is optional HTTP
+    /// transport configuration (proxy, TLS, timeouts, etc.).
     ///
     /// # Errors
     ///
-    /// Returns [`ConfigurationError::InvalidArgument`] when the token is empty
-    /// or holds a character that cannot be sent in a header.
+    /// Returns [`ConfigurationError::InvalidArgument`] when the host or the
+    /// token is neither passed nor set in the environment, or when the token is
+    /// empty or holds a character that cannot be sent in a header.
     pub fn with_token(
-        host: &str,
-        access_token: &str,
+        host: Option<&str>,
+        access_token: Option<&str>,
         transport_options: Option<TransportOptions>,
     ) -> Result<Self, ConfigurationError> {
+        let host = resolve_host(host)?;
+        let access_token = match access_token {
+            Some(token) => token.to_string(),
+            None => from_environment("ACCESS_TOKEN").ok_or_else(|| {
+                ConfigurationError::InvalidArgument(
+                    "The access token is required: pass access_token or token_provider, or set PETSTORE_ACCESS_TOKEN"
+                        .to_string(),
+                )
+            })?,
+        };
         Ok(Self::new(
-            Box::new(BearerAuthenticator::new(host, access_token)?),
+            Box::new(BearerAuthenticator::new(&host, &access_token)?),
+            transport_options,
+        ))
+    }
+
+    /// Creates a client whose Bearer token comes from `token_provider`, which
+    /// is called for every request, so a token renewed elsewhere is picked up
+    /// without rebuilding the client. `host` is resolved as in
+    /// [`Self::with_token`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidArgument`] when the host is neither
+    /// passed nor set in the environment.
+    pub fn with_token_provider(
+        host: Option<&str>,
+        token_provider: TokenProvider,
+        transport_options: Option<TransportOptions>,
+    ) -> Result<Self, ConfigurationError> {
+        let host = resolve_host(host)?;
+        Ok(Self::new(
+            Box::new(BearerAuthenticator::with_token_provider(
+                &host,
+                token_provider,
+            )),
             transport_options,
         ))
     }

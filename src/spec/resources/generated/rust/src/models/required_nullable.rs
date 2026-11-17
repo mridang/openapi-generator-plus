@@ -24,4 +24,12 @@ impl RequiredNullable {
     pub fn new(note: Option<String>) -> Self {
         Self { note }
     }
+
+    /// Returns this value with `note` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_note(mut self, note: Option<String>) -> Self {
+        self.note = note;
+        self
+    }
 }

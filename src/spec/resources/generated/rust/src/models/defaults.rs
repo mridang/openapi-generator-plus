@@ -199,6 +199,78 @@ impl Defaults {
             ceiling: Some(9000000000),
         }
     }
+
+    /// Returns this value with `retries` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_retries(mut self, retries: i32) -> Self {
+        self.retries = Some(retries);
+        self
+    }
+
+    /// Returns this value with `mode` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_mode(mut self, mode: DefaultsModeEnum) -> Self {
+        self.mode = Some(mode);
+        self
+    }
+
+    /// Returns this value with `label` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_label(mut self, label: String) -> Self {
+        self.label = Some(label);
+        self
+    }
+
+    /// Returns this value with `greeting` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_greeting(mut self, greeting: String) -> Self {
+        self.greeting = Some(greeting);
+        self
+    }
+
+    /// Returns this value with `swatch` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_swatch(mut self, swatch: Swatch) -> Self {
+        self.swatch = Some(swatch);
+        self
+    }
+
+    /// Returns this value with `ratio` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_ratio(mut self, ratio: f64) -> Self {
+        self.ratio = Some(ratio);
+        self
+    }
+
+    /// Returns this value with `scale` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_scale(mut self, scale: f32) -> Self {
+        self.scale = Some(scale);
+        self
+    }
+
+    /// Returns this value with `weight` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_weight(mut self, weight: f64) -> Self {
+        self.weight = Some(weight);
+        self
+    }
+
+    /// Returns this value with `ceiling` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_ceiling(mut self, ceiling: i64) -> Self {
+        self.ceiling = Some(ceiling);
+        self
+    }
 }
 
 /* Hand-written `Default` impl (the derive is suppressed above) so that

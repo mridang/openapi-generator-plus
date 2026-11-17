@@ -26,4 +26,20 @@ impl Employee {
             department: None,
         }
     }
+
+    /// Returns this value with `name` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
+    /// Returns this value with `department` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_department(mut self, department: Box<Department>) -> Self {
+        self.department = Some(department);
+        self
+    }
 }

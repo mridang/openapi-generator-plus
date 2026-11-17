@@ -55,11 +55,13 @@ impl StoreApi {
     }
 
     /// Create an account
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn create_account(
         &self,
         account: Account,
+        options: Option<&CreateAccountOptions>,
     ) -> Result<Account, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.create_account_with_http_info(account).await?;
+        let result = self.create_account_with_http_info(account, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -81,12 +83,13 @@ impl StoreApi {
     pub async fn create_account_with_http_info(
         &self,
         account: Account,
+        options: Option<&CreateAccountOptions>,
     ) -> Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.create_account_invoke(account, "application/json")
+        self.create_account_invoke(account, options, "application/json")
             .await
     }
 
@@ -97,6 +100,7 @@ impl StoreApi {
     async fn create_account_invoke(
         &self,
         account: Account,
+        options: Option<&CreateAccountOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>> {
@@ -119,6 +123,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Account",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -132,11 +137,13 @@ impl StoreApi {
 
     /// Delete purchase order by ID
     /// * `order_id`: ID of the order to delete
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn delete_order(
         &self,
         order_id: i64,
+        options: Option<&DeleteOrderOptions>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.delete_order_with_http_info(order_id).await?;
+        let result = self.delete_order_with_http_info(order_id, options).await?;
         let _ = result;
         Ok(())
     }
@@ -145,12 +152,14 @@ impl StoreApi {
     pub async fn delete_order_with_http_info(
         &self,
         order_id: i64,
+        options: Option<&DeleteOrderOptions>,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.delete_order_invoke(order_id, "application/json").await
+        self.delete_order_invoke(order_id, options, "application/json")
+            .await
     }
 
     /// Shared implementation for the delete_order operation. The resolved
@@ -160,6 +169,7 @@ impl StoreApi {
     async fn delete_order_invoke(
         &self,
         order_id: i64,
+        options: Option<&DeleteOrderOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
@@ -200,6 +210,7 @@ impl StoreApi {
             accepts: vec![],
             content_type: request_content_type,
             return_type: "",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -345,6 +356,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Category",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -357,8 +369,12 @@ impl StoreApi {
     }
 
     /// Returns a model exercising schema defaults on deserialize.
-    pub async fn get_defaults(&self) -> Result<Defaults, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_defaults_with_http_info().await?;
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn get_defaults(
+        &self,
+        options: Option<&GetDefaultsOptions>,
+    ) -> Result<Defaults, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_defaults_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -379,12 +395,13 @@ impl StoreApi {
     /// Performs the get_defaults operation and returns the full API result.
     pub async fn get_defaults_with_http_info(
         &self,
+        options: Option<&GetDefaultsOptions>,
     ) -> Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_defaults_invoke("application/json").await
+        self.get_defaults_invoke(options, "application/json").await
     }
 
     /// Shared implementation for the get_defaults operation. The resolved
@@ -393,6 +410,7 @@ impl StoreApi {
     /// explicit selection.
     async fn get_defaults_invoke(
         &self,
+        options: Option<&GetDefaultsOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>> {
@@ -415,6 +433,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Defaults",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -427,10 +446,12 @@ impl StoreApi {
     }
 
     /// Returns a department (mutual-recursion codegen fixture).
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_department(
         &self,
+        options: Option<&GetDepartmentOptions>,
     ) -> Result<Department, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_department_with_http_info().await?;
+        let result = self.get_department_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -451,12 +472,14 @@ impl StoreApi {
     /// Performs the get_department operation and returns the full API result.
     pub async fn get_department_with_http_info(
         &self,
+        options: Option<&GetDepartmentOptions>,
     ) -> Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_department_invoke("application/json").await
+        self.get_department_invoke(options, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_department operation. The resolved
@@ -465,6 +488,7 @@ impl StoreApi {
     /// explicit selection.
     async fn get_department_invoke(
         &self,
+        options: Option<&GetDepartmentOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>> {
@@ -487,6 +511,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Department",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -499,13 +524,15 @@ impl StoreApi {
     }
 
     /// Returns categories grouped into an array of string-keyed maps.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_grouped_categories(
         &self,
+        options: Option<&GetGroupedCategoriesOptions>,
     ) -> Result<
         Vec<std::collections::HashMap<String, Category>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
-        let result = self.get_grouped_categories_with_http_info().await?;
+        let result = self.get_grouped_categories_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -526,6 +553,7 @@ impl StoreApi {
     /// Performs the get_grouped_categories operation and returns the full API result.
     pub async fn get_grouped_categories_with_http_info(
         &self,
+        options: Option<&GetGroupedCategoriesOptions>,
     ) -> Result<
         ApiResult<Vec<std::collections::HashMap<String, Category>>>,
         Box<dyn std::error::Error + Send + Sync>,
@@ -534,7 +562,8 @@ impl StoreApi {
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_grouped_categories_invoke("application/json").await
+        self.get_grouped_categories_invoke(options, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_grouped_categories operation. The resolved
@@ -543,6 +572,7 @@ impl StoreApi {
     /// explicit selection.
     async fn get_grouped_categories_invoke(
         &self,
+        options: Option<&GetGroupedCategoriesOptions>,
 
         request_content_type: &str,
     ) -> Result<
@@ -568,6 +598,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<std::collections::HashMap<String, Category>>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -582,11 +613,13 @@ impl StoreApi {
     }
 
     /// Returns pet inventories by status
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_inventory(
         &self,
+        options: Option<&GetInventoryOptions>,
     ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>>
     {
-        let result = self.get_inventory_with_http_info().await?;
+        let result = self.get_inventory_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -607,6 +640,7 @@ impl StoreApi {
     /// Performs the get_inventory operation and returns the full API result.
     pub async fn get_inventory_with_http_info(
         &self,
+        options: Option<&GetInventoryOptions>,
     ) -> Result<
         ApiResult<std::collections::HashMap<String, i32>>,
         Box<dyn std::error::Error + Send + Sync>,
@@ -615,7 +649,7 @@ impl StoreApi {
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_inventory_invoke("application/json").await
+        self.get_inventory_invoke(options, "application/json").await
     }
 
     /// Shared implementation for the get_inventory operation. The resolved
@@ -624,6 +658,7 @@ impl StoreApi {
     /// explicit selection.
     async fn get_inventory_invoke(
         &self,
+        options: Option<&GetInventoryOptions>,
 
         request_content_type: &str,
     ) -> Result<
@@ -649,6 +684,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "std::collections::HashMap<String, i32>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -663,10 +699,12 @@ impl StoreApi {
     }
 
     /// Returns a matrix as an array of integer arrays.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_matrix(
         &self,
+        options: Option<&GetMatrixOptions>,
     ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_matrix_with_http_info().await?;
+        let result = self.get_matrix_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -687,12 +725,13 @@ impl StoreApi {
     /// Performs the get_matrix operation and returns the full API result.
     pub async fn get_matrix_with_http_info(
         &self,
+        options: Option<&GetMatrixOptions>,
     ) -> Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_matrix_invoke("application/json").await
+        self.get_matrix_invoke(options, "application/json").await
     }
 
     /// Shared implementation for the get_matrix operation. The resolved
@@ -701,6 +740,7 @@ impl StoreApi {
     /// explicit selection.
     async fn get_matrix_invoke(
         &self,
+        options: Option<&GetMatrixOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>> {
@@ -723,6 +763,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<Vec<i32>>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -738,11 +779,15 @@ impl StoreApi {
 
     /// Find purchase order by ID
     /// * `order_id`: ID of order to return
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_order_by_id(
         &self,
         order_id: i64,
+        options: Option<&GetOrderByIdOptions>,
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_order_by_id_with_http_info(order_id).await?;
+        let result = self
+            .get_order_by_id_with_http_info(order_id, options)
+            .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -764,12 +809,13 @@ impl StoreApi {
     pub async fn get_order_by_id_with_http_info(
         &self,
         order_id: i64,
+        options: Option<&GetOrderByIdOptions>,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_order_by_id_invoke(order_id, "application/json")
+        self.get_order_by_id_invoke(order_id, options, "application/json")
             .await
     }
 
@@ -780,6 +826,7 @@ impl StoreApi {
     async fn get_order_by_id_invoke(
         &self,
         order_id: i64,
+        options: Option<&GetOrderByIdOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
@@ -820,6 +867,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Order",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -829,12 +877,14 @@ impl StoreApi {
     }
 
     /// Find purchase order by tracking id
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_order_by_tracking_id(
         &self,
         tracking_id: uuid::Uuid,
+        options: Option<&GetOrderByTrackingIdOptions>,
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
-            .get_order_by_tracking_id_with_http_info(tracking_id)
+            .get_order_by_tracking_id_with_http_info(tracking_id, options)
             .await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -858,12 +908,13 @@ impl StoreApi {
     pub async fn get_order_by_tracking_id_with_http_info(
         &self,
         tracking_id: uuid::Uuid,
+        options: Option<&GetOrderByTrackingIdOptions>,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_order_by_tracking_id_invoke(tracking_id, "application/json")
+        self.get_order_by_tracking_id_invoke(tracking_id, options, "application/json")
             .await
     }
 
@@ -874,6 +925,7 @@ impl StoreApi {
     async fn get_order_by_tracking_id_invoke(
         &self,
         tracking_id: uuid::Uuid,
+        options: Option<&GetOrderByTrackingIdOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
@@ -916,6 +968,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Order",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1024,6 +1077,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "StockItem",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1036,8 +1090,12 @@ impl StoreApi {
     }
 
     /// Returns a bare enum (value-type response codegen fixture).
-    pub async fn get_swatch(&self) -> Result<Swatch, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_swatch_with_http_info().await?;
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn get_swatch(
+        &self,
+        options: Option<&GetSwatchOptions>,
+    ) -> Result<Swatch, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_swatch_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1058,12 +1116,13 @@ impl StoreApi {
     /// Performs the get_swatch operation and returns the full API result.
     pub async fn get_swatch_with_http_info(
         &self,
+        options: Option<&GetSwatchOptions>,
     ) -> Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_swatch_invoke("application/json").await
+        self.get_swatch_invoke(options, "application/json").await
     }
 
     /// Shared implementation for the get_swatch operation. The resolved
@@ -1072,6 +1131,7 @@ impl StoreApi {
     /// explicit selection.
     async fn get_swatch_invoke(
         &self,
+        options: Option<&GetSwatchOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1094,6 +1154,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Swatch",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1106,13 +1167,15 @@ impl StoreApi {
     }
 
     /// Returns swatches grouped as an array of string-keyed enum maps.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_swatch_groups(
         &self,
+        options: Option<&GetSwatchGroupsOptions>,
     ) -> Result<
         Vec<std::collections::HashMap<String, Swatch>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
-        let result = self.get_swatch_groups_with_http_info().await?;
+        let result = self.get_swatch_groups_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1133,6 +1196,7 @@ impl StoreApi {
     /// Performs the get_swatch_groups operation and returns the full API result.
     pub async fn get_swatch_groups_with_http_info(
         &self,
+        options: Option<&GetSwatchGroupsOptions>,
     ) -> Result<
         ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
         Box<dyn std::error::Error + Send + Sync>,
@@ -1141,7 +1205,8 @@ impl StoreApi {
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_swatch_groups_invoke("application/json").await
+        self.get_swatch_groups_invoke(options, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_swatch_groups operation. The resolved
@@ -1150,6 +1215,7 @@ impl StoreApi {
     /// explicit selection.
     async fn get_swatch_groups_invoke(
         &self,
+        options: Option<&GetSwatchGroupsOptions>,
 
         request_content_type: &str,
     ) -> Result<
@@ -1175,6 +1241,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<std::collections::HashMap<String, Swatch>>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1189,13 +1256,15 @@ impl StoreApi {
     }
 
     /// Returns timestamps grouped as an array of string-keyed maps.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_timestamp_groups(
         &self,
+        options: Option<&GetTimestampGroupsOptions>,
     ) -> Result<
         Vec<std::collections::HashMap<String, crate::date_time::DateTime>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
-        let result = self.get_timestamp_groups_with_http_info().await?;
+        let result = self.get_timestamp_groups_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1216,6 +1285,7 @@ impl StoreApi {
     /// Performs the get_timestamp_groups operation and returns the full API result.
     pub async fn get_timestamp_groups_with_http_info(
         &self,
+        options: Option<&GetTimestampGroupsOptions>,
     ) -> Result<
         ApiResult<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>,
         Box<dyn std::error::Error + Send + Sync>,
@@ -1224,7 +1294,8 @@ impl StoreApi {
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_timestamp_groups_invoke("application/json").await
+        self.get_timestamp_groups_invoke(options, "application/json")
+            .await
     }
 
     /// Shared implementation for the get_timestamp_groups operation. The resolved
@@ -1233,6 +1304,7 @@ impl StoreApi {
     /// explicit selection.
     async fn get_timestamp_groups_invoke(
         &self,
+        options: Option<&GetTimestampGroupsOptions>,
 
         request_content_type: &str,
     ) -> Result<
@@ -1258,6 +1330,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<std::collections::HashMap<String, crate::date_time::DateTime>>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1270,8 +1343,12 @@ impl StoreApi {
     }
 
     /// Returns a self-referential tree (recursive-type codegen fixture)
-    pub async fn get_tree(&self) -> Result<TreeNode, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_tree_with_http_info().await?;
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn get_tree(
+        &self,
+        options: Option<&GetTreeOptions>,
+    ) -> Result<TreeNode, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_tree_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1292,12 +1369,13 @@ impl StoreApi {
     /// Performs the get_tree operation and returns the full API result.
     pub async fn get_tree_with_http_info(
         &self,
+        options: Option<&GetTreeOptions>,
     ) -> Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_tree_invoke("application/json").await
+        self.get_tree_invoke(options, "application/json").await
     }
 
     /// Shared implementation for the get_tree operation. The resolved
@@ -1306,6 +1384,7 @@ impl StoreApi {
     /// explicit selection.
     async fn get_tree_invoke(
         &self,
+        options: Option<&GetTreeOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1328,6 +1407,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "TreeNode",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1340,11 +1420,13 @@ impl StoreApi {
     }
 
     /// Place an order for a pet
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn place_order(
         &self,
         order: Option<Order>,
+        options: Option<&PlaceOrderOptions>,
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.place_order_with_http_info(order).await?;
+        let result = self.place_order_with_http_info(order, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1366,12 +1448,14 @@ impl StoreApi {
     pub async fn place_order_with_http_info(
         &self,
         order: Option<Order>,
+        options: Option<&PlaceOrderOptions>,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.place_order_invoke(order, "application/json").await
+        self.place_order_invoke(order, options, "application/json")
+            .await
     }
 
     /// Shared implementation for the place_order operation. The resolved
@@ -1381,6 +1465,7 @@ impl StoreApi {
     async fn place_order_invoke(
         &self,
         order: Option<Order>,
+        options: Option<&PlaceOrderOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1411,6 +1496,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Order",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1421,10 +1507,12 @@ impl StoreApi {
 
     /// Reserve stock, answering with the existing or a new reservation
     /// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn reserve_stock(
         &self,
+        options: Option<&ReserveStockOptions>,
     ) -> Result<ReserveStockResponse, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.reserve_stock_with_http_info().await?;
+        let result = self.reserve_stock_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
          * (not a silent null / zero value), matching the other SDKs. */
@@ -1445,12 +1533,13 @@ impl StoreApi {
     /// Performs the reserve_stock operation and returns the full API result.
     pub async fn reserve_stock_with_http_info(
         &self,
+        options: Option<&ReserveStockOptions>,
     ) -> Result<ApiResult<ReserveStockResponse>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.reserve_stock_invoke("application/json").await
+        self.reserve_stock_invoke(options, "application/json").await
     }
 
     /// Shared implementation for the reserve_stock operation. The resolved
@@ -1459,6 +1548,7 @@ impl StoreApi {
     /// explicit selection.
     async fn reserve_stock_invoke(
         &self,
+        options: Option<&ReserveStockOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<ReserveStockResponse>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1481,6 +1571,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "ReserveStockResponse",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1489,8 +1580,19 @@ impl StoreApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
+        /* Several 2xx responses with different schemas: the body is decoded as
+         * the variant the ACTUAL status code declares. A 2xx status the
+         * operation does not declare falls back to the union's own decoding. */
         self.base
-            .invoke_api_for_result::<ReserveStockResponse>(params)
+            .invoke_api_for_status_union::<ReserveStockResponse, _>(params, |status, body| {
+                match status {
+                    200 => Ok(object_serializer::deserialize::<Reservation>(body)?
+                        .map(ReserveStockResponse::Reservation)),
+                    201 => Ok(object_serializer::deserialize::<ReservationReceipt>(body)?
+                        .map(ReserveStockResponse::ReservationReceipt)),
+                    _ => object_serializer::deserialize::<ReserveStockResponse>(body),
+                }
+            })
             .await
     }
 
@@ -1631,6 +1733,7 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<Order>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather

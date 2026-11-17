@@ -2262,6 +2262,84 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": "*options",
+   "aspect": "type",
+   "languages": [
+    "rust"
+   ],
+   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options struct carrying the per-call timeout, headers and max_retries; rust mints one for each operation the shared pass leaves without. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "*options.timeout",
+    "*options.maxretries",
+    "*options.headers",
+    "*options.header"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "owner decision F827 (2026-11-17): optional per-call timeout (Duration), max_retries and headers on every Options struct, with the chained setters timeout, max_retries and header (the struct has public fields and consuming builders in rust). Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "*api.*",
+   "aspect": "params",
+   "languages": [
+    "rust"
+   ],
+   "value": "*options)",
+   "reason": "owner decision F827 (2026-11-17): every operation, with or without parameters, takes the trailing optional Options argument that carries the per-call settings; rust has no default arguments, so the argument is always passed (None for none)."
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath",
+    "apierror.withrequest"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "owner decision F830 (2026-11-17): ApiError exposes request_method and request_path (the status wrappers reach them through api_error(), rust has no inheritance); with_request records them on an error built elsewhere. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "apierror.fromresponse",
+   "aspect": "params",
+   "languages": [
+    "rust"
+   ],
+   "value": "*requestpath)",
+   "reason": "owner decision F830 (2026-11-17): from_response takes the request method and path as trailing optional arguments, which name the request in the message and on the error; rust has no default arguments."
+  },
+  {
+   "element": [
+    "client.withtokenprovider",
+    "bearerauthenticator.withtokenprovider"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "owner decision F862 (2026-11-17): a token-provider callback (Arc<dyn Fn() -> String>) beside the static token; rust has no overloads, so the provider is a separate constructor. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "baseapi.invokeapiforstatusunion",
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "owner decision F1062 (2026-11-17): an operation with several 2xx schemas decodes the body as the union variant its actual status declares; the generic decode hook is a separate method because rust has no overloads and no runtime type switch. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": "*.with*",
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "owner decision F868 (2026-11-17): models are immutable values with a copy method per property; rust spells it a consuming with_<property>(value) method (Java toBuilder, Kotlin copy, Dart copyWith), since the fields stay public for struct-update syntax. Remove the rule when the other eleven SDKs land the same decision."
   }
  ]
 }

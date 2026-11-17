@@ -30,4 +30,28 @@ impl StockItem {
             matrix: None,
         }
     }
+
+    /// Returns this value with `priority` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_priority(mut self, priority: Priority) -> Self {
+        self.priority = priority;
+        self
+    }
+
+    /// Returns this value with `availability` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_availability(mut self, availability: Availability) -> Self {
+        self.availability = Some(availability);
+        self
+    }
+
+    /// Returns this value with `matrix` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_matrix(mut self, matrix: Vec<Vec<i32>>) -> Self {
+        self.matrix = Some(matrix);
+        self
+    }
 }

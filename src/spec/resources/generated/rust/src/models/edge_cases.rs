@@ -119,4 +119,164 @@ impl EdgeCases {
             slug: None,
         }
     }
+
+    /// Returns this value with `free_form_any` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_free_form_any(mut self, free_form_any: crate::json_value::JsonValue) -> Self {
+        self.free_form_any = Some(free_form_any);
+        self
+    }
+
+    /// Returns this value with `favorite_color` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_favorite_color(mut self, favorite_color: Color) -> Self {
+        self.favorite_color = Some(favorite_color);
+        self
+    }
+
+    /// Returns this value with `permissions_note` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_permissions_note(mut self, permissions_note: String) -> Self {
+        self.permissions_note = Some(permissions_note);
+        self
+    }
+
+    /// Returns this value with `and` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_and(mut self, and: bool) -> Self {
+        self.and = Some(and);
+        self
+    }
+
+    /// Returns this value with `or` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_or(mut self, or: bool) -> Self {
+        self.or = Some(or);
+        self
+    }
+
+    /// Returns this value with `not` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_not(mut self, not: bool) -> Self {
+        self.not = Some(not);
+        self
+    }
+
+    /// Returns this value with `class` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_class(mut self, class: String) -> Self {
+        self.class = Some(class);
+        self
+    }
+
+    /// Returns this value with `r#return` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_return(mut self, r#return: String) -> Self {
+        self.r#return = Some(r#return);
+        self
+    }
+
+    /// Returns this value with `retry_after` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_retry_after(mut self, retry_after: chrono::Duration) -> Self {
+        self.retry_after = Some(retry_after);
+        self
+    }
+
+    /// Returns this value with `expires_at` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_expires_at(mut self, expires_at: crate::date_time::DateTime) -> Self {
+        self.expires_at = Some(expires_at);
+        self
+    }
+
+    /// Returns this value with `n2fa` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_n2fa(mut self, n2fa: bool) -> Self {
+        self.n2fa = Some(n2fa);
+        self
+    }
+
+    /// Returns this value with `separator` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_separator(mut self, separator: Separator) -> Self {
+        self.separator = Some(separator);
+        self
+    }
+
+    /// Returns this value with `null` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_null(mut self, null: String) -> Self {
+        self.null = Some(null);
+        self
+    }
+
+    /// Returns this value with `r#true` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_true(mut self, r#true: bool) -> Self {
+        self.r#true = Some(r#true);
+        self
+    }
+
+    /// Returns this value with `r#false` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_false(mut self, r#false: bool) -> Self {
+        self.r#false = Some(r#false);
+        self
+    }
+
+    /// Returns this value with `last_error` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_last_error(mut self, last_error: Error) -> Self {
+        self.last_error = Some(last_error);
+        self
+    }
+
+    /// Returns this value with `outcome` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_outcome(mut self, outcome: ModelResult) -> Self {
+        self.outcome = Some(outcome);
+        self
+    }
+
+    /// Returns this value with `cutoff` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_cutoff(mut self, cutoff: chrono::NaiveTime) -> Self {
+        self.cutoff = Some(cutoff);
+        self
+    }
+
+    /// Returns this value with `phase` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_phase(mut self, phase: EdgeCasesPhaseEnum) -> Self {
+        self.phase = Some(phase);
+        self
+    }
+
+    /// Returns this value with `slug` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_slug(mut self, slug: String) -> Self {
+        self.slug = Some(slug);
+        self
+    }
 }

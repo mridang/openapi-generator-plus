@@ -21,4 +21,20 @@ impl TreeNode {
     pub fn new(value: String) -> Self {
         Self { value, child: None }
     }
+
+    /// Returns this value with `value` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_value(mut self, value: String) -> Self {
+        self.value = value;
+        self
+    }
+
+    /// Returns this value with `child` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_child(mut self, child: Box<TreeNode>) -> Self {
+        self.child = Some(child);
+        self
+    }
 }

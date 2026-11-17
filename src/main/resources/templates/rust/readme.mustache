@@ -30,7 +30,7 @@ Add the dependency to your `Cargo.toml`:
 ```rust
 use {{packageName}}::{{clientClassName}};
 
-let client = {{clientClassName}}::with_token("https://api.example.com", "your-token", None)?;
+let client = {{clientClassName}}::with_token(Some("https://api.example.com"), Some("your-token"), None)?;
 ```
 
 Every operation is an `async` method on a typed API group, for example
@@ -105,6 +105,99 @@ shuts it down. Setting a proxy, a CA certificate or `verify_ssl(false)` on
 `ConfigurationError::InvalidArgument`, because those belong to the client you
 built.
 
+### Credentials
+
+`{{clientClassName}}::with_token(host, access_token, transport_options)` takes both
+values as `Option<&str>`. The value you pass wins; when you pass `None` the
+client reads the environment variable once, while it is built:
+`{{envPrefix}}_BASE_URL` for the host and `{{envPrefix}}_ACCESS_TOKEN` for the token. An
+empty variable counts as unset. A value that is neither passed nor set fails
+the constructor with `ConfigurationError::InvalidArgument`, so a missing
+credential never surfaces on the first request.
+
+To renew a token without rebuilding the client, pass a callback instead:
+`{{clientClassName}}::with_token_provider(host, provider, transport_options)` takes an
+`Arc<dyn Fn() -> String + Send + Sync>` (`TokenProvider`) that is called for
+every request, and `{{envPrefix}}_ACCESS_TOKEN` is not read. Only the Bearer path reads
+the environment; the other authenticators take their credentials as
+constructor arguments.
+
+### Per-call options
+
+Every operation takes an `options` argument (`Option<&...Options>`). Besides
+the operation's own optional parameters it carries three settings for that one
+call: `timeout(Duration)` replaces the client's end-to-end timeout (zero is
+refused with `ConfigurationError::InvalidTimeout`), `max_retries(u32)` replaces
+its retry budget (`0` turns retries off) and `header(name, value)` adds a header
+that wins over the client's default headers and the operation's header
+parameters. Authentication headers are applied after it.
+
+### Errors
+
+`ApiError` carries `request_method()` and `request_path()`, and so does the
+`ApiErrorFields` of `ApiErrorKind`; the status wrappers (`NotFoundError`,
+`ServerError`, `NetworkError`, ...) reach them through `api_error()`. The path
+is the operation path without scheme, host, query string or fragment, so a
+credential in a query string never reaches an error. The message names them:
+`API returned status code 404 for GET /items/7`.
+
+### Operations with several success responses
+
+When an operation declares several 2xx responses with different schemas, it
+returns the generated union (an enum with one variant per schema) and the body
+is decoded as the variant the actual status code declares, so a `201` is never
+read as the schema of the `200`. A 2xx status the operation does not declare is
+decoded by the union itself.
+
+### Models
+
+A model is a plain value: bind it without `mut` and it cannot change. Every
+property has a consuming `with_<property>(value)` method that returns the
+model with that one field replaced, so `model.clone().with_name("x".to_string())`
+is a changed copy and the original stays as it was. An optional property takes
+the inner type and stores `Some(value)`.
+
+### Behaviours to know
+
+- **Optional versus nullable.** An optional property is an `Option<T>` whether or
+  not its schema also allows `null`: an absent key and an explicit `null` both
+  decode to `None`, and `None` is left out when the model is written. Only a
+  required nullable property keeps the difference: its key must be present when
+  decoding and is written as `null` when the value is `None`.
+- **Unknown values fail loudly.** A string that is not one of an enum's values,
+  and a discriminator value that is not in the mapping, make decoding fail with a
+  `SerializationError` that names the value; they are never replaced by a
+  default.
+- **Repeated response headers.** `ApiResult::headers()` is a map with one entry
+  per lower-cased name, and a header the server sent more than once is joined
+  into that entry with `, ` in wire order (RFC 9110 section 5.3).
+- **No streaming.** A response body is read into memory, and a request body is a
+  value, not a stream. To stream, send the request through your own
+  `reqwest::Client` (see Custom HTTP client) or through the injected transport.
+- **`Configuration` and `TransportOptions` are separate on purpose.**
+  `Configuration` describes the API the operations talk to (the base URL and the
+  headers an API group adds to its calls); `TransportOptions` configures the HTTP
+  transport underneath (timeout, retries, proxy, TLS, redirects, request ids).
+  The client builds the first from the authenticator and takes the second as an
+  argument.
+
+### Compression
+
+Requests send `Accept-Encoding: gzip, deflate, br, zstd` unless you set that
+header, and the response body is decoded from `gzip`, `deflate`, `br` or `zstd`
+before it reaches you; `Content-Encoding: identity` passes through.
+
+### Logging and tracing
+
+The crate does not log. With the `opentelemetry` feature each request carries the
+W3C `traceparent` of the current span; otherwise inject your own through
+`TransportOptions` default headers, or wrap the calls in your own spans.
+
+### Versioning and supported Rust
+
+The crate version is `{{packageVersion}}`. The minimum supported Rust version is
+1.85, and the crate builds with the 2021 edition.
+
 ## Build
 
 ```bash
@@ -142,6 +235,22 @@ cargo deny check
 - Version: `{{packageVersion}}`
 - Edition: `2021`
 - MSRV: `1.85`
+- License: {{licenseId}}
+{{#hasAuthors}}
+- Authors: {{#authorsList}}{{{name}}}{{^-last}}, {{/-last}}{{/authorsList}}
+{{/hasAuthors}}
+{{#repositoryUrl}}
+- Repository: <{{{repositoryUrl}}}>
+{{/repositoryUrl}}
+{{#homepageUrl}}
+- Homepage: <{{{homepageUrl}}}>
+{{/homepageUrl}}
+{{#documentationUrl}}
+- Documentation: <{{{documentationUrl}}}>
+{{/documentationUrl}}
+{{#issueTrackerUrl}}
+- Issue tracker: <{{{issueTrackerUrl}}}>
+{{/issueTrackerUrl}}
 
 ## Caveats
 

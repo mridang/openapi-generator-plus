@@ -32,4 +32,36 @@ impl PhotoMetadata {
             location: None,
         }
     }
+
+    /// Returns this value with `caption` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_caption(mut self, caption: String) -> Self {
+        self.caption = Some(caption);
+        self
+    }
+
+    /// Returns this value with `is_primary` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_is_primary(mut self, is_primary: bool) -> Self {
+        self.is_primary = Some(is_primary);
+        self
+    }
+
+    /// Returns this value with `taken_at` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_taken_at(mut self, taken_at: crate::date_time::DateTime) -> Self {
+        self.taken_at = Some(taken_at);
+        self
+    }
+
+    /// Returns this value with `location` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_location(mut self, location: PhotoMetadataLocation) -> Self {
+        self.location = Some(location);
+        self
+    }
 }

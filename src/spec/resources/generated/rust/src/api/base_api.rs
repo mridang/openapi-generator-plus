@@ -109,6 +109,26 @@ pub(crate) struct InvokeApiParams<'a> {
     pub content_type: &'a str,
     pub return_type: &'a str,
     pub auth: Option<&'a dyn Authenticator>,
+    /// The per-call timeout, retry budget and extra headers a caller set on the
+    /// operation's options struct.
+    pub call: CallOptions,
+}
+
+/// Per-call settings that override the client's for one operation: the
+/// end-to-end timeout, the retry budget and extra request headers. Every field
+/// left at its default leaves the client's own setting in force.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct CallOptions {
+    /// Replaces the client's end-to-end timeout for this call. Zero is refused
+    /// with `ConfigurationError::InvalidTimeout`.
+    pub timeout: Option<std::time::Duration>,
+    /// Replaces the client's retry budget for this call; `Some(0)` turns the
+    /// retries off.
+    pub max_retries: Option<u32>,
+    /// Headers added to this call after the client's default headers and the
+    /// operation's own header parameters, so they win over both; the
+    /// authentication headers are applied after them.
+    pub headers: HashMap<String, String>,
 }
 
 /// Base struct for all API groups. Provides the `invoke_api` method that
@@ -146,11 +166,30 @@ impl BaseApi {
 
     /// Invokes an API operation and returns the raw HTTP response, after
     /// building the URL, selecting headers, applying authentication, and
-    /// serializing the body. A non-2xx status is returned as an `ApiError`.
+    /// serializing the body. A non-2xx status is returned as an `ApiError`, and
+    /// an error with no response (network failure, timeout) carries the method
+    /// and path of the request, never its query string.
     pub async fn invoke_api(
         &self,
         params: InvokeApiParams<'_>,
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let method = params.method;
+        let request_path = crate::errors::api_error::request_path_of(params.path);
+        self.invoke_api_inner(params, &request_path)
+            .await
+            .map_err(|err| crate::errors::api_error::attach_request(err, method, &request_path))
+    }
+
+    async fn invoke_api_inner(
+        &self,
+        params: InvokeApiParams<'_>,
+        request_path: &str,
+    ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(timeout) = params.call.timeout {
+            if timeout.is_zero() {
+                return Err(Box::new(ConfigurationError::InvalidTimeout(0)));
+            }
+        }
         let mut request_url = params.path.to_string();
         if !request_url.starts_with("http://") && !request_url.starts_with("https://") {
             /* Strip trailing slash from baseUrl when the path starts with a
@@ -207,6 +246,11 @@ impl BaseApi {
 
         /* Merge operation-specific headers */
         for (k, v) in &params.header_params {
+            insert_header(&mut headers, k.clone(), v.clone());
+        }
+
+        /* Merge the per-call headers, which win over both */
+        for (k, v) in &params.call.headers {
             insert_header(&mut headers, k.clone(), v.clone());
         }
 
@@ -295,13 +339,17 @@ impl BaseApi {
          * A multipart body is never sent twice. */
         let replayable = !matches!(serialized_body, Some(RequestBody::Multipart(_)));
         let max_retries = if replayable {
-            self.api_client.max_retries()
+            params
+                .call
+                .max_retries
+                .unwrap_or_else(|| self.api_client.max_retries())
         } else {
             0
         };
-        let deadline = self
-            .api_client
-            .request_timeout()
+        let deadline = params
+            .call
+            .timeout
+            .or_else(|| self.api_client.request_timeout())
             .map(|budget| std::time::Instant::now() + budget);
         let send_options = RequestOptions::new().deadline(deadline);
         let mut attempt: u32 = 0;
@@ -377,6 +425,8 @@ impl BaseApi {
                 response.status_code(),
                 response.headers(),
                 response.body(),
+                Some(params.method),
+                Some(request_path),
             ));
         }
 
@@ -497,6 +547,37 @@ impl BaseApi {
             None
         };
 
+        Ok(ApiResult::new(
+            response.status_code(),
+            data,
+            response.body().to_string(),
+            response.headers().clone(),
+        ))
+    }
+
+    /// Invokes an operation that declares several 2xx responses with different
+    /// schemas and returns the full result. `decode` is handed the actual
+    /// status code and the raw body and builds the union variant that status
+    /// declares, so a 201 is never read as the schema of the 200. An empty
+    /// body leaves the data `None`.
+    pub async fn invoke_api_for_status_union<T, F>(
+        &self,
+        params: InvokeApiParams<'_>,
+        decode: F,
+    ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>>
+    where
+        F: FnOnce(
+            u16,
+            &[u8],
+        )
+            -> Result<Option<T>, crate::errors::serialization_error::SerializationError>,
+    {
+        let response = self.invoke_api(params).await?;
+        let data = if response.body().is_empty() {
+            None
+        } else {
+            decode(response.status_code(), response.body().as_bytes())?
+        };
         Ok(ApiResult::new(
             response.status_code(),
             data,
@@ -780,7 +861,7 @@ fn is_valid_cookie_value(value: &str) -> bool {
 mod tests {
     use super::{
         fits_budget, is_retryable_error, is_retryable_status, parse_retry_after, retry_delay,
-        serialize_body, BaseApi, InvokeApiParams,
+        serialize_body, BaseApi, CallOptions, InvokeApiParams,
     };
     use crate::api_client::{ApiClient, RequestBody};
     use crate::api_http_response::ApiHttpResponse;
@@ -970,6 +1051,7 @@ mod tests {
             content_type: "application/json",
             return_type: "",
             auth: None,
+            call: CallOptions::default(),
         };
 
         api.invoke_api(params)
@@ -980,6 +1062,269 @@ mod tests {
             Some("application/xml".to_string()),
             *client.accept.lock().unwrap()
         );
+    }
+
+    /// Answers every request with a fixed status, or with a network failure, and
+    /// records what it was sent.
+    struct ScriptedClient {
+        status: u16,
+        network_failure: bool,
+        client_retries: u32,
+        calls: std::sync::atomic::AtomicUsize,
+        last_headers: std::sync::Mutex<HashMap<String, String>>,
+        last_deadline: std::sync::Mutex<Option<std::time::Instant>>,
+    }
+
+    impl ScriptedClient {
+        fn new(status: u16) -> Arc<Self> {
+            Self::custom(status, false, 0)
+        }
+
+        fn custom(status: u16, network_failure: bool, client_retries: u32) -> Arc<Self> {
+            Arc::new(Self {
+                status,
+                network_failure,
+                client_retries,
+                calls: std::sync::atomic::AtomicUsize::new(0),
+                last_headers: std::sync::Mutex::new(HashMap::new()),
+                last_deadline: std::sync::Mutex::new(None),
+            })
+        }
+
+        fn calls(&self) -> usize {
+            self.calls.load(std::sync::atomic::Ordering::SeqCst)
+        }
+
+        fn answer(
+            &self,
+            headers: &HashMap<String, String>,
+            deadline: Option<std::time::Instant>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            *self.last_headers.lock().unwrap() = headers.clone();
+            *self.last_deadline.lock().unwrap() = deadline;
+            let outcome: Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> =
+                if self.network_failure {
+                    Err(Box::new(
+                        crate::errors::NetworkError::try_from(crate::errors::ApiError::new(
+                            0,
+                            "refused".to_string(),
+                            None,
+                            None,
+                        ))
+                        .expect("status 0"),
+                    ))
+                } else {
+                    Ok(ApiHttpResponse::new(
+                        self.status,
+                        "{}".to_string(),
+                        HashMap::new(),
+                    ))
+                };
+            Box::pin(async move { outcome })
+        }
+    }
+
+    impl ApiClient for ScriptedClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.answer(headers, None)
+        }
+
+        fn send_request_with_options(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+            options: &crate::api_client::RequestOptions,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.answer(headers, options.deadline)
+        }
+
+        fn max_retries(&self) -> u32 {
+            self.client_retries
+        }
+    }
+
+    fn call_params(call: CallOptions) -> InvokeApiParams<'static> {
+        let mut header_params = HashMap::new();
+        header_params.insert("X-Call".to_string(), "from-parameter".to_string());
+        InvokeApiParams {
+            method: "GET",
+            path: "/items/7",
+            query_params: vec![("token".to_string(), "secret".to_string(), false)],
+            header_params,
+            body: None,
+            multipart: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call,
+        }
+    }
+
+    fn api_for(client: Arc<ScriptedClient>) -> BaseApi {
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .default_header("X-Call", "from-default")
+            .build();
+        BaseApi::new(client, config, None)
+    }
+
+    /* F830: an error names the method and path of the request, never its query. */
+    #[tokio::test]
+    async fn test_an_error_response_names_the_request_without_its_query_string() {
+        let api = api_for(ScriptedClient::new(404));
+
+        let err = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect_err("a 404 must fail");
+
+        let text = err.to_string();
+        assert!(
+            text.starts_with(
+                "API returned status code 404 for GET /items/7\nHTTP status code: 404"
+            ),
+            "{text}"
+        );
+        assert!(!text.contains("secret"), "{text}");
+    }
+
+    #[tokio::test]
+    async fn test_a_network_failure_carries_the_method_and_path_of_the_request() {
+        let api = api_for(ScriptedClient::custom(200, true, 0));
+
+        let err = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect_err("a refused connection must fail");
+
+        let network = err
+            .downcast_ref::<crate::errors::NetworkError>()
+            .expect("the failure stays a NetworkError");
+        assert_eq!(network.api_error().request_method(), Some("GET"));
+        assert_eq!(network.api_error().request_path(), Some("/items/7"));
+    }
+
+    /* F827: the per-call timeout, retry budget and headers replace the client's. */
+    #[tokio::test]
+    async fn test_a_per_call_header_wins_over_the_default_and_the_parameter() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let mut headers = HashMap::new();
+        headers.insert("X-Call".to_string(), "from-call".to_string());
+
+        api.invoke_api(call_params(CallOptions {
+            headers,
+            ..CallOptions::default()
+        }))
+        .await
+        .expect("a 200 response must succeed");
+
+        assert_eq!(
+            Some("from-call".to_string()),
+            client.last_headers.lock().unwrap().get("X-Call").cloned()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_a_per_call_retry_budget_of_zero_turns_the_client_retries_off() {
+        let client = ScriptedClient::custom(500, false, 2);
+        let api = api_for(client.clone());
+
+        let result = api
+            .invoke_api(call_params(CallOptions {
+                max_retries: Some(0),
+                ..CallOptions::default()
+            }))
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(1, client.calls());
+    }
+
+    #[tokio::test]
+    async fn test_a_per_call_retry_budget_replaces_a_client_that_never_retries() {
+        let client = ScriptedClient::new(500);
+        let api = api_for(client.clone());
+
+        let result = api
+            .invoke_api(call_params(CallOptions {
+                max_retries: Some(1),
+                ..CallOptions::default()
+            }))
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(2, client.calls());
+    }
+
+    #[tokio::test]
+    async fn test_a_per_call_timeout_sets_the_deadline_the_transport_receives() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let before = std::time::Instant::now();
+
+        api.invoke_api(call_params(CallOptions {
+            timeout: Some(std::time::Duration::from_secs(30)),
+            ..CallOptions::default()
+        }))
+        .await
+        .expect("a 200 response must succeed");
+
+        let deadline = client.last_deadline.lock().unwrap().expect("a deadline");
+        assert!(deadline >= before + std::time::Duration::from_secs(30));
+        assert!(deadline <= std::time::Instant::now() + std::time::Duration::from_secs(30));
+    }
+
+    #[tokio::test]
+    async fn test_a_zero_per_call_timeout_is_refused_before_anything_is_sent() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+
+        let err = api
+            .invoke_api(call_params(CallOptions {
+                timeout: Some(std::time::Duration::ZERO),
+                ..CallOptions::default()
+            }))
+            .await
+            .expect_err("a zero timeout must be refused");
+
+        assert!(
+            err.to_string()
+                .contains("Invalid timeout: must be a positive number of milliseconds (got 0)"),
+            "{err}"
+        );
+        assert_eq!(0, client.calls());
     }
 
     /// Runs a String-returning operation against a response with the given
@@ -1004,6 +1349,7 @@ mod tests {
             content_type: "application/json",
             return_type: "String",
             auth: None,
+            call: CallOptions::default(),
         };
         let result = api
             .invoke_api_for_result::<String>(params)

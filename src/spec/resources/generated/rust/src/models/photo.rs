@@ -30,4 +30,36 @@ impl Photo {
             url: None,
         }
     }
+
+    /// Returns this value with `id` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_id(mut self, id: i64) -> Self {
+        self.id = Some(id);
+        self
+    }
+
+    /// Returns this value with `caption` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_caption(mut self, caption: String) -> Self {
+        self.caption = Some(caption);
+        self
+    }
+
+    /// Returns this value with `is_primary` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_is_primary(mut self, is_primary: bool) -> Self {
+        self.is_primary = Some(is_primary);
+        self
+    }
+
+    /// Returns this value with `url` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_url(mut self, url: String) -> Self {
+        self.url = Some(url);
+        self
+    }
 }

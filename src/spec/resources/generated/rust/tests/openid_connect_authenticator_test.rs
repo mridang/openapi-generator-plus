@@ -13,7 +13,7 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use petstore::api_client::{ApiClient, RequestBody};
+use petstore::api_client::{ApiClient, RequestBody, RequestOptions};
 use petstore::api_http_response::ApiHttpResponse;
 use petstore::auth::oauth::{OpenIdConnectAuthenticator, SsoAuthAuthenticator};
 use petstore::auth::Authenticator;
@@ -30,6 +30,7 @@ struct FakeApiClient {
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
     last_method: Mutex<Option<String>>,
+    discovery_no_redirect: Mutex<Option<bool>>,
     get_count: Mutex<u32>,
     gate_posts: AtomicBool,
     post_entered: AtomicBool,
@@ -43,6 +44,7 @@ impl FakeApiClient {
             last_url: Mutex::new(None),
             last_body: Mutex::new(None),
             last_method: Mutex::new(None),
+            discovery_no_redirect: Mutex::new(None),
             get_count: Mutex::new(0),
             gate_posts: AtomicBool::new(false),
             post_entered: AtomicBool::new(false),
@@ -104,9 +106,33 @@ impl FakeApiClient {
     fn last_method(&self) -> Option<String> {
         self.last_method.lock().unwrap().clone()
     }
+
+    fn discovery_no_redirect(&self) -> Option<bool> {
+        *self.discovery_no_redirect.lock().unwrap()
+    }
 }
 
 impl ApiClient for FakeApiClient {
+    fn send_request_with_options(
+        &self,
+        method: &str,
+        url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&RequestBody>,
+        options: &RequestOptions,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
+        if method == "GET" {
+            *self.discovery_no_redirect.lock().unwrap() = Some(options.no_redirect);
+        }
+        self.send_request(method, url, headers, body)
+    }
+
     fn send_request(
         &self,
         method: &str,
@@ -258,6 +284,26 @@ async fn test_fetches_discovery_document() {
 /// oauth-oidc-discovery-no-status-check: a non-2xx discovery response (e.g. a
 /// 500 returning an HTML error page) must surface as a status error, NOT a
 /// misleading "invalid JSON" parse error.
+/* F860: discovery is sent without following redirects, which also keeps the
+ * transport's default headers (an API credential) away from the identity
+ * provider. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_discovery_is_sent_without_following_redirects() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("my-state")
+        .await
+        .expect("should succeed");
+
+    assert_eq!(Some(true), client.discovery_no_redirect());
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn test_discovery_non_2xx_status_surfaces_status_error() {
     let client = Arc::new(FakeApiClient::new());

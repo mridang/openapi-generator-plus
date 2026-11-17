@@ -23,4 +23,20 @@ impl SetPetAvatarRequest {
     pub fn new(data: Vec<u8>, mime_type: String) -> Self {
         Self { data, mime_type }
     }
+
+    /// Returns this value with `data` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_data(mut self, data: Vec<u8>) -> Self {
+        self.data = data;
+        self
+    }
+
+    /// Returns this value with `mime_type` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_mime_type(mut self, mime_type: String) -> Self {
+        self.mime_type = mime_type;
+        self
+    }
 }
