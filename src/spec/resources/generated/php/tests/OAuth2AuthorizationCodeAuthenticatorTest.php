@@ -285,7 +285,7 @@ test('authorize url with existing query string uses amp separator', function ():
  * __debugInfo(): the literal secret is absent and the masked '***'
  * placeholder is present.
  */
-test('print_r() redacts the secret and shows ***', function (): void {
+test('redacts secret', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
