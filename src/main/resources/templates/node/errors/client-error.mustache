@@ -1,6 +1,7 @@
 {{>api_info}}
 
 import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
 
 /**
  * Exception for HTTP 4xx client errors.
@@ -12,7 +13,7 @@ export class ClientError<T = unknown> extends ApiError<T> {
     responseHeaders: Record<string, string> | null = null,
     responseBody: string | null = null,
     errorBody: T | null = null,
-    options?: { cause?: unknown }
+    options?: ApiErrorOptions
   ) {
     super(statusCode, message, responseHeaders, responseBody, errorBody, options);
     this.name = 'ClientError';
@@ -21,7 +22,7 @@ export class ClientError<T = unknown> extends ApiError<T> {
 
 ApiError.registerStatusError(
   4,
-  (statusCode, message, headers, body, errorBody) =>
-    new ClientError(statusCode, message, headers, body, errorBody),
+  (statusCode, message, headers, body, errorBody, options) =>
+    new ClientError(statusCode, message, headers, body, errorBody, options),
   true
 );

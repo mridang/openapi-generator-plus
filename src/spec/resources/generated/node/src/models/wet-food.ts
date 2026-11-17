@@ -37,9 +37,9 @@ export class WetFood {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "foodType" })
-  foodType: string = "wet";
+  readonly foodType: string = "wet";
   @Expose({ name: "volumeMl" })
-  volumeMl!: number;
+  readonly volumeMl!: number;
 
   constructor(data?: Partial<WetFood>) {
     Object.assign(
@@ -82,6 +82,20 @@ export class WetFood {
         `volumeMl is outside the 32-bit integer range, got ${this.volumeMl}`,
       );
     }
+  }
+
+  /**
+   * A copy of this WetFood with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new WetFood
+   */
+  with(patch: Partial<WetFood>): WetFood {
+    const copy = new WetFood({ ...this, ...patch });
+    return copy;
   }
 
   /**

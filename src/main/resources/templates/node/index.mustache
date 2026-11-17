@@ -54,6 +54,7 @@ export * from './errors/index{{importFileExtension}}';
 export type { Authenticator } from './auth/authenticator{{importFileExtension}}';
 export type { HttpAwareAuthenticator } from './auth/http-aware-authenticator{{importFileExtension}}';
 export { isHttpAwareAuthenticator } from './auth/http-aware-authenticator{{importFileExtension}}';
+export type { CredentialProvider } from './auth/credentials{{importFileExtension}}';
 {{#hasBasicAuth}}
 export { BasicAuthenticator } from './auth/basic-authenticator{{importFileExtension}}';
 {{/hasBasicAuth}}

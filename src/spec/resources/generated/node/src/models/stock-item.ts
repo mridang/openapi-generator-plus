@@ -39,14 +39,14 @@ export class StockItem {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "priority" })
-  priority!: Priority;
+  readonly priority!: Priority;
   @Expose({ name: "availability" })
-  availability?: Availability;
+  readonly availability?: Availability;
   /**
    * Quantity grid as an array of integer arrays
    */
   @Expose({ name: "matrix" })
-  matrix?: Array<Array<number>>;
+  readonly matrix?: Array<Array<number>>;
 
   constructor(data?: Partial<StockItem>) {
     Object.assign(
@@ -87,6 +87,20 @@ export class StockItem {
         );
       }
     }
+  }
+
+  /**
+   * A copy of this StockItem with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new StockItem
+   */
+  with(patch: Partial<StockItem>): StockItem {
+    const copy = new StockItem({ ...this, ...patch });
+    return copy;
   }
 
   /**

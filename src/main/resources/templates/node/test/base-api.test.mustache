@@ -16,7 +16,7 @@ import { ConflictError } from '../src/errors/conflict-error{{importFileExtension
 import { UnprocessableEntityError } from '../src/errors/unprocessable-entity-error{{importFileExtension}}';
 import { TooManyRequestsError } from '../src/errors/too-many-requests-error{{importFileExtension}}';
 import { InternalServerError } from '../src/errors/internal-server-error{{importFileExtension}}';
-import type { ApiClient, RequestOptions } from '../src/api-client{{importFileExtension}}';
+import type { ApiClient, RequestOptions, SendRequestOptions } from '../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../src/api-http-response{{importFileExtension}}';
 import type { ApiResult } from '../src/api-result{{importFileExtension}}';
 import { PetApi } from '../src/api/pet-api{{importFileExtension}}';
@@ -1393,4 +1393,144 @@ describe('request cancellation against the slow endpoint', () => {
     const error = await slow(testApi, { signal: new AbortController().signal });
     expect(error).toBeInstanceOf(NetworkTimeoutError);
   }, 15000);
+});
+
+class RecordingApiClient implements ApiClient {
+  statusCode = 200;
+  method = '';
+  url = '';
+  headers: Record<string, string> = {};
+  sendOptions: SendRequestOptions | undefined;
+  async sendRequest(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    _body: string | Buffer | Record<string, unknown> | null,
+    options?: SendRequestOptions
+  ): Promise<ApiHttpResponse> {
+    this.method = method;
+    this.url = url;
+    this.headers = { ...headers };
+    this.sendOptions = options;
+    return { statusCode: this.statusCode, body: '{}', headers: { 'content-type': 'application/json' } };
+  }
+}
+
+describe('BaseApi error request context', () => {
+  const fail = async (client: RecordingApiClient, method: string, path: string, baseUrl = 'http://localhost'): Promise<ApiError> => {
+    const testApi = new TestableApi(client, new Configuration({ baseUrl }));
+    try {
+      await testApi.callForResult(method, path, { page: '2' }, {}, null, ['application/json'], 'application/json', null);
+    } catch (e) {
+      return e as ApiError;
+    }
+    throw new Error('expected the call to fail');
+  };
+
+  test('the error carries the method and the path without the query string', async () => {
+    const client = new RecordingApiClient();
+    client.statusCode = 404;
+    const err = await fail(client, 'GET', '/items/7');
+    expect(err).toBeInstanceOf(NotFoundError);
+    expect(err.requestMethod).toBe('GET');
+    expect(err.requestPath).toBe('/items/7');
+    expect(client.url).toBe('http://localhost/items/7?page=2');
+  });
+
+  test('the path keeps the base path of the server and drops the host', async () => {
+    const client = new RecordingApiClient();
+    client.statusCode = 500;
+    const err = await fail(client, 'POST', '/items', 'https://api.example.com/v3');
+    expect(err.requestMethod).toBe('POST');
+    expect(err.requestPath).toBe('/v3/items');
+  });
+
+  test('a relative base URL gives the path without the query string', async () => {
+    const client = new RecordingApiClient();
+    client.statusCode = 418;
+    const err = await fail(client, 'PUT', '/items/7', '/api/v3');
+    expect(err.requestPath).toBe('/api/v3/items/7');
+  });
+
+  test('the rendered message names the request', async () => {
+    const client = new RecordingApiClient();
+    client.statusCode = 503;
+    const err = await fail(client, 'DELETE', '/items/7');
+    expect(err.toString()).toBe('API returned status code 503\nHTTP status code: 503\nRequest: DELETE /items/7\nResponse headers: {"content-type":"application/json"}\nResponse body: {}');
+  });
+});
+
+describe('BaseApi per-call request options', () => {
+  const send = async (client: RecordingApiClient, requestOptions?: RequestOptions, config?: Configuration, headerParams: Record<string, string> = {}): Promise<void> => {
+    const testApi = new TestableApi(client, config ?? new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.callForResult('GET', '/items', {}, headerParams, null, ['application/json'], 'application/json', null, undefined, requestOptions);
+  };
+
+  test('without per-call options the transport defaults apply', async () => {
+    const client = new RecordingApiClient();
+    await send(client);
+    expect(client.sendOptions?.timeout).toBeUndefined();
+    expect(client.sendOptions?.maxRetries).toBeUndefined();
+  });
+
+  test('timeout and maxRetries reach the transport', async () => {
+    const client = new RecordingApiClient();
+    await send(client, { timeout: 250, maxRetries: 0 });
+    expect(client.sendOptions?.timeout).toBe(250);
+    expect(client.sendOptions?.maxRetries).toBe(0);
+  });
+
+  test('a null timeout reaches the transport as no timeout', async () => {
+    const client = new RecordingApiClient();
+    await send(client, { timeout: null });
+    expect(client.sendOptions?.timeout).toBeNull();
+  });
+
+  test.each([[0], [-1], [Number.NaN]])('a timeout of %s is refused', async (timeout) => {
+    await expect(send(new RecordingApiClient(), { timeout })).rejects.toThrow(/Invalid timeout/);
+  });
+
+  test.each([[-1], [1.5], [Number.NaN]])('maxRetries of %s is refused', async (maxRetries) => {
+    await expect(send(new RecordingApiClient(), { maxRetries })).rejects.toThrow(/Invalid maxRetries/);
+  });
+
+  test('the call is not sent when an option is refused', async () => {
+    const client = new RecordingApiClient();
+    await expect(send(client, { maxRetries: -1 })).rejects.toThrow(TypeError);
+    expect(client.url).toBe('');
+  });
+
+  test('per-call headers are sent', async () => {
+    const client = new RecordingApiClient();
+    await send(client, { headers: { 'X-Trace-Id': 'abc' } });
+    expect(client.headers['X-Trace-Id']).toBe('abc');
+  });
+
+  test('a per-call header replaces a default or operation header of the same name, whatever its case', async () => {
+    const client = new RecordingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost', defaultHeaders: { 'X-Region': 'default' } });
+    await send(client, { headers: { 'x-region': 'call', 'x-op': 'call' } }, config, { 'X-Op': 'operation' });
+    expect(client.headers['x-region']).toBe('call');
+    expect(client.headers['X-Region']).toBeUndefined();
+    expect(client.headers['x-op']).toBe('call');
+    expect(client.headers['X-Op']).toBeUndefined();
+  });
+
+  test('per-call headers never replace the authentication headers', async () => {
+    const client = new RecordingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }), new TestAuthenticator({ Authorization: 'Bearer real' }));
+    await testApi.callForResult('GET', '/items', {}, {}, null, ['application/json'], 'application/json', null, undefined, { headers: { Authorization: 'Bearer spoofed' } });
+    expect(client.headers['Authorization']).toBe('Bearer real');
+  });
+
+  test('per-call header names are treated as credential headers on a redirect', async () => {
+    const client = new RecordingApiClient();
+    await send(client, { headers: { 'X-Call-Token': 'abc' } });
+    expect(client.sendOptions?.credentialHeaderNames).toContain('X-Call-Token');
+  });
+
+  test('a per-call header with a non-string value is refused', async () => {
+    const headers = { 'X-Count': 3 } as unknown as Record<string, string>;
+    await expect(send(new RecordingApiClient(), { headers })).rejects.toThrow(/Invalid per-call header/);
+  });
 });

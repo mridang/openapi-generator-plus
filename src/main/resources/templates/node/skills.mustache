@@ -289,9 +289,17 @@ const transport = TransportOptions.builder()
 
 `TransportOptions.builder().fetch(myFetch).fetchOptions({ keepalive: true })` sends every request through your own `fetch`. SDK defaults (timeout, user agent, redirect policy) still apply; the SDK never closes what you supply, and a custom `fetch` combined with `proxy`, `caCertPath` or `verifySsl(false)` throws a `TypeError`.
 
+### Per-call options
+
+Every operation takes a trailing `RequestOptions` object: `{ signal?, timeout?, maxRetries?, headers? }`. `timeout` (positive milliseconds, or `null` to wait indefinitely) and `maxRetries` (a non-negative integer) replace the transport's values for that call; `headers` are extra request headers that replace a client default or operation header of the same name but never the authentication headers. An invalid value throws a `TypeError` before the request is sent.
+
+### Credentials
+
+An authenticator without an explicit credential reads `{{envPrefix}}_<FIELD>` from the environment once, when it is built (an empty variable is unset): `{{envPrefix}}_TOKEN` (`{{clientClassName}}.withToken`, `BearerAuthenticator`), `{{envPrefix}}_API_KEY` (`ApiKeyAuthenticator`), `{{envPrefix}}_USERNAME` and `{{envPrefix}}_PASSWORD` (`BasicAuthenticator`); a scheme-specific authenticator reads `{{envPrefix}}_<SCHEME>_<FIELD>`. A missing credential throws a `TypeError` when the authenticator is built. `BearerAuthenticator` and `withToken` also take a function returning the token (or a promise of it), called for every request.
+
 ### Cancellation
 
-Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSignal }`). A client-level signal goes in the third constructor argument and is merged with the per-call signal; either one cancels the call. Cancellation rejects with the signal's reason (an `AbortError` by default), never `NetworkTimeoutError`.
+Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSignal }` plus the per-call options above). A client-level signal goes in the third constructor argument and is merged with the per-call signal; either one cancels the call. Cancellation rejects with the signal's reason (an `AbortError` by default), never `NetworkTimeoutError`.
 
 ```typescript
 const controller = new AbortController();
@@ -312,7 +320,7 @@ All API methods are asynchronous; call them with `await`.
 
 ## Models
 
-Models are generated as TypeScript classes in the `src/models/` directory.
+Models are generated as TypeScript classes in the `src/models/` directory. Every field is `readonly`; `model.with({ field: value })` returns a validated copy with the fields replaced. A `format: date` field or parameter is a plain `YYYY-MM-DD` string (a `Date` is accepted on input and sent as its UTC date); `format: date-time` is a `Date`.
 
 ```typescript
 {{#models}}{{#model}}{{#-first}}import { {{classname}} } from '{{npmName}}';

@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -76,10 +77,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("Decimal", "Decimal");
         // Map OpenAPI date-time formats to the JS Date type so
         // class-transformer's @Type(() => Date) decorator can
-        // hydrate ISO-8601 strings into actual Date instances
+        // hydrate ISO-8601 strings into actual Date instances.
+        // A `format: date` is a plain YYYY-MM-DD string: JavaScript has no
+        // date-only type, and a Date would carry a time and a zone the wire
+        // value never had.
         // round-trip (the previous `string` mapping forced callers
         // to parse manually and produced wire/runtime drift).
-        typeMapping.put("date", "Date");
+        typeMapping.put("date", "string");
         typeMapping.put("DateTime", "Date");
         typeMapping.put("binary", "Buffer");
         typeMapping.put("File", "Buffer");
@@ -137,6 +141,21 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
         setEnumUnknownDefaultCase(true);
 
+        cliOptions.add(CliOption.newString("repositoryUrl",
+                "URL of the source repository, written to the package manifest and the README."));
+        cliOptions.add(CliOption.newString("homepageUrl",
+                "URL of the project home page, written to the package manifest and the README."));
+        cliOptions.add(CliOption.newString("authors",
+                "Authors of the package, written to the package manifest and the README."));
+        cliOptions.add(CliOption.newString("license",
+                "SPDX identifier of the package license (default: MIT). Same as licenseId."));
+        cliOptions.add(CliOption.newString("documentationUrl",
+                "URL of the documentation, written to the README."));
+        cliOptions.add(CliOption.newString("issueTrackerUrl",
+                "URL of the issue tracker, written to the package manifest and the README."));
+        cliOptions.add(CliOption.newString("envPrefix",
+                "Prefix of the environment variables the authenticators read when no credential is "
+                        + "passed (default: the npm package name in upper snake case)."));
         cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
                 "Version of the generated npm package (default: 1.0.0).").defaultValue("1.0.0"));
     }
@@ -332,6 +351,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("prettierignore.mustache", "", ".prettierignore"),
             new SupportingFileSpec("eslint_config.mustache", "", "eslint.config.js"),
             new SupportingFileSpec("authenticator.mustache", "src/auth", "authenticator.ts"),
+            new SupportingFileSpec("credentials.mustache", "src/auth", "credentials.ts"),
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
@@ -356,7 +376,26 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
     @Override
     public void processOpts() {
+        // `license` is the SPDX identifier under its package-metadata name; the shared
+        // option that fills the manifest is `licenseId`, which wins when both are given.
+        if (additionalProperties.containsKey("license") && !additionalProperties.containsKey("licenseId")) {
+            additionalProperties.put("licenseId", additionalProperties.get("license"));
+        }
         super.processOpts();
+        for (final String key : List.of("repositoryUrl", "homepageUrl", "authors", "issueTrackerUrl")) {
+            final Object value = additionalProperties.get(key);
+            if (value != null && !value.toString().isBlank()) {
+                additionalProperties.put(key + "Json", jsonEscape(value.toString().strip()));
+            } else {
+                additionalProperties.remove(key);
+            }
+        }
+        for (final String key : List.of("documentationUrl")) {
+            final Object value = additionalProperties.get(key);
+            if (value == null || value.toString().isBlank()) {
+                additionalProperties.remove(key);
+            }
+        }
         additionalProperties.put("perSchemeAuthExports", perSchemeAuthExports);
         additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);
         additionalProperties.put("perSchemeAuthImports", perSchemeAuthImports);
@@ -365,6 +404,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         final String npmName = getPropertyOrDefault("npmName", "openapi-typescript-client");
         additionalProperties.put(
                 "userAgentDefault", npmName + "/" + packageVersion + " (node)");
+        additionalProperties.put("envPrefix", envPrefix(npmName));
 
         // Only set apiPackage default when the caller did not override it.
         if (this.apiPackage == null || this.apiPackage.isEmpty() || "openapitools".equals(this.apiPackage)) {
@@ -456,6 +496,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/api-result.test.mustache",
                             "test",
                             "api-result.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/credentials.test.mustache",
+                            "test",
+                            "credentials.test.ts"));
         }
 
         // Spec-coupled tests: they import spec-derived models/APIs, the
@@ -754,7 +799,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         final String name = super.toEnumVarName(value, datatype);
         if (!name.isEmpty()) {
-            return name;
+            // An integer member takes the member casing of every other enum (Number1, not
+            // NUMBER_1), as the string members do.
+            return isNumericEnumDatatype(datatype) && !value.isEmpty()
+                    ? getEnumCasing().apply(name.toLowerCase(java.util.Locale.ROOT))
+                    : name;
         }
         // A value that sanitises to nothing still needs a legal member name:
         // whitespace-only becomes SPACE_<length>, anything else VALUE_<hex
@@ -1047,7 +1096,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
         if (op.pathParams != null) {
             for (final CodegenParameter p : op.pathParams) {
-                fields.add(wrapperField(p.paramName, nullableType(p.dataType, p.isNullable), false));
+                fields.add(wrapperField(p.paramName, nullableType(dateInputType(p, p.dataType), p.isNullable), false));
             }
         }
         if (op.bodyParam != null) {
@@ -1163,7 +1212,22 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         if (upload && p.dataType != null) {
             return p.dataType.replaceAll("\\bBuffer\\b", "Buffer | Blob");
         }
-        return p.dataType;
+        return dateInputType(p, p.dataType);
+    }
+
+    /**
+     * The type of a parameter value a caller passes: a {@code format: date}
+     * parameter (or an array of them) is a {@code YYYY-MM-DD} string and also
+     * accepts a {@code Date}, whose UTC date is sent.
+     */
+    static String dateInputType(CodegenParameter p, String type) {
+        if (p.isDate) {
+            return type.replaceFirst("^string$", "string | Date");
+        }
+        if (p.isArray && p.items != null && p.items.isDate) {
+            return type.replace("<string>", "<string | Date>");
+        }
+        return type;
     }
 
     private static String nullableType(String dataType, boolean isNullable) {
@@ -1284,15 +1348,26 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         final Map<String, Object> ctx = baseSchemeContext(spec);
         recordSchemeAuthenticator(spec, String.valueOf(ctx.get("className")));
         ctx.put("imports", buildNodeImports(spec));
+        final boolean credentialed = hasEnvCredentials(spec);
         final List<Map<String, String>> constructorParams = new ArrayList<>();
         for (final String name : spec.paramNames()) {
             final Map<String, String> param = new HashMap<>();
             param.put("name", name);
             param.put("type", "string");
+            // A static credential falls back to the environment, so it may be omitted.
+            if (credentialed && !"host".equals(name)) {
+                param.put("optional", "true");
+                if ("token".equals(name)) {
+                    param.put("type", "string | CredentialProvider");
+                }
+            }
             constructorParams.add(param);
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildNodeSuperArgs(spec));
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            ctx.put("typeImports", List.of(imp("CredentialProvider", "./credentials")));
+        }
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
@@ -1308,7 +1383,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         perSchemeAuthExports.add(Map.of(
                 "className", className,
                 "path", (spec.isOAuth() ? "auth/oauth/" : "auth/") + stem));
-        perSchemeAuthEntries.add(Map.of("className", className, "baseClass", spec.baseClass()));
+        final Map<String, String> entry = new HashMap<>();
+        entry.put("className", className);
+        entry.put("baseClass", spec.baseClass());
+        final String envVars = schemeEnvVars(spec);
+        if (!envVars.isEmpty()) {
+            entry.put("envVars", envVars);
+        }
+        perSchemeAuthEntries.add(entry);
         for (final String name : List.of(className, spec.baseClass())) {
             if (perSchemeAuthImports.stream().noneMatch(m -> name.equals(m.get("name")))) {
                 perSchemeAuthImports.add(Map.of("name", name));
@@ -1368,16 +1450,101 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 .replace("\n", "\\n").replace("\r", "\\r") + "'";
     }
 
-    private List<String> buildNodeSuperArgs(SchemeAuthSpec spec) {
+    /**
+     * The prefix of the environment variables the authenticators read: the
+     * {@code envPrefix} option when given, else the package name in upper snake case
+     * ({@code @acme/pet-client} gives {@code ACME_PET_CLIENT}).
+     */
+    private String envPrefix(String npmName) {
+        final Object configured = additionalProperties.get("envPrefix");
+        return envPrefixFor(
+                configured != null && !configured.toString().isBlank() ? configured.toString() : npmName);
+    }
+
+    /** The text as a JSON string body: backslash, quote and control characters escaped. */
+    static String jsonEscape(String text) {
+        final StringBuilder out = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            switch (c) {
+                case '"':
+                    out.append("\\\"");
+                    break;
+                case '\\':
+                    out.append("\\\\");
+                    break;
+                case '\n':
+                    out.append("\\n");
+                    break;
+                case '\r':
+                    out.append("\\r");
+                    break;
+                case '\t':
+                    out.append("\\t");
+                    break;
+                default:
+                    if (c < 0x20) {
+                        out.append(String.format(Locale.ROOT, "\\u%04x", (int) c));
+                    } else {
+                        out.append(c);
+                    }
+            }
+        }
+        return out.toString();
+    }
+
+    /** Upper snake case of a name, led by {@code SDK_} when it would start with a digit. */
+    static String envPrefixFor(String source) {
+        final String prefix = source.replaceAll("[^A-Za-z0-9]+", "_").replaceAll("^_+|_+$", "")
+                .toUpperCase(Locale.ROOT);
+        return prefix.isEmpty() || Character.isDigit(prefix.charAt(0)) ? "SDK_" + prefix : prefix;
+    }
+
+    /** Whether the scheme's authenticator reads its credential from the environment when none is passed. */
+    private static boolean hasEnvCredentials(SchemeAuthSpec spec) {
+        return "BasicAuthenticator".equals(spec.baseClass())
+                || "BearerAuthenticator".equals(spec.baseClass())
+                || "ApiKeyAuthenticator".equals(spec.baseClass());
+    }
+
+    /**
+     * The environment field of a scheme's credential: the scheme name in upper snake case,
+     * then the field, so two schemes of one kind never share a variable.
+     */
+    private static String schemeEnvField(SchemeAuthSpec spec, String field) {
+        return NamingConvention.SNAKE_CASE.apply(spec.schemeName()).toUpperCase(Locale.ROOT) + field;
+    }
+
+    /**
+     * The environment variables a scheme's authenticator reads, as the quoted list the unit test
+     * puts in an array literal ({@code 'PREFIX_X_TOKEN'}); empty for an authenticator that
+     * takes no environment fallback.
+     */
+    private String schemeEnvVars(SchemeAuthSpec spec) {
+        final String prefix = String.valueOf(additionalProperties.get("envPrefix")) + "_";
         if ("BasicAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "username", "password");
+            return quoteSingle(prefix + schemeEnvField(spec, "_USERNAME")) + ", "
+                    + quoteSingle(prefix + schemeEnvField(spec, "_PASSWORD"));
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "token");
+            return quoteSingle(prefix + schemeEnvField(spec, "_TOKEN"));
+        }
+        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            return quoteSingle(prefix + schemeEnvField(spec, "_API_KEY"));
+        }
+        return "";
+    }
+
+    private List<String> buildNodeSuperArgs(SchemeAuthSpec spec) {
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "username", "password", quoteSingle(schemeEnvField(spec, "_")));
+        }
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "token", quoteSingle(schemeEnvField(spec, "_TOKEN")));
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of("host", quoteSingle(java.util.Objects.toString(spec.keyParamName(), "")), "apiKey",
-                    "ApiKeyLocation." + spec.keyIn());
+                    "ApiKeyLocation." + spec.keyIn(), quoteSingle(schemeEnvField(spec, "_API_KEY")));
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "clientId", "clientSecret",
@@ -1577,6 +1744,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainNumberDecimal)) {
                     serializerImports.add("decodePlainNumber");
                 }
+                if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainDate)) {
+                    serializerImports.add("plainDate");
+                }
                 modelMap.put("serializerImports", String.join(", ", serializerImports));
                 modelMap.put("hasSerializerImports", !serializerImports.isEmpty());
                 modelMap.put("hasUuidImport", namesType(model, "UUID"));
@@ -1593,6 +1763,24 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return Boolean.TRUE.equals(prop.vendorExtensions.get("isPlainNumberDecimal"));
     }
 
+    /** Whether the property is a {@code format: date}, or an array of them, held as a plain string. */
+    private static boolean isPlainDate(CodegenProperty prop) {
+        return !prop.isDateTime
+                && (prop.isDate || (prop.isArray && prop.items != null && prop.items.isDate));
+    }
+
+    /**
+     * A {@code format: date} property is a plain string and needs no decorator;
+     * every other property is decided by the shared rule.
+     */
+    @Override
+    protected boolean needsTypeDecorator(CodegenProperty prop) {
+        if (isPlainDate(prop)) {
+            return false;
+        }
+        return super.needsTypeDecorator(prop);
+    }
+
     /** Whether the model template emits an {@code @Transform} for the property. */
     private static boolean hasTransform(CodegenProperty prop) {
         final Map<String, Object> ext = prop.vendorExtensions;
@@ -1601,7 +1789,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 || Boolean.TRUE.equals(ext.get("isPlainNumberDecimal"))
                 || prop.isByteArray
                 || prop.isDateTime
-                || prop.isDate
                 || (prop.isArray && prop.items != null && prop.items.isByteArray);
     }
 

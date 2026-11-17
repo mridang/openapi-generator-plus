@@ -5,5 +5,5 @@ export interface GetPetSummaryOptions {
   /** Session token: \"a<b>\" & it's required */
   readonly session: string;
   /** Extra dates to summarise */
-  readonly days?: Array<Date>;
+  readonly days?: Array<string | Date>;
 }

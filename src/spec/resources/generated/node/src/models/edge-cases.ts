@@ -60,24 +60,24 @@ export class EdgeCases {
   };
 
   @Expose({ name: "freeFormAny" })
-  freeFormAny?: unknown;
+  readonly freeFormAny?: unknown;
   @Expose({ name: "favoriteColor" })
-  favoriteColor?: Color;
+  readonly favoriteColor?: Color;
   /**
    * Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
    */
   @Expose({ name: "permissionsNote" })
-  permissionsNote?: string;
+  readonly permissionsNote?: string;
   @Expose({ name: "and" })
-  and?: boolean;
+  readonly and?: boolean;
   @Expose({ name: "or" })
-  or?: boolean;
+  readonly or?: boolean;
   @Expose({ name: "not" })
-  not?: boolean;
+  readonly not?: boolean;
   @Expose({ name: "class" })
-  class?: string;
+  readonly class?: string;
   @Expose({ name: "return" })
-  return?: string;
+  readonly return?: string;
   /**
    * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
    */
@@ -99,7 +99,7 @@ export class EdgeCases {
         : value,
     { toPlainOnly: true },
   )
-  retryAfter?: Temporal.Duration;
+  readonly retryAfter?: Temporal.Duration;
   /**
    * Absolute expiry instant
    */
@@ -127,17 +127,17 @@ export class EdgeCases {
     },
     { toClassOnly: true },
   )
-  expiresAt?: Date;
+  readonly expiresAt?: Date;
   @Expose({ name: "2fa" })
-  n2fa?: boolean;
+  readonly n2fa?: boolean;
   @Expose({ name: "separator" })
-  separator?: Separator;
+  readonly separator?: Separator;
   @Expose({ name: "null" })
-  null?: string;
+  readonly null?: string;
   @Expose({ name: "true" })
-  true?: boolean;
+  readonly true?: boolean;
   @Expose({ name: "false" })
-  false?: boolean;
+  readonly false?: boolean;
   @Expose({ name: "lastError" })
   @Type(() => ModelError)
   /* A nested model that declares additionalProperties keeps its free-form
@@ -150,7 +150,7 @@ export class EdgeCases {
       ),
     { toClassOnly: true },
   )
-  lastError?: ModelError;
+  readonly lastError?: ModelError;
   @Expose({ name: "outcome" })
   @Type(() => ModelResult)
   /* A nested model that declares additionalProperties keeps its free-form
@@ -163,7 +163,7 @@ export class EdgeCases {
       ),
     { toClassOnly: true },
   )
-  outcome?: ModelResult;
+  readonly outcome?: ModelResult;
   @Expose({ name: "cutoff" })
   /* 4.8 — `format: time` round-trips via Temporal.PlainTime. */
   @Transform(
@@ -179,12 +179,12 @@ export class EdgeCases {
         : value,
     { toPlainOnly: true },
   )
-  cutoff?: Temporal.PlainTime;
+  readonly cutoff?: Temporal.PlainTime;
   @Expose({ name: "phase" })
-  phase?: EdgeCasesPhaseEnum;
+  readonly phase?: EdgeCasesPhaseEnum;
   /** @pattern /^\\d+\/[a-z]+$/ */
   @Expose({ name: "slug" })
-  slug?: string;
+  readonly slug?: string;
 
   constructor(data?: Partial<EdgeCases>) {
     Object.assign(
@@ -324,6 +324,20 @@ export class EdgeCases {
         );
       }
     }
+  }
+
+  /**
+   * A copy of this EdgeCases with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new EdgeCases
+   */
+  with(patch: Partial<EdgeCases>): EdgeCases {
+    const copy = new EdgeCases({ ...this, ...patch });
+    return copy;
   }
 
   /**

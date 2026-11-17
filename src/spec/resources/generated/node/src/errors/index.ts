@@ -7,7 +7,7 @@
 
 export { OpenAPIError } from "./open-api-error.js";
 export { ApiError } from "./api-error.js";
-export type { StatusErrorFactory } from "./api-error.js";
+export type { ApiErrorOptions, StatusErrorFactory } from "./api-error.js";
 export { ClientError } from "./client-error.js";
 export { ServerError } from "./server-error.js";
 export { BadRequestError } from "./bad-request-error.js";

@@ -51,7 +51,7 @@ export class BinaryVault {
       Buffer.isBuffer(value) ? (value as Buffer).toString("base64") : value,
     { toPlainOnly: true },
   )
-  seal?: Buffer;
+  readonly seal?: Buffer;
   /**
    * A list of byte arrays; equality compares element contents.
    */
@@ -80,7 +80,7 @@ export class BinaryVault {
         : value,
     { toPlainOnly: true },
   )
-  shards?: Array<Buffer>;
+  readonly shards?: Array<Buffer>;
   /**
    * A map of byte arrays; equality compares each value's contents.
    */
@@ -119,7 +119,7 @@ export class BinaryVault {
         : value,
     { toPlainOnly: true },
   )
-  labels?: { [key: string]: Buffer };
+  readonly labels?: { [key: string]: Buffer };
 
   constructor(data?: Partial<BinaryVault>) {
     Object.assign(
@@ -169,6 +169,20 @@ export class BinaryVault {
         return __e;
       }) as unknown as Buffer[];
     }
+  }
+
+  /**
+   * A copy of this BinaryVault with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new BinaryVault
+   */
+  with(patch: Partial<BinaryVault>): BinaryVault {
+    const copy = new BinaryVault({ ...this, ...patch });
+    return copy;
   }
 
   /**

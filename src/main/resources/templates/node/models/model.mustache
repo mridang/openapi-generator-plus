@@ -516,22 +516,6 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isDateTime}}
 {{^isDateTime}}
 {{#isDate}}
-  @Type(() => Date)
-  /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
-   * into an epoch-millisecond instant, so hand the raw wire value on and let the
-   * constructor reject anything that is not a string. A string must be a bare
-   * YYYY-MM-DD date; anything else is handed on raw too, so it never resolves
-   * against the host time zone or the current date. */
-  @Transform(
-    ({ value, obj }) => {
-      const raw = (obj as Record<string, unknown>)['{{baseName}}'];
-      if (typeof raw === 'string') {
-        return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? value : raw;
-      }
-      return raw === undefined || raw === null || raw instanceof Date ? value : raw;
-    },
-    { toClassOnly: true }
-  )
 {{/isDate}}
 {{^isDate}}
 {{^isPrimitiveType}}
@@ -584,7 +568,6 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isDateTime}}
 {{^isDateTime}}
 {{#isDate}}
-  @Type(() => Date)
 {{/isDate}}
 {{^isDate}}
 {{^isPrimitiveType}}
@@ -648,7 +631,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isMap}}
 {{/isDate}}
 {{/isDateTime}}
-  {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}!{{/defaultValue}}{{/required}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#required}}{{#isNullable}} | null{{/isNullable}}{{/required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+  readonly {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}!{{/defaultValue}}{{/required}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#required}}{{#isNullable}} | null{{/isNullable}}{{/required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{^-last}}
 {{/-last}}
 {{/vars}}
@@ -832,10 +815,18 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
       throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
     }
+    /* A JSON number too large for a double (1e400) decodes to Infinity. */
+    if (this.{{name}} != null && !Number.isFinite(this.{{name}})) {
+      throw new TypeError(`{{name}} must be a finite number, got ${this.{{name}}}`);
+    }
 {{/isFloat}}
 {{#isDouble}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
       throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+    /* A JSON number too large for a double (1e400) decodes to Infinity. */
+    if (this.{{name}} != null && !Number.isFinite(this.{{name}})) {
+      throw new TypeError(`{{name}} must be a finite number, got ${this.{{name}}}`);
     }
 {{/isDouble}}
 {{#isNumber}}
@@ -1050,10 +1041,10 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isDateTime}}
 {{^isDateTime}}
 {{#isDate}}
-    /* `format: date`: an unparseable wire value becomes an Invalid Date
-     * rather than an error, so reject it here. */
-    if (this.{{name}} != null && (!(this.{{name}} instanceof Date) || Number.isNaN(this.{{name}}.getTime()))) {
-      throw new TypeError(`{{name}} must be a valid Date, got ${String(this.{{name}})}`);
+    /* `format: date` is a plain YYYY-MM-DD string, kept exactly as it came: it
+     * must be a real calendar day. A Date is accepted and read as its UTC date. */
+    if (this.{{name}} != null) {
+      this.{{name}} = plainDate(this.{{name}}, '{{name}}');
     }
 {{/isDate}}
 {{/isDateTime}}
@@ -1076,6 +1067,14 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isPrimitiveType}}
 {{^items.isEnum}}
 {{^items.isEnumRef}}
+{{#items.isDate}}
+    if (this.{{name}} != null) {
+      const dates = Array.from(this.{{name}} as Iterable<unknown>, (__e) =>
+        __e == null ? __e : plainDate(__e, '{{name}} element')
+      );
+      this.{{name}} = ((this.{{name}} as unknown) instanceof Set ? new Set(dates) : dates) as unknown as {{{dataType}}};
+    }
+{{/items.isDate}}
 {{#items.isModel}}
     if (this.{{name}} != null) {
       for (const __e of this.{{name}} as Iterable<unknown>) {
@@ -1154,6 +1153,26 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vendorExtensions.prop.itemsComplexTypeIsEnum}}
 {{/isEnum}}
 {{/vars}}
+  }
+
+  /**
+   * A copy of this {{classname}} with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new {{classname}}
+   */
+  with(patch: Partial<{{classname}}>): {{classname}} {
+    const copy = new {{classname}}({ ...this, ...patch });
+{{#isAdditionalPropertiesTrue}}
+    const held = {{classname}}.__additionalPropertiesKeyOf(this);
+    if (held !== undefined && !Object.prototype.hasOwnProperty.call(patch, 'additionalProperties')) {
+      {{classname}}.__holdAdditionalPropertiesKey(copy, held.value);
+    }
+{{/isAdditionalPropertiesTrue}}
+    return copy;
   }
 
 {{#hasPasswordField}}

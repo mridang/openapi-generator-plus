@@ -39,7 +39,7 @@ export class RequiredNullable {
   ]);
 
   @Expose({ name: "note" })
-  note!: string | null;
+  readonly note!: string | null;
 
   constructor(data?: Partial<RequiredNullable>) {
     Object.assign(
@@ -56,6 +56,20 @@ export class RequiredNullable {
     if (this.note != null && typeof this.note !== "string") {
       throw new TypeError(`note must be a string, got ${typeof this.note}`);
     }
+  }
+
+  /**
+   * A copy of this RequiredNullable with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new RequiredNullable
+   */
+  with(patch: Partial<RequiredNullable>): RequiredNullable {
+    const copy = new RequiredNullable({ ...this, ...patch });
+    return copy;
   }
 
   /**

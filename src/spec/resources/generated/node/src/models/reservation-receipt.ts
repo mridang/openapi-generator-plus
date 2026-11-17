@@ -38,7 +38,7 @@ export class ReservationReceipt {
 
   /** @example rcpt-77 */
   @Expose({ name: "receiptCode" })
-  receiptCode!: string;
+  readonly receiptCode!: string;
   /** @example 2030-01-01T00:00:00Z */
   @Expose({ name: "expiresAt" })
   @Type(() => Date)
@@ -64,7 +64,7 @@ export class ReservationReceipt {
     },
     { toClassOnly: true },
   )
-  expiresAt!: Date;
+  readonly expiresAt!: Date;
 
   constructor(data?: Partial<ReservationReceipt>) {
     Object.assign(
@@ -97,6 +97,20 @@ export class ReservationReceipt {
         `expiresAt must be a valid Date, got ${String(this.expiresAt)}`,
       );
     }
+  }
+
+  /**
+   * A copy of this ReservationReceipt with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new ReservationReceipt
+   */
+  with(patch: Partial<ReservationReceipt>): ReservationReceipt {
+    const copy = new ReservationReceipt({ ...this, ...patch });
+    return copy;
   }
 
   /**

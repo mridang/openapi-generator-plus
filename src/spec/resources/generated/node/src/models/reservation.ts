@@ -38,10 +38,10 @@ export class Reservation {
 
   /** @example 31 */
   @Expose({ name: "reservationId" })
-  reservationId!: number;
+  readonly reservationId!: number;
   /** @example 4 */
   @Expose({ name: "quantity" })
-  quantity!: number;
+  readonly quantity!: number;
 
   constructor(data?: Partial<Reservation>) {
     Object.assign(
@@ -93,6 +93,20 @@ export class Reservation {
         `quantity is outside the 32-bit integer range, got ${this.quantity}`,
       );
     }
+  }
+
+  /**
+   * A copy of this Reservation with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Reservation
+   */
+  with(patch: Partial<Reservation>): Reservation {
+    const copy = new Reservation({ ...this, ...patch });
+    return copy;
   }
 
   /**

@@ -1,6 +1,7 @@
 {{>api_info}}
 
 import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
 import { ServerError } from './server-error{{importFileExtension}}';
 
 /**
@@ -12,7 +13,7 @@ export class InternalServerError<T = unknown> extends ServerError<T> {
     responseHeaders: Record<string, string> | null = null,
     responseBody: string | null = null,
     errorBody: T | null = null,
-    options?: { cause?: unknown }
+    options?: ApiErrorOptions
   ) {
     super(500, message, responseHeaders, responseBody, errorBody, options);
     this.name = 'InternalServerError';
@@ -21,6 +22,6 @@ export class InternalServerError<T = unknown> extends ServerError<T> {
 
 ApiError.registerStatusError(
   500,
-  (_statusCode, message, headers, body, errorBody) =>
-    new InternalServerError(message, headers, body, errorBody)
+  (_statusCode, message, headers, body, errorBody, options) =>
+    new InternalServerError(message, headers, body, errorBody, options)
 );

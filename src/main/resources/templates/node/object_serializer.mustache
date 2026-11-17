@@ -550,6 +550,48 @@ export function decodePlainNumber(obj: unknown, wireName: string): unknown {
 }
 
 /**
+ * Whether a string is a plain `format: date` value: `YYYY-MM-DD` naming a
+ * real calendar day.
+ *
+ * @param value the text to check
+ * @returns true when it is a date and nothing else (no time, no offset)
+ */
+export function isPlainDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match === null) {
+    return false;
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const probe = new Date(0);
+  probe.setUTCFullYear(year, month - 1, day);
+  return probe.getUTCFullYear() === year && probe.getUTCMonth() === month - 1 && probe.getUTCDate() === day;
+}
+
+/**
+ * Check a `format: date` value and return it as `YYYY-MM-DD`. A string is
+ * validated and returned unchanged; a `Date` is read as its UTC date.
+ *
+ * @param value the string or Date
+ * @param name what the value is, for the error message
+ * @returns the date as `YYYY-MM-DD`
+ * @throws TypeError when it is not a real calendar date
+ */
+export function plainDate(value: unknown, name = 'date'): string {
+  if (typeof value === 'string' && isPlainDate(value)) {
+    return value;
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const day = `${String(value.getUTCFullYear()).padStart(4, '0')}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
+    if (isPlainDate(day)) {
+      return day;
+    }
+  }
+  throw new TypeError(`${name} must be a YYYY-MM-DD date, got ${typeof value === 'string' ? JSON.stringify(value) : String(value)}`);
+}
+
+/**
  * Handles JSON serialization and deserialization for API requests and responses.
  *
  * All serde operations in the generated client route through this class.
@@ -1098,7 +1140,9 @@ export class ObjectSerializer {
    *
    * A date leaf must be an RFC 3339 date-time with an explicit offset or a
    * bare `YYYY-MM-DD` date; anything else (no offset, free text) is rejected
-   * so it never resolves against the host time zone or the current date.
+   * so it never resolves against the host time zone or the current date. A
+   * `plainDate` leaf (`format: date`) must be a real `YYYY-MM-DD` day and is
+   * returned as the string it came as.
    *
    * @param value the parsed wire value
    * @param kind the expected leaf type
@@ -1106,24 +1150,32 @@ export class ObjectSerializer {
    */
   static deserializeLeaf<T>(
     value: unknown,
-    kind: 'int32' | 'int64' | 'boolean' | 'date',
+    kind: 'int32' | 'int64' | 'double' | 'boolean' | 'date' | 'plainDate',
     nullable = false,
   ): T {
     if (value === null || value === undefined) {
       /* A null element of a container of integers or booleans is a wrong-typed
        * element unless the element schema is nullable. Date leaves keep their
        * null so a nullable timestamp container is not corrupted. */
-      if (kind !== 'date' && !nullable) {
+      if (kind !== 'date' && kind !== 'plainDate' && !nullable) {
         throw new SerializationError(`Expected ${kind} but received: null`);
       }
       return null as T;
+    }
+    if (kind === 'plainDate') {
+      if (typeof value !== 'string' || !isPlainDate(value)) {
+        throw new SerializationError(`Expected a YYYY-MM-DD date but received: ${typeof value === 'string' ? JSON.stringify(value) : typeof value}`);
+      }
+      return value as T;
     }
     const valid =
       kind === 'int32'
         ? Number.isInteger(value) && (value as number) >= -2147483648 && (value as number) <= 2147483647
         : kind === 'int64'
           ? Number.isInteger(value)
-          : kind === 'boolean'
+          : kind === 'double'
+            ? typeof value === 'number' && Number.isFinite(value)
+            : kind === 'boolean'
             ? typeof value === 'boolean'
             : typeof value === 'string' &&
               (/^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/.test(value) ||

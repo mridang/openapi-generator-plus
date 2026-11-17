@@ -11,4 +11,38 @@ describe('per-scheme authenticators', () => {
     expect(typeof cls).toBe('function');
     expect(Object.getPrototypeOf(cls)).toBe(base);
   });
+
+  const environmentSchemes: Array<[string, new (host: string) => unknown, string[]]> = [
+{{#perSchemeAuthEntries}}
+{{#envVars}}
+    ['{{className}}', {{className}}, [{{{.}}}]],
+{{/envVars}}
+{{/perSchemeAuthEntries}}
+  ];
+
+  for (const [name, cls, variables] of environmentSchemes) {
+    it(`${name} reads its own credential variables from the environment`, () => {
+      const saved = variables.map((variable) => process.env[variable]);
+      try {
+        variables.forEach((variable) => {
+          process.env[variable] = `value-${variable}`;
+        });
+        expect(() => new cls('https://api.example.com')).not.toThrow();
+
+        variables.forEach((variable) => {
+          delete process.env[variable];
+        });
+        expect(() => new cls('https://api.example.com')).toThrow(variables[0]);
+      } finally {
+        variables.forEach((variable, index) => {
+          const value = saved[index];
+          if (value === undefined) {
+            delete process.env[variable];
+          } else {
+            process.env[variable] = value;
+          }
+        });
+      }
+    });
+  }
 });

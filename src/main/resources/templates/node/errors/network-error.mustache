@@ -1,6 +1,7 @@
 {{>api_info}}
 
 import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
 
 /**
  * Error for a request that got no HTTP response: connection refused,
@@ -8,7 +9,7 @@ import { ApiError } from './api-error{{importFileExtension}}';
  * `0`; the underlying error is kept as `cause`.
  */
 export class NetworkError extends ApiError {
-  constructor(message: string, options?: { cause?: unknown }) {
+  constructor(message: string, options?: ApiErrorOptions) {
     super(0, message, null, null, null, options);
     this.name = 'NetworkError';
   }

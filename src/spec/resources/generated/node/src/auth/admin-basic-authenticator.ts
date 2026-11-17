@@ -11,7 +11,7 @@ import { BasicAuthenticator } from "./basic-authenticator.js";
  * Scheme-specific authenticator for the adminBasic security scheme.
  */
 export class AdminBasicAuthenticator extends BasicAuthenticator {
-  constructor(host: string, username: string, password: string) {
-    super(host, username, password);
+  constructor(host: string, username?: string, password?: string) {
+    super(host, username, password, "ADMIN_BASIC_");
   }
 }

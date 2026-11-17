@@ -7,10 +7,15 @@
 
 import { BaseAuthenticator } from "./base-authenticator.js";
 import { ApiKeyLocation } from "./api-key-location.js";
+import { resolveCredential } from "./credentials.js";
 
 /**
  * Authenticator for API key authentication. Supports sending the key
  * as a header, query parameter, or cookie.
+ *
+ * The key is the explicit argument, or else the environment variable named by
+ * `envField` (`PETSTORE_CLIENT_API_KEY` by default), read once here. A missing
+ * key fails here, when the authenticator is built.
  */
 export class ApiKeyAuthenticator extends BaseAuthenticator {
   private readonly host: string;
@@ -18,17 +23,31 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
   private readonly apiKey: string;
   private readonly location: ApiKeyLocation;
 
+  /**
+   * @param host API base URL
+   * @param keyParamName the header, query parameter or cookie name
+   * @param apiKey the key, or `undefined` to read it from the environment
+   * @param location where the key is sent
+   * @param envField the environment field read when no key is passed
+   * @throws TypeError if no key is supplied or the key is malformed
+   */
   constructor(
     host: string,
     keyParamName: string,
-    apiKey: string,
+    apiKey: string | undefined,
     location: ApiKeyLocation,
+    envField = "API_KEY",
   ) {
     super();
+    const resolvedKey = resolveCredential(
+      apiKey,
+      envField,
+      `API key for '${keyParamName}'`,
+    );
     /* Validation applies to ALL locations: empty/whitespace API keys
      * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
      * printable-ASCII rule still applies to HEADER values. */
-    if (/^[ \t\n\v\f\r]*$/.test(apiKey)) {
+    if (/^[ \t\n\v\f\r]*$/.test(resolvedKey)) {
       throw new TypeError(
         `API key value for '${keyParamName}' must not be empty`,
       );
@@ -38,22 +57,25 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
      * libraries. Reject all three via explicit char-code checks
      * rather than a control-char regex (avoids eslint
      * `no-control-regex` which flags literal \x00 in patterns). */
-    for (let i = 0; i < apiKey.length; i++) {
-      const code = apiKey.charCodeAt(i);
+    for (let i = 0; i < resolvedKey.length; i++) {
+      const code = resolvedKey.charCodeAt(i);
       if (code === 0x0d || code === 0x0a || code === 0x00) {
         throw new TypeError(
           `API key value for '${keyParamName}' contains forbidden control characters (CR/LF/NUL)`,
         );
       }
     }
-    if (location === ApiKeyLocation.HEADER && /[^\t\x20-\x7E]/.test(apiKey)) {
+    if (
+      location === ApiKeyLocation.HEADER &&
+      /[^\t\x20-\x7E]/.test(resolvedKey)
+    ) {
       throw new TypeError(
         `API key for header '${keyParamName}' must contain only printable ASCII characters (RFC 7230 §3.2.6)`,
       );
     }
     this.host = host;
     this.keyParamName = keyParamName;
-    this.apiKey = apiKey;
+    this.apiKey = resolvedKey;
     this.location = location;
   }
 

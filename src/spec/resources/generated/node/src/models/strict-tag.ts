@@ -37,9 +37,9 @@ export class StrictTag {
   static readonly __requiredNullableFields: ReadonlySet<string> = new Set([]);
 
   @Expose({ name: "id" })
-  id?: number;
+  readonly id?: number;
   @Expose({ name: "name" })
-  name?: string;
+  readonly name?: string;
 
   /**
    * Gap L11 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
@@ -74,6 +74,20 @@ export class StrictTag {
     if (this.name != null && typeof this.name !== "string") {
       throw new TypeError(`name must be a string, got ${typeof this.name}`);
     }
+  }
+
+  /**
+   * A copy of this StrictTag with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new StrictTag
+   */
+  with(patch: Partial<StrictTag>): StrictTag {
+    const copy = new StrictTag({ ...this, ...patch });
+    return copy;
   }
 
   /**

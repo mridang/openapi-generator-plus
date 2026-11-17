@@ -91,4 +91,81 @@ describe("per-scheme authenticators", () => {
       expect(Object.getPrototypeOf(cls)).toBe(base);
     },
   );
+
+  const environmentSchemes: Array<
+    [string, new (host: string) => unknown, string[]]
+  > = [
+    [
+      "PetStoreBasicAuthenticator",
+      PetStoreBasicAuthenticator,
+      [
+        "PETSTORE_CLIENT_PET_STORE_BASIC_USERNAME",
+        "PETSTORE_CLIENT_PET_STORE_BASIC_PASSWORD",
+      ],
+    ],
+    [
+      "AdminBasicAuthenticator",
+      AdminBasicAuthenticator,
+      [
+        "PETSTORE_CLIENT_ADMIN_BASIC_USERNAME",
+        "PETSTORE_CLIENT_ADMIN_BASIC_PASSWORD",
+      ],
+    ],
+    [
+      "PetStoreBearerAuthenticator",
+      PetStoreBearerAuthenticator,
+      ["PETSTORE_CLIENT_PET_STORE_BEARER_TOKEN"],
+    ],
+    [
+      "ServiceTokenAuthenticator",
+      ServiceTokenAuthenticator,
+      ["PETSTORE_CLIENT_SERVICE_TOKEN_TOKEN"],
+    ],
+    [
+      "ApiKeyHeaderAuthenticator",
+      ApiKeyHeaderAuthenticator,
+      ["PETSTORE_CLIENT_API_KEY_HEADER_API_KEY"],
+    ],
+    [
+      "InternalApiKeyAuthenticator",
+      InternalApiKeyAuthenticator,
+      ["PETSTORE_CLIENT_INTERNAL_API_KEY_API_KEY"],
+    ],
+    [
+      "ApiKeyQueryAuthenticator",
+      ApiKeyQueryAuthenticator,
+      ["PETSTORE_CLIENT_API_KEY_QUERY_API_KEY"],
+    ],
+    [
+      "SessionCookieAuthenticator",
+      SessionCookieAuthenticator,
+      ["PETSTORE_CLIENT_SESSION_COOKIE_API_KEY"],
+    ],
+  ];
+
+  for (const [name, cls, variables] of environmentSchemes) {
+    it(`${name} reads its own credential variables from the environment`, () => {
+      const saved = variables.map((variable) => process.env[variable]);
+      try {
+        variables.forEach((variable) => {
+          process.env[variable] = `value-${variable}`;
+        });
+        expect(() => new cls("https://api.example.com")).not.toThrow();
+
+        variables.forEach((variable) => {
+          delete process.env[variable];
+        });
+        expect(() => new cls("https://api.example.com")).toThrow(variables[0]);
+      } finally {
+        variables.forEach((variable, index) => {
+          const value = saved[index];
+          if (value === undefined) {
+            delete process.env[variable];
+          } else {
+            process.env[variable] = value;
+          }
+        });
+      }
+    });
+  }
 });

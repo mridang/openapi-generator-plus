@@ -12,7 +12,13 @@ import { ApiKeyLocation } from "./api-key-location.js";
  * Scheme-specific authenticator for the internalApiKey security scheme.
  */
 export class InternalApiKeyAuthenticator extends ApiKeyAuthenticator {
-  constructor(host: string, apiKey: string) {
-    super(host, "X-Internal-Key", apiKey, ApiKeyLocation.HEADER);
+  constructor(host: string, apiKey?: string) {
+    super(
+      host,
+      "X-Internal-Key",
+      apiKey,
+      ApiKeyLocation.HEADER,
+      "INTERNAL_API_KEY_API_KEY",
+    );
   }
 }

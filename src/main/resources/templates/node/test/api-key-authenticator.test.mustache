@@ -100,4 +100,49 @@ describe('ApiKeyAuthenticator', () => {
     expect(JSON.stringify(auth)).not.toContain('key-secret-xyz');
     expect(util.inspect(auth)).toContain('***');
   });
+
+  describe('credential resolution', () => {
+    const variable = '{{envPrefix}}_API_KEY';
+    const saved = process.env[variable];
+    afterEach(() => {
+      if (saved === undefined) {
+        delete process.env[variable];
+      } else {
+        process.env[variable] = saved;
+      }
+    });
+
+    it('reads the key from the environment when none is passed', () => {
+      process.env[variable] = 'from-env';
+      const auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', undefined, ApiKeyLocation.HEADER);
+      expect(auth.getAuthHeaders()).toEqual({ 'X-Api-Key': 'from-env' });
+    });
+
+    it('an explicit key wins over the environment', () => {
+      process.env[variable] = 'from-env';
+      const auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'explicit', ApiKeyLocation.HEADER);
+      expect(auth.getAuthHeaders()).toEqual({ 'X-Api-Key': 'explicit' });
+    });
+
+    it.each([undefined, ''])('fails when it is built with no key and the variable is %p', (value) => {
+      if (value === undefined) {
+        delete process.env[variable];
+      } else {
+        process.env[variable] = value;
+      }
+      expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', undefined, ApiKeyLocation.HEADER)).toThrow(
+        new TypeError(`API key for 'X-Api-Key' is required: pass it explicitly or set ${variable}`)
+      );
+    });
+
+    it('reads the field a scheme-specific authenticator names', () => {
+      process.env['{{envPrefix}}_OTHER_API_KEY'] = 'other-key';
+      try {
+        const auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', undefined, ApiKeyLocation.QUERY, 'OTHER_API_KEY');
+        expect(auth.getQueryParams()).toEqual({ api_key: 'other-key' });
+      } finally {
+        delete process.env['{{envPrefix}}_OTHER_API_KEY'];
+      }
+    });
+  });
 });

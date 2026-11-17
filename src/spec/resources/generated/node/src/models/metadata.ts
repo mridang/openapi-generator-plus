@@ -60,7 +60,7 @@ export class Metadata {
     },
     { toClassOnly: true },
   )
-  createdAt?: Date;
+  readonly createdAt?: Date;
 
   /**
    * The schema-declared wire-key names. Its PRESENCE marks this model as
@@ -149,6 +149,27 @@ export class Metadata {
         `createdAt must be a valid Date, got ${String(this.createdAt)}`,
       );
     }
+  }
+
+  /**
+   * A copy of this Metadata with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Metadata
+   */
+  with(patch: Partial<Metadata>): Metadata {
+    const copy = new Metadata({ ...this, ...patch });
+    const held = Metadata.__additionalPropertiesKeyOf(this);
+    if (
+      held !== undefined &&
+      !Object.prototype.hasOwnProperty.call(patch, "additionalProperties")
+    ) {
+      Metadata.__holdAdditionalPropertiesKey(copy, held.value);
+    }
+    return copy;
   }
 
   /**

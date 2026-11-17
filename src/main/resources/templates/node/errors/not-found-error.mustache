@@ -1,6 +1,7 @@
 {{>api_info}}
 
 import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
 import { ClientError } from './client-error{{importFileExtension}}';
 
 /**
@@ -12,7 +13,7 @@ export class NotFoundError<T = unknown> extends ClientError<T> {
     responseHeaders: Record<string, string> | null = null,
     responseBody: string | null = null,
     errorBody: T | null = null,
-    options?: { cause?: unknown }
+    options?: ApiErrorOptions
   ) {
     super(404, message, responseHeaders, responseBody, errorBody, options);
     this.name = 'NotFoundError';
@@ -21,6 +22,6 @@ export class NotFoundError<T = unknown> extends ClientError<T> {
 
 ApiError.registerStatusError(
   404,
-  (_statusCode, message, headers, body, errorBody) =>
-    new NotFoundError(message, headers, body, errorBody)
+  (_statusCode, message, headers, body, errorBody, options) =>
+    new NotFoundError(message, headers, body, errorBody, options)
 );

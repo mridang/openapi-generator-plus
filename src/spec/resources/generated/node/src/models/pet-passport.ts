@@ -53,7 +53,7 @@ export class PetPassport {
       ),
     { toClassOnly: true },
   )
-  pet?: Pet;
+  readonly pet?: Pet;
   /**
    * Base64-encoded primary thumbnail
    * @example dGVzdC10aHVtYm5haWw=
@@ -69,7 +69,7 @@ export class PetPassport {
       Buffer.isBuffer(value) ? (value as Buffer).toString("base64") : value,
     { toPlainOnly: true },
   )
-  thumbnail?: Buffer;
+  readonly thumbnail?: Buffer;
   /**
    * Base64-encoded scans of each passport page
    */
@@ -98,7 +98,7 @@ export class PetPassport {
         : value,
     { toPlainOnly: true },
   )
-  scans?: Array<Buffer>;
+  readonly scans?: Array<Buffer>;
   @Expose({ name: "issuedAt" })
   @Type(() => Date)
   /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
@@ -123,7 +123,7 @@ export class PetPassport {
     },
     { toClassOnly: true },
   )
-  issuedAt?: Date;
+  readonly issuedAt?: Date;
   /**
    * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
    */
@@ -138,7 +138,7 @@ export class PetPassport {
       Buffer.isBuffer(value) ? (value as Buffer).toString("base64") : value,
     { toPlainOnly: true },
   )
-  biometricChip?: Buffer;
+  readonly biometricChip?: Buffer;
 
   constructor(data?: Partial<PetPassport>) {
     Object.assign(
@@ -224,6 +224,20 @@ export class PetPassport {
         `issuedAt must be a valid Date, got ${String(this.issuedAt)}`,
       );
     }
+  }
+
+  /**
+   * A copy of this PetPassport with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new PetPassport
+   */
+  with(patch: Partial<PetPassport>): PetPassport {
+    const copy = new PetPassport({ ...this, ...patch });
+    return copy;
   }
 
   /**

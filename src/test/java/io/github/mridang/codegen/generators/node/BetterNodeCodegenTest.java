@@ -4,6 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.mridang.codegen.generators.ProbeGenerator;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -147,5 +152,202 @@ class BetterNodeCodegenTest {
         final CodegenOperation op = operation(false, true, false);
         new BetterNodeCodegen().populateRequestWrapper(op);
         assertEquals(List.of("thingId", "options", "requestOptions"), names(wrapperFields(op)));
+    }
+
+    @Test
+    void anIntegerEnumMemberTakesTheMemberCasingOfTheStringMembers() {
+        final BetterNodeCodegen codegen = new BetterNodeCodegen();
+        assertEquals("Number1", codegen.toEnumVarName("1", "number"));
+        assertEquals("NumberMinus1", codegen.toEnumVarName("-1", "number"));
+        assertEquals("Red", codegen.toEnumVarName("red", "String"));
+        assertEquals("OnHold", codegen.toEnumVarName("on-hold", "String"));
+    }
+
+    @Test
+    void aDateParameterAlsoAcceptsADate() {
+        final CodegenParameter date = new CodegenParameter();
+        date.isDate = true;
+        date.dataType = "string";
+        assertEquals("string | Date", BetterNodeCodegen.uploadType(date));
+        assertEquals("string | Date", BetterNodeCodegen.dateInputType(date, "string"));
+    }
+
+    @Test
+    void anArrayOfDatesAcceptsDates() {
+        final CodegenParameter dates = new CodegenParameter();
+        dates.isArray = true;
+        dates.items = new org.openapitools.codegen.CodegenProperty();
+        dates.items.isDate = true;
+        dates.dataType = "Array<string>";
+        assertEquals("Array<string | Date>", BetterNodeCodegen.uploadType(dates));
+        dates.dataType = "Set<string>";
+        assertEquals("Set<string | Date>", BetterNodeCodegen.uploadType(dates));
+    }
+
+    @Test
+    void aPlainStringParameterIsNotWidenedToADate() {
+        final CodegenParameter text = new CodegenParameter();
+        text.dataType = "string";
+        assertEquals("string", BetterNodeCodegen.uploadType(text));
+    }
+
+    @Test
+    void theEnvironmentPrefixIsTheUpperSnakeCaseNameOfThePackage() {
+        assertEquals("PETSTORE_CLIENT", BetterNodeCodegen.envPrefixFor("petstore-client"));
+        assertEquals("ACME_PET_CLIENT", BetterNodeCodegen.envPrefixFor("@acme/pet-client"));
+        assertEquals("SDK_3D_API", BetterNodeCodegen.envPrefixFor("3d.api"));
+        assertEquals("SDK_", BetterNodeCodegen.envPrefixFor("---"));
+    }
+
+    private static BetterNodeCodegen configured(Map<String, Object> options) {
+        final BetterNodeCodegen codegen = new BetterNodeCodegen();
+        codegen.additionalProperties().putAll(options);
+        codegen.processOpts();
+        return codegen;
+    }
+
+    @Test
+    void thePackageMetadataOptionsReachTheTemplates() {
+        final Map<String, Object> props = configured(Map.of(
+                "repositoryUrl", "https://example.com/acme/client.git",
+                "homepageUrl", "https://example.com/client",
+                "authors", "Acme \"Platform\" Team",
+                "issueTrackerUrl", "https://example.com/client/issues",
+                "documentationUrl", "https://docs.example.com/client",
+                "license", "Apache-2.0")).additionalProperties();
+        assertEquals("https://example.com/acme/client.git", props.get("repositoryUrl"));
+        assertEquals("Acme \\\"Platform\\\" Team", props.get("authorsJson"));
+        assertEquals("https://example.com/client", props.get("homepageUrlJson"));
+        assertEquals("https://example.com/client/issues", props.get("issueTrackerUrlJson"));
+        assertEquals("https://docs.example.com/client", props.get("documentationUrl"));
+        assertEquals("Apache-2.0", props.get("licenseId"));
+    }
+
+    @Test
+    void licenseIdWinsOverLicense() {
+        final Map<String, Object> props = configured(Map.of("license", "Apache-2.0", "licenseId", "MIT"))
+                .additionalProperties();
+        assertEquals("MIT", props.get("licenseId"));
+    }
+
+    @Test
+    void theLicenseDefaultsToMit() {
+        assertEquals("MIT", configured(Map.of()).additionalProperties().get("licenseId"));
+    }
+
+    @Test
+    void anUnsetOrBlankMetadataOptionLeavesNoSectionBehind() {
+        final Map<String, Object> props = configured(Map.of("repositoryUrl", "  ", "homepageUrl", "")).additionalProperties();
+        for (final String key : List.of("repositoryUrl", "repositoryUrlJson", "homepageUrl", "homepageUrlJson",
+                "authors", "authorsJson", "issueTrackerUrl", "issueTrackerUrlJson", "documentationUrl")) {
+            assertFalse(props.containsKey(key), key);
+        }
+    }
+
+    @Test
+    void theEnvironmentPrefixOptionOverridesThePackageName() {
+        assertEquals("ACME", configured(Map.of("npmName", "petstore-client", "envPrefix", "acme"))
+                .additionalProperties().get("envPrefix"));
+        assertEquals("PETSTORE_CLIENT", configured(Map.of("npmName", "petstore-client"))
+                .additionalProperties().get("envPrefix"));
+    }
+
+    @Test
+    void jsonEscapingKeepsAManifestValueValid() {
+        assertEquals("a\\\"b\\\\c\\nd", BetterNodeCodegen.jsonEscape("a\"b\\c\nd"));
+        assertEquals("\\u0001", BetterNodeCodegen.jsonEscape("\u0001"));
+    }
+
+    private static final String DATE_SPEC = String.join("\n",
+            "openapi: 3.0.3",
+            "info: {title: Dates, version: 1.0.0}",
+            "paths:",
+            "  /bookings:",
+            "    post:",
+            "      operationId: createBooking",
+            "      parameters:",
+            "        - {name: since, in: query, schema: {type: string, format: date}}",
+            "        - name: days",
+            "          in: query",
+            "          schema: {type: array, items: {type: string, format: date}}",
+            "      requestBody:",
+            "        content:",
+            "          application/json:",
+            "            schema: {$ref: '#/components/schemas/Booking'}",
+            "      responses:",
+            "        '200':",
+            "          description: ok",
+            "          content:",
+            "            application/json:",
+            "              schema: {$ref: '#/components/schemas/Booking'}",
+            "components:",
+            "  schemas:",
+            "    Booking:",
+            "      type: object",
+            "      required: [checkIn]",
+            "      properties:",
+            "        checkIn: {type: string, format: date}",
+            "        holidays: {type: array, items: {type: string, format: date}}",
+            "        ratio: {type: number, format: double}",
+            "        stamp: {type: string, format: date-time}",
+            "");
+
+    private static String generatedFile(Path out, String relative) throws IOException {
+        return Files.readString(out.resolve(relative), StandardCharsets.UTF_8);
+    }
+
+    private static Path generateDateSpec(String name) throws IOException {
+        final Path out = Path.of("target", "node-date-spec", name).toAbsolutePath();
+        final Path spec = Files.createTempFile("node-dates", ".yaml");
+        Files.writeString(spec, DATE_SPEC, StandardCharsets.UTF_8);
+        ProbeGenerator.generate(
+                "node-plus", Map.of("skipFormatter", "true", "npmName", "dates-client"), out, spec.toString());
+        return out;
+    }
+
+    @Test
+    void aDateFieldIsAPlainStringTheConstructorChecks() throws IOException {
+        final String model = generatedFile(generateDateSpec("model"), "src/models/booking.ts");
+        assertTrue(model.contains("readonly checkIn!: string;"), model);
+        assertTrue(model.contains("this.checkIn = plainDate(this.checkIn, 'checkIn');"), model);
+        assertTrue(model.contains("readonly holidays?: Array<string>;"), model);
+        assertTrue(model.contains("plainDate(__e, 'holidays element')"), model);
+        assertTrue(model.contains("plainDate"), model);
+        assertTrue(model.matches("(?s).*import \\{[^}]*\\bplainDate\\b[^}]*} from '../object-serializer.js';.*"), model);
+        assertTrue(model.contains("readonly stamp?: Date;"), model);
+    }
+
+    @Test
+    void aDateTimeFieldKeepsItsDecorators() throws IOException {
+        final String model = generatedFile(generateDateSpec("datetime"), "src/models/booking.ts");
+        final String stamp = model.substring(model.indexOf("@Expose({ name: 'stamp' })"));
+        assertTrue(stamp.startsWith("@Expose({ name: 'stamp' })\n  @Type(() => Date)"), stamp);
+        final String checkIn = model.substring(model.indexOf("@Expose({ name: 'checkIn' })"));
+        assertTrue(checkIn.startsWith("@Expose({ name: 'checkIn' })\n  readonly checkIn!: string;"), checkIn);
+    }
+
+    @Test
+    void aDoubleFieldMustBeFinite() throws IOException {
+        final String model = generatedFile(generateDateSpec("double"), "src/models/booking.ts");
+        assertTrue(model.contains("!Number.isFinite(this.ratio)"), model);
+        assertTrue(model.contains("ratio must be a finite number"), model);
+    }
+
+    @Test
+    void everyModelHasAWithCopyMethod() throws IOException {
+        final String model = generatedFile(generateDateSpec("with"), "src/models/booking.ts");
+        assertTrue(model.contains("with(patch: Partial<Booking>): Booking {"), model);
+        assertTrue(model.contains("new Booking({ ...this, ...patch })"), model);
+    }
+
+    @Test
+    void aDateParameterAcceptsADateInTheOptionsAndIsFormattedAsADate() throws IOException {
+        final Path out = generateDateSpec("options");
+        final String options = generatedFile(out, "src/api/options/create-booking-options.ts");
+        assertTrue(options.contains("readonly since?: string | Date;"), options);
+        assertTrue(options.contains("readonly days?: Array<string | Date>;"), options);
+        final String api = generatedFile(out, "src/api/default-api.ts");
+        assertTrue(api.contains("ValueSerializer.stringifyDate(options.since)"), api);
+        assertTrue(api.contains("ValueSerializer.stringifyDates("), api);
     }
 }

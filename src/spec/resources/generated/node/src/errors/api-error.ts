@@ -19,7 +19,19 @@ export type StatusErrorFactory = (
   responseHeaders: Record<string, string> | null,
   responseBody: string | null,
   errorBody: unknown,
+  options?: ApiErrorOptions,
 ) => ApiError;
+
+/**
+ * Optional constructor details of an {@link ApiError}: the underlying `cause`
+ * and the request the error answers (`requestMethod`, and `requestPath`
+ * without its query string).
+ */
+export interface ApiErrorOptions {
+  readonly cause?: unknown;
+  readonly requestMethod?: string;
+  readonly requestPath?: string;
+}
 
 /*
  * The status-specific errors extend ApiError, so this module cannot import
@@ -54,19 +66,32 @@ export class ApiError<T = unknown> extends OpenAPIError {
   /** Deserialized error body, if available. */
   public readonly errorBody: T | null;
 
+  /** HTTP method of the request this error answers, or null when it is not known. */
+  public readonly requestMethod: string | null;
+
+  /** Path of the request this error answers, without its query string, or null when it is not known. */
+  public readonly requestPath: string | null;
+
   constructor(
     statusCode: number,
     message: string,
     responseHeaders: Record<string, string> | null = null,
     responseBody: string | null = null,
     errorBody: T | null = null,
-    options?: { cause?: unknown },
+    options?: ApiErrorOptions,
   ) {
     /* ES2022 cause option preserves the underlying network/IO error so
      * callers can drill down via `err.cause` instead of losing the
      * original stack trace. */
-    super(message, options);
+    super(
+      message,
+      options != null && "cause" in options
+        ? { cause: options.cause }
+        : undefined,
+    );
     this.name = "ApiError";
+    this.requestMethod = options?.requestMethod ?? null;
+    this.requestPath = options?.requestPath ?? null;
     this.statusCode = statusCode;
     this.responseHeaders = responseHeaders;
     this.responseBody = responseBody;
@@ -81,6 +106,7 @@ export class ApiError<T = unknown> extends OpenAPIError {
    * @param statusCode the HTTP status code of the response
    * @param responseHeaders the response headers
    * @param responseBody the raw response body, if any
+   * @param request the method and path (without query string) of the request, if known
    * @returns the status-specific subclass where there is one (for example
    *   `NotFoundError` for 404), else `ClientError` for any other 4xx,
    *   `ServerError` for any other 5xx, and `ApiError` for everything else
@@ -89,7 +115,12 @@ export class ApiError<T = unknown> extends OpenAPIError {
     statusCode: number,
     responseHeaders: Record<string, string> | null,
     responseBody: string | null,
+    request?: { readonly method: string; readonly path: string },
   ): ApiError {
+    const options: ApiErrorOptions | undefined =
+      request != null
+        ? { requestMethod: request.method, requestPath: request.path }
+        : undefined;
     const message = `API returned status code ${statusCode}`;
     let errorBody: unknown = null;
     if (responseBody) {
@@ -105,13 +136,21 @@ export class ApiError<T = unknown> extends OpenAPIError {
       byStatus.get(statusCode) ??
       byStatusClass.get(Math.floor(statusCode / 100));
     return factory
-      ? factory(statusCode, message, responseHeaders, responseBody, errorBody)
+      ? factory(
+          statusCode,
+          message,
+          responseHeaders,
+          responseBody,
+          errorBody,
+          options,
+        )
       : new ApiError(
           statusCode,
           message,
           responseHeaders,
           responseBody,
           errorBody,
+          options,
         );
   }
 
@@ -156,8 +195,8 @@ export class ApiError<T = unknown> extends OpenAPIError {
 
   /**
    * Build a human-readable error message from the stored attributes: the
-   * message, then the HTTP status code, response headers and response body
-   * where present.
+   * message, then the HTTP status code, the request (`Request: <METHOD> <path>`),
+   * response headers and response body where present.
    */
   override toString(): string {
     let msg =
@@ -166,6 +205,9 @@ export class ApiError<T = unknown> extends OpenAPIError {
         : this.message;
     if (this.statusCode !== 0) {
       msg += `\nHTTP status code: ${this.statusCode}`;
+    }
+    if (this.requestMethod !== null && this.requestPath !== null) {
+      msg += `\nRequest: ${ApiError.renderRequestPart(this.requestMethod)} ${ApiError.renderRequestPart(this.requestPath)}`;
     }
     if (
       this.responseHeaders !== null &&
@@ -177,6 +219,15 @@ export class ApiError<T = unknown> extends OpenAPIError {
       msg += `\nResponse body: ${ApiError.renderBody(this.responseBody)}`;
     }
     return msg;
+  }
+
+  /**
+   * Render a request method or path for the message with CR, LF and every
+   * other control character escaped, so a path built from untrusted input
+   * cannot forge log lines. The `requestPath` field keeps the real value.
+   */
+  private static renderRequestPart(value: string): string {
+    return ApiError.renderBody(value);
   }
 
   /**

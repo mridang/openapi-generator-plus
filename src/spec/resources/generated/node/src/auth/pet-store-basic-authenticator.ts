@@ -11,7 +11,7 @@ import { BasicAuthenticator } from "./basic-authenticator.js";
  * Scheme-specific authenticator for the petStoreBasic security scheme.
  */
 export class PetStoreBasicAuthenticator extends BasicAuthenticator {
-  constructor(host: string, username: string, password: string) {
-    super(host, username, password);
+  constructor(host: string, username?: string, password?: string) {
+    super(host, username, password, "PET_STORE_BASIC_");
   }
 }

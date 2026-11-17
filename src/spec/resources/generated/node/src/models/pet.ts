@@ -50,10 +50,10 @@ export class Pet {
 
   /** @example 10 */
   @Expose({ name: "id" })
-  id?: number;
+  readonly id?: number;
   /** @example doggie */
   @Expose({ name: "name" })
-  name!: string;
+  readonly name!: string;
   @Expose({ name: "category" })
   @Type(() => Category)
   /* A nested model that declares additionalProperties keeps its free-form
@@ -66,9 +66,9 @@ export class Pet {
       ),
     { toClassOnly: true },
   )
-  category?: Category;
+  readonly category?: Category;
   @Expose({ name: "photoUrls" })
-  photoUrls!: Set<string>;
+  readonly photoUrls!: Set<string>;
   @Expose({ name: "tags" })
   @Type(() => Tag)
   /* A nested model that declares additionalProperties keeps its free-form
@@ -81,39 +81,39 @@ export class Pet {
       ),
     { toClassOnly: true },
   )
-  tags?: Array<Tag>;
+  readonly tags?: Array<Tag>;
   /**
    * pet status in the store
    * @deprecated This property is deprecated.
    */
   @Expose({ name: "status" })
-  status?: PetStatusEnum;
+  readonly status?: PetStatusEnum;
   @Expose({ name: "location" })
-  location?: Array<unknown>;
+  readonly location?: Array<unknown>;
   /**
    * Absolute URL to the pet's public profile page
    * @example https://example.com/pets/fido
    */
   @Expose({ name: "homepageUrl" })
-  homepageUrl?: URI;
+  readonly homepageUrl?: URI;
   /**
    * Optionally-relative thumbnail location
    * @example /assets/thumb-fido.png
    */
   @Expose({ name: "thumbnailRef" })
-  thumbnailRef?: string;
+  readonly thumbnailRef?: string;
   /**
    * RFC 6570 template for related-resource links
    * @example https://example.com/pets/{id}/photos{?size}
    */
   @Expose({ name: "linkTemplate" })
-  linkTemplate?: string;
+  readonly linkTemplate?: string;
   /**
    * Contact email for the pet's owner
    * @example owner@example.com
    */
   @Expose({ name: "ownerEmail" })
-  ownerEmail?: Email;
+  readonly ownerEmail?: Email;
   /**
    * Pet weight in kilograms (decimal precision)
    * @example 12.345
@@ -124,13 +124,13 @@ export class Pet {
   @Transform(({ obj }) => decodePlainNumber(obj, "weightKg"), {
     toClassOnly: true,
   })
-  weightKg?: Decimal;
+  readonly weightKg?: Decimal;
   /** @pattern /^(?!admin)[a-z']+$/ */
   /** @minLength 2 */
   /** @maxLength 8 */
   /** @example rex */
   @Expose({ name: "nickname" })
-  nickname?: string;
+  readonly nickname?: string;
 
   constructor(data?: Partial<Pet>) {
     Object.assign(
@@ -287,6 +287,20 @@ export class Pet {
         );
       }
     }
+  }
+
+  /**
+   * A copy of this Pet with the given fields replaced. The fields are
+   * read-only, so a changed model is a new one: this instance is never changed.
+   * The copy is built through the constructor, so it is validated like any
+   * other instance.
+   *
+   * @param patch the fields to replace; the others keep their value
+   * @returns the new Pet
+   */
+  with(patch: Partial<Pet>): Pet {
+    const copy = new Pet({ ...this, ...patch });
+    return copy;
   }
 
   /**

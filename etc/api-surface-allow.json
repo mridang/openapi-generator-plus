@@ -2262,6 +2262,88 @@
     "elixir"
    ],
    "reason": "the deserialized value is itself the variant (ruby and elixir build returns the variant, node a TypeScript union alias, rust a sum type), so there is no wrapper to hold an accessor"
+  },
+  {
+   "element": [
+    "apikeyauthenticator.<ctor>",
+    "basicauthenticator.<ctor>",
+    "bearerauthenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "node"
+   ],
+   "reason": "F862: node's base authenticators take a trailing constructor argument (`envField`, `fieldPrefix`) naming the environment variable the credential falls back to, because a TypeScript per-scheme subclass passes it to super() and reads <PREFIX>_<SCHEME>_<FIELD>; wave 2 lands the environment fallback in every SDK, in each language's own idiom"
+  },
+  {
+   "element": [
+    "*authenticator.<ctor>"
+   ],
+   "aspect": "ctor-optional",
+   "languages": [
+    "node"
+   ],
+   "value": "*?*",
+   "reason": "F862: a static credential (token, API key, user name, password) may be omitted and is then read from <PREFIX>_<FIELD> in the environment; a missing one throws when the authenticator is built"
+  },
+  {
+   "element": [
+    "apierror.fromresponse"
+   ],
+   "aspect": "params",
+   "languages": [
+    "node"
+   ],
+   "value": "*request)",
+   "reason": "F830: BaseApi hands the request method and path to the factory that builds the error, so every status subclass carries requestMethod and requestPath"
+  },
+  {
+   "element": [
+    "apierror.requestmethod",
+    "apierror.requestpath"
+   ],
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "value": "extra*",
+   "reason": "F830: owner decision, ApiError and every subclass gain requestMethod and requestPath (query string stripped); the other eleven SDKs land the same members in the same wave, drop this row once they have"
+  },
+  {
+   "element": [
+    "*.with"
+   ],
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "value": "extra*",
+   "reason": "F868: owner decision, models are immutable with a copy method in every language; node's spelling is `with(patch)` (java toBuilder, kotlin copy, csharp with-expression, php withX, dart copyWith); a copy method is not part of the call surface the other SDKs compare"
+  },
+  {
+   "element": [
+    "requestoptions.timeout",
+    "requestoptions.maxretries",
+    "requestoptions.headers"
+   ],
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "value": "extra*",
+   "reason": "F827: owner decision, per-call options carry an optional timeout, headers and maxRetries; node extends its RequestOptions object, the other SDKs extend their own per-operation options, drop this row once they have"
+  },
+  {
+   "element": [
+    "credentialprovider",
+    "credentials",
+    "apierroroptions"
+   ],
+   "aspect": "type",
+   "languages": [
+    "node"
+   ],
+   "reason": "F862 and F830: CredentialProvider is the token-provider callback type (`() => string | Promise<string>`) and `credentials` its module of helpers; ApiErrorOptions is the options object of the error constructors (`cause`, `requestMethod`, `requestPath`), which ES2022 errors take in place of positional arguments"
   }
  ]
 }
