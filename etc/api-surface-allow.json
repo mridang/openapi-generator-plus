@@ -3014,14 +3014,6 @@
    "reason": "owner decision F868 (2026-11-17): models are immutable values with a copy method per property; rust spells it a consuming with_<property>(value) method (Java toBuilder, Kotlin copy, Dart copyWith), since the fields stay public for struct-update syntax. Remove the rule when the other eleven SDKs land the same decision."
   },
   {
-   "element": "*options",
-   "aspect": "type",
-   "languages": [
-    "python"
-   ],
-   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options object carrying timeout, headers and max_retries; python mints one for each operation first, the shared pass still mints it only for operations with parameters or security. Remove the rule when the other eleven SDKs land the same decision."
-  },
-  {
    "element": "*api.*",
    "aspect": "params",
    "languages": [
@@ -3328,6 +3320,35 @@
    ],
    "value": "*options*",
    "reason": "F827 adoption: every operation takes the optional Options argument, so an operation with no parameter of its own takes (options); ruby lands first and the other languages add it in their own adoption branches, after which this rule is deleted"
+  },
+  {
+   "element": "*options",
+   "aspect": "type",
+   "languages": [
+    "python"
+   ],
+   "reason": "owner decision F827 (2026-11-17): every operation takes a per-operation Options object carrying timeout, headers and max_retries; python opts in through mintsOptionsForEveryOperation() and the shared pass mints one for each operation. Remove the rule when the other eleven SDKs land the same decision."
+  },
+  {
+   "element": [
+    "*authenticator.<ctor>"
+   ],
+   "aspect": "ctor-optional",
+   "languages": [
+    "python"
+   ],
+   "reason": "F862 owner decision (an explicit credential wins, then the {PREFIX}_{FIELD} environment variable): the per-scheme authenticator takes every credential as a defaulted argument so the variable can supply it, because python has default arguments where the languages without them take an overload; a missing credential raises ValueError at construction"
+  },
+  {
+   "element": [
+    "*authenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "python"
+   ],
+   "value": "*tokenprovider)",
+   "reason": "F862 owner decision (a token-provider callback beside the static credential): python has no overloads, so a bearer scheme authenticator takes token_provider as a defaulted keyword argument beside token; giving both raises ValueError"
   }
  ]
 }

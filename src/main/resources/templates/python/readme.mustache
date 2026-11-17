@@ -84,7 +84,23 @@ a call that exceeds it fails with `NetworkTimeoutException`.
 
 ### Credentials
 
-`{{clientClassName}}.with_token(host, access_token)` builds a client with a Bearer token. Each credential is resolved once, when the client is built: the argument you pass wins, then the environment variable (`{{envPrefix}}_BASE_URL` for the host, `{{envPrefix}}_ACCESS_TOKEN` for the token); an empty value counts as unset. A host or token that cannot be resolved raises `ValueError` there and then, not on the first request. Pass `token_provider=` (a callable returning the current token, run for every request) instead of a static token when the token rotates. The other authenticators take their credentials as constructor arguments.
+`{{clientClassName}}.with_token(host, access_token)` builds a client with a Bearer token. Each credential is resolved once, when the client is built: the argument you pass wins, then the environment variable (`{{envPrefix}}_BASE_URL` for the host, `{{envPrefix}}_ACCESS_TOKEN` for the token); an empty value counts as unset. A host or token that cannot be resolved raises `ValueError` there and then, not on the first request. Pass `token_provider=` (a callable returning the current token, run for every request) instead of a static token when the token rotates. 
+
+The authenticator written for each security scheme in the API does the same for its own credentials: the argument you pass wins, then its environment variable, read once when the authenticator is built (an empty variable counts as unset), and a credential found in neither place raises `ValueError` there and then. A bearer scheme also accepts `token_provider=` in place of `token`. The variables are:
+{{#hasSecuritySchemeEnvVars}}
+
+| Scheme | Field | Environment variable |
+|---|---|---|
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{field}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+
+Set `envVarPrefix` when generating to change the `{{envVarPrefix}}` prefix.
+{{/hasSecuritySchemeEnvVars}}
+{{^hasSecuritySchemeEnvVars}}
+
+This API declares no security scheme, so there are none.
+{{/hasSecuritySchemeEnvVars}}
 
 ### Per-call options
 

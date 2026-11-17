@@ -52,13 +52,27 @@ Pass options with `--additional-properties` or a config file. Options that apply
 | Option | Meaning |
 |---|---|
 | `packageName` | The import package name, for example `petstore_client`. |
-| `projectName` | The published distribution name, for example `petstore-client`. It is the `name` in `pyproject.toml`, the product token in the default `User-Agent`, and the source of the environment variable prefix. Defaults to `packageName`. |
+| `projectName` | The published distribution name, for example `petstore-client`. It is the `name` in `pyproject.toml` and the product token in the default `User-Agent`. Defaults to `packageName`. |
 | `packageVersion` | The version written to the manifest. Defaults to `1.0.0`. |
 | `authors` | Comma-separated author names for the manifest. |
 | `repositoryUrl`, `homepageUrl`, `documentationUrl`, `issueTrackerUrl` | Written to the manifest and README only when given. |
+| `envVarPrefix` | The prefix of the environment variables the credentials default from (see "Credentials and environment variables"). It is shared by all twelve generators. Defaults to the API title without a trailing `SDK`, in upper snake case. |
+
+## Credentials and environment variables
+
+Every authenticator the generator writes for a security scheme (for example `PetStoreBearerAuthenticator`) takes its credentials from the constructor, and falls back to an environment variable. The order is fixed:
+
+1. The argument you pass wins, even an empty string (the authenticator then rejects it with its own message).
+2. Otherwise the environment variable, read once when the authenticator is built. An empty variable counts as unset.
+3. For a bearer scheme, `token_provider` (a callable that returns the current token and runs for every request) is an alternative to `token`. It wins over the environment variable, and giving both `token` and `token_provider` raises `ValueError`.
+
+A credential found in none of these places raises `ValueError` when the authenticator is built, naming the variable, so the failure comes before the client exists and not on the first request.
+
+The variable for a field is `{PREFIX}_{FIELD}` in upper snake case, for example `ACME_TOKEN`, `ACME_API_KEY`, `ACME_USERNAME`, `ACME_CLIENT_ID`. `{PREFIX}` is the `envVarPrefix` option, or else the API title without a trailing `SDK`. When two schemes have a field of the same name, each name also carries the scheme id (`ACME_SERVICE_TOKEN_TOKEN`) so that no scheme reads another's secret. The generated README lists the exact names for the API. `Client.with_token()` reads `{PREFIX}_BASE_URL` and `{PREFIX}_ACCESS_TOKEN` in the same order. The base authenticators (`BearerAuthenticator`, `BasicAuthenticator`, `ApiKeyAuthenticator`) and the OAuth2 classes they build on take explicit values only; the environment is read by the per-scheme classes.
 
 ## Idiom notes
 
+- Every operation takes an optional trailing `options` argument, an Options object (`<Operation>Options`), even one with no parameters and no security. Besides the operation's own parameters it carries `timeout` (milliseconds, at least 1), `headers` (they replace a default header of the same name) and `max_retries` (at least 0; `0` turns retrying off) for that call only. An Options object for an operation with no parameters and no security has no `auth` field. A custom `ApiClient` owns its own timeout, so only the headers and the retry budget reach it.
 - Every operation is `async def`. Cancelling the awaiting asyncio task aborts the call; there is no cancellation parameter. The blocking socket read runs in a worker thread and cannot be interrupted part way.
 - `DefaultApiClient` accepts a `pool_manager` argument to supply your own urllib3 `PoolManager`. When you supply one, the TLS and proxy settings in `TransportOptions` have no effect, and the SDK never closes a manager it did not create.
 - The client works as a context manager and also has `close()`.

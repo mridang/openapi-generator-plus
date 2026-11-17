@@ -1,6 +1,8 @@
 from typing import Any, cast
 import ast
 import dataclasses
+import importlib
+import inspect
 import json
 import os
 import sys
@@ -331,6 +333,365 @@ class TestOptionsPerCallSettings:
         assert options.headers["X-A"] == "1"
         with pytest.raises(TypeError):
             cast(Any, options.headers)["X-B"] = "3"
+
+
+class TestEveryOperationTakesOptions:
+    """F827: every operation, with or without parameters, takes the Options object that
+    carries the per-call timeout, headers and retry budget."""
+
+    OPERATIONS = [
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "add_pet",
+            "AddPetOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "add_pet_photos",
+            "AddPetPhotosOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "add_pet_treatment",
+            "AddPetTreatmentOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "delete_pet",
+            "DeletePetOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "download_pet_document",
+            "DownloadPetDocumentOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "find_pets_born_on",
+            "FindPetsBornOnOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "find_pets_by_status",
+            "FindPetsByStatusOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_external_pet_info",
+            "GetExternalPetInfoOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_multi_server_pet_info",
+            "GetMultiServerPetInfoOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_pet_avatar",
+            "GetPetAvatarOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_pet_avatar_thumbnail",
+            "GetPetAvatarThumbnailOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_pet_by_id",
+            "GetPetByIdOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_pet_by_name",
+            "GetPetByNameOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_pet_passport",
+            "GetPetPassportOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_pet_photo",
+            "GetPetPhotoOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_pet_summary",
+            "GetPetSummaryOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_pet_tag",
+            "GetPetTagOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "get_staging_pet_info",
+            "GetStagingPetInfoOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "set_pet_avatar",
+            "SetPetAvatarOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "set_pet_avatar_thumbnail",
+            "SetPetAvatarThumbnailOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "set_pet_preferences",
+            "SetPetPreferencesOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "update_pet",
+            "UpdatePetOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "upload_pet_certificate",
+            "UploadPetCertificateOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "upload_pet_document",
+            "UploadPetDocumentOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "create_account",
+            "CreateAccountOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "delete_order",
+            "DeleteOrderOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_by_swatch",
+            "GetBySwatchOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_defaults",
+            "GetDefaultsOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_department",
+            "GetDepartmentOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_grouped_categories",
+            "GetGroupedCategoriesOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_inventory",
+            "GetInventoryOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_matrix",
+            "GetMatrixOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_order_by_id",
+            "GetOrderByIdOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_order_by_tracking_id",
+            "GetOrderByTrackingIdOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_stock_item",
+            "GetStockItemOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_swatch",
+            "GetSwatchOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_swatch_groups",
+            "GetSwatchGroupsOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_timestamp_groups",
+            "GetTimestampGroupsOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_tree",
+            "GetTreeOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "place_order",
+            "PlaceOrderOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "reserve_stock",
+            "ReserveStockOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "search_store",
+            "SearchStoreOptions",
+            False,
+        ),
+    ]
+
+    @pytest.mark.parametrize(
+        "module,api,operation,options_name,call_settings_only", OPERATIONS
+    )
+    def test_the_operation_has_an_options_argument(
+        self,
+        module: str,
+        api: str,
+        operation: str,
+        options_name: str,
+        call_settings_only: bool,
+    ) -> None:
+        method = getattr(getattr(importlib.import_module(module), api), operation)
+
+        assert "options" in inspect.signature(method).parameters
+
+    @pytest.mark.parametrize(
+        "module,api,operation,options_name,call_settings_only", OPERATIONS
+    )
+    def test_the_options_object_carries_the_per_call_settings(
+        self,
+        module: str,
+        api: str,
+        operation: str,
+        options_name: str,
+        call_settings_only: bool,
+    ) -> None:
+        options = getattr(
+            importlib.import_module("petstore_client.api.options"), options_name
+        )
+        names = [field.name for field in dataclasses.fields(options)]
+
+        assert {"timeout", "headers", "max_retries"} <= set(names)
+        if call_settings_only:
+            assert "auth" not in names
+
+    @pytest.mark.parametrize(
+        "module,api,operation,options_name,call_settings_only",
+        [entry for entry in OPERATIONS if entry[4]],
+    )
+    def test_an_operation_without_parameters_builds_its_options_from_the_call_settings(
+        self,
+        module: str,
+        api: str,
+        operation: str,
+        options_name: str,
+        call_settings_only: bool,
+    ) -> None:
+        options = getattr(
+            importlib.import_module("petstore_client.api.options"), options_name
+        )
+
+        built = options(timeout=5, headers={"X-A": "1"}, max_retries=0)
+
+        assert (built.timeout, built.max_retries) == (5, 0)
+        assert built.headers["X-A"] == "1"
+        assert options().timeout is None
 
 
 class TestMetadataEquality:

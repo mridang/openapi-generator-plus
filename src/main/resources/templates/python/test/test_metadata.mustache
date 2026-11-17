@@ -1,6 +1,8 @@
 from typing import Any, cast
 import ast
 import dataclasses
+import importlib
+import inspect
 import json
 import os
 import sys
@@ -307,6 +309,63 @@ class TestOptionsPerCallSettings:
         assert options.headers['X-A'] == '1'
         with pytest.raises(TypeError):
             cast(Any, options.headers)['X-B'] = '3'
+
+
+class TestEveryOperationTakesOptions:
+    """F827: every operation, with or without parameters, takes the Options object that
+    carries the per-call timeout, headers and retry budget."""
+
+    OPERATIONS = [
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#operation}}
+        (
+            '{{apiPackage}}.{{classFilename}}',
+            '{{classname}}',
+            '{{operationId}}',
+            '{{vendorExtensions.op.optionsClassName}}',
+            {{#vendorExtensions.op.optionsCallSettingsOnly}}True{{/vendorExtensions.op.optionsCallSettingsOnly}}{{^vendorExtensions.op.optionsCallSettingsOnly}}False{{/vendorExtensions.op.optionsCallSettingsOnly}},
+        ),
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    ]
+
+    @pytest.mark.parametrize('module,api,operation,options_name,call_settings_only', OPERATIONS)
+    def test_the_operation_has_an_options_argument(
+        self, module: str, api: str, operation: str, options_name: str, call_settings_only: bool
+    ) -> None:
+        method = getattr(getattr(importlib.import_module(module), api), operation)
+
+        assert 'options' in inspect.signature(method).parameters
+
+    @pytest.mark.parametrize('module,api,operation,options_name,call_settings_only', OPERATIONS)
+    def test_the_options_object_carries_the_per_call_settings(
+        self, module: str, api: str, operation: str, options_name: str, call_settings_only: bool
+    ) -> None:
+        options = getattr(importlib.import_module('{{packageName}}.api.options'), options_name)
+        names = [field.name for field in dataclasses.fields(options)]
+
+        assert {'timeout', 'headers', 'max_retries'} <= set(names)
+        if call_settings_only:
+            assert 'auth' not in names
+
+    @pytest.mark.parametrize(
+        'module,api,operation,options_name,call_settings_only',
+        [entry for entry in OPERATIONS if entry[4]],
+    )
+    def test_an_operation_without_parameters_builds_its_options_from_the_call_settings(
+        self, module: str, api: str, operation: str, options_name: str, call_settings_only: bool
+    ) -> None:
+        options = getattr(importlib.import_module('{{packageName}}.api.options'), options_name)
+
+        built = options(timeout=5, headers={'X-A': '1'}, max_retries=0)
+
+        assert (built.timeout, built.max_retries) == (5, 0)
+        assert built.headers['X-A'] == '1'
+        assert options().timeout is None
 
 
 class TestMetadataEquality:

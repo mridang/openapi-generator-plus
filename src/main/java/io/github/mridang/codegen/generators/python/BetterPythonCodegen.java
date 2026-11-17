@@ -5,6 +5,7 @@ import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.NamingConvention;
 import com.google.common.base.Splitter;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
 import java.nio.file.Path;
@@ -242,12 +243,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 "Issue tracker URL, written to the manifest and README (optional)."));
     }
 
-    /**
-     * Options classes this generator mints for operations the shared pass leaves without one
-     * (no query, header, form or cookie parameter and no security), so that every operation
-     * can take the per-call timeout, headers and retry budget (F827).
-     */
-    private final List<Map<String, String>> extraOptionsFiles = new ArrayList<>();
+    /** The generated per-scheme authenticators that read an environment variable, for the unit test. */
+    private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
 
     /** The names the generated operations add to their own signature, which a path or body parameter must not reuse (F1055). */
     @Override
@@ -445,7 +442,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         }
         final OperationsMap processed =
                 super.postProcessOperationsWithModels(objs, allModels);
-        addCallOptionsWhereMissing(processed);
         // A format:date parameter (query, header, path, or form) types the
         // method signature as `date`, but openapi-generator only collects
         // model imports from body/response schemas, never from scalar
@@ -474,86 +470,25 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     }
 
     /**
-     * Mints an Options class, and the signature entry that takes it, for every operation the
-     * shared pass gave none. The per-call timeout, headers and retry budget live on that class,
-     * so an operation without parameters still has the slot (F827). When the shared pass starts
-     * minting the class itself, every operation already has one and this does nothing.
+     * Every operation gets an Options object, so even one with no parameters and no security
+     * has the slot for the per-call timeout, headers and retry budget (F827).
      */
-    @SuppressWarnings("unchecked")
-    private void addCallOptionsWhereMissing(OperationsMap processed) {
-        final Map<String, Object> operations = (Map<String, Object>) processed.get("operations");
-        if (operations == null) {
-            return;
-        }
-        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
-        if (ops == null) {
-            return;
-        }
-        for (final CodegenOperation op : ops) {
-            final Object decorator = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
-            if (!(decorator instanceof Map)) {
-                continue;
-            }
-            final Map<String, Object> deco = (Map<String, Object>) decorator;
-            final List<Map<String, Object>> sig = (List<Map<String, Object>>) deco.get("signatureArgs");
-            final List<Map<String, Object>> sigNoServer =
-                    (List<Map<String, Object>>) deco.get("signatureArgsNoServer");
-            if (sig == null || sigNoServer == null
-                    || sig.stream().anyMatch(a -> Boolean.TRUE.equals(a.get("isOptions")))) {
-                continue;
-            }
-            final String className = Objects.requireNonNull((String) deco.get("optionsClassName"));
-            final String content = generateOptionsFileContent(op, new ArrayList<>(), className);
-            if (content == null) {
-                continue;
-            }
-            final String filePath = getOptionsFilePath(op.operationId, className);
-            writeFile(filePath, content);
-            postProcessFile(Path.of(filePath).toFile(), "source");
-
-            final Map<String, String> meta = new HashMap<>();
-            meta.put("optionsClassName", className);
-            meta.put("optionsFilePath", filePath);
-            extraOptionsFiles.add(meta);
-
-            final Map<String, String> importMeta = new HashMap<>();
-            importMeta.put("optionsClassName", className);
-            importMeta.put("optionsFileName", NamingConvention.SNAKE_CASE.apply(className));
-            List<Map<String, String>> optionsImports =
-                    (List<Map<String, String>>) processed.get("optionsImports");
-            if (optionsImports == null) {
-                optionsImports = new ArrayList<>();
-                processed.put("optionsImports", optionsImports);
-            }
-            optionsImports.add(importMeta);
-
-            for (final List<Map<String, Object>> args : List.of(sig, sigNoServer)) {
-                final Map<String, Object> entry = new HashMap<>();
-                entry.put("kind", "options");
-                entry.put("isPath", false);
-                entry.put("isBody", false);
-                entry.put("isOptions", true);
-                entry.put("isServer", false);
-                entry.put("paramName", "options");
-                entry.put("dataType", className);
-                entry.put("nullable", true);
-                entry.put("isNullable", false);
-                args.add(entry);
-            }
-            deco.put("hasOptionsParam", true);
-        }
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
     }
 
     /**
-     * Writes the options barrel even when every Options class is one this generator minted,
-     * which the shared pass does not count.
+     * Takes the environment-variable prefix the shared pass computed, so the client's own
+     * variables and those of the per-scheme authenticators share one prefix (F862).
      */
     @Override
-    public void postProcess() {
-        if (getAccumulatedOptionsFiles().isEmpty() && !extraOptionsFiles.isEmpty()) {
-            emitBarrelFiles(new ArrayList<>());
+    public void processOpenAPI(OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        final Object shared = additionalProperties.get("envVarPrefix");
+        if (shared != null && !shared.toString().isBlank()) {
+            additionalProperties.put("envPrefix", shared.toString());
         }
-        super.postProcess();
     }
 
     /**
@@ -634,9 +569,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 "userAgentDefault", distributionName + "/" + packageVersion + " (python)");
 
         /* The environment-variable prefix of the credentials the client reads
-         * once at construction ({PREFIX}_ACCESS_TOKEN, {PREFIX}_BASE_URL). */
+         * once at construction ({PREFIX}_ACCESS_TOKEN, {PREFIX}_BASE_URL). The shared
+         * prefix (the envVarPrefix option, else the API title) replaces this fallback in
+         * processOpenAPI, so the client and every per-scheme authenticator agree. */
         additionalProperties.put(
                 "envPrefix", NamingConvention.SNAKE_CASE.apply(distributionName).toUpperCase(Locale.ROOT));
+        additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);
 
         /* Package metadata options: the manifest and the README show only the
          * ones that were given. */
@@ -1304,6 +1242,20 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // Standalone authenticator tests, emitted only when the spec's security
         // schemes produce the corresponding authenticator. Registered here, not
         // in processOpts: the scheme flags are only set once the spec is parsed.
+        if (Boolean.TRUE.equals(additionalProperties.get("hasSecuritySchemeEnvVars"))) {
+            supportingFiles.add(
+                    new SupportingFile("auth/_credentials.mustache", getAuthDir(), "_credentials.py"));
+            if (generateTests) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_credentials.mustache", "test", "test_credentials.py"));
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_scheme_authenticators.mustache",
+                                "test",
+                                "test_scheme_authenticators.py"));
+            }
+        }
         if (generateTests) {
             if (hasBearerAuth) {
                 supportingFiles.add(
@@ -1347,9 +1299,41 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
         final Map<String, Object> ctx = baseSchemeContext(spec);
         ctx.put("imports", buildPythonImports(spec));
-        ctx.put("constructorParams", buildPythonConstructorParams(spec));
+        final List<Map<String, Object>> constructorParams = buildPythonConstructorParams(spec, ctx);
+        ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildPythonSuperArgs(spec));
+        final boolean bearer = "BearerAuthenticator".equals(spec.baseClass());
+        ctx.put("isBearer", bearer);
+        recordSchemeAuthenticator(spec, constructorParams, bearer);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /**
+     * Remembers a generated per-scheme authenticator, with the environment variable of each
+     * credential it reads, so that the generated unit test covers every one of them (F862).
+     */
+    private void recordSchemeAuthenticator(
+            SchemeAuthSpec spec, List<Map<String, Object>> constructorParams, boolean bearer) {
+        final String className = spec.schemeClass() + spec.oauthSuffix() + "Authenticator";
+        final List<Map<String, Object>> envParams = new ArrayList<>();
+        for (final Map<String, Object> param : constructorParams) {
+            if (Boolean.TRUE.equals(param.get("hasEnv"))) {
+                envParams.add(param);
+            }
+        }
+        if (envParams.isEmpty()) {
+            return;
+        }
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", className);
+        entry.put("module", packageName + (spec.isOAuth() ? ".auth.oauth." : ".auth.")
+                + NamingConvention.SNAKE_CASE.apply(className));
+        entry.put("envParams", envParams);
+        entry.put("firstEnvName", envParams.get(0).get("envName"));
+        entry.put("isBearer", bearer);
+        entry.put("isBasic", "BasicAuthenticator".equals(spec.baseClass()));
+        entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
+        perSchemeAuthEntries.add(entry);
     }
 
     /**
@@ -1383,12 +1367,31 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         return imports;
     }
 
-    private static List<Map<String, String>> buildPythonConstructorParams(SchemeAuthSpec spec) {
-        final List<Map<String, String>> params = new ArrayList<>();
+    /**
+     * The constructor parameters of a per-scheme authenticator. Every credential field takes its
+     * environment variable (from the shared {@code envVars} of the scheme context) so the
+     * parameter is optional and a missing one fails at construction (F862); {@code host} is the
+     * one parameter that has none.
+     */
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> buildPythonConstructorParams(
+            SchemeAuthSpec spec, Map<String, Object> schemeContext) {
+        final List<Map<String, Object>> envVars =
+                (List<Map<String, Object>>) schemeContext.getOrDefault("envVars", List.of());
+        final List<Map<String, Object>> params = new ArrayList<>();
         for (final String name : spec.paramNames()) {
-            final Map<String, String> param = new HashMap<>();
-            param.put("name", NamingConvention.SNAKE_CASE.apply(name));
+            final Map<String, Object> param = new HashMap<>();
+            final String snake = NamingConvention.SNAKE_CASE.apply(name);
+            param.put("name", snake);
             param.put("type", "str");
+            param.put("hasEnv", false);
+            for (final Map<String, Object> envVar : envVars) {
+                if (name.equals(envVar.get("field"))) {
+                    param.put("hasEnv", true);
+                    param.put("envName", envVar.get("envName"));
+                    break;
+                }
+            }
             params.add(param);
         }
         return params;
@@ -1711,12 +1714,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
         final List<Map<String, String>> exports = new ArrayList<>();
         final List<Map<String, String>> all = new ArrayList<>(optionsFiles);
-        for (final Map<String, String> extra : extraOptionsFiles) {
-            final String extraName = Objects.requireNonNull(extra.get("optionsClassName"));
-            if (all.stream().noneMatch(m -> extraName.equals(m.get("optionsClassName")))) {
-                all.add(extra);
-            }
-        }
         for (final Map<String, String> meta : all) {
             final String className =
                     Objects.requireNonNull(meta.get("optionsClassName"));

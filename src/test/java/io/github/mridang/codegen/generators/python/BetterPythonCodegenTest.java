@@ -3,6 +3,11 @@ package io.github.mridang.codegen.generators.python;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,7 +15,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceAccessMode;
 import org.junit.jupiter.api.parallel.ResourceLock;
 
@@ -110,5 +117,40 @@ class BetterPythonCodegenTest {
 
         assertEquals(false, codegen.additionalProperties().get("hasProjectUrls"));
         assertEquals(false, codegen.additionalProperties().get("hasAuthors"));
+    }
+
+    /* F827: every operation gets an Options object, so the shared pass must mint it for all of them. */
+    @Test
+    void everyOperationGetsAnOptionsObject() {
+        assertTrue(new BetterPythonCodegen().mintsOptionsForEveryOperation());
+    }
+
+    /* F862: the per-scheme authenticator reads the shared variable name, and the client shares its prefix. */
+    @Test
+    void aSchemeAuthenticatorReadsItsSharedEnvironmentVariable(@TempDir final Path out) throws IOException {
+        final BetterPythonCodegen codegen = new BetterPythonCodegen();
+        codegen.setOutputDir(out.toString());
+        codegen.processOpts();
+        codegen.processOpenAPI(
+                new OpenAPI()
+                        .info(new Info().title("Acme SDK").version("1"))
+                        .components(new Components()
+                                .addSecuritySchemes(
+                                        "tok",
+                                        new SecurityScheme()
+                                                .type(SecurityScheme.Type.HTTP)
+                                                .scheme("bearer"))));
+
+        assertEquals("ACME", codegen.additionalProperties().get("envPrefix"));
+        final String source;
+        try (Stream<Path> files = Files.walk(out)) {
+            source = Files.readString(files.filter(f -> f.getFileName().toString().equals("tok_authenticator.py"))
+                    .findFirst()
+                    .orElseThrow());
+        }
+        assertTrue(source.contains("resolve_credential(token, 'ACME_TOKEN', 'token')")
+                || source.contains("resolve_credential(token, \"ACME_TOKEN\", \"token\")"), source);
+        assertTrue(source.contains("token: Optional[str] = None"), source);
+        assertTrue(source.contains("token_provider: Optional[Callable[[], str]] = None"), source);
     }
 }

@@ -19,8 +19,8 @@ from petstore_client.api.store_api import StoreApi
 
 
 def _from_environment(field: str) -> Optional[str]:
-    """The value of ``PETSTORE_CLIENT_<field>``, or ``None`` when it is unset or empty."""
-    return os.environ.get("PETSTORE_CLIENT_" + field) or None
+    """The value of ``SWAGGER_PETSTORE_OPEN_API_3_0_<field>``, or ``None`` when it is unset or empty."""
+    return os.environ.get("SWAGGER_PETSTORE_OPEN_API_3_0_" + field) or None
 
 
 class Client:
@@ -98,8 +98,8 @@ class Client:
 
         Each credential is resolved once, here, in this order: the argument
         you pass, then the environment variable (an empty value counts as
-        unset). ``host`` falls back to ``PETSTORE_CLIENT_BASE_URL`` and
-        ``access_token`` to ``PETSTORE_CLIENT_ACCESS_TOKEN``. Instead of a
+        unset). ``host`` falls back to ``SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL`` and
+        ``access_token`` to ``SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN``. Instead of a
         static token you can pass ``token_provider``, a callable that returns
         the current token and runs for every request.
 
@@ -122,7 +122,7 @@ class Client:
         resolved_host = host if host is not None else _from_environment("BASE_URL")
         if resolved_host is None:
             raise ValueError(
-                "The API host is required: pass host or set PETSTORE_CLIENT_BASE_URL"
+                "The API host is required: pass host or set SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"
             )
         if token_provider is not None:
             if access_token is not None:
@@ -139,7 +139,7 @@ class Client:
             if resolved_token is None:
                 raise ValueError(
                     "The access token is required: pass access_token or token_provider, "
-                    "or set PETSTORE_CLIENT_ACCESS_TOKEN"
+                    "or set SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN"
                 )
             authenticator = BearerAuthenticator(resolved_host, resolved_token)
         return cls(authenticator, transport_options, pool_manager)

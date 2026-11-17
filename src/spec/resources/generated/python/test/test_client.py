@@ -92,8 +92,10 @@ class TestClientCredentials:
     def test_an_explicit_host_and_token_win_over_the_environment(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("PETSTORE_CLIENT_BASE_URL", "https://env.example.com")
-        monkeypatch.setenv("PETSTORE_CLIENT_ACCESS_TOKEN", "env-token")
+        monkeypatch.setenv(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "https://env.example.com"
+        )
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "env-token")
 
         client = Client.with_token("https://arg.example.com", "arg-token")
 
@@ -103,8 +105,10 @@ class TestClientCredentials:
     def test_the_environment_fills_what_was_not_passed(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("PETSTORE_CLIENT_BASE_URL", "https://env.example.com")
-        monkeypatch.setenv("PETSTORE_CLIENT_ACCESS_TOKEN", "env-token")
+        monkeypatch.setenv(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "https://env.example.com"
+        )
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "env-token")
 
         client = Client.with_token()
 
@@ -114,27 +118,29 @@ class TestClientCredentials:
     def test_the_environment_is_read_once_at_construction(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("PETSTORE_CLIENT_ACCESS_TOKEN", "first")
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "first")
         client = Client.with_token("https://arg.example.com")
 
-        monkeypatch.setenv("PETSTORE_CLIENT_ACCESS_TOKEN", "second")
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "second")
 
         assert _authorization(client) == "Bearer first"
 
     def test_an_empty_environment_value_counts_as_unset(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("PETSTORE_CLIENT_ACCESS_TOKEN", "")
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "")
 
-        with pytest.raises(ValueError, match="PETSTORE_CLIENT_ACCESS_TOKEN"):
+        with pytest.raises(
+            ValueError, match="SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN"
+        ):
             Client.with_token("https://arg.example.com")
 
     def test_a_missing_host_fails_when_the_client_is_built(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.delenv("PETSTORE_CLIENT_BASE_URL", raising=False)
+        monkeypatch.delenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", raising=False)
 
-        with pytest.raises(ValueError, match="PETSTORE_CLIENT_BASE_URL"):
+        with pytest.raises(ValueError, match="SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"):
             Client.with_token(access_token="arg-token")
 
     def test_a_token_provider_runs_for_every_request(self) -> None:
@@ -149,7 +155,7 @@ class TestClientCredentials:
     def test_a_token_provider_needs_no_environment_token(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.delenv("PETSTORE_CLIENT_ACCESS_TOKEN", raising=False)
+        monkeypatch.delenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", raising=False)
 
         client = Client.with_token(
             "https://arg.example.com", token_provider=lambda: "live"
