@@ -202,7 +202,7 @@ func TestBhvSerializationobject017_ObjectSerializer_ReadOnlyAndWriteOnlyProperti
 	}
 }
 
-func TestObjectSerializer_Serialize_SetScalarsAreSorted(t *testing.T) {
+func TestBhvSerializationobject015_ObjectSerializer_Serialize_SetScalarsAreSorted(t *testing.T) {
 	t.Parallel()
 	for range 2 {
 		data, err := models.Set[string]{"c", "a", "b"}.MarshalJSON()
@@ -3127,4 +3127,34 @@ func TestBhvSerializationobject089_ObjectSerializer_Deserialize_IncompleteObject
 	if !errors.As(err, &serErr) {
 		t.Errorf("expected *SerializationError, got %T: %v", err, err)
 	}
+}
+
+/* requireNullElementError checks that err is the *SerializationError a null
+ * element of a non-nullable container produces. */
+func requireNullElementError(t *testing.T, err error) {
+	t.Helper()
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected a *SerializationError for a null element, got %T: %v", err, err)
+	}
+}
+
+func TestBhvSerializationobject121_ObjectSerializer_Deserialize_NullElementInAnArrayOfModelsIsRejected(t *testing.T) {
+	t.Parallel()
+	var pets []models.Pet
+	requireNullElementError(t, deserialize([]byte(`[null,{"name":"a","photoUrls":[]}]`), &pets))
+}
+
+func TestBhvSerializationobject122_ObjectSerializer_Deserialize_NullElementOfAMapOfInt32AndANestedArrayIsRejected(t *testing.T) {
+	t.Parallel()
+	var counts map[string]int32
+	requireNullElementError(t, deserialize([]byte(`{"a":null}`), &counts))
+	var matrix [][]int32
+	requireNullElementError(t, deserialize([]byte(`[[1,null]]`), &matrix))
+}
+
+func TestBhvSerializationobject123_ObjectSerializer_Deserialize_NullValueInAMapOfModelsIsRejected(t *testing.T) {
+	t.Parallel()
+	var pets map[string]models.Pet
+	requireNullElementError(t, deserialize([]byte(`{"a":null,"b":{"name":"a","photoUrls":[]}}`), &pets))
 }

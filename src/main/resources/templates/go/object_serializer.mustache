@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -163,6 +164,10 @@ func deserialize(data []byte, target any) error {
 		)
 	}
 
+	if err := checkNullElements(data, reflect.TypeOf(target)); err != nil {
+		return err
+	}
+
 	if err := json.Unmarshal(data, target); err != nil {
 		return newSerializationError(
 			fmt.Sprintf("failed to deserialize JSON: %v", err),
@@ -170,6 +175,66 @@ func deserialize(data []byte, target any) error {
 		)
 	}
 	return nil
+}
+
+/* checkNullElements fails with a *SerializationError when the target is a slice,
+ * array or map whose element type cannot hold nil and the JSON carries a null
+ * for one of its elements. encoding/json decodes such a null as the element's
+ * zero value without an error, which the other SDKs reject. A null container
+ * itself is accepted, and pointer and interface elements can hold nil. */
+func checkNullElements(data []byte, t reflect.Type) error {
+	trimmed := bytes.TrimSpace(data)
+	if t == nil || len(trimmed) == 0 || string(trimmed) == "null" {
+		return nil
+	}
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.Slice, reflect.Array:
+		var items []json.RawMessage
+		if json.Unmarshal(trimmed, &items) != nil {
+			return nil
+		}
+		for i, item := range items {
+			if err := checkNullElement(item, t.Elem(), fmt.Sprintf("at index %d", i)); err != nil {
+				return err
+			}
+		}
+	case reflect.Map:
+		var entries map[string]json.RawMessage
+		if json.Unmarshal(trimmed, &entries) != nil {
+			return nil
+		}
+		keys := make([]string, 0, len(entries))
+		for key := range entries {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			if err := checkNullElement(entries[key], t.Elem(), fmt.Sprintf("for key %q", key)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+/* checkNullElement checks one element of a container against its element type:
+ * a null is refused unless the element type can hold nil, and any other value is
+ * checked in turn for the containers it holds. */
+func checkNullElement(item json.RawMessage, elem reflect.Type, where string) error {
+	if string(bytes.TrimSpace(item)) == "null" {
+		switch elem.Kind() {
+		case reflect.Pointer, reflect.Interface:
+			return nil
+		}
+		return newSerializationError(
+			fmt.Sprintf("failed to deserialize JSON: null element %s", where),
+			nil,
+		)
+	}
+	return checkNullElements(item, elem)
 }
 
 // jsonMaxDepth returns the maximum nesting depth of `{`/`[` containers in

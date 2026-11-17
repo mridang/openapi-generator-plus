@@ -85,3 +85,5 @@ elixir | config002 | Elixir has no builder: Configuration.new/1 takes the header
 elixir | config003 | Elixir has no builder and no chained setters: Configuration is an immutable struct built once by Configuration.new/1, so there is no fluent call chain to test
 elixir | config004 | Elixir has no builder and no separate single-header and bulk-header setters: headers are one keyword list given to Configuration.new/1, so there is no merge step
 elixir | config007 | Elixir has no builder: Configuration.new/1 returns the configuration struct directly, so there is no builder instance to return
+go | authintegration002 | Go per-call request options carry no authenticator, so no per-call HTTP-aware authenticator can be passed to an operation; the client-level one is injected by the constructor, the same reason go | authintegration013 is excepted
+go | serializationobject002 | Go number is float64 (no stdlib decimal, documented lossy), so the input digits are not kept exactly and strconv writes tiny or huge magnitudes in exponent notation; a BigDecimal-exact bare number is not the go contract
