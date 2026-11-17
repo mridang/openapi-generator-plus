@@ -189,7 +189,7 @@ defmodule {{moduleName}}.DefaultApiClientTest do
     assert {{moduleName}}.DefaultApiClient.send_request(roomy, :get, chain, %{}, nil).status_code == 200
   end
 
-  test "a Set-Cookie of one response is never replayed on the next request" do
+  test "bhv retries 015 a Set-Cookie of one response is never replayed on the next request" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = {{moduleName}}.DefaultApiClient.new()
 
