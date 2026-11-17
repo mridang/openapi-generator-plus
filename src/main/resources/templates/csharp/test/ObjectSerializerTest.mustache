@@ -52,6 +52,32 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvSerializationobject155StringifyBoolReturnsLowercaseWord()
+        {
+            Assert.Equal("true", ObjectSerializer.Stringify(true));
+        }
+
+        [Fact]
+        public void BhvSerializationobject159StringifyStringReturnsItself()
+        {
+            Assert.Equal("hello", ObjectSerializer.Stringify("hello"));
+        }
+
+        [Fact]
+        public void BhvSerializationobject179WholeSecondDatetimeHasAFixedThreeDigitFraction()
+        {
+            var dt = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
+            Assert.Equal("2024-01-15T10:30:00.000+00:00", ObjectSerializer.Stringify(dt));
+        }
+
+        [Fact]
+        public void BhvSerializationobject151DateTimeSerializesInTheCanonicalDateTimeForm()
+        {
+            var utc = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
+            Assert.Equal("2024-01-15T10:30:00.000+00:00", ObjectSerializer.Stringify(utc));
+        }
+
+        [Fact]
         public void BhvSerializationobject114PlainStringPassesThroughUnchanged()
         {
             Assert.Equal("hello", ObjectSerializer.Stringify("hello"));
@@ -116,6 +142,12 @@ public static class ObjectSerializerTest
 
         [Fact]
         public void BhvSerializationobject043ConvertsTrueToString()
+        {
+            Assert.Equal("true", ObjectSerializer.ToPathValue(true));
+        }
+
+        [Fact]
+        public void BhvSerializationobject166ToPathValueBoolReturnsLowercaseWord()
         {
             Assert.Equal("true", ObjectSerializer.ToPathValue(true));
         }
@@ -200,6 +232,26 @@ public static class ObjectSerializerTest
             var list = new List<string> { "a", "b", "c" };
             Assert.Equal(list, ObjectSerializer.ToQueryValue(list, "multi"));
         }
+
+        [Fact]
+        public void BhvSerializationobject167ToQueryValueStringReturnsItself()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToQueryValue("hello", null));
+        }
+
+        [Fact]
+        public void BhvSerializationobject168ToQueryValueStringSliceCsvJoinsWithComma()
+        {
+            var values = new List<string> { "a", "b", "c" };
+            Assert.Equal("a,b,c", ObjectSerializer.ToQueryValue(values, "csv"));
+        }
+
+        [Fact]
+        public void BhvSerializationobject169ToQueryValueStringSliceSsvJoinsWithSpace()
+        {
+            var values = new List<string> { "a", "b", "c" };
+            Assert.Equal("a b c", ObjectSerializer.ToQueryValue(values, "ssv"));
+        }
     }
 
     public class ToHeaderValueTests
@@ -234,6 +286,12 @@ public static class ObjectSerializerTest
     {
         [Fact]
         public void BhvSerializationobject132ReturnsEmptyStringForNull()
+        {
+            Assert.Equal("", ObjectSerializer.ToFormValue(null));
+        }
+
+        [Fact]
+        public void BhvSerializationobject165ToFormValueNullReturnsEmptyString()
         {
             Assert.Equal("", ObjectSerializer.ToFormValue(null));
         }
