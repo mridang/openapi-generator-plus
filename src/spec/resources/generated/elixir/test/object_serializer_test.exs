@@ -414,6 +414,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "stringify/1" do
+    test "bhv serializationobject 190 a long is stringified to its exact decimal digits" do
+      assert PetstoreClient.ObjectSerializer.stringify(9_223_372_036_854_775_807) ==
+               "9223372036854775807"
+    end
+
     test "bhv serializationobject 110 returns empty string for nil" do
       assert PetstoreClient.ObjectSerializer.stringify(nil) == ""
     end
@@ -2097,7 +2102,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert category.name == 42
     end
 
-    test "an unknown enum string fails when it is decoded" do
+    test "bhv serializationobject 191 an int64 above 2^53 keeps every digit when decoded" do
+      assert PetstoreClient.ObjectSerializer.deserialize("9007199254740993", "Integer") ==
+               9_007_199_254_740_993
+    end
+
+    test "bhv serializationobject 192 an unknown enum string fails when it is decoded" do
       error =
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize(~s({"status":"no-such-member"}), "Order")

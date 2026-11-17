@@ -98,7 +98,7 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert error.status_code == 400
   end
 
-  test "raises UnauthorizedError for status 401", %{state: state} do
+  test "bhv errors 071 raises UnauthorizedError for status 401", %{state: state} do
     assert {:error, error} =
              {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/status/401", %{}, %{}, nil, ["application/json"], "application/json", nil)
 
@@ -2094,6 +2094,47 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert Enum.map(attempts(), &Req.Request.get_header(&1, "x-attempt")) == [["n1"], ["n2"], ["n3"]]
   end
 
+  test "bhv retries 032 a stream body is never retried" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, 200])
+    body = Stream.repeatedly(fn -> "payload" end) |> Stream.take(1)
+
+    assert {:error, %{{moduleName}}.Errors.ServerError{status_code: 503}} =
+             put_thing(state, body, "application/octet-stream")
+
+    assert length(attempts()) == 1
+  end
+
+  test "bhv retries 033 the last network error is reported once the retries are spent" do
+    failing = retry_state([{:transport_error, :econnrefused}], max_retries: 2)
+
+    assert {:error, %{{moduleName}}.Errors.NetworkError{}} = get_thing(failing)
+    assert length(attempts()) == 3
+  end
+
+  test "bhv retries 034 a string body is sent again unchanged on every retry" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, {503, [{"retry-after", "0"}]}, 200])
+
+    assert {:ok, _} = put_thing(state, "payload", "text/plain")
+    assert Enum.map(attempts(), & &1.body) == ["payload", "payload", "payload"]
+  end
+
+  test "bhv retries 038 a 503 is sent again until it succeeds" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, {503, [{"retry-after", "0"}]}, 200])
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 3
+  end
+
+  test "bhv retries 039 every retry is a fresh request that carries the same authentication headers again" do
+    auth = %TestAuthenticator{host_url: "http://retry.invalid", headers: %{"X-Session" => "sess-1"}}
+    state = retry_state([{503, [{"retry-after", "0"}]}, {503, [{"retry-after", "0"}]}, 200], [], auth)
+
+    assert {:ok, _} = get_thing(state)
+
+    assert Enum.map(attempts(), &Req.Request.get_header(&1, "x-session")) ==
+             [["sess-1"], ["sess-1"], ["sess-1"]]
+  end
+
   defp get_thing_with(state, call, query_params \\ %{}, header_params \\ %{}) do
     {{moduleName}}.Api.BaseApi.invoke_api(
       state, :get, "/things", query_params, header_params, nil, ["application/json"], "application/json", nil, nil, call
@@ -2249,6 +2290,19 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     for status <- [408, 409, 429, 500, 502, 503, 599] do
       assert {{moduleName}}.Api.BaseApi.retryable_status?(status)
     end
+  end
+
+  test "bhv retries 030 the retry backoff jitter takes at most a quarter off the delay" do
+    for jitter <- [0.0, 0.5, 1.0] do
+      assert {{moduleName}}.Api.BaseApi.backoff_delay(2, jitter) in 750..1_000
+    end
+  end
+
+  test "bhv retries 041 the retry backoff starts at 0.5 s, doubles up to 8 s and has up to 25% jitter taken off" do
+    assert {{moduleName}}.Api.BaseApi.backoff_delay(1, 0.0) == 500
+    assert {{moduleName}}.Api.BaseApi.backoff_delay(2, 0.0) == 1_000
+    assert {{moduleName}}.Api.BaseApi.backoff_delay(6, 0.0) == 8_000
+    assert {{moduleName}}.Api.BaseApi.backoff_delay(1, 1.0) == 375
   end
 
   test "bhv retries 027 backoff doubles from half a second to eight seconds with quarter jitter" do

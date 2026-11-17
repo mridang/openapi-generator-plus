@@ -1106,6 +1106,16 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
              302
   end
 
+  test "bhv redirects 031 a 3xx without a Location header is returned unchanged instead of failing" do
+    source = start_server(302, "text/plain", "")
+
+    transport = PetstoreClient.TransportOptions.new(follow_redirects: true, max_redirects: 0)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    assert PetstoreClient.DefaultApiClient.send_request(client, :get, source, %{}, nil).status_code ==
+             302
+  end
+
   test "bhv redirects 024 a same origin redirect keeps the proxy and authorization headers" do
     base_url = start_same_origin_redirect_server()
     client = PetstoreClient.DefaultApiClient.new()
@@ -1145,6 +1155,27 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert_receive {:captured_headers, target_headers}, 5000
     refute Map.has_key?(target_headers, "x-default-token")
     assert target_headers["x-trace"] == "keep"
+  end
+
+  test "bhv redirects 033 a redirect to a different port is a different origin and drops the credentials" do
+    {target_url, _} = start_header_capture_server()
+    {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
+
+    client = PetstoreClient.DefaultApiClient.new()
+    authorization = "Bearer " <> "secret-token"
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      source_url,
+      %{"Authorization" => authorization},
+      nil
+    )
+
+    assert_receive {:source_headers, source_headers}, 5000
+    assert source_headers["authorization"] == authorization
+    assert_receive {:captured_headers, target_headers}, 5000
+    refute Map.has_key?(target_headers, "authorization")
   end
 
   test "bhv redirects 026 throws ApiError when maxRedirects is exceeded" do
@@ -1775,7 +1806,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   # A redirect's origin is scheme + host + port, and an implicit default port is
   # the same origin as the explicit one: credentials must not be stripped on
   # https://h -> https://h:443.
-  test "same_origin? treats an implicit and an explicit default port as one origin" do
+  test "bhv redirects 030 same_origin? treats an implicit and an explicit default port as one origin" do
     assert PetstoreClient.DefaultApiClient.same_origin?(
              "https://h.example/a",
              "https://h.example:443/b"
@@ -1797,7 +1828,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
            )
   end
 
-  test "same_origin? separates a different scheme, host or port" do
+  test "bhv redirects 034 same_origin? separates a different scheme, host or port" do
     refute PetstoreClient.DefaultApiClient.same_origin?(
              "https://h.example/a",
              "http://h.example/b"
@@ -1983,6 +2014,15 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   describe "redirect_method/2 (RFC 9110 section 15.4)" do
     alias PetstoreClient.DefaultApiClient
 
+    test "bhv redirects 029 a redirect rewrites the method only as RFC 9110 section 15.4 allows" do
+      assert DefaultApiClient.redirect_method(301, :post) == :get
+      assert DefaultApiClient.redirect_method(302, :post) == :get
+      assert DefaultApiClient.redirect_method(303, :put) == :get
+      assert DefaultApiClient.redirect_method(303, :head) == :head
+      assert DefaultApiClient.redirect_method(307, :post) == :post
+      assert DefaultApiClient.redirect_method(308, :delete) == :delete
+    end
+
     test "301 and 302 turn only POST into GET" do
       for status <- [301, 302] do
         assert DefaultApiClient.redirect_method(status, :post) == :get
@@ -1994,7 +2034,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       end
     end
 
-    test "303 turns every method except HEAD into GET" do
+    test "bhv redirects 036 a 303 redirect turns every method except HEAD into GET" do
       for method <- [:post, :put, :patch, :delete, :get] do
         assert DefaultApiClient.redirect_method(303, method) == :get
       end
