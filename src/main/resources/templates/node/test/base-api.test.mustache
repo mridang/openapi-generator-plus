@@ -231,6 +231,19 @@ describe('BaseApi config default Accept', () => {
    * first and then merges config.defaultHeaders OVER it, so the
    * outgoing request must carry the config default.
    */
+  test('bhv operations 008 config.defaultHeaders Accept wins over the operation-negotiated Accept', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({
+      baseUrl: 'http://localhost',
+      defaultHeaders: { Accept: 'application/xml' }
+    });
+    const api = new TestableApi(client, config);
+    await api.call('GET', '/test/echo', {}, {}, null,
+      ['application/json'], 'application/json',
+      (json) => json as unknown);
+    expect(client.capturedHeaders['Accept']).toBe('application/xml');
+  });
+
   test('bhv options 001 config default Accept overrides negotiated Accept', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({
@@ -316,6 +329,18 @@ describe('BaseApi', () => {
     expect(client.capturedUrl).not.toContain('status=');
   });
 
+  test('bhv operations 041 findPetsByStatus omitting status sends no status key in query', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const petApi = new PetApi(client, config);
+    try {
+      await petApi.findPetsByStatus({});
+    } catch {
+      // Response deserialization may fail; we only care about the captured URL
+    }
+    expect(new URL(client.capturedUrl).searchParams.has('status')).toBe(false);
+  });
+
   test('bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
@@ -329,7 +354,7 @@ describe('BaseApi', () => {
     expect(client.capturedUrl).not.toContain('status=');
   });
 
-  test('findPetsByStatus with explicit empty status sends status= in query', async () => {
+  test('bhv operations 040 findPetsByStatus with explicit empty status sends status= in query', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const petApi = new PetApi(client, config);
@@ -340,6 +365,15 @@ describe('BaseApi', () => {
       // Response deserialization may fail; we only care about the captured URL
     }
     expect(client.capturedUrl).toContain('status=');
+  });
+
+  test('bhv operations 003 AllowEmptyValue param is included in the query when its value is empty string', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('GET', '/test/echo', { filter: '' }, {}, null,
+      ['application/json'], 'application/json', null);
+    expect(new URL(client.capturedUrl).searchParams.has('filter')).toBe(true);
+    expect(new URL(client.capturedUrl).searchParams.get('filter')).toBe('');
   });
 
   test('bhv serializationwire 016 includes empty value param in query string when value is empty string', async () => {
@@ -427,7 +461,7 @@ describe('BaseApi', () => {
     expect(capturing.capturedHeaders['Cookie']).toBe('session=abc123; theme=dark');
   });
 
-  test('bhv operations 008 an explicit per-call Accept header wins over the default Accept and the negotiated Accept', async () => {
+  test('bhv operations 004 an explicit per-call Accept header wins over the default Accept and the negotiated Accept', async () => {
     const capturing = new CapturingApiClient();
     const config = Configuration.builder()
       .baseUrl('https://api.example.com')
@@ -726,7 +760,7 @@ describe('BaseApi', () => {
   // caller pick among the declared types; omitting it keeps the first declared
   // type (image/jpeg) for backward compatibility. image/jpeg and image/png
   // share the same raw-binary body, so the same payload is reused for both.
-  test('setPetAvatar honours the selected request content type', async () => {
+  test('bhv operations 071 setPetAvatar honours the selected request content type', async () => {
     const payload = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]);
 
     // (1) No selector -> first declared content-type (image/jpeg), unchanged.
@@ -1062,6 +1096,16 @@ describe('BaseApi', () => {
 });
 
 describe('BaseApi WithHTTPInfo variant', () => {
+  test('bhv operations 006 ApiResult rawBody is a non-null string even for an empty body', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '';
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    const result = await testApi.callForResult('GET', '/test/echo', {}, {}, null,
+      ['application/json'], 'application/json', null);
+    expect(typeof result.rawBody).toBe('string');
+    expect(result.rawBody).toBe('');
+  });
+
   test('bhv operations 018 returns ApiResult with status, data, headers, and rawBody', async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"id":7,"name":"WithInfoPet"}';
