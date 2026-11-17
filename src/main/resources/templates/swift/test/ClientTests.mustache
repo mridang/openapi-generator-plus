@@ -38,15 +38,15 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         }
     }()
 
-    @Test func testConstructWithAuthenticatorOnly() throws {
+    @Test func testBhvLifecycle012ConstructWithAuthenticatorOnly() throws {
         _ = try {{clientClassName}}(authenticator: authenticator)
     }
 
-    @Test func testConstructWithAuthenticatorAndNilTransportOptions() throws {
+    @Test func testBhvLifecycle010ConstructWithAuthenticatorAndNilTransportOptions() throws {
         _ = try {{clientClassName}}(authenticator: authenticator, transportOptions: nil)
     }
 
-    @Test func testClosedClientRejectsFurtherRequests() async throws {
+    @Test func testBhvLifecycle008ClosedClientRejectsFurtherRequests() async throws {
         let client = try {{clientClassName}}(authenticator: authenticator)
         client.close()
         client.close()
@@ -56,7 +56,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(error == ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests"))
     }
 
-    @Test func testCloseLeavesASuppliedSessionOpen() async throws {
+    @Test func testBhvLifecycle007CloseLeavesASuppliedSessionOpen() async throws {
         let probe = InvalidationProbe()
         let session = URLSession(configuration: .ephemeral, delegate: probe, delegateQueue: nil)
         let transport = try TransportOptionsBuilder().session(session).build()
@@ -67,13 +67,13 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         session.invalidateAndCancel()
     }
 
-    @Test func testConstructWithAuthenticatorAndTransportOptions() throws {
+    @Test func testBhvLifecycle011ConstructWithAuthenticatorAndTransportOptions() throws {
         let transport = try TransportOptionsBuilder().build()
 
         _ = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
     }
 
-    @Test func testApiKeyQueryAcceptsNonAscii() throws {
+    @Test func testBhvLifecycle003ApiKeyQueryAcceptsNonAscii() throws {
         // RFC 7230 §3.2.6 — ApiKeyAuthenticator's HEADER location rejects
         // anything outside printable ASCII + TAB (see
         // ApiKeyAuthenticatorTests); the non-header path must NOT validate
@@ -85,7 +85,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     /* The token convenience initializer forwards the Bearer authenticator's
      * ConfigurationError.invalidArgument for a token that cannot be sent. */
     @Test(arguments: ["", "   ", "tok\r\nInjected: yes"])
-    func testTokenInitializerRejectsInvalidToken(token: String) {
+    func testBhvLifecycle017TokenInitializerRejectsInvalidToken(token: String) {
         let error = #expect(throws: ConfigurationError.self) {
             _ = try {{clientClassName}}(host: "{{{basePath}}}", accessToken: token)
         }
@@ -115,7 +115,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     // guard's `trimmingCharacters(...).isEmpty` check is asserted to be a
     // whitespace-ONLY rejection and not an over-eager "contains whitespace"
     // rejection that would break legitimate tokens.
-    @Test func testBearerAcceptsNonEmptyTokenWithGuardInPlace() async throws {
+    @Test func testBhvLifecycle005BearerAcceptsNonEmptyTokenWithGuardInPlace() async throws {
         let auth = try BearerAuthenticator(host: "{{{basePath}}}", token: "abc.def-123")
         let headers = try await auth.authHeaders()
         #expect(headers["Authorization"] == "Bearer abc.def-123")
@@ -169,7 +169,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
             environment: environment)
     }
 
-    @Test func testFromEnvironmentReadsTheHostAndTheToken() async throws {
+    @Test func testBhvLifecycle014FromEnvironmentReadsTheHostAndTheToken() async throws {
         let client = try environmentClient(environment: [
             "{{envVarPrefix}}_HOST": "https://env.example.com",
             "{{envVarPrefix}}_TOKEN": "env-token",
@@ -208,7 +208,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         }
     }
 
-    @Test func testAMissingHostOrCredentialFailsWhenTheClientIsBuilt() {
+    @Test func testBhvLifecycle013AMissingHostOrCredentialFailsWhenTheClientIsBuilt() {
         #expect(throws: ConfigurationError.self) {
             _ = try self.environmentClient(environment: [:])
         }
@@ -267,7 +267,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
 
 {{#perSchemeAuthEntries}}
-    @Test func test{{className}}ReadsItsCredentialsFromTheEnvironment() throws {
+    @Test func testBhvLifecycle002{{className}}ReadsItsCredentialsFromTheEnvironment() throws {
         _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "env-value", {{/envVars}}])
     }
 
@@ -275,7 +275,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: "explicit-value", {{/envVars}}environment: [:])
     }
 
-    @Test func test{{className}}FailsWhenACredentialIsMissing() {
+    @Test func testBhvLifecycle004{{className}}FailsWhenACredentialIsMissing() {
 {{#envVars}}
 {{#-first}}
         let missing = ConfigurationError.invalidArgument(
@@ -344,7 +344,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
     }
 
-    @Test func testAClientWithoutCredentialsSendsNone() async throws {
+    @Test func testBhvLifecycle016AClientWithoutCredentialsSendsNone() async throws {
         let client = try schemeClient(host: "https://no-credential.example.com")
         defer { client.close() }
 
@@ -381,7 +381,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(aware.received)
     }
 
-    @Test func testApiGroupsAreAccessible() throws {
+    @Test func testBhvLifecycle001ApiGroupsAreAccessible() throws {
         let client = try {{clientClassName}}(authenticator: authenticator)
 
 {{#apiInfo}}

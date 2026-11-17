@@ -18,7 +18,7 @@ import Testing
         #expect(result.headers["Content-Type"] == "application/json")
     }
 
-    @Test func testDataMayBeNilForNoContent() {
+    @Test func testBhvResults001DataMayBeNilForNoContent() {
         let result = ApiResult<String>(
             statusCode: 204,
             data: nil,

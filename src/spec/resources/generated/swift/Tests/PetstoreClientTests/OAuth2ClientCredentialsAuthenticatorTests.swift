@@ -56,7 +56,7 @@ import Testing
 
   // MARK: - Tests
 
-  @Test func testSendsClientCredentialsGrantType() async throws {
+  @Test func testBhvAuthoauthtwoclientcred010SendsClientCredentialsGrantType() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
@@ -69,7 +69,7 @@ import Testing
     #expect(bodyString.contains("grant_type=client_credentials"))
   }
 
-  @Test func testSendsClientIdAndSecret() async throws {
+  @Test func testBhvAuthoauthtwoclientcred011SendsClientIdAndSecret() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
@@ -99,7 +99,7 @@ import Testing
     )
   }
 
-  @Test func testSendsScopes() async throws {
+  @Test func testBhvAuthoauthtwoclientcred013SendsScopes() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
@@ -113,7 +113,7 @@ import Testing
     #expect(bodyString.split(separator: "&").contains("scope=read+write"))
   }
 
-  @Test func testReturnsAuthorizationBearerHeader() async throws {
+  @Test func testBhvAuthoauthtwoclientcred008ReturnsAuthorizationBearerHeader() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok-abc\",\"expires_in\":3600}"))
@@ -126,7 +126,7 @@ import Testing
     #expect(headers["Authorization"] == "Bearer tok-abc")
   }
 
-  @Test func testSendsRequestToTokenURL() async throws {
+  @Test func testBhvAuthoauthtwoclientcred012SendsRequestToTokenURL() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
@@ -138,13 +138,13 @@ import Testing
     #expect(client.lastURL == "https://auth.example.com/token")
   }
 
-  @Test func testGetHostReturnsConfiguredHost() {
+  @Test func testBhvAuthoauthtwoclientcred004GetHostReturnsConfiguredHost() {
     let auth = createAuthenticator()
 
     #expect(auth.host() == "https://api.example.com")
   }
 
-  @Test func testCachesTokenAcrossCalls() async throws {
+  @Test func testBhvAuthoauthtwoclientcred003CachesTokenAcrossCalls() async throws {
     // The token manager caches the access token until expiry, so two
     // consecutive header requests reuse the same token and issue only a
     // single token request. Only one response is enqueued; a second token
@@ -168,7 +168,7 @@ import Testing
   // exchange must surface to the caller as a thrown error — NOT be swallowed
   // into an empty header map that would send the API request
   // unauthenticated and produce a confusing downstream 401.
-  @Test func testTokenFetchErrorIsSurfacedNotSwallowed() async {
+  @Test func testBhvAuthoauthtwoclientcred015TokenFetchErrorIsSurfacedNotSwallowed() async {
     let client = MockApiClient()
     // Token endpoint returns a 500 — getAccessToken throws.
     client.responses.append(makeResponse(body: "internal error", statusCode: 500))
@@ -185,7 +185,9 @@ import Testing
 
   /* RFC 6749 section 2.3.1: only letters, digits and - . _ ~ stay literal
    * in the Basic credentials, and * ! ' ( ) are percent-encoded. */
-  @Test func testBasicAuthEncodesTildeAndTheSubDelimitersInCredentials() async throws {
+  @Test func testBhvAuthoauthtwoclientcred001BasicAuthEncodesTildeAndTheSubDelimitersInCredentials()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"at\",\"expires_in\":3600}"))
 
@@ -206,7 +208,7 @@ import Testing
     #expect(decoded == "id~%2A%21%27%28%29:sec+ret~%2A%21%27%28%29")
   }
 
-  @Test func testBasicAuthUrlEncodesClientIdAndSecret() async throws {
+  @Test func testBhvAuthoauthtwoclientcred002BasicAuthUrlEncodesClientIdAndSecret() async throws {
     // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
     // client_id and client_secret MUST be application/x-www-form-
     // urlencoded BEFORE being joined with ':' and base64-encoded.
@@ -234,7 +236,7 @@ import Testing
     #expect(decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff")
   }
 
-  @Test func redactsSecret() async {
+  @Test func testBhvAuthoauthtwoclientcred007RedactsSecret() async {
     let auth = createAuthenticator()
     let description = String(describing: auth)
     #expect(!description.contains("my-client-secret"))
@@ -262,7 +264,7 @@ import Testing
 
   /* The client-credentials securityScheme's wrapper carries the spec's
    * token URL and scopes and masks the client secret. */
-  @Test func schemeWrapperCarriesTheSpecTokenUrlAndScopes() throws {
+  @Test func testBhvAuthoauthtwoclientcred009SchemeWrapperCarriesTheSpecTokenUrlAndScopes() throws {
     let auth = try MachineAuthClientCredentialsAuthenticator(
       host: "https://api.example.com", clientId: "cid", clientSecret: "csecret")
     #expect(

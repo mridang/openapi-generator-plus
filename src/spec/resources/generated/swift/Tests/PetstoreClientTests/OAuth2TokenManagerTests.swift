@@ -93,7 +93,7 @@ import Testing
 
   // MARK: - Tests
 
-  @Test func testExtractsAccessTokenFromResponse() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr014ExtractsAccessTokenFromResponse() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok123\",\"expires_in\":3600}"))
 
@@ -108,7 +108,7 @@ import Testing
     #expect(token == "tok123")
   }
 
-  @Test func testStoresRefreshToken() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr028StoresRefreshToken() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(
@@ -125,7 +125,7 @@ import Testing
     #expect(manager.refreshToken == "ref1")
   }
 
-  @Test func testReturnsCachedTokenWhenNotExpired() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr025ReturnsCachedTokenWhenNotExpired() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
@@ -144,7 +144,7 @@ import Testing
 
   /* The token request is a form post that asks for JSON, and it is never
      replayed across a redirect. */
-  @Test func testTokenRequestIsAFormPostAskingForJson() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr035TokenRequestIsAFormPostAskingForJson() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
     let manager = OAuth2TokenManager()
@@ -159,7 +159,7 @@ import Testing
     #expect(client.lastNoRedirect)
   }
 
-  @Test func testRefetchesTokenWhenExpired() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr021RefetchesTokenWhenExpired() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
@@ -177,7 +177,7 @@ import Testing
     #expect(second == "tok2")
   }
 
-  @Test func testSetAccessTokenBypassesEndpoint() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr026SetAccessTokenBypassesEndpoint() async throws {
     let manager = OAuth2TokenManager()
     manager.setAccessToken("manual-token")
 
@@ -189,7 +189,7 @@ import Testing
     #expect(token == "manual-token")
   }
 
-  @Test func testInvalidateAccessTokenForcesRefetch() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr018InvalidateAccessTokenForcesRefetch() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
@@ -208,7 +208,7 @@ import Testing
     #expect(second == "tok2")
   }
 
-  @Test func testThrowsWhenNoApiClientInjected() async {
+  @Test func testBhvAuthoauthtwotokenmgr030ThrowsWhenNoApiClientInjected() async {
     let manager = OAuth2TokenManager()
 
     do {
@@ -228,7 +228,7 @@ import Testing
   /* Token endpoint: a 2xx body that is not JSON is an OAuth2TokenError, a
    * non-2xx answer an OAuth2ServerError, and a transport failure passes
    * through as the NetworkError / NetworkTimeoutError it already is. */
-  @Test func testTokenEndpointFailuresAreTyped() async {
+  @Test func testBhvAuthoauthtwotokenmgr037TokenEndpointFailuresAreTyped() async {
     let params = ["grant_type": "client_credentials"]
     let tokenURL = "https://auth.example.com/token"
 
@@ -268,7 +268,8 @@ import Testing
 
   // MARK: - Concurrent refresh coalescing (single-flight)
 
-  @Test func testConcurrentCallersCoalesceIntoSingleRefresh() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr027ConcurrentCallersCoalesceIntoSingleRefresh() async throws
+  {
     /* 10 concurrent callers on a freshly invalidated manager must result in
      * exactly one HTTP call to the token endpoint -- not 10. */
     let client = CountingMockApiClient(
@@ -302,7 +303,7 @@ import Testing
       "expected exactly 1 token-endpoint call for 10 concurrent callers, got \(client.callCount)")
   }
 
-  @Test func testExpiresInShortLivedTokenDoesNotStorm() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr013ExpiresInShortLivedTokenDoesNotStorm() async throws {
     /* A token that is stale the moment it arrives (expires_in 0) must
      * still produce exactly ONE network call from a single
      * getAccessToken call. */
@@ -323,7 +324,7 @@ import Testing
     #expect(client.callCount == 1)
   }
 
-  @Test func testNoExpiresInCachesTokenIndefinitely() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr039NoExpiresInCachesTokenIndefinitely() async throws {
     /* Regression: when the token response omits expires_in, the token must
      * be cached indefinitely. The previous .distantPast expiry sentinel
      * made the cache check always false, so a no-expiry token was refetched
@@ -352,7 +353,7 @@ import Testing
     )
   }
 
-  @Test func testExpiresInLongLivedTokenAppliesFullBuffer() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr010ExpiresInLongLivedTokenAppliesFullBuffer() async throws {
     /* A long-lived token is cached; the second call is served from the cache. */
     let client = CountingMockApiClient(
       responseBody: "{\"access_token\":\"long\",\"expires_in\":3600}",
@@ -377,7 +378,9 @@ import Testing
    * the token is stored and none when it is read, so a 60 s token is reused
    * for 30 s and a 3600 s token for 3540 s. */
   @Test(arguments: [(1, 0.5), (30, 15.0), (60, 30.0), (90, 45.0), (120, 60.0), (3600, 3540.0)])
-  func testExpiryTakesOneMarginOfAtMostSixtySeconds(expiresIn: Int, reusableFor: Double) {
+  func testBhvAuthoauthtwotokenmgr007ExpiryTakesOneMarginOfAtMostSixtySeconds(
+    expiresIn: Int, reusableFor: Double
+  ) {
     let now: TimeInterval = 1_000_000
     let expiry = OAuth2TokenManager.expiry(for: expiresIn, now: now)
     #expect(expiry - now == reusableFor)
@@ -399,7 +402,9 @@ import Testing
     #expect(OAuth2TokenManager.expiry(for: -5, now: now) == now)
   }
 
-  @Test func testNinetySecondTokenIsReusedWithoutAnotherRequest() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr004NinetySecondTokenIsReusedWithoutAnotherRequest()
+    async throws
+  {
     let client = CountingMockApiClient(
       responseBody: "{\"access_token\":\"edge\",\"expires_in\":90}",
       delayNanos: 0
@@ -416,7 +421,7 @@ import Testing
       client.callCount == 1, "a 90 s token must be reused, got \(client.callCount) token requests")
   }
 
-  @Test func testExpiresInZeroIsRefetchedOnTheNextCall() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr012ExpiresInZeroIsRefetchedOnTheNextCall() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"edge1\",\"expires_in\":0}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"edge2\",\"expires_in\":0}"))
@@ -436,7 +441,9 @@ import Testing
 
   /* A refresh response without expires_in clears the lapsed expiry, so the
    * refreshed token is cached and the following call sends no request. */
-  @Test func testRefreshResponseWithoutExpiresInClearsTheExpiry() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr003RefreshResponseWithoutExpiresInClearsTheExpiry()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -479,7 +486,9 @@ import Testing
   /* The refresh grant sends the cached refresh token and carries over only
    * the client credentials: the authorization code is single-use and must
    * not travel with it. */
-  @Test func testRefreshGrantCarriesRefreshTokenAndClientCredentialsOnly() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr022RefreshGrantCarriesRefreshTokenAndClientCredentialsOnly()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -506,7 +515,8 @@ import Testing
 
   /* A refresh the server rejects is not fatal: the original grant is run
    * again, and the call only fails if that fails too. */
-  @Test func testRejectedRefreshFallsBackToTheOriginalGrant() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr016RejectedRefreshFallsBackToTheOriginalGrant() async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -622,7 +632,7 @@ import Testing
     }
   }
 
-  @Test func testRefreshTokenEmptyStringPreservesExisting() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr024RefreshTokenEmptyStringPreservesExisting() async throws {
     // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
     // MUST NOT clobber the cached refresh_token.
     let client = MockApiClient()
@@ -651,7 +661,7 @@ import Testing
       "empty refresh_token in refresh response must not overwrite cached refresh_token")
   }
 
-  @Test func testExpiresInAsJsonStringIsAccepted() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr009ExpiresInAsJsonStringIsAccepted() async throws {
     // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
     // quoted string. The manager must accept it and cache the token; a
     // second call within the buffer window must serve from cache.
@@ -703,7 +713,7 @@ import Testing
       "a trailing newline is trimmed, so the token is cached")
   }
 
-  @Test func testExpiresInAsFloatIsFloored() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr008ExpiresInAsFloatIsFloored() async throws {
     // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
     // The manager must floor it and cache the token.
     let client = MockApiClient()
@@ -736,7 +746,9 @@ import Testing
     ("\"Infinity\"", 0),
     ("3600", 3600),
   ])
-  func testExpiresInIsClampedToOneYear(literal: String, seconds: Int) throws {
+  func testBhvAuthoauthtwotokenmgr005ExpiresInIsClampedToOneYear(literal: String, seconds: Int)
+    throws
+  {
     let json =
       try JSONSerialization.jsonObject(with: Data("{\"expires_in\":\(literal)}".utf8))
       as? [String: Any]
@@ -759,7 +771,7 @@ import Testing
     #expect(client.requests.count == 1)
   }
 
-  @Test func testExpiresInNegativeSkipsCaching() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr011ExpiresInNegativeSkipsCaching() async throws {
     // D1: a negative expires_in (e.g. -1) must mark the token as
     // immediately stale so the very next call refetches.
     let client = MockApiClient()
@@ -783,7 +795,7 @@ import Testing
   /// transport refuses to silently replay the credential-bearing
   /// body to a 307/308 Location target. The mock asserts that the
   /// flag arrives at the ApiClient.
-  @Test func testTokenRequestSetsNoRedirect() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr034TokenRequestSetsNoRedirect() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok-no-redir\",\"expires_in\":3600}"))
@@ -807,7 +819,7 @@ import Testing
   /// POST to the redirect target. Like any non-2xx answer, the refusal is an
   /// OAuth2ServerError carrying that status.
   @Test(arguments: [301, 302, 303, 307, 308])
-  func testTokenEndpointRedirectIsRejected(status: Int) async {
+  func testBhvAuthoauthtwotokenmgr033TokenEndpointRedirectIsRejected(status: Int) async {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "", statusCode: status))
 
@@ -823,7 +835,7 @@ import Testing
     #expect(error?.statusCode == status)
   }
 
-  @Test func testThrowsWhenTokenRequestFails() async {
+  @Test func testBhvAuthoauthtwotokenmgr031ThrowsWhenTokenRequestFails() async {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
 
@@ -843,7 +855,7 @@ import Testing
 
   /// A 2xx response whose body omits access_token must surface as the typed
   /// OAuth2TokenError.missingAccessToken, not silently cache an empty token.
-  @Test func testTokenResponseMissingAccessTokenThrowsTypedError() async {
+  @Test func testBhvAuthoauthtwotokenmgr036TokenResponseMissingAccessTokenThrowsTypedError() async {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"refresh_token\":\"x\"}"))
 
@@ -870,7 +882,7 @@ import Testing
 
   /// A 2xx response whose body is not a token JSON object must surface as
   /// OAuth2TokenError.invalidResponse, not a foreign DecodingError.
-  @Test func testTokenResponseThatIsNotJsonThrowsTypedError() async {
+  @Test func testBhvAuthoauthtwotokenmgr001TokenResponseThatIsNotJsonThrowsTypedError() async {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "<html>not json</html>"))
 
@@ -905,7 +917,9 @@ import Testing
     ("{\"access_token\":42}", "Token response missing or empty access_token field"),
     ("{}", "Token response missing or empty access_token field"),
   ])
-  func testTokenFailuresCarryTheCanonicalMessage(body: String, message: String) async {
+  func testBhvAuthoauthtwotokenmgr040TokenFailuresCarryTheCanonicalMessage(
+    body: String, message: String
+  ) async {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: body))
     let manager = OAuth2TokenManager()
@@ -948,7 +962,7 @@ import Testing
   /* F863: a token_type other than Bearer (any case) is refused; an absent or
      null one is accepted. */
   @Test(arguments: ["DPoP", "mac", "N_A", "\"\"", "7"])
-  func testTokenTypeOtherThanBearerIsRejected(tokenType: String) async {
+  func testBhvAuthoauthtwotokenmgr038TokenTypeOtherThanBearerIsRejected(tokenType: String) async {
     let client = MockApiClient()
     let quoted = tokenType.hasPrefix("\"") || Int(tokenType) != nil ? tokenType : "\"\(tokenType)\""
     client.responses.append(makeResponse(body: "{\"access_token\":\"t\",\"token_type\":\(quoted)}"))
@@ -966,7 +980,7 @@ import Testing
   @Test(arguments: [
     "\"token_type\":\"bearer\"", "\"token_type\":\"BEARER\"", "\"token_type\":null", "\"x\":1",
   ])
-  func testBearerOrAbsentTokenTypeIsAccepted(field: String) async throws {
+  func testBhvAuthoauthtwotokenmgr002BearerOrAbsentTokenTypeIsAccepted(field: String) async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"t\",\(field)}"))
     let manager = OAuth2TokenManager()
@@ -980,7 +994,7 @@ import Testing
 
   /// RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
   /// typed OAuth2ServerError carrying code/description/uri.
-  @Test func testTokenEndpointErrorResponseParsedToTypedError() async {
+  @Test func testBhvAuthoauthtwotokenmgr032TokenEndpointErrorResponseParsedToTypedError() async {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(
@@ -1046,7 +1060,9 @@ import Testing
     }
   }
 
-  @Test func testInvalidateTriggersSingleRefetchUnderConcurrency() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr019InvalidateTriggersSingleRefetchUnderConcurrency()
+    async throws
+  {
     /* After invalidation, 10 concurrent callers must coalesce into exactly
      * ONE additional token-endpoint call, all observing the refreshed
      * token. */
@@ -1086,7 +1102,9 @@ import Testing
 
   /* A stored refresh token is redeemed at refreshURL; the fallback grant
    * goes to tokenURL. */
-  @Test func testRefreshGoesToRefreshUrlAndFallbackToTokenUrl() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr029RefreshGoesToRefreshUrlAndFallbackToTokenUrl()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -1108,7 +1126,7 @@ import Testing
 
   /* Params that already are a refresh grant are posted exactly once: no
    * internal refresh attempt and no duplicate fallback. */
-  @Test func testRefreshGrantParamsArePostedExactlyOnce() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr023RefreshGrantParamsArePostedExactlyOnce() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -1152,7 +1170,7 @@ import Testing
   }
 
   /* exchange posts its params even while a cached token is still valid. */
-  @Test func testExchangeBypassesTheCachedToken() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr006ExchangeBypassesTheCachedToken() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
@@ -1187,7 +1205,7 @@ import Testing
   }
 
   /* A failed exchange restores the previous session and rethrows. */
-  @Test func testFailedExchangeRestoresThePreviousSession() async throws {
+  @Test func testBhvAuthoauthtwotokenmgr015FailedExchangeRestoresThePreviousSession() async throws {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(

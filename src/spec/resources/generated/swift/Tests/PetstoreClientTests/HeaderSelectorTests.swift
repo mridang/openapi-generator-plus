@@ -31,13 +31,13 @@ import Testing
     }
   }
 
-  @Test func testIsJsonMimeCaseInsensitive() {
+  @Test func testBhvHeaders021IsJsonMimeCaseInsensitive() {
     let hs = HeaderSelector()
 
     #expect(hs.isJsonMime("APPLICATION/JSON"))
   }
 
-  @Test func testSelectHeadersWithSingleAccept() {
+  @Test func testBhvHeaders023SelectHeadersWithSingleAccept() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(
       accept: ["application/json"], contentType: "application/json", isMultipart: false)
@@ -46,14 +46,14 @@ import Testing
     #expect(headers["Content-Type"] == "application/json")
   }
 
-  @Test func testSelectHeadersWithEmptyAccepts() {
+  @Test func testBhvHeaders004SelectHeadersWithEmptyAccepts() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(accept: [], contentType: "application/json", isMultipart: false)
 
     #expect(headers["Accept"] == nil)
   }
 
-  @Test func testSelectHeadersMultipartOmitsContentType() {
+  @Test func testBhvHeaders007SelectHeadersMultipartOmitsContentType() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(
       accept: ["application/json"], contentType: "multipart/form-data", isMultipart: true)
@@ -61,7 +61,7 @@ import Testing
     #expect(headers["Content-Type"] == nil)
   }
 
-  @Test func testSelectHeadersDefaultContentType() {
+  @Test func testBhvHeaders001SelectHeadersDefaultContentType() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(
       accept: ["application/json"], contentType: "", isMultipart: false)
@@ -69,7 +69,7 @@ import Testing
     #expect(headers["Content-Type"] == "application/json")
   }
 
-  @Test func testSelectHeadersJoinsInDeclarationOrder() {
+  @Test func testBhvHeaders011SelectHeadersJoinsInDeclarationOrder() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(
       accept: ["image/jpeg", "image/png", "application/json"],
@@ -80,7 +80,7 @@ import Testing
     #expect(headers["Accept"] == "image/jpeg, image/png, application/json")
   }
 
-  @Test func testSelectHeadersJoinsWithoutReorderingJson() {
+  @Test func testBhvHeaders003SelectHeadersJoinsWithoutReorderingJson() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(
       accept: ["application/xml", "application/json", "text/plain"],
@@ -91,7 +91,7 @@ import Testing
     #expect(headers["Accept"] == "application/xml, application/json, text/plain")
   }
 
-  @Test func testSelectHeadersSingleElement() {
+  @Test func testBhvHeaders017SelectHeadersSingleElement() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(
       accept: ["application/json"], contentType: "application/json", isMultipart: false)
@@ -99,7 +99,7 @@ import Testing
     #expect(headers["Accept"] == "application/json")
   }
 
-  @Test func testSelectHeadersSingleNonJsonAcceptAsIs() {
+  @Test func testBhvHeaders018SelectHeadersSingleNonJsonAcceptAsIs() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(
       accept: ["text/html"], contentType: "application/json", isMultipart: false)
@@ -107,7 +107,7 @@ import Testing
     #expect(headers["Accept"] == "text/html")
   }
 
-  @Test func testSelectHeadersFiltersOutEmptyEntries() {
+  @Test func testBhvHeaders010SelectHeadersFiltersOutEmptyEntries() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(
       accept: ["", "image/png", "", "application/json"],
@@ -118,7 +118,7 @@ import Testing
     #expect(headers["Accept"] == "image/png, application/json")
   }
 
-  @Test func testSelectHeadersDropsWhitespaceOnlyEntries() {
+  @Test func testBhvHeaders008SelectHeadersDropsWhitespaceOnlyEntries() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(
       accept: ["   ", "application/json"],
@@ -129,7 +129,7 @@ import Testing
     #expect(headers["Accept"] == "application/json")
   }
 
-  @Test func testSelectHeadersAllEmptyEntriesOmitsAccept() {
+  @Test func testBhvHeaders006SelectHeadersAllEmptyEntriesOmitsAccept() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(
       accept: ["", ""], contentType: "application/json", isMultipart: false)

@@ -65,7 +65,7 @@ import Testing
 
   // MARK: - Tests
 
-  @Test func testBuildsAuthorizationURLFromDiscovery() async throws {
+  @Test func testBhvAuthoidc002BuildsAuthorizationURLFromDiscovery() async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
 
@@ -88,7 +88,9 @@ import Testing
     (["profile", "openid"], "openid profile"),
     (["OpenID", "profile"], "openid OpenID profile"),
   ])
-  func testOpenidScopeIsAlwaysRequested(scopes: [String], expected: String) async throws {
+  func testBhvAuthoidc022OpenidScopeIsAlwaysRequested(scopes: [String], expected: String)
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
     let auth = OpenIdConnectAuthenticator(
@@ -115,7 +117,8 @@ import Testing
   }
 
   /* Discovery 1.0 section 4.3: the issuer must match the discovery URL. */
-  @Test func testDiscoveryRejectsAnIssuerThatDiffersFromTheDiscoveryUrl() async throws {
+  @Test func testBhvAuthoidc024DiscoveryRejectsAnIssuerThatDiffersFromTheDiscoveryUrl() async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       .success(makeResponse(body: discoveryWith(issuer: "https://evil.example.com"))))
@@ -132,7 +135,7 @@ import Testing
   }
 
   @Test(arguments: ["https://auth.example.com", "https://auth.example.com/"])
-  func testDiscoveryAcceptsAMatchingIssuer(issuer: String) async throws {
+  func testBhvAuthoidc004DiscoveryAcceptsAMatchingIssuer(issuer: String) async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: discoveryWith(issuer: issuer))))
     let auth = createAuthenticator()
@@ -151,9 +154,9 @@ import Testing
     ("http://127.0.0.1:8080/token", true),
     ("ftp://auth.example.com/token", false),
   ])
-  func testDiscoveryRefusesAClearTextEndpointUnlessLoopback(endpoint: String, accepted: Bool)
-    async throws
-  {
+  func testBhvAuthoidc005DiscoveryRefusesAClearTextEndpointUnlessLoopback(
+    endpoint: String, accepted: Bool
+  ) async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: discoveryWith(token: endpoint))))
     let auth = createAuthenticator()
@@ -170,7 +173,7 @@ import Testing
     }
   }
 
-  @Test func testFetchesDiscoveryDocument() async throws {
+  @Test func testBhvAuthoidc010FetchesDiscoveryDocument() async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
 
@@ -183,7 +186,7 @@ import Testing
     #expect(client.lastURL == "https://auth.example.com/.well-known/openid-configuration")
   }
 
-  @Test func testObtainsTokenAfterCodeExchange() async throws {
+  @Test func testBhvAuthoidc017ObtainsTokenAfterCodeExchange() async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
     client.responses.append(
@@ -199,7 +202,7 @@ import Testing
     #expect(bodyString.contains("code=oidc-code"))
   }
 
-  @Test func testGetAuthHeadersReturnsBearerAfterExchange() async throws {
+  @Test func testBhvAuthoidc013GetAuthHeadersReturnsBearerAfterExchange() async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
     client.responses.append(
@@ -216,7 +219,7 @@ import Testing
     #expect(headers["Authorization"] == "Bearer oidc-tok")
   }
 
-  @Test func testThrowsWhenNoApiClientInjected() async {
+  @Test func testBhvAuthoidc028ThrowsWhenNoApiClientInjected() async {
     let auth = createAuthenticator()
 
     let error = await #expect(throws: ConfigurationError.self) {
@@ -232,7 +235,7 @@ import Testing
    * a transport failure passes through as the NetworkError /
    * NetworkTimeoutError it already is, and an unparseable document is a
    * SerializationError. */
-  @Test func testDiscoveryFailuresAreTyped() async {
+  @Test func testBhvAuthoidc006DiscoveryFailuresAreTyped() async {
     let notFound = MockApiClient()
     notFound.responses.append(.success(makeResponse(body: "missing", statusCode: 404)))
     var auth = createAuthenticator()
@@ -271,7 +274,7 @@ import Testing
   // returns a non-2xx status (e.g. a 500 HTML error page), the authenticator
   // must throw a status-based error rather than attempt to JSON-decode the
   // body and surface a misleading "invalid JSON" failure.
-  @Test func testDiscoveryNon2xxStatusThrowsBeforeJsonDecode() async {
+  @Test func testBhvAuthoidc027DiscoveryNon2xxStatusThrowsBeforeJsonDecode() async {
     let client = MockApiClient()
     // A 500 with an HTML body that is NOT valid discovery JSON.
     client.responses.append(
@@ -289,7 +292,7 @@ import Testing
     #expect(error?.statusCode == 500)
   }
 
-  @Test func testThrowsWhenDiscoveryMissingAuthorizationEndpoint() async {
+  @Test func testBhvAuthoidc025ThrowsWhenDiscoveryMissingAuthorizationEndpoint() async {
     let client = MockApiClient()
     // Missing authorization_endpoint must throw rather than build a
     // delegate with a null/empty endpoint URL.
@@ -310,7 +313,7 @@ import Testing
     )
   }
 
-  @Test func testThrowsWhenDiscoveryMissingTokenEndpoint() async {
+  @Test func testBhvAuthoidc026ThrowsWhenDiscoveryMissingTokenEndpoint() async {
     let client = MockApiClient()
     client.responses.append(
       .success(
@@ -326,7 +329,7 @@ import Testing
     }
   }
 
-  @Test func testFetchesDiscoveryDocumentOnlyOnce() async throws {
+  @Test func testBhvAuthoidc011FetchesDiscoveryDocumentOnlyOnce() async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
 
@@ -342,7 +345,7 @@ import Testing
 
   /* A rediscovery after the cached document expired must keep the code
    * exchange made before it: the session lives in the token manager. */
-  @Test func testRediscoveryAfterExpiryKeepsTheExchangedSession() async throws {
+  @Test func testBhvAuthoidc020RediscoveryAfterExpiryKeepsTheExchangedSession() async throws {
     let client = MockApiClient()
     let expired = ApiHttpResponse(
       statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": "max-age=0"])
@@ -404,17 +407,17 @@ import Testing
     ("max-age=99999999999999999999999", 31_536_000),
     ("no-store", 86400),
   ])
-  func testDiscoveryMaxAgeIsClampedToOneYear(cacheControl: String, seconds: Int) {
+  func testBhvAuthoidc001DiscoveryMaxAgeIsClampedToOneYear(cacheControl: String, seconds: Int) {
     #expect(OpenIdConnectAuthenticator.parseMaxAge(["Cache-Control": cacheControl]) == seconds)
   }
 
-  @Test func testGetHostReturnsConfiguredHost() {
+  @Test func testBhvAuthoidc014GetHostReturnsConfiguredHost() {
     let auth = createAuthenticator()
 
     #expect(auth.host() == "https://api.example.com")
   }
 
-  @Test func redactsSecret() async {
+  @Test func testBhvAuthoidc019RedactsSecret() async {
     let auth = createAuthenticator()
     let description = String(describing: auth)
     #expect(!description.contains("my-client-secret"))
@@ -436,7 +439,7 @@ import Testing
 
   /* The openIdConnect securityScheme's wrapper carries the spec's discovery
    * URL and masks the client secret. */
-  @Test func schemeWrapperCarriesTheSpecDiscoveryUrl() throws {
+  @Test func testBhvAuthoidc012SchemeWrapperCarriesTheSpecDiscoveryUrl() throws {
     let auth = try SsoAuthAuthenticator(
       host: "https://api.example.com", clientId: "cid", clientSecret: "csecret",
       redirectUri: "https://app.example.com/cb")

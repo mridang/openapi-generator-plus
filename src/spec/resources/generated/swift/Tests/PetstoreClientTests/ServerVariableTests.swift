@@ -17,13 +17,13 @@ import Testing
     #expect(variable.defaultValue == "prod")
   }
 
-  @Test func testDefaultsToEmptyDescriptionAndEnumValues() {
+  @Test func testBhvServers017DefaultsToEmptyDescriptionAndEnumValues() {
     let variable = ServerVariable(defaultValue: "prod")
     #expect(variable.description == "")
     #expect(variable.enumValues.isEmpty)
   }
 
-  @Test func testStoresDescriptionAndEnumValues() {
+  @Test func testBhvServers015StoresDescriptionAndEnumValues() {
     let variable = ServerVariable(
       defaultValue: "prod",
       description: "The deployment environment",

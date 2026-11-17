@@ -48,7 +48,7 @@ import Testing
     #expect(headers.allSatisfy { $0.hasPrefix("Bearer token-") })
   }
 
-  @Test func testBuildsAuthorizationUrlWithResponseTypeToken() throws {
+  @Test func testBhvAuthoauthtwoimplicit003BuildsAuthorizationUrlWithResponseTypeToken() throws {
     let auth = createAuthenticator()
 
     let url = try auth.buildAuthorizationURL()
@@ -57,7 +57,7 @@ import Testing
     #expect(url.hasPrefix("https://auth.example.com/authorize?"))
   }
 
-  @Test func testBuildsAuthorizationUrlWithClientId() throws {
+  @Test func testBhvAuthoauthtwoimplicit002BuildsAuthorizationUrlWithClientId() throws {
     let auth = createAuthenticator()
 
     let url = try auth.buildAuthorizationURL()
@@ -65,7 +65,7 @@ import Testing
     #expect(url.contains("client_id=my-client-id"))
   }
 
-  @Test func testBuildsAuthorizationUrlWithScopes() throws {
+  @Test func testBhvAuthoauthtwoimplicit004BuildsAuthorizationUrlWithScopes() throws {
     let auth = createAuthenticator()
 
     let url = try auth.buildAuthorizationURL()
@@ -76,7 +76,7 @@ import Testing
         || url.contains("scope=read write"))
   }
 
-  @Test func testBuildsAuthorizationUrlWithState() throws {
+  @Test func testBhvAuthoauthtwoimplicit005BuildsAuthorizationUrlWithState() throws {
     let auth = createAuthenticator()
 
     let url = try auth.buildAuthorizationURL(state: "my-state")
@@ -84,7 +84,9 @@ import Testing
     #expect(url.contains("state=my-state"))
   }
 
-  @Test func testGetAuthHeadersReturnsBearerAfterSetAccessToken() async throws {
+  @Test func testBhvAuthoauthtwoimplicit007GetAuthHeadersReturnsBearerAfterSetAccessToken()
+    async throws
+  {
     let auth = createAuthenticator()
     try auth.setAccessToken("implicit-tok")
 
@@ -95,7 +97,7 @@ import Testing
 
   /* A request made before setAccessToken is a wrong call order: authHeaders
    * throws ConfigurationError.invalidState, never a trap. */
-  @Test func testThrowsWhenAccessTokenNotSet() async {
+  @Test func testBhvAuthoauthtwoimplicit012ThrowsWhenAccessTokenNotSet() async {
     let auth = createAuthenticator()
 
     let error = await #expect(throws: ConfigurationError.self) {
@@ -111,7 +113,7 @@ import Testing
   /* F-A5-04: a token that would inject a header is rejected with
    * ConfigurationError.invalidArgument, never a trap, and is not stored. */
   @Test(arguments: ["tok\r\nInjected: yes", "ñoño", "tok\u{0}"])
-  func testSetAccessTokenRejectsInvalidToken(token: String) async {
+  func testBhvAuthoauthtwoimplicit013SetAccessTokenRejectsInvalidToken(token: String) async {
     let auth = createAuthenticator()
     let error = #expect(throws: ConfigurationError.self) {
       try auth.setAccessToken(token)
@@ -125,13 +127,13 @@ import Testing
     }
   }
 
-  @Test func testGetHostReturnsConfiguredHost() {
+  @Test func testBhvAuthoauthtwoimplicit008GetHostReturnsConfiguredHost() {
     let auth = createAuthenticator()
 
     #expect(auth.host() == "https://api.example.com")
   }
 
-  @Test func redactsSecret() async throws {
+  @Test func testBhvAuthoauthtwoimplicit010RedactsSecret() async throws {
     let auth = createAuthenticator()
     try auth.setAccessToken("implicit-tok")
     let description = String(describing: auth)
@@ -167,7 +169,9 @@ import Testing
 
   /* The implicit securityScheme's wrapper carries the spec's authorization
    * URL and scopes. */
-  @Test func schemeWrapperCarriesTheSpecAuthorizationUrlAndScopes() throws {
+  @Test func testBhvAuthoauthtwoimplicit006SchemeWrapperCarriesTheSpecAuthorizationUrlAndScopes()
+    throws
+  {
     let auth = try BrowserAuthImplicitAuthenticator(
       host: "https://api.example.com", clientId: "cid")
     #expect(

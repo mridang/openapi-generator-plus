@@ -32,7 +32,7 @@ import Testing
 
   // MARK: - User-Agent injection
 
-  @Test func testInjectsCustomUserAgent() async throws {
+  @Test func testBhvTransport041InjectsCustomUserAgent() async throws {
     var capturedUA: String?
     let transport = try TransportOptionsBuilder().userAgent("MyApp/1.0").build()
     let client = makeClient(transport: transport) { req in
@@ -44,7 +44,7 @@ import Testing
     #expect(capturedUA == "MyApp/1.0")
   }
 
-  @Test func testLowercaseCallerHeadersSuppressInjection() async throws {
+  @Test func testBhvTransport026LowercaseCallerHeadersSuppressInjection() async throws {
     let transport = try TransportOptionsBuilder()
       .userAgent("sdk-default/1.0")
       .injectRequestID(true)
@@ -86,7 +86,7 @@ import Testing
     #expect(sentValue.removingPercentEncoding == value)
   }
 
-  @Test func testInjectsDefaultUserAgentWhenNotExplicitlySet() async throws {
+  @Test func testBhvTransport042InjectsDefaultUserAgentWhenNotExplicitlySet() async throws {
     var capturedUA: String?
     let client = makeClient { req in
       capturedUA = req.value(forHTTPHeaderField: "User-Agent")
@@ -100,7 +100,7 @@ import Testing
 
   /* An explicitly empty User-Agent is sent as an empty header, like the
    * other SDKs, instead of being silently omitted. */
-  @Test func testEmptyUserAgentIsSentAsEmptyHeader() async throws {
+  @Test func testBhvTransport052EmptyUserAgentIsSentAsEmptyHeader() async throws {
     var capturedUA: String?
     let transport = try TransportOptionsBuilder().userAgent("").build()
     let client = makeClient(transport: transport) { req in
@@ -114,7 +114,7 @@ import Testing
 
   // MARK: - X-Request-ID injection
 
-  @Test func testInjectsRequestId() async throws {
+  @Test func testBhvTransport043InjectsRequestId() async throws {
     var capturedId: String?
     let transport = try TransportOptionsBuilder().injectRequestID(true).build()
     let client = makeClient(transport: transport) { req in
@@ -128,7 +128,7 @@ import Testing
     #expect(capturedId?.range(of: uuidPattern, options: .regularExpression) != nil)
   }
 
-  @Test func testDoesNotInjectRequestIdWhenDisabled() async throws {
+  @Test func testBhvTransport036DoesNotInjectRequestIdWhenDisabled() async throws {
     var capturedId: String?
     let transport = try TransportOptionsBuilder().injectRequestID(false).build()
     let client = makeClient(transport: transport) { req in
@@ -140,7 +140,7 @@ import Testing
     #expect(capturedId == nil)
   }
 
-  @Test func testDoesNotOverrideCallerRequestId() async throws {
+  @Test func testBhvOptions006DoesNotOverrideCallerRequestId() async throws {
     var capturedId: String?
     let transport = try TransportOptionsBuilder().injectRequestID(true).build()
     let client = makeClient(transport: transport) { req in
@@ -153,7 +153,7 @@ import Testing
     #expect(capturedId == "caller-id")
   }
 
-  @Test func testGeneratesUniqueRequestIds() async throws {
+  @Test func testBhvTransport038GeneratesUniqueRequestIds() async throws {
     var capturedIds: [String] = []
     let transport = try TransportOptionsBuilder().injectRequestID(true).build()
     let client = makeClient(transport: transport) { req in
@@ -170,7 +170,7 @@ import Testing
 
   // MARK: - Default headers
 
-  @Test func testIncludesTransportDefaultHeaders() async throws {
+  @Test func testBhvTransport039IncludesTransportDefaultHeaders() async throws {
     var capturedValue: String?
     let transport = try TransportOptionsBuilder().defaultHeader(
       name: "X-Custom", value: "custom-value"
@@ -184,7 +184,7 @@ import Testing
     #expect(capturedValue == "custom-value")
   }
 
-  @Test func testCallerHeadersOverrideDefaults() async throws {
+  @Test func testBhvOptions005CallerHeadersOverrideDefaults() async throws {
     var capturedAccept: String?
     let transport = try TransportOptionsBuilder().defaultHeader(name: "Accept", value: "text/plain")
       .build()
@@ -200,7 +200,7 @@ import Testing
 
   // MARK: - Basic HTTP
 
-  @Test func testSendsGetRequestAndReturnsResponse() async throws {
+  @Test func testBhvTransport054SendsGetRequestAndReturnsResponse() async throws {
     let client = makeClient { _ in (self.body(#"{"method":"GET"}"#), 200, [:]) }
     let resp = try await client.sendRequest(
       method: "GET", url: "http://localhost/echo", headers: [:], body: nil)
@@ -208,7 +208,7 @@ import Testing
     #expect(resp.body.contains("GET"))
   }
 
-  @Test func testSendsPostWithJsonBody() async throws {
+  @Test func testBhvSerializationwire052SendsPostWithJsonBody() async throws {
     let client = makeClient { _ in (self.body(#"{"method":"POST","body":"key"}"#), 200, [:]) }
     let resp = try await client.sendRequest(
       method: "POST", url: "http://localhost/echo",
@@ -218,7 +218,7 @@ import Testing
     #expect(resp.body.contains("key"))
   }
 
-  @Test func testReturnsResponseHeaders() async throws {
+  @Test func testBhvTransport051ReturnsResponseHeaders() async throws {
     let client = makeClient { _ in (self.body("ok"), 200, ["X-Test-Header": "test-value"]) }
     let resp = try await client.sendRequest(
       method: "GET", url: "http://localhost/echo", headers: [:], body: nil)
@@ -227,7 +227,7 @@ import Testing
     #expect(value == "test-value")
   }
 
-  @Test func testReturnsNon2xxStatusCode() async throws {
+  @Test func testBhvTransport050ReturnsNon2xxStatusCode() async throws {
     let client = makeClient { _ in (self.body("not found"), 404, [:]) }
     let resp = try await client.sendRequest(
       method: "GET", url: "http://localhost/not-found", headers: [:], body: nil)
@@ -235,7 +235,7 @@ import Testing
     #expect(resp.body == "not found")
   }
 
-  @Test func testSendsPutRequest() async throws {
+  @Test func testBhvTransport055SendsPutRequest() async throws {
     let client = makeClient { _ in (self.body(#"{"method":"PUT"}"#), 200, [:]) }
     let resp = try await client.sendRequest(
       method: "PUT", url: "http://localhost/echo", headers: [:], body: "update")
@@ -243,7 +243,7 @@ import Testing
     #expect(resp.body.contains("PUT"))
   }
 
-  @Test func testSendsDeleteRequest() async throws {
+  @Test func testBhvTransport053SendsDeleteRequest() async throws {
     let client = makeClient { _ in (self.body(#"{"method":"DELETE"}"#), 200, [:]) }
     let resp = try await client.sendRequest(
       method: "DELETE", url: "http://localhost/echo", headers: [:], body: nil)
@@ -251,7 +251,7 @@ import Testing
     #expect(resp.body.contains("DELETE"))
   }
 
-  @Test func testReturnsJsonBodyForVendorJsonContentType() async throws {
+  @Test func testBhvSerializationwire051ReturnsJsonBodyForVendorJsonContentType() async throws {
     let client = makeClient { _ in
       (self.body(#"{"format":"vendor"}"#), 200, ["Content-Type": "application/vnd.api+json"])
     }
@@ -261,7 +261,7 @@ import Testing
     #expect(resp.body.contains("vendor"))
   }
 
-  @Test func testJoinsMultiValueResponseHeaders() async throws {
+  @Test func testBhvTransport044JoinsMultiValueResponseHeaders() async throws {
     let client = makeClient { _ in (self.body("ok"), 200, ["X-Custom-Value": "val1, val2"]) }
     let resp = try await client.sendRequest(
       method: "GET", url: "http://localhost/multi-header", headers: [:], body: nil)
@@ -273,7 +273,7 @@ import Testing
 
   // MARK: - Multipart filename sanitisation (Gap F)
 
-  @Test func testMultipartFilenameWithCRLFThrows() {
+  @Test func testBhvSerializationwire043MultipartFilenameWithCRLFThrows() {
     let formParts: [String: Any] = ["a\r\nX-Injected: yes": Data([0x01, 0x02])]
     #expect(throws: ConfigurationError.self) {
       _ = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
@@ -304,7 +304,7 @@ import Testing
       "expected backslash-escaped quote in body, got: \(bodyStr)")
   }
 
-  @Test func testMultipartFilenameWithBackslashIsEscaped() throws {
+  @Test func testBhvSerializationwire042MultipartFilenameWithBackslashIsEscaped() throws {
     let formParts: [String: Any] = ["a\\b.txt": Data([0x01])]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
     let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -313,7 +313,7 @@ import Testing
       "expected backslash-escaped backslash in body, got: \(bodyStr)")
   }
 
-  @Test func testMultipartNonAsciiFilenameUsesRFC5987() throws {
+  @Test func testBhvSerializationwire041MultipartNonAsciiFilenameUsesRFC5987() throws {
     let formParts: [String: Any] = ["日本.pdf": Data([0x01])]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
     let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -329,7 +329,7 @@ import Testing
   // non-ASCII characters must carry the name through as raw UTF-8 in the
   // Content-Disposition `name="..."` parameter — not transliterated to `?`,
   // stripped, or percent-encoded.
-  @Test func testMultipartNonAsciiFieldNamePreservedAsUtf8() throws {
+  @Test func testBhvSerializationwire046MultipartNonAsciiFieldNamePreservedAsUtf8() throws {
     let formParts: [String: Any] = ["café": "value"]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
     let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -347,7 +347,9 @@ import Testing
 
   /* Every primitive is a plain text part in its canonical stringify form
    * with no part Content-Type; only a model is an application/json part. */
-  @Test func testMultipartPrimitivesAreTextPartsAndModelsAreJsonParts() throws {
+  @Test func testBhvSerializationwire048MultipartPrimitivesAreTextPartsAndModelsAreJsonParts()
+    throws
+  {
     let parser = ISO8601DateFormatter()
     let instant = parser.date(from: "2024-01-15T10:30:00Z")!
     let formParts: [String: Any] = [
@@ -375,7 +377,7 @@ import Testing
 
   // MARK: - Per-part MIME sniffing (Gap J)
 
-  @Test func testMultipartUsesPngMimeForPngFilename() throws {
+  @Test func testBhvSerializationwire039MultipartUsesPngMimeForPngFilename() throws {
     let formParts: [String: Any] = ["photo.png": Data([0x89, 0x50, 0x4e, 0x47])]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
     /* The PNG signature is not valid UTF-8, so decode leniently. */
@@ -385,7 +387,7 @@ import Testing
       "expected image/png Content-Type for .png filename, got: \(bodyStr)")
   }
 
-  @Test func testMultipartUsesPdfMimeForPdfFilename() throws {
+  @Test func testBhvSerializationwire038MultipartUsesPdfMimeForPdfFilename() throws {
     let formParts: [String: Any] = ["doc.pdf": Data([0x25, 0x50, 0x44, 0x46])]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
     let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -400,20 +402,24 @@ import Testing
     ("a.zip", "application/zip"), ("a.txt", "text/plain"), ("a.csv", "text/csv"),
     ("a.html", "text/html"), ("a.mp4", "video/mp4"), ("a.mp3", "audio/mpeg"),
   ])
-  func testMultipartMimeTableCoversMoreThanPngAndPdf(filename: String, mime: String) {
+  func testBhvSerializationwire047MultipartMimeTableCoversMoreThanPngAndPdf(
+    filename: String, mime: String
+  ) {
     #expect(DefaultApiClient.mimeTypeForFilename(filename) == mime)
   }
 
   /* A character outside the BMP is one underscore in the ASCII fallback and
    * its four UTF-8 bytes in filename*. */
-  @Test func testMultipartNonBmpFilenameIsOneUnderscoreAndFourBytes() throws {
+  @Test func testBhvSerializationwire028MultipartNonBmpFilenameIsOneUnderscoreAndFourBytes() throws
+  {
     let value = try DefaultApiClient.buildContentDisposition(
       name: "file", filename: "a\u{1F600}b.txt")
     #expect(value.contains("filename=\"a_b.txt\""))
     #expect(value.contains("filename*=UTF-8''a%F0%9F%98%80b.txt"))
   }
 
-  @Test func testMultipartFallsBackToOctetStreamForUnknownExtension() throws {
+  @Test func testBhvSerializationwire040MultipartFallsBackToOctetStreamForUnknownExtension() throws
+  {
     let formParts: [String: Any] = ["data.xyz123": Data([0x01])]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
     let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -457,7 +463,9 @@ import Testing
   // name's extension, falling back to application/octet-stream when there is none.
   // For a field named "file" (no extension) the part must emit both
   // filename="file" and Content-Type: application/octet-stream.
-  @Test func testMultipartRawBytesPartUsesFieldNameAsFilenameAndOctetStream() throws {
+  @Test func testBhvSerializationwire049MultipartRawBytesPartUsesFieldNameAsFilenameAndOctetStream()
+    throws
+  {
     let formParts: [String: Any] = ["file": Data([0x00, 0x01, 0x02])]
     let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
     let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -482,7 +490,7 @@ import Testing
   // would crash on a struct) or any alternate encoder that disagrees on key
   // names or date encoding. The part is a local Codable stand-in so the test
   // exercises the branch without depending on any model in the spec.
-  @Test func testMultipartModelPartUsesWireNamesAndDateFormat() throws {
+  @Test func testBhvSerializationwire045MultipartModelPartUsesWireNamesAndDateFormat() throws {
     let parser = ISO8601DateFormatter()
     parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     let instant = parser.date(from: "2020-01-02T03:04:05.123Z")!
@@ -522,7 +530,7 @@ import Testing
 
   // MARK: - Response charset handling (Gap H)
 
-  @Test func testRespectsIsoLatin1Charset() async throws {
+  @Test func testBhvSerializationwire032RespectsIsoLatin1Charset() async throws {
     let client = makeClient { _ in
       (Data([0xE9]), 200, ["Content-Type": "text/plain; charset=ISO-8859-1"])
     }
@@ -531,7 +539,7 @@ import Testing
     #expect(resp.body == "é", "ISO-8859-1 0xE9 should decode to 'é', got: \(resp.body)")
   }
 
-  @Test func testDefaultsToUtf8WhenCharsetMissing() async throws {
+  @Test func testBhvSerializationwire034DefaultsToUtf8WhenCharsetMissing() async throws {
     let utf8Body = "héllo"
     let client = makeClient { _ in
       (Data(utf8Body.utf8), 200, ["Content-Type": "text/plain"])
@@ -541,7 +549,7 @@ import Testing
     #expect(resp.body == utf8Body, "missing charset should default to UTF-8")
   }
 
-  @Test func testFallsBackToUtf8ForUnknownCharset() async throws {
+  @Test func testBhvSerializationwire035FallsBackToUtf8ForUnknownCharset() async throws {
     let utf8Body = "héllo"
     let client = makeClient { _ in
       (Data(utf8Body.utf8), 200, ["Content-Type": "text/plain; charset=x-unknown-banana"])
@@ -551,7 +559,7 @@ import Testing
     #expect(resp.body == utf8Body, "unknown charset should fall back to UTF-8 without throwing")
   }
 
-  @Test func testCharsetParseIsCaseInsensitive() async throws {
+  @Test func testBhvSerializationwire036CharsetParseIsCaseInsensitive() async throws {
     let client = makeClient { _ in
       (Data([0xE9]), 200, ["Content-Type": "text/plain; CHARSET=iso-8859-1"])
     }
@@ -586,7 +594,7 @@ import Testing
   /// The bytes 00 4B 00 65 00 79 are "Key" in UTF-16BE; the same bytes
   /// read little-endian would be a different (CJK) string, so a correct
   /// decode proves the big-endian choice rather than the host default.
-  @Test func testBareUtf16DecodesBigEndianWithoutBom() async throws {
+  @Test func testBhvSerializationwire030BareUtf16DecodesBigEndianWithoutBom() async throws {
     let bigEndianBytes = Data([0x00, 0x4B, 0x00, 0x65, 0x00, 0x79])
     let client = makeClient { _ in
       (bigEndianBytes, 200, ["Content-Type": "text/plain; charset=utf-16"])
@@ -627,7 +635,9 @@ import Testing
     ("x-cp1252", [UInt8]([0x80]), "\u{20AC}"),
     ("\"ISO-8859-15\"", [UInt8]([0xA4]), "\u{20AC}"),
   ])
-  func testRegisteredCharsetDecodesTheBody(label: String, bytes: [UInt8], text: String) {
+  func testBhvSerializationwire033RegisteredCharsetDecodesTheBody(
+    label: String, bytes: [UInt8], text: String
+  ) {
     #expect(
       DefaultApiClient.decodeText(Data(bytes), contentType: "text/plain; charset=\(label)") == text)
   }
@@ -636,12 +646,12 @@ import Testing
     #expect(DefaultApiClient.registeredEncoding("x-unknown-banana") == nil)
   }
 
-  @Test func testEncodingForContentTypeUsAscii() {
+  @Test func testBhvSerializationwire037EncodingForContentTypeUsAscii() {
     let enc = DefaultApiClient.encodingForContentType("text/plain; charset=us-ascii")
     #expect(enc == .ascii)
   }
 
-  @Test func testEncodingForContentTypeNilDefaultsToUtf8() {
+  @Test func testBhvTransport027EncodingForContentTypeNilDefaultsToUtf8() {
     let enc = DefaultApiClient.encodingForContentType(nil)
     #expect(enc == .utf8)
   }
@@ -651,7 +661,7 @@ import Testing
   /// The strip-set MUST include the RFC-defined credential triple
   /// regardless of spec. Codegen appends `type=apiKey, in=header`
   /// scheme names at generation time, but the base set is fixed.
-  @Test func testSensitiveRedirectHeadersIncludesAuthorization() {
+  @Test func testBhvTransport057SensitiveRedirectHeadersIncludesAuthorization() {
     let lowered = DefaultApiClient.sensitiveRedirectHeaders.map { $0.lowercased() }
     #expect(
       lowered.contains("authorization"),
@@ -667,7 +677,7 @@ import Testing
   /// When the spec declares `type=apiKey, in=header` schemes, their
   /// header names MUST appear in the strip-list so a malicious 302
   /// cannot exfiltrate them to an attacker-controlled host.
-  @Test func testSensitiveRedirectHeadersIncludesSpecApiKeyHeaders() {
+  @Test func testBhvTransport056SensitiveRedirectHeadersIncludesSpecApiKeyHeaders() {
     let lowered = Set(DefaultApiClient.sensitiveRedirectHeaders.map { $0.lowercased() })
     #expect(
       lowered.contains("x-api-key"),
@@ -685,7 +695,9 @@ import Testing
     ("Authorization", true), ("cookie", true), ("Proxy-Authorization", true),
     ("Accept", false), ("User-Agent", false), ("X-Request-ID", false),
   ])
-  func testCredentialNamedHeadersAreStrippedOnACrossOriginHop(name: String, sensitive: Bool) {
+  func testBhvRedirects025CredentialNamedHeadersAreStrippedOnACrossOriginHop(
+    name: String, sensitive: Bool
+  ) {
     #expect(DefaultApiClient.isSensitiveRedirectHeader(name) == sensitive)
   }
 
@@ -694,7 +706,7 @@ import Testing
   /// noRedirect=true MUST NOT follow the redirect; the 307 is returned to
   /// the caller verbatim rather than replaying the request body to the
   /// Location target. The token manager inspects/rejects the 3xx itself.
-  @Test func testNoRedirectReturns307() async throws {
+  @Test func testBhvRedirects015NoRedirectReturns307() async throws {
     let client = makeClient { _ in
       (self.body("moved"), 307, ["Location": "https://other.example/x"])
     }
@@ -707,7 +719,7 @@ import Testing
 
   /// 308 (Permanent Redirect) is likewise returned verbatim under
   /// noRedirect rather than followed.
-  @Test func testNoRedirectReturns308() async throws {
+  @Test func testBhvRedirects022NoRedirectReturns308() async throws {
     let client = makeClient { _ in
       (self.body("moved permanently"), 308, ["Location": "https://other.example/x"])
     }
@@ -721,7 +733,7 @@ import Testing
   /// through the regular session and a 200 response is surfaced
   /// untouched -- the OAuth2 path opts in, but BaseApi requests
   /// must not regress.
-  @Test func testNoRedirectFalseAllowsNormalRequest() async throws {
+  @Test func testBhvRedirects014NoRedirectFalseAllowsNormalRequest() async throws {
     let client = makeClient { _ in (self.body("ok"), 200, [:]) }
     let resp = try await client.sendRequest(
       method: "GET", url: "http://localhost/echo",
@@ -741,7 +753,7 @@ import Testing
   // a real-gzip stream the client gunzips it, so the only way to reach the
   // error path deterministically is a malformed stream that still carries the
   // magic.
-  @Test func testLyingGzipContentEncodingThrowsApiError() async throws {
+  @Test func testBhvTransport030LyingGzipContentEncodingThrowsApiError() async throws {
     // gzip magic prefix (0x1F 0x8B) + garbage tail: declares gzip, looks
     // like gzip, but is not a valid gzip stream.
     var lyingBody = Data([0x1F, 0x8B])
@@ -786,7 +798,7 @@ import Testing
   // A connection that is reset, or a deadline that passes, AFTER the response
   // headers arrived is still a transport failure: status 0 and the URLError
   // kept as the cause, never an ApiError carrying the 200 that was received.
-  @Test func testBodyTruncatedAfterHeadersIsNetworkError() async throws {
+  @Test func testBhvErrors038BodyTruncatedAfterHeadersIsNetworkError() async throws {
     let client = makeClient(transport: try TransportOptionsBuilder().maxRetries(0).build()) { _ in
       (
         Data("partial body".utf8), 200,
@@ -805,7 +817,9 @@ import Testing
     #expect((error?.underlyingError as? URLError)?.code == .networkConnectionLost)
   }
 
-  @Test func testBodyStalledPastTheDeadlineAfterHeadersIsNetworkTimeoutError() async throws {
+  @Test func testBhvTransport029BodyStalledPastTheDeadlineAfterHeadersIsNetworkTimeoutError()
+    async throws
+  {
     let client = makeClient { _ in
       (
         Data("partial body".utf8), 200,
@@ -842,7 +856,7 @@ import Testing
     #expect(calls == 3)
   }
 
-  @Test func testRetriesStopAfterMaxRetriesAndReturnTheLastResponse() async throws {
+  @Test func testBhvRetries024RetriesStopAfterMaxRetriesAndReturnTheLastResponse() async throws {
     var calls = 0
     let client = try retryClient(maxRetries: 1) { _ in
       calls += 1
@@ -854,7 +868,7 @@ import Testing
     #expect(calls == 2)
   }
 
-  @Test func testMaxRetriesZeroSendsOnce() async throws {
+  @Test func testBhvRetries018MaxRetriesZeroSendsOnce() async throws {
     var calls = 0
     let client = try retryClient(maxRetries: 0) { _ in
       calls += 1
@@ -882,7 +896,7 @@ import Testing
     #expect(calls == 3)
   }
 
-  @Test func testPerCallMaxRetriesZeroTurnsRetriesOff() async throws {
+  @Test func testBhvRetries014PerCallMaxRetriesZeroTurnsRetriesOff() async throws {
     var calls = 0
     let client = try retryClient(maxRetries: 3) { _ in
       calls += 1
@@ -896,7 +910,7 @@ import Testing
   }
 
   /* A per-call timeout replaces the transport's for that call only. */
-  @Test func testPerCallTimeoutReplacesTheTransportTimeoutForOneCall() async throws {
+  @Test func testBhvTransport028PerCallTimeoutReplacesTheTransportTimeoutForOneCall() async throws {
     var seen: [TimeInterval] = []
     let session = UnitStubURLProtocol.session { request in
       seen.append(request.timeoutInterval)
@@ -954,7 +968,7 @@ import Testing
   }
 
   /* The identity provider is another origin: discovery never carries the API's default headers. */
-  @Test func testOidcDiscoveryLeavesTheDefaultHeadersOff() async throws {
+  @Test func testBhvRedirects016OidcDiscoveryLeavesTheDefaultHeadersOff() async throws {
     let transport = try TransportOptionsBuilder()
       .defaultHeader(name: "Authorization", value: "Bearer api-token")
       .maxRetries(0)
@@ -1017,7 +1031,7 @@ import Testing
   }
 
   @Test(arguments: [408, 409, 429, 500, 502, 503, 504, 599])
-  func testTransientStatusesAreRetried(status: Int) async throws {
+  func testBhvRetries021TransientStatusesAreRetried(status: Int) async throws {
     var calls = 0
     let client = try retryClient(maxRetries: 1) { _ in
       calls += 1
@@ -1028,7 +1042,7 @@ import Testing
     #expect(calls == 2)
   }
 
-  @Test func testNetworkErrorBeforeAResponseIsRetried() async throws {
+  @Test func testBhvRetries013NetworkErrorBeforeAResponseIsRetried() async throws {
     var calls = 0
     let client = try retryClient(maxRetries: 1) { _ in
       calls += 1
@@ -1058,7 +1072,7 @@ import Testing
     #expect(calls == 1)
   }
 
-  @Test func testWaitLongerThanTheRemainingBudgetIsNotTaken() async throws {
+  @Test func testBhvRetries025WaitLongerThanTheRemainingBudgetIsNotTaken() async throws {
     var calls = 0
     let client = try retryClient(timeout: 1000) { _ in
       calls += 1
@@ -1143,13 +1157,13 @@ import Testing
     #expect(DefaultApiClient.retryDelay(attempt: 1, retryAfter: nil, jitter: 0.5) == 0.875)
   }
 
-  @Test func testRetryAfterSecondsAreHonouredAndCappedAtSixtySeconds() {
+  @Test func testBhvRetries023RetryAfterSecondsAreHonouredAndCappedAtSixtySeconds() {
     #expect(DefaultApiClient.retryDelay(attempt: 0, retryAfter: "3", jitter: 0) == 3)
     #expect(DefaultApiClient.retryDelay(attempt: 0, retryAfter: "0", jitter: 0) == 0)
     #expect(DefaultApiClient.retryDelay(attempt: 0, retryAfter: "600", jitter: 0) == 60)
   }
 
-  @Test func testRetryAfterHttpDateIsReadRelativeToNow() {
+  @Test func testBhvRetries022RetryAfterHttpDateIsReadRelativeToNow() {
     let now = Date(timeIntervalSince1970: 784_111_777)
     let later = DefaultApiClient.retryDelay(
       attempt: 0, retryAfter: "Sun, 06 Nov 1994 08:49:47 GMT", now: now, jitter: 0)
@@ -1169,7 +1183,7 @@ import Testing
   // A malformed or non-HTTP request URL is a caller mistake:
   // ConfigurationError.invalidArgument, never a NetworkError.
   @Test(arguments: ["http://[::1", "file:///etc/passwd"])
-  func testMalformedRequestUrlThrowsInvalidArgument(url: String) async throws {
+  func testBhvErrors040MalformedRequestUrlThrowsInvalidArgument(url: String) async throws {
     let client = makeClient { _ in (self.body(), 200, [:]) }
     let error = await #expect(throws: ConfigurationError.self) {
       _ = try await client.sendRequest(method: "GET", url: url, headers: [:], body: nil)
@@ -1206,7 +1220,7 @@ import Testing
   // content-encoding-identity-passthrough (Gap AL): `Content-Encoding:
   // identity` is a no-op encoding (RFC 7231 §3.1.2.1) — the body is already
   // plaintext, so it must pass through unchanged, NOT be treated as a lie.
-  @Test func testIdentityContentEncodingPassesThrough() async throws {
+  @Test func testBhvTransport033IdentityContentEncodingPassesThrough() async throws {
     let client = makeClient { _ in
       (
         Data(#"{"ok":true}"#.utf8), 200,
@@ -1223,7 +1237,7 @@ import Testing
   // `Accept-Encoding` has opted to receive and decode the encoded bytes
   // itself, so a residual `Content-Encoding` header is expected and must NOT
   // be treated as an error — the encoded body is returned to that caller.
-  @Test func testCallerManagedAcceptEncodingDoesNotThrow() async throws {
+  @Test func testBhvSerializationwire029CallerManagedAcceptEncodingDoesNotThrow() async throws {
     let client = makeClient { _ in
       (
         Data("caller-decodes-these-bytes".utf8), 200,
@@ -1239,7 +1253,7 @@ import Testing
   // content-encoding-empty-gzip-passthrough (Gap AL): a zero-byte body that
   // still advertises `Content-Encoding: gzip` has nothing to inflate and no
   // gzip magic, so it must pass through as an empty body — never be thrown on.
-  @Test func testEmptyGzipBodyPassesThroughAsEmpty() async throws {
+  @Test func testBhvTransport037EmptyGzipBodyPassesThroughAsEmpty() async throws {
     let client = makeClient { _ in
       (
         Data(), 200,
@@ -1286,7 +1300,7 @@ import Testing
   /* URLSession negotiates and decodes content encodings itself only while
    * the header is left unset, so the client must not advertise one of its
    * own. */
-  @Test func testDoesNotSetAcceptEncodingByDefault() async throws {
+  @Test func testBhvTransport045DoesNotSetAcceptEncodingByDefault() async throws {
     var capturedEncoding: String?
     let client = makeClient { req in
       capturedEncoding = req.value(forHTTPHeaderField: "Accept-Encoding")
@@ -1314,7 +1328,7 @@ import Testing
   #if !os(Linux)
     /* With no proxy configured the session must not pick up the system proxy
        settings: an empty dictionary switches them off. */
-    @Test func testSessionIgnoresSystemProxyWhenNoProxyConfigured() throws {
+    @Test func testBhvTransport046SessionIgnoresSystemProxyWhenNoProxyConfigured() throws {
       let (session, _) = try DefaultApiClient.buildSession(TransportOptionsBuilder().build())
       #expect(session.configuration.connectionProxyDictionary?.isEmpty == true)
     }
@@ -1393,7 +1407,7 @@ import Testing
 
   /* Only a real body is refused across an HTTPS -> HTTP hop. The empty Data
      attached to a body-less POST/PUT/PATCH carries nothing to leak. */
-  @Test func testBodyReplayGuardIgnoresEmptyBodies() throws {
+  @Test func testBhvRetries016BodyReplayGuardIgnoresEmptyBodies() throws {
     let url = try #require(URL(string: "http://other.example/x"))
     var withBody = URLRequest(url: url)
     withBody.httpBody = Data("secret".utf8)
@@ -1436,7 +1450,7 @@ import Testing
   }
 
   /* D16: the canonical wording of the three redirect refusals. */
-  @Test func testRedirectRefusalMessagesAreCanonical() {
+  @Test func testBhvRedirects019RedirectRefusalMessagesAreCanonical() {
     #expect(
       DefaultApiClient.tooManyRedirectsMessage(limit: 20) == "Too many redirects (exceeded 20)")
     #expect(
@@ -1476,7 +1490,7 @@ import Testing
   }
 
   /* D29: a request after close() is a wrong call order, with one text. */
-  @Test func testSendAfterCloseThrowsTheCanonicalInvalidState() async throws {
+  @Test func testBhvLifecycle023SendAfterCloseThrowsTheCanonicalInvalidState() async throws {
     let client = makeClient { _ in (self.body(), 200, [:]) }
     client.close()
     let error = await #expect(throws: ConfigurationError.self) {
@@ -1492,7 +1506,9 @@ import Testing
   /* F1078: close() is graceful. A request already in flight finishes, the
      transport the SDK built is released only when it has, and a request made
      meanwhile fails with the one canonical error. */
-  @Test func testCloseLetsARequestInFlightFinishAndThenReleasesTheTransport() async throws {
+  @Test func testBhvLifecycle021CloseLetsARequestInFlightFinishAndThenReleasesTheTransport()
+    async throws
+  {
     let gate = CloseGate()
     let client = makeClient { _ in
       gate.holdRequest()
@@ -1522,7 +1538,7 @@ import Testing
 
   /* A retry of a request that was already in flight when close() came is part
      of that request, so it still goes out. */
-  @Test func testCloseLetsTheRetriesOfARequestInFlightFinish() async throws {
+  @Test func testBhvLifecycle019CloseLetsTheRetriesOfARequestInFlightFinish() async throws {
     let gate = CloseGate()
     let calls = CallCounter()
     let client = makeClient { _ in
@@ -1549,7 +1565,9 @@ import Testing
 
   /* Closing an idle client releases the transport at once, and a second close
      changes nothing. */
-  @Test func testCloseOfAnIdleClientReleasesAtOnceAndASecondCloseIsANoOp() async throws {
+  @Test func testBhvLifecycle022CloseOfAnIdleClientReleasesAtOnceAndASecondCloseIsANoOp()
+    async throws
+  {
     let client = makeClient { _ in (self.body(), 200, [:]) }
     _ = try await client.sendRequest(
       method: "GET", url: "https://example.com/once", headers: [:], body: nil)
@@ -1569,7 +1587,7 @@ import Testing
 
   /* A session the caller supplied is never released by close(), and keeps
      working afterwards. */
-  @Test func testCloseNeverReleasesACallerSuppliedSession() async throws {
+  @Test func testBhvLifecycle020CloseNeverReleasesACallerSuppliedSession() async throws {
     let probe = SessionInvalidationProbe()
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [UnitStubURLProtocol.self]
@@ -1631,7 +1649,7 @@ import Testing
     #expect(resp.body == "AB", "got: \(resp.body.unicodeScalars.map { $0.value })")
   }
 
-  @Test func testBareUtf16BigEndianBomIsDropped() async throws {
+  @Test func testBhvSerializationwire031BareUtf16BigEndianBomIsDropped() async throws {
     let client = makeClient { _ in
       (
         Data([0xFE, 0xFF, 0x00, 0x41, 0x00, 0x42]), 200,
@@ -1682,7 +1700,7 @@ import Testing
     #expect(DefaultApiClient.parseCaCertificates(Data(armourOnly.utf8)).isEmpty)
   }
 
-  @Test func testUnparseableCaCertFileFailsFast() throws {
+  @Test func testBhvErrors039UnparseableCaCertFileFailsFast() throws {
     let file = FileManager.default.temporaryDirectory
       .appendingPathComponent("garbage-\(UUID().uuidString).pem")
     try Data("not a certificate".utf8).write(to: file)
@@ -1726,7 +1744,7 @@ import Testing
 
   // MARK: - CA certificate fail-fast
 
-  @Test func testNonexistentCaCertPathFailsFast() throws {
+  @Test func testBhvErrors041NonexistentCaCertPathFailsFast() throws {
     // ca-cert-fail-fast: an explicitly configured CA certificate path that
     // cannot be read or parsed must fail fast at construction with
     // ConfigurationError rather than silently falling back to the system

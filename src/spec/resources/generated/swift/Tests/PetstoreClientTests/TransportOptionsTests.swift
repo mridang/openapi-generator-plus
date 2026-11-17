@@ -16,67 +16,67 @@ import Testing
 
 @Suite final class TransportOptionsTests {
 
-  @Test func testVerifySslDefaultsToTrue() throws {
+  @Test func testBhvOptions043VerifySslDefaultsToTrue() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(opts.verifySsl)
   }
 
-  @Test func testCaCertPathDefaultsToNull() throws {
+  @Test func testBhvOptions018CaCertPathDefaultsToNull() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(opts.caCertPath == nil)
   }
 
-  @Test func testProxyDefaultsToNull() throws {
+  @Test func testBhvOptions032ProxyDefaultsToNull() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(opts.proxy == nil)
   }
 
-  @Test func testTimeoutDefaultsTo10Seconds() throws {
+  @Test func testBhvOptions038TimeoutDefaultsTo10Seconds() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(opts.timeout == 10000)
   }
 
-  @Test func testFollowRedirectsDefaultsToTrue() throws {
+  @Test func testBhvOptions020FollowRedirectsDefaultsToTrue() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(opts.followRedirects)
   }
 
-  @Test func testMaxRedirectsDefaultsToNull() throws {
+  @Test func testBhvOptions025MaxRedirectsDefaultsToNull() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(opts.maxRedirects == nil)
   }
 
-  @Test func testUserAgentDefaultsToNonEmptyString() throws {
+  @Test func testBhvOptions041UserAgentDefaultsToNonEmptyString() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(!(opts.userAgent?.isEmpty ?? true))
   }
 
   /* D22: the default is '<registry name>/<version> (<language>)'. */
-  @Test func testUserAgentDefaultIsTheRegistryNameVersionAndLanguage() throws {
+  @Test func testBhvOptions042UserAgentDefaultIsTheRegistryNameVersionAndLanguage() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(opts.userAgent == "PetstoreClient/1.0.0 (swift)")
   }
 
-  @Test func testDefaultHeadersDefaultsToEmpty() throws {
+  @Test func testBhvOptions019DefaultHeadersDefaultsToEmpty() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(opts.defaultHeaders.isEmpty)
   }
 
-  @Test func testInjectRequestIdDefaultsToFalse() throws {
+  @Test func testBhvOptions022InjectRequestIdDefaultsToFalse() throws {
     let opts = try TransportOptionsBuilder().build()
     #expect(!(opts.injectRequestID))
   }
 
-  @Test func testMaxRetriesDefaultsToTwo() throws {
+  @Test func testBhvOptions026MaxRetriesDefaultsToTwo() throws {
     #expect(try TransportOptionsBuilder().build().maxRetries == 2)
   }
 
-  @Test func testMaxRetriesCanBeSetAndDisabled() throws {
+  @Test func testBhvOptions027MaxRetriesCanBeSetAndDisabled() throws {
     #expect(try TransportOptionsBuilder().maxRetries(5).build().maxRetries == 5)
     #expect(try TransportOptionsBuilder().maxRetries(0).build().maxRetries == 0)
   }
 
-  @Test func testNegativeMaxRetriesIsRejected() throws {
+  @Test func testBhvOptions007NegativeMaxRetriesIsRejected() throws {
     #expect(throws: ConfigurationError.self) {
       try TransportOptionsBuilder().maxRetries(-1).build()
     }
@@ -109,7 +109,7 @@ import Testing
     }
   }
 
-  @Test func testBuilderSetsAllFields() throws {
+  @Test func testBhvOptions017BuilderSetsAllFields() throws {
     let opts = try TransportOptionsBuilder()
       .verifySsl(false)
       .caCertPath("/path/to/ca.pem")
@@ -134,7 +134,7 @@ import Testing
     #expect(opts.injectRequestID)
   }
 
-  @Test func testFollowRedirectsDefaultsToTrueWithNullMaxRedirects() throws {
+  @Test func testBhvOptions021FollowRedirectsDefaultsToTrueWithNullMaxRedirects() throws {
     let opts = try TransportOptionsBuilder()
       .followRedirects(true)
       .build()
@@ -143,7 +143,7 @@ import Testing
     #expect(opts.maxRedirects == nil)
   }
 
-  @Test func testInvalidProxyUrlThrowsException() throws {
+  @Test func testBhvOptions024InvalidProxyUrlThrowsException() throws {
     #expect(throws: ConfigurationError.invalidProxy("Invalid proxy URL: not a valid url")) {
       try TransportOptionsBuilder().proxy("not a valid url").build()
     }
@@ -151,7 +151,7 @@ import Testing
 
   /* The proxy URL is validated when the options are built, not when the
    * setter runs, so the setter never throws. */
-  @Test func testInvalidProxyIsReportedByBuildNotBySetter() {
+  @Test func testBhvOptions013InvalidProxyIsReportedByBuildNotBySetter() {
     let builder = TransportOptionsBuilder().proxy("ftp://proxy.example.com:21")
     #expect(throws: ConfigurationError.self) {
       _ = try builder.build()
@@ -173,7 +173,8 @@ import Testing
     ("http://", "Invalid proxy URL (missing host): http://"),
     ("http:///only-a-path", "Invalid proxy URL (missing host): http:///only-a-path"),
   ])
-  func testProxyWithoutHttpSchemeOrHostIsRejected(url: String, message: String) throws {
+  func testBhvOptions011ProxyWithoutHttpSchemeOrHostIsRejected(url: String, message: String) throws
+  {
     #expect(throws: ConfigurationError.invalidProxy(message)) {
       try TransportOptionsBuilder().proxy(url).build()
     }
@@ -214,7 +215,7 @@ import Testing
   /* D77: the timeout is nil or a positive number of milliseconds; zero and
    * negative values are refused when the options are built. */
   @Test(arguments: [0, -1, -5000])
-  func testNonPositiveTimeoutIsRejectedWithTheCanonicalMessage(timeout: Int) throws {
+  func testBhvOptions033NonPositiveTimeoutIsRejectedWithTheCanonicalMessage(timeout: Int) throws {
     let error = #expect(throws: ConfigurationError.self) {
       try TransportOptionsBuilder().timeout(timeout).build()
     }
@@ -232,14 +233,14 @@ import Testing
 
   /* An IPv6 literal host is accepted bracketed, and an unterminated one is
    * refused. */
-  @Test func testProxyWithAnIpv6LiteralHostIsAccepted() throws {
+  @Test func testBhvOptions009ProxyWithAnIpv6LiteralHostIsAccepted() throws {
     let opts = try TransportOptionsBuilder().proxy("http://[::1]:3128").build()
     #expect(opts.proxy?.host == "::1")
     #expect(opts.proxy?.port == 3128)
   }
 
   @Test(arguments: ["http://[::1:3128", "http://user@[::1:3128"])
-  func testProxyWithAnUnterminatedIpv6LiteralIsRejected(url: String) {
+  func testBhvOptions010ProxyWithAnUnterminatedIpv6LiteralIsRejected(url: String) {
     #expect(throws: ConfigurationError.self) {
       _ = try TransportOptionsBuilder().proxy(url).build()
     }
@@ -283,7 +284,7 @@ import Testing
     #expect(!(readme.contains("`TransportOptions.proxy()`")))
   }
 
-  @Test func testNullProxyUrlIsAccepted() throws {
+  @Test func testBhvOptions030NullProxyUrlIsAccepted() throws {
     let opts = try TransportOptionsBuilder()
       .proxy(nil)
       .build()
@@ -291,7 +292,7 @@ import Testing
     #expect(opts.proxy == nil)
   }
 
-  @Test func testBuilderMethodsReturnSameInstance() throws {
+  @Test func testBhvOptions015BuilderMethodsReturnSameInstance() throws {
     let opts = try TransportOptionsBuilder()
       .verifySsl(true)
       .userAgent("Test/1.0")
@@ -302,7 +303,7 @@ import Testing
     #expect(opts.timeout == 10000)
   }
 
-  @Test func testAccumulatesHeadersFromDefaultHeaderCalls() throws {
+  @Test func testBhvOptions012AccumulatesHeadersFromDefaultHeaderCalls() throws {
     let opts = try TransportOptionsBuilder()
       .defaultHeader(name: "X-First", value: "one")
       .defaultHeader(name: "X-Second", value: "two")
@@ -313,7 +314,7 @@ import Testing
     #expect(opts.defaultHeaders["X-Second"] == "two")
   }
 
-  @Test func testMergesHeadersFromDefaultHeadersCall() throws {
+  @Test func testBhvOptions028MergesHeadersFromDefaultHeadersCall() throws {
     let opts = try TransportOptionsBuilder()
       .defaultHeader(name: "X-First", value: "one")
       .defaultHeaders([
@@ -328,7 +329,7 @@ import Testing
     #expect(opts.defaultHeaders["X-Third"] == "three")
   }
 
-  @Test func testModifyingSourceMapDoesNotAffectBuiltOptions() throws {
+  @Test func testBhvOptions029ModifyingSourceMapDoesNotAffectBuiltOptions() throws {
     let opts = try TransportOptionsBuilder()
       .defaultHeader(name: "X-Test", value: "value")
       .build()
@@ -341,7 +342,7 @@ import Testing
       "Modifying returned headers should not affect the transport options")
   }
 
-  @Test func testBuilderProducesIndependentInstances() throws {
+  @Test func testBhvOptions016BuilderProducesIndependentInstances() throws {
     let builder = TransportOptionsBuilder()
       .verifySsl(false)
     let first = try builder.build()
@@ -353,19 +354,19 @@ import Testing
 
   // TimeoutConfigTests
 
-  @Test func testTimeoutDefaultsTo10000ms() throws {
+  @Test func testBhvOptions039TimeoutDefaultsTo10000ms() throws {
     // Default TransportOptions applies a 10-second (10000 ms) request timeout
     // so that no SDK call blocks forever when the server stalls.
     let opts = try TransportOptionsBuilder().build()
     #expect(opts.timeout == 10000)
   }
 
-  @Test func testSettingTimeoutIsAccessible() throws {
+  @Test func testBhvOptions036SettingTimeoutIsAccessible() throws {
     let opts = try TransportOptionsBuilder().timeout(5000).build()
     #expect(opts.timeout == 5000)
   }
 
-  @Test func testTimeoutFieldIsNamedTimeout() throws {
+  @Test func testBhvOptions040TimeoutFieldIsNamedTimeout() throws {
     // Verify via the property that the field is named 'timeout'
     // (not e.g. 'timeoutIntervalForRequest' or 'timeoutIntervalForResource').
     let opts = try TransportOptionsBuilder().timeout(1000).build()
@@ -373,7 +374,7 @@ import Testing
     #expect(opts.timeout == 1000)
   }
 
-  @Test func testTimeoutCanBeExplicitlyDisabled() throws {
+  @Test func testBhvOptions037TimeoutCanBeExplicitlyDisabled() throws {
     // Passing nil explicitly disables the timeout (no end-to-end deadline).
     let opts = try TransportOptionsBuilder().timeout(nil).build()
     #expect(opts.timeout == nil)
@@ -381,7 +382,7 @@ import Testing
 
   // ProxyConfigTests
 
-  @Test func testProxyUrlIsPreservedOnReadBack() throws {
+  @Test func testBhvOptions035ProxyUrlIsPreservedOnReadBack() throws {
     let opts = try TransportOptionsBuilder()
       .proxy("http://proxy.example.com:8080")
       .build()
@@ -404,7 +405,7 @@ import Testing
       }
     }
   #else
-    @Test func testSettingProxyIsSupportedOnNonLinux() throws {
+    @Test func testBhvOptions034SettingProxyIsSupportedOnNonLinux() throws {
       // Proxy configuration must not throw on Apple platforms.
       let opts = try TransportOptionsBuilder()
         .proxy("http://proxy.example.com:8080")

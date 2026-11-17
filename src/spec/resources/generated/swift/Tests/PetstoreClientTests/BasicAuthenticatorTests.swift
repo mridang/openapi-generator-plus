@@ -15,7 +15,7 @@ import Testing
  * caller mistake that is not part of the SDK error hierarchy. */
 @Suite final class BasicAuthenticatorTests {
 
-  @Test func testValidCredentialsProduceBasicHeader() async throws {
+  @Test func testBhvAuthbasic011ValidCredentialsProduceBasicHeader() async throws {
     let auth = try BasicAuthenticator(
       host: "https://api.example.com",
       username: "alice",
@@ -26,7 +26,7 @@ import Testing
   }
 
   /* Non-ASCII credentials are sent as their UTF-8 bytes. */
-  @Test func testNonAsciiCredentialsAreEncodedAsUtf8() async throws {
+  @Test func testBhvAuthbasic004NonAsciiCredentialsAreEncodedAsUtf8() async throws {
     let auth = try BasicAuthenticator(
       host: "https://api.example.com",
       username: "\u{FC}n\u{EF}c\u{F8}d\u{E9}",
@@ -65,7 +65,7 @@ import Testing
 
   /* authenticator-secret-in-default-string-repr: the default string
    * representation must never expose the stored password. */
-  @Test func testPasswordIsNotLeakedInDefaultStringRepr() async throws {
+  @Test func testBhvAuthbasic005PasswordIsNotLeakedInDefaultStringRepr() async throws {
     let auth = try BasicAuthenticator(
       host: "https://api.example.com",
       username: "alice",
@@ -74,7 +74,7 @@ import Testing
     #expect(!String(describing: auth).contains("s3cret"))
   }
 
-  @Test func testRedactsSecret() async throws {
+  @Test func testBhvAuthbasic006RedactsSecret() async throws {
     let auth = try BasicAuthenticator(
       host: "https://api.example.com",
       username: "alice",
@@ -124,7 +124,7 @@ import Testing
     }
   }
 
-  @Test func testRejectsUsernameWithColonAtConstruction() {
+  @Test func testBhvAuthbasic008RejectsUsernameWithColonAtConstruction() {
     #expect(
       throws: ConfigurationError.invalidArgument(
         "Basic auth username must not contain ':' (RFC 7617 \u{A7}2)")
@@ -134,7 +134,7 @@ import Testing
     }
   }
 
-  @Test func testRejectsUsernameWithCrlfAtConstruction() {
+  @Test func testBhvAuthbasic009RejectsUsernameWithCrlfAtConstruction() {
     #expect(
       throws: ConfigurationError.invalidArgument(
         "Basic auth username must not contain CR, LF, or NUL characters")
@@ -144,7 +144,7 @@ import Testing
     }
   }
 
-  @Test func testRejectsPasswordWithNulAtConstruction() {
+  @Test func testBhvAuthbasic007RejectsPasswordWithNulAtConstruction() {
     #expect(
       throws: ConfigurationError.invalidArgument(
         "Basic auth password must not contain CR, LF, or NUL characters")
@@ -159,7 +159,9 @@ import Testing
   /* Each HTTP basic securityScheme generates a wrapper that sends the same
    * Basic header, validates eagerly and masks the password in its repr. */
   @Test(arguments: ["AdminBasic", "PetStoreBasic"])
-  func testSchemeWrapperSendsBasicHeaderAndMasksThePassword(scheme: String) async throws {
+  func testBhvAuthbasic002SchemeWrapperSendsBasicHeaderAndMasksThePassword(scheme: String)
+    async throws
+  {
     let auth = try Self.schemeWrapper(scheme, username: "alice", password: "s3cret")
     #expect(try await auth.authHeaders() == ["Authorization": "Basic YWxpY2U6czNjcmV0"])
     #expect(auth.queryParams().isEmpty)
@@ -176,7 +178,8 @@ import Testing
   }
 
   @Test
-  func testPetStoreBasicAuthenticatorSendsTheCredentialsFromTheEnvironmentUnlessTheyArePassed()
+  func
+    testBhvAuthbasic001PetStoreBasicAuthenticatorSendsTheCredentialsFromTheEnvironmentUnlessTheyArePassed()
     async throws
   {
     let fromEnvironment = try PetStoreBasicAuthenticator(
@@ -197,7 +200,9 @@ import Testing
     #expect(try await explicit.authHeaders() == ["Authorization": "Basic \(explicitEncoded)"])
   }
 
-  @Test func testAdminBasicAuthenticatorSendsTheCredentialsFromTheEnvironmentUnlessTheyArePassed()
+  @Test
+  func
+    testBhvAuthbasic001AdminBasicAuthenticatorSendsTheCredentialsFromTheEnvironmentUnlessTheyArePassed()
     async throws
   {
     let fromEnvironment = try AdminBasicAuthenticator(

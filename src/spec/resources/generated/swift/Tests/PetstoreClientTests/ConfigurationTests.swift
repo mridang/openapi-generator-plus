@@ -12,19 +12,19 @@ import Testing
 
 @Suite final class ConfigurationTests {
 
-  @Test func testDefaultValues() {
+  @Test func testBhvConfig014DefaultValues() {
     let config = Configuration.default()
 
     #expect(config.baseURL == "/api/v3")
     #expect(config.defaultHeaders.isEmpty)
   }
 
-  @Test func testBuilderReturnsInstance() {
+  @Test func testBhvConfig007BuilderReturnsInstance() {
     let builder = ConfigurationBuilder()
     _ = builder
   }
 
-  @Test func testBuilderSetsBaseURL() {
+  @Test func testBhvConfig011BuilderSetsBaseURL() {
     let config = ConfigurationBuilder()
       .baseURL("https://custom.example.com")
       .build()
@@ -32,7 +32,7 @@ import Testing
     #expect(config.baseURL == "https://custom.example.com")
   }
 
-  @Test func testBuilderSetsDefaultHeader() {
+  @Test func testBhvConfig013BuilderSetsDefaultHeader() {
     let config = ConfigurationBuilder()
       .defaultHeader(name: "X-Custom", value: "value")
       .build()
@@ -40,7 +40,7 @@ import Testing
     #expect(config.defaultHeaders["X-Custom"] == "value")
   }
 
-  @Test func testBuilderSetsMultipleDefaultHeaders() {
+  @Test func testBhvConfig012BuilderSetsMultipleDefaultHeaders() {
     let config = ConfigurationBuilder()
       .defaultHeaders([
         "X-First": "one",
@@ -62,7 +62,7 @@ import Testing
     #expect(config.defaultHeaders["Authorization"] == "Bearer token")
   }
 
-  @Test func testServerURLResolution() throws {
+  @Test func testBhvConfig008ServerURLResolution() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.example.com/api/{version}",
       description: "Test server",
@@ -108,7 +108,7 @@ import Testing
     #expect(config.baseURL == "https://api.example.com/api/v3")
   }
 
-  @Test func testBaseURLOverride() {
+  @Test func testBhvConfig001BaseURLOverride() {
     let config = ConfigurationBuilder()
       .baseURL("https://original.example.com")
       .baseURL("https://override.example.com")
@@ -130,7 +130,7 @@ import Testing
       "Modifying returned headers should not affect the configuration")
   }
 
-  @Test func testBuilderAccumulatesMultipleHeaders() {
+  @Test func testBhvConfig002BuilderAccumulatesMultipleHeaders() {
     let config = ConfigurationBuilder()
       .defaultHeader(name: "X-First", value: "one")
       .defaultHeader(name: "X-Second", value: "two")
@@ -141,7 +141,7 @@ import Testing
     #expect(config.defaultHeaders["X-Second"] == "two")
   }
 
-  @Test func testBuilderMergesSingleAndBulkHeaders() {
+  @Test func testBhvConfig004BuilderMergesSingleAndBulkHeaders() {
     let config = ConfigurationBuilder()
       .defaultHeader(name: "X-First", value: "one")
       .defaultHeaders(["X-Second": "two"])
@@ -154,7 +154,7 @@ import Testing
     #expect(config.defaultHeaders["X-Third"] == "three")
   }
 
-  @Test func testInvalidServerVariableEnumValueThrows() {
+  @Test func testBhvConfig016InvalidServerVariableEnumValueThrows() {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.example.com",
       variables: [
@@ -170,7 +170,7 @@ import Testing
     }
   }
 
-  @Test func testBuilderMethodsReturnBuilderForChaining() throws {
+  @Test func testBhvConfig003BuilderMethodsReturnBuilderForChaining() throws {
     let builder = ConfigurationBuilder()
     let server = ServerConfiguration(urlTemplate: "https://example.com")
 
@@ -180,7 +180,7 @@ import Testing
     #expect(try builder.server(server) === builder)
   }
 
-  @Test func testBuilderProducesIndependentInstances() {
+  @Test func testBhvConfig006BuilderProducesIndependentInstances() {
     let builder = ConfigurationBuilder().baseURL("https://example.com")
     let first = builder.build()
     let second = builder.build()
