@@ -3522,6 +3522,21 @@
     "rust"
    ],
    "reason": "rust has no overloads or default arguments: the API group is built with (api_client, config, authenticator) and the per-scheme credentials of the client are attached with the builder method with_scheme_authenticators"
+  },
+  {
+   "element": [
+    "browserauthimplicitauthenticator.<ctor>",
+    "legacyauthpasswordauthenticator.<ctor>",
+    "machineauthclientcredentialsauthenticator.<ctor>",
+    "ssoauthauthenticator.<ctor>",
+    "userauthauthorizationcodeauthenticator.<ctor>"
+   ],
+   "aspect": "ctor-optional",
+   "languages": [
+    "php",
+    "dart"
+   ],
+   "reason": "F862 gap tracked in https://github.com/mridang/openapi-generator-plus/issues/119: the dart and php OAuth authenticators still require the client id and secret instead of reading them from the shared per-scheme environment variables; delete this rule when that issue lands"
   }
  ]
 }
