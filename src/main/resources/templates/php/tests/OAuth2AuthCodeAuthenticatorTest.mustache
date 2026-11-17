@@ -632,7 +632,7 @@ test('bhv authoauthtwoauthcode 008 the code exchange proves the challenge of the
     $authenticator->exchangeCode('the-code');
 
     parse_str((string) ($client->capturedRequests[0]['body'] ?? ''), $form);
-    $verifier = (string) ($form['code_verifier'] ?? '');
+    $verifier = is_string($form['code_verifier'] ?? null) ? $form['code_verifier'] : '';
     expect(preg_match('/^[A-Za-z0-9._~-]{43,128}$/', $verifier))->toBe(1);
     expect($params['code_challenge'])->toBe(rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='));
 });
@@ -651,7 +651,8 @@ test('bhv authoauthtwoauthcode 009 every authorization url starts a new verifier
     $authenticator->setApiClient($client);
     $challenge = static function (string $url): string {
         parse_str((string) parse_url($url, PHP_URL_QUERY), $params);
-        return (string) $params['code_challenge'];
+        $value = $params['code_challenge'] ?? '';
+        return is_string($value) ? $value : '';
     };
 
     $first = $challenge($authenticator->buildAuthorizationUrl('a'));
@@ -660,7 +661,7 @@ test('bhv authoauthtwoauthcode 009 every authorization url starts a new verifier
 
     $authenticator->exchangeCode('the-code');
     parse_str((string) ($client->capturedRequests[0]['body'] ?? ''), $form);
-    $verifier = (string) ($form['code_verifier'] ?? '');
+    $verifier = is_string($form['code_verifier'] ?? null) ? $form['code_verifier'] : '';
     expect(rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='))->toBe($second);
 });
 

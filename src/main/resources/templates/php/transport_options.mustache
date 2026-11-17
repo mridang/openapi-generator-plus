@@ -84,9 +84,9 @@ final class TransportOptions
     /**
      * Validate a proxy URL: it must be a well-formed URL with a host and an
      * http or https scheme (matched case-insensitively, per RFC 3986). Runs for
-     * every instance, whether it comes from the builder or from the constructor.
+     * every instance, whether it comes from the builder (at build) or from the constructor.
      *
-     * @internal used by {@see TransportOptionsBuilder::proxy()}
+     * @internal used by the constructor
      * @param string|null $proxy proxy URL, or null for no proxy
      * @throws \InvalidArgumentException if the URL is invalid
      */

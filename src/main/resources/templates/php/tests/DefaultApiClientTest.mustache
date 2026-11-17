@@ -437,6 +437,7 @@ test('bhv redirects 003 redirect count and limit are scoped per request not shar
     // Router script for `php -S`: 302 -> /chain/{n-1} until /chain/0 -> 200.
     $router = <<<'PHP'
         <?php
+        header('Connection: close');
         $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
         if (preg_match('#^/chain/(\d+)$#', (string) $path, $m)) {
             $n = (int) $m[1];
@@ -462,10 +463,16 @@ test('bhv redirects 003 redirect count and limit are scoped per request not shar
     // Bind to an ephemeral loopback port. Port 0 lets the OS pick a free
     // port; we read it back from the server's startup banner on stderr.
     $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+    /* Several workers, so a connection the client leaves open cannot block the
+     * other requests of this test (the built-in server is single-threaded by
+     * default), and every response closes its own connection. */
+    $env = array_merge(getenv(), ['PHP_CLI_SERVER_WORKERS' => '4']);
     $process = proc_open(
         [PHP_BINARY, '-S', '127.0.0.1:0', $routerFile],
         $descriptors,
-        $pipes
+        $pipes,
+        null,
+        $env
     );
     if (!is_resource($process)) {
         test()->fail('could not start local php redirect-chain server');

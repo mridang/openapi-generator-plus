@@ -122,6 +122,7 @@ test('bhv options 024 invalid proxy url throws exception', function (): void {
         $caught = $e;
     }
     expect($caught)->not->toBeNull();
+    assert($caught instanceof \Throwable);
     expect($caught::class)->toBe(\InvalidArgumentException::class);
     expect($caught)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
 });
@@ -230,8 +231,8 @@ test('bhv options 014 an upper-case proxy scheme is accepted', function (): void
     expect($opts->proxy)->toBe('HTTP://proxy:3128');
 });
 
-test('builder rejects a proxy with a non http scheme', function (): void {
-    expect(fn () => TransportOptions::builder()->proxy('ftp://proxy:21'))
+test('builder rejects a proxy with a non http scheme at build', function (): void {
+    expect(fn () => TransportOptions::builder()->proxy('ftp://proxy:21')->build())
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): ftp://proxy:21');
 });
 

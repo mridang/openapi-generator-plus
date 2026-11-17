@@ -75,13 +75,14 @@ final class TransportOptionsBuilder
     /**
      * Set the HTTP/HTTPS proxy URL.
      *
+     * The URL is checked by build(), which rejects an invalid one with an
+     * \InvalidArgumentException, so the setter itself never throws.
+     *
      * @param string|null $proxy proxy URL (e.g. "http://proxy:3128"), or null
      * @return self this builder
-     * @throws \InvalidArgumentException if the URL is invalid
      */
     public function proxy(?string $proxy): self
     {
-        TransportOptions::assertValidProxy($proxy);
         $this->proxy = $proxy;
         return $this;
     }

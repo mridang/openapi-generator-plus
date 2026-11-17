@@ -1682,7 +1682,7 @@ test('bhv serializationobject 077 every wire-shape failure raises the SDK Serial
     'int overflow' => ['9223372036854775808', 'int'],
     'null in a map of models' => ['{"a":null}', 'Ds\Map<Pet>'],
     'undeclared key on a strict model' => ['{"id":1,"extra":1}', StrictTag::class],
-    'missing required field' => ['{"id":1,"petId":1,"quantity":1,"complete":false}', Order::class],
+    'missing required field' => ['{"id":1,"photoUrls":[]}', Pet::class],
 ]);
 
 test('bhv serializationobject 154 strict model rejects an undeclared key through deserialize', function (): void {
@@ -2114,6 +2114,7 @@ test('bhv serializationobject 066 deserialize rejects invalid JSON with the SDK 
 test('bhv serializationobject 082 deserialize silently ignores unknown extra fields', function (): void {
     $category = ObjectSerializer::deserialize('{"id":1,"name":"Dogs","unexpected":"extra"}', Category::class);
     expect($category)->toBeInstanceOf(Category::class);
+    assert($category instanceof Category);
     expect($category->id)->toBe(1);
     expect($category->name)->toBe('Dogs');
 });
