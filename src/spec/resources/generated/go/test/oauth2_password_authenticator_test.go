@@ -69,7 +69,7 @@ func createPasswordAuthenticator() *oauth.OAuth2PasswordAuthenticator {
 	)
 }
 
-func TestOAuth2Password_SendsPasswordGrantType(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_SendsPasswordGrantType(t *testing.T) {
 	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
@@ -88,7 +88,7 @@ func TestOAuth2Password_SendsPasswordGrantType(t *testing.T) {
 }
 
 // The per-scheme wrapper requests the scopes its security scheme declares.
-func TestLegacyAuthWrapper_SendsDeclaredScopes(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_LegacyAuthWrapper_SendsDeclaredScopes(t *testing.T) {
 	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
@@ -110,7 +110,7 @@ func TestLegacyAuthWrapper_SendsDeclaredScopes(t *testing.T) {
 	}
 }
 
-func TestOAuth2Password_SendsUsernameAndPassword(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_SendsUsernameAndPassword(t *testing.T) {
 	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
@@ -131,7 +131,7 @@ func TestOAuth2Password_SendsUsernameAndPassword(t *testing.T) {
 	}
 }
 
-func TestOAuth2Password_SendsClientIdAndSecret(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_SendsClientIdAndSecret(t *testing.T) {
 	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
@@ -152,7 +152,7 @@ func TestOAuth2Password_SendsClientIdAndSecret(t *testing.T) {
 	}
 }
 
-func TestOAuth2Password_ReturnsAuthorizationBearerHeader(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_ReturnsAuthorizationBearerHeader(t *testing.T) {
 	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
@@ -170,7 +170,7 @@ func TestOAuth2Password_ReturnsAuthorizationBearerHeader(t *testing.T) {
 	}
 }
 
-func TestOAuth2Password_UsesRefreshTokenOnSubsequentCalls(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_UsesRefreshTokenOnSubsequentCalls(t *testing.T) {
 	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
@@ -195,7 +195,7 @@ func TestOAuth2Password_UsesRefreshTokenOnSubsequentCalls(t *testing.T) {
 	}
 }
 
-func TestOAuth2Password_GetHostReturnsConfiguredHost(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
 	t.Parallel()
 	authObj := createPasswordAuthenticator()
 
@@ -204,7 +204,7 @@ func TestOAuth2Password_GetHostReturnsConfiguredHost(t *testing.T) {
 	}
 }
 
-func TestOAuth2Password_RedactsSecret(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	authObj := createPasswordAuthenticator()
 	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj), fmt.Sprintf("%v", *authObj), fmt.Sprintf("%+v", *authObj), fmt.Sprintf("%#v", *authObj)} {
@@ -220,7 +220,7 @@ func TestOAuth2Password_RedactsSecret(t *testing.T) {
 	}
 }
 
-func TestOAuth2Password_BasicAuthUrlEncodesClientIdAndSecret(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_BasicAuthUrlEncodesClientIdAndSecret(t *testing.T) {
 	t.Parallel()
 	// Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
 	// client_id and client_secret MUST be application/x-www-form-
@@ -267,7 +267,7 @@ func TestOAuth2Password_BasicAuthUrlEncodesClientIdAndSecret(t *testing.T) {
 
 // The first grant goes to tokenUrl and the refresh grant to refreshUrl, so the
 // two URLs are told apart by giving the authenticator distinct ones.
-func TestOAuth2Password_SendsTheFirstGrantToTokenUrlAndTheRefreshToRefreshUrl(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_SendsTheFirstGrantToTokenUrlAndTheRefreshToRefreshUrl(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
@@ -300,7 +300,7 @@ func TestOAuth2Password_SendsTheFirstGrantToTokenUrlAndTheRefreshToRefreshUrl(t 
 }
 
 // Without a refreshUrl the refresh grant falls back to tokenUrl.
-func TestOAuth2Password_RefreshFallsBackToTokenUrlWithoutRefreshUrl(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_RefreshFallsBackToTokenUrlWithoutRefreshUrl(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
@@ -319,7 +319,7 @@ func TestOAuth2Password_RefreshFallsBackToTokenUrlWithoutRefreshUrl(t *testing.T
 
 // The per-scheme wrapper sends its grants to the URLs its security scheme
 // declares: the first to the token URL, the refresh to the refresh URL.
-func TestLegacyAuthWrapper_RoutesGrantsToTheDeclaredUrls(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_LegacyAuthWrapper_RoutesGrantsToTheDeclaredUrls(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
@@ -346,7 +346,7 @@ func TestLegacyAuthWrapper_RoutesGrantsToTheDeclaredUrls(t *testing.T) {
 // RFC 6749 §2.3.1 form-urlencoding, in the token body and in the Basic header:
 // exactly `-._~` stays literal, and `*`, `!`, `'`, `(` and `)` are
 // percent-encoded.
-func TestOAuth2Password_PercentEncodesReservedPunctuationInBodyAndBasicHeader(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_PercentEncodesReservedPunctuationInBodyAndBasicHeader(t *testing.T) {
 	t.Parallel()
 	const (
 		id            = "id~-._*!'()"
@@ -387,7 +387,7 @@ func TestOAuth2Password_PercentEncodesReservedPunctuationInBodyAndBasicHeader(t 
 
 // The token body is x-www-form-urlencoded, so the space between scopes is a
 // plus, not %20.
-func TestOAuth2Password_TokenBodyEncodesScopeSpacesAsPlus(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_TokenBodyEncodesScopeSpacesAsPlus(t *testing.T) {
 	t.Parallel()
 	client := &fakePasswordClient{
 		responses: []fakePasswordResponse{
@@ -408,7 +408,7 @@ func TestOAuth2Password_TokenBodyEncodesScopeSpacesAsPlus(t *testing.T) {
 }
 
 // The printed form shows the non-secret fields and masks only the secrets.
-func TestOAuth2Password_ReprShowsTheNonSecretFields(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
 	t.Parallel()
 	repr := createPasswordAuthenticator().String()
 	for _, want := range []string{
@@ -443,7 +443,7 @@ func newPasswordAuthenticatorWithRefreshURL() *oauth.OAuth2PasswordAuthenticator
 }
 
 // The password grant body is emitted in the shared key order.
-func TestOAuth2Password_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
@@ -461,7 +461,7 @@ func TestOAuth2Password_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
 
 // RFC 6749 §6: in BODY mode the refresh carries the client credentials the
 // password grant authenticated with, and goes to the refresh URL.
-func TestOAuth2Password_BodyModeRefreshCarriesTheClientCredentials(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_BodyModeRefreshCarriesTheClientCredentials(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
@@ -490,7 +490,7 @@ func TestOAuth2Password_BodyModeRefreshCarriesTheClientCredentials(t *testing.T)
 
 // In BASIC mode the refresh authenticates with the same Basic header and puts
 // no client credentials in the body.
-func TestOAuth2Password_BasicModeRefreshSendsTheBasicHeader(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_BasicModeRefreshSendsTheBasicHeader(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
@@ -516,7 +516,7 @@ func TestOAuth2Password_BasicModeRefreshSendsTheBasicHeader(t *testing.T) {
 
 // A rejected refresh re-runs the password grant at the token URL and returns
 // its token.
-func TestOAuth2Password_RejectedRefreshReRunsThePasswordGrant(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_RejectedRefreshReRunsThePasswordGrant(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
@@ -548,7 +548,7 @@ func TestOAuth2Password_RejectedRefreshReRunsThePasswordGrant(t *testing.T) {
 
 // F855: InvalidateAccessToken keeps the refresh token, so the next call is a
 // refresh grant first.
-func TestOAuth2Password_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
+func TestOAuth2PasswordAuthenticator_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},

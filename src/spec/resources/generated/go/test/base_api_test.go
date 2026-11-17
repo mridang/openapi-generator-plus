@@ -37,7 +37,7 @@ import (
 // model that is dot-imported into the API package; a package-level `ApiResponse`
 // wrapper would collide with that dot-imported model. This test references the
 // public type and its fields directly.
-func TestApiHttpResponse_PublicTypeNameAndFields(t *testing.T) {
+func TestBaseApi_ApiHttpResponse_PublicTypeNameAndFields(t *testing.T) {
 	t.Parallel()
 	resp := petstore.ApiHttpResponse{
 		StatusCode: 200,
@@ -1194,7 +1194,7 @@ func (c *binaryResponseApiClient) SendRequestWithOptions(method, url string, hea
 // Close satisfies the ApiClient contract; this stub holds no resources.
 func (c *binaryResponseApiClient) Close() error { return nil }
 
-func TestBinaryResponse_OctetStreamDecodedFromBase64(t *testing.T) {
+func TestBaseApi_BinaryResponse_OctetStreamDecodedFromBase64(t *testing.T) {
 	t.Parallel()
 	/* End-to-end binary roundtrip: bytes including 0x00 and 0xFF must survive
 	 * transport base64-encoding and api.mustache base64-decoding without
@@ -1249,7 +1249,7 @@ func encodeBase64(data []byte) string {
 	return string(result)
 }
 
-func TestBinaryResponse_ImagePngDecodedFromBase64(t *testing.T) {
+func TestBaseApi_BinaryResponse_ImagePngDecodedFromBase64(t *testing.T) {
 	t.Parallel()
 	original := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D}
 	encoded := encodeBase64(original)
@@ -1271,7 +1271,7 @@ func TestBinaryResponse_ImagePngDecodedFromBase64(t *testing.T) {
 	}
 }
 
-func TestBinaryResponse_JsonWrappedByteDecodedToRawBytes(t *testing.T) {
+func TestBaseApi_BinaryResponse_JsonWrappedByteDecodedToRawBytes(t *testing.T) {
 	t.Parallel()
 	/* A top-level `format: byte` value carried as application/json arrives as a
 	 * JSON string literal with its quotes included ("dGVzdC1pbWFnZQ=="). It must
@@ -1295,7 +1295,7 @@ func TestBinaryResponse_JsonWrappedByteDecodedToRawBytes(t *testing.T) {
 	}
 }
 
-func TestBinaryResponse_JsonResponseParsedToObject(t *testing.T) {
+func TestBaseApi_BinaryResponse_JsonResponseParsedToObject(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
 		responseBody:        `{"id":42,"name":"test","photoUrls":[]}`,
@@ -1315,7 +1315,7 @@ func TestBinaryResponse_JsonResponseParsedToObject(t *testing.T) {
 	}
 }
 
-func TestBinaryResponse_TextPlainBodyForModelReturnIsASerializationError(t *testing.T) {
+func TestBaseApi_BinaryResponse_TextPlainBodyForModelReturnIsASerializationError(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
 		responseBody:        "hello world",
@@ -1333,7 +1333,7 @@ func TestBinaryResponse_TextPlainBodyForModelReturnIsASerializationError(t *test
 	}
 }
 
-func TestBinaryResponse_EmptyBodyYieldsNoError(t *testing.T) {
+func TestBaseApi_BinaryResponse_EmptyBodyYieldsNoError(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
 		responseBody:        "",
@@ -1348,7 +1348,7 @@ func TestBinaryResponse_EmptyBodyYieldsNoError(t *testing.T) {
 
 // ── NullBodyContentTypeTests ──
 
-func TestNullBody_PostDoesNotSendContentType(t *testing.T) {
+func TestBaseApi_NullBody_PostDoesNotSendContentType(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1360,7 +1360,7 @@ func TestNullBody_PostDoesNotSendContentType(t *testing.T) {
 	}
 }
 
-func TestNullBody_AddPetWithBodyIncludesContentType(t *testing.T) {
+func TestBaseApi_NullBody_AddPetWithBodyIncludesContentType(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1372,7 +1372,7 @@ func TestNullBody_AddPetWithBodyIncludesContentType(t *testing.T) {
 	}
 }
 
-func TestNullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
+func TestBaseApi_NullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1386,7 +1386,7 @@ func TestNullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
 
 // An omitted optional request body (a nil *Order) must put no entity and no
 // Content-Type on the wire, not a literal JSON null.
-func TestNullBody_PlaceOrderWithoutOrderSendsNoBodyAndNoContentType(t *testing.T) {
+func TestBaseApi_NullBody_PlaceOrderWithoutOrderSendsNoBodyAndNoContentType(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1400,7 +1400,7 @@ func TestNullBody_PlaceOrderWithoutOrderSendsNoBodyAndNoContentType(t *testing.T
 	}
 }
 
-func TestNullBody_PlaceOrderWithOrderStillSendsJSONBody(t *testing.T) {
+func TestBaseApi_NullBody_PlaceOrderWithOrderStillSendsJSONBody(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1418,7 +1418,7 @@ func TestNullBody_PlaceOrderWithOrderStillSendsJSONBody(t *testing.T) {
 // raises the uniform empty-body ApiError and WithHTTPInfo reports nil Data,
 // instead of fabricating a default-valued model or failing a required-field
 // check.
-func TestNullResponseBody_ConvenienceReturnsEmptyBodyError(t *testing.T) {
+func TestBaseApi_NullResponseBody_ConvenienceReturnsEmptyBodyError(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
 		responseBody:        "null",
@@ -1441,7 +1441,7 @@ func TestNullResponseBody_ConvenienceReturnsEmptyBodyError(t *testing.T) {
 	}
 }
 
-func TestNullResponseBody_WithHTTPInfoReportsNilData(t *testing.T) {
+func TestBaseApi_NullResponseBody_WithHTTPInfoReportsNilData(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
 		responseBody:        " null\n",
@@ -1462,7 +1462,7 @@ func TestNullResponseBody_WithHTTPInfoReportsNilData(t *testing.T) {
 
 // ── #2 WithHTTPInfo variant ──
 
-func TestWithHTTPInfo_ReturnsApiResultWithStatusAndHeaders(t *testing.T) {
+func TestBaseApi_WithHTTPInfo_ReturnsApiResultWithStatusAndHeaders(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
 		responseBody:        `{"id":7,"name":"WithInfoPet","photoUrls":[]}`,
@@ -1511,7 +1511,7 @@ func (c *authHeaderCapturingClient) SendRequestWithOptions(method, url string, h
 // Close satisfies the ApiClient contract; this stub holds no resources.
 func (c *authHeaderCapturingClient) Close() error { return nil }
 
-func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
+func TestBaseApi_Auth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
 	t.Parallel()
 	client := &authHeaderCapturingClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1530,7 +1530,7 @@ func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
 
 // ── #6 Per-status error structs via errors.As ──
 
-func TestErrorsAs_BadRequestErrorMatches(t *testing.T) {
+func TestBaseApi_ErrorsAs_BadRequestErrorMatches(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/400").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
@@ -1544,7 +1544,7 @@ func TestErrorsAs_BadRequestErrorMatches(t *testing.T) {
 	}
 }
 
-func TestErrorsAs_NotFoundErrorMatches(t *testing.T) {
+func TestBaseApi_ErrorsAs_NotFoundErrorMatches(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/404").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
@@ -1560,7 +1560,7 @@ func TestErrorsAs_NotFoundErrorMatches(t *testing.T) {
 
 // ── #7 Typed error-body accessor ──
 
-func TestGetTypedErrorBody_ParsesJsonIntoTarget(t *testing.T) {
+func TestBaseApi_GetTypedErrorBody_ParsesJsonIntoTarget(t *testing.T) {
 	t.Parallel()
 	/* Typed error-body accessor: a problem+json error payload must
 	 * deserialize into the caller's target. Constructed directly with a known
@@ -1586,7 +1586,7 @@ func TestGetTypedErrorBody_ParsesJsonIntoTarget(t *testing.T) {
 // verify the Proxy URL accepts a userinfo segment and the transport
 // includes a Proxy-Authorization header when configured.
 
-func TestProxyAuth_BuilderAcceptsUserinfoInProxyUrl(t *testing.T) {
+func TestBaseApi_ProxyAuth_BuilderAcceptsUserinfoInProxyUrl(t *testing.T) {
 	t.Parallel()
 	opts, buildErr := petstore.NewTransportOptionsBuilder().
 		Proxy("http://user:pass@proxy.example.com:3128").

@@ -130,7 +130,7 @@ func requireScheme{{className}}Credentials(t *testing.T, a *{{package}}.{{classN
 {{/isOAuth}}
 }
 
-func Test{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func TestSchemeAuthenticator_{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
 
 	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
@@ -141,7 +141,7 @@ func Test{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 	requireScheme{{className}}Credentials(t, a, schemeEnvValue)
 }
 
-func Test{{className}}_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func TestSchemeAuthenticator_{{className}}_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
 
 	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, schemeArgValue("{{field}}"){{/envVars}})
@@ -152,7 +152,7 @@ func Test{{className}}_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
 	requireScheme{{className}}Credentials(t, a, schemeArgValue)
 }
 
-func Test{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func TestSchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 	for i, variable := range scheme{{className}}Variables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(scheme{{className}}Fields[i]+"/"+mode, func(t *testing.T) {
@@ -175,7 +175,7 @@ func Test{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 }
 {{#isBearer}}
 
-func Test{{className}}_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
+func TestSchemeAuthenticator_{{className}}_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
 	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
 
 	a, err := {{package}}.New{{className}}WithProvider(schemeHost, schemeTokenFrom("provider-token"))
@@ -188,7 +188,7 @@ func Test{{className}}_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.
 	}
 }
 
-func Test{{className}}_WithProviderRejectsANilProvider(t *testing.T) {
+func TestSchemeAuthenticator_{{className}}_WithProviderRejectsANilProvider(t *testing.T) {
 	a, err := {{package}}.New{{className}}WithProvider(schemeHost, nil)
 
 	if !errors.Is(err, auth.ErrInvalidBearerToken) {

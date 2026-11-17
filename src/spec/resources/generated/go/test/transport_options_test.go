@@ -155,6 +155,17 @@ func TestTransportOptions_UserAgentDefaultsToBrandedValue(t *testing.T) {
 	}
 }
 
+func TestTransportOptions_UserAgentDefaultsToNonEmptyString(t *testing.T) {
+	t.Parallel()
+	opts, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.UserAgent() == nil || *opts.UserAgent() == "" {
+		t.Errorf("expected a non-empty default UserAgent, got %v", opts.UserAgent())
+	}
+}
+
 func TestTransportOptions_UserAgentDefaultThenSet(t *testing.T) {
 	t.Parallel()
 	// The default carries the branded value; once set via the nullable setter

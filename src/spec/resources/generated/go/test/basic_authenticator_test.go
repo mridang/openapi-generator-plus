@@ -41,29 +41,34 @@ func TestBasicAuthenticator_ValidCredentialsProduceBasicHeader(t *testing.T) {
 
 // Malformed credentials are a caller mistake: the constructor returns the
 // matching sentinel, never panics, and the error is not a OpenAPIError.
-func TestBasicAuthenticator_RejectsMalformedCredentials(t *testing.T) {
+func requireBasicRejected(t *testing.T, username, password string, want error) {
+	t.Helper()
+	a, err := auth.NewBasicAuthenticator("https://api.example.com", username, password)
+	if !errors.Is(err, want) {
+		t.Errorf("NewBasicAuthenticator(%q, %q): expected %v, got %v", username, password, want, err)
+	}
+	if a != nil {
+		t.Errorf("NewBasicAuthenticator(%q, %q): expected a nil authenticator", username, password)
+	}
+	var root apierrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("a caller mistake must not be a OpenAPIError, got %T", err)
+	}
+}
+
+func TestBasicAuthenticator_RejectsUsernameWithCrlfAtConstruction(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
-		username, password string
-		want               error
-	}{
-		{"alice\r\n", "s3cret", auth.ErrBasicAuthUsernameControlChar},
-		{"alice", "s3c\x00ret", auth.ErrBasicAuthPasswordControlChar},
-		{"ali:ce", "s3cret", auth.ErrBasicAuthUsernameColon},
-	}
-	for _, c := range cases {
-		a, err := auth.NewBasicAuthenticator("https://api.example.com", c.username, c.password)
-		if !errors.Is(err, c.want) {
-			t.Errorf("NewBasicAuthenticator(%q, %q): expected %v, got %v", c.username, c.password, c.want, err)
-		}
-		if a != nil {
-			t.Errorf("NewBasicAuthenticator(%q, %q): expected a nil authenticator", c.username, c.password)
-		}
-		var root apierrors.OpenAPIError
-		if errors.As(err, &root) {
-			t.Errorf("a caller mistake must not be a OpenAPIError, got %T", err)
-		}
-	}
+	requireBasicRejected(t, "alice\r\n", "s3cret", auth.ErrBasicAuthUsernameControlChar)
+}
+
+func TestBasicAuthenticator_RejectsPasswordWithNulAtConstruction(t *testing.T) {
+	t.Parallel()
+	requireBasicRejected(t, "alice", "s3c\x00ret", auth.ErrBasicAuthPasswordControlChar)
+}
+
+func TestBasicAuthenticator_RejectsUsernameWithColonAtConstruction(t *testing.T) {
+	t.Parallel()
+	requireBasicRejected(t, "ali:ce", "s3cret", auth.ErrBasicAuthUsernameColon)
 }
 
 func TestBasicAuthenticator_RedactsSecret(t *testing.T) {
@@ -104,7 +109,7 @@ func TestBasicAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
 // Each per-scheme wrapper is a Basic authenticator under its own name: it emits
 // the same Authorization header, refuses the same malformed credentials, and
 // prints its own name with the password masked.
-func TestBasicWrappers_EmitTheBasicHeaderUnderTheirOwnName(t *testing.T) {
+func TestBasicAuthenticator_BasicWrappers_EmitTheBasicHeaderUnderTheirOwnName(t *testing.T) {
 	t.Parallel()
 	const host = "https://api.example.com"
 	type wrapper interface {
