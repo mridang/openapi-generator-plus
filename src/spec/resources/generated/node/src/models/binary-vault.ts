@@ -11,7 +11,7 @@ import { decodeBase64 } from "../object-serializer.js";
 export class BinaryVault {
   /**
    * 2.5 — Wire-serialization registry for `type: number` (no format)
-   * fields. Such fields are carried as branded {@link Decimal} values,
+   * fields. Such fields are carried as branded `Decimal` values,
    * which are plain strings at runtime to preserve arbitrary precision.
    * On the request path ObjectSerializer.serialize walks the instance with
    * JSON.stringify, which would quote a string and emit
@@ -131,7 +131,7 @@ export class BinaryVault {
   }
 
   /**
-   * Decode-time validation, run by {@link ObjectSerializer.deserialize} on the
+   * Decode-time validation, run by `ObjectSerializer.deserialize` on the
    * instance it built from the wire. The constructor itself checks nothing, so
    * a model can be built from any value and a wrong type or an unknown enum
    * string never raises there. This is the wire boundary: a missing required

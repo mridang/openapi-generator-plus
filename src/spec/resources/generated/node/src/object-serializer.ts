@@ -47,7 +47,7 @@ export function isTemporalValue(value: unknown, kind?: string): boolean {
 }
 
 /**
- * Total nanoseconds in a {@link Temporal.Duration} as an exact BigInt.
+ * Total nanoseconds in a `Temporal.Duration` as an exact BigInt.
  *
  * Avoids `Duration.prototype.total()` (which returns a `number` and loses
  * integer precision past 2^53 ns, i.e. ~104 days) by summing the duration's
@@ -72,7 +72,7 @@ function durationTotalNanos(d: Temporal.Duration): bigint {
 }
 
 /**
- * Serialize a {@link Temporal.Duration} to the protobuf-JSON wire format
+ * Serialize a `Temporal.Duration` to the protobuf-JSON wire format
  * (https://protobuf.dev/programming-guides/json/): a decimal number of
  * seconds suffixed with `s`, e.g. `"3600s"` or `"3600.000000001s"`.
  *
@@ -104,7 +104,7 @@ export function durationToProtoJson(d: Temporal.Duration): string {
 
 /**
  * Parse a protobuf-JSON duration string (see {@link durationToProtoJson})
- * back into a {@link Temporal.Duration}.
+ * back into a `Temporal.Duration`.
  *
  * @throws SerializationError if the input is not a valid protobuf-JSON
  *   duration (e.g. an ISO-8601 `"PT1H"`, a bare number, or a trailing
@@ -309,7 +309,7 @@ function validateDecoded<T>(model: T): T {
  * Nested-model validation. class-transformer builds every nested `@Type`
  * model with a no-argument `new X()` and then assigns the fields, so no
  * validation has run on a nested model. Only the root model is validated by
- * {@link ObjectSerializer.deserialize}, so a nested model with a missing
+ * `ObjectSerializer.deserialize`, so a nested model with a missing
  * required field or a wrong-typed field would otherwise decode silently.
  *
  * {@link revalidateNestedFields} walks a freshly built model graph (model
@@ -375,7 +375,7 @@ function revalidateNestedValue(value: unknown): unknown {
  * Copies the free-form wire keys of `raw` onto `value` when `value` is a
  * generated model that declares `additionalProperties` (its class carries
  * `__additionalPropertiesDeclaredKeys`). plainToInstance with
- * excludeExtraneousValues keeps only @Expose keys, so without this the extras
+ * excludeExtraneousValues keeps only keys with an Expose decorator, so without this the extras
  * of the root model, of a nested model field and of every array element would
  * be lost. An array is matched element by element; any other value, or a model
  * without the marker, is returned untouched.
@@ -1058,7 +1058,7 @@ export class ObjectSerializer {
        * Gap L11: a model declaring `unevaluatedProperties:false` (OAS 3.1 /
        * JSON Schema 2020-12) is STRICT — an undeclared wire key is a contract
        * violation that must be REJECTED, not silently dropped. plainToInstance
-       * with excludeExtraneousValues discards every non-@Expose key, so without
+       * with excludeExtraneousValues discards every key without an Expose decorator, so without
        * this gate the strict contract would be unenforced on the real
        * deserialize path.
        * The static `__strictDeclaredKeys` set (present only on strict models)
@@ -1105,7 +1105,7 @@ export class ObjectSerializer {
         /**
          * H11: a model declaring `additionalProperties` carries free-form wire
          * keys on an index signature. plainToInstance(excludeExtraneousValues)
-         * drops every key without an @Expose decorator — the index signature is
+         * drops every key without an Expose decorator — the index signature is
          * not exposed — so those extras would be silently lost on a round-trip.
          * Re-attach any json key NOT in the model's declared-key set so free-form
          * data survives. Models without the marker intentionally discard extras.

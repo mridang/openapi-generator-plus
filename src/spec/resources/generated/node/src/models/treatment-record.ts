@@ -128,7 +128,7 @@ export class TreatmentRecord {
 
   /**
    * Merge the own-enumerable fields of every retained variant into a single
-   * plain object. Used by {@link ObjectSerializer.serialize} so re-encoding a
+   * plain object. Used by `ObjectSerializer.serialize` so re-encoding a
    * co-satisfied composite emits the UNION of all variants' fields (lossless
    * round-trip), not just the first variant's.
    */

@@ -822,7 +822,7 @@ export abstract class AbstractApiClient implements ApiClient {
    * the fetch layer did NOT decode -- the bytes still carry the codec signature
    * (e.g. the gzip magic `0x1F 0x8B`) -- handing them to the caller untouched
    * would silently surface corrupt, undecoded bytes. In that case we decode the
-   * gzip stream ourselves with the Web-standard {@link DecompressionStream} (so
+   * gzip stream ourselves with the Web-standard `DecompressionStream` (so
    * the guard runs on every runtime) and surface any failure as an
    * {@link ApiError}. Bodies whose declared codec was already decoded (no
    * signature bytes remain) and bodies with no/identity `Content-Encoding` pass

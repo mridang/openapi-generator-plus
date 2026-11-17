@@ -2,8 +2,8 @@
 
 /**
  * Branded root of the SDK error hierarchy. Every error this client throws —
- * transport/API errors ({@link ApiError} and its 4xx/5xx subclasses),
- * (de)serialization errors ({@link SerializationError}), and OAuth2
+ * transport/API errors (`ApiError` and its 4xx/5xx subclasses),
+ * (de)serialization errors (`SerializationError`), and OAuth2
  * token/server errors raised during authentication —
  * ultimately extends this class, so a single `catch (e) { if (e instanceof
  * {{errorPrefix}}Error) … }` distinguishes errors originating in the SDK from

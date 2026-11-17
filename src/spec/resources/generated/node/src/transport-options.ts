@@ -225,7 +225,7 @@ export class TransportOptions {
    * Transport-level default headers included in every request.
    *
    * These headers have the lowest priority: API-level headers from
-   * {@link Configuration.defaultHeaders}, operation-specific headers, and
+   * `Configuration.defaultHeaders`, operation-specific headers, and
    * authentication headers all take precedence.
    */
   public readonly defaultHeaders: Readonly<Record<string, string>>;

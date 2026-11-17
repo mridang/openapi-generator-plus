@@ -10,7 +10,7 @@ import { OpenAPIError } from "./open-api-error.js";
 /**
  * Exception raised when serialization or deserialization fails. Extends the
  * branded {@link OpenAPIError} root so it shares a common `instanceof
- * OpenAPIError` ancestor with the transport-level {@link ApiError} hierarchy.
+ * OpenAPIError` ancestor with the transport-level `ApiError` hierarchy.
  */
 export class SerializationError extends OpenAPIError {
   public readonly cause?: Error;
