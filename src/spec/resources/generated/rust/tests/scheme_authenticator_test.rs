@@ -164,6 +164,28 @@ mod pet_store_basic_authenticator {
             .is_ok());
         });
     }
+
+    #[test]
+    fn test_bhv_authbasic_013_an_explicit_credential_wins_over_the_environment() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME",
+                Some("bad\r\nvalue"),
+            ),
+            (
+                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD",
+                Some("bad\r\nvalue"),
+            ),
+        ];
+        with_variables(&unusable, || {
+            assert!(PetStoreBasicAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-username"),
+                Some("explicit-password")
+            )
+            .is_ok());
+        });
+    }
 }
 
 mod admin_basic_authenticator {
@@ -364,6 +386,36 @@ mod pet_store_bearer_authenticator {
             )
             .is_ok());
         });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_lifecycle_025_the_environment_is_read_once_when_the_authenticator_is_built() {
+        let auth = with_variables(&set_all(), || {
+            let auth = PetStoreBearerAuthenticator::new("https://api.example.com", None).unwrap();
+            std::env::set_var(
+                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN",
+                "changed-after-build",
+            );
+            auth
+        });
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer value-token")
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authbearer_018_an_explicit_token_wins_over_the_environment() {
+        let auth = with_variables(&set_all(), || {
+            PetStoreBearerAuthenticator::new("https://api.example.com", Some("explicit-token"))
+                .unwrap()
+        });
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer explicit-token")
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -611,6 +663,21 @@ mod api_key_header_authenticator {
     fn test_an_explicit_argument_is_not_overridden_by_the_environment() {
         /* The variables hold values no authenticator accepts, so the call can
          * only succeed when they were never consulted. */
+        let unusable: Vec<(&str, Option<&str>)> = vec![(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY",
+            Some("bad\r\nvalue"),
+        )];
+        with_variables(&unusable, || {
+            assert!(ApiKeyHeaderAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-api_key")
+            )
+            .is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_187_an_explicit_key_wins_over_the_environment() {
         let unusable: Vec<(&str, Option<&str>)> = vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY",
             Some("bad\r\nvalue"),

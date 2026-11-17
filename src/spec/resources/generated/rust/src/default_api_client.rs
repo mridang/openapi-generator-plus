@@ -1540,6 +1540,22 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationwire_056_multipart_raw_bytes_part_with_unknown_extension_falls_back_to_octet_stream(
+    ) {
+        let fields = [(
+            "payload.zzz".to_string(),
+            MultipartValue::Bytes(vec![1, 2, 3]),
+        )];
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("Content-Type: application/octet-stream\r\n"),
+            "an unknown extension must fall back to application/octet-stream, got: {}",
+            body_str
+        );
+    }
+
+    #[test]
     fn test_bhv_serializationwire_039_multipart_file_part_content_type_png_from_extension() {
         let fields = [(
             "avatar.png".to_string(),

@@ -760,11 +760,19 @@ mod tests {
     /* -- serialize_styled: form -- */
 
     #[test]
-    fn test_serialize_styled_form_scalar() {
+    fn test_bhv_serializationparam_105_serialize_styled_form_scalar() {
         let result = super::serialize_styled(
             "color", Some("blue"), None, "query", "string", "", "form", true,
         );
         assert_eq!(unwrap_single(result), "blue");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_106_path_with_null_style_behaves_like_simple() {
+        let null_style = super::serialize_styled("id", Some("5"), None, "path", "string", "", "", false);
+        let simple = super::serialize_styled("id", Some("5"), None, "path", "string", "", "simple", false);
+        assert_eq!(unwrap_single(null_style), "5");
+        assert_eq!(unwrap_single(simple), "5");
     }
 
     #[test]

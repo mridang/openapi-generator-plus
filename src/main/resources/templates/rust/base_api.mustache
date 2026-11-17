@@ -859,6 +859,18 @@ fn is_valid_cookie_value(value: &str) -> bool {
  * drive the public API surface remain in `tests/base_api_test.rs`. */
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn test_bhv_retries_029_an_unusable_retry_after_falls_back_to_the_backoff() {
+        /* The first retry waits 0.5 s less up to 25% jitter when Retry-After is not understood. */
+        for header in ["", "soon", "-5", "nan", "inf"] {
+            let parsed = parse_retry_after(header);
+            assert!(parsed.is_none(), "{:?} must not parse", header);
+            let delay = retry_delay(0, parsed);
+            assert!(delay >= std::time::Duration::from_millis(375), "{:?}: {:?}", header, delay);
+            assert!(delay <= std::time::Duration::from_millis(500), "{:?}: {:?}", header, delay);
+        }
+    }
+
     use super::{
         build_query_string, fits_budget, is_retryable_error, is_retryable_status,
         parse_retry_after, retry_delay, serialize_body, BaseApi, CallOptions, InvokeApiParams,

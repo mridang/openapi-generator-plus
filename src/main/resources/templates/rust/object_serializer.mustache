@@ -1700,6 +1700,13 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationobject_186_request_json_escapes_only_quote_backslash_and_controls() {
+        let value = serde_json::json!("\"\\\u{1}\u{7f}/");
+        let serialized = object_serializer::serialize(&value).expect("serialize failed");
+        assert_eq!("\"\\\"\\\\\\u0001\u{7f}/\"", serialized);
+    }
+
+    #[test]
     fn test_bhv_serializationobject_160_non_ascii_tab_character_escaped_properly() {
         let json_value = serde_json::json!({"key": "a\tb"});
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");

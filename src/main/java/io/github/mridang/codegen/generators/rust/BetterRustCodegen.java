@@ -195,6 +195,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** One entry per per-scheme authenticator, for the generated environment-variable tests. */
     private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
+    /* Base classes whose catalogue-id test has been emitted once (see the per-scheme entries). */
+    private final java.util.Set<String> bhvIdsClaimed = new java.util.HashSet<>();
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
@@ -1469,6 +1471,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         entry.put("envParams", envParams);
         entry.put("firstEnvName", envParams.isEmpty() ? "" : envParams.get(0).get("envName"));
         entry.put("isBearer", bearer);
+        /* The id-tagged explicit-wins and env-read-once tests carry a catalogue id, which must
+         * appear exactly once per language, so only the first scheme of each base class gets them. */
+        final String baseClassName = spec.baseClass();
+        entry.put("isBasic", "BasicAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("basic"));
+        entry.put("isApiKey", "ApiKeyAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("apikey"));
+        entry.put("bearerIdOnce", bearer && bhvIdsClaimed.add("bearer"));
         entry.put("firstParam", envParams.isEmpty() ? "" : envParams.get(0).get("name"));
         final List<String> explicitArgs = new ArrayList<>();
         final List<String> bareArgs = new ArrayList<>();

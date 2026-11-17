@@ -394,6 +394,35 @@ fn test_bhv_serializationobject_026_array_of_byte_field_round_trips_through_base
 }
 
 #[test]
+fn test_bhv_serializationobject_184_iso8601_duration_string_is_rejected() {
+    use petstore::proto_duration;
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct DurationHolder {
+        #[serde(with = "proto_duration")]
+        ttl: chrono::Duration,
+    }
+
+    let err = serde_json::from_str::<DurationHolder>(r#"{"ttl":"PT1H"}"#)
+        .expect_err("an ISO-8601 duration must not decode");
+    assert!(
+        err.to_string().contains("protobuf-JSON duration"),
+        "got: {}",
+        err
+    );
+}
+
+#[test]
+fn test_bhv_serializationobject_185_padded_standard_base64_is_accepted() {
+    use petstore::models::BinaryVault;
+
+    let vault: BinaryVault =
+        serde_json::from_str(r#"{"seal":"dGVzdA=="}"#).expect("padded base64 decodes");
+    assert_eq!(vault.seal, Some(b"test".to_vec()));
+}
+
+#[test]
 fn test_bhv_serializationobject_054_proto_duration_parses_fractional_seconds() {
     use chrono::Duration;
     use petstore::proto_duration;

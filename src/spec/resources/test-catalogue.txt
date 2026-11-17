@@ -1022,7 +1022,7 @@ serializationobject184 | Iso8601 duration string rejected
 serializationobject185 | Deserialize: canonical padded base64 is accepted
 serializationobject186 | Request JSON escapes only the quote, the backslash and controls
 lifecycle024 | A supplied psr18 client conflicts with sdk proxy and tls settings
-errors047 | Name is ApiError
+errors047 | A 500 typed error is an OpenAPI error and chains through ServerError to ApiError
 serializationobject187 | An explicit key wins over the environment
 errors048 | 418 throws ClientException
 authbasic013 | Explicit credentials win over the environment
